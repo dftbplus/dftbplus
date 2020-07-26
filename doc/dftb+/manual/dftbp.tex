@@ -300,6 +300,7 @@ methods are available:
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
@@ -434,6 +435,7 @@ methods are available:
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 See previous subsection for the description of the properties.
@@ -456,6 +458,7 @@ See previous subsection for the description of the properties.
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 Specific properties for this method are:
@@ -486,6 +489,7 @@ properties.\footnote{This approach is distinct from
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 Specific properties for this method are:
@@ -557,6 +561,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{Xlbomd} & p & XlbomdFast \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{XlbomdFast} & p & Xlbomd \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{Masses} & p & & & \pref{sec:dftbp.Masses} \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
   \kw{Plumed} & l & No & & \\
 \end{ptable}
 
@@ -663,11 +668,12 @@ accumulation of data for dynamical properties.
   \kw{AdaptFillingTemp} & l & & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of
-  the thermostat.  It can be either a real value, specifying a
-  constant temperature through the entire run or the
-  \kwcb{TemperatureProfile} method specifying a changing temperature.
-  (See p.~\pref{sec:dftbp.TemperatureProfile}.)
+\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of the
+  thermostat.  It can be either a real value, specifying a constant temperature
+  through the entire run or the \kwcb{TemperatureProfile} method specifying a
+  changing temperature (See p.~\pref{sec:dftbp.TemperatureProfile}). In the case
+  of \is{Replicas} (page~\pref{sec:dftbp.Replicas}), one temperature for each
+  replica should be specified.
 \item[\is{ReselectProbability}] Probability for re-selecting
   velocities from the Maxwell-Boltzmann distribution.
 \item[\is{ReselectIndividually}] If \is{Yes}, each atomic velocity is
@@ -696,11 +702,12 @@ before using this thermostat~\cite{harvey-JCC-19-726}).
   \kw{AdaptFillingTemp} & l   &                               & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of
-  the thermostat.  It can be either a real value specifying a constant
-  temperature through the entire run or the \kwcb{TemperatureProfile}
-  method specifying a changing temperature.  (See
-  p.~\pref{sec:dftbp.TemperatureProfile}.)
+\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of the
+  thermostat.  It can be either a real value, specifying a constant temperature
+  through the entire run or the \kwcb{TemperatureProfile} method specifying a
+  changing temperature (See p.~\pref{sec:dftbp.TemperatureProfile}). In the case
+  of \is{Replicas} (page~\pref{sec:dftbp.Replicas}), one temperature for each
+  replica should be specified.
 \item[\is{CouplingStrength}] Dimensionless coupling strength for the
   thermostat (given as $\Delta t / \tau_t$ in the original paper where
   $\Delta t$ is the MD time step). Alternatively
@@ -733,12 +740,13 @@ all of the atoms in the system.
   \kw{AdaptFillingTemp} & l & & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of
-  the thermostat.  It can be either a real value, specifying a
-  constant temperature through the entire run or the
-  \kwcb{TemperatureProfile} method specifying a changing temperature.
-  (See p.~\pref{sec:dftbp.TemperatureProfile}, but note that profiles are not
-  well tested with this thermostat yet.)
+\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of the
+  thermostat.  It can be either a real value, specifying a constant temperature
+  through the entire run or the \kwcb{TemperatureProfile} method specifying a
+  changing temperature (See p.~\pref{sec:dftbp.TemperatureProfile} but note that
+  profiles are not well tested with this thermostat yet.). In the case of
+  \is{Replicas} (page~\pref{sec:dftbp.Replicas}), one temperature for each
+  replica should be specified.
 \item[\is{CouplingStrength}]\modif{\modtype{Frequency}} Frequency of
   oscillation of the thermostating particles (see section~2.5 of
   Ref.~\cite{martyna-mp-87-1117}). This is typically related to the
@@ -984,6 +992,13 @@ Slater-Koster file. An example is given below
   }
 \end{verbatim}
 where \kw{Atoms} specifies the atom or atoms which each have a mass of \kw{MassPerAtom} assigned.
+
+\subsection{Replicas}
+\label{sec:dftbp.Replicas}
+
+Mutiple structures can be simultaneously simulated. Currently the input
+structure is replicated accross these. This option is only available for MPI
+compled code.
 
 \subsection{Socket\cb}
 \label{sec:dftbp.Socket}

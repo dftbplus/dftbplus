@@ -3839,7 +3839,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver)
+  subroutine printEnergies(env, energy, TS, electronicSolver)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3850,7 +3853,37 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
+  #:if WITH_MPI
+    integer :: iReplica
+    real(dp), allocatable :: buffer(:,:)
+
     write(stdOut, *)
+    allocate(buffer(4,env%mpi%nReplicas))
+    buffer = 0.0_dp
+    if (env%mpi%tReplicaLead) then
+      buffer(:, env%mpi%myReplica+1) = [energy%Etotal, energy%Ezero, energy%EMermin,&
+          & energy%EForceRelated]
+      call mpifx_allreduceip(env%mpi%interReplicaComm, buffer, MPI_SUM)
+      do iReplica = 1, env%mpi%nReplicas
+        if (env%mpi%nReplicas > 1) then
+          write(stdOut, "(1X,'Replica : ',I0)")iReplica
+        end if
+        write(stdOut, format2U) "Total Energy", buffer(1, iReplica),"H",&
+            & Hartree__eV * buffer(1, iReplica),"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(stdOut, format2U) "Extrapolated to 0", buffer(2, iReplica), "H",&
+              & Hartree__eV * buffer(2, iReplica)," eV"
+          write(stdOut, format2U) "Total Mermin free energy", buffer(3, iReplica), "H",&
+              & Hartree__eV * buffer(3, iReplica)," eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(stdOut, format2U) "Force related energy", buffer(4, iReplica), "H",&
+              & Hartree__eV * buffer(4, iReplica)," eV"
+        end if
+      end do
+      write(stdOut, *)
+    end if
+  #:else
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
     if (electronicSolver%providesEigenvals) then
       write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
@@ -3864,6 +3897,7 @@ contains
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
+  #:endif
 
   end subroutine printEnergies
 

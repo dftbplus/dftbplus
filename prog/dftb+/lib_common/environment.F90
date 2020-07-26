@@ -32,6 +32,15 @@ module dftbp_environment
     !> Whether this process is the lead?
     logical, public :: tGlobalLead = .true.
 
+    !> Whether this process is a replica lead?
+    logical, public :: tReplicaLead = .true.
+
+    !> Nr. of replicas in the system
+    integer, public :: nReplicas = 1
+
+    !> Id of current replica (starts with 0)
+    integer, public :: myReplica = 0
+
     !> Nr. of groups in the system
     integer, public :: nGroup = 1
 
@@ -155,8 +164,8 @@ contains
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-    
-  
+
+
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -198,7 +207,7 @@ contains
 #:if WITH_MPI
 
   !> Initializes MPI environment.
-  subroutine TEnvironment_initMpi(this, nGroup)
+  subroutine TEnvironment_initMpi(this, nGroup, nReplicas)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -206,9 +215,15 @@ contains
     !> Number of process groups to create
     integer, intent(in) :: nGroup
 
+    !> Number of structure replicas
+    integer, intent(in) :: nReplicas
+
     ! MPI settings
-    call TMpiEnv_init(this%mpi, nGroup)
+    call TMpiEnv_init(this%mpi, nGroup, nReplicas)
     this%tGlobalLead = this%mpi%tGlobalLead
+    this%tReplicaLead = this%mpi%tReplicaLead
+    this%nReplicas = this%mpi%nReplicas
+    this%myReplica = this%mpi%myReplica
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
 

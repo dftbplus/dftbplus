@@ -143,7 +143,7 @@ program modes
             do iAt = 1, nAtom
               write(fdUnit,'(A3,T4,3F10.6)') &
                   & geo%speciesNames(geo%species(iAt)), &
-                  & (geo%coords(:,iAt)&
+                  & (geo%coords(:,iAt,1)&
                   & + cos(2.0_dp * pi * real(ll) / real(nSteps))&
                   & * displ(:,iAt,ii)) * Bohr__AA
             end do
@@ -162,7 +162,7 @@ program modes
           do iAt = 1, nAtom
             write(fdUnit,'(A3,T4,3F10.6,A,3F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
-                & geo%coords(:,iAt)* Bohr__AA, ' atom_vector ',&
+                & geo%coords(:,iAt,1)* Bohr__AA, ' atom_vector ',&
                 & displ(:,iAt,ii)
           end do
         else
@@ -170,7 +170,7 @@ program modes
           do iAt = 1, nAtom
             write(fdUnit,'(A3,T4,6F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
-                & geo%coords(:,iAt)* Bohr__AA, &
+                & geo%coords(:,iAt,1)* Bohr__AA, &
                 & displ(:,iAt,ii)
           end do
         end if

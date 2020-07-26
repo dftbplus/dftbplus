@@ -191,12 +191,12 @@ contains
 
     ! Create coorinates for central cell and periodic images
     allocate(this%coords(3, this%nAtom, this%nCell))
-    this%coords(:,:,1) = geometry%coords(:,:)
+    this%coords(:,:,1) = geometry%coords(:,:,1)
     if (this%tPeriodic) then
       call foldCoordToUnitCell(this%coords(:,:,1), this%latVecs, this%recVecs2p)
       do ii = 2, this%nCell
         do jj = 1, this%nAtom
-          this%coords(:,jj, ii) = this%coords(:,jj,1) + rCellVec(:,ii)
+          this%coords(:, jj, ii) = this%coords(:, jj, 1) + rCellVec(:, ii)
         end do
       end do
     end if

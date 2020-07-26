@@ -1230,6 +1230,30 @@ contains
       end if
     end if
 
+    if (input%ctrl%nReplicas > 1 .and. .not. withMpi) then
+      call error("Replicas only available for MPI parallel code at the moment")
+    end if
+    if (input%ctrl%nReplicas < 0) then
+      call error("Nonsensical replica count")
+    end if
+
+    ! temporary change, as replication of structures should be done at parser level, just make a
+    ! symetric copy of the structure to each replica, over-writing the initial geometry from the
+    ! parser with the replicated cases.
+    if (input%ctrl%nReplicas > 1) then
+      block
+        real(dp), allocatable :: r3Tmp(:,:,:)
+        allocate(r3Tmp(3,nAtom,input%ctrl%nReplicas))
+        r3Tmp(:,:,:) = 0.0_dp
+        do ii = 1, input%ctrl%nReplicas
+          r3Tmp(:,:,ii) = input%geom%coords(:,:,1)
+          ! make small structure difference in images -- test case, to be replaced
+          !r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
+        end do
+        call move_alloc(r3Tmp,input%geom%coords)
+      end block
+    end if
+
   #:if WITH_MPI
 
     if (input%ctrl%parallelOpts%nGroup > nIndepHam * nKPoint) then
@@ -1240,7 +1264,7 @@ contains
       call error(trim(tmpStr))
     end if
 
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    call env%initMpi(input%ctrl%parallelOpts%nGroup, input%ctrl%nReplicas)
   #:endif
 
 
@@ -1534,8 +1558,9 @@ contains
 
     ! Initial coordinates
     allocate(coord0(3, nAtom))
-    @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
-    coord0(:,:) = input%geom%coords(:,:)
+    @:ASSERT(all(shape(input%geom%coords) == [3, nAtom, env%nReplicas]))
+    ! local coordinates for this replica grouping
+    coord0(:,:) = input%geom%coords(:, :, env%myReplica+1)
 
     tCoordsChanged = .true.
 

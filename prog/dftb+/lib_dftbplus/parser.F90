@@ -393,6 +393,7 @@ contains
     ctrl%iThermostat = 0
     ctrl%tForces = .false.
     ctrl%tSetFillingTemp = .false.
+    ctrl%nReplicas = 1
 
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
@@ -457,6 +458,10 @@ contains
       end if
       ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
+
     case ("conjugategradient")
       ! Conjugate gradient location optimisation
 
@@ -510,6 +515,10 @@ contains
       end if
       ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
+
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
 
@@ -561,6 +570,10 @@ contains
         end if
       end if
       ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
 
     case ("lbfgs")
 
@@ -618,6 +631,10 @@ contains
       allocate(ctrl%lbfgsInp)
       call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
+
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
 
@@ -635,6 +652,10 @@ contains
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
       ctrl%tConvrgForces = .true.
+
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
 
     case ("velocityverlet")
       ! molecular dynamics
@@ -844,6 +865,10 @@ contains
       call readXlbomdOptions(node, ctrl%xlbomd)
 
       call getInputMasses(node, geom, ctrl%masses)
+
+      if (withMpi) then
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
 
     case ("socket")
       ! external socket control of the run (once initialised from input)
@@ -3798,8 +3823,8 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec)
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geo%coords(:,:,1),&
+          & mCutoff, rCellVec)
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
@@ -4151,7 +4176,8 @@ contains
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case default
-        call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+        call detailedError(child2, "Unknown method '"//char(buffer)//&
+            & "' to generate electronegativities")
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
@@ -5304,8 +5330,8 @@ contains
     call reduce(geom, contactRange(1), contactRange(2))
     if (.not. geom%tPeriodic) then
       do ii = 2, 3
-        minProj = minval(matmul(newLatVecs(:,ii), geom%coords))
-        maxProj = maxval(matmul(newLatVecs(:,ii), geom%coords))
+        minProj = minval(matmul(newLatVecs(:,ii), geom%coords(:,:,1)))
+        maxProj = maxval(matmul(newLatVecs(:,ii), geom%coords(:,:,1)))
         newLatVecs(:,ii) = ((maxProj - minProj) + lateralContactSeparation) * newLatVecs(:,ii)
       end do
     end if
@@ -5829,16 +5855,16 @@ contains
 
     ! Determining intra-contact layer vector
     iStart2 = iStart + (iEnd - iStart + 1) / 2
-    contactVec = geom%coords(:,iStart) - geom%coords(:,iStart2)
+    contactVec = geom%coords(:,iStart,1) - geom%coords(:,iStart2,1)
 
-    if (any(sum( (geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+    if (any(sum( (geom%coords(:,iStart:iStart2-1,1) - geom%coords(:,iStart2:iEnd,1)&
         & - spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1) > contactLayerTol**2))&
         & then
       write(stdout,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
       write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
       write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
       do ii = 0, iStart2 -1 -iStart
-        if (sum((geom%coords(:,ii+iStart)-geom%coords(:,ii+iStart2) - contactVec)**2)&
+        if (sum((geom%coords(:,ii+iStart,1)-geom%coords(:,ii+iStart2,1) - contactVec)**2)&
             & > contactLayerTol**2) then
           write(stdout,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
               & ' inconsistent with the contact vector.'
@@ -5846,7 +5872,7 @@ contains
         end if
       end do
       write(stdout,*)'Mismatches in atomic positions in the two layers:'
-      write(stdout,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+      write(stdout,"(3F20.12)")((geom%coords(:,iStart:iStart2-1,1) - geom%coords(:,iStart2:iEnd,1)&
           & - spread(contactVec(:), dim=2, ncopies=iStart2-iStart))) * Bohr__AA
 
       write (errorStr,"('Contact ',A,' (',A,') does not consist of two rigidly shifted layers')")&

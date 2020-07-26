@@ -502,6 +502,9 @@ module dftbp_inputdata
     !> Maximal timing level to show in output
     integer :: timingLevel
 
+    !> Number of replica structures in the system
+    integer :: nReplicas
+
     ! Custom occupations
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
