@@ -157,8 +157,8 @@ contains
       ! check position of contact w.r.t. device atoms 
       ! and decide sign of contact direction
       associate(data=>iAtInRegion(icont)%data, dir=>contDir(icont))
-      mean = sum(geom%coords(dir, data))/real(size(data),dp)
-      if (mean < minval(geom%coords(dir,iAtInRegion(ncont+1)%data ))) then
+      mean = sum(geom%coords(dir, data,1))/real(size(data),dp)
+      if (mean < minval(geom%coords(dir,iAtInRegion(ncont+1)%data,1))) then
         dir = -dir
       end if   
       end associate
@@ -167,13 +167,13 @@ contains
       allocate(indxs(size(subarray)))
       ! identify contact direction wrt device
       if (contDir(icont)>0) then
-        subarray(:)=geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:))
+        subarray(:)=geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:), 1)
       else
-        subarray(:)=-geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:))
+        subarray(:)=-geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:), 1)
       end if
       ! sort contact directions perpendicular to device by largest coord range in that direction
-      contRange(:) = abs(maxval(geom%coords(:,iAtInRegion(icont)%data(:)),dim=2)&
-          & - minval(geom%coords(:,iAtInRegion(icont)%data(:)),dim=2))
+      contRange(:) = abs(maxval(geom%coords(:,iAtInRegion(icont)%data(:),1),dim=2)&
+          & - minval(geom%coords(:,iAtInRegion(icont)%data(:),1),dim=2))
       contRange(abs(contDir(icont))) = huge(1.0)
       call index_heap_sort(visitOrder, contRange)
       do ii = 3, 1, -1
@@ -181,9 +181,9 @@ contains
         if (jj == abs(contDir(icont))) then
           cycle
         end if
-        subarray(:) = subarray * (abs(maxval(geom%coords(jj,iAtInRegion(icont)%data(:))) -&
-            & minval(geom%coords(jj,iAtInRegion(icont)%data(:)))) + epsilon(1.0))
-        subarray(:) = subarray + geom%coords(jj, iAtInRegion(icont)%data(:))
+        subarray(:) = subarray * (abs(maxval(geom%coords(jj,iAtInRegion(icont)%data(:),1)) -&
+            & minval(geom%coords(jj,iAtInRegion(icont)%data(:),1))) + epsilon(1.0))
+        subarray(:) = subarray + geom%coords(jj, iAtInRegion(icont)%data(:),1)
       end do
       call index_heap_sort(indxs, subarray)
       buffer = iAtInRegion(icont)%data(indxs)
@@ -222,7 +222,7 @@ contains
         write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
         write(stdOut, *) "tolerance:",tol
         ! check PL size   
-        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont))
         write(stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
         if (mindist<plcutoff) then
           errmess(1) = "The size of the contact PL is shorter than SK cutoff" 
@@ -237,7 +237,7 @@ contains
           bestcross = huge(bestcross)
           bestdiff = huge(bestdiff)
           do jj = PLsize+1, 2*PLsize 
-            vec(:) = geom%coords(:,data(jj))-geom%coords(:,data(ii))
+            vec(:) = geom%coords(:,data(jj),1)-geom%coords(:,data(ii),1)
             bestcross = min(bestcross, norm2(cross3(vec,uu)))
             bestdiff = min(bestdiff, norm2(vec-vv))
             bestdiff = min(bestdiff, norm2(vec+vv))
@@ -282,7 +282,8 @@ contains
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
             iAtInRegion(icont)%data(jj) = geom%nAtom + jj - PLsize
-            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii)) &
+            geom%coords(:,iAtInRegion(icont)%data(jj),1) =&
+                & geom%coords(:,iAtInRegion(icont)%data(ii),1) &
                   &+ iPL*contVec(1:3,icont)
             geom%species(iAtInRegion(icont)%data(jj)) = geom%species(iAtInRegion(icont)%data(ii))
           end do
@@ -312,19 +313,18 @@ contains
     end subroutine reallocateInt
 
     subroutine reallocateCoords(array, addsize)
-      real(dp), intent(inout), allocatable :: array(:,:)
+      real(dp), intent(inout), allocatable :: array(:,:,:)
       integer, intent(in) :: addsize
 
       integer :: siz
-      real(dp), allocatable :: tmpcoords(:,:) 
+      real(dp), allocatable :: tmpcoords(:,:)
 
       siz = size(array,2)
-      allocate(tmpcoords(3,siz))
-      tmpcoords=array
+      allocate(tmpCoords(3,siz))
+      tmpcoords=array(:,:,1)
       deallocate(array)
-      allocate(array(3,siz+addsize))
-      array(:,1:siz)=tmpcoords
-      deallocate(tmpcoords)
+      allocate(array(3,siz+addsize,1))
+      array(:,1:siz,1)=tmpcoords
     end subroutine reallocateCoords
 
   end subroutine arrangeContactPLs
@@ -380,7 +380,7 @@ contains
           do icy = -nc(2), nc(2)
             do icz = -nc(3), nc(3)
               do jj = 1, sizeD
-                vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
+                vec(:) = geom%coords(:,buffer(ii),1)-geom%coords(:,dataD(jj),1)
                 if (allocated(geom%latVecs)) then
                   vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
                 end if 
@@ -390,7 +390,7 @@ contains
                   ! check distance from contact 2. If d < cutoff all remaining atoms
                   ! will go in the last PL
                   do kk = 1, size(dataR)
-                    vec(:) = geom%coords(:,dataD(jj))-geom%coords(:,dataR(kk))
+                    vec(:) = geom%coords(:,dataD(jj),1)-geom%coords(:,dataR(kk),1)
                     if (norm2(vec)<plcutoff) then
                       addAllR=.true.
                       exit lpL
@@ -501,9 +501,9 @@ contains
 
 
     if (geom%tPeriodic .and. tfold) then
-      geom%coords(1,:) = geom%coords(1,:) - minval(geom%coords(1,:))
-      geom%coords(2,:) = geom%coords(2,:) - minval(geom%coords(2,:))
-      geom%coords(3,:) = geom%coords(3,:) - minval(geom%coords(3,:))
+      geom%coords(1,:,1) = geom%coords(1,:,1) - minval(geom%coords(1,:,1))
+      geom%coords(2,:,1) = geom%coords(2,:,1) - minval(geom%coords(2,:,1))
+      geom%coords(3,:,1) = geom%coords(3,:,1) - minval(geom%coords(3,:,1))
       call foldCoordToUnitCell(geom%coords, geom%latVecs, geom%recVecs2p)
     end if
 
@@ -587,7 +587,7 @@ contains
       call get(PLlist, atomsInPL, jj)
       do ii = 1, size(atomsInPL)
         kk = kk + 1
-        write(fd1,102) kk, geom%species(atomsInPL(ii)), geom%coords(:,atomsInPL(ii))*Bohr__AA
+        write(fd1,102) kk, geom%species(atomsInPL(ii)), geom%coords(:,atomsInPL(ii),1)*Bohr__AA
       end do
       deallocate(atomsInPL)
     end do
@@ -598,7 +598,7 @@ contains
       do ii = 1, size(iAtInRegion(icont)%data)
         kk = mod(ii - 1, size(iAtInRegion(icont)%data) / 2) + 1
         write(fd1,102) kk, geom%species(iAtInRegion(icont)%data(ii)), &
-            geom%coords(:,iAtInRegion(icont)%data(ii))*Bohr__AA
+            geom%coords(:,iAtInRegion(icont)%data(ii),1)*Bohr__AA
       end do
     end do
 
@@ -620,7 +620,7 @@ contains
   subroutine foldCoordToUnitCell(coord, latVec, recVec2p, invShift)
 
     !> Contains the original coordinates on call and the folded ones on return.
-    real(dp), intent(inout) :: coord(:,:)
+    real(dp), intent(inout) :: coord(:,:,:)
 
     !> Lattice vectors (column format).
     real(dp), intent(in) :: latVec(:,:)
@@ -641,14 +641,14 @@ contains
     vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
     do ii = 1, nAtom
       do jj = 1, 3
-        frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii))
+        frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii,1))
       end do
-      tmp3(:) = coord(:,ii)
+      tmp3(:) = coord(:,ii,1)
       frac2(:) = frac(:) - real(floor(frac(:)), dp)
       where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
-      coord(:, ii) = matmul(latVec, frac2)
+      coord(:, ii, 1) = matmul(latVec, frac2)
       if (present(invShift)) then
-        invShift(:,ii) = tmp3(:) - coord(:,ii)
+        invShift(:,ii) = tmp3(:) - coord(:,ii,1)
       end if
     end do
 
@@ -657,7 +657,7 @@ contains
   function minDist2ndPL(coord, iAt, PLsize, contvec) result(mindist)
     
     !> Contains the original coordinates on call and the folded ones on return.
-    real(dp), intent(in) :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:,:)
 
     !> Indices of the atoms in a contact
     integer, intent(in) :: iAt(:)
@@ -679,7 +679,7 @@ contains
 
     do ii = 1, PLsize
       do jj = 1, PLsize
-        mindist = min(mindist,norm2(coord(:,iAt(ii))+vec2-coord(:,iAt(jj))))
+        mindist = min(mindist,norm2(coord(:,iAt(ii),1)+vec2-coord(:,iAt(jj),1)))
       end do   
     end do
 
