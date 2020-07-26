@@ -4363,7 +4363,7 @@ contains
       end if
     end if
 
-    call energies_init(energy, nAtom)
+    call TEnergies_init(energy, nAtom)
     call init(potential, orb, nAtom, nSpin)
 
     ! Nr. of independent spin Hamiltonians

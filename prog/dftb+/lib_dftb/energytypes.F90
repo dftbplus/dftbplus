@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module dftbp_energyTypes
+module dftbp_energytypes
   use dftbp_assert
   use dftbp_accuracy
   implicit none
   private
 
-  public :: TEnergies, energies_init
+  public :: TEnergies, TEnergies_init
 
 
   !> Data type to store components of the energy as named variables instead of
@@ -144,7 +144,7 @@ contains
 
 
   !> Allocates storage for the energy components
-  subroutine energies_init(this, nAtom)
+  subroutine TEnergies_init(this, nAtom)
 
     !> data structure to allocate
     type(TEnergies), intent(out) :: this
@@ -202,6 +202,6 @@ contains
     this%EMerminKin = 0.0_dp
     this%EGibbsKin = 0.0_dp
 
-  end subroutine energies_init
+  end subroutine TEnergies_init
 
-end module dftbp_energyTypes
+end module dftbp_energytypes
