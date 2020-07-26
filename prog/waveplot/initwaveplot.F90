@@ -204,7 +204,7 @@ contains
     type(string) :: strBuffer
     integer :: inputVersion
     integer :: ii
-    logical :: tHSD, tGroundState
+    logical :: tGroundState
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)

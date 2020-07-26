@@ -101,7 +101,6 @@ contains
     type(fnode), pointer :: hsdTree
     type(fnode), pointer :: root, tmp, child, dummy
     type(TParserflags) :: parserFlags
-    logical :: tHSD, missing
 
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 

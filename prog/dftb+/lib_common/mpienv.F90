@@ -45,11 +45,11 @@ module dftbp_mpienv
     !> Global rank of the processes in the given group
     integer, allocatable :: groupMembers(:)
 
-    !> Whether current process is the global master
-    logical :: tGlobalMaster
+    !> Whether current process is the global lead
+    logical :: tGlobalLead
 
-    !> Whether current process is the group master
-    logical :: tGroupMaster
+    !> Whether current process is the group lead
+    logical :: tGroupLead
 
     !> Number of geometry replicas in the global comm world
     integer :: nReplicas
@@ -72,8 +72,8 @@ module dftbp_mpienv
     !> Global rank of the processes in the given replica group
     integer, allocatable :: replicaMembers(:)
 
-    !> Whether current process is the replica master
-    logical :: tReplicaMaster
+    !> Whether current process is the replica lead
+    logical :: tReplicaLead
 
   contains
 
@@ -197,18 +197,18 @@ contains
     ! communicator to equivalent rank processors in different groups within the replica
     call this%intraReplicaComm%split(this%myGroupRank, this%myGroup, this%interGroupComm)
 
-    this%tGlobalMaster = this%globalComm%master
-    this%tReplicaMaster = this%intraReplicaComm%master
-    this%tGroupMaster = this%groupComm%master
+    this%tGlobalLead = this%globalComm%lead
+    this%tReplicaLead = this%intraReplicaComm%lead
+    this%tGroupLead = this%groupComm%lead
 
-    if (this%tGlobalMaster .and. .not. this%tGroupMaster) then
-      call error("Internal error: Global master process is not a group master process")
+    if (this%tGlobalLead .and. .not. this%tGroupLead) then
+      call error("Internal error: Global lead process is not a group leading process")
     end if
-    if (this%tGlobalMaster .and. .not. this%tReplicaMaster) then
-      call error("Internal error: Global master process is not a replica master process")
+    if (this%tGlobalLead .and. .not. this%tReplicaLead) then
+      call error("Internal error: Global lead process is not a replica lead process")
     end if
-    if (this%tReplicaMaster .and. .not. this%tGroupMaster) then
-      call error("Internal error: Replica master process is not a group master process")
+    if (this%tReplicaLead .and. .not. this%tGroupLead) then
+      call error("Internal error: Replica lead process is not a group lead process")
     end if
 
   end subroutine TMpiEnv_init

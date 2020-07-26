@@ -7,3 +7,4 @@
 fileinit            #? not WITH_MPI and not BUILD_SHARED_LIBS
 geodisp             #? not WITH_MPI and not BUILD_SHARED_LIBS
 extpot              #? not WITH_MPI and not BUILD_SHARED_LIBS
+qdepextpot          #? not WITH_MPI and not BUILD_SHARED_LIBS

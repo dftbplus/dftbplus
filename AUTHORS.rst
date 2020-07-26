@@ -25,6 +25,9 @@ The DFTB+ development is being lead and coordinated by:
 The following people (in alphabetic order by their family names) have
 contributed to DFTB+ :
 
+* Franco Bonafé (Max Planck Institute for the Structure and Dynamics
+  of Matter, Germany)
+
 * Cristopher Camacho (University of Costa Rica)
 
 * Caterina Cevallos-Brenes (University of Costa Rica)
@@ -34,7 +37,8 @@ contributed to DFTB+ :
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
-* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
+* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of
+  Korea)
 
 * Izaac Mitchell (University of Newcastle, Australia)
   
@@ -45,7 +49,10 @@ contributed to DFTB+ :
 * Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
   QuantumWise A/S, Denmark)
 
-* Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech Republic)
+* Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech
+  Republic)
+  
+* Cristián G. Sánchez (Universidad Nacional de Cuyo, Argentina)
 
 * Michael Sternberg (Argonne National Laboratory, USA)
 

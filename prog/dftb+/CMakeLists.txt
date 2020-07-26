@@ -3,6 +3,13 @@
 #
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
+if(WITH_API)
+  message(STATUS "DFTB+ API version: ${API_VERSION}")
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_VERSION}'")
+  list(APPEND FYPP_FLAGS -DAPIMAJOR=${API_VERSION_MAJOR} -DAPIMINOR=${API_VERSION_MINOR}
+    -DAPIPATCH=${API_VERSION_PATCH})
+endif()
+
 #
 # Compile and install library
 #
@@ -40,6 +47,11 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-
 # Library components
 
 add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES-C})
+
+if(WITH_MPI)
+  target_include_directories(dftbplus PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(dftbplus PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
 
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
@@ -98,11 +110,11 @@ if(WITH_MPI)
   target_link_libraries(dftbplus PRIVATE ${SCALAPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
-
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
 endif()
+
+target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if (WITH_GPU)
   target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
@@ -122,7 +134,7 @@ endif()
 
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h ${INSTALL_INC_DIR}/dftbplus.h @ONLY)
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)

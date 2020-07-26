@@ -63,17 +63,17 @@ contains
 
 
   !> Mark data structure as initialised
-  subroutine InputData_init(self)
-    type(TInputData), intent(out) :: self
+  subroutine InputData_init(this)
+    type(TInputData), intent(out) :: this
 
-    self%tInitialized = .true.
+    this%tInitialized = .true.
 
   end subroutine InputData_init
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine InputData_destruct(self)
-    type(TInputData), intent(inout) :: self
+  subroutine InputData_destruct(this)
+    type(TInputData), intent(inout) :: this
 
   end subroutine InputData_destruct
 

@@ -200,8 +200,6 @@ contains
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:, :)
 
-    real(dp) :: recVecs(3, 3), maxGEwald
-
     this%tPeriodic = present(latVecs)
 
     if (this%tPeriodic) then
@@ -1031,7 +1029,7 @@ contains
 
     logical :: tPeriodic
     integer :: nDim
-    integer :: iAt1, iSp1, ii, jj
+    integer :: iAt1, iSp1, ii
     real(dp) :: tmp
 
     tPeriodic = allocated(recPoint)

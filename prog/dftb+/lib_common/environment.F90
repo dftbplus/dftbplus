@@ -29,11 +29,11 @@ module dftbp_environment
   type :: TEnvironment
     private
 
-    !> Whether this process is the master?
-    logical, public :: tGlobalMaster = .true.
+    !> Whether this process is the lead?
+    logical, public :: tGlobalLead = .true.
 
-    !> Whether this process is a replica master?
-    logical, public :: tReplicaMaster = .true.
+    !> Whether this process is a replica lead?
+    logical, public :: tReplicaLead = .true.
 
     !> Nr. of replicas in the system
     integer, public :: nReplicas = 1
@@ -78,7 +78,7 @@ module dftbp_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(23) = [&
+  type(TTimerItem), parameter :: globalTimerItems(25) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -101,7 +101,9 @@ module dftbp_environment
       & TTimerItem("Energy-density matrix creation", 2),&
       & TTimerItem("Force calculation", 2),&
       & TTimerItem("Stress calculation", 2),&
-      & TTimerItem("Post-geometry optimisation", 1)&
+      & TTimerItem("Post-geometry optimisation", 1),&
+      & TTimerItem("Electron dynamics initialisation", 2),&
+      & TTimerItem("Electron dynamics loop", 2)&
       & ]
 
   type :: TGlobalTimersHelper
@@ -128,6 +130,9 @@ module dftbp_environment
     integer :: forceCalc = 21
     integer :: stressCalc = 22
     integer :: postGeoOpt = 23
+    integer :: elecDynInit = 24
+    integer :: elecDynLoop = 25
+
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
@@ -215,8 +220,8 @@ contains
 
     ! MPI settings
     call TMpiEnv_init(this%mpi, nGroup, nReplicas)
-    this%tGlobalMaster = this%mpi%tGlobalMaster
-    this%tReplicaMaster = this%mpi%tReplicaMaster
+    this%tGlobalLead = this%mpi%tGlobalLead
+    this%tReplicaLead = this%mpi%tReplicaLead
     this%nReplicas = this%mpi%nReplicas
     this%myReplica = this%mpi%myReplica
     this%nGroup = this%mpi%nGroup

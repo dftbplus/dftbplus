@@ -369,20 +369,19 @@ subroutine compbulk_pot(phi_bulk,iparm,fparm)
 end subroutine compbulk_pot
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine compbulk_pot_ewald(phi_bulk,m)
+Subroutine compbulk_pot_ewald(phi_bulk, m)
   type(super_array) :: phi_bulk(:)
   integer :: m
 
   !local variables
   real(dp), allocatable, dimension(:,:,:) :: phi_bulk_PAR
-  integer :: i,j,k,ibsize,atom,a,b,c,na,nb,nc,ff,stepa,stepb
-  real(dp) :: yj,zk,xi
+  integer :: i, j, k, ibsize, atom, a, b, c, na, nb, nc, stepa, stepb
+  real(dp) :: yj, zk, xi
   real(dp) :: basis(3,3), recbasis(3,3)
   real(dp) :: alpha, vol, tol
-  character(2) :: m_id
   real(dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
 
-  integer :: npid,istart,iend, nsh,l
+  integer :: istart, iend, nsh, l
 
   ! set tolerance for convergence
   tol = 1.0d-5
@@ -395,7 +394,7 @@ Subroutine compbulk_pot_ewald(phi_bulk,m)
   basis(1,3) = 0.0_dp
   basis(2,1) = 0.0_dp
   basis(2,2) = phi_bulk(m)%fparm(4)-phi_bulk(m)%fparm(3)
-  basis(2,3) = 0.0_dp  
+  basis(2,3) = 0.0_dp
   basis(3,1) = 0.0_dp
   basis(3,2) = 0.0_dp
   basis(3,3) = phi_bulk(m)%fparm(6)-phi_bulk(m)%fparm(5)
@@ -490,7 +489,7 @@ end subroutine  compbulk_pot_ewald
 subroutine save_bulkpot(phi_bulk,m)
 
   type(super_array) :: phi_bulk(:)
-  integer :: m,i,j,k, fp, fp2
+  integer :: m, i, j, k, fp
   character(2) :: m_id
   real(dp) :: xk
 
@@ -796,7 +795,7 @@ subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential, iErr)
 
   real(dp) ::  G(3),help 
   real(dp) :: lastshell,butlast,err,uhatm2
-  integer nrezi, nreal, nmax, nmin
+  integer nrezi, nmax, nmin
   integer i,j,k
 
   if (present(iErr)) then

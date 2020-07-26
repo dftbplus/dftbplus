@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 #! suffix and kinds for real types
-#:set REAL_KIND_PARAMS = [('real', 'rsp'), ('dble', 'rdp')]
+#:set REAL_KIND_PARAMS = [('real', 's'), ('dble', 'd')]
 
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
@@ -91,15 +91,22 @@ module dftbp_blasroutines
   end interface gemm
 
 
-  !> Rank k update of a matrix C := alpha*A*A' + beta C
-  !> Wrapper for the level 3 blas routine syrk to perform the rank k update of the chosen triangle
-  !> ofC
+  !> Wrapper for the level 3 blas routine syrk/herk to perform the rank k update of the chosen
+  !> triangle of matrix C
   interface herk
-    module procedure herk_real
-    module procedure herk_cmplx
-    module procedure herk_dble
-    module procedure herk_dblecmplx
+  #:for IFACETYPE in ['real', 'cmplx', 'dble', 'dblecmplx']
+    module procedure herk_${IFACETYPE}$
+  #:endfor
   end interface herk
+
+
+  !> Wrapper for the level 3 blas routine syr2k/her2k to perform the rank 2k update of the chosen
+  !> triangle of matrix C
+  interface her2k
+  #:for IFACETYPE in ['real', 'cmplx', 'dble', 'dblecmplx']
+    module procedure her2k_${IFACETYPE}$
+  #:endfor
+  end interface her2k
 
 
   !> Interface to HEMM routines
@@ -108,6 +115,20 @@ module dftbp_blasroutines
     module procedure hemm_cmplx
     module procedure hemm_dblecmplx
   end interface hemm
+
+ !> SCAL scales a vector or matrix x by a constant: x = alpha*x where alpha is a scalar
+ !> Wrapper for the level 1 blas routine (only for matrices)
+  interface scal
+    module procedure scal_cmplx
+    module procedure scal_dblecmplx
+ end interface scal
+
+ !> Given two vectors or matrices x and y, SWAP routines return vectors y and x swapped
+ !> Wrapper for the level 1 blas routine (only for matrices)
+ interface swap
+    module procedure swap_cmplx
+    module procedure swap_dblecmplx
+ end interface swap
 
 contains
 
@@ -652,25 +673,25 @@ contains
     subroutine gemv231_${suffix}$(y, a, x, alpha, beta, trans)
 
       !> matrix
-      real(${kind}$), intent(inout), contiguous, target :: y(:,:)
+      real(r${kind}$p), intent(inout), contiguous, target :: y(:,:)
 
       !> matrix
-      real(${kind}$), intent(in), contiguous, target :: a(:,:,:)
+      real(r${kind}$p), intent(in), contiguous, target :: a(:,:,:)
 
       !> vector
-      real(${kind}$), intent(in) :: x(:)
+      real(r${kind}$p), intent(in) :: x(:)
 
       !> optional scaling factor (defaults to 1)
-      real(${kind}$), intent(in), optional :: alpha
+      real(r${kind}$p), intent(in), optional :: alpha
 
       !> optional scaling factor (defaults to 0)
-      real(${kind}$), intent(in), optional :: beta
+      real(r${kind}$p), intent(in), optional :: beta
 
       !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
       character, intent(in), optional :: trans
 
-      real(${kind}$), pointer :: pY(:)
-      real(${kind}$), pointer :: pA(:,:)
+      real(r${kind}$p), pointer :: pY(:)
+      real(r${kind}$p), pointer :: pA(:,:)
 
       pY(1 : size(y)) => y
       pA(1 : size(a, dim=1) * size(a, dim=2), 1 : size(a, dim=3)) => a
@@ -963,23 +984,25 @@ contains
   end subroutine symm_dble
 
 
-  !> real matrix*matrix product
-  subroutine gemm_real(C,A,B,alpha,beta,transA,transB,n,m,k)
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> ${suffix}$ matrix*matrix product
+  subroutine gemm_${suffix}$(C, A, B, alpha, beta, transA, transB, n, m, k, lda, ldb, ldc)
 
     !> general matrix output
-    real(rsp), intent(inout) :: C(:,:)
+    real(r${kind}$p), intent(inout) :: C(:,:)
 
     !> general matrix
-    real(rsp), intent(in) :: A(:,:)
+    real(r${kind}$p), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rsp), intent(in) :: B(:,:)
+    real(r${kind}$p), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    real(rsp), intent(in), optional :: alpha
+    real(r${kind}$p), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rsp), intent(in), optional :: beta
+    real(r${kind}$p), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
@@ -998,10 +1021,13 @@ contains
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional :: k
 
-    integer :: lda, ldb, ldc
+    !> leading dimensions
+    integer, intent(in), optional :: lda, ldb, ldc
+
+    integer :: ilda, ildb, ildc
     integer :: in, im, ik
     character :: iTransA, iTransB
-    real(rsp) :: iAlpha, iBeta
+    real(r${kind}$p) :: iAlpha, iBeta
 
     if (present(transA)) then
       iTransA = transA
@@ -1022,17 +1048,21 @@ contains
     if (present(alpha)) then
       iAlpha = alpha
     else
-      iAlpha = 1.0_rsp
+      iAlpha = 1.0_r${kind}$p
     end if
     if (present(beta)) then
       iBeta = beta
     else
-      iBeta = 0.0_rsp
+      iBeta = 0.0_r${kind}$p
     end if
 
-    lda = size(a,dim=1)
-    ldb = size(b,dim=1)
-    ldc = size(c,dim=1)
+  #:for CASES in [('a'), ('b'), ('c')]
+    if (present(ld${CASES}$)) then
+      ild${CASES}$ = ld${CASES}$
+    else
+      ild${CASES}$ = size(${CASES}$,dim=1)
+    end if
+  #:endfor
 
     if (present(m)) then
       im = m
@@ -1061,134 +1091,22 @@ contains
     @:ASSERT(im>0)
     @:ASSERT(in>0)
     @:ASSERT(ik>0)
-    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+    @:ASSERT(((ilda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
         & .or. (size(a,dim=2)>=im))
-    @:ASSERT(ldc>=im)
+    @:ASSERT(ildc>=im)
     @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (ldb>=in))
+        & .or. (ildb>=in))
     @:ASSERT(size(c,dim=2)>=in)
     @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (lda>=ik))
-    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ilda>=ik))
+    @:ASSERT(((ildb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
         & .or. (size(b,dim=2)>=ik))
 
-    call sgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
+    call ${kind}$gemm(iTransA,iTransB,im,in,ik,iAlpha,A,ilda,B,ildb,iBeta,C,ildc)
 
-  end subroutine gemm_real
+  end subroutine gemm_${suffix}$
 
-
-  !> Double precision matrix*matrix product
-  subroutine gemm_dble(C,A,B,alpha,beta,transA,transB,n,m,k)
-
-    !> general matrix output
-    real(rdp), intent(inout) :: C(:,:)
-
-    !> general matrix
-    real(rdp), intent(in) :: A(:,:)
-
-    !> general matrix
-    real(rdp), intent(in) :: B(:,:)
-
-    !> defaults to 1 if not set
-    real(rdp), intent(in), optional :: alpha
-
-    !> defaults to 0 if not set
-    real(rdp), intent(in), optional :: beta
-
-    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
-    !> and 'C'
-    character, intent(in), optional :: transA
-
-    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
-    !> and 'C'
-    character, intent(in), optional :: transB
-
-    !> specifies the number of columns of the matrix C
-    integer, intent(in), optional :: n
-
-    !> specifies the number of rows of the matrix C
-    integer, intent(in), optional :: m
-
-    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional :: k
-
-    integer :: lda, ldb, ldc
-    integer :: in, im, ik
-    character :: iTransA, iTransB
-    real(rdp) :: iAlpha, iBeta
-
-    if (present(transA)) then
-      iTransA = transA
-    else
-      iTransA = 'n'
-    end if
-    if (present(transB)) then
-      iTransB = transB
-    else
-      iTransB = 'n'
-    end if
-
-    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
-        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
-        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
-
-    if (present(alpha)) then
-      iAlpha = alpha
-    else
-      iAlpha = 1.0_rdp
-    end if
-    if (present(beta)) then
-      iBeta = beta
-    else
-      iBeta = 0.0_rdp
-    end if
-
-    lda = size(a,dim=1)
-    ldb = size(b,dim=1)
-    ldc = size(c,dim=1)
-
-    if (present(m)) then
-      im = m
-    else
-      if (iTransA == 'n' .or. iTransA == 'N') then
-        im = size(A,dim=1)
-      else
-        im = size(A,dim=2)
-      end if
-    end if
-    if (present(n)) then
-      in = n
-    else
-      in = size(c,dim=2)
-    end if
-    if (present(k)) then
-      ik = k
-    else
-      if (iTransA == 'n' .or. iTransA == 'N') then
-        ik = size(A,dim=2)
-      else
-        ik = size(A,dim=1)
-      end if
-    end if
-
-    @:ASSERT(im>0)
-    @:ASSERT(in>0)
-    @:ASSERT(ik>0)
-    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (size(a,dim=2)>=im))
-    @:ASSERT(ldc>=im)
-    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (ldb>=in))
-    @:ASSERT(size(c,dim=2)>=in)
-    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (lda>=ik))
-    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (size(b,dim=2)>=ik))
-
-    call dgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
-
-  end subroutine gemm_dble
+#:endfor
 
 
   !> complex matrix*matrix product
@@ -1419,59 +1337,62 @@ contains
   end subroutine gemm_dblecmplx
 
 
-  #:for suffix, kind in REAL_KIND_PARAMS
+#:for suffix, kind in REAL_KIND_PARAMS
 
-    !> Generalized real matrix matrix contraction (Cijl = Aijk * Bkl)
-    subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
+  !> Generalized real matrix matrix contraction (Cijl = Aijk * Bkl)
+  subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
 
-      !> general matrix output
-      real(${kind}$), intent(inout), target, contiguous :: C(:,:,:)
+    !> general matrix output
+    real(r${kind}$p), intent(inout), target, contiguous :: C(:,:,:)
 
-      !> general matrix
-      real(${kind}$), intent(in), target, contiguous :: A(:,:,:)
+    !> general matrix
+    real(r${kind}$p), intent(in), target, contiguous :: A(:,:,:)
 
-      !> general matrix
-      real(${kind}$), intent(in) :: B(:,:)
+    !> general matrix
+    real(r${kind}$p), intent(in) :: B(:,:)
 
-      !> defaults to 1 if not set
-      real(${kind}$), intent(in), optional :: alpha
+    !> defaults to 1 if not set
+    real(r${kind}$p), intent(in), optional :: alpha
 
-      !> defaults to 0 if not set
-      real(${kind}$), intent(in), optional :: beta
+    !> defaults to 0 if not set
+    real(r${kind}$p), intent(in), optional :: beta
 
-      !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
-      !> 'c' and 'C'. Note this acts on the compound index ij
-      character, intent(in), optional :: transA
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+    !> 'c' and 'C'. Note this acts on the compound index ij
+    character, intent(in), optional :: transA
 
-      !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
-      !> 'c' and 'C'
-      character, intent(in), optional :: transB
+    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+    !> 'c' and 'C'
+    character, intent(in), optional :: transB
 
-      real(${kind}$), pointer :: pA(:,:), pC(:,:)
+    real(r${kind}$p), pointer :: pA(:,:), pC(:,:)
 
-      pA(1 : size(A, dim=1) * size(A, dim=2), 1 : size(A, dim=3)) => A
-      pC(1 : size(C, dim=1) * size(C, dim=2), 1 : size(C, dim=3)) => C
-      call gemm(pC, pA, B, alpha, beta, transA, transB)
+    pA(1 : size(A, dim=1) * size(A, dim=2), 1 : size(A, dim=3)) => A
+    pC(1 : size(C, dim=1) * size(C, dim=2), 1 : size(C, dim=3)) => C
+    call gemm(pC, pA, B, alpha, beta, transA, transB)
 
-    end subroutine gemm332_${suffix}$
+  end subroutine gemm332_${suffix}$
 
-  #:endfor
+#:endfor
 
 
-  !> real rank-k update
-  subroutine herk_real(C,A,alpha,beta,uplo,trans,n,k)
+#:for LABEL, VTYPE, VPREC, NAME in [('real', 'real', 'rsp', 'ssyrk'),&
+  & ('cmplx', 'complex', 'rsp', 'cherk'), ('dble', 'real', 'rdp', 'dsyrk'),&
+  & ('dblecmplx', 'complex', 'rdp', 'zherk')]
+  !> Rank-k update
+  subroutine herk_${LABEL}$(C,A,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    real(rsp), intent(inout) :: C(:,:)
+    ${VTYPE}$(${VPREC}$), intent(inout) :: C(:,:)
 
     !> contains the matrix to update
-    real(rsp), intent(in) :: A(:,:)
+    ${VTYPE}$(${VPREC}$), intent(in) :: A(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rsp), intent(in), optional :: alpha
+    real(${VPREC}$), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rsp), intent(in), optional :: beta
+    real(${VPREC}$), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
@@ -1489,7 +1410,7 @@ contains
     integer :: lda, ldc
     integer :: in, ik
     character :: iTrans, iUplo
-    real(rsp) :: iAlpha, iBeta
+    real(${VPREC}$) :: iAlpha, iBeta
 
     if (present(uplo)) then
       iUplo = uplo
@@ -1504,199 +1425,17 @@ contains
       iTrans = 'n'
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't'&
-        & .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(any(iTrans == ['n','N','t','T','h','C']))
 
     if (present(alpha)) then
       iAlpha = alpha
     else
-      iAlpha = 1.0_rsp
+      iAlpha = 1.0_${VPREC}$
     end if
     if (present(beta)) then
       iBeta = beta
     else
-      iBeta = 0.0_rsp
-    end if
-
-    lda = size(a,dim=1)
-    ldc = size(c,dim=1)
-
-    if (present(n)) then
-      in = n
-    else
-      in = size(c,dim=2)
-    end if
-    if (present(k)) then
-      ik = k
-    else
-      if (iTrans == 'n' .or. iTrans == 'N') then
-        ik = size(A,dim=2)
-      else
-        ik = size(A,dim=1)
-      end if
-    end if
-
-    @:ASSERT(in>0)
-    @:ASSERT(ik>0)
-    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N'))&
-        & .or. (lda>=in))
-    @:ASSERT(size(c,dim=2)>=in)
-    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N'))&
-        & .or. (lda>=ik))
-
-    call ssyrk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
-
-  end subroutine herk_real
-
-
-  !> Double precision rank-k update
-  subroutine herk_dble(C,A,alpha,beta,uplo,trans,n,k)
-
-    !> contains the matrix to be updated
-    real(rdp), intent(inout) :: C(:,:)
-
-    !> contains the matrix to update
-    real(rdp), intent(in) :: A(:,:)
-
-    !> scaling value for the update contribution, defaults to 1
-    real(rdp), intent(in), optional :: alpha
-
-    !> scaling value for the original C, defaults to 0
-    real(rdp), intent(in), optional :: beta
-
-    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional :: uplo
-
-    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
-    !> for the real cases)
-    character, intent(in), optional :: trans
-
-    !> order of the matrix C
-    integer, intent(in), optional :: n
-
-    !> internal order of A summation
-    integer, intent(in), optional :: k
-
-    integer :: lda, ldc
-    integer :: in, ik
-    character :: iTrans, iUplo
-    real(rdp) :: iAlpha, iBeta
-
-    if (present(uplo)) then
-      iUplo = uplo
-    else
-      iUplo = 'L'
-    end if
-    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-
-    if (present(trans)) then
-      iTrans = trans
-    else
-      iTrans = 'n'
-    end if
-
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't'&
-        & .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-
-    if (present(alpha)) then
-      iAlpha = alpha
-    else
-      iAlpha = 1.0_rdp
-    end if
-    if (present(beta)) then
-      iBeta = beta
-    else
-      iBeta = 0.0_rdp
-    end if
-
-    lda = size(a,dim=1)
-    ldc = size(c,dim=1)
-
-    if (present(n)) then
-      in = n
-    else
-      in = size(c,dim=2)
-    end if
-    if (present(k)) then
-      ik = k
-    else
-      if (iTrans == 'n' .or. iTrans == 'N') then
-        ik = size(A,dim=2)
-      else
-        ik = size(A,dim=1)
-      end if
-    end if
-
-    @:ASSERT(in>0)
-    @:ASSERT(ik>0)
-    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N'))&
-        & .or. (lda>=in))
-    @:ASSERT(size(c,dim=2)>=in)
-    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N'))&
-        & .or. (lda>=ik))
-
-    call dsyrk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
-
-  end subroutine herk_dble
-
-
-  !> complex rank-k update
-  subroutine herk_cmplx(C,A,alpha,beta,uplo,trans,n,k)
-
-    !> contains the matrix to be updated
-    complex(rsp), intent(inout) :: C(:,:)
-
-    !> contains the matrix to update
-    complex(rsp), intent(in) :: A(:,:)
-
-    !> scaling value for the update contribution, defaults to 1
-    real(rsp), intent(in), optional :: alpha
-
-    !> scaling value for the original C, defaults to 0
-    real(rsp), intent(in), optional :: beta
-
-    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional :: uplo
-
-    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
-    !> for the real cases)
-    character, intent(in), optional :: trans
-
-    !> order of the matrix C
-    integer, intent(in), optional :: n
-
-    !> internal order of A summation
-    integer, intent(in), optional :: k
-
-    integer :: lda, ldc
-    integer :: in, ik
-    character :: iTrans, iUplo
-    real(rsp) :: iAlpha, iBeta
-
-    if (present(uplo)) then
-      iUplo = uplo
-    else
-      iUplo = 'L'
-    end if
-    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-
-    if (present(trans)) then
-      iTrans = trans
-    else
-      iTrans = 'n'
-    end if
-
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans  == 'T')
-
-    if (present(alpha)) then
-      iAlpha = alpha
-    else
-      iAlpha = 1.0_rsp
-    end if
-    if (present(beta)) then
-      iBeta = beta
-    else
-      iBeta = 0.0_rsp
+      iBeta = 0.0_${VPREC}$
     end if
 
     lda = size(a,dim=1)
@@ -1723,25 +1462,33 @@ contains
     @:ASSERT(size(c,dim=2)>=in)
     @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=ik))
 
-    call cherk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
+    call ${NAME}$(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
 
-  end subroutine herk_cmplx
+  end subroutine herk_${LABEL}$
+
+#:endfor
 
 
-  !> Double complex rank-k update
-  subroutine herk_dblecmplx(C,A,alpha,beta,uplo,trans,n,k)
+  #:for LABEL, VTYPE, VPREC, NAME in [('real', 'real', 'rsp', 'ssyr2k'),&
+  & ('cmplx', 'complex', 'rsp', 'cher2k'), ('dble', 'real', 'rdp', 'dsyr2k'),&
+  & ('dblecmplx', 'complex', 'rdp', 'zher2k')]
+  !> Rank-k update
+  subroutine her2k_${LABEL}$(C,A,B,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    complex(rdp), intent(inout) :: C(:,:)
+    ${VTYPE}$(${VPREC}$), intent(inout) :: C(:,:)
 
-    !> contains the matrix to update
-    complex(rdp), intent(in) :: A(:,:)
+    !> contains the first matrix to update with
+    ${VTYPE}$(${VPREC}$), intent(in) :: A(:,:)
+
+    !> contains the second matrix to update with
+    ${VTYPE}$(${VPREC}$), intent(in) :: B(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rdp), intent(in), optional :: alpha
+    ${VTYPE}$(${VPREC}$), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rdp), intent(in), optional :: beta
+    ${VTYPE}$(${VPREC}$), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
@@ -1756,10 +1503,10 @@ contains
     !> internal order of A summation
     integer, intent(in), optional :: k
 
-    integer :: lda, ldc
+    integer :: lda, ldb, ldc
     integer :: in, ik
     character :: iTrans, iUplo
-    real(rdp) :: iAlpha, iBeta
+    ${VTYPE}$(${VPREC}$) :: iAlpha, iBeta
 
     if (present(uplo)) then
       iUplo = uplo
@@ -1774,20 +1521,21 @@ contains
       iTrans = 'n'
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T')
+    @:ASSERT(any(iTrans == ['n','N','t','T','h','C']))
 
     if (present(alpha)) then
       iAlpha = alpha
     else
-      iAlpha = 1.0_rdp
+      iAlpha = 1.0_${VPREC}$
     end if
     if (present(beta)) then
       iBeta = beta
     else
-      iBeta = 0.0_rdp
+      iBeta = 0.0_${VPREC}$
     end if
 
     lda = size(a,dim=1)
+    ldb = size(b,dim=1)
     ldc = size(c,dim=1)
 
     if (present(n)) then
@@ -1808,12 +1556,14 @@ contains
     @:ASSERT(in>0)
     @:ASSERT(ik>0)
     @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=in))
+    @:ASSERT(((size(b,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=ik))
     @:ASSERT(size(c,dim=2)>=in)
     @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=ik))
 
-    call zherk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
+    call ${NAME}$(iUplo, iTrans, in, ik, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
-  end subroutine herk_dblecmplx
+  end subroutine her2k_${LABEL}$
+#:endfor
 
 
   !> single precision hermitian matrix * general matrix multiply
@@ -1990,5 +1740,38 @@ contains
     call zhemm(side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc)
 
   end subroutine hemm_dblecmplx
+
+
+#:for ITYPE, VTYPE, LABEL, NAME in [('cmplx', 'rsp', 'single', 'c'),&
+  & ('dblecmplx', 'rdp', 'double', 'z')]
+
+  !> ${LABEL}$ precision complex matrix scaling
+  subroutine scal_${ITYPE}$(a,alpha)
+
+    !> contains the matrix to be scaled
+    complex(${VTYPE}$), intent(inout) :: a(:,:)
+
+    !> scaling factor
+    complex(${VTYPE}$), intent(in) :: alpha
+
+    call ${NAME}$scal(product(shape(a)), alpha, a, 1)
+
+  end subroutine scal_${ITYPE}$
+
+
+  !> ${LABEL}$ precision complex matrix swapping
+  subroutine swap_${ITYPE}$(a,b)
+
+    !> matrices to be swapped
+    complex(${VTYPE}$), intent(inout) :: a(:,:), b(:,:)
+
+    @:ASSERT(size(a,dim=1) == size(b,dim=1))
+    @:ASSERT(size(a,dim=2) == size(b,dim=2))
+
+    call ${NAME}$swap(product(shape(a)), a, 1, b, 1)
+
+  end subroutine swap_${ITYPE}$
+
+#:endfor
 
 end module dftbp_blasroutines

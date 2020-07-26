@@ -1,38 +1,46 @@
 #
-# Toolchain file example for
+# Toolchain file for
 #
 # Intel compiler, MKL library
 #
-# Note the CMake format: Command line options (e.g. compiler flags) space separated, other kind
-# of lists semicolon separated.
+# Notes:
 #
+#  * CMake format: Command line options (e.g. compiler flags) space separated, other kind
+#    of lists semicolon separated.
+#
+#  * Variables containing library search paths are empty by default. The CMAKE_PREFIX_PATH
+#    environment variable should be set up correctly, so that CMake can find those libraries
+#    automatically. If that is not the case, override those variables to add search paths
+#    manually
+#
+
 
 #
 # Fortran compiler settings
 #
-if(WITH_MPI)
-  # Depending on your MPI environment, your Fortran compiler wrapper may be called "mpiifort"
-  set(CMAKE_Fortran_COMPILER "mpifort" CACHE STRING "Fortran compiler")
-else()
-  set(CMAKE_Fortran_COMPILER "ifort" CACHE STRING "Fortran compiler")
-endif()
+set(Fortran_FLAGS "-standard-semantics ${CMAKE_Fortran_FLAGS}"
+  CACHE STRING "Build type independent Fortran compiler flags")
 
-# Note: either "-standard-semantics' or '-assume realloc_lhs' must be among the compiler options
-set(CMAKE_Fortran_FLAGS "-standard-semantics -heap-arrays 10" CACHE STRING "General Fortran flags")
+set(Fortran_FLAGS_RELEASE "-O2 -ip -heap-arrays 10"
+  CACHE STRING "Fortran compiler flags for Release build")
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -ip" CACHE STRING
-  "Specific Fortran flags for Release (production) mode")
+set(Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
+  CACHE STRING "Fortran compiler flags for Debug build")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
+
 
 #
 # C compiler settings
 #
-set(CMAKE_C_COMPILER "icc" CACHE STRING "C compiler")
+set(C_FLAGS "${CMAKE_C_FLAGS}"
+  CACHE STRING "Build type independent C compiler flags")
 
-set(CMAKE_C_FLAGS "" CACHE STRING "General C flags")
+set(C_FLAGS_RELEASE "-O2 -ip"
+  CACHE STRING  "C compiler flags for Release build")
 
-set(CMAKE_C_FLAGS_RELEASE "-O2 -ip" CACHE STRING "Specific C flags for Release mode")
+set(C_FLAGS_DEBUG "-g -Wall"
+  CACHE STRING "C compiler flags for Debug build")
 
 
 #
@@ -47,7 +55,7 @@ else()
   set(LAPACK_LIBRARIES "mkl_intel_lp64;mkl_sequential;mkl_core" CACHE STRING
     "LAPACK and BLAS libraries to link")
 endif()
-  
+
 set(LAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
   "Directories where LAPACK and BLAS libraries can be found")
 
@@ -62,7 +70,7 @@ set(SCALAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
   "Directories where Scalapack libraries can be found")
 
 # ELSI -- only needed when compiled with ELSI support
-set(ELSI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI installation")
+set(ELSI_ROOT "" CACHE STRING "Root directory of the ELSI installation")
 
 set(ELSI_EXTERNAL_LIBRARIES "" CACHE STRING
   "Any EXTERNAL libraries ELSI needs apart of its own libraries (and scalapack)")
@@ -83,20 +91,9 @@ set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED librarie
 # MAGMA -- only needed when compiled with GPU support
 set(MAGMA_LIBRARIES "magma" CACHE STRING "Magma library")
 set(MAGMA_LIBRARY_DIRS "" CACHE STRING "Directories to scan for MAGMA library")
-set(MAGMA_INCLUDE_DIRS "/opt/magma/include" CACHE STRING
-  "Directories to scan for MAGMA include files")
+set(MAGMA_INCLUDE_DIRS "" CACHE STRING "Directories to scan for MAGMA include files")
 
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
 set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
-
-
-#
-# Debug settings (for developers)
-#
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
-  CACHE STRING "Specific Fortran flags for Debug mode")
-
-set(CMAKE_C_FLAGS_DEBUG "-g -Wall")
-

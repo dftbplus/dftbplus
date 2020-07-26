@@ -77,7 +77,7 @@ Hamiltonian = DFTB {
     SCCTolerance = 1.0E-8
     Eigensolver = PEXSI {
       Sparse = Yes
-      Poles = 20
+      Poles = 30
       muPoints = 4
     }
     MaxAngularMomentum {
