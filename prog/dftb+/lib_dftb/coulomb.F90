@@ -294,7 +294,7 @@ contains
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(this, env, coords)
+  subroutine updateCoords(this, env, neighList, coords, species)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: this
@@ -302,8 +302,14 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
+    !> List of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neighList
+
     !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> Central cell chemical species
+    integer, intent(in) :: species(:)
 
     if (this%boundaryCondition == boundaryCondition%pbc3d) then
       call this%neighListGen%updateCoords(coords(:, 1:this%nAtom))
@@ -406,7 +412,8 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(this, env, coords, gradients, dQOut, dQOutAtom, dQOutShell)
+  subroutine addGradients(this, env, coords, species, iNeighbour, img2CentCell, &
+      & gradients, dQOut, dQOutAtom, dQOutShell)
 
     !> Data structure
     class(TCoulombCont), intent(in) :: this
@@ -416,6 +423,15 @@ contains
 
     !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> Species for each atom
+    integer, intent(in) :: species(:)
+
+    !> List of neighbours for each atom
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell
+    integer, intent(in) :: img2CentCell(:)
 
     !> Gradient contributions
     real(dp), intent(inout) :: gradients(:,:)
@@ -458,7 +474,8 @@ contains
 
 
   !> Get stress tensor contributions
-  subroutine addStress(this, env, coords, stress)
+  subroutine addStress(this, env, coords, species, iNeighbour, img2CentCell, &
+      & stress)
 
     !> Data structure
     class(TCoulombCont), intent(in) :: this
@@ -468,6 +485,15 @@ contains
 
     !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> Species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
 
     !> Stress tensor contributions
     real(dp), intent(inout) :: stress(:,:)
@@ -489,13 +515,38 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, deltaQAtom)
+  subroutine updateCharges(this, env, qOrbital, q0, orb, species, deltaQ, &
+        & deltaQAtom, deltaQPerLShell, deltaQUniqU)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: this
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Orbital resolved charges
+    real(dp), intent(in) :: qOrbital(:,:,:)
+
+    !> Reference charge distribution (neutral atoms)
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Negative gross charge
+    real(dp), intent(in) :: deltaQ(:,:)
+
+    !> Negative gross charge per shell
+    real(dp), intent(in) :: deltaQPerLShell(:,:)
+
     !> Negative gross charge per atom
     real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Negative gross charge per U
+    real(dp), intent(in) :: deltaQUniqU(:,:)
 
     @:ASSERT(this%tCoordsUpdated)
 
@@ -507,13 +558,25 @@ contains
 
 
   !> Update potential shifts. Call after updateCharges
-  subroutine updateShifts(this, env)
+  subroutine updateShifts(this, env, orb, species, iNeighbour, img2CentCell)
 
     !> Data structure
     class(TCoulombCont), intent(inout), target :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of the atoms (should not change during run)
+    integer, intent(in) :: species(:)
+
+    !> Neighbor indexes
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Mapping on atoms in the central cell
+    integer, intent(in) :: img2CentCell(:)
 
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
@@ -912,7 +975,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    ! Extra contribution for this interaction.
+    ! Extra contribution for self interaction.
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, tLocal, iLoc, jLoc) SCHEDULE(RUNTIME)
     do jj = 1, size(invRMat, dim=2)
@@ -2471,15 +2534,17 @@ contains
     real(dp), intent(inout) :: invRDeriv(:,:,:)
 
     real(dp) :: dist, vect(3)
-    integer :: iAtFirst, iAtLast
+    integer :: nAtom, iAtFirst, iAtLast
     integer :: ii, jj
 
-    call distributeRangeInChunks(env, 1, this%nAtom, iAtFirst, iAtLast)
+    nAtom = size(invRDeriv,dim=1)
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(jj, vect, dist) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do ii = iAtFirst, iAtLast
-      do jj = ii + 1, this%nAtom
+      do jj = ii + 1, nAtom
         vect(:) = coord(:,ii) - coord(:,jj)
         dist = sqrt(sum(vect(:)**2))
         invRDeriv(jj,ii,:) = -vect(:) / (dist**3)
@@ -2522,12 +2587,13 @@ contains
 
     type(TDynNeighList), pointer :: pNeighList
     real(dp) :: r(3)
-    integer :: iAtom1, iAtom2
+    integer :: nAtom, iAtom1, iAtom2
     integer :: iAtFirst, iAtLast
 
+    nAtom = size(invRDeriv,dim=1)
     pNeighList => neighList
 
-    call distributeRangeInChunks(env, 1, this%nAtom, iAtFirst, iAtLast)
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     ! d(1/R)/dr real space
     !$OMP PARALLEL DO&
@@ -2542,7 +2608,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(iAtom2,r) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
-      do iAtom2 = iAtom1+1, this%nAtom
+      do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1) - coord(:,iAtom2)
         invRDeriv(iAtom2,iAtom1,:) = invRDeriv(iAtom2,iAtom1,:) &
             & + derivEwaldReciprocal(r,recPoint,alpha,volume)

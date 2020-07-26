@@ -6642,7 +6642,7 @@ contains
       end if
 
       ! Calculate correct charge contribution for each microstate
-      call sccCalc%updateCharges(reks%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), q0, orb, species)
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
       if (allocated(thirdOrd)) then
