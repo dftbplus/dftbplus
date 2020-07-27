@@ -666,8 +666,7 @@ module dftbp_reksinterface
         end if
 
         ! this%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), &
-            & q0, orb, species)
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
         call sccCalc%updateShifts(env, orb, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
@@ -838,8 +837,7 @@ module dftbp_reksinterface
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), &
-          & q0, orb, species)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
       if (this%tExtChrg) then
@@ -861,9 +859,8 @@ module dftbp_reksinterface
       if (this%isRangeSep) then
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
-        call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, &
-            & this%deltaRhoSqrL(:,:,:,iL), skHamCont, skOverCont, coord, &
-            & species, orb, denseDesc%iAtomStart, this%overSqr, &
+        call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
+            & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
             & neighbourList%iNeighbour, nNeighbourSK)
       end if
 
@@ -958,9 +955,8 @@ module dftbp_reksinterface
         & this%GammaDeriv, this%SpinAO, this%LrGammaAO, this%LrGammaDeriv)
 
     ! get Hxc kernel -> (\mu,\nu|f_{Hxc}|\tau,\gam)
-    call getHxcKernel(denseDesc%iAtomStart, this%getAtomIndex, this%getDenseAO, &
-        & over, this%overSqr, this%GammaAO, this%SpinAO, this%LrGammaAO, &
-        & this%Glevel, this%tSaveMem, this%isRangeSep, this%HxcSpS, &
+    call getHxcKernel(this%getDenseAO, over, this%overSqr, this%GammaAO, this%SpinAO,&
+        & this%LrGammaAO, this%Glevel, this%tSaveMem, this%isRangeSep, this%HxcSpS, &
         & this%HxcSpD, this%HxcHalfS, this%HxcHalfD, this%HxcSqrS, this%HxcSqrD)
 
     ! get G1, weightIL, Omega, Rab values

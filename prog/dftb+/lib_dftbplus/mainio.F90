@@ -2353,10 +2353,10 @@ contains
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
-      & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
-      & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
-      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
+      & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
+      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic,&
+      & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
+      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2414,9 +2414,6 @@ contains
 
     !> Eigenvalues/single particle states (level, kpoint, spin)
     real(dp), intent(in) :: eigen(:,:,:)
-
-    !> Occupation numbers (level, kpoint, spin)
-    real(dp), intent(in) :: filling(:,:,:)
 
     !> Type containing atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3839,13 +3836,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver)
+  subroutine printEnergies(energy, electronicSolver)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
@@ -4683,7 +4677,7 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     integer :: nAtom, nKPoint, nMovedAtom
-    integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    integer :: ang, iAt, iSpin, iK, iSp, iSh, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
 

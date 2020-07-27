@@ -174,8 +174,7 @@ contains
       tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-      call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
-          & tExitGeoOpt)
+      call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
       if (tExitGeoOpt) then
         exit geoOpt
       end if
@@ -339,7 +338,7 @@ contains
 
 
   !> Process current geometry
-  subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
+  subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
       & tExitGeoOpt)
     use dftbp_initprogram
 
@@ -354,9 +353,6 @@ contains
 
     !> flag to write out geometries (and charge data if scc)
     logical, intent(in) :: tWriteRestart
-
-    !> if scc/geometry driver should be stopped
-    logical, intent(inout) :: tStopDriver
 
     !> if scc driver should be stopped
     logical, intent(out) :: tStopScc
@@ -756,10 +752,10 @@ contains
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-              & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
-              & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
+              & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
+              & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
               & allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
@@ -846,7 +842,7 @@ contains
           & iLatGeoStep, nSpin, qOutput, velocities)
     end if
 
-    call printEnergies(energy, TS, electronicSolver)
+    call printEnergies(energy, electronicSolver)
 
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -5229,9 +5225,8 @@ contains
       if (size(deltaRhoOutSqr, dim=3) > 2) then
         call error("Range separated forces do not support non-colinear spin")
       else
-        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skHamCont, skOverCont,&
-            & coord, species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour,&
-            & nNeighbourSK)
+        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
+            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
       end if
     end if
 

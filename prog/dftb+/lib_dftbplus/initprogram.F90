@@ -2026,9 +2026,9 @@ contains
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (tPeriodic) then
-          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName, latVec)
+          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, speciesName, latVec)
         else
-          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName)
+          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
       end if
@@ -2341,7 +2341,7 @@ contains
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
           & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
-      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
+      call initRangeSeparated(nAtom, species0, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
           & deltaRhoOutSqr, nMixElements)
     end if
@@ -5095,18 +5095,14 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin,&
-      & isREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
-      & deltaRhoOutSqr, nMixElements)
+  subroutine initRangeSeparated(nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
+      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
 
     !> species of atoms
     integer, intent(in) :: species0(:)
-
-    !> names of chemical species
-    character(*), intent(in) :: speciesName(:)
 
     !> Hubbard values for species
     real(dp), intent(in) :: hubbU(:,:)
@@ -5142,8 +5138,8 @@ contains
     integer, intent(out) :: nMixElements
 
     allocate(rangeSep)
-    call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
+    call RangeSepFunc_init(rangeSep, nAtom, species0, hubbU(1,:), rangeSepInp%screeningThreshold,&
+        & rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
