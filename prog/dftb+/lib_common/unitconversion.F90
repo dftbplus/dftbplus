@@ -200,7 +200,7 @@ module dftbp_unitconversion
 
 
   !> Number of velocity units
-  integer, parameter :: nVelocityUnit = 4
+  integer, parameter :: nVelocityUnit = 6
 
 
   !> Velocity units
@@ -208,7 +208,9 @@ module dftbp_unitconversion
       & unit("au                  ", 1.0_dp),&
       & unit("m/s                 ", 1e10_dp * AA__Bohr / (1e15_dp * fs__au) ),&
       & unit("pm/fs               ", 1e-2_dp * AA__Bohr / fs__au),&
-      & unit("aa/ps               ", AA__Bohr / (1e3_dp * fs__au) )&
+      & unit("a/ps                ", AA__Bohr / (1e3_dp * fs__au) ),&
+      & unit("aa/ps               ", AA__Bohr / (1e3_dp * fs__au) ),&
+      & unit("angstrom/ps         ", AA__Bohr / (1e3_dp * fs__au) )&
       & ]
 
 
