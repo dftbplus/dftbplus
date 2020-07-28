@@ -535,8 +535,8 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges(species, orb, qOrbital, q0, this%iHubbU, this%deltaQ, &
-        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+    call getSummedCharges(species, orb, qOrbital, q0, iHubbU=this%iHubbU, dQ=this%deltaQ, &
+        & dQAtom=this%deltaQAtom, dQShell=this%deltaQPerLShell, dQUniqU=this%deltaQUniqU)
 
     call this%coulombCont%updateCharges(env, qOrbital, q0, orb, species, &
         & this%deltaQ, this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
@@ -770,8 +770,7 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getSummedCharges(species, orb, qOut, q0, this%iHubbU, dQOut, &
-        & dQOutAtom, dQOutShell)
+    call getSummedCharges(species, orb, qOut, q0, dQ=dQOut, dQAtom=dQOutAtom, dQShell=dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
@@ -1065,8 +1064,8 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges(species, orb, qOrbitalOut, q0, this%iHubbU, dQOut, &
-        & dQOutAtom, dQOutLShell, dQOutUniqU)
+    call getSummedCharges(species, orb, qOrbitalOut, q0, iHubbU=this%iHubbU, dQ=dQOut,&
+        & dQAtom=dQOutAtom, dQShell=dQOutLShell, dQUniqU=dQOutUniqU)
 
     ! Short-range part of gamma contribution
     call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
@@ -1581,7 +1580,7 @@ contains
     real(dp), allocatable :: invRDeriv(:,:,:)
 
     real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
-    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii, jj
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii
 
     allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
     allocate(invRDeriv(this%nAtom,this%nAtom,3))

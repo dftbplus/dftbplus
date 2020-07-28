@@ -431,7 +431,7 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input, nAtom, speciesNames)
+  subroutine initializeCalculator(calculator, input, speciesNames)
 
     !> Calculator
     type(TDftD4Calculator), intent(inout) :: calculator
@@ -439,14 +439,11 @@ contains
     !> Input
     type(TDispDftD4Inp), intent(in) :: input
 
-    !> Nr. of atoms (without periodic images)
-    integer, intent(in) :: nAtom
-
     !> Names of species.
     character(*), intent(in) :: speciesNames(:)
 
     integer :: nSpecies
-    integer :: iAt1, iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
+    integer :: iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
     integer :: cncount(0:18)
     real(dp) :: alpha(imagFrequencies), zEff1, c6, eta1
     real(dp) :: tmp_hq(maxReferences, maxElementD4)

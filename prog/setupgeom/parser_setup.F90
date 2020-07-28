@@ -14,7 +14,7 @@ module dftbp_parsersetup
   use dftbp_accuracy
   use dftbp_constants
   use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
@@ -101,29 +101,16 @@ contains
     type(fnode), pointer :: hsdTree
     type(fnode), pointer :: root, tmp, child, dummy
     type(TParserflags) :: parserFlags
-    logical :: tHSD, missing
 
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
-    call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, tHSD, &
-        &missing)
-
-    !! If input is missing return
-    if (missing) then
-      call error("No input file found.")
-    end if
+    call parseHSD(rootTag, hsdInputName, hsdTree)
+    call getChild(hsdTree, rootTag, root)
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
-    end if
+    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     write(stdout, "(A)") repeat("-", 80)
-
-    ! Get the root of all evil ;-)
-    call getChild(hsdTree, rootTag, root)
 
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, &
@@ -159,11 +146,6 @@ contains
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
-    end if
-    if (tIoProc .and. parserFlags%tWriteXML) then
-      call dumpHSDAsXML(hsdTree, xmlProcInputName)
-      write(stdout, '(A,/)') "Processed input in XML format written to '" &
-          &// xmlProcInputName // "'"
     end if
 
     ! Stop, if only parsing is required

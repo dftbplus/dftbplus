@@ -36,6 +36,14 @@ program test_fileinit
 
   integer :: devNull
 
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
+
   ! Note: setting the global standard output to /dev/null to suppress output and run-time error
   ! messages
   open(newunit=devNull, file="/dev/null", action="write")
@@ -83,6 +91,7 @@ program test_fileinit
   call TDftbPlus_destruct(dftbp)
 
   ! Write file for internal test system
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges, stressTensor = stressTensor)
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges,&
+      & stressTensor = stressTensor)
 
 end program test_fileinit

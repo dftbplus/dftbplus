@@ -50,6 +50,10 @@ module dftbp_typegeometry
 
     !> name(s) of the atomic species
     character(mc), allocatable :: speciesNames(:)
+
+    !> Is this a helical geometry
+    logical :: tHelical
+
   end type TGeometry
 
 
@@ -109,11 +113,12 @@ contains
 
   end subroutine Geometry_normalize
 
+
   !> Reduce the geometry to a subset.
-  subroutine reduce_Geometry(self, iStart, iEnd, newOrigin, newLatVecs)
+  subroutine reduce_Geometry(this, iStart, iEnd, newOrigin, newLatVecs)
 
     !> Geometry object
-    type(TGeometry), intent(inout) :: self
+    type(TGeometry), intent(inout) :: this
 
     !> Initial atom in the reduced geometry
     integer, intent(in) :: iStart
@@ -131,31 +136,32 @@ contains
     real(dp), allocatable :: tmpCoords(:,:)
 
 
-    self%nAtom = iEnd - iStart + 1
-    allocate(tmpSpecies(self%nAtom))
-    tmpSpecies = self%species(iStart:iEnd)
-    deallocate(self%species)
-    allocate(self%species(self%nAtom))
-    self%species = tmpSpecies
+    this%nAtom = iEnd - iStart + 1
+    allocate(tmpSpecies(this%nAtom))
+    tmpSpecies = this%species(iStart:iEnd)
+    deallocate(this%species)
+    allocate(this%species(this%nAtom))
+    this%species = tmpSpecies
     deallocate(tmpSpecies)
 
-    allocate(tmpCoords(3, self%nAtom))
-    tmpCoords = self%coords(:,iStart:iEnd)
-    deallocate(self%coords)
-    allocate(self%coords(3, self%nAtom))
-    self%coords = tmpCoords
+    allocate(tmpCoords(3, this%nAtom))
+    tmpCoords = this%coords(:,iStart:iEnd)
+    deallocate(this%coords)
+    allocate(this%coords(3, this%nAtom))
+    this%coords = tmpCoords
     deallocate(tmpCoords)
     if (present(newLatVecs).and.present(newOrigin)) then
-      call setLattice(self, newOrigin, newLatVecs)
+      call setLattice(this, newOrigin, newLatVecs)
     end if
 
   end subroutine reduce_Geometry
 
+
   !> Set new lattice vectors for a geometry - if not initially periodic, structure is converted
-  subroutine setLattice_Geometry(self, origin, latVecs)
+  subroutine setLattice_Geometry(this, origin, latVecs)
 
     !> Geometry object
-    type(TGeometry), intent(inout) :: self
+    type(TGeometry), intent(inout) :: this
 
     !> Supercell origin
     real(dp), intent(in) :: origin(:)
@@ -163,19 +169,18 @@ contains
     !> Lattice vectors for the supercell
     real(dp), intent(in) :: latVecs(:,:)
 
-
-    if (.not. self%tPeriodic) then
-      allocate(self%origin(3))
-      allocate(self%latVecs(3, 3))
-      allocate(self%recVecs2p(3, 3))
-      self%tPeriodic = .true.
-      self%tFracCoord = .false.
+    if (.not. this%tPeriodic) then
+      allocate(this%origin(3))
+      allocate(this%latVecs(3, 3))
+      allocate(this%recVecs2p(3, 3))
+      this%tPeriodic = .true.
+      this%tFracCoord = .false.
     end if
-    self%origin = origin
-    self%latVecs = latVecs
-    self%recVecs2p = self%latVecs
-    call matinv(self%recVecs2p)
-    self%recVecs2p = reshape(self%recVecs2p, (/3, 3/), order=(/2, 1/))
+    this%origin = origin
+    this%latVecs = latVecs
+    this%recVecs2p = this%latVecs
+    call matinv(this%recVecs2p)
+    this%recVecs2p = reshape(this%recVecs2p, (/3, 3/), order=(/2, 1/))
 
   end subroutine setLattice_Geometry
 

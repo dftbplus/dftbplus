@@ -115,10 +115,10 @@ contains
 
 
   !> Initialises MolecularOrbital instance.
-  subroutine MolecularOrbital_init(self, geometry, basis)
+  subroutine MolecularOrbital_init(this, geometry, basis)
 
     !> Molecular Orbital
-    type(TMolecularOrbital), intent(out) :: self
+    type(TMolecularOrbital), intent(out) :: this
 
     !> Geometrical information.
     type(TGeometry), intent(in) :: geometry
@@ -131,87 +131,87 @@ contains
     real(dp) :: mCutoff
     real(dp), allocatable :: rCellVec(:,:)
 
-    @:ASSERT(.not. self%tInitialised)
+    @:ASSERT(.not. this%tInitialised)
     @:ASSERT(geometry%nSpecies == size(basis))
 
-    self%nAtom = geometry%nAtom
-    self%nSpecies = geometry%nSpecies
-    allocate(self%species(self%nAtom))
-    self%species(:) = geometry%species(:)
+    this%nAtom = geometry%nAtom
+    this%nSpecies = geometry%nSpecies
+    allocate(this%species(this%nAtom))
+    this%species(:) = geometry%species(:)
 
     ! Create sequential list of STOs
     nOrb = 0
-    do ii = 1, self%nSpecies
+    do ii = 1, this%nSpecies
       nOrb = nOrb + (basis(ii)%nOrb)
     end do
-    allocate(self%iStos(self%nSpecies+1))
-    allocate(self%stos(nOrb))
-    allocate(self%cutoffs(nOrb))
-    allocate(self%angMoms(nOrb))
+    allocate(this%iStos(this%nSpecies+1))
+    allocate(this%stos(nOrb))
+    allocate(this%cutoffs(nOrb))
+    allocate(this%angMoms(nOrb))
     ind = 1
-    do ii = 1, self%nSpecies
-      self%iStos(ii) = ind
+    do ii = 1, this%nSpecies
+      this%iStos(ii) = ind
       nOrb = basis(ii)%nOrb
-      self%stos(ind:ind+nOrb-1) = basis(ii)%stos(1:nOrb)
-      self%cutoffs(ind:ind+nOrb-1) = basis(ii)%cutoffs(1:nOrb)
-      self%angMoms(ind:ind+nOrb-1) = basis(ii)%angMoms(1:nOrb)
+      this%stos(ind:ind+nOrb-1) = basis(ii)%stos(1:nOrb)
+      this%cutoffs(ind:ind+nOrb-1) = basis(ii)%cutoffs(1:nOrb)
+      this%angMoms(ind:ind+nOrb-1) = basis(ii)%angMoms(1:nOrb)
       ind = ind + nOrb
     end do
-    self%iStos(ii) = ind
+    this%iStos(ii) = ind
 
     ! Count all orbitals (including m-dependence)
     nOrb = 0
-    do ii = 1, self%nAtom
-      iSp = self%species(ii)
-      nOrb = nOrb + sum(2*self%angMoms(self%iStos(iSp):self%iStos(iSp+1)-1)+1)
+    do ii = 1, this%nAtom
+      iSp = this%species(ii)
+      nOrb = nOrb + sum(2*this%angMoms(this%iStos(iSp):this%iStos(iSp+1)-1)+1)
     end do
-    self%nOrb = nOrb
+    this%nOrb = nOrb
 
     ! Get cells to look for when adding STOs from periodic images
-    self%tPeriodic = geometry%tPeriodic
-    if (self%tPeriodic) then
-      allocate(self%latVecs(3,3))
-      allocate(self%recVecs2p(3,3))
-      self%latVecs(:,:) = geometry%latVecs(:,:)
-      call invert33(self%recVecs2p, self%latVecs)
-      self%recVecs2p = reshape(self%recVecs2p, (/3, 3/), order=(/2, 1/))
-      mCutoff = maxval(self%cutoffs)
-      call getCellTranslations(self%cellVec, rCellVec, self%latVecs, &
-          &self%recVecs2p, mCutoff)
-      self%nCell = size(self%cellVec,dim=2)
+    this%tPeriodic = geometry%tPeriodic
+    if (this%tPeriodic) then
+      allocate(this%latVecs(3,3))
+      allocate(this%recVecs2p(3,3))
+      this%latVecs(:,:) = geometry%latVecs(:,:)
+      call invert33(this%recVecs2p, this%latVecs)
+      this%recVecs2p = reshape(this%recVecs2p, (/3, 3/), order=(/2, 1/))
+      mCutoff = maxval(this%cutoffs)
+      call getCellTranslations(this%cellVec, rCellVec, this%latVecs, &
+          &this%recVecs2p, mCutoff)
+      this%nCell = size(this%cellVec,dim=2)
     else
-      allocate(self%latVecs(3,0))
-      allocate(self%recVecs2p(3,0))
-      allocate(self%cellVec(3, 1))
-      self%cellVec(:,:) = 0.0_dp
+      allocate(this%latVecs(3,0))
+      allocate(this%recVecs2p(3,0))
+      allocate(this%cellVec(3, 1))
+      this%cellVec(:,:) = 0.0_dp
       allocate(rCellVec(3, 1))
       rCellVec(:,:) = 0.0_dp
-      self%nCell = 1
+      this%nCell = 1
     end if
 
     ! Create coorinates for central cell and periodic images
-    allocate(self%coords(3, self%nAtom, self%nCell))
-    self%coords(:,:,1) = geometry%coords(:,:)
-    if (self%tPeriodic) then
-      call foldCoordToUnitCell(self%coords(:,:,1), self%latVecs, self%recVecs2p)
-      do ii = 2, self%nCell
-        do jj = 1, self%nAtom
-          self%coords(:,jj, ii) = self%coords(:,jj,1) + rCellVec(:,ii)
+    allocate(this%coords(3, this%nAtom, this%nCell))
+    this%coords(:,:,1) = geometry%coords(:,:)
+    if (this%tPeriodic) then
+      call foldCoordToUnitCell(this%coords(:,:,1), this%latVecs, this%recVecs2p)
+      do ii = 2, this%nCell
+        do jj = 1, this%nAtom
+          this%coords(:,jj, ii) = this%coords(:,jj,1) + rCellVec(:,ii)
         end do
       end do
     end if
 
-    self%tInitialised = .true.
+    this%tInitialised = .true.
 
   end subroutine MolecularOrbital_init
 
 
   !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_real(self, origin, gridVecs, &
+  subroutine MolecularOrbital_getValue_real(this, origin, gridVecs, &
       &eigVecsReal, valueOnGrid, addDensities)
 
     !> MolecularOrbital instance
-    type(TMolecularOrbital), intent(in) :: self
+    type(TMolecularOrbital), intent(in) :: this
 
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
@@ -234,10 +234,10 @@ contains
     complex(dp), save :: eigVecsCmpl(0,0)
     logical :: tAddDensities
 
-    @:ASSERT(self%tInitialised)
+    @:ASSERT(this%tInitialised)
     @:ASSERT(size(origin) == 3)
     @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
-    @:ASSERT(size(eigVecsReal, dim=1) == self%nOrb)
+    @:ASSERT(size(eigVecsReal, dim=1) == this%nOrb)
     @:ASSERT(all(shape(valueOnGrid) > (/ 1, 1, 1, 0 /)))
     @:ASSERT(size(eigVecsReal, dim=2) == size(valueOnGrid, dim=4))
 
@@ -248,20 +248,20 @@ contains
     end if
 
     call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
-        &self%nAtom, self%nOrb, self%coords, self%species, self%cutoffs, &
-        &self%iStos, self%angMoms, self%stos, self%tPeriodic, .true., &
-        &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
-        &self%cellVec, tAddDensities, valueOnGrid, valueCmpl)
+        &this%nAtom, this%nOrb, this%coords, this%species, this%cutoffs, &
+        &this%iStos, this%angMoms, this%stos, this%tPeriodic, .true., &
+        &this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell, &
+        &this%cellVec, tAddDensities, valueOnGrid, valueCmpl)
 
   end subroutine MolecularOrbital_getValue_real
 
 
   !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_cmpl(self, origin, gridVecs, &
+  subroutine MolecularOrbital_getValue_cmpl(this, origin, gridVecs, &
       &eigVecsCmpl, kPoints, kIndexes, valueOnGrid)
 
     !> MolecularOrbital instance
-    type(TMolecularOrbital), intent(in) :: self
+    type(TMolecularOrbital), intent(in) :: this
 
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
@@ -285,10 +285,10 @@ contains
     real(dp), save :: eigVecsReal(0,0)
     logical, save :: tAddDensities = .false.
 
-    @:ASSERT(self%tInitialised)
+    @:ASSERT(this%tInitialised)
     @:ASSERT(size(origin) == 3)
     @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
-    @:ASSERT(size(eigVecsCmpl, dim=1) == self%nOrb)
+    @:ASSERT(size(eigVecsCmpl, dim=1) == this%nOrb)
     @:ASSERT(all(shape(valueOnGrid) > (/ 0, 0, 0, 0 /)))
     @:ASSERT(size(eigVecsCmpl, dim=2) == size(valueOnGrid, dim=4))
     @:ASSERT(size(kPoints, dim=1) == 3)
@@ -298,10 +298,10 @@ contains
     @:ASSERT(minval(kIndexes) > 0)
 
     call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
-        &self%nAtom, self%nOrb, self%coords, self%species, self%cutoffs, &
-        &self%iStos, self%angMoms, self%stos, self%tPeriodic, .false., &
-        &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
-        &self%cellVec, tAddDensities, valueReal, valueOnGrid)
+        &this%nAtom, this%nOrb, this%coords, this%species, this%cutoffs, &
+        &this%iStos, this%angMoms, this%stos, this%tPeriodic, .false., &
+        &this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell, &
+        &this%cellVec, tAddDensities, valueReal, valueOnGrid)
 
   end subroutine MolecularOrbital_getValue_cmpl
 

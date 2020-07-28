@@ -18,8 +18,10 @@ module poisson_init
   use libmpifx_module
 #:endif
   use poisson
+  use dftbp_environment, only : TEnvironment, globalTimers
+#:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
-  use system_calls, only: create_directory
+#:endif
   implicit none
   private
 
@@ -167,11 +169,15 @@ module poisson_init
 contains
 
   !> Initialise gDFTB environment and variables
-#:if WITH_MPI
-  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
-#:else
-  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, initinfo)
-#:endif
+  subroutine poiss_init(env, structure, orb, hubbU, poissoninfo,&
+    #:if WITH_TRANSPORT
+      & transpar,&
+    #:endif
+      & initinfo)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
     !> initialisation choices for poisson solver
     Type(TPoissonStructure), intent(in) :: structure
 
@@ -184,42 +190,37 @@ contains
     !> Solver settings
     Type(TPoissonInfo), intent(in) :: poissoninfo
 
+  #:if WITH_TRANSPORT
     !> Transport parameters
     Type(TTransPar), intent(in) :: transpar
-#:if WITH_MPI
-    !> MPI details
-    Type(mpifx_comm), intent(in) :: mpicomm
-#:endif
+  #:endif
+
     !> Success of initialisation
     logical, intent(out) :: initinfo
 
+
     ! local variables
-    integer :: i, iErr
+    integer :: iErr
 
     iErr = 0
     initinfo = .true.
 
   #:if WITH_MPI
-    call poiss_mpi_init(mpicomm)
-    call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
-    call mpifx_barrier(mpicomm, iErr)
-  !#:else
-    !call error("The Poisson solver currently requires MPI parallelism to be enabled")
+    call poiss_mpi_init(env%mpi%globalComm)
+    call poiss_mpi_split(min(poissoninfo%maxNumNodes, env%mpi%globalComm%size))
+    call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
     write(stdOut,*)
     write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ',numprocs,' node(s)'
+    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
     write(stdOut,*)
-
-    ! notify solver of standard out unit
-    call set_stdout(stdOut)
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
 
     if (id0) then
-      ! only use a scratch folder on the master node
+      ! only use a scratch folder on the lead node
       call create_directory(trim(scratchfolder),iErr)
     end if
 
@@ -240,7 +241,7 @@ contains
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy()
+        call poiss_destroy(env)
         initinfo = .false.
         return
       endif
@@ -252,6 +253,7 @@ contains
 
       call set_temperature(0.0_dp)
 
+    #:if WITH_TRANSPORT
       !-----------------------------------------------------------------------------
       ! GP: verify if the calculation is on an open system (cluster=false) or not
       !
@@ -283,6 +285,11 @@ contains
       call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
       call set_potentials(transpar%contacts(1:ncont)%potential)
       call set_builtin()
+    #:else
+      call set_ncont(0)
+      call set_cluster(.true.)
+      call set_mol_indeces([1,structure%natom], structure%natom)
+    #:endif
 
       call set_dopoisson(poissoninfo%defined)
       call set_poissonbox(poissoninfo%poissBox)
@@ -311,9 +318,11 @@ contains
 
       write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
+    #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
         call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
       end if
+    #:endif
 
       dR_cont = poissoninfo%bufferLocBC
       bufferBox = poissoninfo%bufferBox
@@ -381,20 +390,50 @@ contains
   end subroutine poiss_init
 
 
+  subroutine create_directory(dirName, iErr)
+
+    character(*), intent(in) :: dirName
+
+    integer, intent(out) :: iErr
+
+    integer :: cstat
+    character(len=255) :: cmsg
+
+    iErr = -999
+    cstat = -999
+    cmsg  = "notfilled"
+
+    call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
+        & cmdmsg=cmsg)
+    if (iErr /= 0) then
+      write (stdOut,*) 'error status of mkdir: ', iErr
+      write (stdOut,*) 'command status: ', cstat
+      write (stdOut,*) "command msg:  ", trim(cmsg)
+    end if
+
+  end subroutine create_directory
+
+
   !> Release gDFTB varibles in poisson library
-  subroutine poiss_destroy()
+  subroutine poiss_destroy(env)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     if (active_id) then
       write(stdOut,'(A)')
       write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson()
+      call poiss_freepoisson(env)
     endif
 
   end subroutine poiss_destroy
 
 
   !> Interface subroutine to call Poisson
-  subroutine poiss_getshift(V_L_atm,grad_V)
+  subroutine poiss_getshift(env, V_L_atm,grad_V)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
@@ -404,7 +443,7 @@ contains
 
     real(dp) :: fakegrad(3,1)
 
-    integer :: ndim, ierr, array_size
+    integer :: ierr
     integer :: PoissFlag
 
     ! The subroutine gives the atom shifts.
@@ -419,6 +458,7 @@ contains
       PoissFlag=1
     end if
 
+    call env%globalTimer%startTimer(globalTimers%poisson)
     if (active_id) then
 
       select case(PoissFlag)
@@ -433,9 +473,9 @@ contains
         if (iErr /= 0) then
           call error("Failure during initialisation of the Poisson box")
         end if
-        call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
+        call mudpack_drv(env, PoissFlag,V_L_atm,fakegrad)
       case(1)
-        call mudpack_drv(PoissFlag,V_L_atm,grad_V)
+        call mudpack_drv(env, PoissFlag,V_L_atm,grad_V)
       end select
 
       if (verbose.gt.30) then
@@ -456,11 +496,16 @@ contains
     call mpifx_barrier(global_comm)
   #:endif
 
+    call env%globalTimer%stopTimer(globalTimers%poisson)
+
   end subroutine poiss_getshift
 
 
   !> Interface subroutine to overload Mulliken charges stored in libPoisson
-  subroutine poiss_updcharges(q,q0)
+  subroutine poiss_updcharges(env, q, q0)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> populations
     real(dp), intent(in) :: q(:,:)
@@ -471,6 +516,7 @@ contains
     integer :: nsh, l, i, o, orb
     real(dp) :: Qtmp
 
+    call env%globalTimer%startTimer(globalTimers%poisson)
     if (active_id) then
 
       if (size(q, dim=2).ne.natoms) then
@@ -492,6 +538,7 @@ contains
       enddo
 
     endif
+    call env%globalTimer%stopTimer(globalTimers%poisson)
 
   end subroutine poiss_updcharges
 

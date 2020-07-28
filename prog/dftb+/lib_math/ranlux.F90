@@ -122,10 +122,10 @@ contains
 
 
   !> Creates and initializes a random generator
-  subroutine Ranlux_init_default(self, luxlev, initSeed)
+  subroutine Ranlux_init_default(this, luxlev, initSeed)
 
     !> Initialized random generator on exit
-    type(TRanlux), intent(out) :: self
+    type(TRanlux), intent(out) :: this
 
     !> Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
     integer, intent(in), optional :: luxlev
@@ -136,20 +136,20 @@ contains
     integer :: jseed
     integer :: ii, kk
 
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(luxlev)) then
       @:ASSERT(luxlev >= 0 .and. luxlev <= maxlev)
     end if
     if (present(initSeed)) then
       @:ASSERT(initSeed > 0)
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     !! Set luxury level
-    self%luxlev = lxdflt
+    this%luxlev = lxdflt
     if (present(luxlev)) then
       if (luxlev >= 0 .and. luxlev <= maxlev) then
-        self%luxlev = luxlev
+        this%luxlev = luxlev
       end if
     end if
 
@@ -161,39 +161,39 @@ contains
       end if
     end if
 
-    self%nskip = ndskip(self%luxlev)
-    self%in24 = 0
-    self%twom24 = 1.0_dp
+    this%nskip = ndskip(this%luxlev)
+    this%in24 = 0
+    this%twom24 = 1.0_dp
 
     !! Calculate seeds
     do ii = 1, 24
-      self%twom24 = self%twom24 * 0.5_dp
+      this%twom24 = this%twom24 * 0.5_dp
       kk = jseed / 53668
       jseed = 40014 * (jseed-kk*53668) - kk * 12211
       if (jseed < 0) then
         jseed = jseed + icons
       end if
-      self%iseeds(ii) = mod(jseed,itwo24)
-      self%next(ii) = ii - 1
+      this%iseeds(ii) = mod(jseed,itwo24)
+      this%next(ii) = ii - 1
     end do
 
-    self%twom12 = self%twom24 * 4096.0_dp
-    self%next(1) = 24
-    self%i24 = 24
-    self%j24 = 10
-    self%icarry = 0
-    if (iand(self%iseeds(24), maskhi) /= 0) then
-      self%icarry = 1
+    this%twom12 = this%twom24 * 4096.0_dp
+    this%next(1) = 24
+    this%i24 = 24
+    this%j24 = 10
+    this%icarry = 0
+    if (iand(this%iseeds(24), maskhi) /= 0) then
+      this%icarry = 1
     end if
 
   end subroutine Ranlux_init_default
 
 
   !> Creates and initializes a random generator with previously saved values.
-  subroutine Ranlux_init_restart(self, isdext)
+  subroutine Ranlux_init_restart(this, isdext)
 
     !> Initialized random generator instance on exit
-    type(TRanlux), intent(out) :: self
+    type(TRanlux), intent(out) :: this
 
     !> Contains the state of a saved generator as produced by Ranlux_getState.
     integer, intent(in) :: isdext(:)
@@ -202,59 +202,59 @@ contains
 
     @:ASSERT(size(isdext) == 25)
 
-    self%twom24 = 1.0_dp
+    this%twom24 = 1.0_dp
     do ii = 1, 24
-      self%next(ii) = ii - 1
-      self%twom24 = self%twom24 * 0.5_dp
+      this%next(ii) = ii - 1
+      this%twom24 = this%twom24 * 0.5_dp
     end do
-    self%next(1) = 24
-    self%twom12 = self%twom24 * 4096.0_dp
-    self%iseeds(1:24) = isdext(1:24)
-    self%icarry = 0
+    this%next(1) = 24
+    this%twom12 = this%twom24 * 4096.0_dp
+    this%iseeds(1:24) = isdext(1:24)
+    this%icarry = 0
     if (isdext(25) < 0) then
-      self%icarry = 1
+      this%icarry = 1
     end if
 
     isd = iabs(isdext(25))
-    self%i24 = mod(isd,100)
+    this%i24 = mod(isd,100)
     isd = isd / 100
-    self%j24 = mod(isd,100)
+    this%j24 = mod(isd,100)
     isd = isd / 100
-    self%in24 = mod(isd,100)
+    this%in24 = mod(isd,100)
     isd = isd / 100
-    self%luxlev = isd
-    if (self%luxlev <= maxlev) then
-      self%nskip = ndskip(self%luxlev)
-    else if (self%luxlev >= 24) then
-      self%nskip = self%luxlev - 24
+    this%luxlev = isd
+    if (this%luxlev <= maxlev) then
+      this%nskip = ndskip(this%luxlev)
+    else if (this%luxlev >= 24) then
+      this%nskip = this%luxlev - 24
     else
-      self%nskip = ndskip(maxlev)
-      self%luxlev = maxlev
+      this%nskip = ndskip(maxlev)
+      this%luxlev = maxlev
     end if
 
   end subroutine Ranlux_init_restart
 
 
   !> Fills a given vector with random numbers.
-  subroutine Ranlux_getRandomVector(self, rvec)
+  subroutine Ranlux_getRandomVector(this, rvec)
 
     !> Ranlux instance
-    type(TRanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: this
 
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: rvec(:)
 
-    call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
-        &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
+    call getRandomVector_local(rvec, this%iseeds, this%icarry, this%in24, &
+        &this%i24, this%j24, this%next, this%nskip, this%twom24, this%twom12)
 
   end subroutine Ranlux_getRandomVector
 
 
   !> Fills a given 2D array with random numbers.
-  subroutine Ranlux_getRandom2DArray(self, r2Darray)
+  subroutine Ranlux_getRandom2DArray(this, r2Darray)
 
     !> Ranlux instance
-    type(TRanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: this
 
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: r2Darray(:,:)
@@ -262,26 +262,26 @@ contains
     real(dp), allocatable :: rvec(:)
 
     allocate(rvec(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
-    call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
-        &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
+    call getRandomVector_local(rvec, this%iseeds, this%icarry, this%in24, &
+        &this%i24, this%j24, this%next, this%nskip, this%twom24, this%twom12)
     r2Darray = reshape(rvec,shape(r2Darray))
 
   end subroutine Ranlux_getRandom2DArray
 
 
   !> Returns a random number
-  subroutine Ranlux_getRandomNumber(self, rnum)
+  subroutine Ranlux_getRandomNumber(this, rnum)
 
     !> Ranlux instance
-    type(TRanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: this
 
     !> Contains the random number on exit.
     real(dp), intent(out) :: rnum
 
     real(dp) :: rvec(1)
 
-    call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
-        &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
+    call getRandomVector_local(rvec, this%iseeds, this%icarry, this%in24, &
+        &this%i24, this%j24, this%next, this%nskip, this%twom24, this%twom12)
     rnum = rvec(1)
 
   end subroutine Ranlux_getRandomNumber
@@ -370,20 +370,20 @@ contains
 
 
   !> Saves the state of the random generator in an integer array
-  subroutine Ranlux_getState(self, isdext)
+  subroutine Ranlux_getState(this, isdext)
 
     !> Ranlux instance.
-    type(TRanlux), intent(in) :: self
+    type(TRanlux), intent(in) :: this
 
     !> Contains the state of the generator as integer array.
     integer, intent(out) :: isdext(:)
 
     @:ASSERT(size(isdext) == 25)
 
-    isdext(1:24) = self%iseeds(1:24)
-    isdext(25) = self%i24 + 100 * self%j24 + 10000 * self%in24 &
-        &+ 1000000 * self%luxlev
-    if (self%icarry /= 0) then
+    isdext(1:24) = this%iseeds(1:24)
+    isdext(25) = this%i24 + 100 * this%j24 + 10000 * this%in24 &
+        &+ 1000000 * this%luxlev
+    if (this%icarry /= 0) then
       isdext(25) = -isdext(25)
     end if
 

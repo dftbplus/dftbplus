@@ -1,0 +1,1 @@
+../../../../../external/gbsa/origin/gfn1-0-1/param_gbsa_ch2cl2.txt

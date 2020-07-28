@@ -10,8 +10,8 @@
 !> Contains the routines for initialising modes.
 module dftbp_initmodes
   use dftbp_assert
-  use dftbp_io
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_globalenv, only : stdOut
+  use dftbp_hsdparser, only : parseHSD, dumpHSD
   use dftbp_xmlutils
   use dftbp_hsdutils
   use dftbp_hsdutils2
@@ -41,22 +41,10 @@ module dftbp_initmodes
   !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
 
-  !> xml input file name
-  character(len=*), parameter :: xmlInput = "modes_in.xml"
-
-  !> parsed xml name
-  character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"
-
   !> version of the input document
   integer, parameter :: parserVersion = 3
 
   public :: initProgramVariables
-
-  !! Variables from detailed.xml
-
-
-  !> Unique identifier of the run
-  integer, public :: identity
 
   !> Geometry
   type(TGeometry), public :: geo
@@ -118,34 +106,30 @@ contains
   subroutine initProgramVariables()
 
     type(TOldSKData) :: skData
-    type(fnode), pointer :: input, root, node, tmp
+    type(fnode), pointer :: root, node, tmp, hsdTree
     type(fnode), pointer :: value, child, child2
     type(TListRealR1) :: realBuffer
     type(string) :: buffer, buffer2
     type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
-    logical :: tHSD
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
-    logical :: tWriteXML, tWriteHSD ! XML or HSD output?
+    logical :: tWriteHSD ! HSD output?
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     MODES  " // version
     write(stdout, "(A,/)") repeat("=", 80)
 
-    !! Read in input file as HSD or XML.
-    call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInput //  "'"
-    end if
+    !! Read in input file as HSD
+    call parseHSD(rootTag, hsdInput, hsdTree)
+    call getChild(hsdTree, rootTag, root)
+
+    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
     write(stdout, "(A)") repeat("-", 80)
-    call getChild(input, rootTag, root)
 
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -274,26 +258,18 @@ contains
     end if
 
     call getChildValue(root, "WriteHSDInput", tWriteHSD, .false.)
-    call getChildValue(root, "WriteXMLInput", tWriteXML, .false.)
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root,.true.)
 
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
-      call dumpHSD(input, hsdParsedInput)
-
-      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
-          &//"'"
-    end if
-    if (tWriteXML) then
-      call dumpHSDAsXML(input, xmlParsedInput)
-      write(stdout, "(A)") "Processed input written as XML to '" // xmlParsedInput &
-          &//"'"
+      call dumpHSD(hsdTree, hsdParsedInput)
+      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput //"'"
     end if
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, *)
-    call destroyNode(input)
+    call destroyNode(hsdTree)
 
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
@@ -310,7 +286,7 @@ contains
   end subroutine initProgramVariables
 
 
-  !> Read in the geometry stored as xml in internal or gen format.
+  !> Read in the geometry stored as gen format.
   subroutine readGeometry(geonode, geo)
 
     !> Node containing the geometry

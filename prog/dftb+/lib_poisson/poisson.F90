@@ -17,11 +17,11 @@ module poisson
   use parcheck                
   use gewald
   use bulkpot
-  use gclock
   use fancybc
   use mpi_poisson
-  use std_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : lc, dp
+  use dftbp_environment, only : TEnvironment, globalTimers
   implicit none
   private
 
@@ -60,38 +60,26 @@ module poisson
 #:endif
   public :: id0, active_id, numprocs
   ! from io
-  public :: set_stdout
 
 
-  public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
+  public :: init_poissbox, mudpack_drv, save_pot, rho, n_alpha
   public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
 
  contains
 
  !------------------------------------------------------------------------------
- ! Utility subroutine to build gDFTB supercell
- !------------------------------------------------------------------------------
- subroutine poiss_supercell(slkcutoff)
-   real(dp) :: slkcutoff
-  
-   if (active_id) then
-     call gamma_summind(slkcutoff)
-                         
-     call buildsupercell() !(computes ss_natoms and allocates inside ss_x, ss_izp)
-                           ! period_dir should have been computed (check_biasdir)
-   endif
- end subroutine poiss_supercell
+ subroutine poiss_freepoisson(env)
 
- !------------------------------------------------------------------------------
- subroutine poiss_freepoisson()
+   !> Environment settings
+   type(TEnvironment), intent(inout) :: env
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
-   integer :: PoissFlag, ndim 
+   integer :: PoissFlag
 
    if (active_id) then
      PoissFlag=3
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    endif
  
    if(allocated(x)) call log_gdeallocate(x)
@@ -108,12 +96,17 @@ module poisson
  end subroutine poiss_freepoisson
 
  ! -----------------------------------------------------------------------------
- subroutine poiss_savepotential()
-    
+ subroutine poiss_savepotential(env)
+
+   !> Environment settings
+   type(TEnvironment), intent(inout) :: env
+
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
-   integer :: PoissFlag, ndim
- 
+   integer :: PoissFlag
+
+   call env%globalTimer%startTimer(globalTimers%poisson)
+
    if (active_id) then
  
      if(.not.SavePot) return
@@ -122,9 +115,11 @@ module poisson
   
      PoissFlag=2
      
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    
    endif
+
+   call env%globalTimer%stopTimer(globalTimers%poisson)
 
  end subroutine poiss_savepotential
   
@@ -136,15 +131,8 @@ module poisson
      x = x0
      do_renorm = .true.
    endif
+
  end subroutine poiss_updcoords
-
- ! -----------------------------------------------------------------------------
- subroutine poiss_setparameters(st_tempElec)
-   real(dp), intent(in)  :: st_tempElec       ! electron temperature 
-    
-   telec=st_tempElec
-
- end subroutine poiss_setparameters
 
  ! -----------------------------------------------------------------------------
  subroutine init_poissbox(iErr)
@@ -334,7 +322,10 @@ module poisson
  end subroutine init_poissbox
 
 !> This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
-subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
+subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
+
+  !> Environment settings
+  type(TEnvironment), intent(inout) :: env
 
   !> Control flag:
   integer, intent(in) :: SCC_in
@@ -372,7 +363,6 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
  integer, save :: niter = 1
 
  integer :: na,nb,nc, cont_mem
- character(10) :: bndtype 
  character(50) :: BCinfo
  !e.g.: tmpdir (1) = 0 if there aren't two or more contacts in the same "x direction"
 
@@ -628,11 +618,11 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
                                     
     !--------------------------------------------------------------------------
     if (cluster.and.period .and. niter.eq.1) then
+      call env%globalTimer%startTimer(globalTimers%poissonEwald)
       if (id0) then
-        if (verbose.gt.VBT) call message_clock(stdOut,'Computing Ewalds ')
         call set_phi_periodic(phi,iparm,fparm)
-        if (verbose.gt.VBT) call write_clock(stdOut)
-      end if  
+      end if
+      call env%globalTimer%stopTimer(globalTimers%poissonEwald)
     end if
     !--------------------------------------------------------------------------
     if (ncont.gt.0) then
@@ -668,19 +658,19 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
        ! -----------------------------------------------------------------------
        if (InitPot) then
           
-         if (ReadBulk) then   !Read old bulk potential
-           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Read bulk potential ')           
+         if (ReadBulk) then
+           !Read old bulk potential
+           call env%globalTimer%startTimer(globalTimers%poissonBulkRead)
            call readbulk_pot(bulk)
-           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)               
-         endif    ! do not change (readbulk can change)
-         
-         if (.not.ReadBulk) then
-           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Compute bulk potential ')   
+           call env%globalTimer%stopTimer(globalTimers%poissonBulkRead)
+         else
+           !Compute bulk potential
+           call env%globalTimer%startTimer(globalTimers%poissonBulkCalc)
            call compbulk_pot(bulk,iparm,fparm)
            ReadBulk=.true.
-           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)     
-         end if !Compute bulk potential 
-                    
+           call env%globalTimer%stopTimer(globalTimers%poissonBulkCalc)
+         end if
+
        else  
          if(id0.and.verbose.gt.VBT) write(stdOut,*) 'No bulk potential'
        endif
@@ -738,7 +728,7 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     ! Charge density evaluation on the grid points 
     !*********************************************************************************
 
-    call set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
+    call set_rhs(env, iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
 
     !*********************************************************************************
@@ -750,13 +740,10 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     if (id0) then
 
       call log_gallocate(work,worksize)
-       
+
+      call env%globalTimer%startTimer(globalTimers%poissonSoln)
       do i = 0,1
         iparm(1) = i
-    
-        if (i.eq.1) then
-           if (verbose.gt.VBT) call message_clock(stdOut,'Solving Poisson equation ') 
-        endif
 
         if (DoGate) then
            call mud3(iparm,fparm,work,coef_gate,bndyc,rhs,phi,mgopt,err)
@@ -783,7 +770,7 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
         end if
       end do
 
-      if (verbose.gt.VBT) call write_clock(stdOut)
+      call env%globalTimer%stopTimer(globalTimers%poissonSoln)
 
       if (err.lt.-1) then
         write(stdOut,*) 'Non-fatal Error in poisson solver:',err
@@ -811,10 +798,10 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     !--------------------------------------------
     ! Shift of the Hamiltonian matrix elements 
     !--------------------------------------------
-    if (id0) then  
-      if (verbose.gt.VBT) call message_clock(stdOut,'Computing Hamiltonian shifts ')
-      call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
-      if (verbose.gt.VBT) call write_clock(stdOut)   
+    if (id0) then
+      call env%globalTimer%startTimer(globalTimers%poissonShifts)
+      call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)
+      call env%globalTimer%stopTimer(globalTimers%poissonShifts)
     end if
     
     call destroy_phi_bulk(bulk)
@@ -853,7 +840,10 @@ end subroutine Mudpack_drv
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
+subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
+
+  !> Environment settings
+  type(TEnvironment), intent(inout) :: env
 
   integer :: iparm(23)
   real(kind=dp) :: fparm(8),dlx,dly,dlz
@@ -903,9 +893,9 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     ! Allocate space for local rhs.
     call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
     !---------------------------------------------------------------------
- 
-    if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Building charge density ')
- 
+
+    call env%globalTimer%startTimer(globalTimers%poissonDensity)
+
     !! Set a renormalization volume for grid projection
  
     if (do_renorm) then
@@ -926,10 +916,10 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     if (DoTip) then
        call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
     endif
- 
-    if (id0.and.verbose.gt.VBT) call write_clock(stdOut)
- 
-    ! gather all partial results on master node 0
+
+    call env%globalTimer%stopTimer(globalTimers%poissonDensity)
+
+    ! gather all partial results on lead node 0
     call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
  
     call log_gdeallocate(rhs_par)
@@ -971,22 +961,22 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 end subroutine set_rhs
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed)
+subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
 
   implicit none 
 
   integer :: iparm(23) 
   real(kind=dp) :: fparm(8)
-  real(kind=dp) :: dlx,dly,dlz
+  real(kind=dp) :: dlx, dly, dlz
   logical, intent(in) :: fixed
 
   !Internal variables
 
-  real(kind=dp) :: xi(3),deltaR
-  integer :: i,j,k,atom, rag(3)
+  real(kind=dp) :: xi(3), deltaR
+  integer :: i, j, k, atom, rag(3)
   integer :: ragx, ragy, ragz, npx, npy, npz
 
-  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
+  real(kind=dp) :: dl(3), xmin(3), xmax(3)
   integer :: imin(3),imax(3), ii, jj, kk, l, nsh
   real(kind=dp), allocatable, dimension(:,:) :: tau
   ! Perform almost the same operations of charge_density, estimates
@@ -1086,7 +1076,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
 
  implicit none 
 
- integer :: iparm(23) 
+ integer :: iparm(23)
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: rhs(:,:,:)
@@ -1099,7 +1089,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
 
  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
  integer :: imin(3),imax(3), ii, jj, kk, l, nsh
- real(kind=dp), allocatable, dimension(:,:) :: tau, vol
+ real(kind=dp), allocatable, dimension(:,:) :: tau
 
  rhs(:,:,:)=0.d0
 
@@ -1213,46 +1203,6 @@ function boundary2string(typ,local) result(str)
 
 end function boundary2string
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine distribute_atoms(first,last, slice_size, istart,iend,dims,displ)
-   integer, intent(in) :: first, last, slice_size
-   integer, dimension(:) :: istart, iend, displ, dims 
-
-   integer :: nlocalatoms, i  
-
-   nlocalatoms = int( (last-first+1)/numprocs )
-  
-   ! In case there are more CPUs than atoms
-   ! we assign 1 atom per CPU and all remaining have 0 atoms
-   ! (gatherv works with dims=0)
-   if (nlocalatoms .eq. 0) then
-      nlocalatoms = 1
-      do i = 1, numprocs
-         istart(i) = first + (i-1)*nlocalatoms
-         iend(i) = istart(i)
-         dims(i) = slice_size * 1
-         displ(i) = dims(1)*(i-1)
-      end do
-      do i = numprocs+1, last-first+1
-         istart(i) = 0
-         iend(i) = 0
-         dims(i) = 0
-         displ(i) = displ(numprocs)
-      end do    
-   else
-      do i = 1, numprocs
-         istart(i) = first + (i-1)*nlocalatoms
-         if (i.eq.numprocs) then
-            iend(i) = last
-         else
-            iend(i) = first + i*nlocalatoms - 1
-         end if
-         dims(i) = slice_size * (iend(i) - istart(i) + 1)
-         displ(i)= (i-1) * dims(1)
-      end do
-   endif
-
-end subroutine distribute_atoms
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
@@ -1273,7 +1223,6 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
   real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
   integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
   integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
-  integer, dimension(:), allocatable :: istart, iend, displ, dims
  
   dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
  
@@ -1534,86 +1483,21 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
 
 end subroutine gradient_V
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine save_pot_cube(iparm,fparm,dlx,dly,dlz,phi,rhs)
-  integer, intent(in) :: iparm(23) 
-  real(kind=dp), intent(in) :: fparm(8)
-  real(kind=dp), intent(in) :: dlx,dly,dlz
-  real(kind=dp), intent(in) :: phi(:,:,:)
-  real(kind=dp), intent(in) :: rhs(:,:,:)
- 
-  integer :: fp, nx, ny, nz, i, j, k
-  real(dp) :: or(3)
-
-  or = 0.0_dp
-  nx = size(phi,1)
-  ny = size(phi,2)
-  nz = size(phi,3)
-
-  if (verbose.gt.70) then 
-    if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
-  endif
-
-  if (id0) then
-    open(newunit=fp,file='potential.cube')
-    write(fp,*) 'CUBE'
-    write(fp,*) 'x, y, z'
-    write(fp,'(i4,3f17.8)') 1,or(1)*Bohr__AA,or(2)*Bohr__AA,or(3)*Bohr__AA
-    write(fp,'(i4,3f17.8)') nx,dlx*Bohr__AA,0.0,0.0
-    write(fp,'(i4,3f17.8)') ny,0.0,dly*Bohr__AA,0.0
-    write(fp,'(i4,3f17.8)') nz,0.0,0.0,dlz*Bohr__AA
-    ! write a dummy atom
-    write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
-
-    do i=1,nx
-      do j=1,ny
-        do k=1,nz
-          write(fp,'(E17.8)',advance='NO') phi(i,j,k)*hartree__eV
-          if (mod(k-1,6) .eq. 5) write(fp,*)
-        end do
-        write(fp,*)
-      end do
-    end do
-    close(fp)
-    open(newunit=fp,file='charge_density.cube')
-    write(fp,*) 'CUBE'
-    write(fp,*) 'x, y, z'
-    write(fp,'(i4,3f12.5)') 1,or(1)*Bohr__AA,or(2)*Bohr__AA,or(3)*Bohr__AA
-    write(fp,'(i4,3f12.5)') nx,dlx*Bohr__AA,0.0,0.0
-    write(fp,'(i4,3f12.5)') ny,0.0,dly*Bohr__AA,0.0
-    write(fp,'(i4,3f12.5)') nz,0.0,0.0,dlz*Bohr__AA
-    ! write a dummy atom
-    write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
-
-    do i=1,nx
-      do j=1,ny
-        do k=1,nz
-          write(fp,'(E13.5)',advance='NO') rhs(i,j,k)/(-4.0_dp*Pi)
-          if (mod(k-1,6) .eq. 5) write(fp,*)
-        end do
-        write(fp,*)
-      end do
-    end do
-    close(fp)
-  end if
-
-end subroutine save_pot_cube
 
 subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
-  
+
   integer, intent(in) :: iparm(23) 
   real(kind=dp), intent(in) :: fparm(8)
   real(kind=dp), intent(in) :: dlx,dly,dlz
   real(kind=dp), intent(in) :: phi(:,:,:)
   real(kind=dp), intent(in) :: rhs(:,:,:)
-  
+
   integer :: i,j,k,nx_fix,ny_fix,nz_fix,FixDir, fp
   real(kind=dp) :: xi,yj,zk
   real(kind=dp) :: z_min_gate, z_max_gate, z_min_ox, z_max_ox 
-  logical :: tmpLogic
-  
+
   FixDir=int(PoissPlane(1)) 
-  
+
   if (verbose.gt.70) then 
     if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
   endif
@@ -1914,11 +1798,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
  real(dp) function rho(xx1,yy1,zz1)
    
-   real(dp) :: xx1,yy1,zz1
-   
-   real(dp) :: xx,yy,zz
+   real(dp) :: xx1, yy1, zz1
+   real(dp) :: xx, yy, zz
    real(dp) :: deltaR, tau 
-   integer :: typ,atom, nsh,l
+   integer :: atom, nsh, l
    
    
    xx=xx1+PoissBounds(1,1)

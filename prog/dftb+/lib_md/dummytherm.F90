@@ -62,8 +62,8 @@ contains
 
 
   !> Creates a DummyThermostat instance.
-  subroutine DummyThermostat_init(self, kT, mass, pRanlux, pMDFrame)
-    type(TDummythermostat), intent(out) :: self
+  subroutine DummyThermostat_init(this, kT, mass, pRanlux, pMDFrame)
+    type(TDummythermostat), intent(out) :: this
 
     !> Initialised DummyThermostat instance on return.
     real(dp), intent(in) :: kT
@@ -77,44 +77,48 @@ contains
     !> thermostat object
     type(TMDCommon), intent(in) :: pMDFrame
 
-    self%kT = kT
-    self%nAtom = size(mass)
-    allocate(self%mass(self%nAtom))
-    self%mass = mass(:)
-    call move_alloc(pRanlux, self%pRanlux)
-    self%pMDFrame = pMDFrame
+    this%kT = kT
+    this%nAtom = size(mass)
+    allocate(this%mass(this%nAtom))
+    this%mass = mass(:)
+    call move_alloc(pRanlux, this%pRanlux)
+    this%pMDFrame = pMDFrame
 
   end subroutine DummyThermostat_init
 
 
   !> Returns the initial velocities.
-  subroutine DummyThermostat_getInitVelos(self, velocities)
+  subroutine DummyThermostat_getInitVelos(this, velocities)
 
     !> Thermostat instance.
-    type(TDummythermostat), intent(inout) :: self
+    type(TDummythermostat), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) >= (/ 3, this%nAtom /)))
 
-    do ii = 1, self%nAtom
-      call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), self%kT, &
-          & self%pRanlux)
-    end do
-    call restFrame(self%pMDFrame, velocities(:,:), self%mass)
-    call rescaleTokT(self%pMDFrame, velocities(:,:), self%mass, self%kT)
+    if (this%kT > minTemp) then
+      do ii = 1, this%nAtom
+        call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), this%kT, &
+            & this%pRanlux)
+      end do
+      call restFrame(this%pMDFrame, velocities(:,:), this%mass)
+      call rescaleTokT(this%pMDFrame, velocities(:,:), this%mass, this%kT)
+    else
+      velocities(:,:) = 0.0_dp
+    end if
 
   end subroutine DummyThermostat_getInitVelos
 
 
   !> no internal state, nothing to do
-  subroutine DummyThermostat_state(self, fd)
+  subroutine DummyThermostat_state(this, fd)
 
     !> thermostat object
-    type(TDummythermostat), intent(in) :: self
+    type(TDummythermostat), intent(in) :: this
 
     !> file unit
     integer,intent(in) :: fd

@@ -49,7 +49,7 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-    integer :: iAt, nAt, iSp, iSpin, nSpin, ud, iSh, jSh, iOrb, nOrb
+    integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
     real(dp), allocatable :: tmpME(:,:,:), tmpBlock(:,:)
     real(dp) :: qSumL, degeneracy
 
@@ -223,7 +223,7 @@ contains
     integer, intent(in) :: species(:)
 
     integer :: nAtom, iCount, iSpin, nSpin
-    integer :: iAt, iSp, ii, jj, kk, iStart, iEnd
+    integer :: iAt, iSp, ii
 
     nAtom = size(equiv, dim=2)
     nSpin = size(equiv, dim=3)
@@ -263,9 +263,8 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     integer :: nAtom, nSpin, iCount
-    integer :: iAt, iSp, iSpecies
-    integer :: iStart1, iEnd1, iStart2, iEnd2
-    integer :: ii, jj, kk, ll, ik
+    integer :: iAt, iSp
+    integer :: ii, jj
 
     nAtom = size(iEqBlock, dim=3)
     nSpin = size(iEqBlock, dim=4)
@@ -387,8 +386,7 @@ contains
 
     integer :: nAtom, nSpin
     integer :: iAt, iSp
-    integer :: iStart1, iEnd1, iStart2, iEnd2
-    integer :: ii, jj, kk, ll, ik
+    integer :: ii, jj
     logical :: iSkew
 
     nAtom = size(output, dim=3)
@@ -402,11 +400,11 @@ contains
 
     @:ASSERT(size(output, dim=1) == orb%mOrb)
     @:ASSERT(size(output, dim=2) == orb%mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(orbEquiv)) then
       @:ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
     @:ASSERT(all(shape(blockEquiv) == shape(output)))
 
     output = 0.0_dp

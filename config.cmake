@@ -3,7 +3,7 @@
 #
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
   "Directory to install the compiled code into")
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
@@ -11,8 +11,6 @@ option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
-
-option(WITH_GPU "Whether code should be compiled with GPU support" FALSE)
 
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
@@ -25,7 +23,7 @@ option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
-# Works only with non-MPI (serial) build
+# Works only with non-MPI (serial) build, needed for Casida linear response
 
 option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
@@ -33,7 +31,7 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
-option(WITH_API "Whether public API should be included and the DFTB+ library installed" FALSE)
+option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)
 # This will also install necessary include and module files and further libraries needed to link the
@@ -52,9 +50,9 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 #
 # Test environment settings
 #
-set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
+set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 
-set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
+set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
@@ -64,6 +62,8 @@ if(WITH_MPI)
 else()
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the tests")
+  set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
+    "How to run the modes code for tests")
 endif()
 
 
@@ -94,27 +94,3 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 # Depending on the language setting ("C" or "Fortran") you would get the flags for the case of using
 # that compiler for the linking.
 
-
-####################################################################################################
-#
-# NOTE FOR DEVELOPERS: Do not customise any settings here or in any of the sys/*.cmake files as they
-# contain the official defaults DFTB+ is shipped with. If you need to customise any of the settings
-# for your system, create a custom cmake file (e.g. custom.cmake) containing (only) the settings you
-# would like to override. For an example, see
-#
-#     https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7
-#
-# When invoking CMake, pre-populate its cache with your custom settings using the -C option. For
-# example, assuming your build folder is a subdirectory within the DFTB+ source directory and you
-# wish to override the settings in config.cmake and in sys/gnu.cmake, issue:
-#
-#     cmake -C ../custom.cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
-#
-# The settings in custom.cmake will pre-populate the cache and suppress the corresponding cache
-# variables in config.cmake and sys/*.cmake.
-#
-# Alternatively, you may also override settings on the command line, e.g.:
-#
-#     cmake -DWITH_MPI=1 -DWITH_TRANSPORT=1 -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
-#
-####################################################################################################

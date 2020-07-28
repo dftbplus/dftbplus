@@ -20,15 +20,15 @@ module dftbp_reksen
   use dftbp_densedescr
   use dftbp_eigenvects
   use dftbp_elecsolvers
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_message
   use dftbp_periodic
   use dftbp_sparse2dense
   use dftbp_rekscommon
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksio
+  use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -38,129 +38,120 @@ module dftbp_reksen
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
   public :: adjustEigenval, solveSecularEqn
+  public :: setReksTargetEnergy
 
   contains
 
   !> Construct L, spin dependent microstates from identical KS orbitals
-  subroutine constructMicrostates(self)
+  subroutine constructMicrostates(this)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
-    if (self%tSSR22) then
-      call getFillingL22_(self%Nc, self%fillingL)
-    else if (self%tSSR44) then
+    select case (this%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call getFillingL22_(this%Nc, this%fillingL)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine constructMicrostates
 
 
   !> Calculate the weight of each microstate for current cycle, C_L
-  subroutine calcWeights(self)
+  subroutine calcWeights(this)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
-    if (self%tSSR22) then
-      call getWeightL22_(self%FONs, self%delta, self%SAweight, self%weightL, self%weight)
-    else if (self%tSSR44) then
+    select case (this%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call getWeightL22_(this%FONs, this%delta, this%SAweight, this%weightL, this%weight)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine calcWeights
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(self, eigenvecs)
+  subroutine activeOrbSwap(this, eigenvecs)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    if (self%tSSR22) then
-      call MOswap22_(eigenvecs, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    select case (this%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call MOswap22_(eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine activeOrbSwap
 
 
   !> Calculate filling for minimzed state with optimized FONs
-  subroutine getFilling(self, filling)
+  subroutine getFilling(this, filling)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> occupations (level)
     real(dp), intent(out) :: filling(:)
 
-    if (self%tSSR22) then
-      call getFilling22_(filling, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    select case (this%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call getFilling22_(filling, this%SAweight, this%FONs, this%Efunction, this%Nc)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getFilling
 
 
   !> Calculate the energy of SA-REKS states and averaged state
-  subroutine calcSaReksEnergy(self, energy)
+  subroutine calcSaReksEnergy(this, energy)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> Energy terms in the system
     type(TEnergies), intent(inout) :: energy
 
-    integer :: ist, iL
+    integer :: ist
 
-    ! Compute the energy contributions of target SA-REKS state
-    ! energy = nonSCC + scc + spin + 3rd + fock
-    energy%EnonSCC = 0.0_dp
-    energy%Escc = 0.0_dp
-    energy%Espin = 0.0_dp
-    if (self%t3rd) then
-      energy%e3rd = 0.0_dp
+    ! Compute the energy contributions for target SA-REKS state
+    ! electronic energy = nonSCC + scc + spin + 3rd + fock
+    energy%EnonSCC = sum(this%weightL(this%rstate,:)*this%enLnonSCC(:))
+    energy%Escc = sum(this%weightL(this%rstate,:)*this%enLscc(:))
+    energy%Espin = sum(this%weightL(this%rstate,:)*this%enLspin(:))
+    if (this%t3rd) then
+      energy%e3rd = sum(this%weightL(this%rstate,:)*this%enL3rd(:))
     end if
-    if (self%tRangeSep) then
-      energy%Efock = 0.0_dp
-    end if
-    do iL = 1, self%Lmax
-      energy%EnonSCC = energy%EnonSCC + self%weightL(self%rstate,iL) * self%enLnonSCC(iL)
-      energy%Escc = energy%Escc + self%weightL(self%rstate,iL) * self%enLSCC(iL)
-      energy%Espin = energy%Espin + self%weightL(self%rstate,iL) * self%enLspin(iL)
-      if (self%t3rd) then
-        energy%e3rd = energy%e3rd + self%weightL(self%rstate,iL) * self%enL3rd(iL)
-      end if
-      if (self%tRangeSep) then
-        energy%Efock = energy%Efock + self%weightL(self%rstate,iL) * self%enLfock(iL)
-      end if
-    end do
-    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin
-    if (self%t3rd) then
-      energy%Eelec = energy%Eelec + energy%e3rd
-    end if
-    if (self%tRangeSep) then
-      energy%Eelec = energy%Eelec + energy%Efock
+    if (this%isRangeSep) then
+      energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
 
-    ! Compute the energy of SA-REKS states
-    self%energy(:) = 0.0_dp
-    do ist = 1, self%nstates
-      do iL = 1, self%Lmax
-        self%energy(ist) = self%energy(ist) + self%weightL(ist,iL) * self%enLtot(iL)
-      end do
+    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+        & energy%e3rd + energy%Efock
+
+    ! Compute the total energy for SA-REKS states
+    do ist = 1, this%nstates
+      this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
 
-    ! In this step Etotal is energy of averaged state, not individual states
+    ! In this step Etotal becomes the energy of averaged state, not individual states
     ! From this energy we can check the variational principle
     energy%Etotal = 0.0_dp
-    do ist = 1, self%SAstates
-      energy%Etotal = energy%Etotal + self%SAweight(ist) * self%energy(ist)
+    do ist = 1, this%SAstates
+      energy%Etotal = energy%Etotal + this%SAweight(ist) * this%energy(ist)
     end do
 
   end subroutine calcSaReksEnergy
@@ -170,7 +161,7 @@ module dftbp_reksen
   !> and diagonalize the fock matrix
   subroutine getFockandDiag(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, &
-      & electronicSolver, eigen, self)
+      & electronicSolver, eigen, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -200,7 +191,7 @@ module dftbp_reksen
     real(dp), intent(out) :: eigen(:,:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: orbFON(:)
     real(dp), allocatable :: tmpOver(:,:)
@@ -208,36 +199,36 @@ module dftbp_reksen
 
     integer :: ii, nOrb
 
-    nOrb = size(self%fockFc,dim=1)
+    nOrb = size(this%fockFc,dim=1)
 
     allocate(orbFON(nOrb))
     allocate(tmpOver(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, self%hamSqrL, self%hamSpL, self%weight, &
-        & self%fillingL, self%Nc, self%Na, self%Lpaired, self%tRangeSep, &
-        & orbFON, self%fockFc, self%fockFa)
+        & iSparseStart, img2CentCell, this%hamSqrL, this%hamSpL, this%weight, &
+        & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isRangeSep, &
+        & orbFON, this%fockFc, this%fockFa)
 
-    call matAO2MO(self%fockFc, eigenvecs(:,:,1))
-    do ii = 1, self%Na
-      call matAO2MO(self%fockFa(:,:,ii), eigenvecs(:,:,1))
+    call matAO2MO(this%fockFc, eigenvecs(:,:,1))
+    do ii = 1, this%Na
+      call matAO2MO(this%fockFa(:,:,ii), eigenvecs(:,:,1))
     end do
 
-    call getPseudoFock_(self%fockFc, self%fockFa, orbFON, self%Nc, self%Na, self%fock)
+    call getPseudoFock_(this%fockFc, this%fockFa, orbFON, this%Nc, this%Na, this%fock)
 
-    call levelShifting_(self%fock, self%shift, self%Nc, self%Na)
+    call levelShifting_(this%fock, this%shift, this%Nc, this%Na)
 
     ! Diagonalize the pesudo-Fock matrix
     tmpOver(:,:) = 0.0_dp
     do ii = 1, nOrb
       tmpOver(ii,ii) = 1.0_dp
     end do
-    tmpMat(:,:) = self%fock
+    tmpMat(:,:) = this%fock
 
     eigen(:,1,1) = 0.0_dp
     call diagDenseMtx(electronicSolver, 'V', tmpMat, tmpOver, eigen(:,1,1))
-    self%eigvecsFock(:,:) = tmpMat
+    this%eigvecsFock(:,:) = tmpMat
 
   end subroutine getFockandDiag
 
@@ -266,10 +257,10 @@ module dftbp_reksen
 
 
   !> adjust the eigenvalues (eliminate shift values)
-  subroutine adjustEigenval(self, eigen)
+  subroutine adjustEigenval(this, eigen)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> eigenvalues
     real(dp), intent(inout) :: eigen(:,:,:)
@@ -278,14 +269,14 @@ module dftbp_reksen
 
     nOrb = size(eigen,dim=1)
 
-    do ii = self%Nc + 1, self%Nc + self%Na
-      ind = ii - self%Nc
-      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * self%shift
+    do ii = this%Nc + 1, this%Nc + this%Na
+      ind = ii - this%Nc
+      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * this%shift
     end do
 
-    do ii = self%Nc + self%Na + 1, nOrb
-      ind = self%Na + 1
-      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * self%shift
+    do ii = this%Nc + this%Na + 1, nOrb
+      ind = this%Na + 1
+      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * this%shift
     end do
 
   end subroutine adjustEigenval
@@ -294,7 +285,7 @@ module dftbp_reksen
   !> Solve secular equation with coupling element between SA-REKS states
   subroutine solveSecularEqn(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-      & eigenvecs, self)
+      & eigenvecs, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -321,7 +312,7 @@ module dftbp_reksen
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: Wab(:,:)
     real(dp), allocatable :: StateCoup(:,:)
@@ -332,39 +323,41 @@ module dftbp_reksen
 
     integer :: ist, jst, nActPair
 
-    nActPair = self%Na * (self%Na - 1) / 2
+    nActPair = this%Na * (this%Na - 1) / 2
 
     allocate(Wab(nActPair,2))
-    allocate(StateCoup(self%nstates,self%nstates))
-    allocate(tmpOver(self%nstates,self%nstates))
-    allocate(tmpState(self%nstates,self%nstates))
-    allocate(tmpEigen(self%nstates))
-    allocate(tmpEn(self%nstates))
+    allocate(StateCoup(this%nstates,this%nstates))
+    allocate(tmpOver(this%nstates,this%nstates))
+    allocate(tmpState(this%nstates,this%nstates))
+    allocate(tmpEigen(this%nstates))
+    allocate(tmpEn(this%nstates))
 
     call getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, eigenvecs(:,:,1), self%hamSqrL, &
-        & self%hamSpL, self%weight, self%fillingL, self%Nc, self%Na, &
-        & self%Lpaired, self%tRangeSep, Wab)
+        & iSparseStart, img2CentCell, eigenvecs(:,:,1), this%hamSqrL, &
+        & this%hamSpL, this%weight, this%fillingL, this%Nc, this%Na, &
+        & this%Lpaired, this%isRangeSep, Wab)
 
-    if (self%tSSR22) then
-      call getStateCoup22_(Wab, self%FONs, StateCoup)
-    else if (self%tSSR44) then
+    select case (this%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call getStateCoup22_(Wab, this%FONs, StateCoup)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! diagonalize the state energies
     ! obtain SSR energies & state-interaction term
     tmpOver(:,:) = 0.0_dp
-    do ist = 1, self%nstates
+    do ist = 1, this%nstates
       tmpOver(ist,ist) = 1.0_dp
     end do
     tmpEigen(:) = 0.0_dp
 
     tmpState(:,:) = 0.0_dp
-    do ist = 1, self%nstates
-      do jst = 1, self%nstates
+    do ist = 1, this%nstates
+      do jst = 1, this%nstates
         if (ist == jst) then
-          tmpState(ist,jst) = self%energy(ist)
+          tmpState(ist,jst) = this%energy(ist)
         else
           tmpState(ist,jst) = StateCoup(ist,jst)
         end if
@@ -372,17 +365,74 @@ module dftbp_reksen
     end do
 
     ! save state energies to print information
-    tmpEn(:) = self%energy
-    if (self%useSSR == 1) then
+    tmpEn(:) = this%energy
+    if (this%tSSR) then
       call diagDenseMtx(electronicSolver, 'V', tmpState, tmpOver, tmpEigen)
-      self%eigvecsSSR(:,:) = tmpState
-      self%energy(:) = tmpEigen
+      this%eigvecsSSR(:,:) = tmpState
+      this%energy(:) = tmpEigen
     end if
 
     ! print state energies and couplings
-    call printReksSSRInfo(self, Wab, tmpEn, StateCoup)
+    call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
+
+
+  !> Set correct final energy values for target state or microstate
+  subroutine setReksTargetEnergy(this, energy, cellVol, pressure, TS)
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: this
+
+    !> Energy terms in the system
+    type(TEnergies), intent(inout) :: energy
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
+    ! get correct energy values
+    if (this%Lstate == 0) then
+
+      ! get energy contributions for target state
+      energy%Etotal = this%energy(this%rstate)
+      if (this%nstates > 1) then
+        energy%Eexcited = this%energy(this%rstate) - this%energy(1)
+      else
+        energy%Eexcited = 0.0_dp
+      end if
+
+    else
+
+      ! get energy contributions for target microstate
+      energy%EnonSCC = this%enLnonSCC(this%Lstate)
+      energy%ESCC = this%enLSCC(this%Lstate)
+      energy%Espin = this%enLspin(this%Lstate)
+      if (this%t3rd) then
+        energy%e3rd = this%enL3rd(this%Lstate)
+      end if
+      if (this%isRangeSep) then
+        energy%Efock = this%enLfock(this%Lstate)
+      end if
+
+      energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+          & energy%e3rd + energy%Efock
+      energy%Etotal = this%enLtot(this%Lstate)
+      energy%Eexcited = 0.0_dp
+
+    end if
+
+    energy%EMermin = energy%Etotal - sum(TS)
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    energy%EForceRelated = energy%EGibbs
+
+  end subroutine setReksTargetEnergy
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -600,7 +650,7 @@ module dftbp_reksen
   !> Calculate Fc and Fa from Hamiltonian of each microstate
   subroutine getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, hamSqrL, hamSpL, weight, fillingL, &
-      & Nc, Na, Lpaired, tRangeSep, orbFON, Fc, Fa)
+      & Nc, Na, Lpaired, isRangeSep, orbFON, Fc, Fa)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -651,7 +701,7 @@ module dftbp_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     real(dp), allocatable :: tmpHam(:,:)
 
@@ -660,7 +710,7 @@ module dftbp_reksen
     nOrb = size(Fc,dim=1)
     Lmax = size(weight,dim=1)
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -670,7 +720,7 @@ module dftbp_reksen
     Fa(:,:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (.not. tRangeSep) then
+      if (.not. isRangeSep) then
         tmpHam(:,:) = 0.0_dp
         ! convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
@@ -682,7 +732,7 @@ module dftbp_reksen
       end if
 
       ! compute the Fock operator with core, a, b orbitals in AO basis
-      if (tRangeSep) then
+      if (isRangeSep) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
             & Nc, Na, Lpaired, iL, Fa)
@@ -945,7 +995,7 @@ module dftbp_reksen
   !> Calculate converged Lagrangian values
   subroutine getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, weight, &
-      & fillingL, Nc, Na, Lpaired, tRangeSep, Wab)
+      & fillingL, Nc, Na, Lpaired, isRangeSep, Wab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -990,7 +1040,7 @@ module dftbp_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> converged Lagrangian values within active space
     real(dp), intent(out) :: Wab(:,:)
@@ -1005,7 +1055,7 @@ module dftbp_reksen
     Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
     allocate(tmpHamL(nActPair,1,Lmax))
@@ -1017,7 +1067,7 @@ module dftbp_reksen
 
       do iL = 1, Lmax
 
-        if (tRangeSep) then
+        if (isRangeSep) then
           ! convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then

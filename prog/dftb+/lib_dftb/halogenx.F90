@@ -238,7 +238,7 @@ contains
     ! Local variables
     integer, allocatable :: nNeigh(:)
     integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
-    real(dp) :: r, rTmp, rvdw, eTmp, fTmp(3)
+    real(dp) :: rvdw, fTmp(3)
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
@@ -322,7 +322,7 @@ contains
     !> cell volume.
     real(dp), intent(in) :: cellVol
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, nAtom, iSp1, iSp2
+    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, iSp1, iSp2
     real(dp) :: vect(3), intermed(3), prefac, rvdw
     integer, allocatable :: nNeigh(:)
 

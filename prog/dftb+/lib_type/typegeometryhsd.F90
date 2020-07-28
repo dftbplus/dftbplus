@@ -14,6 +14,7 @@ module dftbp_typegeometryhsd
   use dftbp_unitconversion
   use dftbp_linkedlist
   use dftbp_charmanip
+  use dftbp_message
   use dftbp_simplealgebra, only : invert33, determinant33
   use dftbp_xmlf90, flib_normalize => normalize
   implicit none
@@ -54,9 +55,11 @@ contains
     call setChildValue(node, "TypesAndCoordinates", &
         &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, .false.)
     call setChildValue(node, "Periodic", geo%tPeriodic, .false.)
-    if (geo%tPeriodic) then
+    if (geo%tPeriodic .or. geo%tHelical) then
       call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
+      call setChildValue(node, "CoordinateOrigin", geo%origin, .false.)
     end if
+    call setChildValue(node, "Helical", geo%tHelical, .false.)
 
   end subroutine writeTGeometryHSD_dom
 
@@ -71,10 +74,18 @@ contains
     type(TGeometry), intent(in) :: geo
 
     call writeChildValue(xf, "TypeNames", geo%speciesNames)
-    call writeChildValue(xf, "TypesAndCoordinates", &
-        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
+    if (geo%tPeriodic .or. geo%tHelical) then
+      call writeChildValue(xf, "TypesAndCoordinates", &
+          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords&
+          & + spread(geo%origin, 2, size(geo%species)))
+    else
+      call writeChildValue(xf, "TypesAndCoordinates", &
+          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
+    end if
     call writeChildValue(xf, "Periodic", geo%tPeriodic)
-    if (geo%tPeriodic) then
+    call writeChildValue(xf, "Helical", geo%tHelical)
+    if (geo%tPeriodic .or. geo%tHelical) then
+      call writeChildValue(xf, "CoordinateOrigin", geo%origin)
       call writeChildValue(xf, "LatticeVectors", geo%latVecs)
     end if
 
@@ -90,16 +101,20 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
-    type(string) :: modifier
+    type(string) :: modifier, modifs(2)
     integer :: ind
     type(TListString) :: stringBuffer
     type(TListRealR1) :: realBuffer
     type(TListIntR1) :: intBuffer
     type(fnode), pointer :: child, typesAndCoords
     integer, allocatable :: tmpInt(:,:)
-    real(dp) :: latvec(9), det
+    real(dp) :: latvec(9), det, helVec(3)
 
     call getChildValue(node, "Periodic", geo%tPeriodic, default=.false.)
+    call getChildValue(node, "Helical", geo%tHelical, default=.false.)
+    if (geo%tPeriodic .and. geo%tHelical) then
+      call error("Periodic and helical boundary conditions mutually exclusive.")
+    end if
     call init(stringBuffer)
     call getChildValue(node, "TypeNames", stringBuffer)
     geo%nSpecies = len(stringBuffer)
@@ -142,24 +157,38 @@ contains
         geo%tFracCoord = .true.
       case default
         ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%convertValue
+        geo%coords(:,:) = geo%coords * lengthUnits(ind)%convertValue
         call setChildValue(typesAndCoords, "", &
             &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
             &replace=.true.)
       end select
     end if
     if (geo%tPeriodic) then
+      allocate(geo%origin(3))
+      if (geo%tFracCoord) then
+        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp])
+      else
+        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp],&
+            & modifier=modifier, child=child)
+        if (len(modifier) > 0) then
+          ind = getModifierIndex(char(modifier), lengthUnits, child)
+          geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
+          call setChildValue(child, "", geo%origin, .true.)
+        end if
+      end if
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3,3))
       call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, &
           &child=child)
       geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, child)
-        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%convertValue
+        geo%latVecs(:,:) = geo%latVecs * lengthUnits(ind)%convertValue
         call setChildValue(child, "", geo%latVecs, .true.)
       end if
       if (geo%tFracCoord) then
-        geo%coords = matmul(geo%latVecs, geo%coords)
+        geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
+        geo%origin(:) = matmul(geo%latVecs, geo%origin)
       end if
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
@@ -169,6 +198,31 @@ contains
       call invert33(geo%recVecs2p, geo%latVecs, det)
       geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
     end if
+
+    if (geo%tHelical) then
+      allocate(geo%origin(3))
+      call getChildValue(node, "CoordinateOrigin", geo%origin, modifier=modifier, child=child)
+      if (len(modifier) > 0) then
+        ind = getModifierIndex(char(modifier), lengthUnits, child)
+        geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
+        call setChildValue(child, "", geo%origin, .true.)
+      end if
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
+      allocate(geo%latVecs(3, 1))
+      call getChildValue(node, "LatticeVectors", helVec, modifier=modifier, child=child)
+      if (len(modifier) > 0) then
+        call splitModifier(char(modifier), child, modifs)
+        call convertByMul(char(modifs(1)), lengthUnits, child, helVec(1), .false.)
+        call convertByMul(char(modifs(2)), angularUnits, child, helVec(2), .false.)
+      end if
+      geo%latVecs(:3,1) = helVec
+      if (geo%latVecs(3,1) < 1) then
+        call error("Helical structure rotation order non-positive")
+      end if
+      allocate(geo%recVecs2p(1, 1))
+      geo%recVecs2p = 2.0_dp * pi / geo%latVecs(1,1)
+    end if
+
     call normalize(geo)
 
   end subroutine readTGeometryHSD
@@ -220,10 +274,17 @@ contains
     case("S","s")
       geo%tPeriodic = .true.
       geo%tFracCoord = .false.
+      geo%tHelical = .false.
     case("F","f")
       geo%tPeriodic = .true.
       geo%tFracCoord = .true.
+      geo%tHelical = .false.
     case("C", "c")
+      geo%tPeriodic = .false.
+      geo%tFracCoord = .false.
+      geo%tHelical = .false.
+    case("H", "h")
+      geo%tHelical = .true.
       geo%tPeriodic = .false.
       geo%tFracCoord = .false.
     case default
@@ -299,6 +360,26 @@ contains
       end do
     end if
 
+    if (geo%tHelical) then
+      allocate(geo%origin(3))
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), geo%origin, iStart, iErr)
+      call checkError(node, iErr, 'Invalid specified helical boundary conditions: origin.')
+      geo%origin(:) = geo%origin * AA__Bohr
+      allocate(geo%latVecs(3, 1))
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), geo%latVecs(:, 1), iStart, iErr)
+      call checkError(node, iErr, 'Invalid specified helical boundary conditions: "translation,&
+          & twist angle, rotation order" should be supplied).')
+      geo%latVecs(1,1) = geo%latVecs(1,1) * AA__Bohr
+      geo%latVecs(2,1) = geo%latVecs(2,1) * pi / 180.0_dp
+      if (geo%latVecs(3,1) < 1) then
+        call error("Helical structure rotation order non-positive")
+      end if
+      allocate(geo%recVecs2p(1, 1))
+      geo%recVecs2p = 1.0_dp / (geo%latVecs(1,1) * 2.0_dp * pi)
+    end if
+
     ! Check if any data remains in the geometry - should be nothing left now
     if (iStart <= len(text)) then
       call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
@@ -312,9 +393,14 @@ contains
 
     ! convert coords to correct internal units
     if (geo%tFracCoord) then
-      geo%coords = matmul(geo%latVecs, geo%coords)
+      geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
+      geo%origin(:) = matmul(geo%latVecs, geo%origin)
     else
       geo%coords = geo%coords * AA__Bohr
+    end if
+
+    if (geo%tHelical .or. geo%tPeriodic) then
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
     end if
 
     call normalize(geo)
@@ -339,7 +425,7 @@ contains
   end subroutine readTGeometryXyz
 
 
-  !> Helping routine for reading geometry from a HSD tree in GEN format
+  !> Helping routine for reading geometry from a HSD tree in XYZ format
   subroutine readTGeometryXyz_help(node, geo, text)
 
     !> Node to parse (only needed to produce proper error messages)
@@ -426,13 +512,14 @@ contains
     ! original xyz files are always molecular boundary conditions
     geo%tPeriodic = .false.
     geo%tFracCoord = .false.
+    geo%tHelical = .false.
 
     call normalize(geo)
 
   end subroutine readTGeometryXyz_help
 
 
-  !> Reads the geometry from a node in a HSD tree in GEN format
+  !> Reads the geometry from a node in a HSD tree in VASP POSCAR/CONTCAR formats
   subroutine readTGeometryVasp(node, geo)
 
     !> Node containing the geometry in Gen format
@@ -464,8 +551,8 @@ contains
     type(string) :: txt
     character(mc), allocatable :: vaspNames(:)
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, jj, iSp, iTmp
-    real(dp) :: coords(3), latVec(3), rTmp, rScale
+    integer :: ii, iSp, iTmp
+    real(dp) :: coords(3), latVec(3), rScale
     integer, allocatable :: vaspSp(:)
     integer, allocatable :: countSp(:)
     type(TListString) :: speciesNames
@@ -620,6 +707,7 @@ contains
     end if
 
     geo%tPeriodic = .true.
+    geo%tHelical = .false.
 
     call normalize(geo)
 

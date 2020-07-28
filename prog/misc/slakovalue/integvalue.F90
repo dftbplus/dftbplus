@@ -9,7 +9,7 @@
 !! and second derivatives.
 program integvalue
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_oldskdata
   use dftbp_slakoeqgrid
   use dftbp_fileid

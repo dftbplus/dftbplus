@@ -10,6 +10,7 @@ module structure
   use dftbp_accuracy, only : dp
   use gallocation
   use mpi_poisson
+  use dftbp_globalenv, only : stdOut
    
   implicit none
   private
@@ -164,50 +165,7 @@ module structure
   
   end subroutine init_skdata
 
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  subroutine echo_init()
 
-    integer :: i
- 
-    if (active_id) then
- 
-      write(*,*) 'natoms=',natoms
-      write(*,*) 'ntypes=',ntypes
-      write(*,*) 'is Periodic=',period
- 
-      !write(*,*) 'coordinates='
-      !do i=1,natoms
-      !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
-      !enddo
- 
-      !write(*,*) 'ind='
-      !write(*,*) ind(1:natoms+1)
-      write(*,*) '  qzero,   uhubb,   lmax' 
- 
-      do i=1,ntypes  
-         write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
-      enddo
- 
-    endif
-
-  end subroutine echo_init
-
-  ! ------------------------------------------------------------------
-  subroutine find_ss(M,ii,jj,kk)
-
-    implicit none
-    
-    integer :: M,ii,jj,kk
-    integer :: maxf
-
-    maxf=maxval(ss_f)
-
-    ii=mod(M,maxf)+1
-    jj=mod(M/maxf,maxf)+1
-    kk=mod(M/maxf/maxf,maxf)+1
-    
-  end subroutine find_ss
   ! ------------------------------------------------------------------
   subroutine find_ntypes(err)
 

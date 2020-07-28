@@ -83,44 +83,44 @@ contains
 
 
   !> Initialises polynomial repulsive
-  subroutine RepPoly_init(self, inp)
+  subroutine RepPoly_init(this, inp)
 
     !> Polynomial repulsive
-    type(TRepPoly), intent(out) :: self
+    type(TRepPoly), intent(out) :: this
 
     !> Input parameters for the polynomial repulsive
     type(TRepPolyIn), intent(in) :: inp
 
-    @:ASSERT(.not. self%tInit)
+    @:ASSERT(.not. this%tInit)
     @:ASSERT(inp%cutoff >= 0.0_dp)
 
-    self%polyCoeffs(:) = inp%polyCoeffs(:)
-    self%cutoff = inp%cutoff
-    self%tInit = .true.
+    this%polyCoeffs(:) = inp%polyCoeffs(:)
+    this%cutoff = inp%cutoff
+    this%tInit = .true.
 
   end subroutine RepPoly_init
 
 
   !> Returns cutoff of the repulsive
-  function RepPoly_getCutoff(self) result(cutoff)
+  function RepPoly_getCutoff(this) result(cutoff)
 
     !> self Polynomial repulsive
-    type(TRepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: this
 
     !> Cutoff
     real(dp) :: cutoff
 
-    @:ASSERT(self%tInit)
-    cutoff = self%cutoff
+    @:ASSERT(this%tInit)
+    cutoff = this%cutoff
 
   end function RepPoly_getCutoff
 
 
   !> Returns energy of the repulsive for a given distance
-  subroutine RepPoly_getEnergy(self, res, rr)
+  subroutine RepPoly_getEnergy(this, res, rr)
 
     !> Polynomial repulsive
-    type(TRepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: this
 
     !> Energy contribution
     real(dp), intent(out) :: res
@@ -131,15 +131,15 @@ contains
     real(dp) :: rrr
     integer :: ii
 
-    @:ASSERT(self%tInit)
+    @:ASSERT(this%tInit)
 
-    if (rr >= self%cutoff) then
+    if (rr >= this%cutoff) then
       res = 0.0_dp
     else
-      rrr = self%cutoff - rr
-      res = self%polyCoeffs(powMax)
+      rrr = this%cutoff - rr
+      res = this%polyCoeffs(powMax)
       do ii = powMax-1, powMin, -1
-        res = res * rrr + self%polyCoeffs(ii)
+        res = res * rrr + this%polyCoeffs(ii)
       end do
       do ii = powMin, 1, -1
         res = res * rrr
@@ -150,10 +150,10 @@ contains
 
 
   !> Returns gradient of the repulsive for a given distance.
-  subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
+  subroutine RepPoly_getEnergyDeriv(this, res, xx, d2)
 
     !> Polynomial repulsive.
-    type(TRepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: this
 
     !> Resulting contribution
     real(dp), intent(out) :: res(3)
@@ -167,7 +167,7 @@ contains
     integer :: ii
     real(dp) :: rr, rrr, xh
 
-    @:ASSERT(self%tInit)
+    @:ASSERT(this%tInit)
 
     res(:) = 0.0_dp
     if (present(d2)) then
@@ -175,15 +175,15 @@ contains
     end if
 
     rr = sqrt(sum(xx**2))
-    if (rr >= self%cutoff) then
+    if (rr >= this%cutoff) then
       return
     end if
 
-    rrr = self%cutoff - rr
+    rrr = this%cutoff - rr
     ! ((n * c_n * x + (n-1) * c_{n-1}) * x + (n-2) * c_{n-2}) * x + ... c_2
-    xh = real(powMax, dp) * self%polyCoeffs(powMax)
+    xh = real(powMax, dp) * this%polyCoeffs(powMax)
     do ii = powMax - 1, powMin1, -1
-      xh = xh * rrr + real(ii, dp) * self%polyCoeffs(ii)
+      xh = xh * rrr + real(ii, dp) * this%polyCoeffs(ii)
     end do
     do ii = powMin1, 2, -1
       xh = xh * rrr
@@ -191,9 +191,9 @@ contains
     res(:) = -xh * xx(:) / rr
 
     if (present(d2)) then
-      xh = real(powMax * (powMax -1), dp) * self%polyCoeffs(powMax)
+      xh = real(powMax * (powMax -1), dp) * this%polyCoeffs(powMax)
       do ii = powMax - 1, powMin1, -1
-        xh = xh * rrr + real(ii * (ii - 1), dp) * self%polyCoeffs(ii)
+        xh = xh * rrr + real(ii * (ii - 1), dp) * this%polyCoeffs(ii)
       end do
       ! reserved for future expansion for repulsive potentials using higher
       ! order terms only:

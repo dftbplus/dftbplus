@@ -157,14 +157,15 @@ module dftbp_unitconversion
 
 
   !> Number of electric field units
-  integer, parameter :: nEFieldUnit = 2
+  integer, parameter :: nEFieldUnit = 3
 
 
   !> Electric field units
   type(unit), parameter :: EFieldUnits(nEFieldUnit) = (/ &
-      &unit("v/m                 ", V_m__au), &
-      &unit("au                  ", 1.0_dp) &
-      &/)
+       &unit("v/m                 ", V_m__au), &
+       &unit("v/a                 ", 1e10_dp * V_m__au), &       
+       &unit("au                  ", 1.0_dp) &
+       &/)
 
 
   !> Number of magnetic field units
@@ -230,6 +231,21 @@ module dftbp_unitconversion
       &unit("dalton              ", amu__au ), &
       &unit("kg                  ", kg__au ), &
       &unit("g                   ", 1.0e+3_dp*kg__au ) &
+      &/)
+
+
+  !> Number of angular units
+  integer, parameter :: nAngularUnit = 6
+
+
+  !> angular units
+  type(unit), parameter :: angularUnits(nAngularUnit) = (/ &
+      &unit("degrees             ", pi / 180.0_dp ), &
+      &unit("deg                 ", pi / 180.0_dp ), &
+      &unit("radian              ", 1.0_dp ), &
+      &unit("rad                 ", 1.0_dp ), &
+      &unit("turns               ", 2.0_dp * pi ), &
+      &unit("gradians            ", pi / 200.0_dp ) &
       &/)
 
 

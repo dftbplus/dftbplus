@@ -23,6 +23,7 @@ module dftbp_inputdata
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_elecsolvers, only : TElectronicSolverInp
+  use dftbp_timeprop
   use dftbp_etemp, only : fillingTypes
   use dftbp_xlbomd
 #:if WITH_SOCKETS
@@ -36,8 +37,8 @@ module dftbp_inputdata
 
 #:if WITH_TRANSPORT
   use libnegf_vars
-  use poisson_init
 #:endif
+  use poisson_init
 
   implicit none
   private
@@ -479,6 +480,9 @@ module dftbp_inputdata
     !> TD Linear response input
     type(TLinrespini) :: lrespini
 
+    !> ElectronDynamics
+    type(TElecDynamicsInp), allocatable :: elecDynInp
+
     !> input for particle-particle RPA
     type(TppRPAcal), allocatable :: ppRPA
 
@@ -487,7 +491,6 @@ module dftbp_inputdata
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
-
 
   #:if WITH_SOCKETS
     !> socket communication
@@ -504,7 +507,7 @@ module dftbp_inputdata
     real(dp), allocatable :: customOccFillings(:,:)
 
     !> REKS input
-    type(TReksIni) :: reksIni
+    type(TReksInp) :: reksInp
 
   end type TControl
 
@@ -541,8 +544,8 @@ module dftbp_inputdata
   #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-    type(TPoissonInfo) :: poisson
   #:endif
+    type(TPoissonInfo) :: poisson
   end type TInputData
 
 
@@ -561,35 +564,35 @@ contains
 
 
   !> Mark data structure as initialised
-  subroutine InputData_init(self)
+  subroutine InputData_init(this)
 
     !> Instance
-    type(TInputData), intent(out) :: self
+    type(TInputData), intent(out) :: this
 
-    self%tInitialized = .true.
+    this%tInitialized = .true.
 
   end subroutine InputData_init
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine InputData_destruct(self)
+  subroutine InputData_destruct(this)
 
     !> Instance
-    type(TInputData), intent(inout) :: self
+    type(TInputData), intent(inout) :: this
 
-    call Control_destruct(self%ctrl)
+    call Control_destruct(this%ctrl)
 
   end subroutine InputData_destruct
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine Control_destruct(self)
+  subroutine Control_destruct(this)
 
     !> Instance
-    type(TControl), intent(inout) :: self
+    type(TControl), intent(inout) :: this
 
-    if (allocated(self%tShellResInRegion)) then
-      call destruct(self%iAtInRegion)
+    if (allocated(this%tShellResInRegion)) then
+      call destruct(this%iAtInRegion)
     end if
 
   end subroutine Control_destruct

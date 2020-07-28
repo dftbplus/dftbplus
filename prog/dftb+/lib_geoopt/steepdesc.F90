@@ -67,10 +67,10 @@ contains
 
 
   !> Initialises a steepest descent instance
-  subroutine SteepDesc_init(self, nElem, tol, maxDisp, weight)
+  subroutine SteepDesc_init(this, nElem, tol, maxDisp, weight)
 
     !> Steepest descent instance on exit
-    type(TSteepDesc), intent(out) :: self
+    type(TSteepDesc), intent(out) :: this
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -89,31 +89,31 @@ contains
     @:ASSERT(maxDisp > 0.0_dp)
     @:ASSERT(size(weight) == nElem)
 
-    self%nElem = nElem
-    self%tolerance = tol
-    self%maxDisp = maxDisp
-    allocate(self%weight(nElem))
-    self%weight(:) = weight(:)
-    allocate(self%xOld(nElem))
-    self%tInitialized = .false.
+    this%nElem = nElem
+    this%tolerance = tol
+    this%maxDisp = maxDisp
+    allocate(this%weight(nElem))
+    this%weight(:) = weight(:)
+    allocate(this%xOld(nElem))
+    this%tInitialized = .false.
 
   end subroutine SteepDesc_init
 
 
   !> Resets CG minimizer
-  subroutine SteepDesc_reset(self, x0)
+  subroutine SteepDesc_reset(this, x0)
 
     !> minimizer object
-    type(TSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: this
 
     !> Point to start from
     real(dp), intent(in) :: x0(:)
 
-    @:ASSERT(size(x0) == self%nElem)
+    @:ASSERT(size(x0) == this%nElem)
 
-    self%xOld(:) = x0(:)
-    self%tConverged = .false.
-    self%tInitialized = .true.
+    this%xOld(:) = x0(:)
+    this%tConverged = .false.
+    this%tInitialized = .true.
 
   end subroutine SteepDesc_reset
 
@@ -122,10 +122,10 @@ contains
   !> back.
   !> When calling the first time, gradient for the starting point of the minimization should be
   !> passed.
-  subroutine SteepDesc_next(self, dx, xNew, tConverged)
+  subroutine SteepDesc_next(this, dx, xNew, tConverged)
 
     !> CG minimizer
-    type(TSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: this
 
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)
@@ -136,17 +136,17 @@ contains
     !> True, if gradient got below the specified tolerance.
     logical,  intent(out) :: tConverged
 
-    @:ASSERT(self%tInitialized)
-    @:ASSERT(size(xNew) == self%nElem)
-    @:ASSERT(size(dx) == self%nElem)
+    @:ASSERT(this%tInitialized)
+    @:ASSERT(size(xNew) == this%nElem)
+    @:ASSERT(size(dx) == this%nElem)
 
-    if (.not. self%tConverged) then
-      call next_local(xNew, self%xOld, dx, self%weight, self%maxDisp, &
-          &self%tolerance, self%tConverged)
+    if (.not. this%tConverged) then
+      call next_local(xNew, this%xOld, dx, this%weight, this%maxDisp, &
+          &this%tolerance, this%tConverged)
     else
-      xNew(:) = self%xOld(:)
+      xNew(:) = this%xOld(:)
     end if
-    tConverged = self%tConverged
+    tConverged = this%tConverged
 
   end subroutine SteepDesc_next
 

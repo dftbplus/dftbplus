@@ -153,7 +153,7 @@ module dftbp_constants
   complex(dp), parameter :: imag = (0.0_dp,1.0_dp)
 
   !> Symbols of the periodic system of elements, up to 118
-  character(len=2), private, parameter :: pse(1:118) = [&
+  character(len=2), parameter :: elementSymbol(1:118) = [&
       & 'h ','he',&
       & 'li','be','b ','c ','n ','o ','f ','ne',&
       & 'na','mg','al','si','p ','s ','cl','ar',&
@@ -205,8 +205,8 @@ contains
       end if
     end do
 
-    do i = 1, size(pse)
-      if (lcSymbol == pse(i)) then
+    do i = 1, size(elementSymbol)
+      if (lcSymbol == elementSymbol(i)) then
         number = i
         exit
       end if

@@ -10,8 +10,8 @@
 !> Contains the routines for initialising waveplot.
 module dftbp_initwaveplot
   use dftbp_assert
-  use dftbp_io
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_globalenv, only : stdOut
+  use dftbp_hsdparser, only : parseHSD, dumpHSD
   use dftbp_xmlutils
   use dftbp_hsdutils
   use dftbp_hsdutils2
@@ -44,12 +44,6 @@ module dftbp_initwaveplot
 
   !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "waveplot_pin.hsd"
-
-  !> xml input file name
-  character(len=*), parameter :: xmlInput = "waveplot_in.xml"
-
-  !> parsed xml name
-  character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml"
 
   !> version of the input document
   integer, parameter :: parserVersion = 3
@@ -206,26 +200,22 @@ contains
   !> Initialise program variables
   subroutine initProgramVariables()
 
-    type(fnode), pointer :: input, root, tmp, detailed
+    type(fnode), pointer :: root, tmp, detailed, hsdTree
     type(string) :: strBuffer
     integer :: inputVersion
     integer :: ii
-    logical :: tHSD, tGroundState
+    logical :: tGroundState
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     WAVEPLOT  " // version
     write(stdout, "(A,/)") repeat("=", 80)
 
-    !! Read in input file as HSD or XML.
-    call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInput //  "'"
-    end if
-    write(stdout, "(A)") repeat("-", 80)
-    call getChild(input, rootTag, root)
+    !! Read in input file as HSD
+    call parseHSD(rootTag, hsdInput, hsdTree)
+    call getChild(hsdTree, rootTag, root)
+
+    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
 
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -259,15 +249,12 @@ contains
     call warnUnprocessedNodes(root, .true.)
 
     !! Finish parsing, dump parsed and processed input
-    call dumpHSD(input, hsdParsedInput)
+    call dumpHSD(hsdTree, hsdParsedInput)
     write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
-        &//"'"
-    call dumpHSDAsXML(input, xmlParsedInput)
-    write(stdout, "(A)") "Processed input written as XML to '" // xmlParsedInput &
         &//"'"
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, *)
-    call destroyNode(input)
+    call destroyNode(hsdTree)
 
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3

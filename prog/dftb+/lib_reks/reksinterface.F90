@@ -18,9 +18,9 @@ module dftbp_reksinterface
   use dftbp_accuracy
   use dftbp_densedescr
   use dftbp_dispiface
+  use dftbp_elecsolvers
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_nonscc
   use dftbp_orbitals
   use dftbp_periodic
@@ -35,7 +35,9 @@ module dftbp_reksinterface
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon
   use dftbp_rekscpeqn
+  use dftbp_reksen
   use dftbp_reksgrad
+  use dftbp_reksio
   use dftbp_reksproperty
   use dftbp_reksvar
 
@@ -43,17 +45,140 @@ module dftbp_reksinterface
 
   private
 
+  public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
 
   contains
+
+  !> Calculate SSR state from SA-REKS states and state-interaction terms
+  subroutine getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigenvecs,&
+      & electronicSolver, eigen, qOutput, q0, tDipole, dipoleMoment, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(in) :: eigenvecs(:,:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> eigenvalues
+    real(dp), intent(inout) :: eigen(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: this
+
+    call adjustEigenval(this, eigen)
+
+    if (this%Efunction > 1) then
+      call solveSecularEqn(env, denseDesc, neighbourList, nNeighbourSK, &
+          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, this)
+    else
+      ! Get the dipole moment for single-state REKS case
+      ! In this case dipole moment can be calculated w/o gradient result
+      ! tDipole = (total charge = 0.0) * (non-periodic system) * (mulliken)
+      if (tDipole) then
+        call getDipoleMoment_(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
+      end if
+    end if
+
+
+  end subroutine getStateInteraction
+
+
+  !> get the energy-related properties; unrelaxed density matrix,
+  !> dipole integral, transition dipole, oscillator strength
+  subroutine getReksEnProperties(eigenvecs, coord0, this)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:,:)
+
+    !> central cell coordinates of atoms
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: this
+
+    real(dp), allocatable :: dipoleInt(:,:,:)
+
+    integer :: ist, nstHalf, nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+    nstHalf = this%nstates * (this%nstates - 1) / 2
+
+    allocate(dipoleInt(nOrb,nOrb,3))
+
+    ! Get the unrelaxed density matrix for SA-REKS or SSR state
+    ! The matrix that used in this calculation is not relaxed density
+    ! matrix, so this unrelaxed FONs are not equal to relaxed FONS,
+    ! but this value is easy to calculate without the information of
+    ! gradient. Therefore, we can easily guess the behavior of the states.
+    if (this%nstates > 1) then
+
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, this%rhoSqrL, &
+          & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
+          & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
+          & this%unrelRhoSqr, this%unrelTdm)
+
+      if (this%tTDP) then
+        call getDipoleIntegral(coord0, this%overSqr, this%getAtomIndex, dipoleInt)
+        ! Get the transition dipole moment between states
+        ! For (SI-)SA-REKS dipole moment requires gradient info.
+        ! But TDP use only zero-th part without gradient info.
+        do ist = 1, nstHalf
+          call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
+        end do
+        call writeReksTDP(this%tdp)
+        call getReksOsc(this%tdp, this%energy)
+      end if
+
+    end if
+
+  end subroutine getReksEnProperties
+
 
   !> Calculate SI-SA-REKS state gradient by solving CP-REKS equations
   subroutine getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
       & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
       & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
       & species, q0, eigenvecs, chrgForces, over, spinW, derivs, tWriteTagged, &
-      & autotestTag, taggedWriter, self)
+      & autotestTag, taggedWriter, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -137,44 +262,44 @@ module dftbp_reksinterface
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: Qmat(:,:)
     integer :: ist, ia, ib, nstHalf, fac
 
-    nstHalf = self%nstates * (self%nstates-1) / 2
+    nstHalf = this%nstates * (this%nstates-1) / 2
 
     allocate(Qmat(orb%nOrb,orb%nOrb))
 
     ! get the periodic information
-    if (self%tPeriodic) then
-      call sccCalc%coulombCont%getPeriodicInfo(self%rVec, self%gVec, self%alpha, self%volume)
+    if (this%tPeriodic) then
+      call sccCalc%coulombCont%getPeriodicInfo(this%rVec, this%gVec, this%alpha, this%volume)
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
         & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, &
         & nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, species, q0, &
-        & dispersion, rangeSep, chrgForces, eigenvecs, derivs, self)
+        & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
-    if (self%Efunction == 1) then
-      call weightGradient(self%gradL, self%weight, derivs)
+    if (this%Efunction == 1) then
+      call weightGradient(this%gradL, this%weight, derivs)
     else
 
       ! get REKS parameters used in CP-REKS and gradient equations
       call getReksParameters_(env, denseDesc, sccCalc, rangeSep, &
           & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, &
-          & eigenvecs, coord, species, over, spinW, self)
+          & eigenvecs, coord, species, over, spinW, this)
 
       call buildStateVectors_(env, denseDesc, neighbourList, nNeighbourSK, &
-          & iSparseStart, img2CentCell, eigenvecs, orb, over, self)
+          & iSparseStart, img2CentCell, eigenvecs, orb, over, this)
 
-      if (self%tNAC) then
+      if (this%tNAC) then
 
         ! SA-REKS calculations
-        do ist = 1, self%nstates
-          if (ist /= self%SAstates) then
+        do ist = 1, this%nstates
+          if (ist /= this%SAstates) then
 
-            call printBlankLine()
+            write(stdOut,"(A)")
             write(stdOut,"(A)") repeat("-", 82)
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', ist, 'state vector...'
@@ -182,15 +307,15 @@ module dftbp_reksinterface
             ! solve CP-REKS equation for SA-REKS state
             ! save information about ZT, RmatL
             call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-                & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
-                & self%XT(:,ist), self%ZT(:,ist), self%RmatL(:,:,:,ist), &
-                & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
-            Qmat(:,:) = self%Q1mat + self%Q2mat
+                & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
+                & this%XT(:,ist), this%ZT(:,ist), this%RmatL(:,:,:,ist), &
+                & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
+            Qmat(:,:) = this%Q1mat + this%Q2mat
             ! compute SA-REKS shift
-            call SSRshift(eigenvecs, self%gradL, Qmat, self%Sderiv, &
-                & self%ZT(:,ist), self%SAweight, self%weightL(ist,:), &
-                & self%omega, self%weightIL, self%G1, &
-                & denseDesc%iAtomStart, orb%mOrb, self%SAgrad(:,:,ist), 1)
+            call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+                & this%ZT(:,ist), this%SAweight, this%weightL(ist,:), &
+                & this%omega, this%weightIL, this%G1, &
+                & denseDesc%iAtomStart, orb%mOrb, this%SAgrad(:,:,ist), 1)
 
           end if
         end do
@@ -198,8 +323,8 @@ module dftbp_reksinterface
         ! state-interaction calculations
         do ist = 1, nstHalf
 
-          call getTwoIndices(self%nstates, ist, ia, ib, 1)
-          call printBlankLine()
+          call getTwoIndices(this%nstates, ist, ia, ib, 1)
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
@@ -207,96 +332,96 @@ module dftbp_reksinterface
           ! solve CP-REKS equation for state-interaction term
           ! save information about ZTdel, tmpRL
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-              & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
-              & self%XTdel(:,ist), self%ZTdel(:,ist), self%tmpRL(:,:,:,ist), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
-          call SIshift(eigenvecs, self%gradL, self%Q1del(:,:,ist), &
-              & self%Q2del(:,:,ist), self%Q1mat, self%Q2mat, Qmat, &
-              & self%Sderiv, self%ZTdel(:,ist), self%SAweight, self%omega, &
-              & self%weightIL, self%Rab, self%G1, denseDesc%iAtomStart, &
-              & orb%mOrb, ist, self%nstates, self%SIgrad(:,:,ist))
+              & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
+              & this%XTdel(:,ist), this%ZTdel(:,ist), this%tmpRL(:,:,:,ist), &
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
+          call SIshift(eigenvecs, this%gradL, this%Q1del(:,:,ist), &
+              & this%Q2del(:,:,ist), this%Q1mat, this%Q2mat, Qmat, &
+              & this%Sderiv, this%ZTdel(:,ist), this%SAweight, this%omega, &
+              & this%weightIL, this%Rab, this%G1, denseDesc%iAtomStart, &
+              & orb%mOrb, ist, this%nstates, this%SIgrad(:,:,ist))
 
         end do
 
       else
 
-        if (self%useSSR == 1) then
+        if (this%tSSR) then
 
           ! Convert necessary variables for SSR state from SA and SI terms
-          call SaToSsrXT(self%XTdel, self%eigvecsSSR, self%rstate, self%XT)
-          call SaToSsrWeight(self%Rab, self%weightIL, self%G1, &
-              & self%eigvecsSSR, self%rstate, self%weightL)
+          call SaToSsrXT(this%XTdel, this%eigvecsSSR, this%rstate, this%XT)
+          call SaToSsrWeight(this%Rab, this%weightIL, this%G1, &
+              & this%eigvecsSSR, this%rstate, this%weightL)
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a)') &
-              & 'Solving CP-REKS equation for', self%rstate, 'state vector...'
+              & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
 
           ! solve CP-REKS equation for SSR state
           ! save information about ZT, RmatL, ZmatL, Q1mat, Q2mat
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-              & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
-              & self%XT(:,self%rstate), self%ZT(:,1), self%RmatL(:,:,:,1), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
+              & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
+              & this%XT(:,this%rstate), this%ZT(:,1), this%RmatL(:,:,:,1), &
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
 
           ! add remaining SI component to SSR state
-          call addSItoRQ(eigenvecs, self%RdelL, self%Q1del, self%Q2del, &
-              & self%eigvecsSSR, self%rstate, self%RmatL(:,:,:,1), &
-              & self%Q1mat, self%Q2mat, Qmat)
+          call addSItoRQ(eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
+              & this%eigvecsSSR, this%rstate, this%RmatL(:,:,:,1), &
+              & this%Q1mat, this%Q2mat, Qmat)
           fac = 2
 
         else
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
-          if (self%Lstate == 0) then
+          if (this%Lstate == 0) then
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
-                & 'Solving CP-REKS equation for', self%rstate, 'state vector...'
+                & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
           else
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
-                & 'Solving CP-REKS equation for', self%Lstate, 'microstate vector...'
+                & 'Solving CP-REKS equation for', this%Lstate, 'microstate vector...'
           end if
 
           ! solve CP-REKS equation for SA-REKS or L state
           ! save information about ZT, RmatL, ZmatL, Q1mat, Q2mat
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-              & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
-              & self%XT(:,1), self%ZT(:,1), self%RmatL(:,:,:,1), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
-          Qmat(:,:) = self%Q1mat + self%Q2mat
+              & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
+              & this%XT(:,1), this%ZT(:,1), this%RmatL(:,:,:,1), &
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
+          Qmat(:,:) = this%Q1mat + this%Q2mat
           fac = 1
 
         end if
 
-        if (self%Lstate == 0) then
+        if (this%Lstate == 0) then
           ! compute SSR or SA-REKS shift
-          call SSRshift(eigenvecs, self%gradL, Qmat, self%Sderiv, &
-              & self%ZT(:,1), self%SAweight, self%weightL(self%rstate,:), &
-              & self%omega, self%weightIL, self%G1, &
-              & denseDesc%iAtomStart, orb%mOrb, self%SSRgrad(:,:,1), fac)
+          call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+              & this%ZT(:,1), this%SAweight, this%weightL(this%rstate,:), &
+              & this%omega, this%weightIL, this%G1, &
+              & denseDesc%iAtomStart, orb%mOrb, this%SSRgrad(:,:,1), fac)
         else
           ! compute L shift
-          call Lshift(eigenvecs, self%gradL, Qmat, self%Sderiv, &
-              & self%ZT(:,1), self%SAweight, self%omega, self%weightIL, self%G1, &
-              & denseDesc%iAtomStart, orb%mOrb, self%Lstate, self%SSRgrad(:,:,1))
+          call Lshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+              & this%ZT(:,1), this%SAweight, this%omega, this%weightIL, this%G1, &
+              & denseDesc%iAtomStart, orb%mOrb, this%Lstate, this%SSRgrad(:,:,1))
         end if
 
       end if
 
       ! compute R*T shift & final SSR gradient (grad, nac)
       call getRTGradient_(env, sccCalc, denseDesc, neighbourList, &
-          & nNeighbourSK, iSparseStart, img2CentCell, orb, q0, coord0, self)
-      if (self%tNAC) then
-        call getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, self)
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, q0, coord0, this)
+      if (this%tNAC) then
+        call getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, this)
       end if
 
       ! set final gradient to derivs in SA-REKS or SSR case
-      call setReksGradients_(derivs, self)
+      call setReksGradients_(derivs, this)
 
     end if
 
-    if (self%Plevel >= 1) then
-      call printReksGradInfo(self, derivs)
+    if (this%Plevel >= 1) then
+      call printReksGradInfo(this, derivs)
     end if
 
   end subroutine getReksGradients
@@ -306,7 +431,7 @@ module dftbp_reksinterface
   subroutine getReksGradProperties(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, orb, &
       & iAtInCentralRegion, coord, coord0, over, rhoPrim, qOutput, &
-      & q0, tDipole, dipoleMoment, chrgForces, self)
+      & q0, tDipole, dipoleMoment, chrgForces, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -363,53 +488,53 @@ module dftbp_reksinterface
     real(dp), allocatable, intent(inout) :: chrgForces(:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     ! calculate the relaxed density matrix, dipole moment,
     !           the forces of external charges.
-    if (self%tRD) then
+    if (this%tRD) then
 
-      if (self%Efunction > 1) then
+      if (this%Efunction > 1) then
 
         ! currently, relaxed density matrix is possible
         !            relaxed charge is possible
         !            relaxed dipole moment is possible
         !            force of external point charges for target state is possible
-        if (self%tNAC) then
+        if (this%tNAC) then
           ! solve CP-REKS equation for remaining SA-REKS state in nac case
           ! save information about Z_T
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-              & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
-              & self%XT(:,self%SAstates), self%ZT(:,self%SAstates), &
-              & self%RmatL(:,:,:,self%SAstates), self%ZmatL, &
-              & self%Q1mat, self%Q2mat, .true.)
+              & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
+              & this%XT(:,this%SAstates), this%ZT(:,this%SAstates), &
+              & this%RmatL(:,:,:,this%SAstates), this%ZmatL, &
+              & this%Q1mat, this%Q2mat, optionQMMM=.true.)
           ! now, ZT has information about target SSR state
-          call SaToSsrXT(self%ZTdel, self%eigvecsSSR, self%rstate, self%ZT)
+          call SaToSsrXT(this%ZTdel, this%eigvecsSSR, this%rstate, this%ZT)
         end if
 
-        if (self%Lstate == 0) then
+        if (this%Lstate == 0) then
           ! get the relaxed density matrix for target SSR or SA-REKS state
-          call getRelaxedDensMat(eigenvecs(:,:,1), self%overSqr, self%unrelRhoSqr, &
-              & self%ZT, self%omega, self%FONs, self%eigvecsSSR, self%SAweight, &
-              & self%Rab, self%G1, self%Nc, self%Na, self%rstate, self%useSSR, &
-              & self%tNAC, self%tSSR22, self%tSSR44, self%relRhoSqr)
+          call getRelaxedDensMat(eigenvecs(:,:,1), this%overSqr, this%unrelRhoSqr, &
+              & this%ZT, this%omega, this%FONs, this%eigvecsSSR, this%SAweight, &
+              & this%Rab, this%G1, this%Nc, this%Na, this%rstate, this%reksAlg, &
+              & this%tSSR, this%tNAC, this%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
-          call getRelaxedDensMatL(eigenvecs(:,:,1), self%rhoSqrL, self%overSqr, &
-              & self%weight, self%SAweight, self%unrelRhoSqr, self%RmatL, &
-              & self%ZT, self%omega, self%weightIL, self%G1, self%orderRmatL, &
-              & self%Lpaired, self%Nc, self%Na, self%Lstate, self%tSSR22, &
-              & self%tSSR44, self%relRhoSqr)
+          call getRelaxedDensMatL(eigenvecs(:,:,1), this%rhoSqrL, this%overSqr, &
+              & this%weight, this%SAweight, this%unrelRhoSqr, this%RmatL, &
+              & this%ZT, this%omega, this%weightIL, this%G1, this%orderRmatL, &
+              & this%Lpaired, this%Nc, this%Na, this%Lstate, this%reksAlg, &
+              & this%relRhoSqr)
         end if
 
         call getMullikenPopFromRelaxedDensity_(env, denseDesc, neighbourList, &
-            & nNeighbourSK, iSparseStart, img2CentCell, orb, over, rhoPrim, qOutput, self)
+            & nNeighbourSK, iSparseStart, img2CentCell, orb, over, rhoPrim, qOutput, this)
 
       end if
 
-      call writeReksRelaxedCharge(qOutput, q0, self%rstate, self%Lstate)
+      call writeReksRelaxedCharge(qOutput, q0, this%rstate, this%Lstate)
 
-      if (self%Efunction > 1) then
+      if (this%Efunction > 1) then
         ! Get the dipole moment for target SSR state
         ! Relaxed dipole moment requires gradient infomation
         ! tDipole = (total charge = 0.0) * (non-periodic system) * (mulliken)
@@ -418,11 +543,11 @@ module dftbp_reksinterface
         end if
       end if
 
-      if (self%tExtChrg) then
+      if (this%tExtChrg) then
 
-        call getExtChrgGradients(env, coord0, self%extCharges(1:3,:), &
-            & qOutput, q0, self%extCharges(4,:), self%blurWidths, self%rVec, self%gVec, &
-            & self%alpha, self%volume, self%tPeriodic, self%tBlur, chrgForces)
+        call getExtChrgGradients(env, coord0, this%extCharges(1:3,:), &
+            & qOutput, q0, this%extCharges(4,:), this%blurWidths, this%rVec, this%gVec, &
+            & this%alpha, this%volume, this%tPeriodic, this%tBlur, chrgForces)
 
       end if
 
@@ -436,7 +561,7 @@ module dftbp_reksinterface
       & skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, &
       & nNeighbourRep, species, img2CentCell, iSparseStart, orb, &
       & dispersion, coord, q0, invLatVec, cellVol, totalStress, &
-      & totalLatDeriv, intPressure, self)
+      & totalLatDeriv, intPressure, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -453,7 +578,7 @@ module dftbp_reksinterface
     !> method for calculating derivatives of S and H0
     type(TNonSccDiff), intent(in) :: nonSccDeriv
 
-    !> non-SCC hamitonian information
+    !> non-SCC hamiltonian information
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
@@ -508,7 +633,7 @@ module dftbp_reksinterface
     real(dp), intent(out) :: intPressure
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: tmpRhoSp(:,:)
     real(dp), allocatable :: tmpStress(:,:)
@@ -516,17 +641,17 @@ module dftbp_reksinterface
     real(dp) :: fac
     integer :: sparseSize, nSpin, tmpLu, tmpLd, iL
 
-    sparseSize = size(self%getDenseAO,dim=1)
-    nSpin = size(self%fillingL,dim=2)
+    sparseSize = size(this%getDenseAO,dim=1)
+    nSpin = size(this%fillingL,dim=2)
 
-    if (self%Efunction == 1) then
+    if (this%Efunction == 1) then
 
       allocate(tmpRhoSp(sparseSize,nSpin))
       allocate(tmpStress(3,3))
 
-      do iL = 1, self%Lmax
+      do iL = 1, this%Lmax
 
-        if (iL <= self%Lpaired) then
+        if (iL <= this%Lpaired) then
           tmpLu = iL
         else
           if (mod(iL,2) == 1) then
@@ -540,20 +665,19 @@ module dftbp_reksinterface
           end if
         end if
 
-        ! self%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, self%qOutputL(:,:,:,iL), &
-            & q0, orb, species)
+        ! this%qOutputL has (qm) component
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
         call sccCalc%updateShifts(env, orb, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! self%rhoSqrL has (my_qm) component
+        ! this%rhoSqrL has (my_qm) component
         tmpRhoSp(:,:) = 0.0_dp
-        call packHS(tmpRhoSp(:,1), self%rhoSqrL(:,:,1,tmpLu), &
+        call packHS(tmpRhoSp(:,1), this%rhoSqrL(:,:,1,tmpLu), &
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        if (iL > self%Lpaired) then
-          call packHS(tmpRhoSp(:,2), fac*self%rhoSqrL(:,:,1,tmpLd), &
+        if (iL > this%Lpaired) then
+          call packHS(tmpRhoSp(:,2), fac*this%rhoSqrL(:,:,1,tmpLd), &
               & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
@@ -561,24 +685,24 @@ module dftbp_reksinterface
 
         tmpStress(:,:) = 0.0_dp
         call getBlockStress(env, tmpStress, nonSccDeriv, tmpRhoSp, &
-            & self%edmSpL(:,iL), skHamCont, skOverCont, coord, &
+            & this%edmSpL(:,iL), skHamCont, skOverCont, coord, &
             & species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-            & iSparseStart, orb, self%intBlockL(:,:,:,:,iL), cellVol)
+            & iSparseStart, orb, this%intBlockL(:,:,:,:,iL), cellVol)
         call sccCalc%addStressDc(tmpStress, env, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
 !        if (allocated(thirdOrd)) then
 !          call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-!              & reks%qOutput_L(:,:,:,iL), reks%q0, img2CentCell, orb)
+!              & this%qOutput_L(:,:,:,iL), q0, img2CentCell, orb)
 !          call thirdOrd%addStressDc(neighbourList, species, coord, &
 !              & img2CentCell, cellVol, tmpStress)
 !        end if
 
-        self%elecStressL(:,:,iL) = tmpStress
+        this%elecStressL(:,:,iL) = tmpStress
 
       end do
 
-      call weightGradient(self%elecStressL, self%weight, totalStress)
+      call weightGradient(this%elecStressL, this%weight, totalStress)
 
       if (allocated(dispersion)) then
         tmpStress(:,:) = 0.0_dp
@@ -607,7 +731,7 @@ module dftbp_reksinterface
   subroutine getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
       & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, &
       & nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, species, q0, &
-      & dispersion, rangeSep, chrgForces, eigenvecs, derivs, self)
+      & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -673,7 +797,7 @@ module dftbp_reksinterface
     real(dp), intent(out) :: derivs(:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: repDerivs(:,:)
     real(dp), allocatable :: dispDerivs(:,:)
@@ -682,42 +806,41 @@ module dftbp_reksinterface
 
     integer :: nAtom, iL
 
-    nAtom = size(self%gradL,dim=2)
+    nAtom = size(this%gradL,dim=2)
 !    pSpecies0 => species(1:nat)
 
     allocate(repDerivs(3,nAtom))
     allocate(dispDerivs(3,nAtom))
-    if (self%tRangeSep) then
-      allocate(lcDerivs(3,nAtom,self%Lmax))
+    if (this%isRangeSep) then
+      allocate(lcDerivs(3,nAtom,this%Lmax))
     end if
 
     ! hamSpL has (my_ud) component
     ! hamSqrL has (my_ud) component
     call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
     call getEnergyWeightedDensityL(env, denseDesc, neighbourList, &
-        & nNeighbourSK, iSparseStart, img2CentCell, orb, self%hamSqrL, &
-        & self%hamSpL, self%fillingL, eigenvecs(:,:,1), self%Lpaired, &
-        & self%Efunction, self%tRangeSep, self%edmSpL)
+        & nNeighbourSK, iSparseStart, img2CentCell, orb, this%hamSqrL, &
+        & this%hamSpL, this%fillingL, eigenvecs(:,:,1), this%Lpaired, &
+        & this%Efunction, this%isRangeSep, this%edmSpL)
     call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
 
     ! rhoSpL has (my_qm) component
     ! intBlockL has (qm) component
-    call derivative_blockL(env, derivs, nonSccDeriv, self%rhoSqrL, &
-        & self%edmSpL, skHamCont, skOverCont, coord, species, &
+    call derivative_blockL(env, derivs, nonSccDeriv, this%rhoSqrL, &
+        & this%edmSpL, skHamCont, skOverCont, coord, species, &
         & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-        & iSparseStart, denseDesc%iAtomStart, orb, self%intBlockL, &
-        & self%Lpaired, self%gradL, self%Hderiv, self%Sderiv)
+        & iSparseStart, denseDesc%iAtomStart, orb, this%intBlockL, &
+        & this%Lpaired, this%gradL, this%Hderiv, this%Sderiv)
 
-    do iL = 1, self%Lmax
+    do iL = 1, this%Lmax
 
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, self%qOutputL(:,:,:,iL), &
-          & q0, orb, species)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
-      if (self%tExtChrg) then
+      if (this%tExtChrg) then
         chrgForces(:,:) = 0.0_dp
         call sccCalc%addForceDc(env, derivs, species, &
             & neighbourList%iNeighbour, img2CentCell, chrgForces)
@@ -728,17 +851,16 @@ module dftbp_reksinterface
 
 !      if (allocated(thirdOrd)) then
 !        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-!            & self%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
+!            & this%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
 !        call thirdOrd%addGradientDc(neighbourList, species, &
 !            & coord, img2CentCell, derivs)
 !      end if
 
-      if (self%tRangeSep) then
+      if (this%isRangeSep) then
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
-        call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, &
-            & self%deltaRhoSqrL(:,:,:,iL), skHamCont, skOverCont, coord, &
-            & species, orb, denseDesc%iAtomStart, self%overSqr, &
+        call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
+            & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
             & neighbourList%iNeighbour, nNeighbourSK)
       end if
 
@@ -756,13 +878,13 @@ module dftbp_reksinterface
       end if
       derivs(:,:) = derivs + repDerivs + dispDerivs
 
-      self%gradL(:,:,iL) = self%gradL(:,:,iL) + derivs
+      this%gradL(:,:,iL) = this%gradL(:,:,iL) + derivs
 
     end do
 
-    if(self%tRangeSep) then
-      do iL = 1, self%Lmax
-        if (iL <= self%Lpaired) then
+    if(this%isRangeSep) then
+      do iL = 1, this%Lmax
+        if (iL <= this%Lpaired) then
           derivs(:,:) = lcDerivs(:,:,iL) + lcDerivs(:,:,iL)
         else
           if (mod(iL,2) == 1) then
@@ -771,7 +893,7 @@ module dftbp_reksinterface
             derivs(:,:) = lcDerivs(:,:,iL) + lcDerivs(:,:,iL-1)
           end if
         end if
-        self%gradL(:,:,iL) = self%gradL(:,:,iL) + derivs
+        this%gradL(:,:,iL) = this%gradL(:,:,iL) + derivs
       end do
     end if
 
@@ -781,7 +903,7 @@ module dftbp_reksinterface
   !> Set several REKS variables used in CP-REKS equations
   subroutine getReksParameters_(env, denseDesc, sccCalc, rangeSep, &
       & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, &
-      & eigenvecs, coord, species, over, spinW, self)
+      & eigenvecs, coord, species, over, spinW, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -823,40 +945,39 @@ module dftbp_reksinterface
     real(dp), intent(in) :: spinW(:,:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     ! get gamma, spinW, gamma deriv, LR-gamma deriv, on-site constants
     ! LRgamma is already defined in 1st scc loop
     call getSccSpinLrPars(env, sccCalc, rangeSep, coord, species, &
         & neighbourList%iNeighbour, img2CentCell, denseDesc%iAtomStart, &
-        & spinW, self%getAtomIndex, self%tRangeSep, self%GammaAO, &
-        & self%GammaDeriv, self%SpinAO, self%LrGammaAO, self%LrGammaDeriv)
+        & spinW, this%getAtomIndex, this%isRangeSep, this%GammaAO, &
+        & this%GammaDeriv, this%SpinAO, this%LrGammaAO, this%LrGammaDeriv)
 
     ! get Hxc kernel -> (\mu,\nu|f_{Hxc}|\tau,\gam)
-    call getHxcKernel(denseDesc%iAtomStart, self%getAtomIndex, self%getDenseAO, &
-        & over, self%overSqr, self%GammaAO, self%SpinAO, self%LrGammaAO, &
-        & self%tRangeSep, self%Glevel, self%Mlevel, self%HxcSpS, &
-        & self%HxcSpD, self%HxcHalfS, self%HxcHalfD, self%HxcSqrS, self%HxcSqrD)
+    call getHxcKernel(this%getDenseAO, over, this%overSqr, this%GammaAO, this%SpinAO,&
+        & this%LrGammaAO, this%Glevel, this%tSaveMem, this%isRangeSep, this%HxcSpS, &
+        & this%HxcSpD, this%HxcHalfS, this%HxcHalfD, this%HxcSqrS, this%HxcSqrD)
 
     ! get G1, weightIL, Omega, Rab values
     call getG1ILOmegaRab(env, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
-        & self%fockFa, self%fillingL, self%FONs, self%SAweight, self%enLtot, &
-        & self%hess, self%Nc, self%Na, self%useSSR, self%tSSR22, self%tSSR44, &
-        & self%tRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
+        & iSparseStart, img2CentCell, eigenvecs, this%hamSqrL, this%hamSpL, &
+        & this%fockFa, this%fillingL, this%FONs, this%SAweight, this%enLtot, &
+        & this%hess, this%Nc, this%Na, this%reksAlg, this%tSSR, &
+        & this%isRangeSep, this%G1, this%weightIL, this%omega, this%Rab)
 
     ! get A1e or Aall values based on GradOpt
-    call getSuperAMatrix(eigenvecs, self%HxcSqrS, self%HxcSqrD, self%fockFc, &
-        & self%fockFa, self%omega, self%fillingL, self%weight, self%SAweight, &
-        & self%FONs, self%G1, self%Lpaired, self%Nc, self%Na, self%Glevel, &
-        & self%Mlevel, self%tSSR22, self%tSSR44, self%A1e, self%A1ePre, self%Aall)
+    call getSuperAMatrix(eigenvecs, this%HxcSqrS, this%HxcSqrD, this%fockFc, &
+        & this%fockFa, this%omega, this%fillingL, this%weight, this%SAweight, &
+        & this%FONs, this%G1, this%Lpaired, this%Nc, this%Na, this%Glevel, &
+        & this%reksAlg, this%tSaveMem, this%A1e, this%A1ePre, this%Aall)
 
   end subroutine getReksParameters_
 
 
   !> Calculate SA-REKS state vectors and state-interaction vectors
   subroutine buildStateVectors_(env, denseDesc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, orb, over, self)
+      & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, orb, over, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -886,53 +1007,53 @@ module dftbp_reksinterface
     real(dp), intent(in) :: over(:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     integer :: ia, ib, ist, nstHalf
 
-    nstHalf = self%nstates * (self%nstates - 1) / 2
+    nstHalf = this%nstates * (this%nstates - 1) / 2
 
-    if (self%Lstate == 0) then
+    if (this%Lstate == 0) then
 
       ! build X^T value for state X = PPS, OSS, etc
       call buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
-          & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
-          & self%fillingL, self%weightL, self%Nc, self%Na, self%rstate, &
-          & self%useSSR, self%tSSR22, self%tSSR44, self%tRangeSep, self%XT)
+          & iSparseStart, img2CentCell, eigenvecs, this%hamSqrL, this%hamSpL, &
+          & this%fillingL, this%weightL, this%Nc, this%Na, this%rstate, &
+          & this%reksAlg, this%tSSR, this%isRangeSep, this%XT)
 
-      if (self%useSSR == 1) then
+      if (this%tSSR) then
 
         ! get R^delta values between states X's
-        call getRdel(eigenvecs, self%fillingL, self%FONs, self%Nc, &
-            & self%nstates, self%tSSR22, self%tSSR44, self%RdelL)
+        call getRdel(eigenvecs, this%fillingL, this%FONs, this%Nc, &
+            & this%nstates, this%reksAlg, this%RdelL)
 
         do ist = 1, nstHalf
 
-          call getTwoIndices(self%nstates, ist, ia, ib, 1)
+          call getTwoIndices(this%nstates, ist, ia, ib, 1)
 
           ! get Z^delta values from R^delta values
           call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
-              & iSparseStart, img2CentCell, orb, self%RdelL(:,:,:,ist), &
-              & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
-              & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
-              & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-              & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, self%ZdelL)
+              & iSparseStart, img2CentCell, orb, this%RdelL(:,:,:,ist), &
+              & this%HxcSqrS, this%HxcSqrD, this%HxcHalfS, this%HxcHalfD, &
+              & this%HxcSpS, this%HxcSpD, this%overSqr, over, this%GammaAO, &
+              & this%SpinAO, this%LrGammaAO, this%orderRmatL, this%getDenseAO, &
+              & this%Lpaired, this%Glevel, this%tSaveMem, this%isRangeSep, this%ZdelL)
 
           ! build XTdel with Z^delta values
-          call buildInteractionVectors(eigenvecs, self%ZdelL, self%fockFc, &
-              & self%fockFa, self%FONs, self%fillingL, self%weight, &
-              & self%SAweight, self%omega, self%Rab, self%G1, self%Nc, self%Na, &
-              & ia, ib, self%tSSR22, self%tSSR44, self%XTdel(:,ist))
+          call buildInteractionVectors(eigenvecs, this%ZdelL, this%fockFc, &
+              & this%fockFa, this%FONs, this%fillingL, this%weight, &
+              & this%SAweight, this%omega, this%Rab, this%G1, this%Nc, this%Na, &
+              & ia, ib, this%reksAlg, this%XTdel(:,ist))
 
           ! get Q2^delta values from Z^delta values : MO index
-          call getQ2mat(eigenvecs, self%fillingL, self%weight, &
-              & self%ZdelL, self%Q2del(:,:,ist))
+          call getQ2mat(eigenvecs, this%fillingL, this%weight, &
+              & this%ZdelL, this%Q2del(:,:,ist))
 
         end do
 
         ! get Q1^delta values : AO index
-        call getQ1del(eigenvecs, self%fockFc, self%fockFa, self%FONs, self%SAweight, &
-            & self%Nc, self%nstates, self%tSSR22, self%tSSR44, self%Q1del)
+        call getQ1del(eigenvecs, this%fockFc, this%fockFa, this%FONs, this%SAweight, &
+            & this%Nc, this%nstates, this%reksAlg, this%Q1del)
 
       end if
 
@@ -940,9 +1061,9 @@ module dftbp_reksinterface
 
       ! build X^T_L value
       call buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
-          & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
-          & self%fillingL, self%Nc, self%Na, self%Lstate, self%Lpaired, &
-          & self%tSSR22, self%tSSR44, self%tRangeSep, self%XT(:,1))
+          & iSparseStart, img2CentCell, eigenvecs, this%hamSqrL, this%hamSpL, &
+          & this%fillingL, this%Nc, this%Na, this%Lstate, this%Lpaired, &
+          & this%reksAlg, this%isRangeSep, this%XT(:,1))
 
     end if
 
@@ -951,7 +1072,7 @@ module dftbp_reksinterface
 
   !> Solve CP-REKS equations by using CG based algorithms or direct matrix multiplication
   subroutine solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
-      & iSparseStart, img2CentCell, eigenvecs, over, orb, self, XT, ZT, &
+      & iSparseStart, img2CentCell, eigenvecs, over, orb, this, XT, ZT, &
       & RmatL, ZmatL, Q1mat, Q2mat, optionQMMM)
 
     !> Environment settings
@@ -982,7 +1103,7 @@ module dftbp_reksinterface
     type(TOrbitals), intent(in) :: orb
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> SA-REKS state vector
     real(dp), intent(in) :: XT(:)
@@ -1005,7 +1126,7 @@ module dftbp_reksinterface
     !> option for relaxed properties (QM/MM) calculations
     logical, intent(in) :: optionQMMM
 
-    if (self%Glevel == 1 .or. self%Glevel == 2) then
+    if (this%Glevel == 1 .or. this%Glevel == 2) then
 
       ! solve linear equation A * Z = X using CG algorithm
       ! get converged R, Z, Q2 matrices & ZT vector
@@ -1017,30 +1138,30 @@ module dftbp_reksinterface
             & '          run CG again to obtain ZT solution in (nac) case.'
       end if
       call CGgrad(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart, &
-          & img2CentCell, orb, XT, self%A1e, self%A1ePre, self%HxcSqrS, &
-          & self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, self%HxcSpS, self%HxcSpD, &
-          & self%fockFc, self%fockFa, self%omega, self%SAweight, self%FONs, &
-          & self%G1, self%GammaAO, self%SpinAO, self%LrGammaAO, self%overSqr, &
-          & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
-          & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
-          & self%Mlevel, self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
+          & img2CentCell, orb, XT, this%A1e, this%A1ePre, this%HxcSqrS, &
+          & this%HxcSqrD, this%HxcHalfS, this%HxcHalfD, this%HxcSpS, this%HxcSpD, &
+          & this%fockFc, this%fockFa, this%omega, this%SAweight, this%FONs, &
+          & this%G1, this%GammaAO, this%SpinAO, this%LrGammaAO, this%overSqr, &
+          & over, eigenvecs, this%fillingL, this%weight, this%Glimit, this%orderRmatL, &
+          & this%getDenseAO, this%Lpaired, this%Nc, this%Na, this%CGmaxIter, this%Glevel, &
+          & this%reksAlg, this%tSaveMem, this%isRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
-    else if (self%Glevel == 3) then
+    else if (this%Glevel == 3) then
 
       ! solve A * Z = X using direct matrix inversion
-      call solveZT(self%Aall, XT, ZT)
+      call solveZT(this%Aall, XT, ZT)
 
       ! get direct R, Z, Q2 matrices
       if (.not. optionQMMM) then
-        call getRmat(eigenvecs, ZT, self%fillingL, self%Nc, self%Na, &
-            & self%tSSR22, self%tSSR44, RmatL)
+        call getRmat(eigenvecs, ZT, this%fillingL, this%Nc, this%Na, &
+            & this%reksAlg, RmatL)
         call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, RmatL, &
-            & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
-            & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
-            & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-            & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
-        call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
+            & this%HxcSqrS, this%HxcSqrD, this%HxcHalfS, this%HxcHalfD, &
+            & this%HxcSpS, this%HxcSpD, this%overSqr, over, this%GammaAO, &
+            & this%SpinAO, this%LrGammaAO, this%orderRmatL, this%getDenseAO, &
+            & this%Lpaired, this%Glevel, this%tSaveMem, this%isRangeSep, ZmatL)
+        call getQ2mat(eigenvecs, this%fillingL, this%weight, ZmatL, Q2mat)
         write(stdOut,"(A)") repeat("-", 82)
       end if
 
@@ -1048,10 +1169,10 @@ module dftbp_reksinterface
 
     ! get Q1 matrix from converged ZT vector : MO index
     if (.not. optionQMMM) then
-      call getQ1mat(ZT, self%fockFc, self%fockFa, self%SAweight, &
-          & self%FONs, self%Nc, self%Na, self%tSSR22, self%tSSR44, Q1mat)
+      call getQ1mat(ZT, this%fockFc, this%fockFa, this%SAweight, &
+          & this%FONs, this%Nc, this%Na, this%reksAlg, Q1mat)
     else
-      call printBlankLine()
+      write(stdOut,"(A)")
     end if
 
   end subroutine solveCpReks_
@@ -1059,7 +1180,7 @@ module dftbp_reksinterface
 
   !> Calculate R*T contribution of gradient (2nd term)
   subroutine getRTGradient_(env, sccCalc, denseDesc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, q0, coord0, self)
+      & nNeighbourSK, iSparseStart, img2CentCell, orb, q0, coord0, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1092,23 +1213,23 @@ module dftbp_reksinterface
     real(dp), intent(inout) :: coord0(:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     call RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, orb, coord0, self%Hderiv, self%Sderiv, &
-        & self%rhoSqrL, self%overSqr, self%deltaRhoSqrL, self%qOutputL, &
-        & q0, self%GammaAO, self%GammaDeriv, self%SpinAO, self%LrGammaAO, &
-        & self%LrGammaDeriv, self%RmatL, self%RdelL, self%tmpRL, self%weight, &
-        & self%extCharges, self%blurWidths, self%rVec, self%gVec, self%alpha, self%volume, &
-        & self%getDenseAO, self%getDenseAtom, self%getAtomIndex, self%orderRmatL, &
-        & self%Lpaired, self%SAstates, self%tNAC, self%tRangeSep, self%tExtChrg, &
-        & self%tPeriodic, self%tBlur, self%SAgrad, self%SIgrad, self%SSRgrad)
+        & iSparseStart, img2CentCell, orb, coord0, this%Hderiv, this%Sderiv, &
+        & this%rhoSqrL, this%overSqr, this%deltaRhoSqrL, this%qOutputL, &
+        & q0, this%GammaAO, this%GammaDeriv, this%SpinAO, this%LrGammaAO, &
+        & this%LrGammaDeriv, this%RmatL, this%RdelL, this%tmpRL, this%weight, &
+        & this%extCharges, this%blurWidths, this%rVec, this%gVec, this%alpha, this%volume, &
+        & this%getDenseAO, this%getDenseAtom, this%getAtomIndex, this%orderRmatL, &
+        & this%Lpaired, this%SAstates, this%tNAC, this%isRangeSep, this%tExtChrg, &
+        & this%tPeriodic, this%tBlur, this%SAgrad, this%SIgrad, this%SSRgrad)
 
   end subroutine getRTGradient_
 
 
   !> Get the information related to non-adiabatic coupling
-  subroutine getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, self)
+  subroutine getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, this)
 
     !> print tag information
     logical, intent(in) :: tWriteTagged
@@ -1120,21 +1241,21 @@ module dftbp_reksinterface
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     integer :: fdTagged
 
-    call weightGradient(self%gradL, self%weight, self%avgGrad)
-    call getOtherSAgrad(self%avgGrad, self%tSSR22, self%tSSR44, self%SAgrad)
-    call SaToSsrGradient(self%SAgrad, self%SIgrad, self%eigvecsSSR, self%SSRgrad)
+    call weightGradient(this%gradL, this%weight, this%avgGrad)
+    call getOtherSAgrad(this%avgGrad, this%reksAlg, this%SAgrad)
+    call SaToSsrGradient(this%SAgrad, this%SIgrad, this%eigvecsSSR, this%SSRgrad)
 
-    call getReksNAC(self%SAgrad, self%SIgrad, self%SSRgrad, self%eigvecsSSR, &
-        & self%energy, self%nacG, self%nacH)
+    call getReksNAC(this%SAgrad, this%SIgrad, this%SSRgrad, this%eigvecsSSR, &
+        & this%energy, this%nacG, this%nacH)
 
     if (tWriteTagged) then
       open(newUnit=fdTagged, file=autotestTag, position="append")
       ! nonadiabatic coupling vector has a phase, just check the value not sign
-      call taggedWriter%write(fdTagged, tagLabels%nacH, abs(self%nacH))
+      call taggedWriter%write(fdTagged, tagLabels%nacH, abs(this%nacH))
       close(fdTagged)
     end if
 
@@ -1142,19 +1263,19 @@ module dftbp_reksinterface
 
 
   !> Set the final gradient for REKS
-  subroutine setReksGradients_(derivs, self)
+  subroutine setReksGradients_(derivs, this)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(out) :: derivs(:,:)
 
     ! when Efunc = 1, derivs is already defined in previous routine
-    if (self%tNAC) then
-      derivs(:,:) = self%SSRgrad(:,:,self%rstate)
+    if (this%tNAC) then
+      derivs(:,:) = this%SSRgrad(:,:,this%rstate)
     else
-      derivs(:,:) = self%SSRgrad(:,:,1)
+      derivs(:,:) = this%SSRgrad(:,:,1)
     end if
 
   end subroutine setReksGradients_
@@ -1162,7 +1283,7 @@ module dftbp_reksinterface
 
   !> Creates (relaxed) density and mulliken population for target state
   subroutine getMullikenPopFromRelaxedDensity_(env, denseDesc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, over, rhoPrim, qOutput, self)
+      & nNeighbourSK, iSparseStart, img2CentCell, orb, over, rhoPrim, qOutput, this)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1195,11 +1316,11 @@ module dftbp_reksinterface
     real(dp), intent(inout) :: qOutput(:,:,:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     rhoPrim(:,:) = 0.0_dp
     call env%globalTimer%startTimer(globalTimers%denseToSparse)
-    call packHS(rhoPrim(:,1), 0.5_dp*(self%relRhoSqr + transpose(self%relRhoSqr)), &
+    call packHS(rhoPrim(:,1), 0.5_dp*(this%relRhoSqr + transpose(this%relRhoSqr)), &
         & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%denseToSparse)

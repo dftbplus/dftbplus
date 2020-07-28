@@ -200,8 +200,6 @@ contains
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:, :)
 
-    real(dp) :: recVecs(3, 3), maxGEwald
-
     this%tPeriodic = present(latVecs)
 
     if (this%tPeriodic) then
@@ -611,8 +609,8 @@ contains
     aMat(:, :) = 0.0_dp
 
     ! Real space part of the Ewald sum.
-    call addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-        & img2CentCell, gam, rad, alpha, aMat)
+    call addRealSpaceContribs(nAtom, species, nNeighbour, iNeighbour, neighDist2, img2CentCell,&
+        & gam, rad, alpha, aMat)
 
     ! Reciprocal space part of the Ewald sum.
     call addEwaldContribs(nAtom, coords, recPoint, alpha, volume, aMat)
@@ -792,17 +790,14 @@ contains
 
 
   !> Real space contributions to interaction matrix.
-  subroutine addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-      & img2CentCell, gam, rad, alpha, aMat)
+  subroutine addRealSpaceContribs(nAtom, species, nNeighbour, iNeighbour, neighDist2, img2CentCell,&
+      & gam, rad, alpha, aMat)
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
 
     !> Species of every atom.
     integer, intent(in) :: species(:)
-
-    !> List of atomic coordinates (all atoms).
-    real(dp), intent(in) :: coords(:, :)
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -1031,7 +1026,7 @@ contains
 
     logical :: tPeriodic
     integer :: nDim
-    integer :: iAt1, iSp1, ii, jj
+    integer :: iAt1, iSp1, ii
     real(dp) :: tmp
 
     tPeriodic = allocated(recPoint)
