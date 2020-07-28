@@ -16,7 +16,7 @@ module dftbp_chargeconstr
   implicit none
   private
 
-  public :: TChrgConstr, init
+  public :: TChrgConstr, TChrgConstr_init
   public :: buildShift, addShiftPerAtom, addEnergyPerAtom
 
 
@@ -44,12 +44,6 @@ module dftbp_chargeconstr
   end type TChrgConstr
 
 
-  !> Initialise
-  interface init
-    module procedure ChrgConstr_init
-  end interface
-
-
   !> build the shift
   interface buildShift
     module procedure ChrgConstr_buildShift
@@ -71,7 +65,7 @@ contains
 
 
   !> Initializes
-  subroutine ChrgConstr_init(sf, inp, kappa)
+  subroutine TChrgConstr_init(sf, inp, kappa)
 
     !> Instance of a constraint
     type(TChrgConstr), intent(inout) :: sf
@@ -95,7 +89,7 @@ contains
     sf%kappa = kappa
     sf%tInit = .true.
 
-  end subroutine ChrgConstr_init
+  end subroutine TChrgConstr_init
 
 
   !> build the shift (potential)

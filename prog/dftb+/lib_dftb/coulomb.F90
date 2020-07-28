@@ -30,7 +30,7 @@ module dftbp_coulomb
 
   private
 
-  public :: boundaryCondition, TCoulombInput, TCoulombCont, init
+  public :: boundaryCondition, TCoulombInput, TCoulombCont, TCoulombCont_init
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
@@ -171,12 +171,6 @@ module dftbp_coulomb
   end type TCoulombCont
 
 
-  !> Initialize coulombic interaction container from input data
-  interface init
-    module procedure :: initialize
-  end interface init
-
-
   !> 1/r interaction for all atoms with another group
   interface sumInvR
     module procedure sumInvRClusterAsymm
@@ -209,7 +203,7 @@ module dftbp_coulomb
 contains
 
 
-  subroutine initialize(this, input, env, nAtom, latVecs, recVecs, volume)
+  subroutine TCoulombCont_init(this, input, env, nAtom, latVecs, recVecs, volume)
 
     !> Data structure
     class(TCoulombCont), intent(out) :: this
@@ -290,7 +284,7 @@ contains
     ! Initialise arrays for potential shifts
     allocate(this%shiftPerAtom(nAtom))
 
-  end subroutine initialize
+  end subroutine TCoulombCont_init
 
 
   !> Update internal stored coordinates

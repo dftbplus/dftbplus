@@ -62,7 +62,7 @@ module dftbp_initprogram
   use dftbp_lapackroutines
   use dftbp_simplealgebra
   use dftbp_nonscc
-  use dftbp_scc
+  use dftbp_scc, only : TSccInp, TScc, TScc_init
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_hamiltonian, only : TRefExtPot
@@ -1504,7 +1504,7 @@ contains
 
       sccInp%coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
       sccInp%coulombInput%tolEwald = input%ctrl%tolEwald
-      call initialize(sccCalc, env, sccInp)
+      call TScc_init(sccCalc, env, sccInp)
       deallocate(sccInp)
 
       ! Longest cut-off including the softening part of gamma

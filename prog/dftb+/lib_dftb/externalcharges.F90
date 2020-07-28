@@ -12,7 +12,7 @@ module dftbp_externalcharges
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_blasroutines
-  use dftbp_coulomb
+  use dftbp_coulomb, only : sumInvR, addInvRPrime
   use dftbp_constants
   use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
   use dftbp_environment
