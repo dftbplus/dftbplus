@@ -17,7 +17,7 @@ module dftbp_scc
   use dftbp_chargeconstr, only : addEnergyPerAtom
   use dftbp_commontypes
   use dftbp_constants
-  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, TCoulombCont_init, sumInvR
+  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, TCoulombCont_init
   use dftbp_dynneighlist
   use dftbp_environment
   use dftbp_fileid
@@ -201,9 +201,6 @@ module dftbp_scc
 
     !> Returns a minimal cutoff for the neighbourlist
     procedure :: getCutOff
-
-    !> Returns the currenty used alpha parameter of the Ewald-summation
-    procedure :: getEwaldPar
 
     !> Updates the atom coordinates for the SCC module
     procedure :: updateCoords
@@ -421,21 +418,6 @@ contains
   end function getCutOff
 
 
-  !> Returns the currenty used alpha parameter of the Ewald-summation
-  function getEwaldPar(this) result(alpha)
-
-    !> Instance
-    class(TScc), intent(in) :: this
-
-    !> Parameter in the Ewald summation.
-    real(dp) :: alpha
-
-    @:ASSERT(this%tInitialised)
-    alpha = this%coulombCont%alpha
-
-  end function getEwaldPar
-
-
   !> Updates the atom coordinates for the SCC module.
   subroutine updateCoords(this, env, coord, species, neighList)
 
@@ -466,10 +448,9 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec,&
-            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
+        call this%extCharge%setCoordinates(env, this%coord, this%volume, this%coulombCont)
       else
-        call this%extCharge%setCoordinates(env, this%coord)
+        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont)
       end if
     end if
 
@@ -831,8 +812,7 @@ contains
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-            & this%volume)
+            & this%coulombCont, this%volume)
       else
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -1100,12 +1080,11 @@ contains
     V(:) = 0.0_dp
 
     if (this%tPeriodic) then
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-          & this%volume, V, epsSoften=epsSoften)
+      call this%coulombCont%sumInvRAsymm(env, size(V), this%nAtom, locations, this%coord,&
+          & this%deltaQAtom, this%volume, V, epsSoften=epsSoften)
     else
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
-          & epsSoften=epsSoften)
+      call this%coulombCont%sumInvRAsymm(env, size(V), this%nAtom, locations, this%coord,&
+          & this%deltaQAtom, V, epsSoften=epsSoften)
     end if
 
   end subroutine getInternalElStatPotential
@@ -1133,11 +1112,11 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec,&
-            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V,&
-            & epsSoften=epsSoften)
+        call this%extCharge%getElStatPotential(env, locations, this%volume, V,&
+            & this%coulombCont, epsSoften=epsSoften)
       else
-        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
+        call this%extCharge%getElStatPotential(env, locations, V, this%coulombCont,&
+            & epsSoften=epsSoften)
       end if
     else
       V(:) = 0.0_dp

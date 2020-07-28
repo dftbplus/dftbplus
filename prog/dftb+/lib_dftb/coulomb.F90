@@ -31,7 +31,7 @@ module dftbp_coulomb
   private
 
   public :: boundaryCondition, TCoulombInput, TCoulombCont, TCoulombCont_init
-  public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
+  public :: invRCluster, invRPeriodic, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
@@ -168,14 +168,12 @@ module dftbp_coulomb
     !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
     procedure :: addInvRPrimePeriodicMat
 
+    !> 1/r interaction for all atoms with another group
+    procedure, private :: sumInvRClusterAsymm
+    procedure, private :: sumInvRPeriodicAsymm
+    generic :: sumInvRAsymm => sumInvRClusterAsymm, sumInvRPeriodicAsymm
+
   end type TCoulombCont
-
-
-  !> 1/r interaction for all atoms with another group
-  interface sumInvR
-    module procedure sumInvRClusterAsymm
-    module procedure sumInvRPeriodicAsymm
-  end interface sumInvR
 
 
   !> 1/r^2
@@ -756,8 +754,11 @@ contains
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
-  subroutine sumInvRClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charges1, invRVec,&
+  subroutine sumInvRClusterAsymm(this, env, nAtom0, nAtom1, coord0, coord1, charges1, invRVec,&
       & blurWidths1, epsSoften)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1081,8 +1082,11 @@ contains
 
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
-  subroutine sumInvRPeriodicAsymm(env, nAtom0, nAtom1, coord0, coord1, charges1, rLat, gLat, alpha,&
-      & volume, invRVec, blurwidths1, epsSoften)
+  subroutine sumInvRPeriodicAsymm(this, env, nAtom0, nAtom1, coord0, coord1, charges1, volume,&
+      & invRVec, blurwidths1, epsSoften)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1101,15 +1105,6 @@ contains
 
     !> Charges of the 2nd group of objects
     real(dp), intent(in) :: charges1(:)
-
-    !> Lattice vectors to be used for the real Ewald summation
-    real(dp), intent(in) :: rLat(:,:)
-
-    !> Lattice vectors to be used for the reciprocal Ewald summation.
-    real(dp), intent(in) :: gLat(:,:)
-
-    !> Parameter of the Ewald summation
-    real(dp), intent(in) :: alpha
 
     !> Volume of the supercell.
     real(dp), intent(in) :: volume
@@ -1140,8 +1135,8 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
-          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurWidth=blurWidths1(iAt1),&
-              & epsSoften=epsSoften)
+          rTmp = ewald(rr, this%rCellVec, this%gLatPoint, this%alpha, volume,&
+              & blurWidth=blurWidths1(iAt1), epsSoften=epsSoften)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
         end do
       end do
@@ -1152,7 +1147,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
-          rTmp = ewald(rr, rLat, gLat, alpha, volume, epsSoften=epsSoften)
+          rTmp = ewald(rr, this%rCellVec, this%gLatPoint, this%alpha, volume, epsSoften=epsSoften)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
         end do
       end do
@@ -2516,6 +2511,7 @@ contains
   !> storing anything.
   subroutine addInvRPrimeClusterMat(this, env, coord, invRDeriv)
 
+    !> Class instance
     class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings

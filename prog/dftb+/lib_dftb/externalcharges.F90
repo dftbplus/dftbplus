@@ -12,7 +12,7 @@ module dftbp_externalcharges
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_blasroutines
-  use dftbp_coulomb, only : sumInvR, addInvRPrime
+  use dftbp_coulomb, only : TCoulombCont, addInvRPrime
   use dftbp_constants
   use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
   use dftbp_environment
@@ -59,12 +59,12 @@ module dftbp_externalcharges
 
   contains
     private
-    procedure :: setCoordsCluster
-    procedure :: setCoordsPeriodic
-    procedure :: addForceDcCluster
-    procedure :: addForceDcPeriodic
-    procedure :: getElStatPotentialCluster
-    procedure :: getElStatPotentialPeriodic
+    procedure, private :: setCoordsCluster
+    procedure, private :: setCoordsPeriodic
+    procedure, private :: addForceDcCluster
+    procedure, private :: addForceDcPeriodic
+    procedure, private :: getElStatPotentialCluster
+    procedure, private :: getElStatPotentialPeriodic
     
     !> Updates the stored coordinates for point charges
     generic, public :: setCoordinates => setCoordsCluster, setCoordsPeriodic
@@ -186,7 +186,7 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine setCoordsCluster(this, env, atomCoords)
+  subroutine setCoordsCluster(this, env, atomCoords, coulombCont)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
@@ -197,16 +197,20 @@ contains
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
+
     @:ASSERT(this%tInitialized)
     @:ASSERT(.not. this%tPeriodic)
     @:ASSERT(size(atomCoords, dim=1) == 3)
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & this%invRVec, blurWidths1=this%blurWidths)
+      call coulombCont%sumInvRAsymm(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, this%invRVec, blurWidths1=this%blurWidths)
     else
-      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges, this%invRVec)
+      call coulombCont%sumInvRAsymm(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -215,7 +219,7 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine setCoordsPeriodic(this, env, atomCoords, rCellVec, gLat, alpha, volume)
+  subroutine setCoordsPeriodic(this, env, atomCoords, volume, coulombCont)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
@@ -226,30 +230,24 @@ contains
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
-    !> Real lattice points for asymmetric Ewald sum
-    real(dp), intent(in) :: rCellVec(:,:)
-
-    !> Reciprocal lattice vectors
-    real(dp), intent(in) :: gLat(:,:)
-
-    !> Ewald parameter
-    real(dp), intent(in) :: alpha
-
     !> Cell volume
     real(dp), intent(in) :: volume
+
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
 
     @:ASSERT(this%tInitialized)
     @:ASSERT(this%tPeriodic)
     @:ASSERT(size(atomCoords, dim=1) == 3)
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
-    @:ASSERT(size(gLat, dim=1) == 3)
+    @:ASSERT(size(coulombCont%gLatPoint, dim=1) == 3)
 
     if (this%tBlur) then
-      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & rCellVec, gLat, alpha, volume, this%invRVec, blurWidths1=this%blurWidths)
+      call coulombCont%sumInvRAsymm(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, volume, this%invRVec, blurWidths1=this%blurWidths)
     else
-      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & rCellVec, gLat, alpha, volume, this%invRVec)
+      call coulombCont%sumInvRAsymm(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, volume, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -336,7 +334,7 @@ contains
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
   subroutine addForceDcPeriodic(this, env, atomForces, chrgForces, atomCoords, atomCharges,&
-      & rCellVec, gVec, alpha, vol)
+      & coulombCont, vol)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -356,14 +354,8 @@ contains
     !> Charges of the atoms.
     real(dp), intent(in) :: atomCharges(:)
 
-    !> Real lattice points for asymmetric Ewald sum
-    real(dp), intent(in) :: rCellVec(:,:)
-
-    !> Reciprocal lattice vectors for the Ewald summation
-    real(dp), intent(in) :: gVec(:,:)
-
-    !> Parameter of the Ewald summation
-    real(dp), intent(in) :: alpha
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> Cell volume
     real(dp), intent(in) :: vol
@@ -375,19 +367,19 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.,&
-          & blurWidths1=this%blurWidths)
+          & this%charges, coulombCont%rCellVec, coulombCont%gLatPoint, coulombCont%alpha, vol,&
+          & atomForces, chrgForces, tHamDeriv=.false., blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.)
+          & this%charges, coulombCont%rCellVec, coulombCont%gLatPoint, coulombCont%alpha, vol,&
+          & atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcPeriodic
 
 
   !> Returns potential from external charges (periodic case)
-  subroutine getElStatPotentialPeriodic(this, env, locations, rCellVec, gLatPoint, alpha, volume,&
-      & V, epsSoften)
+  subroutine getElStatPotentialPeriodic(this, env, locations, volume, V, coulombCont, epsSoften)
 
     !> Instance of SCC calculation
     class(TExtCharge), intent(in) :: this
@@ -397,15 +389,6 @@ contains
 
     !> sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
-
-    !> Real lattice points for Ewald-sum.
-    real(dp), intent(in) :: rCellVec(:,:)
-
-    !> Lattice points for reciprocal Ewald
-    real(dp), intent(in) :: gLatPoint(:,:)
-
-    !> Parameter for Ewald
-    real(dp), intent(in) :: alpha
 
     !> Cell volume
     real(dp), intent(in) :: volume
@@ -413,6 +396,9 @@ contains
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
 
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
+
     !> optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
@@ -421,18 +407,18 @@ contains
     V(:) = 0.0_dp
 
     if (allocated(this%blurWidths)) then
-      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
+      call coulombCont%sumInvRAsymm(env, size(V), size(this%charges), locations, this%coords,&
+          & -this%charges, volume, V, this%blurWidths, epsSoften=epsSoften)
     else
-      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
+      call coulombCont%sumInvRAsymm(env, size(V), size(this%charges), locations, this%coords,&
+          & -this%charges, volume, V, epsSoften=epsSoften)
     end if
 
   end subroutine getElStatPotentialPeriodic
 
 
   !> Returns potential from external charges (cluster case)
-  subroutine getElStatPotentialCluster(this, env, locations, V, epsSoften)
+  subroutine getElStatPotentialCluster(this, env, locations, V, coulombCont, epsSoften)
 
     !> Instance of SCC calculation
     class(TExtCharge), intent(in) :: this
@@ -446,6 +432,9 @@ contains
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
 
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
+
     !> optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
@@ -454,11 +443,11 @@ contains
     V(:) = 0.0_dp
 
     if (allocated(this%blurWidths)) then
-      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
-          & this%blurWidths, epsSoften=epsSoften)
+      call coulombCont%sumInvRAsymm(env, size(V), size(this%charges), locations, this%coords,&
+          & -this%charges, V, this%blurWidths, epsSoften=epsSoften)
     else
-      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
-          & epsSoften=epsSoften)
+      call coulombCont%sumInvRAsymm(env, size(V), size(this%charges), locations, this%coords,&
+          & -this%charges, V, epsSoften=epsSoften)
     end if
 
   end subroutine getElStatPotentialCluster
