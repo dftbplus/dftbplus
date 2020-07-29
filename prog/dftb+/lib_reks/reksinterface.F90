@@ -39,7 +39,7 @@ module dftbp_reksinterface
   use dftbp_reksgrad
   use dftbp_reksio
   use dftbp_reksproperty
-  use dftbp_reksvar
+  use dftbp_reksvar, only : TReksCalc
 
   implicit none
 
@@ -273,7 +273,7 @@ module dftbp_reksinterface
 
     ! get the periodic information
     if (this%tPeriodic) then
-      call sccCalc%coulombCont%getPeriodicInfo(this%rVec, this%gVec, this%alpha, this%volume)
+      this%volume = sccCalc%coulombCont%volume
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
@@ -546,8 +546,8 @@ module dftbp_reksinterface
       if (this%tExtChrg) then
 
         call getExtChrgGradients(env, coord0, this%extCharges(1:3,:), &
-            & qOutput, q0, this%extCharges(4,:), this%blurWidths, this%rVec, this%gVec, &
-            & this%alpha, this%volume, this%tPeriodic, this%tBlur, chrgForces)
+            & qOutput, q0, this%extCharges(4,:), this%blurWidths, this%coulombCont, this%volume,&
+            & this%tPeriodic, this%tBlur, chrgForces)
 
       end if
 
@@ -1215,15 +1215,14 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    call RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, orb, coord0, this%Hderiv, this%Sderiv, &
-        & this%rhoSqrL, this%overSqr, this%deltaRhoSqrL, this%qOutputL, &
-        & q0, this%GammaAO, this%GammaDeriv, this%SpinAO, this%LrGammaAO, &
-        & this%LrGammaDeriv, this%RmatL, this%RdelL, this%tmpRL, this%weight, &
-        & this%extCharges, this%blurWidths, this%rVec, this%gVec, this%alpha, this%volume, &
-        & this%getDenseAO, this%getDenseAtom, this%getAtomIndex, this%orderRmatL, &
-        & this%Lpaired, this%SAstates, this%tNAC, this%isRangeSep, this%tExtChrg, &
-        & this%tPeriodic, this%tBlur, this%SAgrad, this%SIgrad, this%SSRgrad)
+    call RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
+        & orb, coord0, this%Hderiv, this%Sderiv, this%rhoSqrL, this%overSqr, this%deltaRhoSqrL,&
+        & this%qOutputL, q0, this%GammaAO, this%GammaDeriv, this%SpinAO, this%LrGammaAO, &
+        & this%LrGammaDeriv, this%RmatL, this%RdelL, this%tmpRL, this%weight, this%extCharges,&
+        & this%blurWidths, this%coulombCont, this%volume, this%getDenseAO, this%getDenseAtom,&
+        & this%getAtomIndex, this%orderRmatL, this%Lpaired, this%SAstates, this%tNAC,&
+        & this%isRangeSep, this%tExtChrg, this%tPeriodic, this%tBlur, this%SAgrad, this%SIgrad,&
+        & this%SSRgrad)
 
   end subroutine getRTGradient_
 

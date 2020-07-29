@@ -814,7 +814,8 @@ contains
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
             & this%coulombCont, this%volume)
       else
-        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
+        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
+            & this%coulombCont)
       end if
     end if
 

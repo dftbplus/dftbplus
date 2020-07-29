@@ -60,6 +60,6 @@ module dftbp_reks
   public :: printReksMicrostates, printSaReksEnergy, printReksSAInfo
 
   !> dftbp_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90, parser.F90
-  public :: TReksInp, TReksCalc, REKS_init, reksTypes
+  public :: TReksInp, TReksCalc, TReks_init, reksTypes
 
 end module dftbp_reks

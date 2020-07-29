@@ -64,6 +64,7 @@ module dftbp_initprogram
   use dftbp_nonscc
   use dftbp_scc, only : TSccInp, TScc, TScc_init
   use dftbp_sccinit
+  use dftbp_coulomb, only : TCoulombCont, TCoulombCont_init
   use dftbp_onsitecorrection
   use dftbp_hamiltonian, only : TRefExtPot
   use dftbp_h5correction
@@ -102,7 +103,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-  use dftbp_reks
+  use dftbp_reks, only : TReksCalc, TReksInp, TReks_init, reksTypes
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
   use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
@@ -1119,6 +1120,9 @@ contains
     integer, allocatable :: iAtomRegion(:)
     integer :: valshape(1)
 
+    !> Container for coulombic electrostatics
+    type(TCoulombCont), allocatable :: coulombCont
+
     !> Is SCC cycle initialised
     type(TSccInp), allocatable :: sccInp
 
@@ -1434,6 +1438,7 @@ contains
     tPoisson = input%ctrl%tPoisson
 
     if (tSccCalc) then
+
       allocate(sccInp)
       allocate(sccCalc)
       sccInp%orb => orb
@@ -1443,7 +1448,7 @@ contains
       if (tPeriodic) then
         sccInp%latVecs = latVec
         sccInp%recVecs = recVec
-        sccInp%volume = CellVol
+        sccInp%volume = cellVol
       else if (tHelical) then
         call error("Scc calculations not currently supported for helical boundary conditions")
       end if
@@ -1505,6 +1510,15 @@ contains
       sccInp%coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
       sccInp%coulombInput%tolEwald = input%ctrl%tolEwald
       call TScc_init(sccCalc, env, sccInp)
+
+      allocate(coulombCont)
+      if (tPeriodic) then
+        call TCoulombCont_init(coulombCont, sccInp%coulombInput, env, nAtom, latVec, recVec,&
+            & cellVol)
+      else
+        call TCoulombCont_init(coulombCont, sccInp%coulombInput, env, nAtom)
+      end if
+
       deallocate(sccInp)
 
       ! Longest cut-off including the softening part of gamma
@@ -2431,7 +2445,7 @@ contains
       poissStr%nel = nEl0
       poissStr%isPeriodic = tPeriodic
       if (tPeriodic) then
-        poissStr%latVecs(:,:) = latVec(:,:)
+        poissStr%latVecs(:,:) = latVec
       else
         poissStr%latVecs(:,:) = 0.0_dp
       end if
@@ -2486,10 +2500,13 @@ contains
       call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
           & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
           & tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
+
+      call coulombCont%updateLatVecs(latVec, recVec, cellVol)
+      call coulombCont%updateCoords(env, neighbourList, coord0, species)
       ! here, nSpin changes to 2 for REKS
-      call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
-          & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
-          & nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+      call reksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
+          & coulombCont, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType,&
+          & nSpin, nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
 
     call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
@@ -5317,7 +5334,8 @@ contains
   end subroutine checkReksConsistency
 
 
-  subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl,&
+  !> Initialise reks calculation and set up internal variables
+  subroutine reksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, coulombCont,&
       & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep,&
       & tForces, tPeriodic, tStress, tDipole)
 
@@ -5338,6 +5356,9 @@ contains
 
     !> nr. of electrons
     real(dp), intent(in) :: nEl(:)
+
+    !> Coulombic electrostatics
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> coordinates and charges of external point charges
     real(dp), allocatable, intent(in) :: extChrg(:,:)
@@ -5386,8 +5407,8 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+        call TReks_init(reks, reksInp, orb, spinW, nSpin, nEl(1), coulombCont, nExtChrg,&
+            & extChrg, blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -5399,7 +5420,7 @@ contains
       call error("xTB calculation currently not supported for REKS")
     end select
 
-  end subroutine TReksCalc_init
+  end subroutine reksCalc_init
 
 
   subroutine printReksInitInfo(reks, orb, speciesName, nType)

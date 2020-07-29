@@ -22,7 +22,7 @@ module dftbp_reksgrad
 #:endif
   use dftbp_accuracy
   use dftbp_blasroutines, only : gemm, gemv
-  use dftbp_coulomb, only : addInvRPrime
+  use dftbp_coulomb, only : TCoulombCont
   use dftbp_densedescr
   use dftbp_environment
   use dftbp_globalenv
@@ -2085,7 +2085,7 @@ module dftbp_reksgrad
       & iSparseStart, img2CentCell, orb, coord0, Hderiv, Sderiv, rhoSqrL, overSqr, &
       & deltaRhoSqrL, qOutputL, q0, GammaAO, GammaDeriv, SpinAO, LrGammaAO, &
       & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, blurWidths, &
-      & rVec, gVec, alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, &
+      & coulombCont, vol, getDenseAO, getDenseAtom, getAtomIndex, &
       & orderRmatL, Lpaired, SAstates, tNAC, isRangeSep, tExtChrg, tPeriodic, &
       & tBlur, SAgrad, SIgrad, SSRgrad)
 
@@ -2116,7 +2116,6 @@ module dftbp_reksgrad
     !> central cell coordinates of atoms
     real(dp), intent(inout) :: coord0(:,:)
 
-
     !> Dense non-scc Hamiltonian derivative in AO basis
     real(dp), intent(in) :: Hderiv(:,:,:)
 
@@ -2138,7 +2137,6 @@ module dftbp_reksgrad
     !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
 
-
     !> scc gamma integrals in AO basis
     real(dp), intent(in) :: GammaAO(:,:)
 
@@ -2154,7 +2152,6 @@ module dftbp_reksgrad
     !> long-range gamma derivative integrals
     real(dp), allocatable, intent(in) :: LrGammaDeriv(:,:,:)
 
-
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:,:)
 
@@ -2167,25 +2164,17 @@ module dftbp_reksgrad
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
-
     !> coordinates and charges of external point charges
     real(dp), allocatable, intent(in) :: extCharges(:,:)
 
     !> Width of the Gaussians if the charges are blurred
     real(dp), allocatable, intent(in) :: blurWidths(:)
 
-    !> real lattice points for Ewald-sum
-    real(dp), allocatable, intent(in) :: rVec(:,:)
-
-    !> lattice points for reciprocal Ewald
-    real(dp), allocatable, intent(in) :: gVec(:,:)
-
-    !> parameter for Ewald
-    real(dp), intent(in) :: alpha
+    !> Coulomb electrostatic container
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> parameter for cell volume
     real(dp), intent(in) :: vol
-
 
     !> get dense AO index from sparse AO array
     integer, intent(in) :: getDenseAO(:,:)
@@ -2205,7 +2194,6 @@ module dftbp_reksgrad
     !> Number of states used in state-averaging
     integer, intent(in) :: SAstates
 
-
     !> Calculate nonadiabatic coupling vectors
     logical, intent(in) :: tNAC
 
@@ -2220,7 +2208,6 @@ module dftbp_reksgrad
 
     !> If charges should be blured
     logical, intent(in) :: tBlur
-
 
     !> gradient of SA-REKS state
     real(dp), allocatable, intent(inout) :: SAgrad(:,:,:)
@@ -2304,9 +2291,9 @@ module dftbp_reksgrad
 
     ! point charge term with sparse R and T variables
     if (tExtChrg) then
-      call getPc2ndTerms_(env, coord0, overSqr, tmpRmatL, tmpRdelL, weight, &
-          & extCharges, blurWidths, rVec, gVec, alpha, vol, getDenseAO, getAtomIndex, &
-          & orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
+      call getPc2ndTerms_(env, coord0, overSqr, tmpRmatL, tmpRdelL, weight, extCharges, blurWidths,&
+          & coulombCont, vol, getDenseAO, getAtomIndex,  orderRmatL, SAstates, tNAC, tPeriodic,&
+          & tBlur, deriv1, deriv2)
     end if
 
     if (isRangeSep) then
@@ -2598,7 +2585,7 @@ module dftbp_reksgrad
 
   !> Calculate external charge gradients for target state
   subroutine getExtChrgGradients(env, qmCoords, pcCoords, qOutput, q0, &
-      & pcCharges, blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, chrgForces)
+      & pcCharges, blurWidths, coulombCont, vol, tPeriodic, tBlur, chrgForces)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2621,14 +2608,8 @@ module dftbp_reksgrad
     !> Width of the Gaussians if the charges are blurred
     real(dp), allocatable, intent(in) :: blurWidths(:)
 
-    !> real lattice points for Ewald-sum
-    real(dp), allocatable, intent(in) :: rVec(:,:)
-
-    !> lattice points for reciprocal Ewald
-    real(dp), allocatable, intent(in) :: gVec(:,:)
-
-    !> parameter for Ewald
-    real(dp), intent(in) :: alpha
+    !> Coulomb electrostatic container
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> parameter for cell volume
     real(dp), intent(in) :: vol
@@ -2667,19 +2648,18 @@ module dftbp_reksgrad
     chrgForces(:,:) = 0.0_dp
     if (tPeriodic) then
       if (tBlur) then
-        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, tHamDeriv=.false., &
-            & blurWidths1=blurWidths)
+        call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+            & pcCharges, vol, deriv, chrgForces, tHamDeriv=.false., blurWidths1=blurWidths)
       else
-        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, tHamDeriv=.false.)
+        call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+            & pcCharges, vol, deriv, chrgForces, tHamDeriv=.false.)
       end if
     else
       if (tBlur) then
-        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+        call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
             & pcCharges, deriv, chrgForces, tHamDeriv=.false., blurWidths1=blurWidths)
       else
-        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+        call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
             & pcCharges, deriv, chrgForces, tHamDeriv=.false.)
       end if
     end if
@@ -5324,9 +5304,9 @@ module dftbp_reksgrad
 
 
   !> Calculate R*T contribution of gradient from pc terms
-  subroutine getPc2ndTerms_(env, coord0, overSqr, RmatSpL, RdelSpL, &
-      & weight, extCharges, blurWidths, rVec, gVec, alpha, vol, getDenseAO, &
-      & getAtomIndex, orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
+  subroutine getPc2ndTerms_(env, coord0, overSqr, RmatSpL, RdelSpL, weight, extCharges, blurWidths,&
+      & coulombCont, vol, getDenseAO, getAtomIndex, orderRmatL, SAstates, tNAC, tPeriodic, tBlur,&
+      & deriv1, deriv2)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5352,14 +5332,8 @@ module dftbp_reksgrad
     !> Width of the Gaussians if the charges are blurred
     real(dp), allocatable, intent(in) :: blurWidths(:)
 
-    !> real lattice points for Ewald-sum
-    real(dp), allocatable, intent(in) :: rVec(:,:)
-
-    !> lattice points for reciprocal Ewald
-    real(dp), allocatable, intent(in) :: gVec(:,:)
-
-    !> parameter for Ewald
-    real(dp), intent(in) :: alpha
+    !> Coulomb electrostatic container
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> parameter for cell volume
     real(dp), intent(in) :: vol
@@ -5417,8 +5391,8 @@ module dftbp_reksgrad
 
     ! contributions related to gradient of external charges
     ! Q_{pc} * (-1/R**2) between QM and PC
-    call getQinvRderiv(env, coord0, extCharges(1:3,:), extCharges(4,:), &
-        & blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, QinvRderiv)
+    call getQinvRderiv(env, coord0, extCharges(1:3,:), extCharges(4,:), blurWidths, coulombCont,&
+        & vol, tPeriodic, tBlur, QinvRderiv)
 
     ! compute R*T shift with only up-spin part of Tderiv due to symmetry
     ! contribution for derivative of 1/r coulomb potential w.r.t. R_atom, not R_atompair
@@ -5493,8 +5467,8 @@ module dftbp_reksgrad
 
       !> contributions related to gradient of external charges
       !> Q_{pc} * (-1/R**2) between QM and PC
-      subroutine getQinvRderiv(env, qmCoords, pcCoords, pcCharges, &
-          & blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, QinvRderiv)
+      subroutine getQinvRderiv(env, qmCoords, pcCoords, pcCharges, blurWidths, coulombCont, vol,&
+          & tPeriodic, tBlur, QinvRderiv)
 
         !> Environment settings
         type(TEnvironment), intent(inout) :: env
@@ -5511,14 +5485,8 @@ module dftbp_reksgrad
         !> Width of the Gaussians if the charges are blurred
         real(dp), allocatable, intent(in) :: blurWidths(:)
 
-        !> real lattice points for Ewald-sum
-        real(dp), allocatable, intent(in) :: rVec(:,:)
-
-        !> lattice points for reciprocal Ewald
-        real(dp), allocatable, intent(in) :: gVec(:,:)
-
-        !> parameter for Ewald
-        real(dp), intent(in) :: alpha
+        !> Coulomb electrostatic container
+        type(TCoulombCont), intent(in) :: coulombCont
 
         !> parameter for cell volume
         real(dp), intent(in) :: vol
@@ -5545,19 +5513,18 @@ module dftbp_reksgrad
         QinvRderiv(:,:) = 0.0_dp
         if (tPeriodic) then
           if (tBlur) then
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, pcCharges, &
-                & rVec, gVec, alpha, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true., &
-                & blurWidths1=blurWidths)
+            call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges,&
+                & pcCharges, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true., blurWidths1=blurWidths)
           else
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, pcCharges, &
-                & rVec, gVec, alpha, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true.)
+            call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges,&
+                & pcCharges, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true.)
           end if
         else
           if (tBlur) then
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
+            call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
                 & pcCharges, QinvRderiv, tmpDeriv, tHamDeriv=.true., blurWidths1=blurWidths)
           else
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
+            call coulombCont%addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
                 & pcCharges, QinvRderiv, tmpDeriv, tHamDeriv=.true.)
           end if
         end if

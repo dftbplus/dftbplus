@@ -31,7 +31,7 @@ module dftbp_coulomb
   private
 
   public :: boundaryCondition, TCoulombInput, TCoulombCont, TCoulombCont_init
-  public :: invRCluster, invRPeriodic, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
+  public :: invRCluster, invRPeriodic, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
@@ -158,11 +158,7 @@ module dftbp_coulomb
     !> Returns shifts per shell
     procedure :: addShiftPerShell
 
-    !> Get the variables relate to periodic information
-    procedure :: getPeriodicInfo
-
-    !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
-    !> storing anything.
+    !> Calculates the -1/R**2 deriv contribution for the cluster case, without storing anything.
     procedure :: addInvRPrimeClusterMat
 
     !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
@@ -173,17 +169,15 @@ module dftbp_coulomb
     procedure, private :: sumInvRPeriodicAsymm
     generic :: sumInvRAsymm => sumInvRClusterAsymm, sumInvRPeriodicAsymm
 
+    !> Calculates the -1/R**2 deriv contribution for all atoms, without storing anything.
+    procedure, private :: addInvRPrimeCluster
+    procedure, private :: addInvRPrimeClusterAsymm
+    procedure, private :: addInvRPrimePeriodic
+    procedure, private :: addInvRPrimePeriodicAsymm
+    generic :: addInvRPrime => addInvRPrimeCluster, addInvRPrimeClusterAsymm,&
+        & addInvRPrimePeriodic, addInvRPrimePeriodicAsymm
+
   end type TCoulombCont
-
-
-  !> 1/r^2
-  interface addInvRPrime
-    module procedure addInvRPrimeCluster
-    module procedure addInvRPrimeClusterAsymm
-    module procedure addInvRPrimePeriodic
-    module procedure addInvRPrimePeriodicAsymm
-  end interface addInvRPrime
-
 
   !> 1/r^2 term for extended lagrangian
   interface addInvRPrimeXlbomd
@@ -455,10 +449,10 @@ contains
       end if
     else
       if (this%boundaryCondition == boundaryCondition%pbc3d) then
-        call addInvRPrime(env, this%nAtom, coords, this%neighListGen, &
-            & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, gradients)
+        call this%addInvRPrime(env, this%nAtom, coords, this%neighListGen, this%volume,&
+            & this%deltaQAtom, gradients)
       else
-        call addInvRPrime(env, this%nAtom, coords, this%deltaQAtom, gradients)
+        call this%addInvRPrime(env, this%nAtom, coords, this%deltaQAtom, gradients)
       end if
     end if
 
@@ -1161,7 +1155,10 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.
-  subroutine addInvRPrimeCluster(env, nAtom, coord, deltaQAtom, deriv)
+  subroutine addInvRPrimeCluster(this, env, nAtom, coord, deltaQAtom, deriv)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1267,8 +1264,11 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
-  subroutine addInvRPrimeClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
+  subroutine addInvRPrimeClusterAsymm(this, env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
       & deriv0, deriv1, tHamDeriv, blurWidths1)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1404,8 +1404,10 @@ contains
 
 
   !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
-  subroutine addInvRPrimePeriodic(env, nAtom, coord, neighList, recPoint, alpha, volume,&
-      & deltaQAtom, deriv)
+  subroutine addInvRPrimePeriodic(this, env, nAtom, coord, neighList, volume, deltaQAtom, deriv)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1413,18 +1415,11 @@ contains
     !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> List of atomic coordinates (all atoms).
+    !> List of atomic coordinates (all atoms)
     real(dp), intent(in) :: coord(:,:)
 
     !> Dynamic neighbour list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
-
-    !> Contains the points included in the reciprocal sum. The set should not include the origin or
-    !> inversion related points.
-    real(dp), intent(in) :: recPoint(:,:)
-
-    !> Parameter for Ewald summation.
-    real(dp), intent(in) :: alpha
 
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
@@ -1437,7 +1432,7 @@ contains
 
     type(TDynNeighList), pointer :: pNeighList
     integer :: iAtom1, iAtom2
-    real(dp) :: r(3)
+    real(dp) :: r(3), r3Tmp(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
@@ -1451,20 +1446,20 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
-      call addNeighbourContribsInvRP(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
+      call addNeighbourContribsInvRP(iAtom1, pNeighList, coord, deltaQAtom, this%alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
     ! d(1/R)/dr reciprocal space
     !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iAtom2, r) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
+    !$OMP& DEFAULT(SHARED) PRIVATE(iAtom2, r, r3Tmp) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
       do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1)-coord(:,iAtom2)
-        localDeriv(:,iAtom1) = localDeriv(:,iAtom1)&
-            & + derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
-        localDeriv(:,iAtom2) = localDeriv(:,iAtom2)&
-            & - derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
+        r3Tmp(:) = derivEwaldReciprocal(r, this%gLatPoint, this%alpha, volume) * deltaQAtom(iAtom1)&
+            & * deltaQAtom(iAtom2)
+        localDeriv(:,iAtom1) = localDeriv(:,iAtom1) + r3Tmp
+        localDeriv(:,iAtom2) = localDeriv(:,iAtom2) - r3Tmp
       end do
     end do
     !$OMP END PARALLEL DO
@@ -1474,6 +1469,7 @@ contains
     deriv(:,:) = deriv + localDeriv
 
   end subroutine addInvRPrimePeriodic
+
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
@@ -1584,6 +1580,7 @@ contains
 
   end subroutine addInvRPrimeXlbomdPeriodic
 
+
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsXl(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
     integer, intent(in) :: iAt1
@@ -1624,8 +1621,11 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
-  subroutine addInvRPrimePeriodicAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1, rVec,&
-      & gVec, alpha, vol, deriv0, deriv1, tHamDeriv, blurWidths1)
+  subroutine addInvRPrimePeriodicAsymm(this, env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
+      & vol, deriv0, deriv1, tHamDeriv, blurWidths1)
+
+    !> Class instance
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1647,15 +1647,6 @@ contains
 
     !> Charge of the point charges.
     real(dp), intent(in) :: charge1(:)
-
-    !> Lattice vectors to be used for the real Ewald summation
-    real(dp), intent(in) :: rVec(:,:)
-
-    !> Lattice vectors to be used for the reciprocal Ewald summation.
-    real(dp), intent(in) :: gVec(:,:)
-
-    !> Parameter of the Ewald summation
-    real(dp), intent(in) :: alpha
 
     !> Volume of the supercell.
     real(dp), intent(in) :: vol
@@ -1699,7 +1690,7 @@ contains
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
+            fTmp(:) = derivEwaldReal(vect, this%rCellVec, this%alpha, blurWidth=blurWidths1(iAt1))&
                 & * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
           end do
@@ -1712,7 +1703,7 @@ contains
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
+            fTmp(:) = derivEwaldReal(vect, this%rCellVec, this%alpha, blurWidth=blurWidths1(iAt1))&
                 & * charge0(iAt0) * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
@@ -1728,7 +1719,7 @@ contains
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
+            fTmp(:) = derivEwaldReal(vect, this%rCellVec, this%alpha) * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
           end do
         end do
@@ -1740,7 +1731,8 @@ contains
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
+            fTmp(:) = derivEwaldReal(vect, this%rCellVec, this%alpha) * charge0(iAt0) *&
+                & charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
           end do
@@ -1757,7 +1749,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge1(iAt1)
+          fTmp(:) = derivEwaldReciprocal(vect, this%gLatPoint, this%alpha, vol) * charge1(iAt1)
           localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
         end do
       end do
@@ -1770,7 +1762,8 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
+          fTmp(:) = derivEwaldReciprocal(vect, this%gLatPoint, this%alpha, vol) * charge0(iAt0) *&
+              & charge1(iAt1)
           localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
           localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
@@ -2264,7 +2257,7 @@ contains
       end do
     else
       do iR = 1, size(rVec, dim=2)
-        rNew(:) = rdiff(:) + rVec(:,iR)
+        rNew(:) = rdiff + rVec(:,iR)
         rr = sqrt(sum(rNew**2))
         if (rr < tolSameDist2) then
           cycle
@@ -2640,34 +2633,5 @@ contains
     end do
 
   end subroutine addNeighbourContribsInvRPMat
-
-
-  !> Get the variables relate to periodic information
-  subroutine getPeriodicInfo(this, rVec, gVec, alpha, vol)
-
-    !> Instance
-    class(TCoulombCont), intent(in) :: this
-
-    !> real lattice points for Ewald-sum
-    real(dp), allocatable, intent(out) :: rVec(:,:)
-
-    !> lattice points for reciprocal Ewald
-    real(dp), allocatable, intent(out) :: gVec(:,:)
-
-    !> parameter for Ewald
-    real(dp), intent(out) :: alpha
-
-    !> parameter for cell volume
-    real(dp), intent(out) :: vol
-
-    ! Use of automatic reallocation for gVec and rVec
-    gVec = this%gLatPoint
-    rVec = this%rCellVec
-
-    alpha = this%alpha
-    vol = this%volume
-
-  end subroutine getPeriodicInfo
-
 
 end module dftbp_coulomb

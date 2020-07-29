@@ -18,12 +18,13 @@ module dftbp_reksvar
   use dftbp_accuracy
   use dftbp_message
   use dftbp_orbitals
+  use dftbp_coulomb, only : TCoulombCont
 
   implicit none
 
   private
 
-  public :: TReksInp, TReksCalc, REKS_init, reksTypes
+  public :: TReksInp, TReksCalc, TReks_init, reksTypes
 
   type :: TReksTypesEnum
 
@@ -142,7 +143,6 @@ module dftbp_reksvar
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical :: tSSR
 
-
     !> Target SSR state
     integer :: rstate
 
@@ -165,7 +165,7 @@ module dftbp_reksvar
     logical :: tTDP
 
 
-    !> REKS: gradient variables (input)
+    ! REKS: gradient variables (input)
 
     !> Algorithms to calculate analytic gradients
     integer :: Glevel
@@ -187,13 +187,13 @@ module dftbp_reksvar
     logical :: tNAC
 
 
-    !> REKS: system variables (input)
+    ! REKS: system variables (input)
 
     !> Print level in standard output file
     integer :: Plevel
 
 
-    !> REKS: energy variables
+    ! REKS: energy variables
 
     !> Number of microstates
     integer :: Lmax
@@ -242,6 +242,9 @@ module dftbp_reksvar
 
     !> If charges should be blured
     logical :: tBlur
+
+    !> Coulombic electrostatics
+    type(TCoulombCont) :: coulombCont
 
 
     !> get atom index from AO index
@@ -532,12 +535,12 @@ module dftbp_reksvar
 
   end type TReksCalc
 
-  contains
+contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
+  subroutine TReks_init(this, inp, orb, spinW, nSpin, nEl, coulombCont, nChrgs, extChrg,&
       & blurWidths, t3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
-    
+
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
 
@@ -555,6 +558,9 @@ module dftbp_reksvar
 
     !> nr. of electrons
     real(dp), intent(in) :: nEl
+
+    !> Coulombic electrostatics - note this needs updating if boundary conditions change
+    type(TCoulombCont), intent(in) :: coulombCont
 
     !> Nr. of external charges
     integer, intent(in) :: nChrgs
@@ -843,6 +849,10 @@ module dftbp_reksvar
     end if
 
     if (this%tForces) then
+
+      ! Coulombic electrostatics
+
+      this%coulombCont = coulombCont
 
       ! REKS: point charges (QM/MM) variables
 
@@ -1195,7 +1205,7 @@ module dftbp_reksvar
 
     end subroutine checkSSR22Requirements
 
-  end subroutine REKS_init
+  end subroutine TReks_init
 
 
   !> Reallocate sparse arrays used in REKS

@@ -12,7 +12,7 @@ module dftbp_externalcharges
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_blasroutines
-  use dftbp_coulomb, only : TCoulombCont, addInvRPrime
+  use dftbp_coulomb, only : TCoulombCont
   use dftbp_constants
   use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
   use dftbp_environment
@@ -295,7 +295,8 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcCluster(this, env, atomForces, chrgForces, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, env, atomForces, chrgForces, atomCoords, atomCharges,&
+      & coulombCont)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -315,17 +316,21 @@ contains
     !> Charges of the atoms.
     real(dp), intent(in) :: atomCharges(:)
 
+    !> container for coulomb routines
+    type(TCoulombCont), intent(in) :: coulombCont
+
     @:ASSERT(size(atomForces, dim=1) == 3)
     @:ASSERT(size(atomForces, dim=2) == this%nAtom)
     @:ASSERT(size(atomCoords, dim=1) == 3)
     @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces, tHamDeriv=.false., blurWidths1=this%blurWidths)
+      call coulombCont%addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, atomForces, chrgForces, tHamDeriv=.false.,&
+          & blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces, tHamDeriv=.false.)
+      call coulombCont%addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcCluster
@@ -366,13 +371,12 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, coulombCont%rCellVec, coulombCont%gLatPoint, coulombCont%alpha, vol,&
-          & atomForces, chrgForces, tHamDeriv=.false., blurWidths1=this%blurWidths)
+      call coulombCont%addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, vol, atomForces, chrgForces, tHamDeriv=.false.,&
+          & blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, coulombCont%rCellVec, coulombCont%gLatPoint, coulombCont%alpha, vol,&
-          & atomForces, chrgForces, tHamDeriv=.false.)
+      call coulombCont%addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, vol, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcPeriodic
