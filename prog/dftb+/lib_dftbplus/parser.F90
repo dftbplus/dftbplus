@@ -3696,7 +3696,7 @@ contains
     case ("dftd3")
   #:if WITH_DFTD3
       allocate(input%dftd3)
-      call readDispDFTD3(dispModel, input%dftd3)
+      call readDispDFTD3(dispModel, geo, input%dftd3)
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
@@ -3889,16 +3889,23 @@ contains
 
 
   !> Reads in initialization data for the DFTD3 dispersion module
-  subroutine readDispDFTD3(node, input)
+  subroutine readDispDFTD3(node, geo, input)
 
     !> Node to process.
     type(fnode), pointer :: node
 
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
     !> Filled input structure on exit.
     type(TDispDftD3Inp), intent(out) :: input
 
+    integer :: iSp
+    integer, allocatable :: izpDefault(:)
     type(fnode), pointer :: child, childval
     type(string) :: buffer
+    integer, parameter :: d3MaxNum = 94
+    logical :: unknownSpecies
 
     call getChildValue(node, "Damping", childval, child=child)
     call getNodeName(childval, buffer)
@@ -3934,6 +3941,34 @@ contains
     call getChildValue(node, "threebody", input%threebody, default=.false.)
     ! D3H5 - additional H-H repulsion
     call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
+
+    ! Initialize default atomic numbers
+    allocate(izpDefault(size(geo%speciesNames)))
+    do iSp = 1, size(geo%speciesNames)
+      izpDefault(iSp) = symbolToNumber(geo%speciesNames(iSp))
+    end do
+
+    ! See if we find user specified overwrites for atomic numbers
+    call getChild(node, "AtomicNumbers", child, requested=.false.)
+    if (associated(child)) then
+      allocate(input%izp(size(geo%speciesNames)))
+      call readSpeciesList(child, geo%speciesNames, input%izp, izpDefault)
+      deallocate(izpDefault)
+    else
+      call move_alloc(izpDefault, input%izp)
+    end if
+
+    unknownSpecies = .false.
+    do iSp = 1, size(geo%speciesNames)
+      if (input%izp(iSp) <= 0 .or. input%izp(iSp) > d3MaxNum) then
+        unknownSpecies = .true.
+        call warning("Species '"//trim(geo%speciesNames(iSp))// &
+          & "' is not supported by DFT-D3")
+      end if
+    end do
+    if (unknownSpecies) then
+      call detailedError(node, "DFT-D3 does not support all species present")
+    end if
 
     input%numgrad = .false.
 

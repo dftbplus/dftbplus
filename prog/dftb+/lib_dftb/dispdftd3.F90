@@ -37,6 +37,9 @@ module dftbp_dispdftd3
     !> D3H5 - additional H-H repulsion
     logical :: hhrepulsion
 
+    !> Atomic number
+    integer, allocatable :: izp(:)
+
   end type TDispDftD3Inp
 
 
@@ -62,7 +65,7 @@ module dftbp_dispdftd3
     !> stress tensor
     real(dp) :: stress(3, 3)
 
-    !> atomic nuber
+    !> atomic numbers
     integer, allocatable :: izp(:)
 
     !> is this periodic
@@ -151,8 +154,9 @@ contains
 
     allocate(this%izp(nAtom))
     do iAt = 1, this%nAtom
-      this%izp(iAt) =  get_atomic_number(speciesNames(species0(iAt)))
+      this%izp(iAt) = inp%izp(species0(iAt))
     end do
+
     allocate(this%gradients(3, nAtom))
 
   end subroutine DispDftD3_init
