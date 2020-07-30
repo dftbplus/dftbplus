@@ -135,7 +135,7 @@ contains
     allocate(this%gradients(3, nAtom))
 
     allocate(this%calculator)
-    call initializeCalculator(this%calculator, inp, speciesNames)
+    call initializeCalculator(this%calculator, inp)
 
   end subroutine DispDftD4_init
 

@@ -37,7 +37,7 @@ module dftbp_dispdftd3
     !> D3H5 - additional H-H repulsion
     logical :: hhrepulsion
 
-    !> Atomic number
+    !> Atomic numbers
     integer, allocatable :: izp(:)
 
   end type TDispDftD3Inp

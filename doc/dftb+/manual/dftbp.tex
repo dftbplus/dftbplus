@@ -2748,9 +2748,6 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 \begin{description}
-\item[\is{AtomicNumbers}]
-  Allows overwrite of atomic numbers associated with a species name.
-
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
   two-body interactions.
 
@@ -2759,6 +2756,9 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
@@ -2840,6 +2840,7 @@ can be adjusted in the input.
   \kw{CutoffThree} & r & & 40 & \\
   \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
   \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+  \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 
 \begin{description}
@@ -2869,6 +2870,9 @@ can be adjusted in the input.
 
 \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
   calculating three-body interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
 
 \end{description}
 
