@@ -2501,7 +2501,9 @@ contains
           & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
           & tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
 
-      call coulombCont%updateLatVecs(latVec, recVec, cellVol)
+      if (tPeriodic) then
+        call coulombCont%updateLatVecs(latVec, recVec, cellVol)
+      end if
       call coulombCont%updateCoords(env, neighbourList, coord0, species)
       ! here, nSpin changes to 2 for REKS
       call reksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
