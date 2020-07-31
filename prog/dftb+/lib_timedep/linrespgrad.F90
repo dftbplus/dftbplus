@@ -172,7 +172,7 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    integer :: nocc, nocc_r, nvir_r, nxoo_r, nxvv_r
+    integer :: nocc, nocc_r, nvir_r, nxoo_r, nxvv_r, mnvir, nxoo_max, nxvv_max
     integer, allocatable :: nocc_ud(:), nvir_ud(:)
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
@@ -564,13 +564,17 @@ contains
       mHOMO = maxval(nocc_ud)
       mLUMO = minval(nocc_ud) + 1
 
+      mnvir = maxval(nvir_ud)
+      nxoo_max = (mHOMO * (mHOMO + 1)) / 2
+      nxvv_max = (mnvir * (mnvir + 1)) / 2
+
       ! Arrays needed for Z vector
       ALLOCATE(xpy(nxov_rd))
       ALLOCATE(xmy(nxov_rd))
       ALLOCATE(t(norb, norb, nSpin))
       ALLOCATE(rhs(nxov_rd))
-      ALLOCATE(woo(nxoo_r, nSpin))
-      ALLOCATE(wvv(nxvv_r, nSpin))
+      ALLOCATE(woo(nxoo_max, nSpin))
+      ALLOCATE(wvv(nxvv_max, nSpin))
       ALLOCATE(wov(nxov_rd))
       ALLOCATE(iatrans(1:mHOMO, mLUMO:norb, nSpin))
 
