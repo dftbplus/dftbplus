@@ -1257,6 +1257,8 @@ contains
     end if
     tFracCoord = input%geom%tFracCoord
 
+    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -1264,6 +1266,14 @@ contains
     end if
     if (maxSccIter < 1) then
       call error("SCC iterations must be larger than 0")
+    end if
+    if (tSccCalc) then
+      if (allocated(input%ctrl%elecDynInp)) then
+        if (input%ctrl%elecDynInp%tReadRestart) then
+          maxSccIter = 0
+          tUseConvergedForces = .false.
+        end if
+      end if
     end if
 
     tWriteHS = input%ctrl%tWriteHS
@@ -1631,7 +1641,7 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
-    if (tSccCalc .and. .not.allocated(reks)) then
+    if (tSccCalc .and. .not.allocated(reks) .and. maxSccIter > 0) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
@@ -1706,7 +1716,6 @@ contains
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -2303,6 +2312,7 @@ contains
     end if
 
     minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
+    minSccIter = min(minSccIter, maxSccIter)
     if (isXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
@@ -2801,7 +2811,7 @@ contains
       call gpuInfo()
     endif
 
-    if (tSccCalc) then
+    if (tSccCalc .and. maxSccIter > 0) then
       if (.not. allocated(reks)) then
         select case (iMixer)
         case(mixerTypes%simple)

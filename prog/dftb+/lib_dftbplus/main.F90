@@ -415,7 +415,7 @@ contains
       end if
     #:endif
 
-    if (tSccCalc .and. .not.allocated(reks)) then
+    if (tSccCalc .and. .not.allocated(reks) .and. maxSccIter > 0) then
       call reset(pChrgMixer, nMixElements)
     end if
 
