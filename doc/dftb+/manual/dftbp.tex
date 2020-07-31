@@ -2759,6 +2759,13 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{AtomicNumbers}]
   Allows overwrite of atomic numbers associated with a species name.
+  \begin{verbatim}
+  # Default species (H-Og) are implied
+  AtomicNumbers {
+    D = 1  # set deuterium as hydrogen
+    S = 6  # overwrite sulfur as carbon
+  }
+  \end{verbatim}
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
