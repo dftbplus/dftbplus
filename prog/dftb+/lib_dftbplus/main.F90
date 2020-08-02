@@ -530,7 +530,8 @@ contains
             & iSparseStart, img2CentCell, orb, eigvecsReal, filling, rhoPrim, q0, deltaRhoOutSqr,&
             & reks)
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
-            & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+            & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
+            & qOnsite=qOnsite)
 
         ! check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
