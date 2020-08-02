@@ -1,3 +1,6 @@
 set(ENABLE_SCALAPACK_MPI ${WITH_MPI})
 set(ENABLE_ELSI ${WITH_ELSI})
-add_subdirectory(origin)
+set(ENABLE_C_API OFF)
+set(SCALAPACK_LIBRARIES "")
+set(MKL_LIBRARIES "")
+add_subdirectory(origin/src)
