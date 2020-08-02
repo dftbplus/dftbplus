@@ -384,7 +384,7 @@ contains
 
     !> the natural orbitals of the excited state transition density matrix or the total density
     !> matrix in the excited state
-    real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
+    real(dp), intent(inout), optional :: naturalOrbs(:,:,:)
 
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy

@@ -1221,7 +1221,7 @@ contains
     real(dp), intent(inout) :: chargePerShell(:,:,:)
 
     !> spin constants
-    real(dp), intent(in) :: spinW(:,:,:)
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1230,7 +1230,7 @@ contains
     logical, intent(in) :: tDualSpinOrbit
 
     !> Spin orbit constants if required
-    real(dp), intent(in) :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd

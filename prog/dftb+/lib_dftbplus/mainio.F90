@@ -2432,7 +2432,7 @@ contains
     logical, intent(in) :: tPrintMulliken
 
     !> Orbital angular momentum (if available)
-    real(dp), intent(in) :: orbitalL(:,:,:)
+    real(dp), intent(in), allocatable :: orbitalL(:,:,:)
 
     !> Fermi level
     real(dp), intent(in) :: Ef(:)

@@ -988,7 +988,7 @@ contains
       & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs, derivs, conAtom)
 
     !> Vector to project out forces
-    real(dp), intent(in) :: conVec(:,:)
+    real(dp), intent(in), allocatable :: conVec(:,:)
 
     !> Whether lattice optimisation is on
     logical, intent(in) :: tLatOpt
@@ -1018,9 +1018,9 @@ contains
     real(dp), intent(out) :: constrLatDerivs(:)
 
     !> Atoms being constrained
-    integer, intent(in), optional :: conAtom(:)
+    integer, intent(in), allocatable :: conAtom(:)
 
-    if (present(conAtom)) then
+    if (allocated(conAtom)) then
       call constrainForces(conAtom, conVec, derivs)
     end if
 
@@ -1387,14 +1387,14 @@ contains
     type(TThirdOrder), intent(inout), optional :: thirdOrd
 
     !> Range separation contributions
-    type(TRangeSepFunc), intent(inout), optional :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> Charge model 5
     type(TChargeModel5), intent(inout), optional :: cm5Cont
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
-    integer, intent(inout), optional :: nNeighbourLC(:)
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> Status of operation
     integer, intent(out), optional :: stat
@@ -1425,7 +1425,7 @@ contains
     ! count neighbours for repulsive interactions between atoms
     call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, cutoff%repCutOff)
 
-    if (present(nNeighbourLC)) then
+    if (allocated(nNeighbourLC)) then
       ! count neighbours for repulsive interactions between atoms
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
     end if
@@ -1452,7 +1452,7 @@ contains
     if (present(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
     end if
-    if (present(rangeSep)) then
+    if (allocated(rangeSep)) then
       call rangeSep%updateCoords(coord0)
     end if
     if (present(cm5Cont)) then
@@ -1844,11 +1844,11 @@ contains
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Electrochemical potentials (contact, spin)
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), intent(in), allocatable :: mu(:,:)
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
-    integer, intent(in) :: nNeighbourLC(:)
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Are dense matrices for H, S, etc. being used
     logical, intent(in) :: tLargeDenseMatrices
@@ -1872,10 +1872,10 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Data for rangeseparated calculation
-    type(TRangeSepFunc), intent(inout) :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> orbital moments of atomic shells
-    real(dp), intent(inout) :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix
     real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
@@ -1887,7 +1887,7 @@ contains
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> real eigenvectors on exit
-    real(dp), intent(inout) :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> dense complex (k-points) hamiltonian storage
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
@@ -1896,10 +1896,10 @@ contains
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     !> complex eigenvectors on exit
-    complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Dense density matrix
-    real(dp), intent(inout) :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> Change in density matrix during last SCC iteration
     real(dp), pointer, intent(inout) :: deltaRhoInSqr(:,:,:)
@@ -2074,7 +2074,7 @@ contains
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
-    integer, intent(in) :: nNeighbourLC(:)
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
@@ -2098,31 +2098,31 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Data for rangeseparated calculation
-    type(TRangeSepFunc), intent(inout) :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> orbital moments of atomic shells
-    real(dp), intent(inout) :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> dense real hamiltonian storage
-    real(dp), intent(inout) :: HSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:)
 
     !> dense real overlap storage
-    real(dp), intent(inout) :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> real eigenvectors on exit
-    real(dp), intent(inout) :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> dense complex (k-points) hamiltonian storage
-    complex(dp), intent(inout) :: HSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout) :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     !> complex eigenvectors on exit
-    complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Dense density matrix
-    real(dp), intent(inout) :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
@@ -2252,7 +2252,7 @@ contains
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
-    integer, intent(in) :: nNeighbourLC(:)
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Coordinates of all atoms including images
     real(dp), intent(inout) :: coord(:,:)
@@ -2276,7 +2276,7 @@ contains
     real(dp), intent(out) :: eigen(:,:)
 
     !>Data for rangeseparated calcualtion
-    type(TRangeSepFunc), intent(inout), optional :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     integer :: iKS, iSpin
 
@@ -2321,7 +2321,7 @@ contains
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
       ! Should this be used elsewhere, need to pass isRangeSep
-      if (present(rangeSep)) then
+      if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
@@ -2879,7 +2879,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> spin orbit constants
-    real(dp), intent(in) :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -2894,13 +2894,13 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Angular momentum of atomic shells
-    real(dp), intent(inout) :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> sparse stored density matrix
     real(dp), intent(out) :: rhoPrim(:,:)
 
     !> imaginary part of density matrix  if required
-    real(dp), intent(inout), optional :: iRhoPrim(:,:)
+    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
 
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
@@ -2909,10 +2909,10 @@ contains
     logical :: tImHam
 
     nAtom = size(orb%nOrbAtom)
-    tImHam = present(iRhoPrim)
+    tImHam = allocated(iRhoPrim)
 
     rhoPrim(:,:) = 0.0_dp
-    if (present(iRhoPrim)) then
+    if (allocated(iRhoPrim)) then
       iRhoPrim(:,:) = 0.0_dp
     end if
     work(:,:) = 0.0_dp
@@ -2983,7 +2983,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%denseToSparse)
     ! Add up and distribute contributions from each group
     call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-    if (present(iRhoPrim)) then
+    if (allocated(iRhoPrim)) then
       call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
     call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
@@ -3134,7 +3134,7 @@ contains
     integer, intent(in) :: iSparseStart(:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(in) :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> orbital charges
     real(dp), intent(out) :: qOrb(:,:,:)
@@ -3417,10 +3417,10 @@ contains
     real(dp), intent(inout) :: deltaRhoDiff(:)
 
     !> Dual output charges
-    real(dp), intent(inout) :: qBlockOut(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
 
     !> Square dense overlap storage
-    real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
@@ -3508,13 +3508,13 @@ contains
     real(dp), intent(in) :: qOrb(:,:,:)
 
     !> equivalences for block charges
-    integer, intent(in) :: iEqBlockDftbu(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Equivalences for spin orbit if needed
-    integer, intent(in) :: iEqBlockDftbuLS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed for imaginary part
-    integer, intent(in) :: iEqBlockOnSiteLS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
     !> Reduction of atomic populations
     real(dp), intent(out) :: qRed(:)
@@ -4356,7 +4356,7 @@ contains
     integer, intent(in) :: iSCC
 
     !> Electrochemical potentials per contact and spin
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), intent(in), allocatable :: mu(:,:)
 
     !> Storage for dense hamiltonian matrix
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
@@ -5148,7 +5148,7 @@ contains
     real(dp), intent(out) :: derivs(:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> Is 3rd order SCC being used
     type(TThirdOrder), intent(inout), optional :: thirdOrd
@@ -5166,7 +5166,7 @@ contains
     class(TDispersionIface), intent(inout), optional :: dispersion
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), optional :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> SCC module internal variables
     type(TScc), intent(in), optional :: sccCalc
@@ -5183,7 +5183,7 @@ contains
 
 
     tSccCalc = present(sccCalc)
-    tImHam = present(iRhoPrim)
+    tImHam = allocated(iRhoPrim)
     tExtChrg = present(chrgForces)
     nAtom = size(derivs, dim=2)
 
@@ -5282,7 +5282,7 @@ contains
       call halogenXCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
     end if
 
-    if (present(rangeSep)) then
+    if (allocated(rangeSep)) then
       if (tHelical) then
         call unpackHelicalHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
@@ -5487,7 +5487,7 @@ contains
     type(TThirdOrder), intent(inout), optional :: thirdOrd
 
     !> imaginary part of the density matrix (if present)
-    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> Solvation model
     class(TSolvation), intent(inout), optional :: solvation
@@ -5501,7 +5501,7 @@ contains
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
 
-    tImHam = present(iRhoPrim)
+    tImHam = allocated(iRhoPrim)
 
     if (present(sccCalc)) then
       if (tImHam) then
@@ -5611,10 +5611,10 @@ contains
   subroutine constrainForces(conAtom, conVec, derivs)
 
     !> atoms being constrained
-    integer, intent(in) :: conAtom(:)
+    integer, intent(in), allocatable :: conAtom(:)
 
     !> vector to project out forces
-    real(dp), intent(in) :: conVec(:,:)
+    real(dp), intent(in), allocatable :: conVec(:,:)
 
     !> on input energy derivatives, on exit resulting projected derivatives
     real(dp), intent(inout) :: derivs(:,:)
@@ -6041,7 +6041,7 @@ contains
     real(dp), intent(out) :: localisation
 
     !> Storage for dense hamiltonian matrix
-    real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     integer :: nFilledLev, nAtom, nSpin
     integer :: iSpin, iKS, iK
@@ -6053,7 +6053,7 @@ contains
       call warning("Fractional occupations allocated for electron localisation")
     end if
 
-    if (present(eigvecsReal)) then
+    if (allocated(eigvecsReal)) then
       if (tHelical) then
         call unpackHelicalHS(SSqrReal,over,neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
@@ -6478,7 +6478,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> spin constants
-    real(dp), intent(in) :: spinW(:,:,:)
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
@@ -6511,19 +6511,19 @@ contains
     logical, intent(in) :: tUpload
 
     !> uploded potential per shell per atom
-    real(dp), intent(in) :: shiftPerLUp(:,:)
+    real(dp), intent(in), allocatable :: shiftPerLUp(:,:)
 
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Nr. of neighbours for each atom in the long-range functional.
-    integer, intent(in) :: nNeighbourLC(:)
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
 
     !> Spin orbit constants if required
-    real(dp), intent(in) :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> is an external electric field present
     logical, intent(in) :: tExtField

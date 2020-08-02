@@ -44,10 +44,10 @@ contains
     real(dp), intent(inout) :: potential(:,:,:,:)
 
     !> resulting onsite matrix elements (imaginary part)
-    real(dp), intent(inout) :: iPotential(:,:,:,:)
+    real(dp), intent(inout), allocatable :: iPotential(:,:,:,:)
 
     !> Block charges (imaginary part)
-    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
     real(dp), allocatable :: tmpME(:,:,:), tmpBlock(:,:)
@@ -98,7 +98,7 @@ contains
 
       end do
 
-      if (present(qiBlock)) then
+      if (allocated(qiBlock)) then
         do iSpin = 1, nSpin
           tmpBlock(:,:) = 0.0_dp
           ! extract the relevant charge parts
@@ -191,19 +191,19 @@ contains
     real(dp), intent(out) :: Eons(:)
 
     !> Block charges imaginary part
-    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     real(dp), allocatable :: shift(:,:,:,:), iShift(:,:,:,:)
 
     allocate(shift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
     shift(:,:,:,:) = 0.0_dp
-    if (present(qiBlock)) then
+    if (allocated(qiBlock)) then
       allocate(iShift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
       iShift(:,:,:,:) = 0.0_dp
     end if
     call addOnsShift(qBlock, q0, onsMEs, species, orb, shift, iShift, qiBlock)
     Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
-    if (present(qiBlock)) then
+    if (allocated(qiBlock)) then
       Eons(:) = Eons(:) + 0.5_dp*sum(sum(sum(iShift(:,:,:,:)*qiBlock(:,:,:,:),dim=1),dim=1),dim=2)
     end if
 

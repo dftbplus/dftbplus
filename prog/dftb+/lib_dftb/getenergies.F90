@@ -110,7 +110,7 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> block (dual) atomic populations
-    real(dp), intent(in) :: qBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
     !> U-J prefactors in DFTB+U
     real(dp), intent(in) :: UJ(:,:)
@@ -125,7 +125,7 @@ contains
     integer, intent(in) :: niUJ(:,:)
 
     !> Spin orbit constants
-    real(dp), intent(in) :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
@@ -156,10 +156,10 @@ contains
     type(TQDepExtPotProxy), intent(inout), optional :: qDepExtPot
 
     !> Corrections terms for on-site elements
-    real(dp), intent(in), optional :: onSiteElements(:,:,:,:)
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     !> Imaginary part of block atomic populations
-    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
@@ -214,13 +214,13 @@ contains
       energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion))
     end if
 
-    if (present(onSiteElements)) then
+    if (allocated(onSiteElements)) then
       call getEons(qBlock, q0, onSiteElements, species, orb, energy%atomOnSite, qiBlock)
       energy%eOnSite = sum(energy%atomOnSite)
     end if
 
     if (tDftbU) then
-      if (present(qiBlock)) then
+      if (allocated(qiBlock)) then
         call E_DFTBU(qBlock, species, orb, UJ, nUJ, niUJ, iUJ, energy%atomDftbu, nDFTBUfunc, qiBlock)
       else
         call E_DFTBU(qBlock, species, orb, UJ, nUJ, niUJ, iUJ, energy%atomDftbu, nDFTBUfunc)

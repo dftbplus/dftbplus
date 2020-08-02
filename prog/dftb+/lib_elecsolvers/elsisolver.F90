@@ -897,7 +897,7 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> orbital moments of atomic shells
-    real(dp), intent(inout) :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> dense real hamiltonian storage
     real(dp), intent(inout), allocatable :: HSqrReal(:,:)
@@ -1566,7 +1566,7 @@ contains
     real(dp), intent(inout) :: rhoPrim(:,:)
 
     !> orbital moments of atomic shells
-    real(dp), intent(inout) :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix
     real(dp), intent(inout) :: iRhoPrim(:,:)

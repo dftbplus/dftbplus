@@ -218,9 +218,9 @@ contains
     type(TPotentials), intent(inout) :: potential
 
     !> Spin orbit constants if required
-    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
-    @:ASSERT(.not. tDualSpinOrbit .or. present(xi))
+    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
 
     potential%intAtom(:,:) = 0.0_dp
     potential%intShell(:,:,:) = 0.0_dp
@@ -279,10 +279,10 @@ contains
     logical, intent(in) :: tUpload
 
     !> uploded potential per shell per atom
-    real(dp), intent(in) :: shiftPerLUp(:,:)
+    real(dp), intent(in), allocatable :: shiftPerLUp(:,:)
 
     !> spin constants
-    real(dp), intent(in), optional :: spinW(:,:,:)
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Solvation mode
     class(TSolvation), intent(inout), optional :: solvation
@@ -360,7 +360,7 @@ contains
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
 
-    if (nSpin /= 1 .and. present(spinW)) then
+    if (nSpin /= 1 .and. allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
     end if
@@ -376,10 +376,10 @@ contains
       &, UJ, nUJ, iUJ, niUJ, potential)
 
     !> block input charges
-    real(dp), intent(in) :: qBlockIn(:,:,:,:)
+    real(dp), intent(in), allocatable :: qBlockIn(:,:,:,:)
 
     !> imaginary part
-    real(dp), intent(in) :: qiBlockIn(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
