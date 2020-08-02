@@ -2048,8 +2048,7 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
-      end if
-      cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
+        cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     #:if WITH_MBD
       elseif (allocated(input%ctrl%dispInp%mbdInp)) then
         tManyBodyDisp = .true.
@@ -2062,6 +2061,7 @@ contains
             call mbDispersion%init(inp)
         end associate
      #:endif
+      end if
     end if
 
     if (allocated(input%ctrl%solvInp)) then
