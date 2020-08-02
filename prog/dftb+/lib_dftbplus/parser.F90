@@ -78,7 +78,7 @@ module dftbp_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 8
+  integer, parameter :: parserVersion = 9
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -128,7 +128,7 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
-    logical :: hasInputVersion
+    logical :: hasInputVersion, tReadAnalysis
     integer :: inputVersion
     type(string) :: versionString
 
@@ -205,23 +205,31 @@ contains
     call readDriver(driverNode, child, input%geom, input%ctrl)
   #:endif
 
-    ! Analysis of properties
-    call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-
-  #:if WITH_TRANSPORT
-    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
-        & input%ginfo%tundos)
-
-    call finalizeNegf(input)
-  #:else
-    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
-  #:endif
-
+    tReadAnalysis = .true.
     call getChild(root, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
-       allocate(input%ctrl%elecDynInp)
-       call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+      allocate(input%ctrl%elecDynInp)
+      call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+      if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
+        tReadAnalysis = .false.
+      end if
+
+    end if
+
+    if (tReadAnalysis) then
+      ! Analysis of properties
+      call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
+          & allowEmptyValue=.true., dummyValue=.true.)
+
+    #:if WITH_TRANSPORT
+      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+          & input%ginfo%tundos)
+
+      call finalizeNegf(input)
+    #:else
+      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
+    #:endif
+
     end if
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
@@ -231,7 +239,7 @@ contains
     call getChildValue(root, "Reks", dummy, "None", child=child)
     call readReks(child, dummy, input%ctrl, input%geom)
 
-    ! Hamiltonian settings that need to know settings from the REKS block
+    ! Hamiltonian settings that need to know settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -4632,7 +4640,7 @@ contains
   end subroutine readLaterAnalysis
 
 
-  !> Read in hamiltonian settings that are influenced by those read from REKS{}
+  !> Read in hamiltonian settings that are influenced by those read from REKS{}, electronDynamics{}
   subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
 
     !> Hamiltonian node to parse
@@ -4720,6 +4728,16 @@ contains
         end if
       end if
 
+    end if
+
+    hamNeedsT: if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+
+      if (allocated(ctrl%elecDynInp)) then
+        if (ctrl%elecDynInp%tReadRestart .and. .not.ctrl%elecDynInp%tPopulations) then
+          exit hamNeedsT
+        end if
+      end if
+
       ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
       ! thermostat.)
       select case(ctrl%hamiltonian)
@@ -4729,7 +4747,7 @@ contains
         call readFilling(hamNode, ctrl, geo, 0.0_dp)
       end select
 
-    end if
+    end if hamNeedsT
 
   end subroutine readLaterHamiltonian
 
@@ -7207,6 +7225,8 @@ contains
     integer, intent(out) :: parserVersion
 
     select case(trim(versionString))
+    case("20.2")
+      parserVersion = 9
     case("20.1")
       parserVersion = 8
     case("19.1")
