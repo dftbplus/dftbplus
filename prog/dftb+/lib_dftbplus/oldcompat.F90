@@ -74,7 +74,7 @@ contains
   end subroutine convertOldHSD
 
 
-  !> Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
+  !> Converts input from version 1 to 2. (Version 2 introduced in August 2006)
   subroutine convert_1_2(root)
 
     !> Root tag of the HSD-tree
