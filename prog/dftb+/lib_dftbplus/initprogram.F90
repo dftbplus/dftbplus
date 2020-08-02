@@ -2364,71 +2364,6 @@ contains
       EfieldPhase = 0
     end if
 
-<<<<<<< HEAD
-    allocate(qInput(orb%mOrb, nAtom, nSpin))
-    allocate(qOutput(orb%mOrb, nAtom, nSpin))
-    allocate(qOnsite(nAtom))
-    qInput(:,:,:) = 0.0_dp
-    qOutput(:,:,:) = 0.0_dp
-
-    if (tMixBlockCharges) then
-      allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qBlockIn(:,:,:,:) = 0.0_dp
-      qBlockOut(:,:,:,:) = 0.0_dp
-      if (tImHam) then
-        allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qiBlockIn(:,:,:,:) = 0.0_dp
-      end if
-    end if
-
-    if (tImHam) then
-      allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qiBlockOut(:,:,:,:) = 0.0_dp
-    end if
-
-    if (tSccCalc) then
-      allocate(qDiffRed(nMixElements))
-      allocate(qInpRed(nMixElements))
-      allocate(qOutRed(nMixElements))
-      qDiffRed = 0.0_dp
-      qInpRed = 0.0_dp
-      qOutRed = 0.0_dp
-    end if
-
-||||||| f137f4ad
-    allocate(qInput(orb%mOrb, nAtom, nSpin))
-    allocate(qOutput(orb%mOrb, nAtom, nSpin))
-    qInput(:,:,:) = 0.0_dp
-    qOutput(:,:,:) = 0.0_dp
-
-    if (tMixBlockCharges) then
-      allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qBlockIn(:,:,:,:) = 0.0_dp
-      qBlockOut(:,:,:,:) = 0.0_dp
-      if (tImHam) then
-        allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qiBlockIn(:,:,:,:) = 0.0_dp
-      end if
-    end if
-
-    if (tImHam) then
-      allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qiBlockOut(:,:,:,:) = 0.0_dp
-    end if
-
-    if (tSccCalc) then
-      allocate(qDiffRed(nMixElements))
-      allocate(qInpRed(nMixElements))
-      allocate(qOutRed(nMixElements))
-      qDiffRed = 0.0_dp
-      qInpRed = 0.0_dp
-      qOutRed = 0.0_dp
-    end if
-
-=======
->>>>>>> upstream/master
     tReadChrg = input%ctrl%tReadChrg
 
     if (isRangeSep) then
@@ -3626,6 +3561,10 @@ contains
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
+
+    if (.not. allocated(qOnsite)) then
+       allocate(qOnsite(nAtom))
+    endif
 
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
