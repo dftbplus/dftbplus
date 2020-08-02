@@ -37,6 +37,8 @@ contributed to DFTB+ :
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
+* Jan Hermann (Free University of Berlin, Germany)
+
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
 * Reinhard Maurer (University of Warwick, UK)
