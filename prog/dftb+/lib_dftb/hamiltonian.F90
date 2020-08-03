@@ -203,7 +203,7 @@ contains
 
 
   !> Reset internal potential related quantities
-  subroutine resetInternalPotentials(tDualSpinOrbit, orb, species, potential, xi)
+  subroutine resetInternalPotentials(tDualSpinOrbit, orb, species, xi, potential)
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -214,11 +214,11 @@ contains
     !> chemical species
     integer, intent(in) :: species(:)
 
-    !> potentials in the system
-    type(TPotentials), intent(inout) :: potential
-
     !> Spin orbit constants if required
     real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> potentials in the system
+    type(TPotentials), intent(inout) :: potential
 
     @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
 
@@ -236,8 +236,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, potential, electrostatics, tPoisson, tUpload, shiftPerLUp,&
-      & spinW, solvation, thirdOrd)
+      & neighbourList, img2CentCell, electrostatics, tPoisson, tUpload, shiftPerLUp, spinW,&
+      & potential, solvation, thirdOrd)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -266,9 +266,6 @@ contains
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> Potentials acting
-    type(TPotentials), intent(inout) :: potential
-
     !> electrostatic solver (poisson or gamma-functional)
     integer, intent(in) :: electrostatics
 
@@ -283,6 +280,9 @@ contains
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> Potentials acting
+    type(TPotentials), intent(inout) :: potential
 
     !> Solvation mode
     class(TSolvation), intent(inout), optional :: solvation
@@ -372,14 +372,8 @@ contains
 
 
   !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
-      &, UJ, nUJ, iUJ, niUJ, potential)
-
-    !> block input charges
-    real(dp), intent(in), allocatable :: qBlockIn(:,:,:,:)
-
-    !> imaginary part
-    real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
+  subroutine addBlockChargePotentials(tDftbU, tImHam, species, orb, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & qBlockIn, qiBlockIn, potential)
 
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
@@ -407,6 +401,12 @@ contains
 
     !> Number of shells in each DFTB+U block
     integer, intent(in) :: niUJ(:,:)
+
+    !> block input charges
+    real(dp), intent(in), allocatable :: qBlockIn(:,:,:,:)
+
+    !> imaginary part
+    real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential

@@ -23,10 +23,7 @@ module dftbp_onsitecorrection
 contains
 
   !> Add the block shift due to onsite matrix element contributions
-  subroutine addOnsShift(qBlock, q0, onsMEs, species, orb, potential, iPotential, qiBlock)
-
-    !> Block charges
-    real(dp), intent(in) :: qBlock(:,:,:,:)
+  subroutine addOnsShift(q0, onsMEs, species, orb, qBlock, qiBlock, potential, iPotential)
 
     !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
@@ -40,14 +37,17 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
+    !> Block charges
+    real(dp), intent(in) :: qBlock(:,:,:,:)
+
+    !> Block charges (imaginary part)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
     !> resulting onsite matrix elements
     real(dp), intent(inout) :: potential(:,:,:,:)
 
     !> resulting onsite matrix elements (imaginary part)
     real(dp), intent(inout), allocatable :: iPotential(:,:,:,:)
-
-    !> Block charges (imaginary part)
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
     real(dp), allocatable :: tmpME(:,:,:), tmpBlock(:,:)
@@ -201,7 +201,7 @@ contains
       allocate(iShift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
       iShift(:,:,:,:) = 0.0_dp
     end if
-    call addOnsShift(qBlock, q0, onsMEs, species, orb, shift, iShift, qiBlock)
+    call addOnsShift(q0, onsMEs, species, orb, qBlock, qiBlock, shift, iShift)
     Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
     if (allocated(qiBlock)) then
       Eons(:) = Eons(:) + 0.5_dp*sum(sum(sum(iShift(:,:,:,:)*qiBlock(:,:,:,:),dim=1),dim=1),dim=2)

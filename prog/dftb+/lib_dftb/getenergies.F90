@@ -45,9 +45,9 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine calcEnergies(qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, sccCalc, thirdOrd, solvation, rangeSep, reks, qDepExtPot,&
-      & onSiteElements, qiBlock, nDftbUFunc)
+      & cellVol, extPressure, TS, potential, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, xi,&
+      & onSiteElements, qBlock, qiBlock, energy, Ef, sccCalc, nDftbUFunc, thirdOrd, solvation,&
+      & rangeSep, reks, qDepExtPot)
 
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
@@ -106,12 +106,6 @@ contains
     !> potentials acting
     type(TPotentials), intent(in) :: potential
 
-    !> energy contributions
-    type(TEnergies), intent(inout) :: energy
-
-    !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
     !> U-J prefactors in DFTB+U
     real(dp), intent(in) :: UJ(:,:)
 
@@ -124,14 +118,26 @@ contains
     !> Number of shells in each DFTB+U block
     integer, intent(in) :: niUJ(:,:)
 
-    !> Spin orbit constants
-    real(dp), intent(in), allocatable :: xi(:,:)
-
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
+
+    !> Spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> energy contributions
+    type(TEnergies), intent(inout) :: energy
 
     !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
     !> from the given number of electrons
@@ -139,6 +145,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), intent(in), optional :: sccCalc
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), optional :: thirdOrd
@@ -154,15 +163,6 @@ contains
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), optional :: qDepExtPot
-
-    !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
-
-    !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
 
     integer :: nSpin
     real(dp) :: nEl(2)

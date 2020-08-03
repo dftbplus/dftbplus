@@ -590,7 +590,7 @@ contains
 
       lpSCC: do iSccIter = 1, maxSccIter
 
-        call resetInternalPotentials(tDualSpinOrbit, orb, species, potential, xi)
+        call resetInternalPotentials(tDualSpinOrbit, orb, species, xi, potential)
 
         if (tSccCalc) then
 
@@ -604,15 +604,15 @@ contains
         #:endif
 
           call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-              & neighbourList, img2CentCell, potential, electrostatics, tPoisson, tUpload,&
-              & shiftPerLUp, spinW, solvation, thirdOrd)
+              & neighbourList, img2CentCell, electrostatics, tPoisson, tUpload, shiftPerLUp, spinW,&
+              & potential, solvation, thirdOrd)
 
-          call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+          call addBlockChargePotentials(tDftbU, tImHam, species, orb, nDftbUFunc, UJ, nUJ, iUJ,&
+              & niUJ, qBlockIn, qiBlockIn, potential)
 
           if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-            call addOnsShift(qBlockIn, q0, onSiteElements, species, orb, potential%intBlock,&
-                & potential%iOrbitalBlock, qiBlockIn)
+            call addOnsShift(q0, onSiteElements, species, orb, qBlockIn, qiBlockIn,&
+                & potential%intBlock, potential%iOrbitalBlock)
           end if
 
         end if
@@ -691,19 +691,19 @@ contains
         ! Note: if XLBOMD is active, potential created with input charges is needed later,
         ! therefore it should not be overwritten here.
         if (tSccCalc .and. .not. isXlbomd) then
-          call resetInternalPotentials(tDualSpinOrbit, orb, species, potential, xi)
+          call resetInternalPotentials(tDualSpinOrbit, orb, species, xi, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
 
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-              & neighbourList, img2CentCell, potential, electrostatics, tPoissonTwice, tUpload,&
-              & shiftPerLUp, spinW, solvation, thirdOrd)
+              & neighbourList, img2CentCell, electrostatics, tPoissonTwice, tUpload, shiftPerLUp,&
+              & spinW, potential, solvation, thirdOrd)
 
-          call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+          call addBlockChargePotentials(tDftbU, tImHam, species, orb, nDftbUFunc, UJ, nUJ, iUJ,&
+              & niUJ, qBlockOut, qiBlockOut, potential)
 
           if (allocated(onSiteElements)) then
-            call addOnsShift(qBlockOut, q0, onSiteElements, species, orb, potential%intBlock,&
-                & potential%iOrbitalBlock, qiBlockOut)
+            call addOnsShift(q0, onSiteElements, species, orb, qBlockOut, qiBlockOut,&
+                & potential%intBlock, potential%iOrbitalBlock)
           end if
 
           potential%intBlock = potential%intBlock + potential%extBlock
@@ -717,9 +717,9 @@ contains
 
         call calcEnergies(qOutput, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
             & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-            & iSparseStart, cellVol, extPressure, TS, potential, energy, qBlockOut, UJ, nUJ, iUJ,&
-            & niUJ, xi, iAtInCentralRegion, tFixEf, Ef, sccCalc, thirdOrd, solvation, rangeSep,&
-            & reks, qDepExtPot, onSiteElements, qiBlockOut, nDftbUFunc)
+            & iSparseStart, cellVol, extPressure, TS, potential, UJ, nUJ, iUJ, niUJ,&
+            & iAtInCentralRegion, tFixEf, xi, onSiteElements, qBlockOut, qiBlockOut, energy, Ef,&
+            & sccCalc, nDftbUFunc, thirdOrd, solvation, rangeSep, reks, qDepExtPot)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -917,7 +917,7 @@ contains
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, SSqrReal,&
             & over, denseDesc, deltaRhoOutSqr, tPoisson, tHelical, coord0, derivs, iRhoPrim,&
-            & thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, sccCalc,&
+            & rangeSep, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, sccCalc,&
             & halogenXCorrection)
 
         if (tCasidaForces) then
@@ -941,7 +941,7 @@ contains
           call getStress(env, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0, skHamCont,&
               & skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
-              & coord0, totalStress, totalLatDeriv, intPressure, sccCalc, thirdOrd, iRhoPrim,&
+              & coord0, iRhoPrim, totalStress, totalLatDeriv, intPressure, sccCalc, thirdOrd,&
               & solvation, dispersion, halogenXCorrection)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
@@ -3878,9 +3878,9 @@ contains
       end if
       call addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen, work,&
           & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
-          & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter,&
-          & nonSccDeriv, rhoSqrReal, energies, naturalOrbs, energy%Eexcited, excitedDerivs,&
-          & occNatural)
+          & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, nonSccDeriv,&
+          & rhoSqrReal, taggedWriter, energies, energy%Eexcited, excitedDerivs, occNatural,&
+          & naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
             & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
@@ -4419,7 +4419,7 @@ contains
 
       call electronicSolver%elsi%getEDensity(env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
           & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec,&
-          & cellVec, tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx)
+          & cellVec, tRealHS, parallelKS, SSqrReal, SSqrCplx, ERhoPrim)
 
     end select
 
@@ -5057,8 +5057,8 @@ contains
   subroutine getGradients(env, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, SSqrReal, over, denseDesc,&
-      & deltaRhoOutSqr, tPoisson, tHelical, coord0, derivs, iRhoPrim, thirdOrd, solvation,&
-      & qDepExtPot, chrgForces, dispersion, rangeSep, sccCalc, halogenXCorrection)
+      & deltaRhoOutSqr, tPoisson, tHelical, coord0, derivs, iRhoPrim, rangeSep, thirdOrd,&
+      & solvation, qDepExtPot, chrgForces, dispersion, sccCalc, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5150,6 +5150,9 @@ contains
     !> imaginary part of density matrix
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
+    !> Data from rangeseparated calculations
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
+
     !> Is 3rd order SCC being used
     type(TThirdOrder), intent(inout), optional :: thirdOrd
 
@@ -5164,9 +5167,6 @@ contains
 
     !> dispersion interactions
     class(TDispersionIface), intent(inout), optional :: dispersion
-
-    !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> SCC module internal variables
     type(TScc), intent(in), optional :: sccCalc
@@ -5398,8 +5398,8 @@ contains
   !> Calculates stress tensor and lattice derivatives.
   subroutine getStress(env, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0, skHamCont,&
       & skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species, img2CentCell,&
-      & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
-      & totalLatDeriv, intPressure, sccCalc, thirdOrd, iRhoPrim, solvation, dispersion,&
+      & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, iRhoPrim,&
+      & totalStress, totalLatDeriv, intPressure, sccCalc, thirdOrd, solvation, dispersion,&
       & halogenXCorrection)
 
     !> Environment settings
@@ -5471,6 +5471,9 @@ contains
     !> central cell coordinates of atoms
     real(dp), intent(inout) :: coord0(:,:)
 
+    !> imaginary part of the density matrix (if present)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
+
     !> stress tensor
     real(dp), intent(out) :: totalStress(:,:)
 
@@ -5485,9 +5488,6 @@ contains
 
     !> Is 3rd order SCC being used
     type(TThirdOrder), intent(inout), optional :: thirdOrd
-
-    !> imaginary part of the density matrix (if present)
-    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> Solvation model
     class(TSolvation), intent(inout), optional :: solvation
@@ -6606,10 +6606,10 @@ contains
 
       ! reks%chargePerShellL has (qm) component
       call getChargePerShell(reks%qOutputL(:,:,:,iL), orb, species, reks%chargePerShellL(:,:,:,iL))
-      call resetInternalPotentials(tDualSpinOrbit, orb, species, potential, xi)
+      call resetInternalPotentials(tDualSpinOrbit, orb, species, xi, potential)
       call addChargePotentials(env, sccCalc, reks%qOutputL(:,:,:,iL), q0,&
-          & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, img2CentCell, potential,&
-          & electrostatics, tPoisson, tUpload, shiftPerLUp, spinW, solvation, thirdOrd)
+          & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, img2CentCell,&
+          & electrostatics, tPoisson, tUpload, shiftPerLUp, spinW, potential, solvation, thirdOrd)
 
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell
@@ -6717,11 +6717,11 @@ contains
             & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
       end if
 
-      call getEnergies(reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL), species,&
+      call calcEnergies(reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL), species,&
           & tExtField, isXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
-          & nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, energy,&
-          & qBlock, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, sccCalc, thirdOrd,&
-          & solvation, rangeSep, reks, qDepExtPot, onSiteElements, qiBlock, nDftbUFunc)
+          & nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, UJ, nUJ,&
+          & iUJ, niUJ, iAtInCentralRegion, tFixEf, xi, onSiteElements, qBlock, qiBlock, energy, Ef,&
+          & sccCalc, nDftbUFunc, thirdOrd, solvation, rangeSep, reks, qDepExtPot)
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate

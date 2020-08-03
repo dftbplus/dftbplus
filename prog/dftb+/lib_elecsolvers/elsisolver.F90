@@ -957,7 +957,7 @@ contains
         else
           call getDensityRealDense(this, env, denseDesc, ham, over, neighbourList,&
               & nNeighbourSK, iSparseStart, img2CentCell, tHelical, orb, species, coord,&
-              & parallelKS, rhoPrim, Eband, HSqrReal, SSqrReal)
+              & parallelKS, rhoPrim, HSqrReal, SSqrReal, Eband)
         end if
       else
         if (this%isSparse) then
@@ -967,7 +967,7 @@ contains
         else
           call getDensityCmplxDense(this, env, denseDesc, ham, over, neighbourList,&
               & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight,&
-              & tHelical, orb, species, coord, parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
+              & tHelical, orb, species, coord, parallelKS, rhoPrim, HSqrCplx, SSqrCplx, Eband)
         end if
       end if
       call ud2qm(rhoPrim)
@@ -977,8 +977,8 @@ contains
       else
         call getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
-            & tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, orbitalL,&
-            & iRhoPrim, HSqrCplx, SSqrCplx, Eband, iHam, xi)
+            & tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, iRhoPrim,&
+            & orbitalL, HSqrCplx, SSqrCplx, Eband, iHam, xi)
       end if
     end if
 
@@ -1030,7 +1030,7 @@ contains
   ! Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine TElsiSolver_getEDensity(this, env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx)
+      & tRealHS, parallelKS, SSqrReal, SSqrCplx, ERhoPrim)
 
     !> Electronic solver information
     class(TElsiSolver), intent(inout) :: this
@@ -1086,29 +1086,29 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Energy weighted sparse matrix
-    real(dp), intent(out) :: ERhoPrim(:)
-
     !> Storage for dense overlap matrix
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
   #:if WITH_ELSI
 
     if (nSpin == 4) then
       call getEDensityMtxPauli(this, env, denseDesc, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & parallelKS, ERhoPrim, SSqrCplx)
+          & parallelKS, SSqrCplx, ERhoPrim)
     else
       if (tRealHS) then
         call getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, tHelical, orb,&
-            & species, coord, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+            & species, coord, iSparseStart, img2CentCell, SSqrReal, ERhoPrim)
       else
         call getEDensityMtxCmplx(this, env, denseDesc, kPoint, kWeight, neighbourList,&
             & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec,&
-            & cellVec, parallelKS, ERhoPrim, SSqrCplx)
+            & cellVec, parallelKS, SSqrCplx, ERhoPrim)
       end if
     end if
 
@@ -1256,8 +1256,8 @@ contains
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (real dense case).
   subroutine getDensityRealDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
-      & iSparseStart, img2CentCell, tHelical, orb, species, coord, parallelKS, rhoPrim, Eband,&
-      & HSqrReal, SSqrReal)
+      & iSparseStart, img2CentCell, tHelical, orb, species, coord, parallelKS, rhoPrim, HSqrReal,&
+      & SSqrReal, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1304,14 +1304,14 @@ contains
     !> sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
 
-    !> band structure energy
-    real(dp), intent(out) :: Eband(:)
-
     !> dense real hamiltonian storage
     real(dp), intent(inout), allocatable :: HSqrReal(:,:)
 
     !> dense real overlap storage
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> band structure energy
+    real(dp), intent(out) :: Eband(:)
 
     real(dp), allocatable :: rhoSqrReal(:,:)
     integer :: iKS, iS
@@ -1365,9 +1365,9 @@ contains
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (complex dense case).
-  subroutine getDensityCmplxDense(this, env, denseDesc, ham, over, neighbourList,&
-      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical,&
-      & orb, species, coord, parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
+  subroutine getDensityCmplxDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical, orb, species,&
+      & coord, parallelKS, rhoPrim, HSqrCplx, SSqrCplx, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1426,15 +1426,15 @@ contains
     !> sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
 
-    !> band structure energy
-    real(dp), intent(out) :: Eband(:)
-
     !> electronic entropy times temperature
     !> dense complex (k-points) hamiltonian storage
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
 
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> band structure energy
+    real(dp), intent(out) :: Eband(:)
 
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     integer :: iKS, iK, iS
@@ -1499,7 +1499,7 @@ contains
   !> Returns the density matrix using ELSI non-diagonalisation routines (Pauli dense case).
   subroutine getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, tSpinOrbit,&
-      & tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, orbitalL, iRhoPrim, HSqrCplx,&
+      & tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, iRhoPrim, orbitalL, HSqrCplx,&
       & SSqrCplx, Eband, iHam, xi)
 
     !> Electronic solver information
@@ -1565,11 +1565,11 @@ contains
     !> sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
 
-    !> orbital moments of atomic shells
-    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
-
     !> imaginary part of density matrix
     real(dp), intent(inout) :: iRhoPrim(:,:)
+
+    !> orbital moments of atomic shells
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> dense complex (k-points) hamiltonian storage
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
@@ -1896,7 +1896,7 @@ contains
 
   !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, tHelical, orb,&
-      & species, coord, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+      & species, coord, iSparseStart, img2CentCell, SSqrReal, ERhoPrim)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1931,11 +1931,11 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> Energy weighted sparse matrix
-    real(dp), intent(out) :: ERhoPrim(:)
-
     !> Storage for dense overlap matrix
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
 
     real(dp), allocatable :: EDMnzValLocal(:)
 
@@ -1972,7 +1972,7 @@ contains
   !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxCmplx(this, env, denseDesc, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & parallelKS, ERhoPrim, SSqrCplx)
+      & parallelKS, SSqrCplx, ERhoPrim)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -2022,11 +2022,11 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Energy weighted sparse matrix
-    real(dp), intent(out) :: ERhoPrim(:)
-
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
 
     complex(dp), allocatable :: EDMnzValLocal(:)
     integer :: iK
@@ -2066,8 +2066,8 @@ contains
 
   !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxPauli(this, env, denseDesc, kPoint, kWeight, neighbourList,&
-      & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, ERhoPrim,&
-      & SSqrCplx)
+      & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, SSqrCplx,&
+      & ERhoPrim)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -2108,11 +2108,11 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Energy weighted sparse matrix
-    real(dp), intent(out) :: ERhoPrim(:)
-
     !> Storage for dense overlap matrix
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
 
     integer :: iK
 

@@ -313,8 +313,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, derivator, rhoSqr, allExcEnergies, naturalOrbs,&
-      & excEnergy, excgradient, occNatural)
+      & tWriteTagged, fdTagged, derivator, rhoSqr, taggedWriter, allExcEnergies, excEnergy,&
+      & excgradient, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -370,21 +370,17 @@ contains
     !> file descriptor for tagged data
     integer, intent(in) :: fdTagged
 
-    !> Tagged writer
-    type(TTaggedWriter), intent(inout) :: taggedWriter
-
     !> method for calculating derivatives of S and H0 matrices
     class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
-
-    !> the natural orbitals of the excited state transition density matrix or the total density
-    !> matrix in the excited state
-    real(dp), intent(inout), optional :: naturalOrbs(:,:,:)
 
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
@@ -394,6 +390,10 @@ contains
 
     !> occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), optional :: occNatural(:)
+
+    !> the natural orbitals of the excited state transition density matrix or the total density
+    !> matrix in the excited state
+    real(dp), intent(inout), optional :: naturalOrbs(:,:,:)
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
 

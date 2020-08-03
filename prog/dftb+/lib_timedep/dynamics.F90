@@ -1302,12 +1302,12 @@ contains
     tImHam = .false. ! for the moment
 
     call resetExternalPotentials(refExtPot, potential)
-    call resetInternalPotentials(tDualSpinOrbit, orb, speciesAll, potential, xi)
+    call resetInternalPotentials(tDualSpinOrbit, orb, speciesAll, xi, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, potential, elstatTypes%gammaFunc, .false., .false., dummy,&
-        & spinW, solvation, thirdOrd)
+        & neighbourList, img2CentCell, elstatTypes%gammaFunc, .false., .false., dummy, spinW,&
+        & potential, solvation, thirdOrd)
 
     if ((size(UJ) /= 0) .or. present(onSiteElements)) then
       ! convert to qm representation
@@ -1315,12 +1315,12 @@ contains
     end if
 
     if (size(UJ) /= 0) then
-      call addBlockChargePotentials(qBlock, qiBlock, tDftbU, .false., speciesAll, orb, nDftbUFunc,&
-          & UJ, nUJ, iUJ, niUJ, potential)
+      call addBlockChargePotentials(tDftbU, .false., speciesAll, orb, nDftbUFunc, UJ, nUJ, iUJ,&
+          & niUJ, qBlock, qiBlock, potential)
     end if
     if (present(onSiteElements)) then
-      call addOnsShift(qBlock, q0, onSiteElements, speciesAll, orb, potential%intBlock,&
-          & potential%iOrbitalBlock, qiBlock)
+      call addOnsShift(q0, onSiteElements, speciesAll, orb, qBlock, qiBlock,&
+          & potential%intBlock, potential%iOrbitalBlock)
     end if
 
     ! Add time dependent field if necessary
@@ -1753,10 +1753,9 @@ contains
     TS = 0.0_dp
     call calcEnergies(qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false., tDFTBU,&
         & tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
-        & iAtInCentralRegion, tFixEf, Ef, this%sccCalc, thirdOrd, solvation, rangeSep, reks,&
-        & qDepExtPot, onSiteElements, qiBlock, nDftbUFunc)
-    call sumEnergies(energy)
+        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
+        & tFixEf, xi, onSiteElements, qBlock, qiBlock, energy, Ef, this%sccCalc, nDftbUFunc,&
+        & thirdOrd, solvation, rangeSep, reks, qDepExtPot)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
 
