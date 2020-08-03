@@ -2493,8 +2493,10 @@ description of the methods see the following subsections):
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
   section~\ref{sec:dftbp.DftD4}).
-\item \is{Ts} Tkatchenko-Scheffler dispersion (CITATION?)
-\item \is{Mbd} Many-body dispersion model by Tkatchenko (CITATION?)
+\item \is{Ts}: Dispersion is calculated using the Tkatchenko-Scheffler model~\cite{TkatchenkoPRL09}
+adapted for DFTB~\cite{StohrJCP16} (see section~\ref{sec:dftbp.DispTS}).
+\item \is{Mbd} Dispersion is calculated using the MBD@rsSCS model~\cite{AmbrosettiJCP14}
+adapted for DFTB~\cite{StohrJCP16} (see section~\ref{sec:dftbp.DispMBD}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2997,7 +2999,7 @@ CoordinationNumber = Cov {
 \subsubsection{TS}
 \label{sec:dftbp.DispTS}
 
-Applies the Tkatchenko-Scheffler dispersion model. (CITATION?)
+Applies the Tkatchenko-Scheffler dispersion model~\cite{TkatchenkoPRL09,StohrJCP16}.
 
 The following keywords can be used with this dispersion model:
 \begin{ptable}
@@ -3021,9 +3023,10 @@ The following keywords can be used with this dispersion model:
   calculating surfaces).
 \end{description}
 
-\subsubsection{Mbd}
+\subsubsection{MBD}
+\label{sec:dftbp.DispMBD}
 
-Applies the Tkatchenko many-body-dispersion model. (CITATION?)
+Applies the Tkatchenko many-body-dispersion model~\cite{AmbrosettiJCP14,StohrJCP16}.
 
 The following keywords can be used with this dispersion model:
 \begin{ptable}
