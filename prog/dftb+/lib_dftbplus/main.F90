@@ -488,6 +488,16 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
+    if (tDispersion) then
+  #:if WITH_MBD
+      select type (dispersion)
+      type is (TDispMbd)
+        call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
+      end select
+  #:endif
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+    end if
+
     call env%globalTimer%startTimer(globalTimers%scc)
 
     REKS_SCC: if (allocated(reks)) then
@@ -767,16 +777,6 @@ contains
     end if REKS_SCC
 
     call env%globalTimer%stopTimer(globalTimers%scc)
-
-    if (tDispersion) then
-  #:if WITH_MBD
-      select type (dispersion)
-      type is (TDispMbd)
-        call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
-      end select
-  #:endif
-      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-    end if
 
     if (tPoisson) then
       call poiss_savepotential(env)
