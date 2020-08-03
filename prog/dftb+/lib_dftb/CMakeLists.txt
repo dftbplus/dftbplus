@@ -59,4 +59,8 @@ if(WITH_DFTD3)
   list(APPEND sources-fpp ${curdir}/dispdftd3.F90)
 endif(WITH_DFTD3)
 
+if(WITH_MBD)
+  list(APPEND sources-fpp ${curdir}/dispmbd.F90)
+endif(WITH_MBD)
+
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

@@ -94,7 +94,6 @@ module dftbp_main
   use dftbp_timeprop
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_mbd, only : TMbd
   use dftbp_reks
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
 #:if WITH_TRANSPORT
@@ -400,14 +399,14 @@ contains
     end if
 
     if (tLatticeChanged) then
-      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion, mbDispersion,&
+      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
           & solvation, cm5Cont, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec,&
           & rCellVec)
     end if
 
     if (tCoordsChanged) then
       call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-          & tPeriodic, tHelical, sccCalc, dispersion, mbDispersion, solvation, thirdOrd, rangeSep, reks,&
+          & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
           & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
           & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
           & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
@@ -452,10 +451,6 @@ contains
 
     call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
         & pRepCont, energy%atomRep, energy%ERep, iAtInCentralRegion)
-
-    if (tDispersion .and. .not. tManyBodyDisp) then
-      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-    end if
 
     if (allocated(halogenXCorrection)) then
       call halogenXCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
@@ -757,9 +752,9 @@ contains
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
               & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, tDispersion, tEField, tPeriodic, nSpin,&
+              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection),&
+              & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
               & isRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
         end if
 
@@ -773,11 +768,15 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
-    call getPostSccEnergies(coord, neighbourList, nNeighbourSK, species, img2CentCell, orb,&
-        & iSparseStart, rhoPrim, over, mbDispersion, energy)
-
-    call writeDetailedOut1a(fdDetailedOut, energy, electronicSolver, TS, tDefinedFreeE, tPeriodic,&
-        & extPressure, tAtomicEnergy, iAtInCentralRegion, tManyBodyDisp)
+    if (tDispersion) then
+  #:if WITH_MBD
+      select type (dispersion)
+      type is (TDispMbd)
+        call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
+      end select
+  #:endif
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+    end if
 
     if (tPoisson) then
       call poiss_savepotential(env)
@@ -875,7 +874,7 @@ contains
         call getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
             & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-            & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, mbDispersion, rangeSep,&
+            & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep,&
             & SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical,&
             & coord0)
 
@@ -901,7 +900,7 @@ contains
               & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
               & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
               & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-              & solvation, dispersion, mbDispersion, halogenXCorrection)
+              & solvation, dispersion, halogenXCorrection)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
@@ -1153,7 +1152,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
-      & mbDispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs,&
+      & solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs,&
       & rCellVecs)
 
     !> lattice vectors
@@ -1179,9 +1178,6 @@ contains
 
     !> Charge model 5
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
-
-    !> Many-body dispersion object
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -1222,11 +1218,6 @@ contains
       call dispersion%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
-  #:if WITH_MBD
-    if (allocated(mbDispersion)) then
-      call mbDispersion%update_lattice_vectors(latVecs)
-    end if
-  #:endif
     if (allocated(solvation)) then
       call solvation%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, solvation%getRCutOff())
@@ -1242,7 +1233,7 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-      & tPeriodic, tHelical, sccCalc, dispersion, mbDispersion, solvation, thirdOrd, rangeSep, reks,&
+      & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
       & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
       & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
@@ -1284,9 +1275,6 @@ contains
 
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
-
-    !> Many-body dispersion
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
 
     !> Third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -1411,13 +1399,6 @@ contains
     if (allocated(solvation)) then
       call solvation%updateCoords(env, neighbourList, img2CentCell, coord, species0)
     end if
-
-  #:if WITH_MBD
-    if (allocated(mbDispersion)) then
-      call mbDispersion%update_coords(coord0)
-    end if
-  #:endif
-
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
     end if
@@ -3178,124 +3159,6 @@ contains
     end if
 
   end function hasStopFile
-
-  !> Calculate energies due after the scc-cycle has finished
-  subroutine getPostSccEnergies(coord, neighbourList, nNeighbour, species, img2CentCell, orb,&
-      & iSparseStart, rhoPrim, over, mbDispersion, energy)
-
-    !> all coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours within cutoff for each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> image to real atom mapping
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Density matrix in sparse storage
-    real(dp), intent(in) :: rhoPRim(:,:)
-
-    !> overlap matrix in sparse storage
-    real(dp), intent(in) :: over(:)
-
-    !> index for sparse large matrices
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> Many-body dispersion
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
-
-    !> energy contributions
-    type(TEnergies), intent(inout) :: energy
-
-    real(dp) :: energyContrib
-
-  #:if WITH_MBD
-    if (allocated(mbDispersion)) then
-      call getManyBodyDispEnergy(rhoPrim, over, orb, neighbourList, nNeighbour, img2CentCell,&
-          & iSparseStart, mbDispersion, energy%eMBD)
-    end if
-  #:endif
-
-    energy%Etotal = energy%Etotal + energy%eMBD
-    energy%EMermin = energy%EMermin + energy%eMBD
-    energy%Ezero = energy%Ezero + energy%eMBD
-    energy%EGibbs = energy%EGibbs + energy%eMBD
-    energy%EForceRelated = energy%EForceRelated + energy%eMBD
-
-  end subroutine getPostSccEnergies
-
-
-#:if WITH_MBD
-  subroutine getManyBodyDispEnergy(rhoPrim, over, orb, neighbourList, nNeighbour, img2CentCell,&
-      & iSparseStart, mbDispersion, eMbd)
-    ! TODO these shouldn't be here
-    use dftbp_initprogram, only: referenceN0, speciesName, species0
-    use mbd_vdw_param, only: species_index
-
-    !> Density matrix in sparse storage
-    real(dp), intent(in) :: rhoPRim(:,:)
-
-    !> overlap matrix in sparse storage
-    real(dp), intent(in) :: over(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours within cutoff for each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> Image to real atom mapping
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Index for sparse large matrices
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> Many-body dispersion
-    type(TMbd), intent(inout) :: mbDispersion
-
-    !> Energy contribution
-    real(dp), intent(out) :: eMbd
-
-    real(dp), allocatable :: cpa(:)
-    real(dp), allocatable :: free_charges(:)
-    integer :: nAtom, i_atom, i_spec
-
-    nAtom = size(nNeighbour)
-    allocate(cpa(nAtom))
-    call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, cpa)
-
-    allocate(free_charges(nAtom))
-    do i_atom = 1, nAtom
-        i_spec = species0(i_atom)
-        free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
-        ! if (inp%mbd_debug.and. tIoProc) then
-        !   write(stdOut,*) i_atom, free_charges(i_atom)
-        ! end if
-    end do
-    cpa = 1d0 + (cpa-free_charges)/dble(species_index(speciesName(species0)))
-    print *, "CPA:", cpa
-    call mbDispersion%update_vdw_params_from_ratios(cpa)
-
-    call mbDispersion%evaluate_vdw_method(eMbd)
-
-    if (tIoProc) then
-      write(stdOut,*) 'MBD energy ', eMbd, ' ', eMbd * Hartree__eV
-    end if
-
-  end subroutine getManyBodyDispEnergy
-#:endif
 
 
   !> Returns input charges for next SCC iteration.
@@ -5158,7 +5021,7 @@ contains
   subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
       & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-      & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, mbDispersion, rangeSep, SSqrReal,&
+      & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal,&
       & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical, coord0)
 
     !> Environment settings
@@ -5247,9 +5110,6 @@ contains
 
     !> dispersion interactions
     class(TDispersionIface), intent(inout), allocatable :: dispersion
-
-    !> Many-body dispersion
-    type(TMbd), intent(inout), allocatable :: mbDispersion
 
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
@@ -5383,13 +5243,6 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
-  #:if WITH_MBD
-    if (allocated(mbDispersion)) then
-      call mbDispersion%get_gradients(tmpDerivs)
-      derivs(:,:) = derivs + tmpDerivs
-    end if
-  #:endif
-
     if (allocated(halogenXCorrection)) then
       call halogenXCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
     end if
@@ -5512,7 +5365,7 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion, mbDispersion,&
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
       & halogenXCorrection)
 
     !> Environment settings
@@ -5608,9 +5461,6 @@ contains
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
-    !> Many-body dispersion
-    type(TMbd), intent(inout), allocatable :: mbDispersion
-
     !> Correction for halogen bonds
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
 
@@ -5654,18 +5504,6 @@ contains
       call dispersion%getStress(tmpStress)
       totalStress(:,:) = totalStress + tmpStress
     end if
-
-  #:if WITH_MBD
-    if (allocated(mbDispersion)) then
-      call mbDispersion%get_lattice_stress(tmpStress)
-      tmpStress = -tmpStress/cellVol
-      if (tIoProc) then
-        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
-        write(stdOut,*) tmpStress(:, :)
-      endif
-      totalStress(:,:) = totalStress + tmpStress
-    end if
-  #:endif
 
     if (allocated(halogenXCorrection)) then
       call halogenXCorrection%getStress(tmpStress, coord, neighbourList, species, img2CentCell,&

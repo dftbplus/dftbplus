@@ -89,7 +89,6 @@ module dftbp_initprogram
   use dftbp_timeprop
   use dftbp_xlbomd
   use dftbp_etemp, only : fillingTypes
-  use dftbp_mbd, only: TMbdInit, TMbd
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
   use dftbp_ipisocket
@@ -753,12 +752,6 @@ module dftbp_initprogram
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
 
-  !> If many-body dispersion should be calculated
-  logical :: tManyBodyDisp
-
-  !> many-body dispersion data
-  type(TMbd), allocatable :: mbDispersion
-
   !> Solvation data and calculations
   class(TSolvation), allocatable :: solvation
 
@@ -1102,6 +1095,9 @@ contains
     type(TDispDftD3), allocatable :: dftd3
   #:endif
     type(TDispDftD4), allocatable :: dftd4
+  #:if WITH_MBD
+    type(TDispMbd), allocatable :: mbd
+  #:endif
 
     ! H5 correction
     type(TH5Corr), allocatable :: pH5Correction
@@ -1988,7 +1984,6 @@ contains
     ! Dispersion
     tHHRepulsion = .false.
     tDispersion = allocated(input%ctrl%dispInp)
-    tManyBodyDisp = .false.
     if (tDispersion) then
       if (tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
@@ -2013,7 +2008,6 @@ contains
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
         call move_alloc(slaKirk, dispersion)
-        cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
 
       elseif (allocated(input%ctrl%dispInp%uff)) then
         allocate(uff)
@@ -2023,7 +2017,6 @@ contains
           call DispUff_init(uff, input%ctrl%dispInp%uff, nAtom)
         end if
         call move_alloc(uff, dispersion)
-        cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
 
     #:if WITH_DFTD3
       elseif (allocated(input%ctrl%dispInp%dftd3)) then
@@ -2038,7 +2031,6 @@ contains
           call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName)
         end if
         call move_alloc(dftd3, dispersion)
-        cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     #:endif
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
@@ -2048,20 +2040,20 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
-        cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     #:if WITH_MBD
-      elseif (allocated(input%ctrl%dispInp%mbdInp)) then
-        tManyBodyDisp = .true.
-        allocate (mbDispersion)
-        associate (inp => input%ctrl%dispInp%mbdInp)
+      elseif (allocated(input%ctrl%dispInp%mbd)) then
+        allocate (mbd)
+        associate (inp => input%ctrl%dispInp%mbd)
             inp%calculate_forces = tForces
             inp%atom_types = speciesName(species0)
             inp%coords = coord0
             if (tPeriodic) inp%lattice_vectors = latVec
-            call mbDispersion%init(inp)
+            call mbd%init(inp)
         end associate
+        call move_alloc(mbd, dispersion)
      #:endif
       end if
+      cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     end if
 
     if (allocated(input%ctrl%solvInp)) then
@@ -2968,7 +2960,7 @@ contains
       end do
     end if
 
-    if (tDispersion .and. .not. tManyBodyDisp) then
+    if (tDispersion) then
       select type (dispersion)
       type is (TDispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
@@ -2980,16 +2972,14 @@ contains
     #:endif
       type is (TDispDftD4)
         write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
+    #:if WITH_MBD
+      type is (TDispMbd)
+        call writeMbdInfo(input%ctrl%dispInp%mbd)
+    #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select
     end if
-
-  #:if WITH_MBD
-    if (tManyBodyDisp) then
-      call writeMbdInfo(input%ctrl%dispInp%mbdInp)
-    end if
-  #:endif
 
     if (allocated(solvation)) then
       call writeSolvationInfo(stdOut, solvation)
@@ -4706,15 +4696,14 @@ contains
   end subroutine getDenseDescCommon
 
 
+#:if WITH_MBD
   !> Writes MBD-related info
   subroutine writeMbdInfo(input)
-
     !> MBD input parameters
-    type(TMbdInit), intent(in) :: input
+    type(TDispMbdInp), intent(in) :: input
 
     character(80) :: tmpStr
 
-#:if WITH_MBD
     write(stdOut, "(A)") ''
     if (input%method == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
@@ -4767,9 +4756,9 @@ contains
     !   write(stdOut,"(A)") "  Full Debug printing       No"
     ! endif
     write(stdOut,"(A)") ""
-#:endif
 
   end subroutine writeMbdInfo
+#:endif
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation

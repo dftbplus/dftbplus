@@ -67,8 +67,8 @@ module dftbp_mainio
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
   public :: openDetailedOut
-  public :: writeDetailedOut1, writeDetailedOut1a, writeDetailedOut2, writeDetailedOut3
-  public :: writeDetailedOut4, writeDetailedOut5
+  public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
+  public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -2353,9 +2353,9 @@ contains
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
-      & qBlockOut, Ef, Eband, TS, E0, tDispersion, tEField,&
+      & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv,&
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv,&
       & cm5Cont, qOnsite)
 
     !> File ID
@@ -2451,6 +2451,15 @@ contains
     !> Zero temperature extrapolated electron energy
     real(dp), intent(in) :: E0(:)
 
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Are atom resolved energies required
+    logical, intent(in) :: tAtomicEnergy
+
     !> Are dispersion interactions included
     logical, intent(in) :: tDispersion
 
@@ -2489,6 +2498,9 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
 
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
@@ -2888,52 +2900,6 @@ contains
           & energy%eHalogenX * Hartree__eV, 'eV'
     end if
 
-  end subroutine writeDetailedOut1
-
-
-  !> Further information to go to detailed.out
-  subroutine writeDetailedOut1a(fd, energy, electronicSolver, TS, tDefinedFreeE, tPeriodic,&
-      & pressure, tAtomicEnergy, iAtInCentralRegion, tManyBodyDisp)
-
-    !> File  ID
-    integer, intent(in) :: fd
-
-    !> Energy terms in the system
-    type(TEnergies), intent(in) :: energy
-
-    !> Electronic solver information
-    type(TElectronicSolver), intent(in) :: electronicSolver
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
-
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
-    !> Is the system periodic
-    logical, intent(in) :: tPeriodic
-
-    !> External pressure
-    real(dp), intent(in) :: pressure
-
-    !> Whether atom resolved energies should be printed
-    logical, intent(in) :: tAtomicEnergy
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    !> Are many-body dispersion interactions included
-    logical, intent(in) :: tManyBodyDisp
-
-
-    integer :: nAtom
-    integer :: iAt, ii
-
-    if (tManyBodyDisp) then
-      write(fd, format2U) 'Many-body dispersion energy', energy%eMbd, 'H',&
-          & energy%eMbd * Hartree__eV, 'eV'
-    end if
-
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
     if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
         & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
@@ -2947,17 +2913,12 @@ contains
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H', Hartree__eV * energy%EGibbs, 'eV'
+      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
+          & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
     end if
     write(fd, *)
 
     if (tAtomicEnergy) then
-
-      ! MBD does not calculate any atomic contributions
-      if (tManyBodyDisp) then
-        call error("Many-body dispersion not compatible with atomic energy printing")
-      end if
-
       write(fd, "(A)") 'Atom resolved electronic energies '
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
@@ -2982,7 +2943,7 @@ contains
       write(fd, *)
     end if
 
-  end subroutine writeDetailedOut1a
+  end subroutine writeDetailedOut1
 
 
   !> Second group of data for detailed.out

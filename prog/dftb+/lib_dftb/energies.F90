@@ -51,9 +51,6 @@ module dftbp_energies
     !> Dispersion energy
     real(dp) :: eDisp   = 0.0_dp
 
-    !> Many-body dispersion energy
-    real(dp) :: eMbd = 0.0_dp
-
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
 

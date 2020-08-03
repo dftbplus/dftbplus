@@ -64,7 +64,6 @@ module dftbp_parser
 #:if WITH_TRANSPORT
   use libnegf_vars
 #:endif
-  use dftbp_mbd, only: TMbdInit
   use dftbp_solvparser, only : readSolvation, readCM5
   implicit none
   private
@@ -3738,20 +3737,19 @@ contains
       allocate(input%dftd4)
       call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
     case ("ts")
-    #:if WITH_MBD
-      allocate(input%mbdInp)
-      call readDispTs(dispModel, input%mbdInp)
-    #:else
-      call detailedError(node, "Program must be compiled with libMBD for TS-dispersion")
-    #:endif
-
+  #:if WITH_MBD
+      allocate(input%mbd)
+      call readDispTs(dispModel, input%mbd)
+  #:else
+      call detailedError(node, "Program must be compiled with Limbd for TS-dispersion")
+  #:endif
     case ("mbd")
-    #:if WITH_MBD
-      allocate(input%mbdInp)
-      call readDispMbd(dispModel, input%mbdInp)
-    #:else
-      call detailedError(node, "Program must be compiled with libMBD for MBD-dispersion")
-    #:endif
+  #:if WITH_MBD
+      allocate(input%mbd)
+      call readDispMbd(dispModel, input%mbd)
+  #:else
+      call detailedError(node, "Program must be compiled with Limbd for MBD-dispersion")
+  #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -4245,7 +4243,7 @@ contains
 
   subroutine readDispTs(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(TMbdInit), intent(out) :: input
+    type(TDispMbdInp), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
@@ -4269,7 +4267,7 @@ contains
 
   subroutine readDispMbd(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(TMbdInit), intent(out) :: input
+    type(TDispMbdInp), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
