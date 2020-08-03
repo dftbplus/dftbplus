@@ -425,7 +425,7 @@ contains
   end subroutine readTGeometryXyz
 
 
-  !> Helping routine for reading geometry from a HSD tree in GEN format
+  !> Helping routine for reading geometry from a HSD tree in XYZ format
   subroutine readTGeometryXyz_help(node, geo, text)
 
     !> Node to parse (only needed to produce proper error messages)
@@ -519,7 +519,7 @@ contains
   end subroutine readTGeometryXyz_help
 
 
-  !> Reads the geometry from a node in a HSD tree in GEN format
+  !> Reads the geometry from a node in a HSD tree in VASP POSCAR/CONTCAR formats
   subroutine readTGeometryVasp(node, geo)
 
     !> Node containing the geometry in Gen format
@@ -551,8 +551,8 @@ contains
     type(string) :: txt
     character(mc), allocatable :: vaspNames(:)
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, jj, iSp, iTmp
-    real(dp) :: coords(3), latVec(3), rTmp, rScale
+    integer :: ii, iSp, iTmp
+    real(dp) :: coords(3), latVec(3), rScale
     integer, allocatable :: vaspSp(:)
     integer, allocatable :: countSp(:)
     type(TListString) :: speciesNames

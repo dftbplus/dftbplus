@@ -132,10 +132,10 @@ contains
 
 
   !> Initialize generalized charge model 5 from geometry
-  subroutine TChargeModel5_init(self, input, nAtom, speciesNames, tDerivs, latVecs)
+  subroutine TChargeModel5_init(this, input, nAtom, speciesNames, tDerivs, latVecs)
 
     !> Initialised instance at return
-    type(TChargeModel5), intent(out) :: self
+    type(TChargeModel5), intent(out) :: this
 
     !> Charge model 5 input data
     type(TCM5Input), intent(in) :: input
@@ -158,42 +158,42 @@ contains
     @:ASSERT(allocated(input%atomicRad))
 
     nSpecies = size(speciesNames)
-    self%tPeriodic = present(latVecs)
-    if (self%tPeriodic) then
-      call self%updateLatVecs(LatVecs)
+    this%tPeriodic = present(latVecs)
+    if (this%tPeriodic) then
+      call this%updateLatVecs(LatVecs)
     end if
-    self%nAtom = nAtom
+    this%nAtom = nAtom
 
-    allocate(self%cm5(nAtom))
+    allocate(this%cm5(nAtom))
     if (tDerivs) then
-      allocate(self%dcm5dr(3, nAtom, nAtom))
-      allocate(self%dcm5dL(3, 3, nAtom))
+      allocate(this%dcm5dr(3, nAtom, nAtom))
+      allocate(this%dcm5dL(3, 3, nAtom))
     end if
 
-    self%rCutoff = input%rCutoff
+    this%rCutoff = input%rCutoff
 
-    allocate(self%atomicRad(nSpecies))
-    allocate(self%pairParam(nSpecies, nSpecies))
-    self%atomicRad(:) = input%atomicRad
+    allocate(this%atomicRad(nSpecies))
+    allocate(this%pairParam(nSpecies, nSpecies))
+    this%atomicRad(:) = input%atomicRad
 
-    self%alpha = input%alpha
+    this%alpha = input%alpha
     do iSp1 = 1, nSpecies
       do iSp2 = 1, nSpecies
-        self%pairParam(iSp1, iSp2) = getPairParameter(speciesNames(iSp1), speciesnames(iSp2))
+        this%pairParam(iSp1, iSp2) = getPairParameter(speciesNames(iSp1), speciesnames(iSp2))
       end do
-      self%pairParam(iSp1, iSp1) = 0.0_dp
+      this%pairParam(iSp1, iSp1) = 0.0_dp
     end do
 
-    self%tCoordsUpdated = .false.
+    this%tCoordsUpdated = .false.
 
   end subroutine TChargeModel5_init
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, neighList, img2CentCell, coords, species0)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> list of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
@@ -209,63 +209,63 @@ contains
 
     integer, allocatable :: nNeigh(:)
 
-    allocate(nNeigh(self%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    if (allocated(self%dcm5dr) .and. allocated(self%dcm5dL)) then
-      call getCorrectionDerivs(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    if (allocated(this%dcm5dr) .and. allocated(this%dcm5dL)) then
+      call getCorrectionDerivs(this, nNeigh, neighList%iNeighbour, img2CentCell, &
           & neighList%neighDist2, species0, coords)
     else
-      call getCorrection(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+      call getCorrection(this, nNeigh, neighList%iNeighbour, img2CentCell, &
           & neighList%neighDist2, species0, coords)
     end if
 
-    self%tCoordsUpdated = .true.
+    this%tCoordsUpdated = .true.
 
   end subroutine updateCoords
 
 
   !> update internal copy of lattice vectors
-  subroutine updateLatVecs(self, latVecs)
+  subroutine updateLatVecs(this, latVecs)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
-    self%latVecs(:,:) = latVecs
+    this%latVecs(:,:) = latVecs
 
-    self%tCoordsUpdated = .false.
+    this%tCoordsUpdated = .false.
 
   end subroutine updateLatVecs
 
 
   !> get charge corrections
-  subroutine addCharges(self, charges)
+  subroutine addCharges(this, charges)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> energy contributions for each atom
     real(dp), intent(inout) :: charges(:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(allocated(self%cm5))
-    @:ASSERT(size(charges) == self%nAtom)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(allocated(this%cm5))
+    @:ASSERT(size(charges) == this%nAtom)
 
-    charges(:) = charges + self%cm5
+    charges(:) = charges + this%cm5
 
   end subroutine addCharges
 
 
   !> get force contributions
-  subroutine addGradients(self, dEdcm5, gradients)
+  subroutine addGradients(this, dEdcm5, gradients)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
     real(dp), intent(in) :: dEdcm5(:)
@@ -273,20 +273,20 @@ contains
     !> gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(allocated(self%dcm5dr))
-    @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(allocated(this%dcm5dr))
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    call gemv(gradients, self%dcm5dr, dEdcm5, beta=1.0_dp)
+    call gemv(gradients, this%dcm5dr, dEdcm5, beta=1.0_dp)
 
   end subroutine addGradients
 
 
   !> get stress tensor contributions
-  subroutine addSigma(self, dEdcm5, stress)
+  subroutine addSigma(this, dEdcm5, stress)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
     real(dp), intent(in) :: dEdcm5(:)
@@ -294,35 +294,35 @@ contains
     !> Stress tensor contributions (not volume scaled)
     real(dp), intent(inout) :: stress(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(allocated(self%dcm5dL))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(allocated(this%dcm5dL))
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-    call gemv(stress, self%dcm5dL, dEdcm5, beta=1.0_dp)
+    call gemv(stress, this%dcm5dL, dEdcm5, beta=1.0_dp)
 
   end subroutine addSigma
 
 
   !> Distance cut off for charge model
-  function getRCutoff(self) result(cutoff)
+  function getRCutoff(this) result(cutoff)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    class(TChargeModel5), intent(inout) :: this
 
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%rCutoff
+    cutoff = this%rCutoff
 
   end function getRCutoff
 
 
   !> Calculate CM5 correction for this geometry
-  subroutine getCorrection(self, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
+  subroutine getCorrection(this, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
       & species, coords)
 
     !> data structure
-    type(TChargeModel5), intent(inout) :: self
+    type(TChargeModel5), intent(inout) :: this
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -345,9 +345,9 @@ contains
     integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2
     real(dp) :: dist, dEr, p12, p21
 
-    self%cm5(:) = 0.0_dp
+    this%cm5(:) = 0.0_dp
 
-    do iAt1 = 1, self%nAtom
+    do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -355,13 +355,13 @@ contains
         iSp2 = species(iAt2f)
         if (iSp1 == iSp2) cycle  ! includes iAt1 == iAt2f case
         dist = sqrt(neighDist2(iNeigh, iAt1))
-        p12 = self%pairParam(iSp1, iSp2)
-        p21 = self%pairParam(iSp2, iSp1)
+        p12 = this%pairParam(iSp1, iSp2)
+        p21 = this%pairParam(iSp2, iSp1)
 
-        dEr = exp(-self%alpha*(dist-self%atomicRad(iSp1)-self%atomicRad(iSp2)))
+        dEr = exp(-this%alpha*(dist-this%atomicRad(iSp1)-this%atomicRad(iSp2)))
 
-        self%cm5(iAt1) = self%cm5(iAt1) + dEr * p12
-        self%cm5(iAt2f) = self%cm5(iAt2f) + dEr * p21
+        this%cm5(iAt1) = this%cm5(iAt1) + dEr * p12
+        this%cm5(iAt2f) = this%cm5(iAt2f) + dEr * p21
 
       end do
     end do
@@ -370,11 +370,11 @@ contains
 
 
   !> Calculate CM5 correction for this geometry
-  subroutine getCorrectionDerivs(self, nNeighbour, iNeighbour, img2CentCell, &
+  subroutine getCorrectionDerivs(this, nNeighbour, iNeighbour, img2CentCell, &
       & neighDist2, species, coords)
 
     !> data structure
-    type(TChargeModel5), intent(inout) :: self
+    type(TChargeModel5), intent(inout) :: this
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -397,11 +397,11 @@ contains
     integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2
     real(dp) :: dist, vec(3), dEr, dGr(3), dSr(3, 3), p12, p21
 
-    self%cm5(:) = 0.0_dp
-    self%dcm5dr(:, :, :) = 0.0_dp
-    self%dcm5dL(:, :, :) = 0.0_dp
+    this%cm5(:) = 0.0_dp
+    this%dcm5dr(:, :, :) = 0.0_dp
+    this%dcm5dL(:, :, :) = 0.0_dp
 
-    do iAt1 = 1, self%nAtom
+    do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -410,23 +410,23 @@ contains
         if (iSp1 == iSp2) cycle  ! includes iAt1 == iAt2f case
         dist = sqrt(neighDist2(iNeigh, iAt1))
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
-        p12 = self%pairParam(iSp1, iSp2)
-        p21 = self%pairParam(iSp2, iSp1)
+        p12 = this%pairParam(iSp1, iSp2)
+        p21 = this%pairParam(iSp2, iSp1)
 
-        dEr = exp(-self%alpha*(dist-self%atomicRad(iSp1)-self%atomicRad(iSp2)))
-        dGr = dEr * self%alpha * vec/dist
+        dEr = exp(-this%alpha*(dist-this%atomicRad(iSp1)-this%atomicRad(iSp2)))
+        dGr = dEr * this%alpha * vec/dist
         dSr = spread(dGr, 1, 3) * spread(vec, 2, 3)
 
-        self%cm5(iAt1) = self%cm5(iAt1) + dEr * p12
-        self%cm5(iAt2f) = self%cm5(iAt2f) + dEr * p21
+        this%cm5(iAt1) = this%cm5(iAt1) + dEr * p12
+        this%cm5(iAt2f) = this%cm5(iAt2f) + dEr * p21
 
-        self%dcm5dr(:, iAt1, iAt1) = self%dcm5dr(:, iAt1, iAt1) - dGr * p12
-        self%dcm5dr(:, iAt2f, iAt2f) = self%dcm5dr(:, iAt2f, iAt2f) + dGr * p21
-        self%dcm5dr(:, iAt1, iAt2f) = self%dcm5dr(:, iAt1, iAt2f) - dGr * p21
-        self%dcm5dr(:, iAt2f, iAt1) = self%dcm5dr(:, iAt2f, iAt1) + dGr * p12
+        this%dcm5dr(:, iAt1, iAt1) = this%dcm5dr(:, iAt1, iAt1) - dGr * p12
+        this%dcm5dr(:, iAt2f, iAt2f) = this%dcm5dr(:, iAt2f, iAt2f) + dGr * p21
+        this%dcm5dr(:, iAt1, iAt2f) = this%dcm5dr(:, iAt1, iAt2f) - dGr * p21
+        this%dcm5dr(:, iAt2f, iAt1) = this%dcm5dr(:, iAt2f, iAt1) + dGr * p12
 
-        self%dcm5dL(:, :, iAt1) = self%dcm5dL(:, :, iAt1) + dSr * p12
-        self%dcm5dL(:, :, iAt2f) = self%dcm5dL(:, :, iAt2f) + dSr * p21
+        this%dcm5dL(:, :, iAt1) = this%dcm5dL(:, :, iAt1) + dSr * p12
+        this%dcm5dL(:, :, iAt2f) = this%dcm5dL(:, :, iAt2f) + dSr * p21
 
       end do
     end do

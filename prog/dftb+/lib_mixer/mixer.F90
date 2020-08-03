@@ -93,93 +93,93 @@ contains
 
 
   !> Initializes a simple mixer.
-  subroutine Mixer_initSimple(self, pSimple)
+  subroutine Mixer_initSimple(this, pSimple)
 
     !> Mixer instance
-    type(TMixer), intent(out) :: self
+    type(TMixer), intent(out) :: this
 
     !> A valid simple mixer instance on exit.
     type(TSimpleMixer), allocatable, intent(inout) :: pSimple
 
-    self%mixerType = mixerTypes%simple
-    call move_alloc(pSimple, self%pSimpleMixer)
+    this%mixerType = mixerTypes%simple
+    call move_alloc(pSimple, this%pSimpleMixer)
 
   end subroutine Mixer_initSimple
 
 
   !> Initializes an Anderson mixer.
-  subroutine Mixer_initAnderson(self, pAnderson)
+  subroutine Mixer_initAnderson(this, pAnderson)
 
     !> Mixer instance
-    type(TMixer), intent(out) :: self
+    type(TMixer), intent(out) :: this
 
     !> A valid Anderson mixer instance on exit.
     type(TAndersonMixer), allocatable, intent(inout) :: pAnderson
 
-    self%mixerType = mixerTypes%anderson
-    call move_alloc(pAnderson, self%pAndersonMixer)
+    this%mixerType = mixerTypes%anderson
+    call move_alloc(pAnderson, this%pAndersonMixer)
 
   end subroutine Mixer_initAnderson
 
 
   !> Initializes a Broyden mixer
-  subroutine Mixer_initBroyden(self, pBroyden)
+  subroutine Mixer_initBroyden(this, pBroyden)
 
     !> Mixer instance
-    type(TMixer), intent(out) :: self
+    type(TMixer), intent(out) :: this
 
     !> A valid Broyden mixer instance on exit.
     type(TBroydenMixer), allocatable, intent(inout) :: pBroyden
 
-    self%mixerType = mixerTypes%broyden
-    call move_alloc(pBroyden, self%pBroydenMixer)
+    this%mixerType = mixerTypes%broyden
+    call move_alloc(pBroyden, this%pBroydenMixer)
 
   end subroutine Mixer_initBroyden
 
 
   !> Initializes a DIIS mixer
-  subroutine Mixer_initDIIS(self, pDIIS)
+  subroutine Mixer_initDIIS(this, pDIIS)
 
     !> Mixer instance
-    type(TMixer), intent(out) :: self
+    type(TMixer), intent(out) :: this
 
     !> A valid DIIS mixer instance on exit.
     type(TDIISMixer), allocatable, intent(inout) :: pDIIS
 
-    self%mixerType = mixerTypes%diis
-    call move_alloc(pDIIS, self%pDIISMixer)
+    this%mixerType = mixerTypes%diis
+    call move_alloc(pDIIS, this%pDIISMixer)
 
   end subroutine Mixer_initDIIS
 
 
   !> Resets the mixer
-  subroutine Mixer_reset(self, nElem)
+  subroutine Mixer_reset(this, nElem)
 
     !> Mixer instance.
-    type(TMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: this
 
     !> Size of the vectors to mix.
     integer, intent(in) :: nElem
 
-    select case (self%mixerType)
+    select case (this%mixerType)
     case(mixerTypes%simple)
-      call reset(self%pSimpleMixer, nElem)
+      call reset(this%pSimpleMixer, nElem)
     case (mixerTypes%anderson)
-      call reset(self%pAndersonMixer, nElem)
+      call reset(this%pAndersonMixer, nElem)
     case (mixerTypes%broyden)
-      call reset(self%pBroydenMixer, nElem)
+      call reset(this%pBroydenMixer, nElem)
     case (mixerTypes%diis)
-      call reset(self%pDIISMixer, nElem)
+      call reset(this%pDIISMixer, nElem)
     end select
 
   end subroutine Mixer_reset
 
 
   !> Mixes vectors together
-  subroutine Mixer_mix(self, qInpRes, qDiff)
+  subroutine Mixer_mix(this, qInpRes, qDiff)
 
     !> Mixer instance.
-    type(TMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: this
 
     !> Input vector on entry, result vector on exit.
     real(dp),      intent(inout) :: qInpRes(:)
@@ -187,30 +187,30 @@ contains
     !> Difference between input and output vectors (measure of lack of convergence)
     real(dp),      intent(in) :: qDiff(:)
 
-    select case (self%mixerType)
+    select case (this%mixerType)
     case (mixerTypes%simple)
-      call mix(self%pSimpleMixer, qInpRes, qDiff)
+      call mix(this%pSimpleMixer, qInpRes, qDiff)
     case (mixerTypes%anderson)
-      call mix(self%pAndersonMixer, qInpRes, qDiff)
+      call mix(this%pAndersonMixer, qInpRes, qDiff)
     case (mixerTypes%broyden)
-      call mix(self%pBroydenMixer, qInpRes, qDiff)
+      call mix(this%pBroydenMixer, qInpRes, qDiff)
     case (mixerTypes%diis)
-      call mix(self%pDIISMixer, qInpRes, qDiff)
+      call mix(this%pDIISMixer, qInpRes, qDiff)
     end select
 
   end subroutine Mixer_mix
 
 
   !> Tells whether the mixer is able to provide the inverse Jacobian.
-  function Mixer_hasInverseJacobian(self) result(has)
+  function Mixer_hasInverseJacobian(this) result(has)
 
     !> Mixer instance.
-    type(TMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: this
 
     !> Size of the vectors to mix.
     logical :: has
 
-    select case (self%mixerType)
+    select case (this%mixerType)
     case(mixerTypes%simple)
       has = .false.
     case (mixerTypes%anderson)
@@ -225,21 +225,21 @@ contains
 
 
   !> Return an inverse Jacobian if possible, halting if not
-  subroutine Mixer_getInverseJacobian(self, invJac)
+  subroutine Mixer_getInverseJacobian(this, invJac)
 
     !> Mixer instance.
-    type(TMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: this
 
     !> Inverse Jacobian matrix if available
     real(dp), intent(out) :: invJac(:,:)
 
-    select case (self%mixerType)
+    select case (this%mixerType)
     case(mixerTypes%simple)
       call error("Simple mixer does not provide inverse Jacobian")
     case (mixerTypes%anderson)
       call error("Anderson mixer does not provide inverse Jacobian")
     case (mixerTypes%broyden)
-      call getInverseJacobian(self%pBroydenMixer, invJac)
+      call getInverseJacobian(this%pBroydenMixer, invJac)
     case (mixerTypes%diis)
       call error("DIIS mixer does not provide inverse Jacobian")
     end select

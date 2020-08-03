@@ -69,13 +69,12 @@ contains
     ! with the old parser as the options have changed to the new parser by now
     call getChildValue(root, "ParserOptions", ch1, "", child=par, &
         &allowEmptyValue=.true.)
-    call getChildValue(par, "ParserVersion", version, child=ch2)
-    call setChildValue(ch2, "", curVersion, replace=.true.)
+    call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
 
 
-  !> Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
+  !> Converts input from version 1 to 2. (Version 2 introduced in August 2006)
   subroutine convert_1_2(root)
 
     !> Root tag of the HSD-tree
@@ -346,8 +345,8 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, par2, dummy
-    logical :: tVal, tVal2
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    logical :: tVal
     real(dp) :: rTmp
 
     call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
@@ -400,8 +399,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, par
-    logical :: tVal
+    type(fnode), pointer :: ch1
 
     call getDescendant(root, "Hamiltonian/DFTB/OrbitalResolvedSCC", ch1)
     if (associated(ch1)) then
@@ -477,7 +475,6 @@ contains
 
     type(fnode), pointer :: pD3, pDampMethod, pChild
     type(string) :: buffer
-    real(dp) :: dummy
 
     call getDescendant(root, "Hamiltonian/DFTB/Dispersion/DftD3", pD3)
     if (.not. associated(pD3)) then

@@ -443,8 +443,12 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nmat, natom
-    integer :: ia, ii, jj
+    integer :: nmat, natom, ia
+
+  #:if WITH_OMP
+    integer :: ii, jj
+  #:endif
+
     real(dp) :: fact
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
@@ -575,7 +579,7 @@ contains
     real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
     logical :: updwn
     integer :: nmat, nAtom, nOrb
-    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin
+    integer :: ia, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin
     real(dp) :: degeneracy, partTrace
 
     nmat = size(vin)
@@ -657,8 +661,8 @@ contains
 
 
   !> Multiplies the supermatrix (A+B) with a given vector.
-  subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma, transChrg)
+  subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, getij, iAtomStart, stimc, grndEigVecs, gamma,&
+      & transChrg)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -677,9 +681,6 @@ contains
 
     !> index array
     integer, intent(in) :: win(:)
-
-    !> number of same spin transitions
-    integer, intent(in) :: nmatup
 
     !> index array
     integer, intent(in) :: getij(:,:)
@@ -700,8 +701,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     !> gamma matrix
-    integer :: ia, ii, jj
-    real(dp) :: tmp(natom), gtmp(natom), qij(natom)
+    real(dp) :: tmp(natom), gtmp(natom)
 
     @:ASSERT(size(rkm1) == nmat)
 
@@ -811,7 +811,7 @@ contains
     tdip(:,:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,rtmp) SCHEDULE(RUNTIME)
     do ii = 1, size(evec, dim=2)
-      rtmp = eval(ii)**(-4) ! 1._dp / sqrt(sqrt(eval(ii)))
+      rtmp = eval(ii)**(-0.25_dp) ! 1._dp / sqrt(sqrt(eval(ii)))
       do ll = 1, 3
         tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) * rtmp
       end do

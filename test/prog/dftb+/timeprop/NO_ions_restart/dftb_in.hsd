@@ -41,29 +41,25 @@ Options {
     WriteAutotestTag = Yes
 }
 
-ParserOptions {
-    ParserVersion = 5
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-      Steps = 5000
-      TimeStep [au] = 0.2
-      Perturbation = Laser {
-        PolarizationDirection = 1.0 0.0 0.0
-        LaserEnergy [eV] = 11.66
-      }
-      EnvelopeShape = Sin2 {
-        Time0 [fs] = 10.0
-        Time1 [fs] = 30.0
-      }
-      FieldStrength [v/a] = 0.01
-      IonDynamics = yes
-      Restart = yes
-      WriteRestart = No
-      Populations = Yes
-    }
- }
+ElectronDynamics = {
+  Steps = 5000
+  TimeStep [au] = 0.2
+  Perturbation = Laser {
+    PolarizationDirection = 1.0 0.0 0.0
+    LaserEnergy [eV] = 11.66
+  }
+  EnvelopeShape = Sin2 {
+    Time0 [fs] = 10.0
+    Time1 [fs] = 30.0
+  }
+  FieldStrength [v/a] = 0.01
+  IonDynamics = yes
+  Restart = yes
+  WriteRestart = No
+  Populations = Yes
+}
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with

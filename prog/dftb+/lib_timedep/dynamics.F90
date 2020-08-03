@@ -42,8 +42,8 @@ module dftbp_timeprop
   use dftbp_periodic
   use dftbp_velocityverlet
   use dftbp_nonscc
-  use dftbp_energies, only: TEnergies, init
-  use dftb_evaluateenergies
+  use dftbp_energytypes, only : TEnergies, TEnergies_init
+  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
   use dftbp_populations
@@ -62,6 +62,7 @@ module dftbp_timeprop
   use dftbp_simplealgebra
   use dftbp_RangeSeparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_reks, only : TReksCalc
   implicit none
   private
 
@@ -450,7 +451,7 @@ contains
     this%eulerFreq = inp%eulerFreq
     this%tBondE = inp%tBondE
     if (this%tBondE .and. .not. this%tRealHS) then
-      call error("Real hamitonian required for bond energies")
+      call error("Real hamiltonian required for bond energies")
     end if
     this%tBondP = inp%tBondP
     this%species = species
@@ -492,6 +493,8 @@ contains
         this%movedMass(:,:) = spread(mass, 1, 3)
         allocate(this%derivator, source=nonSccDeriv)
         this%indMovedAtom = [(iAtom, iAtom = 1, nAtom)]
+      else
+        this%nMovedAtom = 0
       end if
       allocate(this%movedVelo(3, nAtom))
       this%movedVelo(:,:) = 0.0_dp
@@ -549,7 +552,7 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
-    !> Sparse non-SCC hamitonian
+    !> Sparse non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> species of all atoms in the system
@@ -558,7 +561,7 @@ contains
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -750,13 +753,13 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -883,7 +886,7 @@ contains
     integer :: dipoleDat, qDat, energyDat, populDat(this%parallelKS%nLocalKS)
     integer :: forceDat, coorDat
     integer :: fdBondPopul, fdBondEnergy
-    integer :: iStep, iSpin, iKS
+    integer :: iStep, iKS
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
@@ -1170,13 +1173,13 @@ contains
     !> Square hamiltonian at each spin and k-point
     complex(dp), intent(inout) :: H1(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
     real(dp), intent(inout) :: over(:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> species of all atoms in the system
@@ -1335,7 +1338,7 @@ contains
     potential%intShell = potential%intShell + potential%extShell
 
     call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
-        & img2CentCell, potential, ham, iHam)
+        & img2CentCell, potential, .false., ham, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
@@ -1484,6 +1487,9 @@ contains
     end if
 
     call openFile(this, laserDat, 'laser.dat')
+    if (.not. this%tEnvFromFile) then
+      write(laserDat, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+    end if
 
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
@@ -1630,7 +1636,7 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
 
     !> atomic ocupations
@@ -1719,6 +1725,7 @@ contains
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
     logical :: tDFTBU
+    type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
     ! check allways that getEnergy is called AFTER getForces
@@ -1747,7 +1754,7 @@ contains
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
         & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep,&
+        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
         & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
         & tFixEf, Ef, onSiteElements)
     ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
@@ -1780,7 +1787,7 @@ contains
     !> overlap (sparse)
     real(dp), allocatable, intent(in) :: over(:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(in) :: ham(:,:)
 
     !> occupations
@@ -1831,10 +1838,10 @@ contains
     !> Adjoint of the inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out) :: EiginvAdj(:,:,:)
 
-    !> Non-SCC hamitonian
+    !> Non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(out) :: ham0(:)
 
     !> Raw overlap data
@@ -1978,7 +1985,7 @@ contains
     end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
-    call init(energy, this%nAtom)
+    call TEnergies_init(energy, this%nAtom)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
@@ -2193,10 +2200,9 @@ contains
     integer, intent(out) :: coorDat
 
     character(20) :: dipoleFileName
-    character(1) :: strSpin, strCount
+    character(1) :: strSpin
     character(3) :: strK
     integer :: iSpin, iKS, iK
-    logical :: exist
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -2211,12 +2217,50 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
+    write(dipoleDat, "(A)", advance = "NO")"#           time (fs)    |"
+    select case(this%nSpin)
+    case(1)
+      write(dipoleDat, "(A)", advance = "NO")"     mu_x (e.angstrom)   |"
+      write(dipoleDat, "(A)", advance = "NO")"     mu_y (e.angstrom)   |"
+      write(dipoleDat, "(A)", advance = "NO")"     mu_z (e.angstrom)   |"
+    case(2)
+      write(dipoleDat, "(A)", advance = "NO")"  mu_x (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_y (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_z (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")" mu_x (down) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_y (down) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_z (down) (e.angstrom)|"
+    end select
+    write(dipoleDat, "(A)")
+
     if (this%tdWriteExtras) then
       call openFile(this, qDat, 'qsvst.dat')
+      write(qDat, "(A)", advance = "NO")"#             time (fs)      |"
+      write(qDat, "(A)", advance = "NO")"   total net charge (e)  |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_1) (e)   |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_2) (e)   |"
+      write(qDat, "(A)", advance = "NO")"        ...        |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_N) (e)   |"
+      write(qDat, "(A)")
+
       call openFile(this, energyDat, 'energyvst.dat')
+      write(energyDat, "(A)", advance = "NO")"#                  time (fs)         |"
+      write(energyDat, "(A)", advance = "NO")"        E total (H)         |"
+      write(energyDat, "(A)", advance = "NO")"        E non-SCC (H)       |"
+      write(energyDat, "(A)", advance = "NO")"            E SCC (H)       |"
+      write(energyDat, "(A)", advance = "NO")"           E spin (H)       |"
+      write(energyDat, "(A)", advance = "NO")"       E external (H)       |"
+      write(energyDat, "(A)", advance = "NO")"            E rep (H)       |"
+      write(energyDat, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
+      write(energyDat, "(A)", advance = "NO")"     E dispersion (H)       |"
+      write(energyDat, "(A)")
 
       if (this%tForces) then
         call openFile(this, forceDat, 'forcesvst.dat')
+        write(forceDat, "(A)", advance = "NO")"#           time (fs)       |"
+        write(forceDat, "(A)", advance = "NO")" force (atom_1) (H/b)   |  force (atom_2) (H/b)  |"
+        write(forceDat, "(A)", advance = "NO")"           ...          |  force (atom_N) (H/b)  |"
+        write(forceDat, "(A)")
       end if
 
       if (this%tIons) then
@@ -2230,12 +2274,22 @@ contains
         write(strSpin,'(i1)')iSpin
         if (this%tRealHS) then
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
+          write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : ",&
+              & trim(strSpin)
         else
           iK = this%parallelKS%localKS(1, iKS)
           write(strK,'(i0.3)')iK
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
               & '.dat')
+          write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : ",&
+              & trim(strSpin), ", k-point number: ", trim(strK)
         end if
+        write(populDat(iKS), "(A)", advance = "NO")"#          time (fs)            |"
+        write(populDat(iKS), "(A)", advance = "NO")"   population (orb 1)       |"
+        write(populDat(iKS), "(A)", advance = "NO")"    population (orb 2)      |"
+        write(populDat(iKS), "(A)", advance = "NO")"           ...              |"
+        write(populDat(iKS), "(A)", advance = "NO")"    population (orb N)      |"
+        write(populDat(iKS), "(A)")
       end do
     end if
 
@@ -2639,8 +2693,7 @@ contains
     real(dp), intent(in) :: totalForce(:,:)
 
     real(dp) :: auxVeloc(3, this%nAtom)
-    integer :: iAtom, iAtom2, iSpin, iDir
-    logical :: isOpen
+    integer :: iAtom, iSpin, iDir
 
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
@@ -2993,10 +3046,10 @@ contains
     !> Square overlap matrix
     complex(dp), intent(inout), allocatable :: Ssqr(:,:,:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
 
-    !> scc hamitonian (sparse)
+    !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -3383,13 +3436,13 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
 
-    !> scc hamitonian (sparse)
+    !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
     real(dp), allocatable, intent(inout) :: over(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
 
     !> sparse density matrix
@@ -3499,7 +3552,7 @@ contains
     !> overlap (sparse)
     real(dp), intent(in) :: over(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
 
     !> Atomic neighbour data

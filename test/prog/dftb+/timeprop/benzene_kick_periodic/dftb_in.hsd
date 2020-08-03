@@ -49,19 +49,15 @@ Options = {
     WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-    ParserVersion = 5
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 200
-        TimeStep [au] = 0.2
-        Perturbation = Kick {
-            PolarizationDirection = "all"
-        }
-        FieldStrength [v/a] = 0.001
+ElectronDynamics = {
+    Steps = 200
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "all"
     }
+    FieldStrength [v/a] = 0.001
 }
 
 Parallel {

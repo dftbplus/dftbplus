@@ -1,32 +1,30 @@
-Note: The license below covers all sofware components of the DFTB+
-package, except external software components located in the
-'external/' directory. Those external software components are not part
-of the DFTB+ project and are only distributed with the DFTB+ source
-for your convenience. Please consult the license file of each external
-software component for its individual copyright information and
-licensing terms.
+DFTB+: general package for performing fast atomistic simulations
+Copyright (C) 2006 - 2020  DFTB+ developers group
 
-|------------------------------------------------------------------------|
-|  DFTB+: general package for performing fast atomistic simulations      |
-|  Copyright (C) 2006 - 2020  DFTB+ developers group                     |
-|                                                                        |
-|  This program is free software: you can redistribute it and/or modify  |
-|  it under the terms of the GNU Lesser General Public License as        |
-|  published by the Free Software Foundation, either version 3 of the    |
-|  License, or (at your option) any later version.                       |
-|                                                                        |
-|  This program is distributed in the hope that it will be useful, but   |
-|  WITHOUT ANY WARRANTY; without even the implied warranty of            |
-|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU     |
-|  Lesser General Public License for more details.                       |
-|                                                                        |
-|  You should have received a copy of the GNU Lesser General Public      |
-|  License along with this program.  If not, see                         |
-|  <http://www.gnu.org/licenses/>.                                       |
-|------------------------------------------------------------------------|
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------
 
 Documents (e.g. manual) are licensed under the Creative Commons
 Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) license. See
-<https://creativecommons.org/licenses/by-sa/4.0/> for details on the
-licensing terms.
+<https://creativecommons.org/licenses/by-sa/4.0/> for details on the licensing
+terms.
+
+--------------------------------------------------------------------------------
+
+External software components in the 'external/' directory are not part the of
+the DFTB+ project and are only distributed with the DFTB+ source for your
+convenience. Please consult the license file of each external software component
+for its individual copyright information and licensing terms.
+
+--------------------------------------------------------------------------------

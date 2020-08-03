@@ -136,7 +136,7 @@ contains
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
-    !> non-SCC hamitonian data
+    !> non-SCC hamiltonian data
     type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
@@ -326,7 +326,7 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getij(nxov, 2))
-    ALLOCATE(transitionDipoles(nxov, 3))
+    ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
@@ -375,7 +375,7 @@ contains
       if (.not. this%tEnergyWindow) then
 
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wij, sposz, win, snglPartTransDip,nxov_rd, this%oscillatorWindow,&
+        call dipselect(wij, sposz, win, snglPartTransDip, nxov_rd, this%oscillatorWindow,&
             & grndEigVal, getij)
 
       else
@@ -427,13 +427,13 @@ contains
       write(this%fdTrans,*)
     endif
 
-    ! single particle transition dipole file
+    ! Many-body transition dipole file to excited states
     if (this%fdTradip > 0) then
       open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,57("="))')
+      write(this%fdTradip,'(1x,60("="))')
       write(this%fdTradip,*)
     endif
 
@@ -603,9 +603,9 @@ contains
 
         if (tForces) then
           call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc, nocc_r,&
-              & nxov_ud(1), getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU,&
-              & this%spinW, shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont,&
-              & skOverCont, derivator, rhoSqr(:,:,1), excgrad)
+              & getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU, this%spinW,&
+              & shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont, skOverCont,&
+              & derivator, rhoSqr(:,:,1), excgrad)
         end if
 
       end do
@@ -855,7 +855,7 @@ contains
       tSpin = .false.
     end if
 
-    transitionDipoles = 0.0_dp
+    transitionDipoles(:,:) = 0.0_dp
     osz = 0.0_dp
 
     ! Triplet oscillator strength and transition dipole is zero for
@@ -1175,7 +1175,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov
-    integer :: ia, i, a, k
+    integer :: ia, kk
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qij(:), P(:)
@@ -1200,19 +1200,17 @@ contains
     rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
-    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-        & transChrg)
+    call apbw(rkm1, rhs2, wij, nxov, natom, win, getij, iAtomStart, stimc, c, gammaMat, transChrg)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
     pkm1(:) = zkm1
 
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
-    do k = 1, nxov**2
+    do kk = 1, nxov**2
 
       ! action of matrix on vector
-      call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-          & transChrg)
+      call apbw(apk, pkm1, wij, nxov, natom, win, getij, iAtomStart, stimc, c, gammaMat, transChrg)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
@@ -1229,7 +1227,7 @@ contains
         exit
       end if
 
-      if (k == nxov**2) then
+      if (kk == nxov**2) then
         call error("solveZVectorEq : Z vector not converged!")
       end if
 
@@ -1300,7 +1298,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov, nxoo, nxvv, natom
-    integer :: ij, ia, ab, i, j, a, b, iAt1
+    integer :: ij, ia, ab, i, j, a, b
     real(dp), allocatable :: qij(:), gamxpyq(:), zq(:)
     logical, parameter :: updwn = .true.
 
@@ -1425,8 +1423,8 @@ contains
   !> 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, nmatup, getij,&
-      & win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
+  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, getij, win,&
+      & grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
       & transChrg, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
 
     !> symmetry of the transition
@@ -1456,9 +1454,6 @@ contains
 
     !> single particle transition index
     integer, intent(in) :: win(:)
-
-    !> number of up->up transitions
-    integer, intent(in) :: nmatup
 
     !> index array from composite transition index to specific single particle states
     integer, intent(in) :: getij(:,:)
@@ -1874,8 +1869,7 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nmat
-    integer :: ii, j, iweight, indo, m, n
-    integer :: iDeg
+    integer :: ii, jj, iweight, indo, m, n
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
     integer, allocatable :: wvin(:)
@@ -1956,9 +1950,9 @@ contains
           write(fdTrans,'(1x,45("="))')
 
           sign = " "
-          do j = 1, nmat
-            !if (wvec(j) < 1e-4_dp) exit ! ??????
-            indo = wvin(j)
+          do jj = 1, nmat
+            !if (wvec(jj) < 1e-4_dp) exit ! ??????
+            indo = wvin(jj)
             call indxov(win, indo, getij, m, n)
             if (tSpin) then
               updwn = (win(indo) <= nmatup)
@@ -1966,16 +1960,17 @@ contains
               if (updwn) sign = "U"
             end if
             write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
+                & m, '->', n, sign, wvec(jj), Hartree__eV * wij(wvin(jj))
           end do
           write(fdTrans,*)
         end if
 
         if (fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,j)&
-              & * au__Debye, j=1,3)
+          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
+              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
+              & * au__Debye, jj=1,3)
         end if
+
       else
 
         ! find largest coefficient in CI - should use maxloc
@@ -2034,6 +2029,10 @@ contains
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
+        if (fdTradip > 0) then
+          call taggedWriter%write(fdTagged, tagLabels%excDipole,&
+              & sqrt(sum(transitionDipoles**2,dim=2)))
+        end if
       else
         degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
@@ -2043,6 +2042,13 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
+        if (fdTradip > 0) then
+          oDeg(:) = 0.0_dp
+          do ii = 1, size(oDeg)
+            oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
+          end do
+          call taggedWriter%write(fdTagged, tagLabels%excDipole, oDeg)
+        end if
       end if
 
     end if

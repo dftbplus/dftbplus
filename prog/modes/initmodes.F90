@@ -113,7 +113,6 @@ contains
     type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
-    logical :: tHSD
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename

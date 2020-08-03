@@ -64,16 +64,12 @@ Hamiltonian = DFTB {
  Options = {
    WriteAutotestTag = Yes 
  }
- ParserOptions = {
-   ParserVersion = 5
- }
- Analysis = {
-    ElectronDynamics = {
-      Steps = 2000
-      TimeStep [au] = 0.2
-      FieldStrength [v/a] = 0.001
-      Perturbation = kick {
-       PolarizationDirection = "x"
-      }	
+InputVersion = 20.1
+ ElectronDynamics = {
+   Steps = 2000
+   TimeStep [au] = 0.2
+   FieldStrength [v/a] = 0.001
+   Perturbation = kick {
+    PolarizationDirection = "x"
    }
  }

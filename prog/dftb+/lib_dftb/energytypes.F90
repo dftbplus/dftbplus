@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module dftbp_energies
+module dftbp_energytypes
   use dftbp_assert
   use dftbp_accuracy
   implicit none
   private
 
-  public :: TEnergies, init
+  public :: TEnergies, TEnergies_init
 
 
   !> Data type to store components of the energy as named variables instead of
@@ -69,7 +69,8 @@ module dftbp_energies
     !> total energy (Erep+Etotal)
     real(dp) :: Etotal  = 0.0_dp
 
-    !> Total Mermin energy
+    !> Total Mermin energy (note that this may be evaluated even when the TS term cannot be set, so
+    !> contains the same as Etotal in those cases)
     real(dp) :: EMermin = 0.0_dp
 
     !> Zero temperature extrapolated energy
@@ -139,73 +140,68 @@ module dftbp_energies
   end type TEnergies
 
 
-  !> initialise the data type for storing energies
-  interface init
-    module procedure Energies_init
-  end interface init
-
 contains
 
 
   !> Allocates storage for the energy components
-  subroutine Energies_init(self, nAtom)
+  subroutine TEnergies_init(this, nAtom)
 
     !> data structure to allocate
-    type(TEnergies), intent(out) :: self
+    type(TEnergies), intent(out) :: this
 
     !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 
-    allocate(self%atomRep(nAtom))
-    allocate(self%atomNonSCC(nAtom))
-    allocate(self%atomSCC(nAtom))
-    allocate(self%atomSpin(nAtom))
-    allocate(self%atomLS(nAtom))
-    allocate(self%atomDftbu(nAtom))
-    allocate(self%atomExt(nAtom))
-    allocate(self%atomElec(nAtom))
-    allocate(self%atomDisp(nAtom))
-    allocate(self%atomOnSite(nAtom))
-    allocate(self%atomHalogenX(nAtom))
-    allocate(self%atom3rd(nAtom))
-    allocate(self%atomSolv(nAtom))
-    allocate(self%atomTotal(nAtom))
-    self%atomRep(:) = 0.0_dp
-    self%atomNonSCC(:) = 0.0_dp
-    self%atomSCC(:) = 0.0_dp
-    self%atomSpin(:) = 0.0_dp
-    self%atomLS(:) = 0.0_dp
-    self%atomDftbu(:) = 0.0_dp
-    self%atomExt(:) = 0.0_dp
-    self%atomElec(:) = 0.0_dp
-    self%atomDisp(:) = 0.0_dp
-    self%atomOnSite(:) = 0.0_dp
-    self%atomHalogenX(:) = 0.0_dp
-    self%atom3rd(:) = 0.0_dp
-    self%atomSolv(:) = 0.0_dp
-    self%atomTotal(:) = 0.0_dp
+    allocate(this%atomRep(nAtom))
+    allocate(this%atomNonSCC(nAtom))
+    allocate(this%atomSCC(nAtom))
+    allocate(this%atomSpin(nAtom))
+    allocate(this%atomLS(nAtom))
+    allocate(this%atomDftbu(nAtom))
+    allocate(this%atomExt(nAtom))
+    allocate(this%atomElec(nAtom))
+    allocate(this%atomDisp(nAtom))
+    allocate(this%atomOnSite(nAtom))
+    allocate(this%atomHalogenX(nAtom))
+    allocate(this%atom3rd(nAtom))
+    allocate(this%atomSolv(nAtom))
+    allocate(this%atomTotal(nAtom))
+    this%atomRep(:) = 0.0_dp
+    this%atomNonSCC(:) = 0.0_dp
+    this%atomSCC(:) = 0.0_dp
+    this%atomSpin(:) = 0.0_dp
+    this%atomLS(:) = 0.0_dp
+    this%atomDftbu(:) = 0.0_dp
+    this%atomExt(:) = 0.0_dp
+    this%atomElec(:) = 0.0_dp
+    this%atomDisp(:) = 0.0_dp
+    this%atomOnSite(:) = 0.0_dp
+    this%atomHalogenX(:) = 0.0_dp
+    this%atom3rd(:) = 0.0_dp
+    this%atomSolv(:) = 0.0_dp
+    this%atomTotal(:) = 0.0_dp
 
-    self%Erep = 0.0_dp
-    self%EnonSCC = 0.0_dp
-    self%ESCC = 0.0_dp
-    self%Espin = 0.0_dp
-    self%Efock = 0.0_dp
-    self%ELS = 0.0_dp
-    self%Edftbu = 0.0_dp
-    self%Eext = 0.0_dp
-    self%Eelec = 0.0_dp
-    self%EDisp = 0.0_dp
-    self%EOnSite = 0.0_dp
-    self%EHalogenX = 0.0_dp
-    self%E3rd = 0.0_dp
-    self%ESolv = 0.0_dp
-    self%Etotal = 0.0_dp
-    self%EMermin = 0.0_dp
-    self%EGibbs = 0.0_dp
-    self%EKin = 0.0_dp
-    self%EMerminKin = 0.0_dp
-    self%EGibbsKin = 0.0_dp
+    this%Erep = 0.0_dp
+    this%EnonSCC = 0.0_dp
+    this%ESCC = 0.0_dp
+    this%Espin = 0.0_dp
+    this%Efock = 0.0_dp
+    this%ELS = 0.0_dp
+    this%Edftbu = 0.0_dp
+    this%Eext = 0.0_dp
+    this%Eelec = 0.0_dp
+    this%EDisp = 0.0_dp
+    this%EOnSite = 0.0_dp
+    this%EHalogenX = 0.0_dp
+    this%E3rd = 0.0_dp
+    this%ESolv = 0.0_dp
+    this%Etotal = 0.0_dp
+    this%EMermin = 0.0_dp
+    this%EGibbs = 0.0_dp
+    this%EKin = 0.0_dp
+    this%EMerminKin = 0.0_dp
+    this%EGibbsKin = 0.0_dp
 
-  end subroutine Energies_init
+  end subroutine TEnergies_init
 
-end module dftbp_energies
+end module dftbp_energytypes

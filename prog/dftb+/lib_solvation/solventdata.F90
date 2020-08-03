@@ -31,8 +31,8 @@ module dftbp_solventdata
 contains
 
 
-  subroutine solventFromName(self, name, found)
-    type(TSolventData), intent(out) :: self
+  subroutine solventFromName(this, name, found)
+    type(TSolventData), intent(out) :: this
     character(len=*), intent(in) :: name
     logical, intent(out) :: found
 
@@ -42,33 +42,33 @@ contains
     case default
       return
     case("acetone")
-      self = TSolventData(20.7_dp, 58.08_dp*amu__au, 0.79_dp*kgPerL__au)
+      this = TSolventData(20.7_dp, 58.08_dp*amu__au, 0.79_dp*kgPerL__au)
     case("acetonitrile")
-      self = TSolventData(37.5_dp, 41.05_dp*amu__au, 0.786_dp*kgPerL__au)
+      this = TSolventData(37.5_dp, 41.05_dp*amu__au, 0.786_dp*kgPerL__au)
     case("toluene")
-      self = TSolventData(7.0_dp, 92.14_dp*amu__au, 0.867_dp*kgPerL__au)
+      this = TSolventData(7.0_dp, 92.14_dp*amu__au, 0.867_dp*kgPerL__au)
     case("benzene", "c6h6")
-      self = TSolventData(7.0_dp, 78.11_dp*amu__au, 0.867_dp*kgPerL__au)
+      this = TSolventData(7.0_dp, 78.11_dp*amu__au, 0.867_dp*kgPerL__au)
     case("chloroform", "trichloromethane", "chcl3")
-      self = TSolventData(7.0_dp, 119.38_dp*amu__au, 1.49_dp*kgPerL__au)
+      this = TSolventData(7.0_dp, 119.38_dp*amu__au, 1.49_dp*kgPerL__au)
     case("dichloromethane", "ch2cl2")
-      self = TSolventData(7.0_dp, 84.93_dp*amu__au, 1.33_dp*kgPerL__au)
+      this = TSolventData(7.0_dp, 84.93_dp*amu__au, 1.33_dp*kgPerL__au)
     case("cs2")
-      self = TSolventData(2.6_dp, 76.13_dp*amu__au, 1.266_dp*kgPerL__au)
+      this = TSolventData(2.6_dp, 76.13_dp*amu__au, 1.266_dp*kgPerL__au)
     case("dmf")
-      self = TSolventData(37.0_dp, 73.1_dp*amu__au, 0.95_dp*kgPerL__au)
+      this = TSolventData(37.0_dp, 73.1_dp*amu__au, 0.95_dp*kgPerL__au)
     case("dmso")
-      self = TSolventData(47.2_dp, 78.13_dp*amu__au, 1.1_dp*kgPerL__au)
+      this = TSolventData(47.2_dp, 78.13_dp*amu__au, 1.1_dp*kgPerL__au)
     case("ether")
-      self = TSolventData(7.3_dp, 74.12_dp*amu__au, 0.713_dp*kgPerL__au)
+      this = TSolventData(7.3_dp, 74.12_dp*amu__au, 0.713_dp*kgPerL__au)
     case("water", "h2o")
-      self = TSolventData(78.5_dp, 18.0_dp*amu__au, 0.998_dp*kgPerL__au)
+      this = TSolventData(78.5_dp, 18.0_dp*amu__au, 0.998_dp*kgPerL__au)
     case("methanole")
-      self = TSolventData(33.6_dp, 32.04_dp*amu__au, 0.792_dp*kgPerL__au)
+      this = TSolventData(33.6_dp, 32.04_dp*amu__au, 0.792_dp*kgPerL__au)
     case("nhexane", "n-hexane")
-      self = TSolventData(1.88_dp, 86.18_dp*amu__au, 0.66_dp*kgPerL__au)
+      this = TSolventData(1.88_dp, 86.18_dp*amu__au, 0.66_dp*kgPerL__au)
     case("thf")
-      self = TSolventData(10.0_dp, 72.1061_dp*amu__au, 0.883_dp*kgPerL__au)
+      this = TSolventData(10.0_dp, 72.1061_dp*amu__au, 0.883_dp*kgPerL__au)
     end select
 
     found = .true.

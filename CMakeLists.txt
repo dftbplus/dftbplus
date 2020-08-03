@@ -7,15 +7,16 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 dftbp_ensure_out_of_source_build()
+dftbp_load_build_settings()
 
-include(${CMAKE_SOURCE_DIR}/config.cmake)
+project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
-project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES NONE)
+# By default, use intrinsic Fortran 2008 erf/erfc
+set(INTERNAL_ERFC CACHE BOOL 0)
+
+dftbp_load_toolchain_settings()
+dftbp_setup_global_compiler_flags()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-dftbp_ensure_compiler_def(Fortran)
-enable_language(Fortran)
-dftbp_ensure_compiler_def(C)
-enable_language(C)
 
 # Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
@@ -29,12 +30,17 @@ dftbp_ensure_config_consistency()
 dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
-  dftbp_get_api_release(API_RELEASE)
+  dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
 
-
-if(WITH_MPI)
-  find_package(MPI REQUIRED)
+find_package(MPI)
+if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
+  message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
+    "a WITH_MPI=TRUE build")
+elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
+  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} found for a non-MPI build. Your "
+    "build will NOT be MPI-parallelised. Set WITH_MPI=TRUE in order to obtain an MPI-parallelised "
+    "build.")
 endif()
 
 if(WITH_OMP)
@@ -59,7 +65,8 @@ if(WITH_MPI)
 endif()
 
 if(WITH_ELSI)
-  find_package(elsi REQUIRED PATHS ${ELSI_ROOT})
+  set(ELSI_MIN_VERSION "2.5.0")
+  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED PATHS ${ELSI_ROOT})
   dftbp_create_library_targets("${ELSI_EXTERNAL_LIBRARIES}" "${ELSI_EXTERNAL_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_PACKAGES elsi)
   list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${ELSI_EXTERNAL_LIBRARIES})
@@ -74,6 +81,15 @@ if(WITH_ELSI)
     list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${PEXSI_EXTERNAL_LIBRARIES})
     list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${PEXSI_EXTERNAL_LIBRARY_DIRS})
   endif()
+  if(elsi_VERSION VERSION_GREATER "2.5.0")
+    message(STATUS "ELSI > v2.5.0")
+    list(APPEND FYPP_FLAGS -DELSI_VERSION=2.6)
+  else()
+    list(APPEND FYPP_FLAGS -DELSI_VERSION=2.5)
+    message(STATUS "ELSI v2.5.0")
+  endif()
+else()
+  list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
 endif()
 
 if(WITH_PLUMED)
@@ -95,6 +111,7 @@ if(WITH_ARPACK)
 endif()
 
 if(WITH_GPU)
+  find_package(MAGMA REQUIRED)
   dftbp_create_library_targets("${MAGMA_LIBRARIES}" "${MAGMA_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${MAGMA_LIBRARIES})
   list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${MAGMA_LIBRARY_DIRS})
@@ -103,7 +120,6 @@ endif()
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
 list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
-
 
 #
 # Preprocessor details

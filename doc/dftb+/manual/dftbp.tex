@@ -59,7 +59,9 @@ Additionally optional blocks of definitions may be present:
   \kw{Options} & p & & \cb & \pref{sec:dftbp.Options} \\
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
+  \kw{ElectronDynamics} & p & & \cb & \pref{sec:dftbp.ElectronDynamics} \\
   \kw{REKS} & p & & \cb & \pref{sec:dftbp.REKS} \\
+  \kw{InputVersion} & s & & None & \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
   \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
@@ -77,8 +79,11 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.Analysis}.
 \item[\is{ExcitedState}] Calculations in excited state of the system.
   See p.~\pref{sec:dftbp.ExcitedState}.
+\item[\is{ElectronDynamics}] Real time electronic dynamics of the system.  See
+  p.~\pref{sec:dftbp.ElectronDynamics}.
 \item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
   See p.~\pref{sec:dftbp.REKS}.
+\item[\is{InputVersion}] Program version, which the input file was written for.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
@@ -1926,7 +1931,8 @@ $O(N_\mathrm{atom}^{d/2 + 1/2})$ where $d$ is the effective dimensionality of
 the system. Hence for three dimensional structures it will scale as $O(N^2)$ for
 general systems.
 \begin{ptable}
-  \kw{Poles}        & i & & 20 & \\
+  \kw{Method}       & i & (PEXSI $>$ 2.5) & 3 & \\
+  \kw{Poles}        & i & \is{Method} = 3 & 30 & \\
   \kw{ProcsPerPole} & i & & 1  & \\
   \kw{muPoints}     & i & & 2  & \\
   \kw{SymbolicFactorProcs} & i & & 1  & \\
@@ -1935,7 +1941,15 @@ general systems.
   \kw{Threshold} & l& Sparse = No & 1E-15 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Poles}] number of poles for the complex plane calculation.
+\item[\is{Method}] used for pole expansion. ELSI v2.5 only supports methods 1
+  and 2, but v2.6 onwards offers method 3 as well (see the
+  \href{https://wordpress.elsi-interchange.org/index.php/download/}{ELSI user
+    manual} for details of the methods). Methods 1 and 3 can calculate the
+  electron entropy, so enable the Mermin energy to be evaluated. When compiled
+  with ELSI v2.5, the \dftbp{} default is \is{Method}=2, while for later
+  versions method 3 is the default.
+\item[\is{Poles}] number of poles for the complex plane calculation. \is{Method}=1
+  defaults to 60 poles, 2 has 20 and method 3 uses 30 by default.
 \item[\is{ProcsPerPole}] processors used to calculate the inversion at each pole.
 \item[\is{muPoints}] number of processors used to search for the Fermi level.
 \item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
@@ -2733,6 +2747,7 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{CutoffCN} & r & & $40$ & \\
   \kw{Threebody} & l & & No & \\
   \kw{HHRepulsion} & l & & No & \\
+  \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 \begin{description}
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
@@ -2743,6 +2758,16 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
+  \begin{verbatim}
+  # Default species (H-Og) are implied
+  AtomicNumbers {
+    D = 1  # set deuterium as hydrogen
+    S = 6  # overwrite sulfur as carbon
+  }
+  \end{verbatim}
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
@@ -2824,6 +2849,7 @@ can be adjusted in the input.
   \kw{CutoffThree} & r & & 40 & \\
   \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
   \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+  \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 
 \begin{description}
@@ -2853,6 +2879,9 @@ can be adjusted in the input.
 
 \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
   calculating three-body interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
 
 \end{description}
 
@@ -3898,7 +3927,6 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
-  \kw{ElectronDynamics} & m & & \cb & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
 \end{ptable}
 
@@ -4031,378 +4059,6 @@ method which {\em may} have better scaling properties.
   for the actual calculation (e.g.\ static geometry calculation).
 
 \end{description}
-
-\subsection{ElectronDynamics}
-
-\label{sec:dftbp.ElectronDynamics}
-
-Calculate the real-time propagation of both the electronic state of the
-system and the nuclei within the Ehfenfest approximation in the presence of an external
-time-dependent perturbation, as described in Ref. ~\cite{realtime1}.
-\begin{ptable}
-  \kw{Steps} &i &  & - & \\
-  \kw{TimeStep} & r & & - & \\
-  \kw{FieldStrength} & r & & - & \\
-  \kw{Perturbation} & m & & None & \pref{sec:dftbp.tdpert} \\
-  \kw{EnvelopeShape} & m & Perturbation = Laser\cb & Constant & \pref{sec:dftbp.envelope} \\
-  \kw{Populations} & l & & No & \\
-  \kw{Restart} & l & & No & \\
-  \kw{RestartFromAscii} & l & Restart = Yes & No & \\
-  \kw{WriteRestart} & l & & Yes & \\
-  \kw{WriteAsciiRestart} & l & WriteRestart = Yes & No & \\
-  \kw{WriteFrequency} & i & & 50 & \\
-  \kw{WriteEnergyAndCharges} & l & & & \pref{sec:dftbp.tdextra} \\
-  \kw{RestartFrequency} & i & & Steps/10 & \\
-  \kw{Forces} & l & & No & \\
-  \kw{IonDynamics} & l & & No & \\
-  \kw{InitialTemperature} & r & IonDynamics = Yes & - & \\
-  \kw{MovedAtoms} & (i|s)+ & IonDynamics = Yes & 1:-1 & \\
-  \kw{Velocities} & (3r)* & IonDynamics = Yes & - & \\
-  \kw{Pump} & l & & No & \\
-  \kw{PumpProbeFrames} & i & Pump = Yes & - & \\
-  \kw{ProbeProbeRange} & 2r & Pump = Yes & 0 Steps*TimeStep & \\
-  \kw{Probe} & l & & No & \\
-  \kw{EulerFrequency} & i & & 0 & \\
-  \kw{WriteBondEnergy} & l & & No & \\
-  \kw{WriteBondPopulation} & l & & No & \\
-  \kw{FillingsFromFile} & l & & No & \\
-\end{ptable}
-
-\begin{description}
-\item[\is{Steps}] Number of propagation steps to perform.
-
-\item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
-  electronic propagation steps.
-
-\item[\is{FieldStrength}]\modif{\modtype{Electric field strength}}
-  Peak intensity of the applied time-dependent electric field.
-
-\item[\is{Populations}] If time-dependent (ground state) molecular
-  orbital populations should be calculated. This is done by projecting
-  the electronic state onto the ground state molecular orbitals. If
-  Yes, they are saved every \is{WriteFrequency} steps to
-  \verb|molpopul1.dat| (and \verb|molpopul2.dat| is the calculation is
-  collinearly spin polarised).
-
-\item[\is{Restart}] If calculation should be restarted. A restart file
-  \verb|tddump.bin| (or \verb|tddump.dat|) must be available in the working
-  directory.
-
-\item[\is{RestartFromAscii}] If this is a restart calculation (\is{Restart} =
-  \is{Yes}), read \verb|tddump.dat| instead of \verb|tddump.bin| in the working
-  directory.
-
-\item[\is{WriteRestart}] If a restart tddump file should be written. Details of
-  the contents of the file are discussed in appendix~\ref{app:tddump}.
-
-\item[\is{WriteAsciiRestart}] If a restart file is being written, select between
-  producing \verb|tddump.bin| (\is{No}) or if set to \is{Yes},
-  \verb|tddump.dat|.
-
-\item[\is{RestartFrequency}] Number of steps every which the system's
-  state should be writen to restart file.
-
-\item[\is{WriteFrequency}] Number of steps every which the atomic
-  charges and molecular orbital populations (if \is{Populations} =
-  Yes) are written to file.
-
-\item[\is{Forces}] If forces on all atoms should be calculated and
-  written to \verb|forcesvst.dat|.
-
-\item[\is{IonDynamics}] If nuclei should be propagated in the dynamics
-  using the Velocity Verlet algorithm. If set to Yes, then either the
-  \is{InitialTemperature} keyworkd or the \is{Velocities} keyword must
-  be set. The positions and velocities every \is{WriteFrequency} steps
-  will be saved in XYZ format to \verb|tdcoords.xyz|.
-
-\item[\is{MovedAtoms}] List of atoms that will be moved during the
-  dynamics. See \is{MovedAtoms} in section
-  \ref{sec:dftbp.SteepestDescent}.
-
-\item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
-  velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
-  distribution at the specified temperature. This keyword is redundant in the
-  case of specified initial velocities or for a restarted trajectory, so is
-  omitted in those cases.
-
-\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic
-  velocities for all the atoms of the given structure (including
-  ``velocities'' for any stationary atoms, which are silently
-  ignored). (\textbf{Note:} if the velocities from a previous (MD or
-  Ehrenfest) run are used, the velocities printed in the XYZ files are
-  specified in {\AA}/ps, so this should be set in the input). See
-  section \ref{sec:dftbp.VelocityVerlet}.
-
-\item[\is{Pump}] If this trajectory corresponds to the dynamics under
-  a pump pulse, with the intention to probe the system afterwards at
-  different delay times, to simulate a pump-probe transient absorption
-  experiment. The effect of the keyword is to write dump files named
-  \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$)
-  containing the state of the system (density matrix, coordinates,
-  velocities) every a given number of steps.
-
-\item[\is{PumpProbeFrames}] Number of total snapshots of the system in
-  the pump trajectory that will be saved for future probe
-  simulations. These are spaced uniformly in time over the
-  \is{PumpProbeRange}.
-
-\item[\is{PumpProbeRange}]\modif{\modtype{time}} The time range
-  (initial time and final time, separated by a space) between which
-  the snapshots will be dumped to file.
-
-\item[\is{Probe}] If this is the simulation of a probe. If set to yes,
-  then automatically \is{Restart} = Yes, \is{WriteRestart} = No, and
-  only the dipole moment output files will be written, since this
-  keyword is used together with a \is{Kick} perturbation to probe the
-  system. Notice that the dump file that contains the state of the
-  system that you want to be probed must be present and renamed to
-  \verb|tddump.bin| (or \verb|tddump.dat| if using the ascii
-  version of this data).
-
-\item[\is{EulerFrequency}] Number of steps every which an Euler
-  integration step is done in the electronic propagation (that
-  normally uses the Leapfrog algorithm). The default value ensures no
-  Euler steps are done during the dynamics. If used, must be set to
-  something larger than 50.
-
-\item[\is{WriteBondEnergy}] If the pairwise non-self-consistent part of the bond
-  energy, $BE(t)$, should be written to the \verb|bondenergy.bin| file every
-  \is{WriteFrequency} steps. The populations are evaluated as
-  \begin{equation*}
-    BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) H^0_{\mu
-      \nu}(t),
-  \end{equation*}
-  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
-  matrix. They are stored in binary format (see \ref{sec:beformatout}).
-
-\item[\is{WriteBondPopulation}] If the pairwise time-dependent bond
-  Mulliken-like population, \index{bond populations} $BP(t)$, should be written
-  to the \verb|bondpop.bin| file every \is{WriteFrequency} steps. The
-  populations are evaluated as
-  \begin{equation*}
-    BP_{AB} (t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) S_{\mu
-      \nu}(t),
-  \end{equation*}
-  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
-  matrix. They are stored in binary format (see \ref{sec:bpformatout}).
-
-\item[\is{FillingsFromFile}] If the initial fillings (molecular
-  orbital occupations) should be read from a file named
-  ``fillings.ini'' present in the working directory. If used, the
-  ground state fillings are replaced by these and used to build the
-  initial density matrix.
-
-\end{description}
-
-\subsubsection{\kwcb{Perturbation}}
-\label{sec:dftbp.tdpert}
-
-Determines the type of perturbation that is applied.
-
-\paragraph{\iscb{None}}
-No time-dependent perturbation is included, free dynamics are calculated.
-
-\paragraph{\kwcb{Kick}}
-Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
-
-\begin{ptable}
-  \kw{PolarizationDirection} & s &  & - & \\
-  \kw{SpinType} & s & SpinPolarisation = Colinear \cb & Singlet & \\
-\end{ptable}
-
-\begin{description}
- \item[\is{PolarizationDirection}] The cartesian axis for the kick:
-   \verb|"x"|, \verb|"y"| or \verb|"z"|. If set to \verb|"all"|,
-   calculates the three directions $x,y,z$ consecutively. For
-   polarization direction \verb|x,y,z| the dipole moment output file
-   will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|,
-   respectively.
-
- \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for
-   singlet or triplet spectra, respectively. Only implemented for
-   collinear spin polarisation.
-\end{description}
-
-\paragraph{\kwcb{Laser}}
-\label{sec:dftbp.tdpert.laser}
-Apply time-dependent sinusoidal perturbation to the system.
-
-\begin{ptable}
-  \kw{PolarizationDirection} & 3r &  & - & \\
-  \kw{ImagPolarizationDirection} & 3r & & 0 0 0 & \\
-  \kw{LaserEnergy} & r & & & \\
-  \kw{Phase} & r & & 0 & \\
-  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
-\end{ptable}
-
-\begin{description}
- \item[\is{PolarizationDirection}] Vector along which the electric
-   field is polarized.
-  
- \item[\is{ImagPolarizationDirection}] Imaginary part of the
-   polarization vector. Useful for circularly polarized fields.
-
- \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
-   \omega$ of the laser.
-
- \item[\is{Phase}] Optional initial phase of laser field in radians,
-   such that sinusoidal component of the field is described by
-   $\sin(\omega t + \phi)$.
-
- \item[\is{ExcitedAtoms}] List of atoms that will be excited by the
-   laser. The format is the same as the \is{MovedAtoms} keyword.
-
-\end{description}
-
-\textbf{Note:} when working with periodic systems, {\bf the
-  polarization direction must be orthogonal to the periodic
-  directions} of the system. Therefore, the code does not work with 3D
-periodic systems with laser perturbations.
- 
-\paragraph{\kwcb{KickAndLaser}}
-Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing
-the excited state on the system while being driven by a laser. The
-keywords are a combination of the ones for kick and laser.
-
-\begin{ptable}
-  \kw{KickPolDir} & i &  & - & \\
-  \kw{LaserPolDir} & 3r &  & - & \\
-  \kw{LaserImagPolDir} & 3r & & 0 0 0 & \\
-  \kw{LaserEnergy} & r & & - & \\
-  \kw{LaserStrength} & r & & - & \\
-  \kw{Phase} & r & & 0 & \\
-  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
-\end{ptable}
-
-\begin{description}
- \item[\is{KickPolDir}] Same as PolarizationDirection in \is{Kick}.
-
- \item[\is{SpinType}] Same as \is{Kick}.
-
- \item[\is{LaserPolDir}] Same as PolarizationDirection in \is{Laser}.
-
- \item[\is{LaserImagPolDir}] Same as ImagPolarizationDirection in \is{Laser}.
-
- \item[\is{LaserEnergy }] \modif{\modtype{energy}} Same as in \is{Laser}.
-
- \item[\is{LaserStrength}] Peak intensity of the applied laser (in
-   this mode, \is{FieldStrength} is the kick intensity).
-
- \item[\is{Phase}] Same as in \is{Laser}.
-
- \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
-\end{description}
-
-\subsubsection{WriteEnergyAndCharges}
-\label{sec:dftbp.tdextra}
-
-This enables the write out of additional data during the propagation. By
-default, excitations using \is{Kick} or \is{KickAndLaser} excitations sets this
-to false, while \is{Laser} or \is{None} generates the extra files. This option
-controls write out of Mulliken charges during the calculation (\verb|qvst.dat|)
-and energy components (\verb|energyvst.dat|). If forces are evaluated this
-keyword also enables writing of (\verb|forcesvst.dat|) or if ion dynamics are
-allowed the atom coordinates during the calculation (\verb|tdcoords.xyz|).
-
-\subsubsection{\kwcb{EnvelopeShape}}
-\label{sec:dftbp.envelope}
-
-Determines the envelope $f(t)$ of the laser, such that the laser field
-is $E(t) = E_0 f(t) \sin(\omega t + \phi) $
-
-\paragraph{\kwcb{Constant}}
-
-Constant envelope and equal to $f(t) = 1$. Produces continuous wave laser.
-
-\paragraph{\kwcb{Gaussian}}
-
-Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 /
-\beta^2)$, where $t_m$ is the time at which the pulse is centered and
-$\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
-
-\begin{ptable}
-  \kw{Time0} & r &  & 0 & \\
-  \kw{Time1} & r & & - & \\
-\end{ptable}
-
-\begin{description}
- \item[\is{Time0}] Time at which the pulse starts.
- \item[\is{Time1}] Time at which the pulse ends. Is equal to Time0 + $\tau$.
-\end{description}
-
-
-\paragraph{\kwcb{Sin2}}
-
-Applies a sin$^2$ envelope function:
-
-$$ f(t) =
- \begin{cases}
-    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
-    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
-  \end{cases} $$
-
-The properties of this method are the same as for the Gaussian
-(\kw{Time0}, \kw{Time1}) and have the same meaning.
-
-
-
-
-  Example:\invparskip
-\begin{verbatim}
-  ElectronDynamics = {
-    Steps = 40000
-    TimeStep = 0.1
-    # Total time will be then 4000 a.u. = 96.8 fs
-    FieldStrength [v/a] = 0.01
-    Perturbation = Laser {
-      PolarizationDirection = 0.5 0.5 0
-      LaserEnergy [ev] = 2.55
-    }
-    EnvelopeShape = Sin2 {
-      Time1 [fs] = 30.0
-    }
-    Populations = Yes
-    IonDynamics = Yes
-    InitialTemperature [k] = 0.0
-    Pump = Yes
-    PumpProbeFrames = 1000
-    PumpProbeRange [fs] = 0.0 50.0
-    EulerFrequency = 200
-  }
-\end{verbatim}
-
-%\subsubsection{Perturbation\cb}
-%\label{sec:dftbp.tdreaddm}
-%
-%Reads in a starting density matrix (or mixture of density matrices)
-%file(s). These are compatible with files generated by \is{WriteDensityMatrix}.
-%
-%\begin{ptable}
-%  \kw{Name} & s &  & "" & \\
-%  \kw{Weight} & s & & 1.0 & \\
-%\end{ptable}
-%
-%\begin{description}
-% \item[\is{Name}] Name of binary file holding the density matrix.
-% \item[\is{Weight}] If more than one file is specified, this is required to
-%   weight the contributions from each density matrix.
-%\end{description}
-%
-%
-%For example, a mixture of the lowest two degenerate bright excited states of the
-%\cf{C6H6} molecule:
-%\begin{verbatim}
-%ReadDensityMatrix = {
-%    File = {
-%        Name = "DM7.dat"
-%        Weight = 0.5
-%    }
-%    File = {
-%        Name = "DM8.dat"
-%        Weight = 0.5
-%    }
-%}
-%\end{verbatim}
 
 \subsubsection{ElectrostaticPotential}
 \label{sec:dftbp.esp}
@@ -4679,6 +4335,383 @@ The specifications for this block have the following properties:
 The output of the pp-RPA calculation are described in
 section~\ref{sec:ppRPAout}.
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  Time propagation of electronic state
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{ElectronDynamics}
+
+\label{sec:dftbp.ElectronDynamics}
+
+Calculate the real-time propagation of both the electronic state of the system
+and the nuclei within the Ehfenfest approximation in the presence of an optional
+external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
+\begin{ptable}
+  \kw{Steps} &i &  & - & \\
+  \kw{TimeStep} & r & & - & \\
+  \kw{FieldStrength} & r & & - & \\
+  \kw{Perturbation} & m & & None & \pref{sec:dftbp.tdpert} \\
+  \kw{EnvelopeShape} & m & Perturbation = Laser\cb & Constant & \pref{sec:dftbp.envelope} \\
+  \kw{Populations} & l & & No & \\
+  \kw{Restart} & l & & No & \\
+  \kw{RestartFromAscii} & l & Restart = Yes & No & \\
+  \kw{WriteRestart} & l & & Yes & \\
+  \kw{WriteAsciiRestart} & l & WriteRestart = Yes & No & \\
+  \kw{WriteFrequency} & i & & 50 & \\
+  \kw{WriteEnergyAndCharges} & l & & & \pref{sec:dftbp.tdextra} \\
+  \kw{RestartFrequency} & i & & Steps/10 & \\
+  \kw{Forces} & l & & No & \\
+  \kw{IonDynamics} & l & & No & \\
+  \kw{InitialTemperature} & r & IonDynamics = Yes & - & \\
+  \kw{MovedAtoms} & (i|s)+ & IonDynamics = Yes & 1:-1 & \\
+  \kw{Velocities} & (3r)* & IonDynamics = Yes & - & \\
+  \kw{Pump} & l & & No & \\
+  \kw{PumpProbeFrames} & i & Pump = Yes & - & \\
+  \kw{ProbeProbeRange} & 2r & Pump = Yes & 0 Steps*TimeStep & \\
+  \kw{Probe} & l & & No & \\
+  \kw{EulerFrequency} & i & & 0 & \\
+  \kw{WriteBondEnergy} & l & & No & \\
+  \kw{WriteBondPopulation} & l & & No & \\
+  \kw{FillingsFromFile} & l & & No & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Steps}] Number of propagation steps to perform.
+
+\item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
+  electronic propagation steps.
+
+\item[\is{FieldStrength}]\modif{\modtype{Electric field strength}}
+  Peak intensity of the applied time-dependent electric field.
+
+\item[\is{Populations}] If time-dependent (ground state) molecular
+  orbital populations should be calculated. This is done by projecting
+  the electronic state onto the ground state molecular orbitals. If
+  Yes, they are saved every \is{WriteFrequency} steps to
+  \verb|molpopul1.dat| (and \verb|molpopul2.dat| is the calculation is
+  collinearly spin polarised).
+
+\item[\is{Restart}] If calculation should be restarted. A restart file
+  \verb|tddump.bin| (or \verb|tddump.dat|) must be available in the working
+  directory.
+
+\item[\is{RestartFromAscii}] If this is a restart calculation (\is{Restart} =
+  \is{Yes}), read \verb|tddump.dat| instead of \verb|tddump.bin| in the working
+  directory.
+
+\item[\is{WriteRestart}] If a restart tddump file should be written. Details of
+  the contents of the file are discussed in appendix~\ref{app:tddump}.
+
+\item[\is{WriteAsciiRestart}] If a restart file is being written, select between
+  producing \verb|tddump.bin| (\is{No}) or if set to \is{Yes},
+  \verb|tddump.dat|.
+
+\item[\is{RestartFrequency}] Number of steps every which the system's
+  state should be writen to restart file.
+
+\item[\is{WriteFrequency}] Number of steps every which the atomic
+  charges and molecular orbital populations (if \is{Populations} =
+  Yes) are written to file.
+
+\item[\is{Forces}] If forces on all atoms should be calculated and
+  written to \verb|forcesvst.dat|.
+
+\item[\is{IonDynamics}] If nuclei should be propagated in the dynamics
+  using the Velocity Verlet algorithm. If set to Yes, then either the
+  \is{InitialTemperature} keyworkd or the \is{Velocities} keyword must
+  be set. The positions and velocities every \is{WriteFrequency} steps
+  will be saved in XYZ format to \verb|tdcoords.xyz|.
+
+\item[\is{MovedAtoms}] List of atoms that will be moved during the
+  dynamics. See \is{MovedAtoms} in section
+  \ref{sec:dftbp.SteepestDescent}.
+
+\item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
+  velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
+  distribution at the specified temperature. This keyword is redundant in the
+  case of specified initial velocities or for a restarted trajectory, so is
+  omitted in those cases.
+
+\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic
+  velocities for all the atoms of the given structure (including
+  ``velocities'' for any stationary atoms, which are silently
+  ignored). (\textbf{Note:} if the velocities from a previous (MD or
+  Ehrenfest) run are used, the velocities printed in the XYZ files are
+  specified in {\AA}/ps, so this should be set in the input). See
+  section \ref{sec:dftbp.VelocityVerlet}.
+
+\item[\is{Pump}] If this trajectory corresponds to the dynamics under
+  a pump pulse, with the intention to probe the system afterwards at
+  different delay times, to simulate a pump-probe transient absorption
+  experiment. The effect of the keyword is to write dump files named
+  \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$)
+  containing the state of the system (density matrix, coordinates,
+  velocities) every a given number of steps.
+
+\item[\is{PumpProbeFrames}] Number of total snapshots of the system in
+  the pump trajectory that will be saved for future probe
+  simulations. These are spaced uniformly in time over the
+  \is{PumpProbeRange}.
+
+\item[\is{PumpProbeRange}]\modif{\modtype{time}} The time range
+  (initial time and final time, separated by a space) between which
+  the snapshots will be dumped to file.
+
+\item[\is{Probe}] If this is the simulation of a probe. If set to yes,
+  then automatically \is{Restart} = Yes, \is{WriteRestart} = No, and
+  only the dipole moment output files will be written, since this
+  keyword is used together with a \is{Kick} perturbation to probe the
+  system. Notice that the dump file that contains the state of the
+  system that you want to be probed must be present and renamed to
+  \verb|tddump.bin| (or \verb|tddump.dat| if using the ascii
+  version of this data).
+
+\item[\is{EulerFrequency}] Number of steps every which an Euler
+  integration step is done in the electronic propagation (that
+  normally uses the Leapfrog algorithm). The default value ensures no
+  Euler steps are done during the dynamics. If used, must be set to
+  something larger than 50.
+
+\item[\is{WriteBondEnergy}] If the pairwise non-self-consistent part of the bond
+  energy, $BE(t)$, should be written to the \verb|bondenergy.bin| file every
+  \is{WriteFrequency} steps. The populations are evaluated as
+  \begin{equation*}
+    BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) H^0_{\mu
+      \nu}(t),
+  \end{equation*}
+  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
+  matrix. They are stored in binary format (see \ref{sec:beformatout}).
+
+\item[\is{WriteBondPopulation}] If the pairwise time-dependent bond
+  Mulliken-like population, \index{bond populations} $BP(t)$, should be written
+  to the \verb|bondpop.bin| file every \is{WriteFrequency} steps. The
+  populations are evaluated as
+  \begin{equation*}
+    BP_{AB} (t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) S_{\mu
+      \nu}(t),
+  \end{equation*}
+  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
+  matrix. They are stored in binary format (see \ref{sec:bpformatout}).
+
+\item[\is{FillingsFromFile}] If the initial fillings (molecular
+  orbital occupations) should be read from a file named
+  ``fillings.ini'' present in the working directory. If used, the
+  ground state fillings are replaced by these and used to build the
+  initial density matrix.
+
+\end{description}
+
+\subsection{\kwcb{Perturbation}}
+\label{sec:dftbp.tdpert}
+
+Determines the type of perturbation that is applied.
+
+\paragraph{\iscb{None}}
+No time-dependent perturbation is included, free dynamics are calculated.
+
+\paragraph{\kwcb{Kick}}
+Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
+
+\begin{ptable}
+  \kw{PolarizationDirection} & s &  & - & \\
+  \kw{SpinType} & s & SpinPolarisation = Colinear \cb & Singlet & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{PolarizationDirection}] The cartesian axis for the kick:
+   \verb|"x"|, \verb|"y"| or \verb|"z"|. If set to \verb|"all"|,
+   calculates the three directions $x,y,z$ consecutively. For
+   polarization direction \verb|x,y,z| the dipole moment output file
+   will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|,
+   respectively.
+
+ \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for
+   singlet or triplet spectra, respectively. Only implemented for
+   collinear spin polarisation.
+\end{description}
+
+\paragraph{\kwcb{Laser}}
+\label{sec:dftbp.tdpert.laser}
+Apply time-dependent sinusoidal perturbation to the system.
+
+\begin{ptable}
+  \kw{PolarizationDirection} & 3r &  & - & \\
+  \kw{ImagPolarizationDirection} & 3r & & 0 0 0 & \\
+  \kw{LaserEnergy} & r & & & \\
+  \kw{Phase} & r & & 0 & \\
+  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{PolarizationDirection}] Vector along which the electric
+   field is polarized.
+  
+ \item[\is{ImagPolarizationDirection}] Imaginary part of the
+   polarization vector. Useful for circularly polarized fields.
+
+ \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
+   \omega$ of the laser.
+
+ \item[\is{Phase}] Optional initial phase of laser field in radians,
+   such that sinusoidal component of the field is described by
+   $\sin(\omega t + \phi)$.
+
+ \item[\is{ExcitedAtoms}] List of atoms that will be excited by the
+   laser. The format is the same as the \is{MovedAtoms} keyword.
+
+\end{description}
+
+\textbf{Note:} when working with periodic systems, {\bf the
+  polarization direction must be orthogonal to the periodic
+  directions} of the system. Therefore, the code does not work with 3D
+periodic systems with laser perturbations.
+ 
+\paragraph{\kwcb{KickAndLaser}}
+Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing
+the excited state on the system while being driven by a laser. The
+keywords are a combination of the ones for kick and laser.
+
+\begin{ptable}
+  \kw{KickPolDir} & i &  & - & \\
+  \kw{LaserPolDir} & 3r &  & - & \\
+  \kw{LaserImagPolDir} & 3r & & 0 0 0 & \\
+  \kw{LaserEnergy} & r & & - & \\
+  \kw{LaserStrength} & r & & - & \\
+  \kw{Phase} & r & & 0 & \\
+  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{KickPolDir}] Same as PolarizationDirection in \is{Kick}.
+
+ \item[\is{SpinType}] Same as \is{Kick}.
+
+ \item[\is{LaserPolDir}] Same as PolarizationDirection in \is{Laser}.
+
+ \item[\is{LaserImagPolDir}] Same as ImagPolarizationDirection in \is{Laser}.
+
+ \item[\is{LaserEnergy }] \modif{\modtype{energy}} Same as in \is{Laser}.
+
+ \item[\is{LaserStrength}] Peak intensity of the applied laser (in
+   this mode, \is{FieldStrength} is the kick intensity).
+
+ \item[\is{Phase}] Same as in \is{Laser}.
+
+ \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
+\end{description}
+
+\subsection{WriteEnergyAndCharges}
+\label{sec:dftbp.tdextra}
+
+This enables the write out of additional data during the propagation. By
+default, excitations using \is{Kick} or \is{KickAndLaser} excitations sets this
+to false, while \is{Laser} or \is{None} generates the extra files. This option
+controls write out of Mulliken charges during the calculation (\verb|qvst.dat|)
+and energy components (\verb|energyvst.dat|). If forces are evaluated this
+keyword also enables writing of (\verb|forcesvst.dat|) or if ion dynamics are
+allowed the atom coordinates during the calculation (\verb|tdcoords.xyz|).
+
+\subsection{\kwcb{EnvelopeShape}}
+\label{sec:dftbp.envelope}
+
+Determines the envelope $f(t)$ of the laser, such that the laser field
+is $E(t) = E_0 f(t) \sin(\omega t + \phi) $
+
+\paragraph{\kwcb{Constant}}
+
+Constant envelope and equal to $f(t) = 1$. Produces continuous wave laser.
+
+\paragraph{\kwcb{Gaussian}}
+
+Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 /
+\beta^2)$, where $t_m$ is the time at which the pulse is centered and
+$\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
+
+\begin{ptable}
+  \kw{Time0} & r &  & 0 & \\
+  \kw{Time1} & r & & - & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{Time0}] Time at which the pulse starts.
+ \item[\is{Time1}] Time at which the pulse ends. Is equal to Time0 + $\tau$.
+\end{description}
+
+
+\paragraph{\kwcb{Sin2}}
+
+Applies a sin$^2$ envelope function:
+
+$$ f(t) =
+ \begin{cases}
+    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
+    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
+  \end{cases} $$
+
+The properties of this method are the same as for the Gaussian
+(\kw{Time0}, \kw{Time1}) and have the same meaning.
+
+
+
+
+  Example:\invparskip
+\begin{verbatim}
+  ElectronDynamics = {
+    Steps = 40000
+    TimeStep = 0.1
+    # Total time will be then 4000 a.u. = 96.8 fs
+    FieldStrength [v/a] = 0.01
+    Perturbation = Laser {
+      PolarizationDirection = 0.5 0.5 0
+      LaserEnergy [ev] = 2.55
+    }
+    EnvelopeShape = Sin2 {
+      Time1 [fs] = 30.0
+    }
+    Populations = Yes
+    IonDynamics = Yes
+    InitialTemperature [k] = 0.0
+    Pump = Yes
+    PumpProbeFrames = 1000
+    PumpProbeRange [fs] = 0.0 50.0
+    EulerFrequency = 200
+  }
+\end{verbatim}
+
+%\subsection{Perturbation\cb}
+%\label{sec:dftbp.tdreaddm}
+%
+%Reads in a starting density matrix (or mixture of density matrices)
+%file(s). These are compatible with files generated by \is{WriteDensityMatrix}.
+%
+%\begin{ptable}
+%  \kw{Name} & s &  & "" & \\
+%  \kw{Weight} & s & & 1.0 & \\
+%\end{ptable}
+%
+%\begin{description}
+% \item[\is{Name}] Name of binary file holding the density matrix.
+% \item[\is{Weight}] If more than one file is specified, this is required to
+%   weight the contributions from each density matrix.
+%\end{description}
+%
+%
+%For example, a mixture of the lowest two degenerate bright excited states of the
+%\cf{C6H6} molecule:
+%\begin{verbatim}
+%ReadDensityMatrix = {
+%    File = {
+%        Name = "DM7.dat"
+%        Weight = 0.5
+%    }
+%    File = {
+%        Name = "DM8.dat"
+%        Weight = 0.5
+%    }
+%}
+%\end{verbatim}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  REKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -4884,6 +4917,9 @@ program.
   current format. The processed input (written to \verb|dftb_pin.hsd|)
   is always in the current format, and the \is{ParserVersion} property
   in it is always set to be the current parser version.
+
+  The parser version will be inferred in case \kw{InputVersion} is set
+  in the level above, in this case \is{ParserVersion} cannot be specified.
 
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without

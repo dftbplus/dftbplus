@@ -251,7 +251,7 @@ contains
         allocate(chrgForces(3, size(chargeQs)))
       end if
     end if
-    call sccCalc%setExternalCharges(chargeCoords, chargeQs)
+    call sccCalc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
 
   end subroutine setExternalCharges
 
@@ -413,6 +413,7 @@ contains
 
   end function updateAtomicMasses
 
+#:if WITH_SCALAPACK
 
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, denseDesc)
@@ -423,11 +424,10 @@ contains
     !> Dense matrix descriptor for H and S
     type(TDenseDescr), intent(inout) :: denseDesc
 
-  #:if WITH_SCALAPACK
+
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize, denseDesc)
-  #:endif
 
   end subroutine updateBLACSDecomposition
 
@@ -467,8 +467,6 @@ contains
     ! Local variables
     integer :: nLocalRows, nLocalCols, nLocalKS
 
-  #:if WITH_SCALAPACK
-
     !Retrieved from index array for spin and k-point index
     nLocalKS = size(parallelKS%localKS, dim=2)
 
@@ -498,10 +496,9 @@ contains
 
     end if
 
-  #:endif
-
   end subroutine reallocateHSArrays
 
+#:endif
 
   !> re-evaluate the energy/forces if the geometry changes
   subroutine recalcGeometry(env)
@@ -509,10 +506,10 @@ contains
     !> instance
     type(TEnvironment), intent(inout) :: env
 
-    logical :: tStopDriver, tStopScc, tExitGeoOpt
+    logical :: tStopScc, tExitGeoOpt
 
     if (tLatticeChanged .or. tCoordsChanged) then
-      call processGeometry(env, 1, 1, .false., tStopDriver, tStopScc, tExitGeoOpt)
+      call processGeometry(env, 1, 1, .false., tStopScc, tExitGeoOpt)
       tLatticeChanged = .false.
       tCoordsChanged = .false.
     end if

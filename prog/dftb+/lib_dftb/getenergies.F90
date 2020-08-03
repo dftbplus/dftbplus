@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Evaluate energies
-module dftb_evaluateenergies
+module dftbp_getenergies
   use dftbp_accuracy, only : dp, lc
   use dftbp_assert
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_populations
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
@@ -31,6 +31,7 @@ module dftb_evaluateenergies
   use dftbp_solvation, only : TSolvation
   use dftbp_repcont
   use dftbp_repulsive
+  use dftbp_reks, only : TReksCalc
 
   implicit none
 
@@ -43,9 +44,9 @@ contains
     !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot,&
-      & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
-      & onSiteElements)
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
+      & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
+      & tFixEf, Ef, onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -119,6 +120,9 @@ contains
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
+
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
 
@@ -162,7 +166,7 @@ contains
     integer :: nSpin
     real(dp) :: nEl(2)
 
-    nSpin = size(rhoPrim, dim=2)
+    nSpin = size(qOrb, dim=3)
 
     ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
     energy%atomNonSCC(:) = 0.0_dp
@@ -235,8 +239,10 @@ contains
 
     !> Add exchange conribution for range separated calculations
     if (allocated(rangeSep)) then
-      energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
+      if (.not. allocated(reks)) then
+        energy%Efock = 0.0_dp
+        call rangeSep%addLREnergy(energy%Efock)
+      end if
       energy%Eelec = energy%Eelec + energy%Efock
     end if
 
@@ -327,4 +333,4 @@ contains
 
   end subroutine calcDispersionEnergy
 
-end module dftb_evaluateenergies
+end module dftbp_getenergies

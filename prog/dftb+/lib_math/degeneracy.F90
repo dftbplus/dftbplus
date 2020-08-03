@@ -60,28 +60,28 @@ contains
 
 
   !> Initialise the structure
-  subroutine init(self, tolerance)
+  subroutine init(this, tolerance)
 
     !> Instance
-    class(TDegeneracyFind), intent(out) :: self
+    class(TDegeneracyFind), intent(out) :: this
 
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tolerance
 
     if (present(tolerance)) then
-      self%tolerance = tolerance
+      this%tolerance = tolerance
     else
-      self%tolerance = toleranceDefault
+      this%tolerance = toleranceDefault
     end if
 
   end subroutine init
 
 
   !> Set up bookeeping
-  subroutine degeneracyTest(self, levels, tDegenerate)
+  subroutine degeneracyTest(this, levels, tDegenerate)
 
     !> Instance
-    class(TDegeneracyFind), intent(inout) :: self
+    class(TDegeneracyFind), intent(inout) :: this
 
     !> Eigenvalues
     real(dp), intent(in) :: levels(:)
@@ -93,28 +93,28 @@ contains
     
     nOrb = size(levels)
 
-    if (allocated(self%levelRange)) then
-      if (any(shape(self%levelRange) /= [2, nOrb])) then
-        deallocate(self%levelRange)
+    if (allocated(this%levelRange)) then
+      if (any(shape(this%levelRange) /= [2, nOrb])) then
+        deallocate(this%levelRange)
       end if
     end if
-    if (.not.allocated(self%levelRange)) then
-      allocate(self%levelRange(2, nOrb))
+    if (.not.allocated(this%levelRange)) then
+      allocate(this%levelRange(2, nOrb))
     end if
-    self%levelRange(:,:) = 0
-    if (allocated(self%degenerateGroup)) then
-      if (size(self%degenerateGroup) /= nOrb) then
-        deallocate(self%degenerateGroup)
+    this%levelRange(:,:) = 0
+    if (allocated(this%degenerateGroup)) then
+      if (size(this%degenerateGroup) /= nOrb) then
+        deallocate(this%degenerateGroup)
       end if
     end if
-    if (.not.allocated(self%degenerateGroup)) then
-      allocate(self%degenerateGroup(nOrb))
+    if (.not.allocated(this%degenerateGroup)) then
+      allocate(this%degenerateGroup(nOrb))
     end if
 
-    call degeneracyRanges(self%levelRange, self%nGrp, Levels, self%tolerance,&
-        & grpMembership=self%degenerateGroup)
+    call degeneracyRanges(this%levelRange, this%nGrp, Levels, this%tolerance,&
+        & grpMembership=this%degenerateGroup)
 
-    maxRange = maxval(self%levelRange(2,:self%nGrp) - self%levelRange(1,:self%nGrp)) + 1
+    maxRange = maxval(this%levelRange(2,:this%nGrp) - this%levelRange(1,:this%nGrp)) + 1
     
     if (present(tDegenerate)) then
       tDegenerate = .false.
@@ -132,10 +132,10 @@ contains
 
 
   !> Returns whether states are in the same degenerate group
-  pure function areDegenerate(self, ii, jj)
+  pure function areDegenerate(this, ii, jj)
 
     !> Instance
-    class(TDegeneracyFind), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: this
 
     !> First state
     integer, intent(in) :: ii
@@ -146,35 +146,35 @@ contains
     !> Resulting test
     logical :: areDegenerate
 
-    areDegenerate = (self%degenerateGroup(ii) == self%degenerateGroup(jj))
+    areDegenerate = (this%degenerateGroup(ii) == this%degenerateGroup(jj))
 
   end function areDegenerate
 
 
   !> Count of degenerate groups of levels
-  pure function degenerateGroups(self)
+  pure function degenerateGroups(this)
 
     !> Instance
-    class(TDegeneracyFind), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: this
 
     !> Number of degenerate groups of levels
     integer :: degenerateGroups
 
-    degenerateGroups = self%nGrp
+    degenerateGroups = this%nGrp
     
   end function degenerateGroups
 
 
   !> Returns ranges of levels in degenerate groups (lower:upper, groups)
-  pure function degenerateRanges(self)
+  pure function degenerateRanges(this)
 
     !> Instance
-    class(TDegeneracyFind), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: this
 
     !> Number of degenerate groups of levels
-    integer :: degenerateRanges(2,self%nGrp)
+    integer :: degenerateRanges(2,this%nGrp)
 
-    degenerateRanges(:,:) = self%levelRange(:2,:self%nGrp)
+    degenerateRanges(:,:) = this%levelRange(:2,:this%nGrp)
     
   end function degenerateRanges
   
