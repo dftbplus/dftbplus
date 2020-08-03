@@ -64,7 +64,7 @@ contains
     integer, intent(in) :: species0(:)
 
     @:ASSERT(allocated(this%calculator))
-    call this%calculator%update_coords(coords)
+    call this%calculator%update_coords(coords(:,:size(species0)))
   end subroutine updateCoords
 
   subroutine updateLatVecs(this, latVecs)
