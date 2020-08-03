@@ -10,6 +10,7 @@
 !> MBD/TS dispersion model.
 module dftbp_dispmbd
   use dftbp_accuracy, only: dp, mc
+  use dftbp_assert
   use dftbp_dispiface, only: TDispersionIface
   use dftbp_environment, only: TEnvironment
   use dftbp_periodic, only: TNeighbourList
