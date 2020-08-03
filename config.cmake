@@ -30,7 +30,6 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
 option(WITH_MBD "Whether DFTB+ should be built with many-body-dispersion support" FALSE)
-# Works only with MPI (parallel) build
 
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
