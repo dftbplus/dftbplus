@@ -133,7 +133,6 @@ contains
         free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
     end do
     cpa = 1d0 + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
-    print *, "CPA:", cpa
     call this%calculator%update_vdw_params_from_ratios(cpa)
   end subroutine updateOnsiteCharges
 end module dftbp_dispmbd

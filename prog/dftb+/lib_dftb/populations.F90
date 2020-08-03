@@ -543,8 +543,8 @@ contains
     !> Onsite population per atom
     real(dp), intent(out) :: qq(:)
 
-    integer   :: iOrig, iAt
-    integer   :: nAtom, nOrb
+    integer :: iOrig, iAt
+    integer :: nAtom, nOrb
 
     nAtom = size(orb%nOrbAtom)
     @:ASSERT(size(qq) == nAtom)
@@ -557,6 +557,7 @@ contains
     end do
 
   end subroutine getOnsitePopulation
+
 
   !> Block mulliken analysis with dense lower triangle matrices.
   subroutine denseBlockMulliken(rhoSqr, overSqr, iSquare, qq)

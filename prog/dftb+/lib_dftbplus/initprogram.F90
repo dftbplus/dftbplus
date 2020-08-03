@@ -4702,59 +4702,38 @@ contains
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
-    character(80) :: tmpStr
+    character(lc) :: tmpStr
 
     write(stdOut, "(A)") ''
-    if (input%method == 'ts') then
-      write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
+    select case (input%method)
+    case ('ts')
+      write(stdOut, "(A)") "Using TS dispersion corrections [Phys. Rev. B 80, 205414 (2009)]"
       write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%vdw_params_kind))
-      case ('tssurf')
-        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('TSSURF')
-        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('ts')
-        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case ('TS')
-        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case default
-        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      end select
-      write(stdOut, "(A)") "  Mode                      " // trim(adjustl(tmpStr))
-      write(tmpStr,"(E18.6)") input%ts_f_acc
-      write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
-      write(tmpStr, "(E18.6)") input%ts_ene_acc
-      write(stdOut, "(A)") '  TSEnergyAccuracy          ' // trim(adjustl(tmpStr))
-  else if (input%method == 'mbd-rsscs') then
-      write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
+    case ('mbd-rsscs')
+      write(stdOut,"(A)") "Using MBD dispersion corrections [Phys. Rev. Lett. 108, 236402 (2012)]"
       write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%vdw_params_kind))
-      case ('tssurf')
-        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('TSSURF')
-        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('ts')
-        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case ('TS')
-        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case default
-        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      end select
-      write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
-      write(stdOut,"(A)") '  Module                    mbdvdw'
-      write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'
+    end select
+    select case (trim(input%vdw_params_kind))
+    case ('tssurf')
+      write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+    case ('ts')
+      write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+    end select
+    write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
+    select case (input%method)
+    case ('ts')
+      write(tmpStr,"(E18.6)") input%ts_f_acc
+      write(stdOut, "(A,T30,A)") '  TSForceAccuracy', trim(adjustl(tmpStr))
+      write(tmpStr, "(E18.6)") input%ts_ene_acc
+      write(stdOut, "(A,T30,A)") '  TSEnergyAccuracy', trim(adjustl(tmpStr))
+    case ('mbd-rsscs')
       write(tmpStr, "(3(I3,1X))") input%k_grid
-      write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
       write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
-      write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid shift", trim(adjustl(tmpStr))
       write(tmpStr, "(I3)") input%n_omega_grid
-      write(stdOut, "(A)") "  Gridsize (frequencies)    "//trim(adjustl(tmpStr))
-    end if
-    ! if (input%mbd_debug) then
-    !   write(stdOut,"(A)") "  Full Debug printing       Yes"
-    ! else
-    !   write(stdOut,"(A)") "  Full Debug printing       No"
-    ! endif
+      write(stdOut, "(A,T30,A)") "  Gridsize (frequencies)", trim(adjustl(tmpStr))
+    end select
     write(stdOut,"(A)") ""
 
   end subroutine writeMbdInfo

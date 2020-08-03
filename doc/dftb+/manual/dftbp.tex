@@ -2479,7 +2479,7 @@ description of the methods see the following subsections):
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
   section~\ref{sec:dftbp.DftD4}).
-\item \is{Ts} Tkatchenko-Sheffler dispersion (CITATION?)
+\item \is{Ts} Tkatchenko-Scheffler dispersion (CITATION?)
 \item \is{Mbd} Many-body dispersion model by Tkatchenko (CITATION?)
 \end{itemize}
 
@@ -2968,9 +2968,9 @@ CoordinationNumber = Cov {
 \subsubsection{TS}
 \label{sec:dftbp.DispTS}
 
-Applies the Tkatchenko-Sheffler dispersion model. (CITATION?)
+Applies the Tkatchenko-Scheffler dispersion model. (CITATION?)
 
-The following keywords can be used with this disperison model:
+The following keywords can be used with this dispersion model:
 \begin{ptable}
   \kw{EnergyAccuracy} & r & & 1e-7 & \\
   \kw{ForceAccuracy} & r & & 1e-6 & \\
@@ -2996,7 +2996,7 @@ The following keywords can be used with this disperison model:
 
 Applies the Tkatchenko many-body-dispersion model. (CITATION?)
 
-The following keywords can be used with this disperison model:
+The following keywords can be used with this dispersion model:
 \begin{ptable}
   \kw{Beta} & r & & 0.83 & \\
   \kw{NOmegaGrid} & i & & 15 & \\
@@ -3012,9 +3012,9 @@ The following keywords can be used with this disperison model:
 \item[\is{KGrid}] Monkhorst-Pack-like k-point grid to integrate the Hamiltonian
   of the interacting dipoles over the Brillouin-zone. Note, that this grid is
   independent from the k-point grid used to integrate the atomic Hamiltonian.
-\item[\is{KGrid}] Shift of the Monhkhorst-Pack grid.
+\item[\is{KGrid}] Shift of the Monkhorst-Pack grid.
 \item[\is{VacuumAxis}] Set \is{Yes} for each axis, where there is vacuum between
-  the periodically repeated images of the cntrall cell.
+  the periodically repeated images of the central cell.
 \item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
   are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
   calculating surfaces).
