@@ -595,7 +595,7 @@ contains
 
         ! solve for Z and W to get excited state density matrix
         call getZVectorEqRHS(xpy, xmy, win, iAtomStart, nocc_ud, nocc_r,&
-            & nxov_ud(1), getij, iatrans, this%nAtom, species0,grndEigVal(:,1),&
+            & nxov_ud(1), getij, iatrans, this%nAtom, species0,grndEigVal,&
             & stimc, grndEigVecs, gammaMat, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
         call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, this%nAtom, iAtomStart,&
@@ -939,7 +939,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> ground state wavefunctions
-    real(dp), intent(in) :: grndEigVal(:)
+    real(dp), intent(in) :: grndEigVal(:,:)
 
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: stimc(:,:,:)
@@ -1018,7 +1018,7 @@ contains
           t(b,a,s) = t(b,a,s) + 0.5_dp * tmp1
         end if
         ! Note: diagonal elements will be multiplied by 0.5 later.
-        wvv(ab,s) = wvv(ab,s) + grndEigVal(i) * tmp1 + tmp2
+        wvv(ab,s) = wvv(ab,s) + grndEigVal(i,s) * tmp1 + tmp2
       end do
 
       ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja and 1 / (1 + delta_ij) Q_ij
@@ -1038,7 +1038,7 @@ contains
         if (i /= j) then
           t(j,i,s) = t(j,i,s) - 0.5_dp * tmp1
         end if
-        woo(ij,s) = woo(ij,s) - grndEigVal(a) * tmp1 + tmp2
+        woo(ij,s) = woo(ij,s) - grndEigVal(a,s) * tmp1 + tmp2
       end do
 
     end do
