@@ -2044,6 +2044,7 @@ contains
             inp%calculate_forces = tForces
             inp%atom_types = speciesName(species0)
             inp%coords = coord0
+            inp%log_level = 1
             if (tPeriodic) inp%lattice_vectors = latVec
             call mbd%init(inp)
         end associate
