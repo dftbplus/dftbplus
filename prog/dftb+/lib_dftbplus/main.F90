@@ -494,16 +494,6 @@ contains
 
       lpSCC_REKS: do iSccIter = 1, maxSccIter
 
-        if (iSccIter > 1 .and. tDispersion) then
-      #:if WITH_MBD
-          select type (dispersion)
-          type is (TDispMbd)
-            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
-          end select
-      #:endif
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-        end if
-
         if (iSccIter == 1) then
           call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, nNeighbourSK,&
               & iSparseStart, img2CentCell, electronicSolver, HSqrReal, SSqrReal, eigvecsReal,&
@@ -538,6 +528,16 @@ contains
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
             & qOnsite=qOnsite)
+
+        if (tDispersion) then
+      #:if WITH_MBD
+          select type (dispersion)
+          type is (TDispMbd)
+            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
+          end select
+      #:endif
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+        end if
 
         ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -590,16 +590,6 @@ contains
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-
-        if (iSccIter > 1 .and. tDispersion) then
-      #:if WITH_MBD
-          select type (dispersion)
-          type is (TDispMbd)
-            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
-          end select
-      #:endif
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-        end if
 
         if (tSccCalc) then
 
@@ -721,6 +711,16 @@ contains
           call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
           call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
               & potential%intBlock)
+        end if
+
+        if (tDispersion) then
+      #:if WITH_MBD
+          select type (dispersion)
+          type is (TDispMbd)
+            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
+          end select
+      #:endif
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
