@@ -41,8 +41,8 @@ helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_T
 helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
 dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
-#!dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
-#!dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
+dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
+dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
