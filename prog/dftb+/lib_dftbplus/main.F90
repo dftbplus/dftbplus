@@ -494,7 +494,7 @@ contains
 
       lpSCC_REKS: do iSccIter = 1, maxSccIter
 
-        if (tDispersion) then
+        if (iSccIter > 1 .and. tDispersion) then
       #:if WITH_MBD
           select type (dispersion)
           type is (TDispMbd)
@@ -591,7 +591,7 @@ contains
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
-        if (tDispersion) then
+        if (iSccIter > 1 .and. tDispersion) then
       #:if WITH_MBD
           select type (dispersion)
           type is (TDispMbd)
