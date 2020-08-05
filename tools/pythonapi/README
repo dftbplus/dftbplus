@@ -57,7 +57,8 @@ System install
 
 You can install the script package via the standard 'python setup'
 mechanism. If you want to install it system-wide into your normal
-python installation, you simply issue::
+python installation, for the script in the tools/pythonapi/
+sub-directory you simply issue::
 
   python setup.py
 
