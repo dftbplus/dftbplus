@@ -743,9 +743,6 @@ module dftbp_initprogram
   !> Frequency for saving restart info
   integer :: restartFreq
 
-  !> If dispersion should be calculated
-  logical :: tDispersion
-
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
 
@@ -1980,8 +1977,7 @@ contains
 
     ! Dispersion
     tHHRepulsion = .false.
-    tDispersion = allocated(input%ctrl%dispInp)
-    if (tDispersion) then
+    if (allocated(input%ctrl%dispInp)) then
       if (tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
@@ -2046,7 +2042,7 @@ contains
             inp%coords = coord0
             inp%log_level = 1
             if (tPeriodic) inp%lattice_vectors = latVec
-            call mbd%init(inp)
+            call TDispMbd_init(mbd, inp, .false.)
         end associate
         call move_alloc(mbd, dispersion)
      #:endif
@@ -2470,7 +2466,7 @@ contains
     tPoissonTwice = input%poisson%solveTwice
 
     if (tNegf) then
-      if (tDispersion) then
+      if (allocated(dispersion)) then
         call error("Dispersion not currently avalable with transport calculations")
       end if
       if (isLinResp) then
@@ -2959,7 +2955,7 @@ contains
       end do
     end if
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       select type (dispersion)
       type is (TDispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"

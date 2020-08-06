@@ -37,7 +37,7 @@ module dftbp_main
   use dftbp_stress
   use dftbp_scc
   use dftbp_hamiltonian
-  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
+  use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_externalcharges
@@ -529,13 +529,9 @@ contains
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
             & qOnsite=qOnsite)
 
-        if (tDispersion) then
-      #:if WITH_MBD
-          select type (dispersion)
-          type is (TDispMbd)
-            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
-          end select
-      #:endif
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+              & tConverged .or. .not.tUseConvergedForces)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
@@ -572,7 +568,7 @@ contains
             call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
                 & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol, TS,&
-                & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+                & tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
           end if
           if (tWriteBandDat) then
@@ -713,21 +709,18 @@ contains
               & potential%intBlock)
         end if
 
-        if (tDispersion) then
-      #:if WITH_MBD
-          select type (dispersion)
-          type is (TDispMbd)
-            call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0)
-          end select
-      #:endif
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+              & tConverged .or. .not.tUseConvergedForces)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
+        call calcEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
             & rangeSep, reks, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        call sumEnergies(energy)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -772,7 +765,7 @@ contains
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
               & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
@@ -785,6 +778,13 @@ contains
       end do lpSCC
 
     end if REKS_SCC
+
+    if (allocated(dispersion)) then
+      call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+          & tConverged .or. .not.tUseConvergedForces)
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+      call sumEnergies(energy)
+    end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
@@ -6676,12 +6676,12 @@ contains
             & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
       end if
 
-      call getEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
+      call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
           & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
-          & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure,&
-          & TS, potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
-          & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & onSiteElements)
+          & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
+          & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
       reks%enLnonSCC(iL) = energy%EnonSCC

@@ -7,9 +7,10 @@
 
 !> Common interface for all dispersion modules.
 module dftbp_dispiface
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, mc
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
+  use dftbp_commontypes, only : TOrbitals
   implicit none
   private
   
@@ -36,6 +37,10 @@ module dftbp_dispiface
 
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
+
+    !> Updates charges for dispersion models that make use of charges
+    procedure(updateOnsiteChargesIface), deferred :: updateOnsiteCharges
+
   end type TDispersionIface
 
 
@@ -123,6 +128,22 @@ module dftbp_dispiface
       !> resulting cutoff
       real(dp) :: cutoff
     end function getRCutoffIface
+
+    !> update charges if needed
+    subroutine updateOnsiteChargesIface(this, qOnsite, orb, referenceN0, speciesName, species0,&
+        & tConverged)
+      import :: TDispersionIface, dp, mc, TOrbitals
+
+      !> data structure
+      class(TDispersionIface), intent(inout) :: this
+
+      real(dp), intent(in) :: qOnsite(:)
+      type(TOrbitals), intent(in) :: orb
+      real(dp), intent(in) :: referenceN0(:,:)
+      character(mc), intent(in) :: speciesName(:)
+      integer, intent(in) :: species0(:)
+      logical, intent(in) :: tConverged
+    end subroutine updateOnsiteChargesIface
 
   end interface
 

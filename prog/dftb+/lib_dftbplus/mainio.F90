@@ -46,6 +46,7 @@ module dftbp_mainio
   use dftbp_message
   use dftbp_reks
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_dispersions, only : TDispersionIface
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -2354,7 +2355,7 @@ contains
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
-      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic,&
+      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
       & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
       & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qOnsite)
 
@@ -2457,8 +2458,8 @@ contains
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
-    !> Are dispersion interactions included
-    logical, intent(in) :: tDispersion
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Is there an external electric field
     logical, intent(in) :: tEfield
@@ -2885,7 +2886,7 @@ contains
         & 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
           & energy%eDisp * Hartree__eV, 'eV'
     end if
@@ -4588,7 +4589,7 @@ contains
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, TS, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
+      & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
       & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
 
     !> File ID
@@ -4660,8 +4661,8 @@ contains
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
-    !> Are dispersion interactions included
-    logical, intent(in) :: tDispersion
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4854,7 +4855,7 @@ contains
         & energy%Eelec * Hartree__eV, 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
           & energy%eDisp * Hartree__eV, 'eV'
     end if

@@ -11,7 +11,7 @@
 module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, mc
   use dftbp_environment, only : TEnvironment
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
@@ -83,6 +83,8 @@ module dftbp_dispdftd4
 
     !> cutoff distance in real space for dispersion
     procedure :: getRCutoff
+
+    procedure :: updateOnsiteCharges
 
   end type TDispDftD4
 
@@ -983,5 +985,20 @@ contains
 
   end function tripleScale
 
+
+  !> Dummy routine for this dispersion model
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
+      & tConverged)
+    use dftbp_commontypes, only : TOrbitals
+
+    class(TDispDftD4), intent(inout) :: this
+    real(dp), intent(in) :: qOnsite(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: referenceN0(:,:)
+    character(mc), intent(in) :: speciesName(:)
+    integer, intent(in) :: species0(:)
+    logical, intent(in) :: tConverged
+
+  end subroutine updateOnsiteCharges
 
 end module dftbp_dispdftd4

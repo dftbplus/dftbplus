@@ -102,6 +102,7 @@ module dftbp_dispuff
     procedure :: addGradients
     procedure :: getStress
     procedure :: getRCutoff
+    procedure :: updateOnsiteCharges
   end type TDispUff
 
 contains
@@ -448,5 +449,21 @@ contains
     end do
 
   end subroutine getDispEnergyAndGrad_cluster
+
+
+  !> Dummy routine for this dispersion model
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
+      & tConverged)
+    use dftbp_commontypes, only : TOrbitals
+
+    class(TDispUff), intent(inout) :: this
+    real(dp), intent(in) :: qOnsite(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: referenceN0(:,:)
+    character(mc), intent(in) :: speciesName(:)
+    integer, intent(in) :: species0(:)
+    logical, intent(in) :: tConverged
+
+  end subroutine updateOnsiteCharges
 
 end module dftbp_dispuff

@@ -124,6 +124,8 @@ contains
   !> real space cutoff
   procedure :: getRCutoff
 
+  procedure :: updateOnsiteCharges
+
 end type TDispSlaKirk
 
 !> Some magic constants for the damping function (see paper)
@@ -470,5 +472,20 @@ function getDampCutoff_(r0, tol) result(xx)
       & - (1.0_dp - tol)**(1.0_dp/real(mm_,dp))))**(1.0_dp/real(nn_, dp))
 
 end function getDampCutoff_
+
+
+!> Dummy routine for this dispersion model
+subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0, tConverged)
+    use dftbp_commontypes, only : TOrbitals
+
+    class(TDispSlaKirk), intent(inout) :: this
+    real(dp), intent(in) :: qOnsite(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: referenceN0(:,:)
+    character(mc), intent(in) :: speciesName(:)
+    integer, intent(in) :: species0(:)
+    logical, intent(in) :: tConverged
+
+  end subroutine updateOnsiteCharges
 
 end module dftbp_dispslaterkirkw

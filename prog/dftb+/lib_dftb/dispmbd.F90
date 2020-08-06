@@ -20,7 +20,7 @@ module dftbp_dispmbd
   implicit none
 
   private
-  public :: TDispMbdInp, TDispMbd
+  public :: TDispMbdInp, TDispMbd, TDispMbd_init
 
   type, extends(TDispersionIface) :: TDispMbd
     private
@@ -28,9 +28,11 @@ module dftbp_dispmbd
     integer :: nAtom
     real(dp) :: cellVol
 
+    !> Is the correction self-consistent or post-hoc
+    logical :: isSelfConsistent
+
   contains
 
-    procedure :: init
     procedure :: updateCoords
     procedure :: updateLatVecs
     procedure :: getEnergies
@@ -42,18 +44,20 @@ module dftbp_dispmbd
 
 contains
 
-  subroutine init(this, inp)
-    class(TDispMbd), intent(out) :: this
+  subroutine TDispMbd_init(this, inp, isSelfConsistent)
+    type(TDispMbd), intent(out) :: this
     type(TDispMbdInp), intent(in) :: inp
+    logical, intent(in) :: isSelfConsistent
 
     @:ASSERT(.not. allocated(this%calculator))
     allocate(this%calculator)
     call this%calculator%init(inp)
     this%nAtom = size(inp%coords, 2)
+    this%isSelfConsistent = isSelfConsistent
     if (allocated(inp%lattice_vectors)) then
       this%cellVol = abs(determinant33(inp%lattice_vectors))
     end if
-  end subroutine init
+  end subroutine TDispMbd_init
 
   subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
     class(TDispMbd), intent(inout) :: this
@@ -113,7 +117,9 @@ contains
     cutoff = 0.0_dp
   end function getRCutoff
 
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0)
+
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
+      & tConverged)
     use dftbp_commontypes, only : TOrbitals
     use mbd_vdw_param, only: species_index
 
@@ -123,17 +129,22 @@ contains
     real(dp), intent(in) :: referenceN0(:,:)
     character(mc), intent(in) :: speciesName(:)
     integer, intent(in) :: species0(:)
+    logical, intent(in) :: tConverged
 
     real(dp), allocatable :: cpa(:), free_charges(:)
     integer :: nAtom, i_atom, i_spec
 
-    nAtom = size(qOnsite)
-    allocate(free_charges(nAtom))
-    do i_atom = 1, nAtom
+    if (tConverged .or. .not.this%isSelfConsistent) then
+      nAtom = size(qOnsite)
+      allocate(free_charges(nAtom))
+      do i_atom = 1, nAtom
         i_spec = species0(i_atom)
         free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
-    end do
-    cpa = 1d0 + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
-    call this%calculator%update_vdw_params_from_ratios(cpa)
+      end do
+      cpa = 1d0 + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
+      call this%calculator%update_vdw_params_from_ratios(cpa)
+    end if
+
   end subroutine updateOnsiteCharges
+
 end module dftbp_dispmbd
