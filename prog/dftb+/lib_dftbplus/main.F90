@@ -529,12 +529,6 @@ contains
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
             & qOnsite=qOnsite)
 
-        if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
-              & tConverged .or. .not.tUseConvergedForces)
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-        end if
-
         ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (isRangeSep) then
@@ -545,6 +539,13 @@ contains
           call getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qInpRed,&
               & qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter, minSccIter, maxSccIter,&
               & iGeoStep, tStopScc, eigvecsReal, reks)
+        end if
+
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+              & tConverged)
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+          call sumEnergies(energy)
         end if
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
@@ -709,18 +710,11 @@ contains
               & potential%intBlock)
         end if
 
-        if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
-              & tConverged .or. .not.tUseConvergedForces)
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-        end if
-
         call calcEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
             & rangeSep, reks, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-        call sumEnergies(energy)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -759,6 +753,14 @@ contains
           end if
         end if
 
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+              & tConverged)
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+        end if
+
+        call sumEnergies(energy)
+
         if (tWriteDetailedOut) then
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
@@ -780,6 +782,9 @@ contains
     end if REKS_SCC
 
     if (allocated(dispersion)) then
+      ! If we get to this point for a dispersion model, if it is charge dependent it may require
+      ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
+      ! non-converged SCC.
       call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
           & tConverged .or. .not.tUseConvergedForces)
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)

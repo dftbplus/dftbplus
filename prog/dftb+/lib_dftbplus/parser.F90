@@ -4232,7 +4232,8 @@ contains
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case default
-        call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+        call detailedError(child2, "Unknown method '" // char(buffer) //&
+            & "' to generate electronegativities")
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
@@ -4286,7 +4287,8 @@ contains
     call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer, child=child)
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
     call getChildValue(node, "Damping", input%ts_d, input%ts_d)
     call getChildValue(node, "RangeSeparation", input%ts_sr, input%ts_sr)

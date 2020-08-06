@@ -39,7 +39,7 @@ module dftbp_dispiface
     procedure(getStressIface), deferred :: getStress
 
     !> Updates charges for dispersion models that make use of charges
-    procedure(updateOnsiteChargesIface), deferred :: updateOnsiteCharges
+    procedure :: updateOnsiteCharges
 
   end type TDispersionIface
 
@@ -129,22 +129,35 @@ module dftbp_dispiface
       real(dp) :: cutoff
     end function getRCutoffIface
 
-    !> update charges if needed
-    subroutine updateOnsiteChargesIface(this, qOnsite, orb, referenceN0, speciesName, species0,&
-        & tConverged)
-      import :: TDispersionIface, dp, mc, TOrbitals
-
-      !> data structure
-      class(TDispersionIface), intent(inout) :: this
-
-      real(dp), intent(in) :: qOnsite(:)
-      type(TOrbitals), intent(in) :: orb
-      real(dp), intent(in) :: referenceN0(:,:)
-      character(mc), intent(in) :: speciesName(:)
-      integer, intent(in) :: species0(:)
-      logical, intent(in) :: tConverged
-    end subroutine updateOnsiteChargesIface
-
   end interface
+
+contains
+
+  !> update charges, dummy iterface if not needed
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
+      & tCanUseCharges)
+
+    !> data structure
+    class(TDispersionIface), intent(inout) :: this
+
+    !> Net atomic populations
+    real(dp), intent(in) :: qOnsite(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Reference neutal charge
+    real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Labels for atomic species
+    character(mc), intent(in) :: speciesName(:)
+
+    !> Atomic species of atoms
+    integer, intent(in) :: species0(:)
+
+    !> Are the charges from self-consistent output or otherwise suitable to use if needed
+    logical, intent(in) :: tCanUseCharges
+
+  end subroutine updateOnsiteCharges
 
 end module dftbp_dispiface

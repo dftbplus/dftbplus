@@ -2042,7 +2042,7 @@ contains
             inp%coords = coord0
             inp%log_level = 1
             if (tPeriodic) inp%lattice_vectors = latVec
-            call TDispMbd_init(mbd, inp, .false.)
+            call TDispMbd_init(mbd, inp, isPostHoc=.true.)
         end associate
         call move_alloc(mbd, dispersion)
      #:endif

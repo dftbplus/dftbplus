@@ -100,8 +100,6 @@ module dftbp_dispdftd3
     !> add D3H5 H-H repulsion to the results
     procedure :: addHHRepulsion
 
-    procedure :: updateOnsiteCharges
-
   end type TDispDftD3
 
 contains
@@ -370,21 +368,5 @@ contains
     end if
 
   end subroutine addHHRepulsion
-
-
-  !> Dummy routine for this dispersion model
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
-      & tConverged)
-    use dftbp_commontypes, only : TOrbitals
-
-    class(TDispDftD3), intent(inout) :: this
-    real(dp), intent(in) :: qOnsite(:)
-    type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: referenceN0(:,:)
-    character(mc), intent(in) :: speciesName(:)
-    integer, intent(in) :: species0(:)
-    logical, intent(in) :: tConverged
-
-  end subroutine updateOnsiteCharges
 
 end module dftbp_dispdftd3

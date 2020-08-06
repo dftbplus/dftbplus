@@ -29,7 +29,21 @@ module dftbp_dispmbd
     real(dp) :: cellVol
 
     !> Is the correction self-consistent or post-hoc
-    logical :: isSelfConsistent
+    logical :: isPostHoc
+
+    !> energies for atoms
+    real(dp), allocatable :: energies(:)
+
+    !> gradient contribution
+    real(dp), allocatable :: gradients(:,:)
+
+    !> stress tensor component
+    real(dp) :: stress(3,3) = 0.0_dp
+
+    logical :: chargesUpdated = .false.
+    logical :: energyUpdated = .false.
+    logical :: gradientsUpdated = .false.
+    logical :: stressUpdated = .false.
 
   contains
 
@@ -40,109 +54,247 @@ module dftbp_dispmbd
     procedure :: getStress
     procedure :: getRCutoff
     procedure :: updateOnsiteCharges
+
   end type TDispMbd
 
 contains
 
-  subroutine TDispMbd_init(this, inp, isSelfConsistent)
+  !> Initialize instance of MBD calculation
+  subroutine TDispMbd_init(this, inp, isPostHoc)
+
+    !> Instance
     type(TDispMbd), intent(out) :: this
+
+    !> MBD input structure
     type(TDispMbdInp), intent(in) :: inp
-    logical, intent(in) :: isSelfConsistent
+
+    !> Should MBD be evaluated after the SCC cycle updates (T) or during (F)? In principle F case
+    !> returns a potential contribution (feature to be added). Assumes true if absent
+    logical, intent(in), optional :: isPostHoc
 
     @:ASSERT(.not. allocated(this%calculator))
     allocate(this%calculator)
     call this%calculator%init(inp)
     this%nAtom = size(inp%coords, 2)
-    this%isSelfConsistent = isSelfConsistent
+    allocate(this%energies(this%nAtom))
+    allocate(this%gradients(3,this%nAtom))
+    if (present(isPostHoc)) then
+      this%isPostHoc = isPostHoc
+    else
+      this%isPostHoc = .true.
+    end if
     if (allocated(inp%lattice_vectors)) then
       this%cellVol = abs(determinant33(inp%lattice_vectors))
     end if
+
   end subroutine TDispMbd_init
 
+
+  !> Update atomic coordinates
   subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> Computational environment
     type(TEnvironment), intent(in) :: env
+
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neigh
+
+    !> Mapping into atoms of central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates (including any periodic images)
     real(dp), intent(in) :: coords(:,:)
+
+    !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
     @:ASSERT(allocated(this%calculator))
     call this%calculator%update_coords(coords(:,:size(species0)))
+
+    ! mark properties as requiring re-evaluation
+    this%energyUpdated = .false.
+    this%gradientsUpdated = .false.
+    this%stressUpdated = .false.
+
+    ! charge update is unaffected by coordinate updates, as may be from previous geometry or
+    ! un-initialised
+
   end subroutine updateCoords
 
+
+  !> Update the lattice vectors for periodic geometries
   subroutine updateLatVecs(this, latVecs)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
     @:ASSERT(allocated(this%calculator))
     call this%calculator%update_lattice_vectors(latVecs)
+
+    ! mark properties as requiring re-evaluation
+    this%energyUpdated = .false.
+    this%gradientsUpdated = .false.
+    this%stressUpdated = .false.
+
+    ! charge update is unaffected by coordinate updates, as may be from previous geometry or
+    ! un-initialised
+
   end subroutine updateLatVecs
 
+
+  !> Return MBD atomic energies (using cached values if possible)
   subroutine getEnergies(this, energies)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> Resulting dispersion energies
     real(dp), intent(out) :: energies(:)
 
     real(dp) :: energy
 
     @:ASSERT(allocated(this%calculator))
-    call this%calculator%evaluate_vdw_method(energy)
-    energies(:) = energy / this%nAtom
+
+    if (.not.this%chargesUpdated) then
+      ! cannot evaluatate, so returning 0. This could happen if used post-hoc with an energy return
+      ! requested inside SCC loop
+      energies(:) = 0.0_dp
+      return
+    end if
+
+    if (this%energyUpdated) then
+      energies(:) = this%energies
+    else
+      call this%calculator%evaluate_vdw_method(energy)
+      energies(:) = energy / this%nAtom ! replace if MBD library gives atom resolved energies
+      this%energies = energies(:)
+      this%energyUpdated = .true.
+    end if
+
   end subroutine getEnergies
 
+
+  !> Adds MBD forces to a gradient (using cached values if possible)
   subroutine addGradients(this, gradients)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> Gradients to be modified
     real(dp), intent(inout) :: gradients(:,:)
 
-    real(dp), allocatable :: gradients_mbd(:, :)
-
     @:ASSERT(allocated(this%calculator))
-    allocate (gradients_mbd(3, size(gradients, 2)))
-    call this%calculator%get_gradients(gradients_mbd)
-    gradients = gradients + gradients_mbd
+
+    if (.not.this%chargesUpdated) then
+      return
+    end if
+
+    if (.not. this%gradientsUpdated) then
+      call this%calculator%get_gradients(this%gradients)
+      this%gradientsUpdated = .true.
+    end if
+    gradients(:,:) = gradients + this%gradients
+
   end subroutine addGradients
 
+
+  !> Return the MBD stress (using cached values if possible)
   subroutine getStress(this, stress)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> MBD stress contribution
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(allocated(this%calculator))
-    call this%calculator%get_lattice_stress(stress)
-    stress = -stress/this%cellVol
+
+    if (.not.this%chargesUpdated) then
+      stress(:,:) = 0.0_dp
+      return
+    end if
+
+    if (this%stressUpdated) then
+      stress(:,:) = this%stress
+    else
+      call this%calculator%get_lattice_stress(stress)
+      stress(:,:) = -stress/this%cellVol
+      this%stress(:,:) = stress
+      this%stressUpdated = .true.
+    end if
+
   end subroutine getStress
 
+
+  !> Spatial cutoff for evaluation MBD as needed by DFTB+ neighbour lists
   real(dp) function getRCutoff(this) result(cutoff)
+
+    !> Instance
     class(TDispMbd), intent(inout) :: this
 
     cutoff = 0.0_dp
+
   end function getRCutoff
 
 
+  !> Update charges in the MBD model
   subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
-      & tConverged)
+      & tCanUseCharges)
     use dftbp_commontypes, only : TOrbitals
     use mbd_vdw_param, only: species_index
 
+    !> Instance
     class(TDispMbd), intent(inout) :: this
+
+    !> Net charges
     real(dp), intent(in) :: qOnsite(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference neutral atom data
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> List of species names for atoms
     character(mc), intent(in) :: speciesName(:)
+
+    !> Chemical species of the atoms
     integer, intent(in) :: species0(:)
-    logical, intent(in) :: tConverged
+
+    !> Are these charges from a converged SCC calculation/are suitable to evaluate MBD from
+    !> (i.e. non-converged but can be used)
+    logical, intent(in) :: tCanUseCharges
 
     real(dp), allocatable :: cpa(:), free_charges(:)
     integer :: nAtom, i_atom, i_spec
 
-    if (tConverged .or. .not.this%isSelfConsistent) then
+    if (tCanUseCharges .or. .not.this%isPostHoc) then
+      ! update charges as they are either converged/suitable or this correction is being used
+      ! self-consistently
+
       nAtom = size(qOnsite)
       allocate(free_charges(nAtom))
       do i_atom = 1, nAtom
         i_spec = species0(i_atom)
         free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
       end do
-      cpa = 1d0 + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
+      cpa = 1.0_dp + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
       call this%calculator%update_vdw_params_from_ratios(cpa)
+
+      ! dependent properties will need re-evaluation
+      this%energyUpdated = .false.
+      this%gradientsUpdated = .false.
+      this%stressUpdated = .false.
+
+      ! charges have been updated though, so are available for property evaluations
+      this%chargesUpdated = .true.
+
     end if
 
   end subroutine updateOnsiteCharges
