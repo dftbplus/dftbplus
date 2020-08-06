@@ -103,6 +103,13 @@ contains
     localDeriv(:,:) = 0.0_dp
     localStress(:,:) = 0.0_dp
 
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localStress) shared(etam3, nAtom) &
+    !$omp shared(iAtFirst, iAtLast, nNeighbourSK, iNeighbour, coords, c6, eta) &
+    !$omp shared(img2CentCell, neighDist2, vol, gLatVecs, rc, r3c, gc, g3c) &
+    !$omp private(iAt1, iNeigh, iAt2, iAt2f, iG, ii, rSum, rSum3, gSum, gSum3) &
+    !$omp private(gg, ggAbs, vec, aam2, bb, bbm2, rTmp, rTmp2, rTmp3, ddp) &
+    !$omp private(rTmp33, gsum33)
     do iAt1 = iAtFirst, iAtLast
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -162,6 +169,7 @@ contains
       localStress = localStress - gSum33 / vol
       localDeriv(:,iAt1) =  localDeriv(:,iAt1) +  gSum3
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, localEnergies)
     call assembleChunks(env, localDeriv)
@@ -250,6 +258,14 @@ contains
     localDeriv(:,:) = 0.0_dp
     localStress(:,:) = 0.0_dp
 
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localStress) &
+    !$omp shared(iAtFirst, iAtLast, nNeighbourSK, iNeighbour, coords, c6, eta) &
+    !$omp shared(img2CentCell, neighDist2, vol, gLatVecs, rc, r3c, gc, g3c) &
+    !$omp shared(species0, etam3, nAtom) &
+    !$omp private(iAt1, iNeigh, iAt2, iAt2f, iG, ii, rSum, rSum3, gSum, gSum3) &
+    !$omp private(gg, ggAbs, vec, aam2, bb, bbm2, rTmp, rTmp2, rTmp3, ddp) &
+    !$omp private(rTmp33, gsum33, iSp1, iSp2)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species0(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
@@ -312,6 +328,7 @@ contains
       localStress = localStress - gSum33 / vol
       localDeriv(:,iAt1) =  localDeriv(:,iAt1) +  gSum3
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, localEnergies)
     call assembleChunks(env, localDeriv)
