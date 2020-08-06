@@ -786,9 +786,32 @@ contains
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
       call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
-          & tConverged .or. .not.tUseConvergedForces)
+          & tConverged .or. .not.isSccConvRequired)
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
       call sumEnergies(energy)
+
+
+      if (tWriteDetailedOut) then
+        close(fdDetailedOut)
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
+        if (allocated(reks)) then
+          call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+              & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
+              & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol, TS,&
+              & tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+              & iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
+        else
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+              & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
+              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
+              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
+        end if
+      end if
+
     end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
@@ -935,9 +958,15 @@ contains
           & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile, iAtInCentralRegion)
     end if
 
+    if (allocated(dispersion)) then
+      if (.not.dispersion%energyAvailable()) then
+        call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
     if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged) then
       call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (tUseConvergedForces) then
+      if (isSccConvRequired) then
         call env%shutdown()
       end if
     end if

@@ -54,6 +54,7 @@ module dftbp_dispmbd
     procedure :: getStress
     procedure :: getRCutoff
     procedure :: updateOnsiteCharges
+    procedure :: energyAvailable
 
   end type TDispMbd
 
@@ -162,9 +163,10 @@ contains
     @:ASSERT(allocated(this%calculator))
 
     if (.not.this%chargesUpdated) then
-      ! cannot evaluatate, so returning 0. This could happen if used post-hoc with an energy return
+      ! cannot evaluate, so returning 0. This could happen if used post-hoc with an energy return
       ! requested inside SCC loop
       energies(:) = 0.0_dp
+      this%energyUpdated = .false.
       return
     end if
 
@@ -294,9 +296,24 @@ contains
 
       ! charges have been updated though, so are available for property evaluations
       this%chargesUpdated = .true.
-
+    else
+      this%chargesUpdated = .false.
     end if
 
   end subroutine updateOnsiteCharges
+
+
+  !> Is the dispersion energy available for use in the main code after calling getEnergies
+  function energyAvailable(this)
+
+    !> data structure
+    class(TDispMbd), intent(in) :: this
+
+    !> result (dummy for most dispersion models)
+    logical :: energyAvailable
+
+    energyAvailable = this%energyUpdated
+
+  end function energyAvailable
 
 end module dftbp_dispmbd

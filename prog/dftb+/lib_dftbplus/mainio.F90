@@ -2887,9 +2887,13 @@ contains
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
     if (allocated(dispersion)) then
-      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-          & energy%eDisp * Hartree__eV, 'eV'
+      if (dispersion%energyAvailable()) then
+        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+      else
+        write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
+      end if
     end if
+
     if (tHalogenX) then
       write(fd, format2U) 'Halogen correction energy', energy%eHalogenX, 'H',&
           & energy%eHalogenX * Hartree__eV, 'eV'
@@ -4856,8 +4860,11 @@ contains
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
     if (allocated(dispersion)) then
-      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-          & energy%eDisp * Hartree__eV, 'eV'
+      if (dispersion%energyAvailable()) then
+        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+      else
+        write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
+      end if
     end if
 
     write(fd, *)

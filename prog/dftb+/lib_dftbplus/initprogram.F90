@@ -513,8 +513,8 @@ module dftbp_initprogram
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-  !> Only use converged forces if SCC
-  logical :: tUseConvergedForces
+  !> Use converged SCC charges for properties like forces or charge dependent dispersion
+  logical :: isSccConvRequired
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -1709,7 +1709,8 @@ contains
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    isSccConvRequired = input%ctrl%isSccConvRequired
+    write(*,*)'HERE',isSccConvRequired
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -2041,7 +2042,9 @@ contains
             inp%atom_types = speciesName(species0)
             inp%coords = coord0
             inp%log_level = 1
-            if (tPeriodic) inp%lattice_vectors = latVec
+            if (tPeriodic) then
+              inp%lattice_vectors = latVec
+            end if
             call TDispMbd_init(mbd, inp, isPostHoc=.true.)
         end associate
         call move_alloc(mbd, dispersion)

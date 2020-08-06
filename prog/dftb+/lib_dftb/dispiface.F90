@@ -41,6 +41,9 @@ module dftbp_dispiface
     !> Updates charges for dispersion models that make use of charges
     procedure :: updateOnsiteCharges
 
+    !> Is the dispersion energy available for use
+    procedure :: energyAvailable
+
   end type TDispersionIface
 
 
@@ -159,5 +162,19 @@ contains
     logical, intent(in) :: tCanUseCharges
 
   end subroutine updateOnsiteCharges
+
+
+  !> Is the dispersion energy available for use in the main code after calling getEnergies
+  function energyAvailable(this)
+
+    !> data structure
+    class(TDispersionIface), intent(in) :: this
+
+    !> result (dummy for most dispersion models)
+    logical :: energyAvailable
+
+    energyAvailable = .true.
+
+  end function energyAvailable
 
 end module dftbp_dispiface
