@@ -253,7 +253,7 @@ contains
     this%stress(:,:) = 0.0_dp
     if (this%tPeriodic) then
       ! Make Ewald summation for a pure 1/r^6 interaction
-      call addDispEGr_per_atom(this%nAtom, coords, nNeighReal, neigh%iNeighbour, neigh%neighDist2,&
+      call addDispEGr_per_atom(env, this%nAtom, coords, nNeighReal, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, this%c6, this%eta, this%vol, this%gLatPoint, this%energies, this%gradients,&
         & this%stress)
       ! Correct those terms, where damping is important
