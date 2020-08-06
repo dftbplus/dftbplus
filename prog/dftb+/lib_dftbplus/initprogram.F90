@@ -1980,16 +1980,6 @@ contains
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
       if (allocated(input%ctrl%dispInp%slakirk)) then
-
-        tStress = .false.
-        if (tLatOpt) then
-          call error("Sorry, lattice optimisation and Slater-Kirkwood type dispersion can not be&
-              & used together")
-        end if
-        if (tBarostat) then
-          call error("Sorry, barostatic MD and Slater-Kirkwood type dispersion can not be used&
-              & together")
-        end if
         allocate(slaKirk)
         if (tPeriodic) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, latVec)
