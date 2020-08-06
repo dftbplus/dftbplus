@@ -6,8 +6,8 @@
 #------------------------------------------------------------------------------#
 
 '''
-Interface module for the communication between DFTB+ and
-Python via the foreign function C-library ctypes.
+Interface module for the communication between DFTB+
+and Python via the foreign function C-library ctypes.
 '''
 
 
@@ -28,6 +28,7 @@ class DftbPlus:
     A shared library of DFTB+ is loaded and calculations of several
     physical quantities can be carried out. After completing the calculations,
     the results of the specified properties can be extracted easily.
+
     '''
 
 
@@ -94,10 +95,9 @@ class DftbPlus:
 
         Args:
 
-            coords  (2darray): absolute atomic positions
-                               (in atomic units)
-            latvecs (2darray): lattice vectors (in atomic units)
-                               (None for non-periodic structures)
+            coords (2darray): absolute atomic positions (in atomic units)
+            latvecs (2darray): lattice vectors or None for non-periodic
+                structures (in atomic units)
 
         '''
 
@@ -116,12 +116,12 @@ class DftbPlus:
 
         Args:
 
-            extpot     (2darray): external potential at the position of each
-                                  atom. Shape: [natom]. (in atomic units)
+            extpot (2darray): external potential at the position of each atom
+                (in atomic units). Shape: [natom].
             extpotgrad (2darray): gradient of the external potential at each
-                                  atom. Shape: [natom, 3]. (in atomic units)
-                                  This parameter is optional, you can pass None
-                                  if you did not ask DFTB+ to calculate forces.
+                atom (in atomic units). Shape: [natom, 3]. This parameter is
+                optional, you can pass None if you did not ask DFTB+ to
+                calculate forces.
 
         '''
 
@@ -133,24 +133,19 @@ class DftbPlus:
 
 
     def register_ext_pot_generator(self, refobj, calc_extpot, calc_extpotgrad):
-        '''Registers callback functions for population
-           dependent external potential calculations.
+        '''Registers callback functions for population dependent external
+           potential calculations.
 
         Args:
 
-            refobj              (pointer): user defined data struct or class
-                                           which contains the necessary data
-                                           for the potential calculation
-            calc_extpot         (pointer): pointer to user defined callback
-                                           function which DFTB+ should call,
-                                           whenever the population dependent
-                                           external potential should be
-                                           calculated
-            calc_extpotgrad     (pointer): pointer to user defined callback
-                                           function which DFTB+ should call,
-                                           whenever the gradient of the
-                                           population dependent external
-                                           potential should be calculated
+            refobj (pointer): user defined data struct or class which contains
+                the necessary data for the potential calculation
+            calc_extpot (pointer): pointer to user defined callback function
+                which DFTB+ should call, whenever the population dependent
+                external potential should be calculated
+            calc_extpotgrad (pointer): pointer to user defined callback function
+                which DFTB+ should call, whenever the gradient of the population
+                dependent external potential should be calculated
 
         '''
 
@@ -169,24 +164,19 @@ class DftbPlus:
 
 
     def _calc_extpot_callback(self, refobj, dqatom, extpotatom):
-        '''Callback function wrapper to hide the necessary
-           conversions of low level types into numpy arrays.
+        '''Callback function wrapper to hide the necessary conversions of low
+           level types into numpy arrays.
 
         Args:
 
-            refobj     (pointer): user defined data struct or class
-                                  which contains the necessary data
-                                  for the potential calculation
-            dqatom     (pointer): population difference with respect
-                                  to reference population
-                                  (usually the neutral atom)
-                                  Note: population means electrons,
-                                  so a positive number indicates electron
-                                  excess
-            extpotatom (pointer): potential at the position of each QM-atom
-                                  Note: it should be the potential as felt by
-                                  an electron (negative potential value means
-                                  attraction for an electron)
+            refobj (pointer): user defined data struct or class which contains
+                the necessary data for the potential calculation
+            dqatom (pointer): population difference with respect to reference
+                population (usually the neutral atom). Note: population means
+                electrons, so a positive number indicates electron excess
+            extpotatom (pointer): potential at the position of each QM-atom.
+                Note: it should be the potential as felt by an electron
+                (negative potential value means attraction for an electron)
 
         '''
 
@@ -199,26 +189,20 @@ class DftbPlus:
 
 
     def _calc_extpotgrad_callback(self, refobj, dqatom, extpotatomgrad):
-        '''Callback function wrapper to hide the necessary
-           conversions of low level types into numpy arrays.
+        '''Callback function wrapper to hide the necessary conversions of low
+           level types into numpy arrays.
 
         Args:
 
-            refobj         (pointer): user defined data struct or class
-                                      which contains the necessary data
-                                      for the potential calculation
-            dqatom         (pointer): population difference with respect
-                                      to reference population
-                                      (usually the neutral atom)
-                                      Note: population means electrons,
-                                      so a positive number indicates electron
-                                      excess
-            extpotatomgrad (pointer): potential gradient at the
-                                      position of each QM-atom
-                                      Note: it should be the gradient of the
-                                      potential as felt by an electron (negative
-                                      potential value means attraction for an
-                                      electron)
+            refobj (pointer): user defined data struct or class which contains
+                the necessary data for the potential calculation
+            dqatom (pointer): population difference with respect to reference
+                population (usually the neutral atom). Note: population means
+                electrons, so a positive number indicates electron excess
+            extpotatomgrad (pointer): potential gradient at the position of each
+                QM-atom. Note: it should be the gradient of the potential as
+                felt by an electron (negative potential value means attraction
+                for an electron)
 
         '''
 
@@ -243,13 +227,12 @@ class DftbPlus:
 
 
     def get_energy(self):
-        '''Performs the energy (Mermin free) calculation
-           and queries the energy of the current geometry.
+        '''Performs the energy (Mermin free) calculation and queries the energy
+           of the current geometry.
 
         Returns:
 
-            energy[0] (float): calculated Mermin free energy
-                               (in atomic units)
+            energy[0] (float): calculated Mermin free energy (in atomic units)
 
         '''
 
@@ -261,8 +244,8 @@ class DftbPlus:
 
 
     def get_gradients(self):
-        '''Performs the calculation of the atomic gradients and
-           queries the gradients of the current geometry.
+        '''Performs the calculation of the atomic gradients and queries the
+           gradients of the current geometry.
 
         Returns:
 
@@ -312,9 +295,8 @@ class DftbPlus:
 
 
     def _setup_interface(self):
-        '''Bundle registrations of provided routines.
-           Each time a wrap function is called to
-           specify the argument and result types.
+        '''Bundle registrations of provided routines. Each time a wrap function
+           is called to specify the argument and result types.
         '''
 
         self._wrap('dftbp_init', None,
@@ -374,13 +356,11 @@ class DftbPlus:
 
         Args:
 
-            funcname                     (str): name of foreign function
-            restype   (C compatible data type): ctypes type
-                                                (result type of
-                                                foreign function)
+            funcname (str): name of foreign function
+            restype (C compatible data type): ctypes type
+                (result type of foreign function)
             argtypes (C compatible data types): tuple of ctypes types
-                                                (argument types that
-                                                foreign function accepts)
+                (argument types that foreign function accepts)
 
         '''
 
