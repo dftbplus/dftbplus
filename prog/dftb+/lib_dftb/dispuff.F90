@@ -430,6 +430,12 @@ contains
     localDeriv(:,:) = 0.0_dp
     localSigma(:,:) = 0.0_dp
 
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localSigma) &
+    !$omp shared(iAtFirst, iAtLast, species, nNeighbourSK, iNeighbour, coords) &
+    !$omp shared(img2CentCell, neighDist2, c6, r0, c12, cPoly, f6) &
+    !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, rr, k1, r6) &
+    !$omp private(r12, k2, dE, dGr, r10, r5, u0, u1, u2, gr, ii)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
@@ -447,7 +453,7 @@ contains
           k2 = c12(iSp2, iSp1)
           dE = 0.5_dp * (-(k1 * f6) / r6 + k2 / r12)
           dGr = (6.0_dp * k1 * f6 / r6 - 12.0_dp * k2 / r12) / rr
-        elseif (rr > minNeighDist) then
+        else
           ! Two atoms close: polynomial potential
           r10 = r2**5
           r5 = sqrt(r10)
@@ -456,10 +462,6 @@ contains
           u2 = cPoly(3, iSp2, iSp1)
           dE = 0.5_dp * ((u0 - u1 * r5 - u2 * r10) + (1.0_dp - f6) * k1 / r6)
           dGr = (-5.0_dp * u1 * r5 - 10.0_dp * u2 * r10 - 6.0_dp * k1 * (1.0_dp - f6) / r6) / rr
-        else
-          ! Two atoms at the same position -> forget it
-          dE = 0.0_dp
-          dGr = 0.0_dp
         end if
         localEnergies(iAt1) = localEnergies(iAt1) + dE
         if (iAt1 /= iAt2f) then
@@ -479,6 +481,7 @@ contains
         end if
       end do
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, localEnergies)
     call assembleChunks(env, localDeriv)

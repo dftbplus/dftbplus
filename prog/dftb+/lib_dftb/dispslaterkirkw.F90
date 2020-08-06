@@ -444,6 +444,11 @@ contains
     ! Cluster case => explicit sum of the contributions NOTE: the cluster summation also (ab)used in
     ! the periodic case, neighbours may go over the cell boundary -> img2CentCell needed for folding
     ! back.
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localSigma) &
+    !$omp shared(iAtFirst, iAtLast, nNeighbourSK, iNeighbour, img2CentCell, c6) &
+    !$omp shared(neighDist2, rVdW2, coords, corr) &
+    !$omp private(iAt1, iNeigh, iAt2, iAt2f, dist2, dist, h0, h1, h2, rTmp, vec, gr, ii)
     do iAt1 = iAtFirst, iAtLast
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -452,35 +457,34 @@ contains
           cycle
         end if
         dist2 = neighDist2(iNeigh, iAt1)
-        if (dist2 > minNeighDist2) then
-          dist = sqrt(dist2)
-          h0 = rVdW2(iAt2f, iAt1)
-          h1 = exp(-1.0_dp * h0 * dist**nn_)
-          h2 = 1.0_dp - h1
-          ! Energy
-          rTmp = -0.5_dp * c6(iAt2f, iAt1) * (h2**mm_ + corr) / dist**6
-          localEnergies(iAt1) = localEnergies(iAt1) + rTmp
-          if (iAt1 /= iAt2f) then
-            localEnergies(iAt2f) = localEnergies(iAt2f) + rTmp
-          end if
-          ! Gradients
-          vec(:) = (coords(:,iAt1) - coords(:,iAt2))
-          gr(:) = -c6(iAt2f, iAt1) * vec(:) * (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8)&
-            & - 6.0_dp * (h2**mm_ + corr) * dist**(-8))
-          localDeriv(:,iAt1) = localDeriv(:,iAt1) + gr(:)
-          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - gr(:)
-          if (iAt1 /= iAt2f) then
-            do ii = 1, 3
-              localSigma(:,ii) = localSigma(:,ii) - gr * vec(ii)
-            end do
-          else
-            do ii = 1, 3
-              localSigma(:,ii) = localSigma(:,ii) - 0.5_dp * gr * vec(ii)
-            end do
-          end if
+        dist = sqrt(dist2)
+        h0 = rVdW2(iAt2f, iAt1)
+        h1 = exp(-1.0_dp * h0 * dist**nn_)
+        h2 = 1.0_dp - h1
+        ! Energy
+        rTmp = -0.5_dp * c6(iAt2f, iAt1) * (h2**mm_ + corr) / dist**6
+        localEnergies(iAt1) = localEnergies(iAt1) + rTmp
+        if (iAt1 /= iAt2f) then
+          localEnergies(iAt2f) = localEnergies(iAt2f) + rTmp
+        end if
+        ! Gradients
+        vec(:) = (coords(:,iAt1) - coords(:,iAt2))
+        gr(:) = -c6(iAt2f, iAt1) * vec(:) * (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8)&
+          & - 6.0_dp * (h2**mm_ + corr) * dist**(-8))
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + gr(:)
+        localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - gr(:)
+        if (iAt1 /= iAt2f) then
+          do ii = 1, 3
+            localSigma(:,ii) = localSigma(:,ii) - gr * vec(ii)
+          end do
+        else
+          do ii = 1, 3
+            localSigma(:,ii) = localSigma(:,ii) - 0.5_dp * gr * vec(ii)
+          end do
         end if
       end do
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, localEnergies)
     call assembleChunks(env, localDeriv)
