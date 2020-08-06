@@ -132,7 +132,7 @@ analysis/graphene_localise             #? not WITH_MPI
 onsite/H2O                             #? MPI_PROCS <= 1
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
-dispersion/2H2O_uff                    #? MPI_PROCS <= 2
+dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/specieslist_dftd3_bj        #? WITH_DFTD3 and MPI_PROCS <= 1

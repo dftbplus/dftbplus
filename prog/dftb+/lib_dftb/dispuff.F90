@@ -164,10 +164,12 @@ contains
 
     allocate(dij(this%nSpecies, this%nSpecies))
     allocate(rij(this%nSpecies, this%nSpecies))
-    forall (iSp1=1:this%nSpecies, iSp2=1:this%nSpecies)
-      dij(iSp1,iSp2) = sqrt(inp%energies(iSp1) * inp%energies(iSp2))
-      rij(iSp1,iSp2) = sqrt(inp%distances(iSp1) * inp%distances(iSp2))
-    end forall
+    do iSp1 = 1, this%nSpecies
+      do iSp2 = 1, this%nSpecies
+        dij(iSp1,iSp2) = sqrt(inp%energies(iSp1) * inp%energies(iSp2))
+        rij(iSp1,iSp2) = sqrt(inp%distances(iSp1) * inp%distances(iSp2))
+      end do
+    end do
 
     this%c6 = 2.0_dp * dij * rij**6
     this%c12 = dij * rij**12
@@ -391,8 +393,10 @@ contains
     !> If yes, the 1/r^6 term is substracted from every interaction.
     logical , intent(in), optional :: removeR6
 
+    !> Stress tensor
     real(dp), intent(out), optional :: stress(:,:)
 
+    !> Volume of the unit cell
     real(dp), intent(in), optional :: vol
 
     integer :: iAtFirst, iAtLast
@@ -406,6 +410,7 @@ contains
       @:ASSERT(all(shape(stress) == [3, 3]))
     end if
   #:endblock DEBUG_CODE
+    @:ASSERT(present(stress) .eqv. present(vol))
 
     ! Cluster case => explicit sum of the contributions
     if (present(removeR6)) then
@@ -481,7 +486,7 @@ contains
 
     energies(:) = localEnergies
     gradients(:,:) = localDeriv
-    if (present(stress)) then
+    if (present(stress) .and. present(vol)) then
       stress(:,:) = localSigma / vol
     end if
 
