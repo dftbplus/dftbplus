@@ -16,15 +16,16 @@
 !> To Do: Take the reciprocal lattice vectors from outside.
 !>
 module dftbp_dispuff
-  use dftbp_assert
   use dftbp_accuracy
-  use dftbp_simplealgebra, only : determinant33
-  use dftbp_lapackroutines, only : matinv
-  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_assert
   use dftbp_constants, only: pi
   use dftbp_dispiface
   use dftbp_dispcommon
   use dftbp_environment, only : TEnvironment
+  use dftbp_lapackroutines, only : matinv
+  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_simplealgebra, only : determinant33
   implicit none
   private
 
@@ -37,9 +38,9 @@ module dftbp_dispuff
     !> potential depths (sized as nSpecies)
     real(dp), allocatable :: energies(:)
 
-
     !> van der Waals radii (sized as nSpecies)
     real(dp), allocatable :: distances(:)
+
   end type TDispUffInp
 
 
@@ -96,13 +97,27 @@ module dftbp_dispuff
     logical :: coordsUpdated = .false.
 
   contains
+
+    !> Notifies the objects about changed coordinates.
     procedure :: updateCoords
+
+    !> Notifies the object about updated lattice vectors.
     procedure :: updateLatVecs
+
+    !> Returns the atomic resolved energies due to the dispersion.
     procedure :: getEnergies
+
+    !> Adds the atomic gradients to the provided vector.
     procedure :: addGradients
+
+    !> Returns the stress tensor.
     procedure :: getStress
+
+    !> Estimates the real space cutoff of the dispersion interaction.
     procedure :: getRCutoff
+
   end type TDispUff
+
 
 contains
 
@@ -188,6 +203,7 @@ contains
 
   end subroutine DispUff_init
 
+
   !> Notifies the objects about changed coordinates.
   subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
@@ -214,7 +230,7 @@ contains
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)
     if (this%tPeriodic) then
-      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
+      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
           & this%gradients, removeR6=.true., stress=this%stress, vol=this%vol)
       call getNrOfNeighboursForAll(nNeigh, neigh, this%ewaldRCut)
@@ -222,7 +238,7 @@ contains
           & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoints,&
           & this%energies, this%gradients, this%stress)
     else
-      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
+      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
           & this%gradients)
     end if
@@ -230,6 +246,7 @@ contains
     this%coordsUpdated = .true.
 
   end subroutine updateCoords
+
 
   !> Notifies the object about updated lattice vectors.
   subroutine updateLatVecs(this, latVecs)
@@ -259,6 +276,7 @@ contains
 
   end subroutine updateLatVecs
 
+
   !> Returns the atomic resolved energies due to the dispersion.
   subroutine getEnergies(this, energies)
 
@@ -274,6 +292,7 @@ contains
     energies(:) = this%energies(:)
 
   end subroutine getEnergies
+
 
   !> Adds the atomic gradients to the provided vector.
   subroutine addGradients(this, gradients)
@@ -291,6 +310,7 @@ contains
 
   end subroutine addGradients
 
+
   !> Returns the stress tensor.
   subroutine getStress(this, stress)
 
@@ -307,6 +327,7 @@ contains
 
   end subroutine getStress
 
+
   !> Estimates the real space cutoff of the dispersion interaction.
   function getRCutoff(this) result(cutoff)
 
@@ -320,9 +341,13 @@ contains
 
   end function getRCutoff
 
+
   !> Returns the energy per atom and the gradients for the cluster case
-  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbourSK, iNeighbour,&
+  subroutine getDispEnergyAndGrad_cluster(env, nAtom, coords, species, nNeighbourSK, iNeighbour,&
       & neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, gradients, removeR6, stress, vol)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -370,9 +395,11 @@ contains
 
     real(dp), intent(in), optional :: vol
 
+    integer :: iAtFirst, iAtLast
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh, ii
     real(dp) :: rr, r2, r5, r6, r10, r12, k1, k2, dE, dGr, u0, u1, u2, f6
     real(dp) :: gr(3), vec(3)
+    real(dp), allocatable :: localDeriv(:,:), localSigma(:, :), localEnergies(:)
 
   #:block DEBUG_CODE
     if (present(stress)) then
@@ -390,12 +417,15 @@ contains
     else
       f6 = 1.0_dp
     end if
-    energies = 0.0_dp
-    gradients = 0.0_dp
-    if (present(stress)) then
-      stress = 0.0_dp
-    end if
-    do iAt1 = 1, nAtom
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localSigma(:,:) = 0.0_dp
+
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -426,27 +456,36 @@ contains
           dE = 0.0_dp
           dGr = 0.0_dp
         end if
-        energies(iAt1) = energies(iAt1) + dE
+        localEnergies(iAt1) = localEnergies(iAt1) + dE
         if (iAt1 /= iAt2f) then
-          energies(iAt2f) = energies(iAt2f) + dE
+          localEnergies(iAt2f) = localEnergies(iAt2f) + dE
         end if
         gr(:) =  dGr * (coords(:,iAt1) - coords(:,iAt2)) / rr
-        gradients(:,iAt1) = gradients(:,iAt1) + gr
-        gradients(:,iAt2f) = gradients(:,iAt2f) - gr
-        if (present(stress)) then
-          if (iAt1 /= iAt2f) then
-            do ii = 1, 3
-              stress(:,ii) = stress(:,ii) - gr * vec(ii) / vol
-            end do
-          else
-            do ii = 1, 3
-              stress(:,ii) = stress(:,ii) - 0.5_dp * gr * vec(ii) / vol
-            end do
-          end if
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + gr
+        localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - gr
+        if (iAt1 /= iAt2f) then
+          do ii = 1, 3
+            localSigma(:,ii) = localSigma(:,ii) - gr * vec(ii)
+          end do
+        else
+          do ii = 1, 3
+            localSigma(:,ii) = localSigma(:,ii) - 0.5_dp * gr * vec(ii)
+          end do
         end if
       end do
     end do
 
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localSigma)
+
+    energies(:) = localEnergies
+    gradients(:,:) = localDeriv
+    if (present(stress)) then
+      stress(:,:) = localSigma / vol
+    end if
+
   end subroutine getDispEnergyAndGrad_cluster
+
 
 end module dftbp_dispuff
