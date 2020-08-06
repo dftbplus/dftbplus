@@ -18,6 +18,7 @@ module dftbp_sasa
   use dftbp_lebedev, only : getAngGrid, gridSize
   use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
@@ -297,7 +298,10 @@ contains
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neighList, this%sCutoff)
 
-    call getSASA(this, nNeigh, neighList%iNeighbour, img2CentCell, species0, coords)
+    call getSASA(env, nNeigh, neighList%iNeighbour, img2CentCell, species0, &
+        & coords, this%tolerance, this%smoothingPar, this%probeRad, &
+        & this%thresholds, this%radWeight, this%angGrid, this%angWeight, &
+        & this%sasa, this%dsdr)
     this%energies(:) = this%sasa * this%surfaceTension
 
     this%tCoordsUpdated = .true.
@@ -470,11 +474,12 @@ contains
 
 
   !> Calculate solvent accessible surface area for every atom
-  pure subroutine getSASA(this, nNeighbour, iNeighbour, img2CentCell, &
-      & species, coords)
+  subroutine getSASA(env, nNeighbour, iNeighbour, img2CentCell, &
+      & species, coords, tolerance, smoothingPar, probeRad, thresholds, &
+      & radWeight, angGrid, angWeight, sasa, dsdr)
 
-    !> Data structure
-    class(TSASACont), intent(inout) :: this
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -491,8 +496,35 @@ contains
     !> Current atomic positions
     real(dp), intent(in) :: coords(:,:)
 
-    integer iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
-    integer :: mNeighbour, nEval
+    !> Real space cut-offs for surface area contribution
+    real(dp) :: tolerance
+
+    !> Smoothing dielectric function parameters
+    real(dp) :: smoothingPar(3)
+
+    !> Van-der-Waals radii + probe radius
+    real(dp), allocatable :: probeRad(:)
+
+    !> Thresholds for smooth numerical integration
+    real(dp), allocatable :: thresholds(:, :)
+
+    !> Radial weight
+    real(dp), allocatable :: radWeight(:)
+
+    !> Angular grid for surface integration
+    real(dp), allocatable :: angGrid(:, :)
+
+    !> Weights of grid points for surface integration
+    real(dp), allocatable :: angWeight(:)
+
+    !> Solvent accessible surface area
+    real(dp), allocatable :: sasa(:)
+
+    !> Derivative of solvent accessible surface area w.r.t. coordinates
+    real(dp), allocatable :: dsdr(:, :, :)
+
+    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
+    integer :: iAtFirst, iAtLast, nAtom, mNeighbour, nEval
     real(dp) :: vec(3), dist2, dist
     real(dp) :: uj, ah3uj2
     real(dp) :: sasaij, dsasaij
@@ -500,25 +532,36 @@ contains
     real(dp), allocatable :: grds(:,:), derivs(:,:)
     integer, allocatable :: grdi(:)
 
+    nAtom = size(nNeighbour)
     mNeighbour = maxval(nNeighbour)
 
-    allocate(derivs(3,this%nAtom))
+    allocate(derivs(3,nAtom))
     allocate(grds(3,mNeighbour))
     allocate(grdi(mNeighbour))
 
-    do iAt1 = 1, this%nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    sasa(:) = 0.0_dp
+    dsdr(:, :, :) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) reduction(+:sasa, dsdr) &
+    !$omp shared(iAtFirst, iAtLast, species, coords, probeRad, angGrid) &
+    !$omp shared(nNeighbour, iNeighbour, img2CentCell, thresholds, smoothingPar) &
+    !$omp private(iAt1, iSp1, rsas, derivs, sasai, ip, point, nEval, grds, grdi) &
+    !$omp private(sasap, iNeigh, iAt2, iAt2f, iSp2, vec, dist2, dist, uj, ah3uj2) &
+    !$omp private(dsasaij, sasaij, wsa, dGr) shared(radWeight, angWeight, tolerance)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
 
-      rsas = this%probeRad(iSp1)
+      rsas = probeRad(iSp1)
 
       ! initialize storage
       derivs(:, :) = 0.0_dp
       sasai = 0.0_dp
 
       ! loop over grid points
-      do ip = 1, size(this%angGrid, dim=2)
+      do ip = 1, size(angGrid, dim=2)
         ! grid point position
-        point(:) = coords(:,iAt1) + rsas * this%angGrid(:, ip)
+        point(:) = coords(:,iAt1) + rsas * angGrid(:, ip)
 
         ! atomic surface function at the grid point
         nEval = 0
@@ -533,16 +576,16 @@ contains
           vec(:) = point(:) - coords(:, iAt2)
           dist2 = vec(1)**2 + vec(2)**2 + vec(3)**2
           ! if within the outer cut-off compute
-          if (dist2 < this%thresholds(2,iSp2)) then
-            if (dist2 < this%thresholds(1,iSp2)) then
+          if (dist2 < thresholds(2,iSp2)) then
+            if (dist2 < thresholds(1,iSp2)) then
               sasap = 0.0_dp
               exit
             else
               dist = sqrt(dist2)
-              uj = dist - this%probeRad(iSp2)
-              ah3uj2 = this%smoothingPar(3)*uj*uj
-              dsasaij = this%smoothingPar(2)+3.0_dp*ah3uj2
-              sasaij =  this%smoothingPar(1)+(this%smoothingPar(2)+ah3uj2)*uj
+              uj = dist - probeRad(iSp2)
+              ah3uj2 = smoothingPar(3)*uj*uj
+              dsasaij = smoothingPar(2)+3.0_dp*ah3uj2
+              sasaij =  smoothingPar(1)+(smoothingPar(2)+ah3uj2)*uj
 
               ! accumulate the molecular surface
               sasap = sasap*sasaij
@@ -555,9 +598,9 @@ contains
           end if
         end do
 
-        if (sasap > this%tolerance) then
+        if (sasap > tolerance) then
           ! numerical quadrature weight
-          wsa = this%angWeight(ip)*this%radWeight(iSp1)*sasap
+          wsa = angWeight(ip)*radWeight(iSp1)*sasap
           ! accumulate the surface area
           sasai = sasai + wsa
           ! accumulate the surface gradient
@@ -570,10 +613,14 @@ contains
         end if
       end do
 
-      this%sasa(iAt1) = sasai
-      this%dsdr(:,:,iAt1) = derivs
+      sasa(iAt1) = sasai
+      dsdr(:,:,iAt1) = derivs
 
     end do
+    !$omp end parallel do
+
+    call assembleChunks(env, sasa)
+    call assembleChunks(env, dsdr)
 
   end subroutine getSASA
 
