@@ -31,8 +31,8 @@ NITER = 3
 
 
 def init_collective_variables():
-    '''Initialize collective variables, which will
-       hold summed up results of multiple test runs.
+    '''Initialize collective variables, which will hold summed up results of
+       multiple test runs.
     '''
 
     merminentot = 0.0
@@ -46,17 +46,20 @@ def update_collective_variables(merminen, gradients, grosschgs,
     '''Add new results to collective variables.
 
     Args:
-        merminen     (float):   mermin free energy
-        gradients    (2darray): gradients
-        grosschgs    (1darray): Gross charges
-        merminentot  (float):   summation of mermin free energies
+
+        merminen (float): mermin free energy
+        gradients (2darray): gradients
+        grosschgs (1darray): Gross charges
+        merminentot (float): summation of mermin free energies
         gradientstot (2darray): summation of gradients
         grosschgstot (1darray): summation of Gross charges
 
     Returns:
-        merminentot  (float):   updated mermin free energy
+
+        merminentot (float): updated mermin free energy
         gradientstot (2darray): updated gradients
         grosschgstot (1darray): updated Gross charges
+
     '''
 
     merminentot += merminen
