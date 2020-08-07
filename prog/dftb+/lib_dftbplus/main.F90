@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> The main routines for DFTB+
 module dftbp_main
@@ -339,7 +340,7 @@ contains
 
   !> Process current geometry
   subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
-      & tExitGeoOpt)
+      & tExitGeoOpt, stat)
     use dftbp_initprogram
 
     !> Environment settings
@@ -359,6 +360,9 @@ contains
 
     !> Whether main code should exit the geometry optimisation loop
     logical, intent(out) :: tExitGeoOpt
+
+    !> Status of operation
+    integer, intent(out), optional :: stat
 
     ! Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
@@ -405,7 +409,8 @@ contains
           & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
           & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
           & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-          & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
+          & ERhoPrim, iSparseStart, tPoisson, cm5Cont, stat)
+        @:HANDLE_ERROR(stat)
     end if
 
     #:if WITH_TRANSPORT
@@ -1278,7 +1283,7 @@ contains
       & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
       & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-      & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
+      & ERhoPrim, iSparseStart, tPoisson, cm5Cont, stat)
 
     use dftbp_initprogram, only : TCutoffs
 
@@ -1391,6 +1396,9 @@ contains
     !> Charge model 5
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
     integer :: sparseSize
@@ -1436,7 +1444,8 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0)
+      call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0, stat)
+      @:HANDLE_ERROR(stat)
     end if
     if (allocated(solvation)) then
       call solvation%updateCoords(env, neighbourList, img2CentCell, coord, species0)
