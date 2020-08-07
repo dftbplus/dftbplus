@@ -1579,7 +1579,8 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
+        & ctrl%isSccConvRequired)
     end if
 
     ! Solvation
@@ -1766,7 +1767,8 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
+        & ctrl%isSccConvRequired)
     end if
 
     ! Solvation
@@ -3662,16 +3664,25 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, ctrl)
+  subroutine readDispersion(node, geo, input, nrChrg, tSCC, isSccConvRequired)
 
     !> Node to parse
     type(fnode), pointer :: node
 
-    !> Control structure
-    type(TControl), intent(inout) :: ctrl
-
     !> geometry, including atomic information
     type(TGeometry), intent(in) :: geo
+
+    !> dispersion data on exit
+    type(TDispersionInp), intent(out) :: input
+
+    !> net charge
+    real(dp), intent(in) :: nrChrg
+
+    !> SCC calculation?
+    logical, intent(in) :: tScc
+
+    !> use only converged SCC charges
+    logical :: isSccConvRequired
 
     type(fnode), pointer :: dispModel
     type(string) :: buffer
@@ -3680,32 +3691,32 @@ contains
     call getNodeName(dispModel, buffer)
     select case (char(buffer))
     case ("slaterkirkwood")
-      allocate(ctrl%dispInp%slakirk)
-      call readDispSlaKirk(dispModel, geo, ctrl%dispInp%slakirk)
+      allocate(input%slakirk)
+      call readDispSlaKirk(dispModel, geo, input%slakirk)
     case ("lennardjones")
-      allocate(ctrl%dispInp%uff)
-      call readDispVdWUFF(dispModel, geo, ctrl%dispInp%uff)
+      allocate(input%uff)
+      call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
   #:if WITH_DFTD3
-      allocate(ctrl%dispInp%dftd3)
-      call readDispDFTD3(dispModel, geo, ctrl%dispInp%dftd3)
+      allocate(input%dftd3)
+      call readDispDFTD3(dispModel, geo, input%dftd3)
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
     case ("dftd4")
-      allocate(ctrl%dispInp%dftd4)
-      call readDispDFTD4(dispModel, geo, ctrl%dispInp%dftd4, ctrl%nrChrg)
+      allocate(input%dftd4)
+      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
     case ("ts")
   #:if WITH_MBD
-      allocate(ctrl%dispInp%mbd)
-      call readDispTs(dispModel, ctrl%dispInp%mbd)
+      allocate(input%mbd)
+      call readDispTs(dispModel, input%mbd)
   #:else
       call detailedError(node, "Program must be compiled with the mbd library for TS-dispersion")
   #:endif
     case ("mbd")
   #:if WITH_MBD
-      allocate(ctrl%dispInp%mbd)
-      call readDispMbd(dispModel, ctrl%dispInp%mbd)
+      allocate(input%mbd)
+      call readDispMbd(dispModel, input%mbd)
   #:else
       call detailedError(node, "Program must be compiled with the mbd library for MBD-dispersion")
   #:endif
@@ -3715,8 +3726,8 @@ contains
 
     select case (char(buffer))
     case ("ts", "mbd")
-      if (ctrl%tSCC) then
-        call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+      if (tSCC) then
+        call getChildValue(node, "ConvergentSCCOnly", isSccConvRequired, .true.)
       end if
     end select
 
