@@ -2045,6 +2045,7 @@ contains
             end if
             call TDispMbd_init(mbd, inp, isPostHoc=.true.)
         end associate
+        call mbd%checkError()
         call move_alloc(mbd, dispersion)
      #:endif
       end if

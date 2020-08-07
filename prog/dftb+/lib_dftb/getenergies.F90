@@ -28,6 +28,7 @@ module dftbp_getenergies
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_onsitecorrection
   use dftbp_dispiface
+  use dftbp_dispmbd, only: TDispMbd
   use dftbp_solvation, only : TSolvation
   use dftbp_repcont
   use dftbp_repulsive
@@ -318,6 +319,12 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
+  #:if WITH_MBD
+    select type (dispersion)
+    type is (TDispMbd)
+      call dispersion%checkError()
+    end select
+  #:endif
     Etotal = sum(Eatom(iAtInCentralRegion))
 
   end subroutine calcDispersionEnergy

@@ -6,10 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> MBD/TS dispersion model.
 module dftbp_dispmbd
-  use dftbp_accuracy, only: dp, mc
+  use dftbp_accuracy, only: dp, mc, lc
   use dftbp_assert
   use dftbp_globalenv, only: stdOut
   use dftbp_dispiface, only: TDispersionIface
@@ -45,6 +46,9 @@ module dftbp_dispmbd
     logical :: energyUpdated = .false.
     logical :: gradientsUpdated = .false.
     logical :: stressUpdated = .false.
+    integer :: errCode
+    character(len=mc) :: errOrigin
+    character(len=lc) :: errMessage
 
   contains
 
@@ -56,6 +60,7 @@ module dftbp_dispmbd
     procedure :: getRCutoff
     procedure :: updateOnsiteCharges
     procedure :: energyAvailable
+    procedure :: checkError
 
   end type TDispMbd
 
@@ -78,6 +83,7 @@ contains
     allocate(this%calculator)
     inp%printer => mbdPrinter
     call this%calculator%init(inp)
+    call this%calculator%get_exception(this%errCode, this%errOrigin, this%errMessage)
     this%nAtom = size(inp%coords, 2)
     allocate(this%energies(this%nAtom))
     allocate(this%gradients(3,this%nAtom))
@@ -176,6 +182,7 @@ contains
       energies(:) = this%energies
     else
       call this%calculator%evaluate_vdw_method(energy)
+      call this%calculator%get_exception(this%errCode, this%errOrigin, this%errMessage)
       energies(:) = energy / this%nAtom ! replace if MBD library gives atom resolved energies
       this%energies = energies(:)
       this%energyUpdated = .true.
@@ -317,6 +324,22 @@ contains
     energyAvailable = this%energyUpdated
 
   end function energyAvailable
+
+
+  !> Raises error if it was previously caught
+  subroutine checkError(this, err)
+
+    !> data structure
+    class(TDispMbd), intent(in) :: this
+
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+
+    if (this%errCode /= 0) then
+      @:ERROR_HANDLING(err, this%errCode, this%errMessage)
+    end if
+  end subroutine checkError
+
 
   !> Printer procedure passed to Libmbd
   subroutine mbdPrinter(str)
