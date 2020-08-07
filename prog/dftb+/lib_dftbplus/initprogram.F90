@@ -2043,7 +2043,7 @@ contains
             if (tPeriodic) then
               inp%lattice_vectors = latVec
             end if
-            call TDispMbd_init(mbd, inp, isPostHoc=.true.)
+            call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
         end associate
         call mbd%checkError()
         call move_alloc(mbd, dispersion)

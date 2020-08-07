@@ -542,8 +542,7 @@ contains
         end if
 
         if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
-              & tConverged)
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
           call sumEnergies(energy)
         end if
@@ -754,8 +753,7 @@ contains
         end if
 
         if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
-              & tConverged)
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
@@ -785,7 +783,7 @@ contains
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
-      call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, speciesName, species0,&
+      call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0,&
           & tConverged .or. .not.isSccConvRequired)
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
       call sumEnergies(energy)

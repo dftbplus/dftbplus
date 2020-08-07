@@ -12,11 +12,13 @@
 module dftbp_dispmbd
   use dftbp_accuracy, only: dp, mc, lc
   use dftbp_assert
-  use dftbp_globalenv, only: stdOut
+  use dftbp_constants, only: symbolToNumber
   use dftbp_dispiface, only: TDispersionIface
   use dftbp_environment, only: TEnvironment
+  use dftbp_globalenv, only: stdOut
   use dftbp_periodic, only: TNeighbourList
   use dftbp_simplealgebra, only: determinant33
+  use dftbp_typegeometry, only: TGeometry
   use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
 
   implicit none
@@ -89,7 +91,7 @@ module dftbp_dispmbd
 contains
 
   !> Initialize instance of MBD calculation
-  subroutine TDispMbd_init(this, inp, isPostHoc)
+  subroutine TDispMbd_init(this, inp, geom, isPostHoc)
 
     !> Instance
     type(TDispMbd), intent(out) :: this
@@ -97,9 +99,14 @@ contains
     !> MBD input structure
     type(TDispMbdInp), intent(inout) :: inp
 
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geom
+
     !> Should MBD be evaluated after the SCC cycle updates (T) or during (F)? In principle F case
     !> returns a potential contribution (feature to be added). Assumes true if absent
     logical, intent(in), optional :: isPostHoc
+
+    integer :: iSp
 
     @:ASSERT(.not. allocated(this%calculator))
     allocate(this%calculator)
@@ -122,6 +129,10 @@ contains
     if (allocated(inp%lattice_vectors)) then
       this%cellVol = abs(determinant33(inp%lattice_vectors))
     end if
+    allocate (this%izp(size(geom%speciesNames)))
+    do iSp = 1, size(geom%speciesNames)
+      this%izp(iSp) = symbolToNumber(geom%speciesNames(iSp))
+    end do
 
   end subroutine TDispMbd_init
 
@@ -284,8 +295,7 @@ contains
 
 
   !> Update charges in the MBD model
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
-      & tCanUseCharges)
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
     use dftbp_commontypes, only : TOrbitals
     use mbd_vdw_param, only: species_index
 
@@ -300,9 +310,6 @@ contains
 
     !> Reference neutral atom data
     real(dp), intent(in) :: referenceN0(:,:)
-
-    !> List of species names for atoms
-    character(mc), intent(in) :: speciesName(:)
 
     !> Chemical species of the atoms
     integer, intent(in) :: species0(:)
@@ -324,7 +331,7 @@ contains
         i_spec = species0(i_atom)
         free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
       end do
-      cpa = 1.0_dp + (qOnsite-free_charges)/dble(species_index(speciesName(species0)))
+      cpa = 1.0_dp + (qOnsite-free_charges)/this%izp(species0)
       call this%calculator%update_vdw_params_from_ratios(cpa)
 
       ! dependent properties will need re-evaluation

@@ -137,8 +137,7 @@ module dftbp_dispiface
 contains
 
   !> update charges, dummy iterface if not needed
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, speciesName, species0,&
-      & tCanUseCharges)
+  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
 
     !> data structure
     class(TDispersionIface), intent(inout) :: this
@@ -151,9 +150,6 @@ contains
 
     !> Reference neutal charge
     real(dp), intent(in) :: referenceN0(:,:)
-
-    !> Labels for atomic species
-    character(mc), intent(in) :: speciesName(:)
 
     !> Atomic species of atoms
     integer, intent(in) :: species0(:)
