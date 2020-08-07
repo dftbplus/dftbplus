@@ -11,6 +11,7 @@
 module dftbp_dispmbd
   use dftbp_accuracy, only: dp, mc
   use dftbp_assert
+  use dftbp_globalenv, only: stdOut
   use dftbp_dispiface, only: TDispersionIface
   use dftbp_environment, only: TEnvironment
   use dftbp_periodic, only: TNeighbourList
@@ -67,7 +68,7 @@ contains
     type(TDispMbd), intent(out) :: this
 
     !> MBD input structure
-    type(TDispMbdInp), intent(in) :: inp
+    type(TDispMbdInp), intent(inout) :: inp
 
     !> Should MBD be evaluated after the SCC cycle updates (T) or during (F)? In principle F case
     !> returns a potential contribution (feature to be added). Assumes true if absent
@@ -75,6 +76,7 @@ contains
 
     @:ASSERT(.not. allocated(this%calculator))
     allocate(this%calculator)
+    inp%printer => mbdPrinter
     call this%calculator%init(inp)
     this%nAtom = size(inp%coords, 2)
     allocate(this%energies(this%nAtom))
@@ -315,5 +317,15 @@ contains
     energyAvailable = this%energyUpdated
 
   end function energyAvailable
+
+  !> Printer procedure passed to Libmbd
+  subroutine mbdPrinter(str)
+
+    !> message
+    character(len=*), intent(in) :: str
+
+    write(stdOut, "(A,A)") '* Libmbd: ', str
+
+  end subroutine mbdPrinter
 
 end module dftbp_dispmbd

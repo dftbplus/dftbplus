@@ -2040,7 +2040,6 @@ contains
             inp%calculate_forces = tForces
             inp%atom_types = speciesName(species0)
             inp%coords = coord0
-            inp%log_level = 1
             if (tPeriodic) then
               inp%lattice_vectors = latVec
             end if

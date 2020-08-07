@@ -4297,6 +4297,7 @@ contains
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
+    call getChildValue(node, "LogLevel", input%log_level, input%log_level)
   end subroutine readDispTs
 
 
@@ -4320,6 +4321,7 @@ contains
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
+    call getChildValue(node, "LogLevel", input%log_level, input%log_level)
   end subroutine readDispMbd
 
 
