@@ -26,11 +26,17 @@ module dftbp_dispmbd
 
   type, extends(TDispersionIface) :: TDispMbd
     private
+
+    !> calculator to evaluate dispersion
     type(mbd_calc_t), allocatable :: calculator
+
+    !> number of atoms
     integer :: nAtom
+
+    !> unit cell volume
     real(dp) :: cellVol
 
-    !> Is the correction self-consistent or post-hoc
+    !> is the correction self-consistent or post-hoc
     logical :: isPostHoc
 
     !> energies for atoms
@@ -40,14 +46,30 @@ module dftbp_dispmbd
     real(dp), allocatable :: gradients(:,:)
 
     !> stress tensor component
-    real(dp) :: stress(3,3) = 0.0_dp
+    real(dp) :: stress(3,3)
 
-    logical :: chargesUpdated = .false.
-    logical :: energyUpdated = .false.
-    logical :: gradientsUpdated = .false.
-    logical :: stressUpdated = .false.
+    !> atomic numbers
+    integer, allocatable :: izp(:)
+
+    !> are the coordinates current?
+    logical :: chargesUpdated
+
+    !> is the coordinates current?
+    logical :: energyUpdated
+
+    !> are the gradients current?
+    logical :: gradientsUpdated
+
+    !> is the stress current?
+    logical :: stressUpdated
+
+    !> caught error code from Libmbd, zero if no error
     integer :: errCode
+
+    !> caught error origin from Libmbd
     character(len=mc) :: errOrigin
+
+    !> caught error message from Libmbd
     character(len=lc) :: errMessage
 
   contains
@@ -85,6 +107,11 @@ contains
     call this%calculator%init(inp)
     call this%calculator%get_exception(this%errCode, this%errOrigin, this%errMessage)
     this%nAtom = size(inp%coords, 2)
+    this%chargesUpdated = .false.
+    this%energyUpdated = .false.
+    this%gradientsUpdated = .false.
+    this%stressUpdated = .false.
+    this%errCode = 0
     allocate(this%energies(this%nAtom))
     allocate(this%gradients(3,this%nAtom))
     if (present(isPostHoc)) then
@@ -124,6 +151,7 @@ contains
     call this%calculator%update_coords(coords(:,:size(species0)))
 
     ! mark properties as requiring re-evaluation
+    this%chargesUpdated = .false.
     this%energyUpdated = .false.
     this%gradientsUpdated = .false.
     this%stressUpdated = .false.
@@ -147,6 +175,7 @@ contains
     call this%calculator%update_lattice_vectors(latVecs)
 
     ! mark properties as requiring re-evaluation
+    this%chargesUpdated = .false.
     this%energyUpdated = .false.
     this%gradientsUpdated = .false.
     this%stressUpdated = .false.
