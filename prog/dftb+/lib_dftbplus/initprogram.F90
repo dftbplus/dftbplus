@@ -1710,7 +1710,6 @@ contains
 
     tAppendGeo = input%ctrl%tAppendGeo
     isSccConvRequired = input%ctrl%isSccConvRequired
-    write(*,*)'HERE',isSccConvRequired
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken

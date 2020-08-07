@@ -3715,7 +3715,9 @@ contains
 
     select case (char(buffer))
     case ("ts", "mbd")
-      call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+      if (ctrl%tSCC) then
+        call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+      end if
     end select
 
   end subroutine readDispersion
