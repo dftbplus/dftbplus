@@ -3008,6 +3008,7 @@ The following keywords can be used with this dispersion model:
   \kw{Damping} & r & & 20.0 & \\
   \kw{RangeSeparation} & & & 0.94 & \\
   \kw{ReferenceSet} & & & "TS" & \\
+  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
 \item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
@@ -3021,6 +3022,8 @@ The following keywords can be used with this dispersion model:
 \item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
   are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
   calculating surfaces).
+\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
+  before evaluating TS dispersion {\it post-hoc}.
 \end{description}
 
 \subsubsection{MBD}
@@ -3036,6 +3039,7 @@ The following keywords can be used with this dispersion model:
   \kw{KGridShift} & & & 0.5 0.5 0.5 & \\
   \kw{VacuumAxis} & & & No No No & \\
   \kw{ReferenceSet} & & & "TS" & \\
+  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
 \item[\is{Beta}] Range separation parameter. Default value is optimised for pure
@@ -3050,6 +3054,8 @@ The following keywords can be used with this dispersion model:
 \item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
   are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
   calculating surfaces).
+\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
+  before evaluating MBD dispersion {\it post-hoc}.
 \end{description}
 
 \subsection{DFTB3}

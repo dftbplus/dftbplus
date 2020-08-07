@@ -161,8 +161,8 @@ module dftbp_inputdata
     !> add new geometries at the end of files
     logical :: tAppendGeo  = .false.
 
-    !> use converged SCC forces only
-    logical :: tConvrgForces = .true.
+    !> use converged SCC charges for properties like forces or charge dependent dispersion
+    logical :: isSccConvRequired = .true.
 
     !> geometry step
     integer :: iGeoOpt     = 0

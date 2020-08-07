@@ -513,8 +513,8 @@ module dftbp_initprogram
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-  !> Only use converged forces if SCC
-  logical :: tUseConvergedForces
+  !> Use converged SCC charges for properties like forces or charge dependent dispersion
+  logical :: isSccConvRequired
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -742,9 +742,6 @@ module dftbp_initprogram
 
   !> Frequency for saving restart info
   integer :: restartFreq
-
-  !> If dispersion should be calculated
-  logical :: tDispersion
 
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
@@ -1712,7 +1709,7 @@ contains
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    isSccConvRequired = input%ctrl%isSccConvRequired
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1980,8 +1977,7 @@ contains
 
     ! Dispersion
     tHHRepulsion = .false.
-    tDispersion = allocated(input%ctrl%dispInp)
-    if (tDispersion) then
+    if (allocated(input%ctrl%dispInp)) then
       if (tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
@@ -2045,8 +2041,10 @@ contains
             inp%atom_types = speciesName(species0)
             inp%coords = coord0
             inp%log_level = 1
-            if (tPeriodic) inp%lattice_vectors = latVec
-            call mbd%init(inp)
+            if (tPeriodic) then
+              inp%lattice_vectors = latVec
+            end if
+            call TDispMbd_init(mbd, inp, isPostHoc=.true.)
         end associate
         call move_alloc(mbd, dispersion)
      #:endif
@@ -2470,7 +2468,7 @@ contains
     tPoissonTwice = input%poisson%solveTwice
 
     if (tNegf) then
-      if (tDispersion) then
+      if (allocated(dispersion)) then
         call error("Dispersion not currently avalable with transport calculations")
       end if
       if (isLinResp) then
@@ -2959,7 +2957,7 @@ contains
       end do
     end if
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       select type (dispersion)
       type is (TDispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"

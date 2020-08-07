@@ -11,7 +11,7 @@
 module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, mc
   use dftbp_environment, only : TEnvironment
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
@@ -982,6 +982,5 @@ contains
     end if
 
   end function tripleScale
-
 
 end module dftbp_dispdftd4

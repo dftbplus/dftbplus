@@ -442,8 +442,7 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-          & .true.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
@@ -495,8 +494,7 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-          & .true.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
@@ -547,8 +545,7 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-          & .true.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
@@ -600,8 +597,7 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-          & .true.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
@@ -634,7 +630,7 @@ contains
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
-      ctrl%tConvrgForces = .true.
+      ctrl%isSccConvRequired = .true.
 
     case ("velocityverlet")
       ! molecular dynamics
@@ -666,8 +662,7 @@ contains
       call getChildValue(node, "Thermostat", value1, child=child)
       call getNodeName(value1, buffer2)
 
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-          & .true.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
 
       thermostat: select case(char(buffer2))
       case ("berendsen")
@@ -1584,7 +1579,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
+      call readDispersion(child, geo, ctrl)
     end if
 
     ! Solvation
@@ -1771,7 +1766,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
+      call readDispersion(child, geo, ctrl)
     end if
 
     ! Solvation
@@ -3667,19 +3662,16 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input, nrChrg)
+  subroutine readDispersion(node, geo, ctrl)
 
     !> Node to parse
     type(fnode), pointer :: node
 
+    !> Control structure
+    type(TControl), intent(inout) :: ctrl
+
     !> geometry, including atomic information
     type(TGeometry), intent(in) :: geo
-
-    !> dispersion data on exit
-    type(TDispersionInp), intent(out) :: input
-
-    !> net charge
-    real(dp), intent(in) :: nrChrg
 
     type(fnode), pointer :: dispModel
     type(string) :: buffer
@@ -3688,37 +3680,44 @@ contains
     call getNodeName(dispModel, buffer)
     select case (char(buffer))
     case ("slaterkirkwood")
-      allocate(input%slakirk)
-      call readDispSlaKirk(dispModel, geo, input%slakirk)
+      allocate(ctrl%dispInp%slakirk)
+      call readDispSlaKirk(dispModel, geo, ctrl%dispInp%slakirk)
     case ("lennardjones")
-      allocate(input%uff)
-      call readDispVdWUFF(dispModel, geo, input%uff)
+      allocate(ctrl%dispInp%uff)
+      call readDispVdWUFF(dispModel, geo, ctrl%dispInp%uff)
     case ("dftd3")
   #:if WITH_DFTD3
-      allocate(input%dftd3)
-      call readDispDFTD3(dispModel, geo, input%dftd3)
+      allocate(ctrl%dispInp%dftd3)
+      call readDispDFTD3(dispModel, geo, ctrl%dispInp%dftd3)
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
     case ("dftd4")
-      allocate(input%dftd4)
-      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
+      allocate(ctrl%dispInp%dftd4)
+      call readDispDFTD4(dispModel, geo, ctrl%dispInp%dftd4, ctrl%nrChrg)
     case ("ts")
   #:if WITH_MBD
-      allocate(input%mbd)
-      call readDispTs(dispModel, input%mbd)
+      allocate(ctrl%dispInp%mbd)
+      call readDispTs(dispModel, ctrl%dispInp%mbd)
   #:else
-      call detailedError(node, "Program must be compiled with Limbd for TS-dispersion")
+      call detailedError(node, "Program must be compiled with the mbd library for TS-dispersion")
   #:endif
     case ("mbd")
   #:if WITH_MBD
-      allocate(input%mbd)
-      call readDispMbd(dispModel, input%mbd)
+      allocate(ctrl%dispInp%mbd)
+      call readDispMbd(dispModel, ctrl%dispInp%mbd)
   #:else
-      call detailedError(node, "Program must be compiled with Limbd for MBD-dispersion")
+      call detailedError(node, "Program must be compiled with the mbd library for MBD-dispersion")
   #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
+    end select
+
+    select case (char(buffer))
+    case ("ts", "mbd")
+      if (ctrl%tSCC) then
+        call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+      end if
     end select
 
   end subroutine readDispersion
@@ -4232,7 +4231,8 @@ contains
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case default
-        call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+        call detailedError(child2, "Unknown method '" // char(buffer) //&
+            & "' to generate electronegativities")
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
@@ -4273,8 +4273,13 @@ contains
 
 #:if WITH_MBD
 
+  !> Reads in settings for Tkatchenko-Scheffler dispersion
   subroutine readDispTs(node, input)
+
+    !> data to parse
     type(fnode), pointer, intent(in) :: node
+
+    !> control data coming back
     type(TDispMbdInp), intent(out) :: input
 
     type(string) :: buffer
@@ -4286,7 +4291,8 @@ contains
     call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer, child=child)
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
     call getChildValue(node, "Damping", input%ts_d, input%ts_d)
     call getChildValue(node, "RangeSeparation", input%ts_sr, input%ts_sr)
@@ -4294,11 +4300,18 @@ contains
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
 
+
+
   end subroutine readDispTs
 
 
+  !> Reads in many-body dispersion settings
   subroutine readDispMbd(node, input)
+
+    !> data to parse
     type(fnode), pointer, intent(in) :: node
+
+    !> control data coming back
     type(TDispMbdInp), intent(out) :: input
 
     type(string) :: buffer
@@ -4316,8 +4329,13 @@ contains
   end subroutine readDispMbd
 
 
+  !> Check the dispersion label matches allowed cases
   subroutine checkManyBodyDispRefName(name, node)
+
+    !> Label
     character(*), intent(in) :: name
+
+    !> data tree for error useage
     type(fnode), pointer, intent(in) :: node
 
     if (name /= 'ts' .and. name /= 'tssurf') then
