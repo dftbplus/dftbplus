@@ -133,6 +133,10 @@ contains
     do iSp = 1, size(geom%speciesNames)
       this%izp(iSp) = symbolToNumber(geom%speciesNames(iSp))
     end do
+    if (any(this%izp == 0)) then
+      this%errCode = -1
+      this%errMessage = 'Only standard elements are supported'
+    end if
 
   end subroutine TDispMbd_init
 
