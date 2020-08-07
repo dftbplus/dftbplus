@@ -4285,8 +4285,6 @@ contains
     type(string) :: buffer
     type(fnode), pointer :: child
 
-    ! TODO there should be a mechanism that allows either TS or MBD, not both,
-    ! or we have to initialize two different mbd_calc instances
     input%method = 'ts'
     call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
         & child=child)
@@ -4299,9 +4297,6 @@ contains
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
-
-
-
   end subroutine readDispTs
 
 
@@ -4325,7 +4320,6 @@ contains
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
-
   end subroutine readDispMbd
 
 

@@ -3139,7 +3139,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), allocatable :: qOnsite(:)
+    real(dp), intent(inout), allocatable, optional :: qOnsite(:)
 
     integer :: iSpin
 
@@ -3165,8 +3165,10 @@ contains
       end do
     end if
 
-    if (allocated(qOnsite)) then
-      call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qOnsite)
+    if (present(qOnsite)) then
+      if (allocated(qOnsite)) then
+        call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qOnsite)
+      end if
     end if
 
   end subroutine getMullikenPopulation
@@ -6398,7 +6400,6 @@ contains
     type(TReksCalc), intent(inout) :: reks
 
     integer :: iL
-    real(dp), allocatable :: qOnsite_dummy(:)
 
     do iL = 1, reks%Lmax
 
@@ -6416,7 +6417,7 @@ contains
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock, qOnsite=qOnsite_dummy)
+          & qBlock=qBlock, qiBlock=qiBlock)
 
     end do
 
