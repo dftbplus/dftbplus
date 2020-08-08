@@ -7,7 +7,7 @@
 
 !> Common interface for all dispersion modules.
 module dftbp_dispiface
-  use dftbp_accuracy, only : dp, mc
+  use dftbp_accuracy, only : dp
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
   use dftbp_commontypes, only : TOrbitals
