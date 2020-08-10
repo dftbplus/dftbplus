@@ -43,7 +43,7 @@ module dftbp_timeprop
   use dftbp_velocityverlet
   use dftbp_nonscc
   use dftbp_energytypes, only : TEnergies, TEnergies_init
-  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
+  use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
   use dftbp_populations
@@ -1728,7 +1728,7 @@ contains
     type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
-    ! check allways that getEnergy is called AFTER getForces
+    ! check allways that calcEnergy is called AFTER getForces
     if (.not. this%tForces) then
       rhoPrim(:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1752,12 +1752,14 @@ contains
     end if
 
     TS = 0.0_dp
-    call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
+    call calcEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
         & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
         & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
         & tFixEf, Ef, onSiteElements)
-    ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
+    call sumEnergies(energy)
+    ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
+    ! dispersions energies
 
     ! Calculate nuclear kinetic energy
     energyKin = 0.0_dp

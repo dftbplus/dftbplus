@@ -155,6 +155,10 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+if(WITH_MBD)
+  add_subdirectory(external/mbd ${exclude})
+endif()
+
 if(WITH_MPI)
   add_subdirectory(external/mpifx ${exclude})
   add_subdirectory(external/scalapackfx ${exclude})

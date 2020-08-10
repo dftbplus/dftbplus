@@ -20,6 +20,7 @@ module dftbp_populations
 
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
+  public :: getOnsitePopulation
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -521,6 +522,41 @@ contains
     end do
 
   end subroutine getChargePerShell
+
+
+  !> Calculates the on-site Mulliken population for each atom.
+  !>
+  !> It returns the Mulliken population stemming from the orbitals on a given atom
+  !> without any contributions due to the overlap with other atoms (net atomic population).
+  !>
+  subroutine getOnsitePopulation(rho, orb, iPair, qq)
+
+    !> Density matrix in Packed format
+    real(dp), intent(in) :: rho(:)
+
+    !> atomic species information
+    type(TOrbitals), intent(in) :: orb
+
+    !> indexing array for the Hamiltonian
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Onsite population per atom
+    real(dp), intent(out) :: qq(:)
+
+    integer :: iOrig, iAt
+    integer :: nAtom, nOrb
+
+    nAtom = size(orb%nOrbAtom)
+    @:ASSERT(size(qq) == nAtom)
+
+    do iAt = 1, nAtom
+      nOrb = orb%nOrbAtom(iAt)
+      iOrig = iPair(0, iAt) + 1
+      ! Sum up the diagonal elements of the density matrix.
+      qq(iAt) = sum(rho(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1))
+    end do
+
+  end subroutine getOnsitePopulation
 
 
   !> Block mulliken analysis with dense lower triangle matrices.

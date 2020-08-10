@@ -51,6 +51,15 @@ module dftbp_energytypes
     !> Dispersion energy
     real(dp) :: eDisp   = 0.0_dp
 
+    !> Number of electrons times Fermi energy for cases of the system being connected to reservoir
+    real(dp) :: NEf = 0.0_dp
+
+    !> Presure times volume for periodic systems
+    real(dp) :: pV = 0.0_dp
+
+    !> Electronic entropy times temperature
+    real(dp) :: TS
+
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
 

@@ -37,7 +37,7 @@ module dftbp_main
   use dftbp_stress
   use dftbp_scc
   use dftbp_hamiltonian
-  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
+  use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_externalcharges
@@ -448,10 +448,6 @@ contains
     call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
         & pRepCont, energy%atomRep, energy%ERep, iAtInCentralRegion)
 
-    if (tDispersion) then
-      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-    end if
-
     if (allocated(halogenXCorrection)) then
       call halogenXCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
           & img2CentCell)
@@ -530,7 +526,8 @@ contains
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
         end if
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
-            & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+            & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
+            & qOnsite=qOnsite)
 
         ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -542,6 +539,12 @@ contains
           call getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qInpRed,&
               & qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter, minSccIter, maxSccIter,&
               & iGeoStep, tStopScc, eigvecsReal, reks)
+        end if
+
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+          call sumEnergies(energy)
         end if
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
@@ -565,7 +568,7 @@ contains
             call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
                 & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol, TS,&
-                & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+                & tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
           end if
           if (tWriteBandDat) then
@@ -663,7 +666,8 @@ contains
 
         if (tMulliken) then
           call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
+              & qOnsite=qOnsite)
         end if
 
       #:if WITH_TRANSPORT
@@ -705,7 +709,7 @@ contains
               & potential%intBlock)
         end if
 
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
+        call calcEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
             & rangeSep, reks, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
@@ -748,16 +752,23 @@ contains
           end if
         end if
 
+        if (allocated(dispersion)) then
+          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
+          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+        end if
+
+        call sumEnergies(energy)
+
         if (tWriteDetailedOut) then
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont)
+              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -767,6 +778,39 @@ contains
       end do lpSCC
 
     end if REKS_SCC
+
+    if (allocated(dispersion)) then
+      ! If we get to this point for a dispersion model, if it is charge dependent it may require
+      ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
+      ! non-converged SCC.
+      call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0,&
+          & tConverged .or. .not.isSccConvRequired)
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+      call sumEnergies(energy)
+
+
+      if (tWriteDetailedOut) then
+        close(fdDetailedOut)
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
+        if (allocated(reks)) then
+          call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+              & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
+              & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol, TS,&
+              & tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+              & iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
+        else
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+              & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
+              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
+              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
+        end if
+      end if
+
+    end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
@@ -912,9 +956,15 @@ contains
           & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile, iAtInCentralRegion)
     end if
 
+    if (allocated(dispersion)) then
+      if (.not.dispersion%energyAvailable()) then
+        call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
     if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged) then
       call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (tUseConvergedForces) then
+      if (isSccConvRequired) then
         call env%shutdown()
       end if
     end if
@@ -3051,7 +3101,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qOnsite)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3086,6 +3136,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable, optional :: qOnsite(:)
+
     integer :: iSpin
 
     qOrb(:,:,:) = 0.0_dp
@@ -3108,6 +3161,12 @@ contains
         call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
+    end if
+
+    if (present(qOnsite)) then
+      if (allocated(qOnsite)) then
+        call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qOnsite)
+      end if
     end if
 
   end subroutine getMullikenPopulation
@@ -6650,12 +6709,12 @@ contains
             & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
       end if
 
-      call getEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
+      call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
           & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
-          & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure,&
-          & TS, potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
-          & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & onSiteElements)
+          & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
+          & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
       reks%enLnonSCC(iL) = energy%EnonSCC
