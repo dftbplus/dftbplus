@@ -257,8 +257,8 @@ contains
 
     ! Here time propagation is called
     if (allocated(electronDynamics)) then
-      call runDynamics(electronDynamics, eigvecsReal, ham, H0, species, q0, over, filling,&
-          & neighbourList, nNeighbourSK, nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
+      call runDynamics(electronDynamics, eigvecsReal, ham, H0, species, q0, referenceN0, over,&
+          & filling, neighbourList, nNeighbourSK, nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, orb, coord0, spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd,&
           & solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
           & tFixEf, Ef, coord, onsiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec,&
@@ -527,7 +527,7 @@ contains
         end if
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
-            & qOnsite=qOnsite)
+            & qNetAtom=qNetAtom)
 
         ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -542,7 +542,7 @@ contains
         end if
 
         if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
+          call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
           call sumEnergies(energy)
         end if
@@ -667,7 +667,7 @@ contains
         if (tMulliken) then
           call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
-              & qOnsite=qOnsite)
+              & qNetAtom=qNetAtom)
         end if
 
       #:if WITH_TRANSPORT
@@ -753,7 +753,7 @@ contains
         end if
 
         if (allocated(dispersion)) then
-          call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
+          call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
@@ -768,7 +768,7 @@ contains
               & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
+              & allocated(thirdOrd), allocated(solvation), cm5Cont, qNetAtom)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -783,7 +783,7 @@ contains
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
-      call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0,&
+      call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0,&
           & tConverged .or. .not.isSccConvRequired)
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
       call sumEnergies(energy)
@@ -806,7 +806,7 @@ contains
               & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
+              & allocated(thirdOrd), allocated(solvation), cm5Cont, qNetAtom)
         end if
       end if
 
@@ -3101,7 +3101,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qOnsite)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3137,7 +3137,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), allocatable, optional :: qOnsite(:)
+    real(dp), intent(inout), optional :: qNetAtom(:)
 
     integer :: iSpin
 
@@ -3163,10 +3163,8 @@ contains
       end do
     end if
 
-    if (present(qOnsite)) then
-      if (allocated(qOnsite)) then
-        call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qOnsite)
-      end if
+    if (present(qNetAtom)) then
+      call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
   end subroutine getMullikenPopulation

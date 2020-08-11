@@ -454,6 +454,9 @@ module dftbp_initprogram
   !> Do we need to show Mulliken charges?
   logical :: tPrintMulliken
 
+  !> Do we need to show net atomic charges?
+  logical :: tNetAtomCharges
+
   !> calculate an electric dipole?
   logical :: tDipole
 
@@ -561,8 +564,8 @@ module dftbp_initprogram
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
 
-  !> onsite charge per atom
-  real(dp), allocatable :: qOnsite(:)
+  !> net (on-site only contributions) charge per atom
+  real(dp), allocatable :: qNetAtom(:)
 
   !> input Mulliken block charges (diagonal part == Mulliken charges)
   real(dp), allocatable :: qBlockIn(:, :, :, :)
@@ -2035,6 +2038,9 @@ contains
         call move_alloc(dftd4, dispersion)
     #:if WITH_MBD
       elseif (allocated(input%ctrl%dispInp%mbd)) then
+        if (isLinResp) then
+          call error("MBD model not currently supported for Casida linear response")
+        end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
             inp%calculate_forces = tForces
@@ -2087,6 +2093,7 @@ contains
     end if
 
     if (tMulliken) then
+      tNetAtomCharges = input%ctrl%tNetAtomCharges
       if (allocated(input%ctrl%cm5Input)) then
         allocate(cm5Cont)
         if (tPeriodic) then
@@ -2097,7 +2104,9 @@ contains
               & input%geom%speciesNames, .false.)
         end if
         cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
-     end if
+      end if
+    else
+      tNetAtomCharges = .false.
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
@@ -3235,7 +3244,7 @@ contains
       end if
 
     end if
-      
+
     ! Electron dynamics stuff
     if (allocated(input%ctrl%elecDynInp)) then
 
@@ -3474,56 +3483,74 @@ contains
 
 
   !> Initialise partial charges
-  !
-  !  Data used from module:
-  !  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
-  !  iEqBlockDFTBULS, reks, and all logicals present
-  !
+  !>
+  !>  Data used from module:
+  !>  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
+  !>  iEqBlockDFTBULS, reks, and all logicals present
+  !>
   subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
       & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
       & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
+
     !> Labels of atomic species
     character(mc), intent(in) :: speciesName(:)
+
     !> Data type for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
+
     !> Orbital equivalence relations
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
+
     !> nr. of inequivalent orbitals
     integer, intent(in) :: nIneqOrb
+
     !> nr. of elements to go through the mixer
     !> - may contain reduced orbitals and also orbital blocks
     !> (if tDFTBU or onsite corrections)
     integer, intent(in) :: nMixElements
+
     !> Initial spins
     real(dp), allocatable, intent(in) :: initialSpins(:,:)
+
     !> Set of atom-resolved atomic charges
     real(dp), allocatable, intent(in) :: initialCharges(:)
+
     !> Total charge
     real(dp), intent(in) :: nrChrg
 
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
+
     !> input charges (for potentials)
     real(dp), allocatable, intent(inout) :: qInput(:, :, :)
+
     !> output charges
     real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
+
     !> input charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qInpRed(:)
+
     !> output charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qOutRed(:)
+
     !> charge differences packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qDiffRed(:)
+
     !> input Mulliken block charges (diagonal part == Mulliken charges)
     real(dp), allocatable, intent(inout) :: qBlockIn(:, :, :, :)
+
     !> Output Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlockOut(:, :, :, :)
+
     !> Imaginary part of input Mulliken block charges
     real(dp), allocatable, intent(inout) :: qiBlockIn(:, :, :, :)
+
     !> Imaginary part of output Mulliken block charges
     real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
 
@@ -3533,6 +3560,7 @@ contains
     integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
+    logical :: tAllocate
 
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
@@ -3549,10 +3577,20 @@ contains
     endif
     qOutput(:,:,:) = 0.0_dp
 
-    if (.not. allocated(qOnsite)) then
-       allocate(qOnsite(nAtom))
-    endif
-    qOnsite(:) = 0.0_dp
+    tAllocate = .false.
+    if (allocated(dispersion)) then
+      select type (dispersion)
+      type is (TDispMbd)
+        tAllocate = .true.
+      end select
+    end if
+    tAllocate = tAllocate .or. tNetAtomCharges
+    if (tAllocate) then
+      if (.not. allocated(qNetAtom)) then
+        allocate(qNetAtom(nAtom))
+      endif
+      qNetAtom(:) = 0.0_dp
+    end if
 
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
@@ -3735,18 +3773,23 @@ contains
 
     !> type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
+
     !> reference n_0 charges for each atom, from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
+
     !> Data type for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
     !> Atom indices corresponding to user defined reference atomic charges
     !  Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+
     !> User-defined reference atomic shell charges
     real(dp), allocatable, intent(in) :: customOccFillings(:,:)
 
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
+
     !> shell resolved neutral reference
     real(dp), allocatable, intent(inout) :: qShell0(:,:)
 
@@ -3761,8 +3804,8 @@ contains
        if (isLinResp) then
           call error("Custom occupation not compatible with linear response")
        end if
-       call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, &
-            & species0, orb, referenceN0, q0)
+       call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, species0, orb,&
+           & referenceN0, q0)
     else
        call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
@@ -3919,7 +3962,7 @@ contains
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
-    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qOnsite)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qNetAtom)
     @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
     @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
@@ -4784,8 +4827,8 @@ contains
 
 
   !> Modify the reference atomic shell charges for the neutral atom
-  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species,&
-      & orb, referenceN0, q0)
+  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species, orb,&
+      & referenceN0, q0)
 
     !> Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)

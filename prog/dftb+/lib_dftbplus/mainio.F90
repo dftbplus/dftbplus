@@ -2357,7 +2357,7 @@ contains
       & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
       & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
       & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qOnsite)
+      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2500,9 +2500,6 @@ contains
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
 
-    !> Onsite mulliken population per atom
-    real(dp), allocatable, intent(in) :: qOnsite(:)
-
     !> Is this a range separation calculation?
     logical, intent(in) :: tRangeSep
 
@@ -2514,6 +2511,9 @@ contains
 
     !> Charge model 5 for correcting atomic gross charges
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qNetAtom(:)
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2610,13 +2610,13 @@ contains
       end do
       write(fd, *)
 
-      if (allocated(qOnsite)) then
+      if (present(qNetAtom)) then
         write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
         write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
-          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qOnsite(iAt),&
-              & (1.0_dp - qOnsite(iAt) / sum(q0(:, iAt, 1)))
+          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qNetAtom(iAt),&
+              & (1.0_dp - qNetAtom(iAt) / sum(q0(:, iAt, 1)))
         end do
         write(fd, *)
       end if

@@ -137,13 +137,13 @@ module dftbp_dispiface
 contains
 
   !> update charges, dummy iterface if not needed
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
+  subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
 
     !> data structure
     class(TDispersionIface), intent(inout) :: this
 
     !> Net atomic populations
-    real(dp), intent(in) :: qOnsite(:)
+    real(dp), intent(in), allocatable :: qNetAtom(:)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb

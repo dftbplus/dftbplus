@@ -299,7 +299,7 @@ contains
 
 
   !> Update charges in the MBD model
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
+  subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
     use dftbp_commontypes, only : TOrbitals
     use mbd_vdw_param, only: species_index
 
@@ -307,7 +307,7 @@ contains
     class(TDispMbd), intent(inout) :: this
 
     !> Net charges
-    real(dp), intent(in) :: qOnsite(:)
+    real(dp), intent(in), allocatable :: qNetAtom(:)
 
     !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
@@ -329,13 +329,13 @@ contains
       ! update charges as they are either converged/suitable or this correction is being used
       ! self-consistently
 
-      nAtom = size(qOnsite)
+      nAtom = size(qNetAtom)
       allocate(free_charges(nAtom))
       do i_atom = 1, nAtom
         i_spec = species0(i_atom)
         free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
       end do
-      cpa = 1.0_dp + (qOnsite-free_charges)/this%izp(species0)
+      cpa = 1.0_dp + (qNetAtom-free_charges)/this%izp(species0)
       call this%calculator%update_vdw_params_from_ratios(cpa)
 
       ! dependent properties will need re-evaluation
