@@ -514,6 +514,7 @@ contains
     end if
 
     this%tNetCharges = .false.
+  #:if WITH_MBD
     if (allocated(dispersion)) then
       allocate(this%dispersion, source=dispersion)
       select type (dispersion)
@@ -521,6 +522,7 @@ contains
         this%tNetCharges = .true.
       end select
     end if
+  #:endif
 
     this%skCutoff = skCutoff
     this%mCutoff = mCutoff

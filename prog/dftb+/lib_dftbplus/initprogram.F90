@@ -3568,12 +3568,14 @@ contains
     qOutput(:,:,:) = 0.0_dp
 
     tAllocate = .false.
+  #:if WITH_MBD
     if (allocated(dispersion)) then
       select type (dispersion)
       type is (TDispMbd)
         tAllocate = .true.
       end select
     end if
+  #:endif
     tAllocate = tAllocate .or. tNetAtomCharges
     if (tAllocate) then
       if (.not. allocated(qNetAtom)) then
