@@ -12,6 +12,7 @@
 module dftbp_dispmbd
   use dftbp_accuracy, only: dp, mc, lc
   use dftbp_assert
+  use dftbp_commontypes, only : TOrbitals
   use dftbp_constants, only: symbolToNumber
   use dftbp_dispiface, only: TDispersionIface
   use dftbp_environment, only: TEnvironment
@@ -20,6 +21,7 @@ module dftbp_dispmbd
   use dftbp_simplealgebra, only: determinant33
   use dftbp_typegeometry, only: TGeometry
   use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
+  use mbd_vdw_param, only: species_index
 
   implicit none
 
@@ -142,7 +144,7 @@ contains
 
 
   !> Update atomic coordinates
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance
     class(TDispMbd), intent(inout) :: this
@@ -162,6 +164,9 @@ contains
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     @:ASSERT(allocated(this%calculator))
     call this%calculator%update_coords(coords(:,:size(species0)))
 
@@ -171,8 +176,7 @@ contains
     this%gradientsUpdated = .false.
     this%stressUpdated = .false.
 
-    ! charge update is unaffected by coordinate updates, as may be from previous geometry or
-    ! un-initialised
+    call this%checkError(stat)
 
   end subroutine updateCoords
 
@@ -194,9 +198,6 @@ contains
     this%energyUpdated = .false.
     this%gradientsUpdated = .false.
     this%stressUpdated = .false.
-
-    ! charge update is unaffected by coordinate updates, as may be from previous geometry or
-    ! un-initialised
 
   end subroutine updateLatVecs
 
@@ -300,8 +301,6 @@ contains
 
   !> Update charges in the MBD model
   subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
-    use dftbp_commontypes, only : TOrbitals
-    use mbd_vdw_param, only: species_index
 
     !> Instance
     class(TDispMbd), intent(inout) :: this
@@ -390,5 +389,6 @@ contains
     write(stdOut, "(A,A)") '* Libmbd: ', str
 
   end subroutine mbdPrinter
+
 
 end module dftbp_dispmbd

@@ -207,7 +207,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance of dispersion to update
     class(TDispUff), intent(inout) :: this
@@ -227,7 +227,14 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     integer, allocatable :: nNeigh(:)
+
+    if (present(stat)) then
+      stat = 0
+    end if
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)

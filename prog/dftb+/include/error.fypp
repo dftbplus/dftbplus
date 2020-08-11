@@ -50,3 +50,13 @@
     end if
   end block
 #:enddef FORMATTED_ERROR_HANDLING
+
+
+#! Propagation of error handling, for now it just returns when in error
+#:def HANDLE_ERROR(errVar)
+  if (present(${errVar}$)) then
+    if (${errVar}$ /= 0) then
+      return
+    end if
+  end if
+#:enddef

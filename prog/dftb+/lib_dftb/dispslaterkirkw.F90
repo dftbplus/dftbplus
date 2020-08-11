@@ -219,7 +219,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> The data object for dispersion
     class(TDispSlaKirk), intent(inout) :: this
@@ -239,12 +239,19 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
 
     ! Neighbours for real space summation
     integer, allocatable :: nNeighReal(:)
 
     ! Nr. of neighbours with damping
     integer, allocatable :: nNeighDamp(:)
+
+    if (present(stat)) then
+      stat = 0
+    end if
 
     allocate(nNeighReal(this%nAtom))
     call getNrOfNeighboursForAll(nNeighReal, neigh, this%rCutoff)

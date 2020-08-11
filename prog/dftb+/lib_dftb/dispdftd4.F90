@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> implementation of the D4 dispersion model
 module dftbp_dispdftd4
@@ -142,7 +143,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance of DFTD4 data
     class(TDispDftD4), intent(inout) :: this
@@ -162,16 +163,21 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
       call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh, img2CentCell,&
           & this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald)
+          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald, &
+          & stat=stat)
     else
       call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%cnCont, this%energies, this%gradients)
+          & this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
     end if
+    @:HANDLE_ERROR(stat)
 
     this%tCoordsUpdated = .true.
 
@@ -855,7 +861,7 @@ contains
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
   subroutine dispersionEnergy(calculator, env, nAtom, coords, species, neigh, img2CentCell, &
-      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald)
+      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald, stat)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calculator
@@ -899,6 +905,9 @@ contains
     !> Volume, if system is periodic
     real(dp), intent(in), optional :: volume
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
 
@@ -918,7 +927,8 @@ contains
     gradients(:, :) = 0.0_dp
     sigma(:, :) = 0.0_dp
 
-    call eeqCont%updateCoords(neigh, img2CentCell, coords, species)
+    call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
+    @:HANDLE_ERROR(stat)
 
     call cnCont%updateCoords(neigh, img2CentCell, coords, species)
 
