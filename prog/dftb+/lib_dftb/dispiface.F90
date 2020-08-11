@@ -50,7 +50,7 @@ module dftbp_dispiface
   abstract interface
 
     !> Update internal stored coordinate
-    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0)
+    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0, stat)
       import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
@@ -70,6 +70,9 @@ module dftbp_dispiface
 
       !> central cell chemical species
       integer, intent(in) :: species0(:)
+
+      !> Status of operation
+      integer, intent(out), optional :: stat
     end subroutine updateCoordsIface
 
 
