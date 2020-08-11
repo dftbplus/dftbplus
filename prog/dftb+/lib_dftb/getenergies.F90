@@ -28,7 +28,9 @@ module dftbp_getenergies
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_onsitecorrection
   use dftbp_dispiface
+#:if WITH_MBD
   use dftbp_dispmbd, only: TDispMbd
+#:endif
   use dftbp_solvation, only : TSolvation
   use dftbp_repcont
   use dftbp_repulsive
