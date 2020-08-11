@@ -4752,7 +4752,7 @@ contains
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     if (ctrl%tPrintMulliken) then
-      call getChildValue(child, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
+      call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
       call getChild(node, "CM5", child, requested=.false.)
       if (associated(child)) then
         allocate(ctrl%cm5Input)
