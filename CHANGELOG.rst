@@ -11,6 +11,7 @@ Unreleased
 Added
 -----
 
+- Many body and Tkatchenko-Scheffler dispersion
 
 Changed
 -------
