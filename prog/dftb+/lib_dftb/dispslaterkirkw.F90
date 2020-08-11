@@ -500,7 +500,7 @@ contains
     energies(:) = energies + localEnergies
     gradients(:,:) = gradients + localDeriv
     if (present(stress) .and. present(vol)) then
-      stress(:,:) = stress + localSigma / vol
+      stress(:,:) = localSigma / vol
     end if
 
   end subroutine addDispEnergyAndGrad_cluster
