@@ -548,7 +548,7 @@ contains
 
         if (allocated(dispersion)) then
           call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+          call calcDispersionEnergy(iAtInCentralRegion, dispersion, energy%atomDisp, energy%Edisp)
           call sumEnergies(energy)
         end if
 
@@ -760,7 +760,7 @@ contains
 
         if (allocated(dispersion)) then
           call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0, tConverged)
-          call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+          call calcDispersionEnergy(iAtInCentralRegion, dispersion, energy%atomDisp, energy%Edisp)
         end if
 
         call sumEnergies(energy)
@@ -791,7 +791,7 @@ contains
       ! non-converged SCC.
       call dispersion%updateOnsiteCharges(qOnsite, orb, referenceN0, species0,&
           & tConverged .or. .not.isSccConvRequired)
-      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
+      call calcDispersionEnergy(iAtInCentralRegion, dispersion, energy%atomDisp, energy%Edisp)
       call sumEnergies(energy)
 
 
@@ -808,11 +808,11 @@ contains
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
-              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont, qOnsite)
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, Ef, Eband, TS, E0, extPressure,&
+              & cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
+              & tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint, iAtInCentralRegion,&
+              & electronicSolver, allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
+              & allocated(solvation), cm5Cont, qBlockOut, qOnsite)
         end if
       end if
 
