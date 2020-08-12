@@ -417,7 +417,7 @@ contains
     real(dp), intent(in), optional :: dampCorrection
 
     !> Stress tensor
-    real(dp), intent(out), optional :: stress(:,:)
+    real(dp), intent(inout), optional :: stress(:,:)
 
     !> Volume of the unit cell
     real(dp), intent(in), optional :: vol
