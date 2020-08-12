@@ -188,7 +188,7 @@ contains
       end if
     #:endif
       tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
-          & .and. maxSccIter > 1
+          & .and. maxSccIter > 1 .and. .not.allocated(reks)
       if (tWriteCharges) then
         call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
       end if
