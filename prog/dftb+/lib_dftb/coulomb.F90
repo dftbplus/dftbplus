@@ -18,6 +18,7 @@ module dftbp_coulomb
   use dftbp_environment
   use dftbp_errorfunction
   use dftbp_message
+  use dftbp_boundarycond, only : boundaryCondition
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -30,26 +31,11 @@ module dftbp_coulomb
 
   private
 
-  public :: boundaryCondition, TCoulombInput, TCoulombCont, TCoulombCont_init
+  public :: TCoulombInput, TCoulombCont, TCoulombCont_init
   public :: invRCluster, invRPeriodic, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
-
-
-  !> Possible boundary conditions for evaluating coulombic interactions.
-  type :: TBoundaryConditionEnum
-
-    !> Finite molecular cluster
-    integer :: cluster = 0
-
-    !> Three dimensional infinite periodic boundary conditions
-    integer :: pbc3d = 3
-
-  end type TBoundaryConditionEnum
-
-  !> Actual instance of the boundary condition enumerator
-  type(TBoundaryConditionEnum), parameter :: boundaryCondition = TBoundaryConditionEnum()
 
 
   !> Input data for coulombic interaction container
