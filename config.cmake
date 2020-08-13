@@ -39,6 +39,8 @@ option(WITH_API "Whether public API should be included and the DFTB+ library ins
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
 
+option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
+
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
 # dynamically linked to their applications. This results in smaller applications, but the libraries
