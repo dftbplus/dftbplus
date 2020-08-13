@@ -504,9 +504,7 @@ contains
   end subroutine TElsiSolver_init
 
 
-  !> Checks for supported ELSI api version, ideally 2.6.0 or 2.6.1 (correct electronic entropy
-  !> return and # PEXSI poles change between 2.5.0 and 2.6.0), but 2.5.0 can also be used with
-  !> warnings.
+  !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
   subroutine supportedVersionNumber(this, dateStamp)
 
     !> Version value components inside the structure
@@ -522,8 +520,8 @@ contains
       isSupported = .false.
     elseif (this%major == 2 .and. this%minor < 6) then
       isSupported = .false.
-    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1])) then
-      ! library must be 2.6.{0,1}
+    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1,2])) then
+      ! library must be 2.6.{0..2}
       isSupported = .false.
     end if
 
@@ -554,6 +552,8 @@ contains
     end if
     if (all([this%major,this%minor,this%patch] == [2,6,1]) .and. dateStamp /= 20200625) then
       call warning("ELSI 2.6.1 library version is between releases")
+    elseif (all([this%major,this%minor,this%patch] == [2,6,2]) .and. dateStamp /= 20200718) then
+      call warning("ELSI 2.6.2 library version is between releases")
     end if
 
 

@@ -29,6 +29,8 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
+option(WITH_MBD "Whether DFTB+ should be built with many-body-dispersion support" FALSE)
+
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)

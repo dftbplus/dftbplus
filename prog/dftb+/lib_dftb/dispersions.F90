@@ -18,6 +18,9 @@ module dftbp_dispersions
   use dftbp_dispdftd3
 #:endif
   use dftbp_dispdftd4
+#:if WITH_MBD
+  use dftbp_dispmbd
+#:endif
   implicit none
   public
 
@@ -39,6 +42,11 @@ module dftbp_dispersions
     !> D4 dispersion model.
     type(TDispDftD4Inp), allocatable :: dftd4
   
+  #:if WITH_MBD
+    !> Many-body dispersion
+    type(TDispMbdInp), allocatable :: mbd
+  #:endif
+
   end type TDispersionInp
 
 end module dftbp_dispersions

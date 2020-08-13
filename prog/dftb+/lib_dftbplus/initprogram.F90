@@ -514,8 +514,8 @@ module dftbp_initprogram
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-  !> Only use converged forces if SCC
-  logical :: tUseConvergedForces
+  !> Use converged SCC charges for properties like forces or charge dependent dispersion
+  logical :: isSccConvRequired
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -561,6 +561,9 @@ module dftbp_initprogram
 
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
+
+  !> onsite charge per atom
+  real(dp), allocatable :: qOnsite(:)
 
   !> input Mulliken block charges (diagonal part == Mulliken charges)
   real(dp), allocatable :: qBlockIn(:, :, :, :)
@@ -740,9 +743,6 @@ module dftbp_initprogram
 
   !> Frequency for saving restart info
   integer :: restartFreq
-
-  !> If dispersion should be calculated
-  logical :: tDispersion
 
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
@@ -1090,6 +1090,9 @@ contains
     type(TDispDftD3), allocatable :: dftd3
   #:endif
     type(TDispDftD4), allocatable :: dftd4
+  #:if WITH_MBD
+    type(TDispMbd), allocatable :: mbd
+  #:endif
 
     ! H5 correction
     type(TH5Corr), allocatable :: pH5Correction
@@ -1720,7 +1723,7 @@ contains
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    isSccConvRequired = input%ctrl%isSccConvRequired
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1988,22 +1991,11 @@ contains
 
     ! Dispersion
     tHHRepulsion = .false.
-    tDispersion = allocated(input%ctrl%dispInp)
-    if (tDispersion) then
+    if (allocated(input%ctrl%dispInp)) then
       if (tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
       if (allocated(input%ctrl%dispInp%slakirk)) then
-
-        tStress = .false.
-        if (tLatOpt) then
-          call error("Sorry, lattice optimisation and Slater-Kirkwood type dispersion can not be&
-              & used together")
-        end if
-        if (tBarostat) then
-          call error("Sorry, barostatic MD and Slater-Kirkwood type dispersion can not be used&
-              & together")
-        end if
         allocate(slaKirk)
         if (tPeriodic) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, latVec)
@@ -2045,6 +2037,21 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
+    #:if WITH_MBD
+      elseif (allocated(input%ctrl%dispInp%mbd)) then
+        allocate (mbd)
+        associate (inp => input%ctrl%dispInp%mbd)
+            inp%calculate_forces = tForces
+            inp%atom_types = speciesName(species0)
+            inp%coords = coord0
+            if (tPeriodic) then
+              inp%lattice_vectors = latVec
+            end if
+            call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
+        end associate
+        call mbd%checkError()
+        call move_alloc(mbd, dispersion)
+     #:endif
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     end if
@@ -2465,7 +2472,7 @@ contains
     tPoissonTwice = input%poisson%solveTwice
 
     if (tNegf) then
-      if (tDispersion) then
+      if (allocated(dispersion)) then
         call error("Dispersion not currently avalable with transport calculations")
       end if
       if (isLinResp) then
@@ -2959,7 +2966,7 @@ contains
       end do
     end if
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       select type (dispersion)
       type is (TDispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
@@ -2971,6 +2978,10 @@ contains
     #:endif
       type is (TDispDftD4)
         write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
+    #:if WITH_MBD
+      type is (TDispMbd)
+        call writeMbdInfo(input%ctrl%dispInp%mbd)
+    #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select
@@ -3547,6 +3558,11 @@ contains
     endif
     qOutput(:,:,:) = 0.0_dp
 
+    if (.not. allocated(qOnsite)) then
+       allocate(qOnsite(nAtom))
+    endif
+    qOnsite(:) = 0.0_dp
+
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
           allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -3912,7 +3928,7 @@ contains
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
-    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qOnsite)
     @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
     @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
@@ -4678,6 +4694,50 @@ contains
     end if
 
   end subroutine getDenseDescCommon
+
+
+#:if WITH_MBD
+  !> Writes MBD-related info
+  subroutine writeMbdInfo(input)
+    !> MBD input parameters
+    type(TDispMbdInp), intent(in) :: input
+
+    character(lc) :: tmpStr
+
+    write(stdOut, "(A)") ''
+    select case (input%method)
+    case ('ts')
+      write(stdOut, "(A)") "Using TS dispersion corrections [Phys. Rev. B 80, 205414 (2009)]"
+      write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+    case ('mbd-rsscs')
+      write(stdOut,"(A)") "Using MBD dispersion corrections [Phys. Rev. Lett. 108, 236402 (2012)]"
+      write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+    end select
+    select case (trim(input%vdw_params_kind))
+    case ('tssurf')
+      write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+    case ('ts')
+      write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+    end select
+    write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
+    select case (input%method)
+    case ('ts')
+      write(tmpStr,"(E18.6)") input%ts_f_acc
+      write(stdOut, "(A,T30,A)") '  TSForceAccuracy', trim(adjustl(tmpStr))
+      write(tmpStr, "(E18.6)") input%ts_ene_acc
+      write(stdOut, "(A,T30,A)") '  TSEnergyAccuracy', trim(adjustl(tmpStr))
+    case ('mbd-rsscs')
+      write(tmpStr, "(3(I3,1X))") input%k_grid
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
+      write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid shift", trim(adjustl(tmpStr))
+      write(tmpStr, "(I3)") input%n_omega_grid
+      write(stdOut, "(A,T30,A)") "  Gridsize (frequencies)", trim(adjustl(tmpStr))
+    end select
+    write(stdOut,"(A)") ""
+
+  end subroutine writeMbdInfo
+#:endif
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
