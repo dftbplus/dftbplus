@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include "error.fypp"
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_coulomb
@@ -32,7 +33,7 @@ module dftbp_coulomb
   private
 
   public :: TCoulombInput, TCoulombCont, TCoulombCont_init
-  public :: invRCluster, invRPeriodic, getOptimalAlphaEwald, getMaxGEwald
+  public :: getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
@@ -150,10 +151,13 @@ module dftbp_coulomb
     !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
     procedure :: addInvRPrimePeriodicMat
 
-    !> 1/r interaction for all atoms with another group
+    !> 1/r interaction for all atoms with another group of charges
     procedure, private :: sumInvRClusterAsymm
     procedure, private :: sumInvRPeriodicAsymm
     generic :: sumInvRAsymm => sumInvRClusterAsymm, sumInvRPeriodicAsymm
+
+    !> Calculates and returns the 1/R Matrix for all atoms
+    procedure :: invR
 
     !> Calculates the -1/R**2 deriv contribution for all atoms, without storing anything.
     procedure, private :: addInvRPrimeCluster
@@ -266,7 +270,7 @@ contains
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(this, env, neighList, coords, species)
+  subroutine updateCoords(this, env, neighList, coords, species, err)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: this
@@ -283,18 +287,15 @@ contains
     !> Central cell chemical species
     integer, intent(in) :: species(:)
 
+    !> Error return (if used)
+    integer, intent(out), optional :: err
+
     if (this%boundaryCondition == boundaryCondition%pbc3d) then
       call this%neighListGen%updateCoords(coords(:, 1:this%nAtom))
     end if
 
-    ! If process is outside of atom grid, skip invRMat calculation
     if (allocated(this%invRMat)) then
-      if (this%boundaryCondition == boundaryCondition%pbc3d) then
-        call invRPeriodic(env, this%nAtom, coords, this%neighListGen, this%gLatPoint,&
-            & this%alpha, this%volume, this%invRMat)
-      else
-        call invRCluster(env, this%nAtom, coords, this%invRMat)
-      end if
+      call this%invR(env, coords, this%invRMat, err)
     end if
 
     this%tCoordsUpdated = .true.
@@ -617,13 +618,13 @@ contains
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invRCluster(env, nAtom, coord, invRMat)
+  subroutine invR(this, env, coord, invRMat, err)
+
+    !> Data structure
+    class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
-
-    !> number of atoms
-    integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
@@ -631,22 +632,51 @@ contains
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
 
+    !> Error return (if used)
+    integer, intent(out), optional :: err
+
   #:if WITH_SCALAPACK
     integer :: descInvRMat(DLEN_)
   #:endif
 
-   #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iproc == -1) then
-      return
-    end if
-    call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
-        & env%blacs%columnBlockSize, descInvRMat)
-    call invRClusterBlacs(env%blacs%atomGrid, coord, descInvRMat, invRMat)
-  #:else
-    call invRClusterSerial(coord, invRMat)
-  #:endif
+    select case (this%boundaryCondition)
+    case(boundaryCondition%cluster)
 
-  end subroutine invRCluster
+    #:if WITH_SCALAPACK
+      if (env%blacs%atomGrid%iproc == -1) then
+        return
+      end if
+      call scalafx_getdescriptor(env%blacs%atomGrid, this%nAtom, this%nAtom,&
+          & env%blacs%rowBlockSize, env%blacs%columnBlockSize, descInvRMat)
+      call invRClusterBlacs(env%blacs%atomGrid, coord, descInvRMat, invRMat)
+    #:else
+      call invRClusterSerial(coord, invRMat)
+    #:endif
+
+    case (boundaryCondition%pbc3d)
+
+      @:ASSERT(this%volume > 0.0_dp)
+
+    #:if WITH_SCALAPACK
+      if (env%blacs%atomGrid%iproc == -1) then
+        return
+      end if
+      call scalafx_getdescriptor(env%blacs%atomGrid, this%nAtom, this%nAtom,&
+          & env%blacs%rowBlockSize, env%blacs%columnBlockSize, descInvRMat)
+      call invRPeriodicBlacs(env%blacs%atomGrid, coord, this%neighListGen, this%gLatPoint,&
+          & this%alpha, this%volume, descInvRMat, invRMat)
+    #:else
+      call invRPeriodicSerial(coord, this%neighListGen, this%gLatPoint, this%alpha, this%volume,&
+          & invRMat)
+    #:endif
+
+    case default
+
+      @:ERROR_HANDLING(err, -1, "Unknown boundary conditions in invR()")
+
+    end select
+
+  end subroutine invR
 
 
 #:if WITH_SCALAPACK
@@ -814,59 +844,6 @@ contains
     call assembleChunks(env, invRVec)
 
   end subroutine sumInvRClusterAsymm
-
-
-  !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
-  !> constructed.
-  subroutine invRPeriodic(env, nAtom, coord, neighList, recPoint, alpha, volume, invRMat)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Number of atoms.
-    integer, intent(in) :: nAtom
-
-    !> List of atomic coordinates (all atoms).
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Neighbour list for the real space summation of the Ewald.
-    type(TDynNeighList), intent(in) :: neighList
-
-    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
-    !> inversion related points.
-    real(dp), intent(in) :: recPoint(:,:)
-
-    !> Parameter for Ewald summation.
-    real(dp), intent(in) :: alpha
-
-    !> Volume of the real space unit cell.
-    real(dp), intent(in) :: volume
-
-    !> Matrix of 1/R values for each atom pair.
-    real(dp), intent(out) :: invRMat(:,:)
-
-  #:if WITH_SCALAPACK
-    integer :: descInvRMat(DLEN_)
-  #:endif
-
-    @:ASSERT(volume > 0.0_dp)
-
-    ! Somewhat redundant test, but stops compiler complaints as for serial case nAtom not referenced
-    @:ASSERT(size(coord,dim=2) >= nAtom)
-
-  #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iproc == -1) then
-      return
-    end if
-    call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
-        & env%blacs%columnBlockSize, descInvRMat)
-    call invRPeriodicBlacs(env%blacs%atomGrid, coord, neighList, recPoint, alpha, volume,&
-        & descInvRMat, invRMat)
-  #:else
-    call invRPeriodicSerial(coord, neighList, recPoint, alpha, volume, invRMat)
-  #:endif
-
-  end subroutine invRPeriodic
 
 
 #:if WITH_SCALAPACK
