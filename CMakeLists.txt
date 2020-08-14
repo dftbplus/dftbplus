@@ -16,6 +16,7 @@ project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
 # By default, use intrinsic Fortran 2008 erf/erfc
 set(INTERNAL_ERFC CACHE BOOL 0)
+GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
 
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
