@@ -977,11 +977,12 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    real(dp), allocatable :: xpyq(:), qij(:), gamxpyq(:), qgamxpyq(:), gamqt(:)
+    real(dp), allocatable :: xpyq(:), qij(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
+    real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     integer :: nxov, nxoo, nxvv
-    integer :: i, j, a, b, ias, ibs, ij, ab, jas, s
-    real(dp) :: tmp1, tmp2
-    logical, parameter :: updwn = .true.
+    integer :: i, j, a, b, ias, ibs, ij, ab, jas, s, nSpin
+    real(dp) :: tmp1, tmp2, fact
+    logical :: updwn, tSpin
 
     nxov = size(rhs)
     nxoo = size(woo, dim=1)
@@ -991,7 +992,9 @@ contains
     ALLOCATE(qij(natom))
     ALLOCATE(gamxpyq(natom))
     ALLOCATE(gamqt(natom))
-    ALLOCATE(qgamxpyq(max(nxoo, nxvv)))
+    ALLOCATE(qgamxpyq(max(nxoo, nxvv), size(homo)))
+    ALLOCATE(xpyqds(natom))
+    ALLOCATE(gamxpyqds(natom))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -999,11 +1002,18 @@ contains
     woo(:,:) = 0.0_dp
     wvv(:,:) = 0.0_dp
 
+    nSpin = size(t, dim=3)
+
+    if (nSpin == 2) then
+      tSpin = .true.
+    else
+      tSpin = .false.
+    end if
+
     ! Build t_ab = 0.5 * sum_i (X+Y)_ia (X+Y)_ib + (X-Y)_ia (X-Y)_ib
     ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
     ! factor 1 / (1 + delta_ab) follows later
     do ias = 1, nxov
-      !i, a, s = getij(win(ias),:)
       call indxov(win, ias, getij, i, a, s)
 
       ! BA: is T_aa = 0?
@@ -1047,22 +1057,47 @@ contains
     xpyq(:) = 0.0_dp
     call transChrg%qMatVec(iAtomStart, stimc, c, getij, win, xpy, xpyq)
 
+    if (.not. tSpin) then  ! ---- spin-unpolarized case ----
 
-    ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
-    !ADG: only close shell atm
-    if (sym == "S") then
+      ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
+      if (sym == "S") then
+        call hemv(gamxpyq, gammaMat,  xpyq)
+        do ab = 1, nxvv
+          call indxvv(homo(1), ab, a, b)
+          qij(:) = transq(a, b, iAtomStart, .true., stimc, c)
+          qgamxpyq(ab, 1) = 2.0_dp * sum(qij * gamxpyq)
+        end do
+      else ! triplet case
+        do ab = 1, nxvv
+          call indxvv(homo(1), ab, a, b)
+          qij(:) = transq(a, b, iAtomStart, .true., stimc, c)
+          qgamxpyq(ab, 1) = 2.0_dp * sum(qij * xpyq * spinW(species0))
+        end do
+      end if
+
+    else  ! ---- spin-polarized case -----
+
+      xpyqds(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, stimc, c, getij, win, xpy, xpyqds)
+
       call hemv(gamxpyq, gammaMat,  xpyq)
-      do ab = 1, nxvv
-        call indxvv(homo(1), ab, a, b)
-        qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
-        qgamxpyq(ab) = 2.0_dp * sum(qij * gamxpyq)
+      do s = 1, 2
+        if (s == 1) then
+          updwn = .true.
+          fact = 1.0_dp
+        else
+          updwn = .false.
+          fact = -1.0_dp
+        end if
+        do ab = 1, nxvv
+          call indxvv(homo(s), ab, a, b)
+          qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
+          qgamxpyq(ab, s) = sum(qij * gamxpyq)
+          !magnetization part
+          qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qij * xpyqds * spinW(species0))
+        end do
       end do
-    else ! triplet case
-      do ab = 1, nxvv
-        call indxvv(homo(1), ab, a, b)
-        qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
-        qgamxpyq(ab) = 2.0_dp * sum(qij * xpyq * spinW(species0))
-      end do
+
     end if
 
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
@@ -1072,30 +1107,54 @@ contains
       do b = homo(s) + 1, a
         call rindxvv(homo(s), a, b, ab)
         ibs = iatrans(i,b,s)
-        rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab)
+        rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab, s)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
-          rhs(ibs) = rhs(ibs) - 2.0_dp * xpy(ias) * qgamxpyq(ab)
+          rhs(ibs) = rhs(ibs) - 2.0_dp * xpy(ias) * qgamxpyq(ab, s)
         end if
       end do
     end do
 
     ! -rhs = -rhs - sum_j (X + Y)_ja H + _ij[X + Y]
-    if (sym == "S") then
-      do ij = 1, nxoo
-        qgamxpyq(ij) = 0.0_dp
-        call indxoo(ij, i, j)
-        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
-        ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
-        qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
+    if (.not. tSpin) then  ! ---- spin-unpolarized case ----
+
+      if (sym == "S") then
+        do ij = 1, nxoo
+          qgamxpyq(ij, 1) = 0.0_dp
+          call indxoo(ij, i, j)
+          qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
+          ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
+          qgamxpyq(ij, 1) = 2.0_dp * sum(qij * gamxpyq)
+        end do
+      else
+        do ij = 1, nxoo
+          qgamxpyq(ij, 1) = 0.0_dp
+          call indxoo(ij, i, j)
+          qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
+          qgamxpyq(ij, 1) = 2.0_dp * sum(qij * xpyq * spinW(species0))
+        end do
+      end if
+
+    else  ! ---- spin-polarized case -----
+
+      do s = 1, 2
+        if (s == 1) then
+          updwn = .true.
+          fact = 1.0_dp
+        else
+          updwn = .false.
+          fact = -1.0_dp
+        end if
+        do ij = 1, nxoo
+          qgamxpyq(ij, s) = 0.0_dp
+          call indxoo(ij, i, j)
+          qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
+          qgamxpyq(ij, s) = sum(qij * gamxpyq)
+          !magnetization part
+          qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qij * xpyqds * spinW(species0))
+        end do
       end do
-    else
-      do ij = 1, nxoo
-        qgamxpyq(ij) = 0.0_dp
-        call indxoo(ij, i, j)
-        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
-        qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
-      end do
+
     end if
 
     ! rhs(ia) += Qai = sum_j (X+Y)_ja qgamxpyq(ij)
@@ -1106,11 +1165,11 @@ contains
         jas = iatrans(j, a, s)
         !ij = i-homo+nocc + ((j-homo+nocc - 1) * (j-homo+nocc)) / 2
         call rindxvv(0, j, i, ij)
-        tmp1 = 2.0_dp * xpy(jas) * qgamxpyq(ij)
+        tmp1 = 2.0_dp * xpy(jas) * qgamxpyq(ij, s)
         rhs(ias) = rhs(ias) + tmp1
         wov(ias) = wov(ias) + tmp1
         if (i /= j) then
-          tmp2 = 2.0_dp * xpy(ias) * qgamxpyq(ij)
+          tmp2 = 2.0_dp * xpy(ias) * qgamxpyq(ij, s)
           rhs(jas) = rhs(jas) + tmp2
           wov(jas) = wov(jas) + tmp2
         end if
@@ -1119,46 +1178,61 @@ contains
 
     ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
     gamxpyq(:) = 0.0_dp
-    !ADG: I have to change here the behavior of indxoo to account for spin.
-    !Probably return also s variable: indxoo(ijs, i, j, s)
-    !for the moment, only spin up for T matrix: t(i,j,1)
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
-      qij = transq(i, j, iAtomStart, updwn, stimc, c)
-      if (i == j) then
-        gamxpyq(:) = gamxpyq(:) + t(i,j,1) * qij(:)
-      else
-        ! factor 2 because of symmetry of the matrix
-        gamxpyq(:) = gamxpyq(:) + 2.0_dp  * t(i,j,1) * qij(:)
-      end if
-    end do
+    gamxpyqds(:) = 0.0_dp
 
-    ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
-    !ADG: I have to change here the behavior of indxvv to account for spin.
-    !Probably return also s variable: indxvv(homo, abs, a, b, s)
-    !for the moment, only spin up for T matrix: t(a,b,1)
-    do ab = 1, nxvv
-      call indxvv(homo(1), ab, a, b)
-      qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
-      if (a == b) then
-        gamxpyq(:) = gamxpyq(:) + t(a,b,1) * qij(:)
+    do s = 1, nSpin
+      if (s == 1) then
+        updwn = .true.
+        fact = 1.0_dp
       else
-        ! factor 2 because of symmetry of the matrix
-        gamxpyq(:) = gamxpyq(:) + 2.0_dp * t(a,b,1) * qij(:)
+        updwn = .false.
+        fact = -1.0_dp
       end if
+      do ij = 1, nxoo
+        call indxoo(ij, i, j)
+        qij = transq(i, j, iAtomStart, updwn, stimc, c)
+        if (i == j) then
+          gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qij(:)
+          gamxpyqds(:) = gamxpyq(:) + t(i,j,s) * qij(:) * fact
+        else
+          ! factor 2 because of symmetry of the matrix
+          gamxpyq(:) = gamxpyq(:) + 2.0_dp  * t(i,j,s) * qij(:)
+          gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(i,j,s) * qij(:) * fact
+        end if
+      end do
+
+      ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
+      do ab = 1, nxvv
+        call indxvv(homo(1), ab, a, b)
+        qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
+        if (a == b) then
+          gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qij(:)
+          gamxpyqds(:) = gamxpyq(:) + t(a,b,s) * qij(:) * fact
+        else
+          ! factor 2 because of symmetry of the matrix
+          gamxpyq(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:)
+          gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:) * fact
+        end if
+      end do
+
     end do
 
     ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
     call hemv(gamqt, gammaMat, gamxpyq)
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
-    call transChrg%qVecMat(iAtomStart, stimc, c, getij, win, -4.0_dp*gamqt, rhs)
+    if (.not. tSpin) then
+      call transChrg%qVecMat(iAtomStart, stimc, c, getij, win, -4.0_dp*gamqt, rhs)
+    else
+      call transChrg%qVecMat(iAtomStart, stimc, c, getij, win, -2.0_dp*gamqt, rhs)
+      call transChrg%qVecMatDs(iAtomStart, stimc, c, getij, win, -2.0_dp*gamxpyqds*spinW(species0), rhs)
+    end if
 
     ! Furche vectors
     !ADG: for the moment, only spin up for woo matrix
     do ij = 1, nxoo
       call indxoo(ij, i, j)
-      qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
+      qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
       woo(ij,1) = woo(ij,1) + 4.0_dp * sum(qij * gamqt)
     end do
 
