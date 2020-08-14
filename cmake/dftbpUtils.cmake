@@ -287,7 +287,7 @@ endfunction()
 function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_libs_private
     pkgconfig_c_flags)
 
-  set(_pkgconfig_libs "-L${INSTALL_LIB_DIR} -ldftbplus")
+  set(_pkgconfig_libs "-L${CMAKE_INSTALL_LIBDIR} -ldftbplus")
   set(_pkgconfig_libs_private)
 
   dftbp_add_prefix("-l" "${EXPORTED_COMPILED_LIBRARIES}" complibs)
@@ -311,7 +311,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_INC_DIR} ${CMAKE_C_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_INCLUDEDIR} ${CMAKE_C_FLAGS}")
 
   else()
 
@@ -325,7 +325,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_MOD_DIR} ${CMAKE_Fortran_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_MODULEDIR} ${CMAKE_Fortran_FLAGS}")
 
   endif()
 

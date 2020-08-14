@@ -3,6 +3,9 @@ cmake_policy(VERSION 3.5)
 
 set(DFTBPLUS_VERSION "20.1")
 
+# Follow GNU conventions for installing directories
+include(GNUInstallDirs)
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
@@ -192,16 +195,19 @@ add_subdirectory(test)
 if(WITH_API)
 
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
-    DESTINATION ${INSTALL_LIB_DIR}/cmake/DftbPlus)
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
   
   configure_file(utils/export/DftbPlusConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake @ONLY)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake DESTINATION
-    ${INSTALL_LIB_DIR}/cmake/DftbPlus)
+    "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
 
   dftbp_get_pkgconfig_params(PKGCONFIG_REQUIRES PKGCONFIG_LIBS PKGCONFIG_LIBS_PRIVATE
     PKGCONFIG_C_FLAGS)
   configure_file(utils/export/dftbplus.pc.in ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc DESTINATION ${INSTALL_LIB_DIR}/pkgconfig)
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  )
   
 endif()

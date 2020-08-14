@@ -72,15 +72,15 @@ endif()
 #
 # Installation options
 #
-set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH
+set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
   "Installation directory for executables")
 
-set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
+set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
 
-set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
+set(CMAKE_INSTALL_INCLUDDIR "include/dftb+" CACHE PATH
   "Installation directory for header and include files")
 
-set(INSTALL_MOD_DIR "${INSTALL_INC_DIR}/modfiles" CACHE PATH
+set(CMAKE_INSTALL_MODULEDIR "${CMAKE_INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
   "Installation directory for Fortran module files")
 
 option(EXPORT_EXTLIBS_WITH_PATH

@@ -18,4 +18,4 @@ endif()
 
 target_link_libraries(waveplot PRIVATE dftbplus)
 
-install(TARGETS waveplot DESTINATION ${INSTALL_BIN_DIR})
+install(TARGETS waveplot DESTINATION "${CMAKE_INSTALL_BINDIR}")
