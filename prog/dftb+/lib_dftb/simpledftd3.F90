@@ -495,10 +495,11 @@ contains
 
     !$omp parallel do default(none) schedule(runtime) &
     !$omp reduction(+:localEnergies, localDeriv, localSigma, dEdcn) &
-    !$omp shared(nAtom, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dcn, calc, param) &
-    !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
-    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2) &
-    !$omp private(dEr, dGr, grad, dSr, f6, f8, f10, df6, df8, df10)
+    !$omp shared(iAtFirst, iAtLast, species, nNeighbour, neigh, coords) &
+    !$omp shared(img2CentCell, c6, dc6dcn, calc, param) &
+    !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5) &
+    !$omp private(r6, r8, r10, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2) &
+    !$omp private(rc, dEr, dGr, grad, dSr, f6, f8, f10, df6, df8, df10)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
