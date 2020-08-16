@@ -20,6 +20,7 @@ module dftbp_simpledftd3
   use dftbp_environment, only : TEnvironment
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33, invert33
   implicit none
   private
@@ -92,8 +93,8 @@ module dftbp_simpledftd3
     !> Volume of the unit cell
     real(dp) :: vol
 
-    !> stress tensor
-    real(dp) :: stress(3, 3)
+    !> Strain derivatives
+    real(dp) :: sigma(3, 3)
 
     !> is this periodic
     logical :: tPeriodic
@@ -132,7 +133,7 @@ module dftbp_simpledftd3
 
   !> Initialize DFT-D3 calculator from input
   interface init
-    module procedure :: initialize
+    module procedure :: TSimpleDftD3_init
   end interface init
 
 
@@ -140,7 +141,7 @@ contains
 
 
   !> Initialize SimpleDftD3 instance.
-  subroutine initialize(this, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TSimpleDftD3_init(this, input, nAtom, species0, speciesNames, latVecs)
 
     !> Initialized instance of D4 dispersion model.
     type(TSimpleDftD3), intent(out) :: this
@@ -187,11 +188,11 @@ contains
     allocate(this%energies(nAtom))
     allocate(this%gradients(3, nAtom))
 
-  end subroutine initialize
+  end subroutine TSimpleDftD3_init
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance of DFTD4 data
     class(TSimpleDftD3), intent(inout) :: this
@@ -208,32 +209,35 @@ contains
     !> Updated coordinates.
     real(dp), intent(in) :: coords(:,:)
 
-    !> Species of the atoms in the unit cell.
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
+    ! Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
-    !> Nr. of neighbours for each atom
+    ! Nr. of neighbours for each atom
     integer, allocatable :: nNeighbour(:)
     real(dp) :: sigma(3, 3)
 
-    @:ASSERT(allocated(energies))
-    @:ASSERT(allocated(gradients))
+    @:ASSERT(allocated(this%energies))
+    @:ASSERT(allocated(this%gradients))
+
+    if (present(stat)) then
+      stat = 0
+    end if
 
     allocate(nNeighbour(this%nAtom))
 
     this%energies(:) = 0.0_dp
     this%gradients(:, :) = 0.0_dp
-    this%stress(:, :) = 0.0_dp
+    this%sigma(:, :) = 0.0_dp
 
     call this%cnCont%updateCoords(neigh, img2CentCell, coords, species0)
 
     call getNrOfNeighboursForAll(nNeighbour, neigh, this%cutoffInter)
-    call dispersionGradient(this%ref, this%param, nNeighbour, coords, species0, neigh, &
-        & img2CentCell, this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, &
-        & this%energies, this%gradients, this%stress)
-
-    if (this%tPeriodic) then
-      this%stress(:, :) = this%stress / this%vol
-    end if
+    call dispersionGradient(env, this%ref, this%param, nNeighbour, coords, &
+        & species0, neigh, img2CentCell, this%cnCont%cn, this%cnCont%dcndr, &
+        & this%cnCont%dcndL, this%energies, this%gradients, this%sigma)
 
     this%tCoordsUpdated = .true.
 
@@ -313,7 +317,7 @@ contains
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-    stress(:,:) = this%stress
+    stress(:,:) = this%sigma / this%vol
 
   end subroutine getStress
 
@@ -334,7 +338,10 @@ contains
 
   !> Calculate the weights of the reference systems.
   !> It also saves the derivative w.r.t. coordination number for later use.
-  subroutine weightReferences(calc, param, nAtom, species, cn, zetaVec, zetadcn)
+  subroutine weightReferences(env, calc, param, nAtom, species, cn, gwVec, gwdcn)
+
+    !> Computation environment
+    type(TEnvironment), intent(in) :: env
 
     !> DFT-D dispersion model.
     type(TDftD3Ref), intent(in) :: calc
@@ -351,22 +358,24 @@ contains
     !> Coordination number of every atom.
     real(dp), intent(in) :: cn(:)
 
-    !> weighting and scaling function for the atomic reference systems
-    real(dp), intent(out) :: zetaVec(:, :)
+    !> weighting function for the atomic reference systems
+    real(dp), intent(out) :: gwVec(:, :)
 
-    !> derivative of the weight'n'scale function w.r.t. the coordination number
-    real(dp), intent(out) :: zetadcn(:, :)
+    !> derivative of the weighting function w.r.t. the coordination number
+    real(dp), intent(out) :: gwdcn(:, :)
 
-    integer :: iAt1, iSp1, iRef1
+    integer :: iAtFirst, iAtLast, iAt1, iSp1, iRef1
     real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
 
-    zetaVec(:,:) = 0.0_dp
-    zetadcn(:,:) = 0.0_dp
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    gwVec(:,:) = 0.0_dp
+    gwdcn(:,:) = 0.0_dp
 
     !$omp parallel do schedule(runtime) default(none) &
-    !$omp shared(zetaVec, zetadcn, calc, param, nAtom, species, cn) &
+    !$omp shared(gwVec, gwdcn, calc, param, iAtFirst, iAtLast, species, cn) &
     !$omp private(iAt1, iSp1, norm, dnorm, iRef1, wf, gw, expw, expd, gwk, dgwk)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       norm = 0.0_dp
       dnorm = 0.0_dp
@@ -392,23 +401,29 @@ contains
             gwk = 0.0_dp
           end if
         end if
-        zetaVec(iRef1, iAt1) = gwk
+        gwVec(iRef1, iAt1) = gwk
 
         dgwk = expd * norm - expw * dnorm * norm**2
         if (ieee_is_nan(dgwk)) then
           dgwk = 0.0_dp
         end if
-        zetadcn(iRef1, iAt1) = dgwk
+        gwdcn(iRef1, iAt1) = dgwk
       end do
     end do
     !$omp end parallel do
+
+    call assembleChunks(env, gwVec)
+    call assembleChunks(env, gwdcn)
 
   end subroutine weightReferences
 
 
   !> Actual implementation of the dispersion energy, gradients and stress tensor.
-  subroutine dispersionGradient(calc, param, nNeighbour, coords, species, neigh, img2CentCell, &
-      & cn, dcndr, dcndL, energies, gradients, stress)
+  subroutine dispersionGradient(env, calc, param, nNeighbour, coords, species, &
+      & neigh, img2CentCell, cn, dcndr, dcndL, energies, gradients, sigma)
+
+    !> Computation environment
+    type(TEnvironment), intent(in) :: env
 
     !> DFT-D dispersion model.
     type(TDftD3Ref), intent(in) :: calc
@@ -446,37 +461,45 @@ contains
     !> Updated gradient vector at return
     real(dp), intent(inout) :: gradients(:, :)
 
-    !> Updated stress tensor at return
-    real(dp), intent(inout) :: stress(:, :)
+    !> Updated sigma tensor at return
+    real(dp), intent(inout) :: sigma(:, :)
 
-    integer :: nRef, nAtom
+    integer :: nRef, nAtom, iAtFirst, iAtLast
     integer :: iAt1, iSp1, iNeigh, iAt2, iSp2, iAt2f
     real(dp) :: dc6, dc6dcn1, dc6dcn2
-    real(dp) :: vec(3), grad(3), dEr, dGr, sigma(3, 3)
+    real(dp) :: vec(3), grad(3), dEr, dGr, dSr(3, 3)
     real(dp) :: rc, r1, r2, r4, r5, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
     real(dp) :: f6, df6, f8, df8, f10, df10
 
-    real(dp), allocatable :: zetaVec(:, :), zetadcn(:, :), dEdcn(:)
+    real(dp), allocatable :: gwVec(:, :), gwdcn(:, :), dEdcn(:)
     real(dp), allocatable :: c6(:, :), dc6dcn(:, :)
+    real(dp), allocatable :: localDeriv(:,:), localSigma(:, :), localEnergies(:)
 
     nAtom = size(nNeighbour)
     nRef = maxval(calc%numberOfReferences(species))
-    allocate(zetaVec(nRef, nAtom), zetadcn(nRef, nAtom), c6(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
+    allocate(gwVec(nRef, nAtom), gwdcn(nRef, nAtom), c6(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
         & dEdcn(nAtom))
 
     dEdcn(:) = 0.0_dp
 
-    call weightReferences(calc, param, nAtom, species, cn, zetaVec, zetadcn)
+    call weightReferences(env, calc, param, nAtom, species, cn, gwVec, gwdcn)
 
-    call getAtomicC6(calc, nAtom, species, zetaVec, zetadcn, c6, dc6dcn)
+    call getAtomicC6(env, calc, nAtom, species, gwVec, gwdcn, c6, dc6dcn)
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localSigma(:,:) = 0.0_dp
 
     !$omp parallel do default(none) schedule(runtime) &
-    !$omp reduction(+:energies, gradients, stress, dEdcn) &
+    !$omp reduction(+:localEnergies, localDeriv, localSigma, dEdcn) &
     !$omp shared(nAtom, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dcn, calc, param) &
     !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
     !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2) &
-    !$omp private(dEr, dGr, grad, sigma, f6, f8, f10, df6, df8, df10)
-    do iAt1 = 1, nAtom
+    !$omp private(dEr, dGr, grad, dSr, f6, f8, f10, df6, df8, df10)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = neigh%iNeighbour(iNeigh, iAt1)
@@ -514,36 +537,48 @@ contains
         dGr = param%s6 * df6 + param%s8 * df8 * rc + param%s10 * rc * rc * 49.0_dp / 40.0_dp * df10
 
         grad(:) = -dGr*dc6 * vec / r1
-        sigma(:,:) = spread(grad, 1, 3) * spread(vec, 2, 3)
+        dSr(:,:) = spread(grad, 1, 3) * spread(vec, 2, 3)
 
-        energies(iAt1) = energies(iAt1) - dEr*dc6/2
+        localEnergies(iAt1) = localEnergies(iAt1) - dEr*dc6/2
         dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
         if (iAt1 /= iAt2f) then
-          stress(:,:) = stress - sigma
-          energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
-          gradients(:, iAt1) = gradients(:, iAt1) + grad
-          gradients(:, iAt2f) = gradients(:, iAt2f) - grad
+          localSigma(:,:) = localSigma - dSr
+          localEnergies(iAt2f) = localEnergies(iAt2f) - dEr*dc6/2
+          localDeriv(:, iAt1) = localDeriv(:, iAt1) + grad
+          localDeriv(:, iAt2f) = localDeriv(:, iAt2f) - grad
           dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
         else
-          stress(:,:) = stress - 0.5_dp * sigma
+          localSigma(:,:) = localSigma - 0.5_dp * dSr
         end if
 
       end do
     end do
     !$omp end parallel do
 
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localSigma)
+    call assembleChunks(env, dEdcn)
+
+    energies(:) = energies + localEnergies
+    gradients(:,:) = gradients + localDeriv
+    sigma(:,:) = sigma + localSigma
+
     ! handle CN contributions to the gradient by matrix-vector operation
     call gemv(gradients, dcndr, dEdcn, beta=1.0_dp)
 
-    ! handle CN contributions to the stress tensor
-    call gemv(stress, dcndL, dEdcn, beta=1.0_dp)
+    ! handle CN contributions to the sigma tensor
+    call gemv(sigma, dcndL, dEdcn, beta=1.0_dp)
 
   end subroutine dispersionGradient
 
 
   !> calculate atomic dispersion coefficients and their derivatives w.r.t.
   !> coordination number and partial charge.
-  subroutine getAtomicC6(calc, nAtom, species, zetaVec, zetadcn, c6, dc6dcn)
+  subroutine getAtomicC6(env, calc, nAtom, species, gwVec, gwdcn, c6, dc6dcn)
+
+    !> Computation environment
+    type(TEnvironment), intent(in) :: env
 
     !> DFT-D dispersion model.
     type(TDftD3Ref), intent(in) :: calc
@@ -554,11 +589,11 @@ contains
     !> Species of every atom.
     integer, intent(in) :: species(:)
 
-    !> weighting and scaling function for the atomic reference systems
-    real(dp), intent(in) :: zetaVec(:, :)
+    !> weighting function for the atomic reference systems
+    real(dp), intent(in) :: gwVec(:, :)
 
-    !> derivative of the weight'n'scale function w.r.t. the coordination number
-    real(dp), intent(in) :: zetadcn(:, :)
+    !> derivative of the weighting function w.r.t. the coordination number
+    real(dp), intent(in) :: gwdcn(:, :)
 
     !> C6 coefficients for all atom pairs.
     real(dp), intent(out) :: c6(:, :)
@@ -566,16 +601,18 @@ contains
     !> derivative of the C6 w.r.t. the coordination number
     real(dp), intent(out) :: dc6dcn(:, :)
 
-    integer :: iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
+    integer :: iAtFirst, iAtLast, iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
     real(dp) :: refc6, dc6, dc6dcn1, dc6dcn2
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     c6(:,:) = 0.0_dp
     dc6dcn(:,:) = 0.0_dp
 
     !$omp parallel do default(none) schedule(runtime) shared(c6, dc6dcn) &
-    !$omp shared(calc, zetaVec, zetadcn, nAtom, species) &
+    !$omp shared(calc, gwVec, gwdcn, iAtFirst, iAtLast, species) &
     !$omp private(iAt1, iAt2, iSp1, iSp2, iRef1, iRef2, refc6, dc6, dc6dcn1, dc6dcn2)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iAt2 = 1, iAt1
         iSp2 = species(iAt2)
@@ -585,9 +622,9 @@ contains
         do iRef1 = 1, calc%numberOfReferences(iSp1)
           do iRef2 = 1, calc%numberOfReferences(iSp2)
             refc6 = calc%referenceC6(iRef1, iRef2, iSp1, iSp2)
-            dc6 = dc6 + zetaVec(iRef1, iAt1) * zetaVec(iRef2, iAt2) * refc6
-            dc6dcn1 = dc6dcn1 + zetadcn(iRef1, iAt1) * zetaVec(iRef2, iAt2) * refc6
-            dc6dcn2 = dc6dcn2 + zetaVec(iRef1, iAt1) * zetadcn(iRef2, iAt2) * refc6
+            dc6 = dc6 + gwVec(iRef1, iAt1) * gwVec(iRef2, iAt2) * refc6
+            dc6dcn1 = dc6dcn1 + gwdcn(iRef1, iAt1) * gwVec(iRef2, iAt2) * refc6
+            dc6dcn2 = dc6dcn2 + gwVec(iRef1, iAt1) * gwdcn(iRef2, iAt2) * refc6
           end do
         end do
         c6(iAt1, iAt2) = dc6
@@ -597,6 +634,9 @@ contains
       end do
     end do
     !$omp end parallel do
+
+    call assembleChunks(env, c6)
+    call assembleChunks(env, dc6dcn)
 
   end subroutine getAtomicC6
 
