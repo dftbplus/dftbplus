@@ -979,20 +979,18 @@ contains
 
     real(dp), allocatable :: xpyq(:), qij(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
-    integer :: nxov, nxoo, nxvv
+    integer :: nxov
+    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: i, j, a, b, ias, ibs, ij, ab, jas, s, nSpin
     real(dp) :: tmp1, tmp2, fact
     logical :: updwn, tSpin
 
     nxov = size(rhs)
-    nxoo = size(woo, dim=1)
-    nxvv = size(wvv, dim=1)
 
     ALLOCATE(xpyq(natom))
     ALLOCATE(qij(natom))
     ALLOCATE(gamxpyq(natom))
     ALLOCATE(gamqt(natom))
-    ALLOCATE(qgamxpyq(max(nxoo, nxvv), size(homo)))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -1001,6 +999,16 @@ contains
     wvv(:,:) = 0.0_dp
 
     nSpin = size(t, dim=3)
+
+    ALLOCATE(nxoo(nSpin))
+    ALLOCATE(nxvv(nSpin))
+    ALLOCATE(nvir(nSpin))
+
+    nxoo(:) = (homo(:)*(homo(:)+1))/2
+    nvir(:) = size(t, dim=1) - homo(:)
+    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
+
+    ALLOCATE(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
 
     if (nSpin == 2) then
       tSpin = .true.
@@ -1062,13 +1070,13 @@ contains
       ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
       if (sym == "S") then
         call hemv(gamxpyq, gammaMat,  xpyq)
-        do ab = 1, nxvv
+        do ab = 1, nxvv(1)
           call indxvv(homo(1), ab, a, b)
           qij(:) = transq(a, b, iAtomStart, .true., stimc, c)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qij * gamxpyq)
         end do
       else ! triplet case
-        do ab = 1, nxvv
+        do ab = 1, nxvv(1)
           call indxvv(homo(1), ab, a, b)
           qij(:) = transq(a, b, iAtomStart, .true., stimc, c)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qij * xpyq * spinW(species0))
@@ -1089,7 +1097,7 @@ contains
           updwn = .false.
           fact = -1.0_dp
         end if
-        do ab = 1, nxvv
+        do ab = 1, nxvv(s)
           call indxvv(homo(s), ab, a, b)
           qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
           qgamxpyq(ab, s) = sum(qij * gamxpyq)
@@ -1119,7 +1127,7 @@ contains
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
 
       if (sym == "S") then
-        do ij = 1, nxoo
+        do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
           call indxoo(ij, i, j)
           qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
@@ -1127,7 +1135,7 @@ contains
           qgamxpyq(ij, 1) = 2.0_dp * sum(qij * gamxpyq)
         end do
       else
-        do ij = 1, nxoo
+        do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
           call indxoo(ij, i, j)
           qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
@@ -1145,7 +1153,7 @@ contains
           updwn = .false.
           fact = -1.0_dp
         end if
-        do ij = 1, nxoo
+        do ij = 1, nxoo(s)
           qgamxpyq(ij, s) = 0.0_dp
           call indxoo(ij, i, j)
           qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
@@ -1190,7 +1198,7 @@ contains
         updwn = .false.
         fact = -1.0_dp
       end if
-      do ij = 1, nxoo
+      do ij = 1, nxoo(s)
         call indxoo(ij, i, j)
         qij = transq(i, j, iAtomStart, updwn, stimc, c)
         if (i == j) then
@@ -1208,7 +1216,7 @@ contains
       end do
 
       ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
-      do ab = 1, nxvv
+      do ab = 1, nxvv(s)
         call indxvv(homo(1), ab, a, b)
         qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
         if (a == b) then
@@ -1239,7 +1247,6 @@ contains
     end if
 
     ! Furche vectors
-    !ADG: number of o-o tx depend on s: nxoo(s)
     do s = 1, nSpin
       if (s == 1) then
         updwn = .true.
@@ -1248,7 +1255,7 @@ contains
         updwn = .false.
         fact = -1.0_dp
       end if
-      do ij = 1, nxoo
+      do ij = 1, nxoo(s)
         call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         if (.not. tSpin) then
