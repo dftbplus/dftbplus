@@ -115,6 +115,7 @@ module dftbp_initprogram
 #:endif
   use poisson_init
   use dftbp_transportio
+  use dftbp_wrappointer
   implicit none
 
 
@@ -183,6 +184,9 @@ module dftbp_initprogram
 
   !> Coords in central cell (3, nAtom)
   real(dp), allocatable, target :: coord0(:,:)
+
+  type(TWrappedTargetR2) :: wtCoord, wtCoord0
+  type(TWrappedPointerR2) :: wpCoord, wpCoord0
 
   !> if calculation is periodic
   logical :: tPeriodic
@@ -1538,7 +1542,12 @@ contains
     ! Initial coordinates
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
-    coord0(:,:) = input%geom%coords(:,:)
+
+    call TWrapped_associate(wtCoord0, wpCoord0)
+    call wtCoord0%update(input%geom%coords)
+
+    coord0(:,:) = wpCoord0%data()
+    call wpCoord0%untaint()
 
     tCoordsChanged = .true.
 
