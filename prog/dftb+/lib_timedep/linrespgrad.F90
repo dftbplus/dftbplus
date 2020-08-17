@@ -1229,11 +1229,25 @@ contains
     end if
 
     ! Furche vectors
-    !ADG: for the moment, only spin up for woo matrix
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
-      qij(:) = transq(i, j, iAtomStart, .true., stimc, c)
-      woo(ij,1) = woo(ij,1) + 4.0_dp * sum(qij * gamqt)
+    !ADG: number of o-o tx depend on s: nxoo(s)
+    do s = 1, nSpin
+      if (s == 1) then
+        updwn = .true.
+        fact = 1.0_dp
+      else
+        updwn = .false.
+        fact = -1.0_dp
+      end if
+      do ij = 1, nxoo
+        call indxoo(ij, i, j)
+        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
+        if (.not. tSpin) then
+          woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qij * gamqt)
+        else
+          woo(ij,s) = woo(ij,s) + 2.0_dp * sum(qij * gamqt)
+          woo(ij,s) = woo(ij,s) + 2.0_dp * fact * sum(qij * gamxpyqds * spinW(species0))
+        end if
+      end do
     end do
 
   end subroutine getZVectorEqRHS
