@@ -324,6 +324,8 @@ contains
     real(dp), allocatable :: cpa(:), free_charges(:)
     integer :: nAtom, i_atom, i_spec
 
+    @:ASSERT(allocated(qNetAtom))
+
     if (tCanUseCharges .or. .not.this%isPostHoc) then
       ! update charges as they are either converged/suitable or this correction is being used
       ! self-consistently
