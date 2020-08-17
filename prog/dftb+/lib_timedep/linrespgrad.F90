@@ -993,8 +993,6 @@ contains
     ALLOCATE(gamxpyq(natom))
     ALLOCATE(gamqt(natom))
     ALLOCATE(qgamxpyq(max(nxoo, nxvv), size(homo)))
-    ALLOCATE(xpyqds(natom))
-    ALLOCATE(gamxpyqds(natom))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -1006,6 +1004,8 @@ contains
 
     if (nSpin == 2) then
       tSpin = .true.
+      ALLOCATE(xpyqds(natom))
+      ALLOCATE(gamxpyqds(natom))
     else
       tSpin = .false.
     end if
@@ -1178,7 +1178,9 @@ contains
 
     ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
     gamxpyq(:) = 0.0_dp
-    gamxpyqds(:) = 0.0_dp
+    if (tSpin) then
+      gamxpyqds(:) = 0.0_dp
+    end if
 
     do s = 1, nSpin
       if (s == 1) then
@@ -1193,11 +1195,15 @@ contains
         qij = transq(i, j, iAtomStart, updwn, stimc, c)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qij(:)
-          gamxpyqds(:) = gamxpyq(:) + t(i,j,s) * qij(:) * fact
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyq(:) + t(i,j,s) * qij(:) * fact
+          end if
         else
           ! factor 2 because of symmetry of the matrix
           gamxpyq(:) = gamxpyq(:) + 2.0_dp  * t(i,j,s) * qij(:)
-          gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(i,j,s) * qij(:) * fact
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(i,j,s) * qij(:) * fact
+          end if
         end if
       end do
 
@@ -1207,11 +1213,15 @@ contains
         qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qij(:)
-          gamxpyqds(:) = gamxpyq(:) + t(a,b,s) * qij(:) * fact
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyq(:) + t(a,b,s) * qij(:) * fact
+          end if
         else
           ! factor 2 because of symmetry of the matrix
           gamxpyq(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:)
-          gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:) * fact
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:) * fact
+          end if
         end if
       end do
 
