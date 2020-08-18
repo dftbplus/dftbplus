@@ -55,7 +55,7 @@ module dftbp_main
   use dftbp_parser
   use dftbp_sparse2dense
 #:if not WITH_SCALAPACK
-  use dftbp_blasroutines, only : symm, hemm
+  use dftbp_blasroutines, only : symm, hemm, gemm
 #:endif
   use dftbp_hsdutils
   use dftbp_charmanip
@@ -6235,7 +6235,7 @@ contains
     else
 
       call readEigenvecs(eigvecsReal(:,:,1))
-      ! TODO : renormalize eigenvectors needed!
+      call renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
 
     end if
 
@@ -6245,6 +6245,78 @@ contains
     call constructMicrostates(reks)
 
   end subroutine getReksInitialSettings
+
+
+  !> Normalize eigenvectors with unitary transformation
+  subroutine renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigvecsReal(:,:,:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    real(dp), allocatable :: tmpMat(:,:)
+    real(dp), allocatable :: tmpS(:,:)
+    real(dp), allocatable :: tmpC(:,:)
+    real(dp), allocatable :: tmpEigen(:)
+    real(dp), allocatable :: unitaryMat(:,:)
+
+    integer :: nOrb, ii
+
+    nOrb = size(reks%overSqr,dim=1)
+
+    allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpS(nOrb,nOrb))
+    allocate(tmpC(nOrb,nOrb))
+    allocate(tmpEigen(nOrb))
+    allocate(unitaryMat(nOrb,nOrb))
+
+    ! Calculate CSC = C^T_old * S_new * C_old
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, eigvecsReal(:,:,1), reks%overSqr, transA='T')
+    tmpC(:,:) = 0.0_dp
+    call gemm(tmpC, tmpMat, eigvecsReal(:,:,1))
+
+    ! Make an identity matrix
+    tmpS(:,:) = 0.0_dp
+    do ii = 1, nOrb
+      tmpS(ii,ii) = 1.0_dp
+    end do
+
+    ! Diagonalize CSC to obtain a unitary matrix, U = CSC^(-1/2)
+
+    tmpEigen(:) = 0.0_dp
+    call env%globalTimer%startTimer(globalTimers%diagonalization)
+    ! tmpC becomes eigenvectors (X) of CSC
+    call diagDenseMtx(electronicSolver, 'V', tmpC, tmpS, tmpEigen)
+    call env%globalTimer%stopTimer(globalTimers%diagonalization)
+
+    ! Make inverse square root matrix consisting of eigenvalues (s) of CSC
+    tmpS(:,:) = 0.0_dp
+    do ii = 1, nOrb
+      tmpS(ii,ii) = 1.0_dp / sqrt(tmpEigen(ii))
+    end do
+
+    ! Calculate a unitary matrix U = CSC^(-1/2) = X * s^(-1/2) * X^T
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, tmpS, tmpC, transB='T')
+    unitaryMat(:,:) = 0.0_dp
+    call gemm(unitaryMat, tmpC, tmpMat)
+
+    ! C_new = C_old * U
+    tmpC(:,:) = 0.0_dp
+    call gemm(tmpC, eigvecsReal(:,:,1), unitaryMat)
+
+    eigvecsReal(:,:,1) = tmpC
+
+  end subroutine renormalizeEigenvecs
 
 
   !> Creates (delta) density matrix for each microstate from real eigenvectors.
