@@ -302,9 +302,9 @@ contains
     recVecs(:, :) = 2.0_dp * pi * transpose(recVecs)
 
     if (this%tAutoEwald) then
-      this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
+      call getOptimalAlphaEwald(this%parEwald, latVecs, recVecs, this%vol, this%tolEwald)
     end if
-    maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+    call getMaxGEwald(maxGEwald, this%parEwald, this%vol, this%tolEwald)
     call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
         & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%recPoint(:, :) = matmul(recVecs, this%recPoint)

@@ -614,7 +614,7 @@ contains
     end do
     do iSp1 = 1, nSpecies
       do iSp2 = iSp1, nSpecies
-        cutoff = expGammaCutoff(minUs(iSp2), minUs(iSp1))
+         call expGammaCutoff(cutoff, minUs(iSp2), minUs(iSp1))
         cutoffs(iSp2, iSp1) = cutoff
         cutoffs(iSp1, iSp2) = cutoff
       end do

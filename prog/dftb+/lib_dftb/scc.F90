@@ -341,8 +341,8 @@ contains
       do iSp2 = iSp1, this%nSpecies
         do iU1 = 1, this%nHubbU(iSp1)
           do iU2 = 1, this%nHubbU(iSp2)
-            this%shortCutOff(iU2, iU1, iSp2, iSp1) =&
-                & expGammaCutOff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
+            call expGammaCutOff(this%shortCutOff(iU2, iU1, iSp2, iSp1), this%uniqHubbU(iU2, iSp2),&
+                & this%uniqHubbU(iU1, iSp1))
             this%shortCutOff(iU1, iU2, iSp1, iSp2) = this%shortCutOff(iU2, iU1, iSp2, iSp1)
           end do
         end do

@@ -181,11 +181,14 @@ module dftbp_coulomb
   !> Chunk size to use when obtaining neighbours dynamically via an iterator
   integer, parameter :: iterChunkSize = 1000
 
+  !> approaching the maximum value representable as a dp value
+  real(dp), parameter :: hugeAlpha = huge(1.0_dp) / 4.0_dp
+
 
 contains
 
 
-  subroutine TCoulombCont_init(this, input, env, nAtom, latVecs, recVecs, volume)
+  subroutine TCoulombCont_init(this, input, env, nAtom, latVecs, recVecs, volume, iErr)
 
     !> Data structure
     class(TCoulombCont), intent(out) :: this
@@ -208,6 +211,9 @@ contains
     !> Cell volume
     real(dp), intent(in), optional :: volume
 
+    !> Error return (if used)
+    integer, intent(out), optional :: iErr
+
     real(dp) :: maxREwald, maxGEwald
   #:if WITH_SCALAPACK
     integer :: nRowLoc, nColLoc
@@ -228,12 +234,15 @@ contains
       this%tAutoEwald = input%ewaldAlpha <= 0.0_dp
       this%tolEwald = input%tolEwald
       if (this%tAutoEwald) then
-        this%alpha = getOptimalAlphaEwald(latVecs, recVecs, volume, this%tolEwald)
+        call getOptimalAlphaEwald(this%alpha, latVecs, recVecs, volume, this%tolEwald, iErr)
+        @:HANDLE_ERROR(iErr)
       else
         this%alpha = input%ewaldAlpha
       end if
-      maxREwald = getMaxREwald(this%alpha, this%tolEwald)
-      maxGEwald = getMaxGEwald(this%alpha, volume, this%tolEwald)
+      call getMaxREwald(maxREwald, this%alpha, this%tolEwald, iErr)
+      @:HANDLE_ERROR(iErr)
+      call getMaxGEwald(maxGEwald, this%alpha, volume, this%tolEwald, iErr)
+      @:HANDLE_ERROR(iErr)
       call getLatticePoints(this%gLatPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
       this%gLatPoint(:,:) = matmul(recVecs, this%gLatPoint)
@@ -305,7 +314,7 @@ contains
 
 
   !> Update internal copy of lattice vectors
-  subroutine updateLatVecs(this, latVecs, recVecs, volume)
+  subroutine updateLatVecs(this, latVecs, recVecs, volume, iErr)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: this
@@ -319,6 +328,9 @@ contains
     !> New volume
     real(dp), intent(in) :: volume
 
+    !> Error return (if used)
+    integer, intent(out), optional :: iErr
+
     real(dp) :: maxREwald, maxGEwald
 
     real(dp), allocatable :: dummy(:,:)
@@ -326,10 +338,13 @@ contains
     @:ASSERT(all(shape(latVecs) == shape(this%latVecs)))
 
     if (this%tAutoEwald) then
-      this%alpha = getOptimalAlphaEwald(latVecs, recVecs, volume, this%tolEwald)
-      maxREwald = getMaxREwald(this%alpha, this%tolEwald)
+      call getOptimalAlphaEwald(this%alpha, latVecs, recVecs, volume, this%tolEwald, iErr)
+      @:HANDLE_ERROR(iErr)
+      call getMaxREwald(maxREwald, this%alpha, this%tolEwald, iErr)
+      @:HANDLE_ERROR(iErr)
     end if
-    maxGEwald = getMaxGEwald(this%alpha, volume, this%tolEwald)
+    call getMaxGEwald(maxGEwald, this%alpha, volume, this%tolEwald, iErr)
+    @:HANDLE_ERROR(iErr)
     call getLatticePoints(this%gLatPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVecs, this%gLatPoint)
@@ -1009,12 +1024,23 @@ contains
 
   end subroutine invRPeriodicSerial
 
+
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsIS(iAt1, pNeighList, coords, alpha, invRMat)
+
+    !> Atom for which to calculate contributions
     integer, intent(in) :: iAt1
+
+    !> Dynamic neighbour list
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
+
+    !> Ewald alpha
     real(dp), intent(in) :: alpha
+
+    !> Resulting matrix to add to
     real(dp), intent(inout) :: invRMat(:,:)
 
     type(TNeighIterator) :: neighIter
@@ -1436,11 +1462,23 @@ contains
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
+
+    !> Atom for which to calculate contributions
     integer, intent(in) :: iAtom1
+
+    !> Dynamic neighbour list
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
+
+    !> atomic charges
     real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Ewald alpha
     real(dp), intent(in) :: alpha
+
+    !> Derivatives to add contributions to
     real(dp), intent(inout) :: deriv(:,:)
 
     type(TNeighIterator) :: neighIter
@@ -1546,12 +1584,26 @@ contains
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsXl(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
+
+    !> Atom for which to calculate contributions
     integer, intent(in) :: iAt1
+
+    !> Dynamic neighbour list
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
+
+    !> Scc input atomic charges
     real(dp), intent(in) :: dQInAtom(:)
+
+    !> Scc output atomic charges
     real(dp), intent(in) :: dQOutAtom(:)
+
+    !> Ewald alpha
     real(dp), intent(in) :: alpha
+
+    !> Derivatives to add contributions to
     real(dp), intent(inout) :: deriv(:,:)
 
     type(TNeighIterator) :: neighIter
@@ -1747,8 +1799,11 @@ contains
 
   !> Get optimal alpha-parameter for the Ewald summation by finding alpha, where decline of real and
   !> reciprocal part of Ewald are equal.
-  !> The function stops, if the optimal alpha cannot be found.
-  function getOptimalAlphaEwald(latVec, recVec, volume, tolerance) result(alpha)
+  !> The routine throws an error if the optimal alpha cannot be found.
+  subroutine getOptimalAlphaEwald(alpha, latVec, recVec, volume, tolerance, iErr)
+
+    !> Optimal alpha.
+    real(dp), intent(out) :: alpha
 
     !> Lattice vectors.
     real(dp), intent(in) :: latVec(:,:)
@@ -1762,16 +1817,14 @@ contains
     !> Tolerance for difference in real and rec. part.
     real(dp), intent(in) :: tolerance
 
-    !> Optimal alpha.
-    real(dp) :: alpha
+    !> Error return (if used)
+    integer, intent(out), optional :: iErr
 
     real(dp) :: alphaLeft, alphaRight
     real(dp), parameter :: alphaInit = 1.0e-8_dp
 
     real(dp) :: minG, minR, diff
     integer :: iIter
-    integer :: iError
-    character(len=100) :: errorString
 
     @:ASSERT(volume > 0.0_dp)
     @:ASSERT(tolerance > 0.0_dp)
@@ -1779,63 +1832,54 @@ contains
     minG = sqrt(minval(sum(recVec(:,:)**2, dim=1)))
     minR = sqrt(minval(sum(latVec(:,:)**2, dim=1)))
 
-    iError = 0
     alpha = alphaInit
     diff = diffRecReal(alpha, minG, minR, volume)
-    do while (diff < -tolerance .and. alpha <= huge(1.0_dp))
+    do while (diff < -tolerance .and. alpha <= hugeAlpha)
       alpha = 2.0_dp * alpha
       diff = diffRecReal(alpha, minG, minR, volume)
     end do
-    if (alpha > huge(1.0_dp)) then
-      iError = 1
+    if (alpha >= hugeAlpha) then
+      @:ERROR_HANDLING(iErr, 1, "Determined alpha value too large in getOptimalAlphaEwald")
     elseif (alpha == alphaInit) then
-      iError = 2
+      @:ERROR_HANDLING(iErr, 2, "Failure to determine alpha in getOptimalAlphaEwald")
     end if
 
-    if (iError == 0) then
-      alphaLeft = 0.5_dp * alpha
-      do while (diff < tolerance .and. alpha <= huge(1.0_dp))
-        alpha = 2.0_dp * alpha
-        diff = diffRecReal(alpha, minG, minR, volume)
-      end do
-      if (alpha > huge(1.0_dp)) then
-        iError = 3
-      end if
-    end if
-
-    if (iError == 0) then
-      alphaRight = alpha
-      alpha = (alphaLeft + alphaRight) / 2.0
-      iIter = 0
+    alphaLeft = 0.5_dp * alpha
+    do while (diff < tolerance .and. alpha <= hugeAlpha)
+      alpha = 2.0_dp * alpha
       diff = diffRecReal(alpha, minG, minR, volume)
-      do while (abs(diff) > tolerance .and. iIter <= nSearchIter)
-        if (diff < 0) then
-          alphaLeft = alpha
-        else
-          alphaRight = alpha
-        end if
-        alpha = (alphaLeft + alphaRight) / 2.0
-        diff = diffRecReal(alpha, minG, minR, volume)
-        iIter = iIter + 1
-      end do
-      if (iIter > nSearchIter) then
-        iError = 4
+    end do
+    if (alpha >= hugeAlpha) then
+      @:ERROR_HANDLING(iErr, 3, "Determined left alpha value too large in getOptimalAlphaEwald")
+    end if
+
+    alphaRight = alpha
+    alpha = (alphaLeft + alphaRight) / 2.0
+    iIter = 0
+    diff = diffRecReal(alpha, minG, minR, volume)
+    do while (abs(diff) > tolerance .and. iIter <= nSearchIter)
+      if (diff < 0) then
+        alphaLeft = alpha
+      else
+        alphaRight = alpha
       end if
+      alpha = (alphaLeft + alphaRight) / 2.0
+      diff = diffRecReal(alpha, minG, minR, volume)
+      iIter = iIter + 1
+    end do
+    if (iIter > nSearchIter) then
+      @:ERROR_HANDLING(iErr, 4, "Alpha bisection iterations exceeded in getOptimalAlphaEwald")
     end if
 
-    if (iError /= 0) then
-      !alpha = exp(-0.310104 * log(volume) + 0.786382) / 2.0
-99000 format ('Failure in determining optimal alpha for Ewaldsum.', ' Error code: ',I3)
-      write(errorString, 99000) iError
-      call error(errorString)
-    end if
-
-  end function getOptimalAlphaEwald
+  end subroutine getOptimalAlphaEwald
 
 
   !> Returns the longest reciprocal vector which gives a bigger contribution to the Ewald sum than a
   !> certain tolerance.
-  function getMaxGEwald(alpha, volume, minValue) result(xx)
+  subroutine getMaxGEwald(xx, alpha, volume, minValue, iErr)
+
+    !> Magnitude of largest vector
+    real(dp), intent(out) :: xx
 
     !> Parameter of the ewald summation.
     real(dp), intent(in) :: alpha
@@ -1846,63 +1890,56 @@ contains
     !> Tolerance value.
     real(dp), intent(in) :: minValue
 
-    !> magnitude of reciprocal vector
-    real(dp) :: xx
+    !> Error return (if used)
+    integer, intent(out), optional :: iErr
 
     real(dp), parameter :: gInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
-    integer :: iError, iIter
-    character(len=100) :: errorString
+    integer :: iIter
 
-    iError = 0
     xx = gInit
     yy = gTerm(xx, alpha, volume)
-    do while (yy > minValue .and. xx <= huge(1.0_dp))
+    do while (yy > minValue .and. xx <= hugeAlpha)
       xx = 2.0_dp * xx
       yy = gTerm(xx, alpha, volume)
     end do
-    if (xx > huge(1.0_dp)) then
-      iError = 1
+    if (xx >= hugeAlpha) then
+      @:ERROR_HANDLING(iErr, 1, "Failure in getMaxGEwald, vector too large")
     elseif (xx == gInit) then
-      iError = 2
+      @:ERROR_HANDLING(iErr, 2, "Failure in getMaxGEwald, unable to determine vector")
     end if
 
-    if (iError == 0) then
-      xLeft = 0.5_dp * xx
-      yLeft = gTerm(xLeft, alpha, volume)
-      xRight = xx
-      yRight = yy
+    xLeft = 0.5_dp * xx
+    yLeft = gTerm(xLeft, alpha, volume)
+    xRight = xx
+    yRight = yy
 
-      iIter = 1
-      do while (yLeft - yRight > minValue .and. iIter <= nSearchIter)
-        xx = 0.5_dp * (xLeft + xRight)
-        yy = gTerm(xx, alpha, volume)
-        if (yy >= minValue) then
-          xLeft = xx
-          yLeft = yy
-        else
-          xRight = xx
-          yRight = yy
-        end if
-        iIter = iIter + 1
-      end do
-      if (iIter > nSearchIter) then
-        iError = 3
+    iIter = 1
+    do while (yLeft - yRight > minValue .and. iIter <= nSearchIter)
+      xx = 0.5_dp * (xLeft + xRight)
+      yy = gTerm(xx, alpha, volume)
+      if (yy >= minValue) then
+        xLeft = xx
+        yLeft = yy
+      else
+        xRight = xx
+        yRight = yy
       end if
+      iIter = iIter + 1
+    end do
+    if (iIter > nSearchIter) then
+      @:ERROR_HANDLING(iErr, 3, "Failure in getMaxGEwald, exceeded bisection iterations")
     end if
 
-    if (iError /= 0) then
-99010 format ('Failure in getMaxGEwald.', ' Error nr: ',I3)
-      write(errorString, 99010) iError
-      call error(errorString)
-    end if
-
-  end function getMaxGEwald
+  end subroutine getMaxGEwald
 
 
   !> Returns the longest real space vector which gives a bigger contribution to the Ewald sum than a
   !> certain tolerance.
-  function getMaxREwald(alpha, minValue) result(xx)
+  subroutine getMaxREwald(xx, alpha, minValue, iErr)
+
+    !> Magnitude of real space vector
+    real(dp), intent(out) :: xx
 
     !> Parameter of the ewald summation.
     real(dp), intent(in) :: alpha
@@ -1910,62 +1947,52 @@ contains
     !> Tolerance value.
     real(dp), intent(in) :: minValue
 
-    !> Magnitude of real space vector
-    real(dp) :: xx
+    !> Error return (if used)
+    integer, intent(out), optional :: iErr
 
     real(dp), parameter :: rInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
-    integer :: iError, iIter
-    character(len=100) :: errorString
+    integer :: iIter
 
-    iError = 0
     xx = rInit
     yy = rTerm(xx, alpha)
-    do while (yy > minValue .and. xx <= huge(1.0_dp))
+    do while (yy > minValue .and. xx <= hugeAlpha)
       xx = 2.0_dp * xx
       yy = rTerm(xx, alpha)
     end do
-    if (xx > huge(1.0_dp)) then
-      iError = 1
+    if (xx >= hugeAlpha) then
+      @:ERROR_HANDLING(iErr, 1, "Failure in getMaxREwald, vector too large")
     elseif (xx == rInit) then
-      iError = 2
+      @:ERROR_HANDLING(iErr, 2, "Failure in getMaxREwald, unable to determine vector")
     end if
 
-    if (iError == 0) then
-      xLeft = 0.5_dp * xx
-      yLeft = rTerm(xLeft, alpha)
-      xRight = xx
-      yRight = yy
+    xLeft = 0.5_dp * xx
+    yLeft = rTerm(xLeft, alpha)
+    xRight = xx
+    yRight = yy
 
-      iIter = 1
-      do while (yLeft - yRight > minValue .and. iIter <= nSearchIter)
-        xx = 0.5_dp * (xLeft + xRight)
-        yy = rTerm(xx, alpha)
-        if (yy >= minValue) then
-          xLeft = xx
-          yLeft = yy
-        else
-          xRight = xx
-          yRight = yy
-        end if
-        iIter = iIter + 1
-      end do
-      if (iIter > nSearchIter) then
-        iError = 3
+    iIter = 1
+    do while (yLeft - yRight > minValue .and. iIter <= nSearchIter)
+      xx = 0.5_dp * (xLeft + xRight)
+      yy = rTerm(xx, alpha)
+      if (yy >= minValue) then
+        xLeft = xx
+        yLeft = yy
+      else
+        xRight = xx
+        yRight = yy
       end if
+      iIter = iIter + 1
+    end do
+    if (iIter > nSearchIter) then
+      @:ERROR_HANDLING(iErr, 3, "Failure in getMaxREwald, exceeded bisection iterations")
     end if
 
-    if (iError /= 0) then
-99020 format ('Failure in getMaxREwald.', ' Error nr: ',I3)
-      write(errorString, 99020) iError
-      call error(errorString)
-    end if
-
-  end function getMaxREwald
+  end subroutine getMaxREwald
 
 
   !> Returns the Ewald sum for a given lattice in a given point.
-  function ewald(rr, rVec, gVec, alpha, vol, blurWidth, epsSoften)
+  pure function ewald(rr, rVec, gVec, alpha, vol, blurWidth, epsSoften)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -2003,7 +2030,7 @@ contains
 
 
   !> Returns the reciprocal part of the Ewald sum.
-  function ewaldReciprocal(rr, gVec, alpha, vol) result(recSum)
+  pure function ewaldReciprocal(rr, gVec, alpha, vol) result(recSum)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -2024,8 +2051,6 @@ contains
     real(dp) :: gg(3), g2
     integer :: iG
 
-    @:ASSERT(vol > 0.0_dp)
-
     recSum = 0.0_dp
     do iG = 1, size(gVec, dim=2)
       gg = gVec(:,iG)
@@ -2039,7 +2064,7 @@ contains
 
 
   !> Returns the derivative of the reciprocal part of the Ewald sum.
-  function derivEwaldReciprocal(rr, gVec, alpha, vol) result(recSum)
+  pure function derivEwaldReciprocal(rr, gVec, alpha, vol) result(recSum)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -2059,8 +2084,6 @@ contains
 
     real(dp) :: gg(3), g2
     integer :: iG
-
-    @:ASSERT(vol > 0.0_dp)
 
     recSum(:) = 0.0_dp
     do iG = 1, size(gVec, dim=2)
@@ -2121,16 +2144,16 @@ contains
 
 
   !> Returns the real space part of the Ewald sum.
-  function ewaldReal(rr, rVec, alpha, blurWidth, epsSoften) result(realSum)
+  pure function ewaldReal(rr, rVec, alpha, blurWidth, epsSoften) result(realSum)
+
+    !> Point where to calculate the Ewald sum.
+    real(dp), intent(in) :: rr(:)
 
     !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
 
     !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
-
-    !> Vector where to calculate the Ewald sum.
-    real(dp), intent(in) :: rr(:)
 
     !> Gaussian blur width of the 2nd charge
     real(dp), intent(in), optional :: blurWidth
@@ -2179,9 +2202,9 @@ contains
 
 
   !> Returns the derivative of the real space part of the Ewald sum.
-  function derivEwaldReal(rdiff, rVec, alpha, blurWidth) result(dewr)
+  pure function derivEwaldReal(rdiff, rVec, alpha, blurWidth) result(dewr)
 
-    !> Vector where to calculate the Ewald sum.
+    !> Point where to calculate the Ewald sum.
     real(dp), intent(in) :: rdiff(:)
 
     !> Real space vectors to sum over. (Should contain origin).
@@ -2236,7 +2259,7 @@ contains
   !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.  In
   !> order to make the real space part shorter than the reciprocal space part, the values are taken
   !> at different distances for the real and the reciprocal space parts.
-  function diffRecReal(alpha, minG, minR, volume) result(diff)
+  pure function diffRecReal(alpha, minG, minR, volume) result(diff)
 
     !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
@@ -2253,18 +2276,15 @@ contains
     !> difference between changes in the two terms
     real(dp) :: diff
 
-    @:ASSERT(volume > 0.0_dp)
-
-    diff = ((gTerm(4.0_dp*minG, alpha, volume) &
-        &- gTerm(5.0_dp*minG, alpha, volume))) &
-        &- (rTerm(2.0_dp*minR, alpha) - rTerm(3.0_dp*minR, alpha))
+    diff = gTerm(4.0_dp*minG, alpha, volume) - gTerm(5.0_dp*minG, alpha, volume)&
+        & -rTerm(2.0_dp*minR, alpha) + rTerm(3.0_dp*minR, alpha)
 
   end function diffRecReal
 
 
   !> Returns the max. value of a term in the reciprocal space part of the Ewald summation for a
   !> given vector length.
-  function gTerm(gg, alpha, vol)
+  pure function gTerm(gg, alpha, vol)
 
     !> Length of the reciprocal space vector.
     real(dp), intent(in) :: gg
@@ -2285,7 +2305,7 @@ contains
 
   !> Returns the max. value of a term in the real space part of the Ewald summation for a given
   !> vector length.
-  function rTerm(rr, alpha)
+  pure function rTerm(rr, alpha)
 
     !> Length of the real space vector.
     real(dp), intent(in) :: rr
@@ -2296,16 +2316,14 @@ contains
     !> real space term
     real(dp) :: rTerm
 
-    @:ASSERT(rr >= epsilon(1.0_dp))
-
-    rTerm = erfcwrap(alpha*rr)/rr
+    rTerm = erfcwrap(alpha*rr) / rr
 
   end function rTerm
 
 
   !> Returns the derivative of a term in the real space part of the Ewald summation for a given
   !> vector length.
-  function derivRTerm(r, alpha)
+  pure function derivRTerm(r, alpha)
 
     !> Length of the real space vector.
     real(dp), intent(in) :: r(3)
@@ -2317,12 +2335,11 @@ contains
     real(dp) :: derivRTerm(3)
 
     real(dp) :: rr
+
     rr = sqrt(sum(r(:)**2))
 
-    @:ASSERT(rr >= epsilon(1.0_dp))
-
-    derivRTerm (:) = r(:)*(-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* &
-        & alpha*rr - erfcwrap(alpha*rr))/(rr*rr*rr)
+    derivRTerm (:) = r(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr) * alpha*rr&
+        & - erfcwrap(alpha*rr)) / (rr*rr*rr)
 
   end function derivRTerm
 
@@ -2410,7 +2427,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
-      call addNeighbourContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
+      call addNeighbourContribsVirial(iAtom1, pNeighList, coord, alpha, Q, localStress)
     end do
     !$OMP END PARALLEL DO
 
@@ -2421,13 +2438,26 @@ contains
 
   end subroutine invRStress
 
+
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
-  subroutine addNeighbourContribsStress(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
+  subroutine addNeighbourContribsVirial(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
+
+    !> Atom for which to calculate contributions
     integer, intent(in) :: iAtom1
+
+    !> Dynamic neighbour list
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
+
+    !> atomic charges
     real(dp), intent(in) :: dQAtom(:)
+
+    !> Ewald alpha
     real(dp), intent(in) :: alpha
+
+    !> Stress tensor to add contributions to
     real(dp), intent(inout) :: stress(:,:)
 
     type(TNeighIterator) :: neighIter
@@ -2460,7 +2490,7 @@ contains
       end do
     end do
 
-  end subroutine addNeighbourContribsStress
+  end subroutine addNeighbourContribsVirial
 
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
@@ -2507,6 +2537,7 @@ contains
   subroutine addInvRPrimePeriodicMat(this, env, coord, neighList, recPoint, alpha, volume,&
       & invRDeriv)
 
+    !> Instance
     class(TCoulombCont), intent(in) :: this
 
     !> Computational environment settings
@@ -2569,10 +2600,20 @@ contains
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsInvRPMat(iAtom1, pNeighList, coords, alpha, invRDeriv)
+
+    !> Atom for which to calculate contributions
     integer, intent(in) :: iAtom1
+
+    !> Dynamic neighbour list
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
+
+    !> Ewald alpha
     real(dp), intent(in) :: alpha
+
+    !> Resulting derivative contributions
     real(dp), intent(inout) :: invRDeriv(:,:,:)
 
     type(TNeighIterator) :: neighIter
