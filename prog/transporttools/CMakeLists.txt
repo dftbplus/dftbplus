@@ -19,6 +19,12 @@ list(APPEND FYPP_FLAGS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
 dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${setupgeom-fpp}" sources-f90-preproc)
 
 add_executable(setupgeom ${sources-f90-preproc})
-target_link_libraries(setupgeom dftbplus)
+
+if(WITH_MPI)
+  target_include_directories(setupgeom PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(setupgeom PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
+
+target_link_libraries(setupgeom PRIVATE dftbplus)
 
 install(TARGETS setupgeom DESTINATION "${CMAKE_INSTALL_BINDIR}")
