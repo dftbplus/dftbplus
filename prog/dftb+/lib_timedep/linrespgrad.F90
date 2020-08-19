@@ -1204,13 +1204,13 @@ contains
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qij(:)
           if (tSpin) then
-            gamxpyqds(:) = gamxpyq(:) + t(i,j,s) * qij(:) * fact
+            gamxpyqds(:) = gamxpyqds(:) + t(i,j,s) * qij(:) * fact
           end if
         else
           ! factor 2 because of symmetry of the matrix
           gamxpyq(:) = gamxpyq(:) + 2.0_dp  * t(i,j,s) * qij(:)
           if (tSpin) then
-            gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(i,j,s) * qij(:) * fact
+            gamxpyqds(:) = gamxpyqds(:) + 2.0_dp * t(i,j,s) * qij(:) * fact
           end if
         end if
       end do
@@ -1222,13 +1222,13 @@ contains
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qij(:)
           if (tSpin) then
-            gamxpyqds(:) = gamxpyq(:) + t(a,b,s) * qij(:) * fact
+            gamxpyqds(:) = gamxpyqds(:) + t(a,b,s) * qij(:) * fact
           end if
         else
           ! factor 2 because of symmetry of the matrix
           gamxpyq(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:)
           if (tSpin) then
-            gamxpyqds(:) = gamxpyq(:) + 2.0_dp * t(a,b,s) * qij(:) * fact
+            gamxpyqds(:) = gamxpyqds(:) + 2.0_dp * t(a,b,s) * qij(:) * fact
           end if
         end if
       end do
