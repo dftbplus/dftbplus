@@ -178,6 +178,9 @@ module dftbp_initprogram
   !> type of the atoms (nAtom)
   integer, allocatable, target :: species0(:)
 
+  !> Coordinates for all replica systems (if present)
+  real(dp), allocatable :: coordAllReplicas(:,:,:)
+
   !> Coords of the atoms (3, nAllAtom)
   real(dp), allocatable :: coord(:,:)
 
@@ -1240,19 +1243,15 @@ contains
     ! temporary change, as replication of structures should be done at parser level, just make a
     ! symetric copy of the structure to each replica, over-writing the initial geometry from the
     ! parser with the replicated cases.
-    if (input%ctrl%nReplicas > 1) then
-      block
-        real(dp), allocatable :: r3Tmp(:,:,:)
-        allocate(r3Tmp(3,nAtom,input%ctrl%nReplicas))
-        r3Tmp(:,:,:) = 0.0_dp
-        do ii = 1, input%ctrl%nReplicas
-          r3Tmp(:,:,ii) = input%geom%coords(:,:,1)
-          ! make small structure difference in images -- test case, to be replaced
-          !r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
-        end do
-        call move_alloc(r3Tmp,input%geom%coords)
-      end block
-    end if
+    allocate(coordAllReplicas(3, nAtom, input%ctrl%nReplicas))
+    coordAllReplicas(:,:,:) = 0.0_dp
+    block
+      do ii = 1, input%ctrl%nReplicas
+        coordAllReplicas(:,:,ii) = input%geom%coords
+        ! make small structure difference in images -- test case, to be replaced
+        ! coordAllReplicas(:,:,ii) = coordAllReplicas(:,:,ii) + 0.01_dp*(ii-1)*AA__Bohr
+      end do
+    end block
 
   #:if WITH_MPI
 
@@ -1558,9 +1557,9 @@ contains
 
     ! Initial coordinates
     allocate(coord0(3, nAtom))
-    @:ASSERT(all(shape(input%geom%coords) == [3, nAtom, env%nReplicas]))
+    @:ASSERT(all(shape(coord0) >= shape(input%geom%coords)))
     ! local coordinates for this replica grouping
-    coord0(:,:) = input%geom%coords(:, :, env%myReplica+1)
+    coord0(:,:) = coordAllReplicas(:, :, env%myReplica+1)
 
     tCoordsChanged = .true.
 

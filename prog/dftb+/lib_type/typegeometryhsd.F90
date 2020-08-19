@@ -53,7 +53,7 @@ contains
 
     call setChildValue(node, "TypeNames", geo%speciesNames, .false.)
     call setChildValue(node, "TypesAndCoordinates", &
-        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1), .false.)
+        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, .false.)
     call setChildValue(node, "Periodic", geo%tPeriodic, .false.)
     if (geo%tPeriodic .or. geo%tHelical) then
       call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
@@ -76,11 +76,11 @@ contains
     call writeChildValue(xf, "TypeNames", geo%speciesNames)
     if (geo%tPeriodic .or. geo%tHelical) then
       call writeChildValue(xf, "TypesAndCoordinates", &
-          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1)&
+          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords&
           & + spread(geo%origin, 2, size(geo%species)))
     else
       call writeChildValue(xf, "TypesAndCoordinates", &
-          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1))
+          &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
     end if
     call writeChildValue(xf, "Periodic", geo%tPeriodic)
     call writeChildValue(xf, "Helical", geo%tHelical)
@@ -102,7 +102,7 @@ contains
     type(TGeometry), intent(out) :: geo
 
     type(string) :: modifier, modifs(2)
-    integer :: ind, iReplica
+    integer :: ind
     type(TListString) :: stringBuffer
     type(TListRealR1) :: realBuffer
     type(TListIntR1) :: intBuffer
@@ -133,7 +133,7 @@ contains
       call detailedError(typesAndCoords, "Missing coordinates")
     end if
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom, 1))
+    allocate(geo%coords(3, geo%nAtom))
     allocate(tmpInt(1, geo%nAtom))
     call asArray(intBuffer, tmpInt)
     call destruct(intBuffer)
@@ -144,7 +144,7 @@ contains
       call detailedError(typesAndCoords, "Type index must be between 1 and " &
           &// i2c(geo%nSpecies) // ".")
     end if
-    call asArray(realBuffer, geo%coords(:,:,1))
+    call asArray(realBuffer, geo%coords)
     call destruct(realBuffer)
     geo%tFracCoord = .false.
     if (len(modifier) > 0) then
@@ -157,9 +157,9 @@ contains
         geo%tFracCoord = .true.
       case default
         ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:,:) = geo%coords * lengthUnits(ind)%convertValue
+        geo%coords(:,:) = geo%coords * lengthUnits(ind)%convertValue
         call setChildValue(typesAndCoords, "", &
-            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1), &
+            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
             &replace=.true.)
       end select
     end if
@@ -176,9 +176,7 @@ contains
           call setChildValue(child, "", geo%origin, .true.)
         end if
       end if
-      do iReplica = 1, size(geo%coords, dim=3)
-        geo%coords(:,:,iReplica) = geo%coords(:,:,iReplica) - spread(geo%origin, 2, geo%nAtom)
-      end do
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3,3))
       call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, &
           &child=child)
@@ -189,10 +187,7 @@ contains
         call setChildValue(child, "", geo%latVecs, .true.)
       end if
       if (geo%tFracCoord) then
-        do iReplica = 1, size(geo%coords, dim=3)
-          ! needs to be fixed if the lattice vectors differ between replicas:
-          geo%coords(:,:,iReplica) = matmul(geo%latVecs, geo%coords(:,:,iReplica))
-        end do
+        geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
         geo%origin(:) = matmul(geo%latVecs, geo%origin)
       end if
       allocate(geo%recVecs2p(3, 3))
@@ -212,9 +207,7 @@ contains
         geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
         call setChildValue(child, "", geo%origin, .true.)
       end if
-      do iReplica = 1, size(geo%coords, dim=3)
-        geo%coords(:,:,iReplica) = geo%coords(:,:,iReplica) - spread(geo%origin, 2, geo%nAtom)
-      end do
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3, 1))
       call getChildValue(node, "LatticeVectors", helVec, modifier=modifier, child=child)
       if (len(modifier) > 0) then
@@ -329,7 +322,7 @@ contains
 
     ! Read in sequential and species indices.
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom, 1))
+    allocate(geo%coords(3, geo%nAtom))
     do ii = 1, geo%nAtom
       ! save atom number as string for error printout
       write(errorStr, '(i0)') ii
@@ -340,7 +333,7 @@ contains
       call checkError(node, iErr, "Bad species number for atom "//trim(errorStr))
       call getNextToken(text(:iEnd), coords, iStart, iErr)
       call checkError(node, iErr, "Bad coordinates for atom "//trim(errorStr))
-      geo%coords(:, ii, 1) = coords(:)
+      geo%coords(:, ii) = coords(:)
       if (iStart < iEnd) then
         call detailedError(node, "Found trailing characters for atom "//trim(errorStr))
       end if
@@ -400,19 +393,14 @@ contains
 
     ! convert coords to correct internal units
     if (geo%tFracCoord) then
-      do ii = 1, size(geo%coords, dim=3)
-        ! needs to be fixed if the lattice vectors differ between replicas:
-        geo%coords(:, :, ii) = matmul(geo%latVecs, geo%coords(:,:,ii))
-      end do
+      geo%coords(:, :) = matmul(geo%latVecs, geo%coords)
       geo%origin(:) = matmul(geo%latVecs, geo%origin)
     else
-      geo%coords(:,:,:) = geo%coords * AA__Bohr
+      geo%coords(:,:) = geo%coords * AA__Bohr
     end if
 
     if (geo%tHelical .or. geo%tPeriodic) then
-      do ii = 1, size(geo%coords, dim=3)
-        geo%coords(:,:,ii) = geo%coords(:,:,ii) - spread(geo%origin, 2, geo%nAtom)
-      end do
+      geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
     end if
 
     call normalize(geo)
@@ -451,7 +439,7 @@ contains
 
     type(string) :: txt
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, iSp, iAt, iReplica
+    integer :: ii, iSp, iAt
     real(dp) :: coords(3)
     type(TListString) :: speciesNames
     character(lc) :: errorStr
@@ -484,7 +472,7 @@ contains
     ! Read in sequential and species indices.
     call init(speciesNames)
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom,1))
+    allocate(geo%coords(3, geo%nAtom))
     iSp = 0
     do ii = 1, geo%nAtom
       iEnd = nextLine(text, iStart)
@@ -500,9 +488,7 @@ contains
       call getNextToken(text(:iEnd), coords, iStart, iErr)
       write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
       call checkError(node, iErr, trim(errorStr))
-      do iReplica = 1, size(geo%coords, dim=3)
-        geo%coords(:, ii, iReplica) = coords(:)
-      end do
+      geo%coords(:, ii) = coords
       iStart = iEnd + 1
     end do
 
@@ -521,7 +507,7 @@ contains
     end if
 
     ! convert coords to correct internal units
-    geo%coords(:,:,:) = geo%coords * AA__Bohr
+    geo%coords(:,:) = geo%coords * AA__Bohr
 
     ! original xyz files are always molecular boundary conditions
     geo%tPeriodic = .false.
@@ -565,8 +551,8 @@ contains
     type(string) :: txt
     character(mc), allocatable :: vaspNames(:)
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, jj, iSp, iTmp, iAt, iReplica
-    real(dp) :: coords(3), latVec(3), rTmp, rScale
+    integer :: ii, jj, iSp, iTmp, iAt
+    real(dp) :: coords(3), latVec(3), rScale
     integer, allocatable :: vaspSp(:)
     integer, allocatable :: countSp(:)
     type(TListString) :: speciesNames
@@ -677,7 +663,7 @@ contains
     end do
     geo%nAtom = sum(countSp)
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom, 1))
+    allocate(geo%coords(3, geo%nAtom))
     ii = 0
     do iSp = 1, size(vaspSp, dim=1)
       geo%species(ii+1:ii+countSp(iSp)) = vaspSp(iSp)
@@ -707,9 +693,7 @@ contains
       call getNextToken(text, coords, iStart, iErr)
       write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", iAt
       call checkError(node, iErr, trim(errorStr))
-      do iReplica = 1, size(geo%coords, dim=3)
-        geo%coords(:, iAt, iReplica) = coords(:)
-      end do
+      geo%coords(:, iAt) = coords
       iStart = iEnd + 1
     end do
 
@@ -717,11 +701,9 @@ contains
 
     ! convert coords to correct internal units
     if (geo%tFracCoord) then
-      do iReplica = 1, size(geo%coords, dim=3)
-        geo%coords(:,:,iReplica) = matmul(geo%latVecs, geo%coords(:,:,iReplica))
-      end do
+      geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
     else
-      geo%coords(:,:,:) = geo%coords * AA__Bohr * rScale
+      geo%coords(:,:) = geo%coords * AA__Bohr * rScale
     end if
 
     geo%tPeriodic = .true.

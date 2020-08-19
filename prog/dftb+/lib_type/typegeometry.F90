@@ -34,7 +34,7 @@ module dftbp_typegeometry
     integer, allocatable :: species(:)
 
     !> coordinates of atoms, potentially in multiple replicas
-    real(dp), allocatable :: coords(:,:,:)
+    real(dp), allocatable :: coords(:,:)
 
     !> number of different atomic species
     integer :: nSpecies
@@ -133,8 +133,7 @@ contains
     real(dp), intent(in), optional :: newLatVecs(:,:)
 
     integer, allocatable :: tmpSpecies(:)
-    real(dp), allocatable :: tmpCoords(:,:,:)
-    integer :: nReplicas
+    real(dp), allocatable :: tmpCoords(:,:)
 
     this%nAtom = iEnd - iStart + 1
     allocate(tmpSpecies(this%nAtom))
@@ -144,12 +143,11 @@ contains
     this%species = tmpSpecies
     deallocate(tmpSpecies)
 
-    nReplicas = size(this%coords, dim=3)
-    allocate(tmpCoords(3, this%nAtom, nReplicas))
-    tmpCoords(:,:,:) = this%coords(:,iStart:iEnd,:)
+    allocate(tmpCoords(3, this%nAtom))
+    tmpCoords(:,:) = this%coords(:,iStart:iEnd)
     deallocate(this%coords)
-    allocate(this%coords(3, this%nAtom, nReplicas))
-    this%coords(:,:,:) = tmpCoords
+    allocate(this%coords(3, this%nAtom))
+    this%coords(:,:) = tmpCoords
     deallocate(tmpCoords)
     if (present(newLatVecs).and.present(newOrigin)) then
       call setLattice(this, newOrigin, newLatVecs)

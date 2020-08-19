@@ -191,7 +191,7 @@ contains
 
     ! Create coorinates for central cell and periodic images
     allocate(this%coords(3, this%nAtom, this%nCell))
-    this%coords(:,:,1) = geometry%coords(:,:,1)
+    this%coords(:,:,1) = geometry%coords(:,:)
     if (this%tPeriodic) then
       call foldCoordToUnitCell(this%coords(:,:,1), this%latVecs, this%recVecs2p)
       do ii = 2, this%nCell
