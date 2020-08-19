@@ -653,7 +653,7 @@ contains
 
   !> Multiplies the supermatrix (A+B) with a given vector.
   subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma, transChrg)
+      & gamma, transChrg, species0, spinW)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -694,11 +694,20 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
     !> gamma matrix
     integer :: ia, ii, jj
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
+    logical :: tSpin
 
     @:ASSERT(size(rkm1) == nmat)
+
+    tSpin = (nmat > nmatup)
 
     tmp(:) = 0.0_dp
     call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
@@ -708,7 +717,16 @@ contains
     rkm1(:) = 0.0_dp
     call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
 
-    rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
+    if (.not. tSpin) then
+      rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
+    else
+      ! gamma part
+      rkm1(:) = 2.0_dp * rkm1(:) + wij(:) * rhs2(:)
+      !magnetization part
+      tmp(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
+      call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, 2.0_dp*tmp*spinW(species0), rkm1)
+    end if
 
   end subroutine apbw
 

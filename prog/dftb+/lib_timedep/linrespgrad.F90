@@ -599,7 +599,7 @@ contains
             & stimc, grndEigVecs, gammaMat, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
         call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, this%nAtom, iAtomStart,&
-            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg)
+            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg, species0, this%spinW)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
         call calcPMatrix(t, rhs, win, getij, pc)
@@ -1272,7 +1272,7 @@ contains
 
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
   subroutine solveZVectorPrecond(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij,&
-      & c, transChrg)
+      & c, transChrg, species0, spinW)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -1307,14 +1307,23 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
     integer :: nxov
     integer :: ia, i, a, k
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qij(:), P(:)
+    logical :: tSpin
 
     nxov = size(rhs)
     allocate(qij(nAtom))
+
+    tSpin = (nxov > nmatup)
 
     ! diagonal preconditioner
     ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
@@ -1322,7 +1331,12 @@ contains
     do ia = 1, nxov
       qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
       call hemv(qTmp, gammaMat, qij)
-      rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
+      if (.not. tSpin) then
+        rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
+      else
+        rs = 2.0_dp * dot_product(qij, qTmp) + wij(ia)
+        rs = rs + 2.0_dp * sum(qij * qij * spinW(species0))
+      end if
       P(ia) = 1.0_dp / rs
     end do
 
@@ -1334,7 +1348,7 @@ contains
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-        & transChrg)
+        & transChrg, species0, spinW)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -1345,7 +1359,7 @@ contains
 
       ! action of matrix on vector
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-          & transChrg)
+          & transChrg, species0, spinW)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
