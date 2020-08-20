@@ -2222,14 +2222,19 @@ contains
     !> resulting excited state density matrix
     real(dp), intent(out) :: pc(:,:,:)
 
-    integer :: ias, i, a, s
+    integer :: ias, i, a, s, nSpin
+
+    nSpin = size(pc, dim=3)
 
     pc = 0.0_dp
     do ias = 1, size(rhs)
       call indxov(win, ias, getij, i, a, s)
       pc(i,a,s) = rhs(ias)
     end do
-    pc(:,:,1) = 0.5_dp * ( pc(:,:,1) + transpose(pc(:,:,1)) )
+
+    do s = 1, nSpin
+      pc(:,:,s) = 0.5_dp * ( pc(:,:,s) + transpose(pc(:,:,s)) )
+    end do
 
     pc = pc + t
 
