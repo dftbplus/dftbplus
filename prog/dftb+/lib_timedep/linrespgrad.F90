@@ -608,7 +608,9 @@ contains
             & tCoeffs, this%tGrndState, occNatural, naturalOrbs)
 
         ! Make MO to AO transformation of the excited density matrix
-        call makeSimiliarityTrans(pc(:,:,1), grndEigVecs(:,:,1))
+        do iSpin = 1, nSpin
+          call makeSimiliarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+        end do
 
         call getExcMulliken(iAtomStart, pc(:,:,1), SSqr, dqex)
         if (tMulliken) then
@@ -1455,7 +1457,7 @@ contains
     integer :: nxov, natom, nSpin
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: ij, ias, ab, i, j, a, b, s, iAt1
-    real(dp) :: fact 
+    real(dp) :: fact
     real(dp), allocatable :: qij(:), gamxpyq(:), zq(:), zqds(:)
     logical :: updwn, tSpin
 
