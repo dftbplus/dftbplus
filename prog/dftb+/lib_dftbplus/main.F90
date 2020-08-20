@@ -55,7 +55,7 @@ module dftbp_main
   use dftbp_parser
   use dftbp_sparse2dense
 #:if not WITH_SCALAPACK
-  use dftbp_blasroutines, only : symm, hemm, gemm
+  use dftbp_blasroutines, only : symm, hemm
 #:endif
   use dftbp_hsdutils
   use dftbp_charmanip
@@ -6249,6 +6249,8 @@ contains
 
   !> Normalize eigenvectors with unitary transformation
   subroutine renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
+
+    use dftbp_blasroutines, only : gemm
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
