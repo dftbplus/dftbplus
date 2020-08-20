@@ -4508,7 +4508,7 @@ contains
     !> natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
 
-    real(dp), allocatable :: dQAtom(:)
+    real(dp), allocatable :: dQAtom(:,:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom, fdAutotest
@@ -4520,8 +4520,8 @@ contains
     pSpecies0 => species(1:nAtom)
 
     energy%Eexcited = 0.0_dp
-    allocate(dQAtom(nAtom))
-    dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
+    allocate(dQAtom(nAtom, nSpin))
+    dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
     call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)

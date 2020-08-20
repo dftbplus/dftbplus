@@ -95,7 +95,7 @@ contains
     type(TScc), intent(in) :: sccCalc
 
     !> converged ground state Mulliken gross charges - atomic charges
-    real(dp), intent(in) :: dq(:)
+    real(dp), intent(in) :: dq(:,:)
 
     !> atomic positions
     real(dp), intent(in) :: coord0(:,:)
@@ -161,7 +161,7 @@ contains
     real(dp) :: Ssq(this%nExc)
     real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:)
     real(dp), allocatable :: stimc(:,:,:), wij(:)
-    real(dp), allocatable :: dqex(:), sposz(:), osz(:), xpy(:), xmy(:), pc(:,:,:)
+    real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), xpy(:), xmy(:), pc(:,:,:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
@@ -580,7 +580,7 @@ contains
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
-        ALLOCATE(dqex(this%nAtom))
+        ALLOCATE(dqex(this%nAtom, nSpin))
         ALLOCATE(pc(norb, norb, nSpin))
       end if
 
@@ -610,11 +610,12 @@ contains
         ! Make MO to AO transformation of the excited density matrix
         do iSpin = 1, nSpin
           call makeSimiliarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+          call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
         end do
 
-        call getExcMulliken(iAtomStart, pc(:,:,1), SSqr, dqex)
         if (tMulliken) then
-          call writeExcMulliken(sym, iLev, dq, dqex, coord0, this%fdMulliken)
+          !> for now, only total Mulliken charges
+          call writeExcMulliken(sym, iLev, sum(dq,dim=2), sum(dqex,dim=2), coord0, this%fdMulliken)
         end if
 
         if (tForces) then
@@ -1627,10 +1628,10 @@ contains
     real(dp), intent(in) :: stimc(:,:,:)
 
     !> ground state gross charges
-    real(dp), intent(in) :: dq(:)
+    real(dp), intent(in) :: dq(:,:)
 
     !> charge differences from ground to excited state
-    real(dp), intent(in) :: dqex(:)
+    real(dp), intent(in) :: dqex(:,:)
 
     !> softened coulomb matrix
     real(dp), intent(in) :: gammaMat(:,:)
@@ -1709,7 +1710,7 @@ contains
     excgrad = 0.0_dp
 
     ! excited state potentials at atomic sites
-    call hemv(shift_excited, gammaMat, dqex)
+    call hemv(shift_excited, gammaMat, dqex(:,1))
 
     ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
     ! complexity norb * norb * norb
@@ -1817,7 +1818,7 @@ contains
         ! calculate the derivative of gamma
         dgab(:) = diffvec(:) * (-1.0_dp/rab**2 - expGammaPrime(rab, HubbardU(iSp1), HubbardU(iSp2)))
 
-        tmp3a = dq(iAt1) * dqex(iAt2) + dqex(iAt1) * dq(iAt2)
+        tmp3a = dq(iAt1,1) * dqex(iAt2,1) + dqex(iAt1,1) * dq(iAt2,1)
 
         if (sym == "S") then
           tmp3b = 4.0_dp * xpyq(iAt1) * xpyq(iAt2)
