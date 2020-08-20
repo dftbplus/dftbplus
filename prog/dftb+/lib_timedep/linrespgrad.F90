@@ -600,8 +600,8 @@ contains
             & wov, woo, wvv, transChrg)
         call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, this%nAtom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg, species0, this%spinW)
-        call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
-            & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
+        call calcWVectorZ(rhs, win, nocc_ud, nocc_r, nxov_ud(1), getij, iAtomStart,&
+            & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, this%spinW)
         call calcPMatrix(t, rhs, win, getij, pc)
 
         call writeCoeffs(pc, grndEigVecs, filling, nocc, this%fdCoeffs,&
@@ -1217,7 +1217,7 @@ contains
 
       ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
       do ab = 1, nxvv(s)
-        call indxvv(homo(1), ab, a, b)
+        call indxvv(homo(s), ab, a, b)
         qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qij(:)
@@ -1399,7 +1399,7 @@ contains
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
   subroutine calcWvectorZ(zz, win, homo, nocc, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-      & grndEigVal, wov, woo, wvv, transChrg)
+      & grndEigVal, wov, woo, wvv, transChrg, species0, spinW)
 
     !> Z vector
     real(dp), intent(in) :: zz(:)
@@ -1408,7 +1408,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> highest occupied level
-    integer, intent(in) :: homo
+    integer, intent(in) :: homo(:)
 
     !> number of filled levels
     integer, intent(in) :: nocc
@@ -1432,7 +1432,7 @@ contains
     real(dp), intent(in) :: gammaMat(:,:)
 
     !> ground state MO-energies
-    real(dp), intent(in) :: grndEigVal(:)
+    real(dp), intent(in) :: grndEigVal(:,:)
 
     !> W vector occupied-virtual part
     real(dp), intent(inout) :: wov(:)
@@ -1446,54 +1446,97 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nxov, nxoo, nxvv, natom
-    integer :: ij, ia, ab, i, j, a, b, s, iAt1
-    real(dp), allocatable :: qij(:), gamxpyq(:), zq(:)
-    logical, parameter :: updwn = .true.
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    integer :: nxov, natom, nSpin
+    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
+    integer :: ij, ias, ab, i, j, a, b, s, iAt1
+    real(dp) :: fact 
+    real(dp), allocatable :: qij(:), gamxpyq(:), zq(:), zqds(:)
+    logical :: updwn, tSpin
 
     nxov = size(zz)
     natom = size(gammaMat, dim=1)
-    nxoo = size(woo, dim=1)
-    nxvv = size(wvv, dim=1)
+    nSpin = size(grndEigVal, dim=2)
+
     ALLOCATE(qij(natom))
     ALLOCATE(gamxpyq(natom))
     ALLOCATE(zq(natom))
+    ALLOCATE(nxoo(nSpin))
+    ALLOCATE(nxvv(nSpin))
+    ALLOCATE(nvir(nSpin))
+
+    nxoo(:) = (homo(:)*(homo(:)+1))/2
+    nvir(:) = size(c, dim=1) - homo(:)
+    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
+
+    if ( nSpin == 2 ) then
+      tSpin = .true.
+      ALLOCATE(zqds(natom))
+    else
+      tSpin = .false.
+    end if
 
     ! Adding missing epsilon_i * Z_ia term to W_ia
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a, s)
-      wov(ia) = wov(ia) + zz(ia) * grndEigVal(i)
+    do ias = 1, nxov
+      call indxov(win, ias, getij, i, a, s)
+      wov(ias) = wov(ias) + zz(ias) * grndEigVal(i, s)
     end do
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
     zq(:) = 0.0_dp
     call transChrg%qMatVec(iAtomStart, stimc, c, getij, win, zz, zq)
-
     call hemv(gamxpyq, gammaMat, zq)
 
+    if (tSpin) then
+      zqds(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, stimc, c, getij, win, zz, zqds)
+    end if
 
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
-      qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
-      ! W contains 1/2 for i == j.
-      woo(ij,1) = woo(ij,1) + 4.0_dp * sum(qij * gamxpyq)
+    do s = 1, nSpin
+      if (s == 1) then
+        updwn = .true.
+        fact = 1.0_dp
+      else
+        updwn = .false.
+        fact = -1.0_dp
+      end if
+      do ij = 1, nxoo(s)
+        call indxoo(ij, i, j)
+        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
+        ! W contains 1/2 for i == j.
+        if (.not. tSpin) then
+          woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qij * gamxpyq)
+        else
+          woo(ij,s) = woo(ij,s) + 2.0_dp * sum(qij * gamxpyq)
+          woo(ij,s) = woo(ij,s) + 2.0_dp * fact * sum(qij * zqds * spinW(species0))
+        end if
+      end do
     end do
 
     ! Divide diagonal elements of W_ij by 2.
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
-      if (i == j) then
-        woo(ij,1) = 0.5_dp * woo(ij,1)
-      end if
+    do s = 1, nSpin
+      do ij = 1, nxoo(s)
+        call indxoo(ij, i, j)
+        if (i == j) then
+          woo(ij,s) = 0.5_dp * woo(ij,s)
+        end if
+      end do
     end do
 
     ! Divide diagonal elements of W_ab by 2.
-    do ab = 1, nxvv
-      call indxvv(homo, ab, a, b)
-      if (a == b) then
-        wvv(ab,1) = 0.5_dp * wvv(ab,1)
-      end if
+    do s = 1, nSpin
+      do ab = 1, nxvv(s)
+        call indxvv(homo(s), ab, a, b)
+        if (a == b) then
+          wvv(ab,s) = 0.5_dp * wvv(ab,s)
+        end if
+      end do
     end do
 
   end subroutine calcWvectorZ
