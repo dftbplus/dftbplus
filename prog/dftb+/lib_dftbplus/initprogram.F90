@@ -1856,8 +1856,9 @@ contains
 
     ! temporary disables for various issues with NEGF
     if (tNegf) then
-      if (tSpin) then
-        call error("Spin polarization temporarily disabled for transport calculations.")
+      if (nSpin > 2) then
+        call error("Non-collinear spin polarization disabled for transport calculations at the&
+            & moment.")
       end if
       if (tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&

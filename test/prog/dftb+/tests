@@ -356,6 +356,7 @@ transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2 and 
 transport/SiH-chain_bin                #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-chain_Ef                   #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-chain-spin                 #? WITH_TRANSPORT and MPI_PROCS <= 8
 transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet_grp2                 #? WITH_TRANSPORT and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0
 transport/H-sheet_grp4                 #? WITH_TRANSPORT and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0
