@@ -516,7 +516,7 @@ contains
             & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
             & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi,&
             & tExtField, isXlbomd, tDftbU, TS, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc,&
-            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, rhoPrim, onSiteElements, iHam, reks)
+            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -605,7 +605,7 @@ contains
 
           call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-              & electrostatics, tPoisson, tUpload, shiftPerLUp)
+              & electrostatics, tPoisson, tUpload, shiftPerLUp, dispersion)
 
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
@@ -695,7 +695,7 @@ contains
 
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-              & tPoissonTwice, tUpload, shiftPerLUp)
+              & tPoissonTwice, tUpload, shiftPerLUp, dispersion)
 
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
@@ -6439,7 +6439,7 @@ contains
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
       & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, tExtField, &
       & isXlbomd, tDftbU, TS, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6577,6 +6577,9 @@ contains
     !> imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
+    !> dispersion interactions
+    class(TDispersionIface), allocatable, intent(in) :: dispersion
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
@@ -6608,7 +6611,7 @@ contains
       call addChargePotentials(env, sccCalc, reks%qOutputL(:,:,:,iL), q0, &
           & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, &
           & img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, &
-          & tPoisson, tUpload, shiftPerLUp)
+          & tPoisson, tUpload, shiftPerLUp, dispersion)
 
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell

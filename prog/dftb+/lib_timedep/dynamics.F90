@@ -984,7 +984,8 @@ contains
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
         & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, trho)
+        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
+        & trho)
 
     if (this%tForces) then
       totalForce(:,:) = 0.0_dp
@@ -1090,7 +1091,8 @@ contains
       call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
+          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
+          & this%dispersion,rho)
 
       if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1189,8 +1191,8 @@ contains
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
-      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-      & niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
+      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1300,6 +1302,9 @@ contains
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
+    !> dispersion data and calculations
+    class(TDispersionIface), allocatable, intent(in) :: dispersion
+
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
@@ -1333,7 +1338,7 @@ contains
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
         & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & elstatTypes%gammaFunc, .false., .false., dummy)
+        & elstatTypes%gammaFunc, .false., .false., dummy, dispersion)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       ! convert to qm representation
