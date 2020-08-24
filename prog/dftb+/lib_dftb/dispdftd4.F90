@@ -169,13 +169,13 @@ contains
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
-      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%cnCont, this%energies, this%gradients, &
+      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh,&
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
           & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald, &
           & stat=stat)
     else
-      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
+      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh,&
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
     end if
     @:HANDLE_ERROR(stat)
 
@@ -495,7 +495,8 @@ contains
 
     !$omp parallel do default(none) schedule(runtime) &
     !$omp reduction(+:localEnergies, localDeriv, localSigma, dEdq, dEdcn) &
-    !$omp shared(iAtFirst, iAtLast, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq, dc6dcn, calc) &
+    !$omp shared(iAtFirst, iAtLast, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq) &
+    !$omp shared(dc6dcn, calc) &
     !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
     !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2) &
     !$omp private(dEr, dGr, grad, dSr, f6, f8, f10, df6, df8, df10)
@@ -570,9 +571,9 @@ contains
     if (calc%s9 > 0.0_dp) then
       zerodq(:, :) = 0.0_dp  ! really make sure there is no q `dependency' from alloc
       call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
-      call threeBodyDispersionGradient(calc, env, nAtom, coords, species, nNeighbour, neigh%iNeighbour,&
-          & neigh%neighDist2, img2CentCell, zeroVec, zerodq, zerodcn, dEdq, dEdcn, energies,&
-          & gradients, sigma)
+      call threeBodyDispersionGradient(calc, env, nAtom, coords, species, nNeighbour,&
+          & neigh%iNeighbour, neigh%neighDist2, img2CentCell, zeroVec, zerodq, zerodcn, dEdq,&
+          & dEdcn, energies, gradients, sigma)
     end if
 
     call assembleChunks(env, dEdcn)
