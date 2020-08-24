@@ -1045,7 +1045,7 @@ contains
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> dispersion data and calculations
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)

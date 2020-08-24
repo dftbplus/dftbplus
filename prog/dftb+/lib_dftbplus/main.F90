@@ -6940,7 +6940,7 @@ contains
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> dispersion interactions
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks

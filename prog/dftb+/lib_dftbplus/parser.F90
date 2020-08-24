@@ -4108,7 +4108,10 @@ contains
     select case(char(buffer))
     case default
       call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
+    case ("selfconsistent")
+      input%tSelfConsistent = .true.
     case ("eeq")
+      allocate(input%eeqInput)
       allocate(d4Chi(geo%nSpecies))
       d4Chi(:) = getEeqChi(geo%speciesNames)
       allocate(d4Gam(geo%nSpecies))

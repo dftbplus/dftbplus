@@ -280,7 +280,7 @@ contains
     type(TPotentials), intent(inout) :: potential
 
     !> Dispersion interactions object
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
@@ -303,6 +303,7 @@ contains
     call sccCalc%getShiftPerL(shellPot(:,:,1))
 
     if (allocated(dispersion)) then
+      call dispersion%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call dispersion%addPotential(atomPot(:,1))
     end if
 

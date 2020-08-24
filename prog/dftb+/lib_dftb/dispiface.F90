@@ -38,6 +38,9 @@ module dftbp_dispiface
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
 
+    !> Updates with changed charges for the instance.
+    procedure :: updateCharges
+
     !> Updates charges for dispersion models that make use of charges
     procedure :: updateOnsiteCharges
 
@@ -190,5 +193,36 @@ contains
     energyAvailable = .true.
 
   end function energyAvailable
+
+
+  !> Updates with changed charges for the instance.
+  subroutine updateCharges(this, env, species, neigh, qq, q0, img2CentCell, orb)
+
+    !> Data structure
+    class(TDispersionIface), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Orbital charges.
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Reference orbital charges.
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Mapping on atoms in central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  end subroutine updateCharges
+
 
 end module dftbp_dispiface
