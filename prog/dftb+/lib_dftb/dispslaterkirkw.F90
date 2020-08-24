@@ -260,9 +260,9 @@ contains
     this%stress(:,:) = 0.0_dp
     if (this%tPeriodic) then
       ! Make Ewald summation for a pure 1/r^6 interaction
-      call addDispEGr_per_atom(env, this%nAtom, coords, nNeighReal, neigh%iNeighbour, neigh%neighDist2,&
-        & img2CentCell, this%c6, this%eta, this%vol, this%gLatPoint, this%energies, this%gradients,&
-        & this%stress)
+      call addDispEGr_per_atom(env, this%nAtom, coords, nNeighReal, neigh%iNeighbour,&
+          & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoint,&
+          & this%energies, this%gradients, this%stress)
       ! Correct those terms, where damping is important
       allocate(nNeighDamp(this%nAtom))
       call getNrOfNeighboursForAll(nNeighDamp, neigh, this%dampCutoff)
@@ -321,7 +321,7 @@ contains
     @:ASSERT(this%coordsUpdated)
     @:ASSERT(size(energies) == this%nAtom)
 
-    energies(:) = this%energies(:)
+    energies(:) = this%energies
 
   end subroutine getEnergies
 
@@ -338,7 +338,7 @@ contains
     @:ASSERT(this%coordsUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    gradients(:,:) = gradients(:,:) + this%gradients(:,:)
+    gradients(:,:) = gradients + this%gradients
 
   end subroutine addGradients
 
@@ -476,10 +476,10 @@ contains
         end if
         ! Gradients
         vec(:) = (coords(:,iAt1) - coords(:,iAt2))
-        gr(:) = -c6(iAt2f, iAt1) * vec(:) * (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8)&
+        gr(:) = -c6(iAt2f, iAt1) * vec * (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8)&
           & - 6.0_dp * (h2**mm_ + corr) * dist**(-8))
-        localDeriv(:,iAt1) = localDeriv(:,iAt1) + gr(:)
-        localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - gr(:)
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + gr
+        localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - gr
         if (iAt1 /= iAt2f) then
           do ii = 1, 3
             localSigma(:,ii) = localSigma(:,ii) - gr * vec(ii)

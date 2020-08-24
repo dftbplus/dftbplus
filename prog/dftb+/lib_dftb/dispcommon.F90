@@ -34,8 +34,8 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
-  subroutine addDispEGr_per_atom(env, nAtom, coords, nNeighbourSK, iNeighbour, neighDist2, img2CentCell,&
-      & c6, eta, vol, gLatVecs, energies, gradients, stress)
+  subroutine addDispEGr_per_atom(env, nAtom, coords, nNeighbourSK, iNeighbour, neighDist2,&
+      & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -118,18 +118,18 @@ contains
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
         rSum =  rc * c6(iAt2f, iAt1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
         rSum3(:) = r3c * c6(iAt2f, iAt1) * exp(-1.0_dp / aam2)&
-            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec
         localEnergies(iAt1) = localEnergies(iAt1) - rSum
-        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3(:)
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3
         if (iAt1 /= iAt2f) then
           localEnergies(iAt2f) = localEnergies(iAt2f) - rSum
-          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3(:)
+          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3
           do ii = 1, 3
-            localStress(:,ii) = localStress(:,ii) - rSum3(:)*vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - rSum3 * vec(ii) / vol
           end do
         else
           do ii = 1, 3
-            localStress(:,ii) = localStress(:,ii) - 0.5_dp*rSum3(:)*vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - 0.5_dp * rSum3 * vec(ii) / vol
           end do
         end if
       end do
@@ -152,13 +152,13 @@ contains
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
-        gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
+        gSum3(:) = gSum3 + gg * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
-          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp*ggAbs*rTmp33*gg(:)*gg(ii)
+          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp * ggAbs * rTmp33 * gg * gg(ii)
         end do
       end do
       gSum = gSum * gc
-      gSum3(:) = gSum3(:) * g3c
+      gSum3(:) = gSum3 * g3c
       gSum33 = gSum33 * gc
       localEnergies(iAt1) = localEnergies(iAt1) - gSum + (c6(iAt1,iAt1)/12.0_dp * etam3&
           & - pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
@@ -186,8 +186,8 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
-  subroutine addDispEGr_per_species(env, nAtom, coords, species0, nNeighbourSK, iNeighbour, neighDist2,&
-      & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
+  subroutine addDispEGr_per_species(env, nAtom, coords, species0, nNeighbourSK, iNeighbour,&
+      & neighDist2, img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -276,12 +276,12 @@ contains
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
         rSum =  rc * c6(iSp2, iSp1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
         rSum3(:) = r3c * c6(iSp2, iSp1) * exp(-1.0_dp / aam2)&
-            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec
         localEnergies(iAt1) = localEnergies(iAt1) - rSum
-        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3(:)
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3
         if (iAt1 /= iAt2f) then
           localEnergies(iAt2f) = localEnergies(iAt2f) - rSum
-          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3(:)
+          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3
           do ii = 1, 3
             localStress(:,ii) = localStress(:,ii) - rSum3 * vec(ii) / vol
           end do
@@ -311,13 +311,13 @@ contains
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
-        gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
+        gSum3(:) = gSum3 + gg * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
-          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp*ggAbs*rTmp33*gg(:)*gg(ii)
+          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp * ggAbs * rTmp33 * gg * gg(ii)
         end do
       end do
       gSum = gSum * gc
-      gSum3(:) = gSum3(:) * g3c
+      gSum3(:) = gSum3 * g3c
       gSum33 = gSum33 * gc
       localEnergies(iAt1) = localEnergies(iAt1) - gSum + (c6(iSp1,iSp1)/12.0_dp * etam3&
           & - pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol)) * etam3

@@ -239,17 +239,18 @@ contains
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)
     if (this%tPeriodic) then
-      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
-          & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
-          & this%gradients, removeR6=.true., stress=this%stress, vol=this%vol)
+      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh,&
+          & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly,&
+          & this%r0, this%energies, this%gradients, removeR6=.true., stress=this%stress,&
+          & vol=this%vol)
       call getNrOfNeighboursForAll(nNeigh, neigh, this%ewaldRCut)
       call addDispEGr_per_species(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoints,&
           & this%energies, this%gradients, this%stress)
     else
-      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
-          & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
-          & this%gradients)
+      call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh,&
+          & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly,&
+          & this%r0, this%energies, this%gradients)
     end if
 
     this%coordsUpdated = .true.
@@ -298,7 +299,7 @@ contains
     @:ASSERT(this%coordsUpdated)
     @:ASSERT(size(energies) == this%nAtom)
 
-    energies(:) = this%energies(:)
+    energies(:) = this%energies
 
   end subroutine getEnergies
 
@@ -315,7 +316,7 @@ contains
     @:ASSERT(this%coordsUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    gradients(:,:) = gradients(:,:) + this%gradients(:,:)
+    gradients(:,:) = gradients + this%gradients
 
   end subroutine addGradients
 
@@ -447,7 +448,7 @@ contains
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
-        vec = coords(:,iAt1)-coords(:,iAt2)
+        vec(:) = coords(:,iAt1)-coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         r2 = neighDist2(iNeigh, iAt1)

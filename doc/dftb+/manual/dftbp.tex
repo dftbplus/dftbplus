@@ -3929,6 +3929,7 @@ calculation and/or calculate properties.
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
   \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
+  \kw{WriteNetCharges} & l & MullikenAnalysis = Yes & No & \\
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
@@ -3945,6 +3946,10 @@ calculation and/or calculate properties.
 
 \item[\is{MullikenAnalysis}] If \is{Yes}, the results of a Mulliken analysis of
   the system is given.
+
+\item[\is{WriteNetCharges}] If \is{Yes}, the net charges (component of the
+  charge associated only with the on-site part of the atomic orbitals, not the
+  off-site hybridisation).
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
