@@ -514,15 +514,15 @@ contains
     end if
 
     this%tNetCharges = .false.
-  #:if WITH_MBD
     if (allocated(dispersion)) then
       allocate(this%dispersion, source=dispersion)
+    #:if WITH_MBD
       select type (dispersion)
       type is (TDispMbd)
         this%tNetCharges = .true.
       end select
+    #:endif
     end if
-  #:endif
 
     this%skCutoff = skCutoff
     this%mCutoff = mCutoff
@@ -3587,6 +3587,7 @@ contains
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
     end if
+
   end subroutine getPositionDependentEnergy
 
 
