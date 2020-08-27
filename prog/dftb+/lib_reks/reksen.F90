@@ -18,7 +18,7 @@ module dftbp_reksen
   use dftbp_accuracy
   use dftbp_blasroutines, only : gemm
   use dftbp_densedescr
-  use dftbp_eigenvects
+  use dftbp_eigensolver, only : heev
   use dftbp_elecsolvers
   use dftbp_energytypes, only : TEnergies
   use dftbp_environment
@@ -194,7 +194,6 @@ module dftbp_reksen
     type(TReksCalc), intent(inout) :: this
 
     real(dp), allocatable :: orbFON(:)
-    real(dp), allocatable :: tmpOver(:,:)
     real(dp), allocatable :: tmpMat(:,:)
 
     integer :: ii, nOrb
@@ -202,7 +201,6 @@ module dftbp_reksen
     nOrb = size(this%fockFc,dim=1)
 
     allocate(orbFON(nOrb))
-    allocate(tmpOver(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
@@ -220,14 +218,10 @@ module dftbp_reksen
     call levelShifting_(this%fock, this%shift, this%Nc, this%Na)
 
     ! Diagonalize the pesudo-Fock matrix
-    tmpOver(:,:) = 0.0_dp
-    do ii = 1, nOrb
-      tmpOver(ii,ii) = 1.0_dp
-    end do
     tmpMat(:,:) = this%fock
 
     eigen(:,1,1) = 0.0_dp
-    call diagDenseMtx(electronicSolver, 'V', tmpMat, tmpOver, eigen(:,1,1))
+    call heev(tmpMat, eigen(:,1,1), 'U', 'V')
     this%eigvecsFock(:,:) = tmpMat
 
   end subroutine getFockandDiag
@@ -316,7 +310,6 @@ module dftbp_reksen
 
     real(dp), allocatable :: Wab(:,:)
     real(dp), allocatable :: StateCoup(:,:)
-    real(dp), allocatable :: tmpOver(:,:)
     real(dp), allocatable :: tmpState(:,:)
     real(dp), allocatable :: tmpEigen(:)
     real(dp), allocatable :: tmpEn(:)
@@ -327,7 +320,6 @@ module dftbp_reksen
 
     allocate(Wab(nActPair,2))
     allocate(StateCoup(this%nstates,this%nstates))
-    allocate(tmpOver(this%nstates,this%nstates))
     allocate(tmpState(this%nstates,this%nstates))
     allocate(tmpEigen(this%nstates))
     allocate(tmpEn(this%nstates))
@@ -347,10 +339,6 @@ module dftbp_reksen
 
     ! diagonalize the state energies
     ! obtain SSR energies & state-interaction term
-    tmpOver(:,:) = 0.0_dp
-    do ist = 1, this%nstates
-      tmpOver(ist,ist) = 1.0_dp
-    end do
     tmpEigen(:) = 0.0_dp
 
     tmpState(:,:) = 0.0_dp
@@ -367,7 +355,7 @@ module dftbp_reksen
     ! save state energies to print information
     tmpEn(:) = this%energy
     if (this%tSSR) then
-      call diagDenseMtx(electronicSolver, 'V', tmpState, tmpOver, tmpEigen)
+      call heev(tmpState, tmpEigen, 'U', 'V')
       this%eigvecsSSR(:,:) = tmpState
       this%energy(:) = tmpEigen
     end if

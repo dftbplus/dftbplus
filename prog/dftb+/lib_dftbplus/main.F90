@@ -6250,6 +6250,7 @@ contains
   subroutine renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
 
     use dftbp_blasroutines, only : gemm
+    use dftbp_eigensolver, only : heev
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6285,18 +6286,12 @@ contains
     tmpC(:,:) = 0.0_dp
     call gemm(tmpC, tmpMat, eigvecsReal(:,:,1))
 
-    ! Make an identity matrix
-    tmpS(:,:) = 0.0_dp
-    do ii = 1, nOrb
-      tmpS(ii,ii) = 1.0_dp
-    end do
-
     ! Diagonalize CSC to obtain a unitary matrix, U = CSC^(-1/2)
 
     tmpEigen(:) = 0.0_dp
     call env%globalTimer%startTimer(globalTimers%diagonalization)
     ! tmpC becomes eigenvectors (X) of CSC
-    call diagDenseMtx(electronicSolver, 'V', tmpC, tmpS, tmpEigen)
+    call heev(tmpC, tmpEigen, 'U', 'V')
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     ! Make inverse square root matrix consisting of eigenvalues (s) of CSC
