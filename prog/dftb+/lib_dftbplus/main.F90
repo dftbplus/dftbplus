@@ -541,9 +541,8 @@ contains
               & maxSccIter, iGeoStep, tStopScc, eigvecsReal, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
               & reks)
         else
-          call getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qInpRed,&
-              & qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter, minSccIter, maxSccIter,&
-              & iGeoStep, tStopScc, eigvecsReal, reks)
+          call getReksNextInputCharges(qInput, qOutput, qDiff, sccErrorQ, sccTol, tConverged,&
+              & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
         if (allocated(dispersion)) then
@@ -6203,7 +6202,7 @@ contains
     real(dp), intent(out) :: SSqrReal(:,:)
 
     !> Eigenvectors on eixt
-    real(dp), intent(out) :: eigvecsReal(:,:,:)
+    real(dp), intent(inout) :: eigvecsReal(:,:,:)
 
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
@@ -6860,30 +6859,17 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput,&
-      & qOutRed, qInpRed, qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter,&
-      & minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
+  subroutine getReksNextInputCharges(qInput, qOutput, qDiff, sccErrorQ, sccTol, tConverged,&
+      & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
 
-    !> Atomic orbital data
-    type(TOrbitals), intent(in) :: orb
-
-    !> Total number of inequivalent atomic orbitals
-    integer, intent(in) :: nIneqOrb
-
-    !> Equivalence relations between orbitals
-    integer, intent(in) :: iEqOrbitals(:,:,:)
+    !> input charges (for potentials)
+    real(dp), intent(inout) :: qInput(:, :, :)
 
     !> Output electrons
-    real(dp), intent(in) :: qOutput(:,:,:)
+    real(dp), intent(inout) :: qOutput(:,:,:)
 
-    !> Output electrons reduced by unique orbital types
-    real(dp), intent(inout) :: qOutRed(:)
-
-    !> Equivalence reduced input charges
-    real(dp), intent(inout) :: qInpRed(:)
-
-    !> Difference between Output and input electrons
-    real(dp), intent(inout) :: qDiffRed(:)
+    !> charge differences between input and output charges
+    real(dp), intent(inout) :: qDiff(:,:,:)
 
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
@@ -6915,14 +6901,13 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    call reduceReksCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed)
-    qDiffRed(:) = qOutRed - qInpRed
-    sccErrorQ = maxval(abs(qDiffRed))
+    qDiff(:,:,:) = qOutput - qInput
+    sccErrorQ = maxval(abs(qDiff))
 
     tConverged = (sccErrorQ < sccTol) &
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
-      qInpRed(:) = qOutRed
+      qInput(:,:,:) = qOutput
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
     end if
 
@@ -6984,30 +6969,6 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
-
-
-  !> Reduce charges according to orbital equivalency rules.
-  subroutine reduceReksCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Total number of inequivalent atomic orbitals
-    integer, intent(in) :: nIneqOrb
-
-    !> Equivalence relations between orbitals
-    integer, intent(in) :: iEqOrbitals(:,:,:)
-
-    !> Output electrons
-    real(dp), intent(in) :: qOutput(:,:,:)
-
-    !> Reduction of atomic populations
-    real(dp), intent(out) :: qOutRed(:)
-
-    qOutRed(:) = 0.0_dp
-    call orbitalEquiv_reduce(qOutput, iEqOrbitals, orb, qOutRed(1:nIneqOrb))
-
-  end subroutine reduceReksCharges
 
 
 end module dftbp_main
