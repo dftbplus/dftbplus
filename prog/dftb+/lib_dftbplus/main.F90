@@ -501,8 +501,8 @@ contains
 
         if (iSccIter == 1) then
           call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, nNeighbourSK,&
-              & iSparseStart, img2CentCell, electronicSolver, HSqrReal, SSqrReal, eigvecsReal,&
-              & eigen, reks)
+              & iSparseStart, img2CentCell, electronicSolver, iGeoStep, HSqrReal, SSqrReal,&
+              & eigvecsReal, eigen, reks)
         end if
 
         call getDensityMatrixL(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -6165,7 +6165,7 @@ contains
   !> Save dense overlap matrix elements
   !> Check Gamma point condition and set filling information
   subroutine getReksInitialSettings(env, denseDesc, h0, over, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
+      & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, iGeoStep, &
       & HSqrReal, SSqrReal, eigvecsReal, eigen, reks)
 
     !> Environment settings
@@ -6195,6 +6195,9 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
+    !> Number of current geometry step
+    integer, intent(in) :: iGeoStep
+
     !> dense hamiltonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
 
@@ -6218,30 +6221,38 @@ contains
     reks%overSqr(:,:) = SSqrReal
     call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
 
-    if (.not. reks%tReadMO) then
+    if (iGeoStep == 0) then
 
-      call env%globalTimer%startTimer(globalTimers%sparseToDense)
-      call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+      if (.not. reks%tReadMO) then
 
-      eigen(:,:,:) = 0.0_dp
-      call env%globalTimer%startTimer(globalTimers%diagonalization)
-      call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
-      call env%globalTimer%stopTimer(globalTimers%diagonalization)
-      eigvecsReal(:,:,1) = HSqrReal
+        call env%globalTimer%startTimer(globalTimers%sparseToDense)
+        call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+        eigen(:,:,:) = 0.0_dp
+        call env%globalTimer%startTimer(globalTimers%diagonalization)
+        call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
+        call env%globalTimer%stopTimer(globalTimers%diagonalization)
+        eigvecsReal(:,:,1) = HSqrReal
+
+      else
+
+        call readEigenvecs(eigvecsReal(:,:,1))
+        call renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
+
+      end if
+
+      call constructMicrostates(reks)
 
     else
 
-      call readEigenvecs(eigvecsReal(:,:,1))
       call renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
 
     end if
 
     call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
         & nNeighbourSK, iSparseStart, img2CentCell, over, reks)
-
-    call constructMicrostates(reks)
 
   end subroutine getReksInitialSettings
 
