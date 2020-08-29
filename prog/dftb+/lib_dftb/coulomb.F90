@@ -157,7 +157,7 @@ module dftbp_coulomb
     generic :: sumInvRAsymm => sumInvRClusterAsymm, sumInvRPeriodicAsymm
 
     !> Calculates and returns the 1/R Matrix for all atoms
-    procedure :: invR
+    procedure :: invRMatrix
 
     !> Calculates the -1/R**2 deriv contribution for all atoms, without storing anything.
     procedure, private :: addInvRPrimeCluster
@@ -304,7 +304,7 @@ contains
     end if
 
     if (allocated(this%invRMat)) then
-      call this%invR(env, coords, this%invRMat, err)
+      call this%invRMatrix(env, coords, this%invRMat, err)
     end if
 
     this%tCoordsUpdated = .true.
@@ -631,9 +631,8 @@ contains
   end subroutine addShiftPerShell
 
 
-  !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
-  !> constructed.
-  subroutine invR(this, env, coord, invRMat, err)
+  !> Calculates the 1/R Matrix for all atoms.  Only the lower triangle is constructed.
+  subroutine invRMatrix(this, env, coord, invRMat, err)
 
     !> Data structure
     class(TCoulombCont), intent(in) :: this
@@ -691,7 +690,7 @@ contains
 
     end select
 
-  end subroutine invR
+  end subroutine invRMatrix
 
 
 #:if WITH_SCALAPACK
