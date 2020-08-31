@@ -532,10 +532,6 @@ contains
         nEndLev = nstat
       end if
 
-      if (tSpin) then
-        call error("Z vector evaluation does not currently support spin polarization.")
-      end if
-
       if (any( abs(filling) > elecTolMax .and. abs(filling-2.0_dp) > elecTolMax ) ) then
         call error("Fractional fillings not currently possible for excited state property&
             & calculations")
