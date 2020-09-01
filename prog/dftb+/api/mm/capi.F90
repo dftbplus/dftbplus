@@ -10,11 +10,18 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_accuracy, only : dp
-  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput
+  use dftbp_linkedlist
+  use dftbp_mmapi, only :&
+      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   implicit none
   private
+
+  !> DFTB+ atom list structure
+  type, bind(C) :: c_DftbPlusAtomList
+    type(c_ptr) :: pDftbPlusAtomList
+  end type c_DftbPlusAtomList
 
   !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
@@ -100,6 +107,72 @@ contains
   end subroutine c_DftbPlus_final
 
 
+  !> Obtain number of atoms and list of species from the MM program
+  subroutine c_DftbPlusAtomList_getAtomList(atomListHandler, nAtomC, nSpeciesC, speciesNamesC, speciesC)&
+      & bind(C, name='dftbp_get_atom_list')
+    implicit none
+
+    !> handler for the input data structure
+    type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
+
+    !> number of atoms
+    integer(c_int), intent(in) :: nAtomC
+
+    !> number of species
+    integer(c_int), intent(in) :: nSpeciesC
+
+    !> array of element names (chemical symbols)
+    !>   size=3*nSpecies; each element name takes 3 characters
+    character(c_char), intent(in) :: speciesNamesC(*)
+
+    !> pointer to array of species for each atom, size=nAtom
+    type(c_ptr), value, intent(in) :: speciesC
+
+    type(TDftbPlusAtomList), pointer :: instanceAtomList
+
+    ! Fortran integers
+    integer :: nAtom, nSpecies
+
+    type(TListString) :: speciesNames
+
+    ! Fortran character string for a chemical symbol of 1 species
+    character(3) :: speciesNameF
+
+    ! Fortran pointer to array of species for each atom, as C integers
+    integer(c_int), pointer :: ptrSpecies(:)
+    ! Fortran array of species for each atom, as Fortran integers, size=nAtom
+    integer, allocatable :: species(:)
+
+    integer :: i
+
+    allocate(instanceAtomList)
+    atomListHandler%pDftbPlusAtomList = c_loc(instanceAtomList)
+
+    nAtom = nAtomC
+    nSpecies = nSpeciesC
+
+    ! convert the string of chemical symbols "speciesNamesFortran"
+    !   to a linked list of strings, using the HSD routines
+    call init(speciesNames)
+    do i = 1, nSpecies
+      speciesNameF = fortranChar(speciesNamesC(3*i-2:3*i))
+      call append(speciesNames, speciesNameF)
+    end do
+
+    ! convert the array of species per atom to Fortran format
+    call c_f_pointer(speciesC, ptrSpecies, [nAtom])
+    allocate(species(nAtom))
+    species(1:nAtom) = ptrSpecies(1:nAtom)
+
+    ! pass the Fortran variables to the core routine
+    call instanceAtomList%get(nAtom, speciesNames, species)
+
+    deallocate(species)
+    call destruct(speciesNames)
+
+  end subroutine c_DftbPlusAtomList_getAtomList
+
+
   !> Read input for DFTB+ from a specified file
   subroutine c_DftbPlus_getInputFromFile(handler, fileName, inputHandler)&
       & bind(C, name='dftbp_get_input_from_file')
@@ -111,7 +184,7 @@ contains
     character(c_char), intent(in) :: fileName(*)
 
     !> handler for the resulting input
-    type(c_DftbPlusInput), intent(out) :: inputHandler
+    type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
@@ -127,7 +200,7 @@ contains
 
 
   !> process a document tree to get settings for the calculation
-  subroutine c_DftbPlus_processInput(handler, inputHandler)&
+  subroutine c_DftbPlus_processInput(handler, inputHandler, atomListHandler)&
       & bind(C, name='dftbp_process_input')
 
     !> handler for the calculation instance
@@ -136,12 +209,21 @@ contains
     !> input tree handler
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
+    !> atom list structure handler
+    type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
+
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
+    type(TDftbPlusAtomList), pointer :: pDftbPlusAtomList
 
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
-    call instance%setupCalculator(pDftbPlusInput)
+    if (c_associated(atomListHandler%pDftbPlusAtomList)) then
+      call c_f_pointer(atomListHandler%pDftbPlusAtomList, pDftbPlusAtomList)
+      call instance%setupCalculator(pDftbPlusInput, pDftbPlusAtomList)
+    else
+      call instance%setupCalculator(pDftbPlusInput)
+    end if
 
   end subroutine c_DftbPlus_processInput
 

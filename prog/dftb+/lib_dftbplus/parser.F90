@@ -135,7 +135,7 @@ contains
     type(fnode), pointer :: hsdTree
 
     !> Returns initialised input variables on exit
-    type(TInputData), intent(out) :: input
+    type(TInputData), intent(inout) :: input
 
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
@@ -154,8 +154,11 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readParserOptions(child, root, parserFlags, implicitParserVersion)
 
-    call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, input)
+    ! Read the geometry unless the list of atoms has been provided through the API
+    if (.not. allocated(input%geom%coords)) then
+      call getChild(root, "Geometry", tmp)
+      call readGeometry(tmp, input)
+    end if
 
     ! Hamiltonian settings that need to know settings from the REKS block
     call getChildValue(root, "Reks", dummy, "None", child=child)
