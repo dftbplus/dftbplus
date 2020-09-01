@@ -4972,10 +4972,6 @@ contains
       call error("Linear reponse does not work with non-colinear spin polarization yet")
     end if
 
-    if (tSpin .and. tCasidaForces) then
-      call error("excited state forces are not implemented yet for spin-polarized systems")
-    end if
-
     if (tSpinOrbit) then
       call error("Linear response does not support spin orbit coupling at the moment.")
     end if
