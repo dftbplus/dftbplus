@@ -3189,10 +3189,6 @@ contains
         call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
 
-      if (tForces .and. nSpin > 1) then
-        call error("Linear response is not available for spin polarised forces yet")
-      end if
-
       if (t2Component) then
         call error("Linear response is not compatibile with this spinor Hamiltonian")
       end if
@@ -4982,7 +4978,7 @@ contains
       call error("Linear response does not support shell resolved scc yet")
     end if
 
-    if (tempElec > 0.0_dp .and. tCasidaForces) then
+    if (tempElec > minTemp .and. tCasidaForces) then
       write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
           & occupations, kT=", tempElec/Boltzmann,"K"
       call warning(tmpStr)
