@@ -210,7 +210,7 @@ contains
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     !> atom list structure handler
-    type(c_DftbPlusAtomList), intent(inout), optional :: atomListHandler
+    type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
 
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
@@ -218,7 +218,7 @@ contains
 
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
-    if (present(atomListHandler)) then
+    if (c_associated(atomListHandler%pDftbPlusAtomList)) then
       call c_f_pointer(atomListHandler%pDftbPlusAtomList, pDftbPlusAtomList)
       call instance%setupCalculator(pDftbPlusInput, pDftbPlusAtomList)
     else
