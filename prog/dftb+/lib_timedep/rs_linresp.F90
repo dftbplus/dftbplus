@@ -1123,7 +1123,7 @@ contains
 
     ! for fast init. mat calc. need combined index
     allocate(iaTrans(1:nOcc, nOcc+1:nOrb, nSpin))
-    call rIndXov_array(win, nOcc, nXov, getIJ, iaTrans)
+    call rIndXov_array(win, nOcc+1, nXov, getIJ, iaTrans)
 
     ! run lin. resp. calculation:
     do isym = 1, size(symmetries)

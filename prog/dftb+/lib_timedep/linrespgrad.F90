@@ -588,7 +588,7 @@ contains
       end if
 
       ! set up transition indexing
-      call rindxov_array(win, nocc, nxov, getij, iatrans)
+      call rindxov_array(win, mLUMO, nxov, getij, iatrans)
 
       do iLev = nStartLev, nEndLev
         omega = sqrt(eval(iLev))
