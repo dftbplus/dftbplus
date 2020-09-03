@@ -607,7 +607,7 @@ contains
             & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, this%spinW)
         call calcPMatrix(t, rhs, win, getij, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, nocc, this%fdCoeffs,&
+        call writeCoeffs(pc, grndEigVecs, filling, this%fdCoeffs,&
             & tCoeffs, this%tGrndState, occNatural, naturalOrbs)
 
         do iSpin = 1, nSpin
@@ -1945,7 +1945,7 @@ contains
 
 
   !> Write out excitations projected onto ground state
-  subroutine writeCoeffs(tt, grndEigVecs, occ, nocc, fdCoeffs, tCoeffs, tIncGroundState,&
+  subroutine writeCoeffs(tt, grndEigVecs, occ, fdCoeffs, tCoeffs, tIncGroundState,&
       & occNatural, naturalOrbs)
 
     !> T part of the matrix
@@ -1956,9 +1956,6 @@ contains
 
     !> ground state occupations
     real(dp), intent(in) :: occ(:,:)
-
-    !> number of filled states
-    integer, intent(in) :: nocc
 
     !> file descriptor to write data into
     integer, intent(in) :: fdCoeffs
@@ -1975,19 +1972,21 @@ contains
     !> Natural orbitals
     real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
-    real(dp), allocatable :: t2(:,:,:), occtmp(:)
-    integer :: norb, nSpin, ii, jj, mm
+    real(dp), allocatable :: t2(:,:,:), occtmp(:,:)
+    integer :: norb, nSpin, ii, jj, mm, iSpin
+    logical :: tSpin
 
     norb = size(tt, dim=1)
     nSpin = size(tt, dim=3)
+    tSpin = (nSpin == 2)
 
     if (present(occNatural).or.tCoeffs) then
 
       ALLOCATE(t2(norb, norb, nSpin))
       t2 = tt
       if (tIncGroundState) then
-        do ii = 1, nocc
-          t2(ii,ii,1) = t2(ii,ii,1) + occ(ii,1)
+        do ii = 1, norb
+          t2(ii,ii,:) = t2(ii,ii,:) + occ(ii,:)
         end do
       end if
 
@@ -1995,13 +1994,15 @@ contains
         naturalOrbs = t2
         call evalCoeffs(naturalOrbs(:,:,1), occNatural, grndEigVecs(:,:,1))
         if (tCoeffs) then
-          ALLOCATE(occtmp(size(occ)))
-          occTmp = occNatural
+          ALLOCATE(occtmp(size(occ), nSpin))
+          occTmp(:,1) = occNatural
         end if
       else
-        ALLOCATE(occtmp(size(occ)))
+        ALLOCATE(occtmp(size(occ), nSpin))
         occtmp = 0.0_dp
-        call evalCoeffs(t2(:,:,1), occtmp, grndEigVecs(:,:,1))
+        do iSpin = 1, nSpin
+          call evalCoeffs(t2(:,:,iSpin), occtmp(:,iSpin), grndEigVecs(:,:,iSpin))
+        end do
       end if
 
       ! Better to get this by post-processing DFTB+ output, but here for
@@ -2009,12 +2010,26 @@ contains
       if (tCoeffs) then
         open(fdCoeffs, file=excitedCoefsOut, position="append")
         write(fdCoeffs,*) 'T F'
-        do ii = 1, norb
-          jj = norb - ii + 1
-          write(fdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj), 2.0_dp
-          write(fdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,1), kind=dp),&
-              & mm = 1, norb)
-        end do
+        if (.not. tSpin) then
+          do ii = 1, norb
+            jj = norb - ii + 1
+            write(fdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,1), 2.0_dp
+            write(fdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,1), kind=dp),&
+                & mm = 1, norb)
+          end do
+        else
+          do iSpin = 1, nSpin
+            write(fdCoeffs,*)
+            write(fdCoeffs, '(1x,a,1x,i1)') 'SPIN', iSpin
+            do ii = 1, norb
+              jj = norb - ii + 1
+              write(fdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,iSpin), 1.0_dp
+              write(fdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,iSpin), kind=dp),&
+                  & mm = 1, norb)
+            end do
+          end do
+        end if
+
         close(fdCoeffs)
       end if
 
