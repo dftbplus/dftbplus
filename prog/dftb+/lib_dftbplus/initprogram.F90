@@ -64,7 +64,7 @@ module dftbp_initprogram
   use dftbp_nonscc
   use dftbp_scc, only : TSccInp, TScc, TScc_init
   use dftbp_sccinit
-  use dftbp_coulomb, only : TCoulombCont, TCoulombCont_init
+  use dftbp_coulomb, only : TCoulombCont,  TCoulombInput, TCoulombCont_init
   use dftbp_onsitecorrection
   use dftbp_hamiltonian, only : TRefExtPot
   use dftbp_h5correction
@@ -1152,6 +1152,9 @@ contains
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
+    !> Container for coulombic electrostatics input
+    type(TCoulombInput) :: coulombInput
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1510,17 +1513,18 @@ contains
         sccInp%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
-      sccInp%coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
-      sccInp%coulombInput%tolEwald = input%ctrl%tolEwald
-      call TScc_init(sccCalc, env, sccInp)
+      coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
+      coulombInput%tolEwald = input%ctrl%tolEwald
 
       allocate(coulombCont)
       if (tPeriodic) then
-        call TCoulombCont_init(coulombCont, sccInp%coulombInput, env, nAtom, latVec, recVec,&
+        call TCoulombCont_init(coulombCont, coulombInput, env, nAtom, latVec, recVec,&
             & cellVol)
       else
-        call TCoulombCont_init(coulombCont, sccInp%coulombInput, env, nAtom)
+        call TCoulombCont_init(coulombCont, coulombInput, env, nAtom)
       end if
+
+      call TScc_init(sccCalc, env, sccInp, coulombCont)
 
       deallocate(sccInp)
 

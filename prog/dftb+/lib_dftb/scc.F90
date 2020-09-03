@@ -17,7 +17,7 @@ module dftbp_scc
   use dftbp_chargeconstr, only : addEnergyPerAtom
   use dftbp_commontypes
   use dftbp_constants
-  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, TCoulombCont_init
+  use dftbp_coulomb, only : TCoulombCont, TCoulombCont_init
   use dftbp_dynneighlist
   use dftbp_environment
   use dftbp_fileid
@@ -78,9 +78,6 @@ module dftbp_scc
 
     !> H5 correction object
     type(TH5Corr), allocatable :: h5Correction
-
-    !> Coulomb input
-    type(TCoulombInput) :: coulombInput
 
     !> Whether shift vector is set externally -> skip internal shift calculation
     logical :: hasExternalShifts
@@ -272,7 +269,7 @@ contains
 
 
   !> Initialize SCC container from input data
-  subroutine TScc_init(this, env, inp)
+  subroutine TScc_init(this, env, inp, coulombCont)
 
     !> Resulting instance
     type(TScc), intent(out) :: this
@@ -282,6 +279,8 @@ contains
 
     !> Scc input
     type(TSccInp), intent(in) :: inp
+
+    type(TCoulombCont), intent(in) :: coulombCont
 
     integer :: iSp1, iSp2, iU1, iU2, iL
 
@@ -296,12 +295,7 @@ contains
     @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
 
-    if (allocated(inp%latVecs)) then
-      call TCoulombCont_init(this%coulombCont, inp%coulombInput, env, this%nAtom, &
-          & inp%latVecs, inp%recVecs, inp%volume)
-    else
-      call TCoulombCont_init(this%coulombCont, inp%coulombInput, env, this%nAtom)
-    end if
+    this%coulombCont = coulombCont
 
     allocate(this%shiftPerAtom(this%nAtom))
     allocate(this%shiftPerL(this%mShell, this%nAtom))
