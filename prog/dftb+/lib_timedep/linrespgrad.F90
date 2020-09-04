@@ -172,7 +172,7 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    integer :: nocc, nocc_r, nvir_r, nxoo_r, nxvv_r, mnvir, nxoo_max, nxvv_max
+    integer :: mnvir, nxoo_max, nxvv_max
     integer, allocatable :: nocc_ud(:), nvir_ud(:)
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
@@ -555,14 +555,6 @@ contains
           end if
         end do
       end do
-      nocc = sum(nocc_ud)
-      !ADG: No occ orbital constraint atm
-      nocc_r = nocc
-      nvir_r = sum(nvir_ud)
-
-      ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
-      nxoo_r = (nocc_r * (nocc_r + 1)) / 2
-      nxvv_r = (nvir_r * (nvir_r + 1)) / 2
 
       mHOMO = maxval(nocc_ud)
       mLUMO = minval(nocc_ud) + 1
@@ -597,13 +589,13 @@ contains
         xmy(:nxov_rd) = evec(:nxov_rd,iLev) * sqrt(omega / wij(:nxov_rd))
 
         ! solve for Z and W to get excited state density matrix
-        call getZVectorEqRHS(xpy, xmy, win, iAtomStart, nocc_ud, nocc_r,&
+        call getZVectorEqRHS(xpy, xmy, win, iAtomStart, nocc_ud,&
             & nxov_ud(1), getij, iatrans, this%nAtom, species0,grndEigVal,&
             & stimc, grndEigVecs, gammaMat, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
         call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, this%nAtom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg, species0, this%spinW)
-        call calcWVectorZ(rhs, win, nocc_ud, nocc_r, nxov_ud(1), getij, iAtomStart,&
+        call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, this%spinW)
         call calcPMatrix(t, rhs, win, getij, pc)
 
@@ -622,7 +614,7 @@ contains
         end if
 
         if (tForces) then
-          call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud, nocc_r,&
+          call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
               & nxov_ud(1), getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU,&
               & this%spinW, shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont,&
               & skOverCont, derivator, rhoSqr, excgrad)
@@ -907,7 +899,7 @@ contains
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z.
-  subroutine getZVectorEqRHS(xpy, xmy, win, iAtomStart, homo, nocc, nmatup, getij, iatrans, natom,&
+  subroutine getZVectorEqRHS(xpy, xmy, win, iAtomStart, homo, nmatup, getij, iatrans, natom,&
       & species0, grndEigVal, stimc, c, gammaMat, spinW, omega, sym, rhs, t, wov, woo, wvv,&
       & transChrg)
 
@@ -925,9 +917,6 @@ contains
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
-
-    !> number of filled states
-    integer, intent(in) :: nocc
 
     !> number of same spin excitations
     integer, intent(in) :: nmatup
@@ -1404,7 +1393,7 @@ contains
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
-  subroutine calcWvectorZ(zz, win, homo, nocc, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
+  subroutine calcWvectorZ(zz, win, homo, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
       & grndEigVal, wov, woo, wvv, transChrg, species0, spinW)
 
     !> Z vector
@@ -1415,9 +1404,6 @@ contains
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
-
-    !> number of filled levels
-    integer, intent(in) :: nocc
 
     !> number of same spin excitations
     integer, intent(in) :: nmatup
@@ -1583,7 +1569,7 @@ contains
   !> 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, nmatup, getij,&
+  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nmatup, getij,&
       & win, grndEigVecs, pc, stimc, dq_ud, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
       & transChrg, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
 
@@ -1607,10 +1593,6 @@ contains
 
     !> number of highest occupied state in ground state
     integer, intent(in) :: homo(:)
-
-    !> number of occupied states in calculation (not neccessarily same as HOMO in the case of
-    !> windowing)
-    integer, intent(in) :: nocc
 
     !> single particle transition index
     integer, intent(in) :: win(:)
