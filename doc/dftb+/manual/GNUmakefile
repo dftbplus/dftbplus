@@ -2,9 +2,9 @@
 .SUFFIXES : .fig .pdf .ps .toc .bbl .aux .tex .ind .html ._tmp_
 
 MANUALCOMPONENTS = manual.tex packages.tex newcommands.tex hsd.tex	\
-    unit_mod.tex gen.tex spin_constants.tex disp_constants.tex		\
-    dftd3_constants.tex onsite_constants.tex hhubbard.tex		\
-    restart_files.tex publications.tex references.tex			\
+    unit_mod.tex releases.tex gen.tex spin_constants.tex		\
+    disp_constants.tex dftd3_constants.tex onsite_constants.tex		\
+    hhubbard.tex restart_files.tex publications.tex references.tex	\
     introduction.tex dftbp.tex transport.tex modes.tex waveplot.tex	\
     setupgeom.tex Fig_device.pdf Fig_integration.png api.tex
 

@@ -40,6 +40,11 @@ helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_P
 helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
 helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
+dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
+dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
+dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
+dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
@@ -135,7 +140,9 @@ dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
+dispersion/specieslist_dftd3_bj        #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd4                  #? MPI_PROCS <= 1
+dispersion/specieslist_dftd4           #? MPI_PROCS <= 1
 dispersion/charged_dftd4               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4               #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
@@ -170,19 +177,19 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
-solvation/sasa_i10e                    #? MPI_PROCS <= 1
+solvation/sasa_i10e                    #? MPI_PROCS <= 2
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 solvation/gb_cm5                       #? MPI_PROCS <= 1
 solvation/gb_specieslist               #? MPI_PROCS <= 1
 solvation/gb_p16                       #? MPI_PROCS <= 1
-solvation/gbsa_e35                     #? MPI_PROCS <= 1
+solvation/gbsa_e35                     #? MPI_PROCS <= 2
 solvation/gbsa_caffeine                #? MPI_PROCS <= 1
 solvation/gbsa_p16                     #? MPI_PROCS <= 1
 solvation/gbsa_param1                  #? MPI_PROCS <= 1
 solvation/gbsa_param2                  #? not WITH_MPI
-solvation/gbsa_param3                  #? MPI_PROCS <= 1
+solvation/gbsa_param3                  #? MPI_PROCS <= 2
 solvation/alpb_cation                  #? MPI_PROCS <= 1
 solvation/alpb_anion                   #? MPI_PROCS <= 1
 solvation/alpb_p16                     #? MPI_PROCS <= 1

@@ -2474,7 +2474,7 @@ The \kw{External} field keyword has the following options
 
 The \is{Dispersion} block controls whether DFTB interactions should be
 empirically corrected for van der Waals interactions, since DFTB (and
-SCC-DFTB) does not include these effects. Currently, four different
+SCC-DFTB) does not include these effects. Currently, six different
 dispersion correction schemes are implemented (for the detailed
 description of the methods see the following subsections):
 \begin{itemize}
@@ -2493,6 +2493,10 @@ description of the methods see the following subsections):
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
   section~\ref{sec:dftbp.DftD4}).
+\item \is{Ts}: Dispersion is calculated using the Tkatchenko-Scheffler model~\cite{TkatchenkoPRL09}
+adapted for DFTB~\cite{StohrJCP16} (see section~\ref{sec:dftbp.DispTS}).
+\item \is{Mbd} Dispersion is calculated using the MBD@rsSCS model~\cite{AmbrosettiJCP14}
+adapted for DFTB~\cite{StohrJCP16} (see section~\ref{sec:dftbp.DispMBD}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2560,9 +2564,8 @@ Ref.~\cite{elstner-jcp-114-5149}.\footnote{Please note, that
     p_\alpha p_\beta}{p_\alpha^2 C_6^\beta + p_\beta^2 C_6^\alpha}$,
   in equation (9) the contribution from the dispersion should be
   $E_{\text{dis}} = -\frac{1}{2} \sum_{\alpha\beta}
-  f(R_{\alpha\beta})C_6^{\alpha\beta}(R_{\alpha\beta})^{-6}$. This
-  option is also currently incompatible with lattice optimisation and
-  the use of barostats.}  This model requires atomic polarisation
+  f(R_{\alpha\beta})C_6^{\alpha\beta}(R_{\alpha\beta})^{-6}$.}
+This model requires atomic polarisation
 values, van der Waals radii and effective charges for every atom in
 your system. These parameters are dependent on the coordination of
 each atom, hence values for different atoms of the same species may
@@ -2745,6 +2748,7 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{CutoffCN} & r & & $40$ & \\
   \kw{Threebody} & l & & No & \\
   \kw{HHRepulsion} & l & & No & \\
+  \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 \begin{description}
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
@@ -2755,6 +2759,16 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
+  \begin{verbatim}
+  # Default species (H-Og) are implied
+  AtomicNumbers {
+    D = 1  # set deuterium as hydrogen
+    S = 6  # overwrite sulfur as carbon
+  }
+  \end{verbatim}
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
@@ -2836,6 +2850,7 @@ can be adjusted in the input.
   \kw{CutoffThree} & r & & 40 & \\
   \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
   \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+  \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 
 \begin{description}
@@ -2865,6 +2880,9 @@ can be adjusted in the input.
 
 \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
   calculating three-body interactions.
+
+\item[\is{AtomicNumbers}]
+  Allows overwrite of atomic numbers associated with a species name.
 
 \end{description}
 
@@ -2976,6 +2994,68 @@ CoordinationNumber = Cov {
   Radii = CovalentRadiiD3 {}
 }
 \end{verbatim}
+
+\subsubsection{TS}
+\label{sec:dftbp.DispTS}
+
+Applies the Tkatchenko-Scheffler dispersion model~\cite{TkatchenkoPRL09,StohrJCP16}.
+
+The following keywords can be used with this dispersion model:
+\begin{ptable}
+  \kw{EnergyAccuracy} & r & & 1e-7 & \\
+  \kw{ForceAccuracy} & r & & 1e-6 & \\
+  \kw{Damping} & r & & 20.0 & \\
+  \kw{RangeSeparation} & & & 0.94 & \\
+  \kw{ReferenceSet} & & & "TS" & \\
+  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
+\end{ptable}
+\begin{description}
+\item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
+  of the dispersion calculation.
+\item[\is{ForceAccuracy}] \modif{\modtype{force}} Specifies the force accuracy
+  of the dispersion calculation.
+\item[\is{Damping}] Damping factor.
+\item[\is{RangeSeparation}] Range separation parameter. The default value is the
+  DFTB LDA-value. Note, that various DFTB-parametrisations may require different
+  values.
+\item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
+  are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
+  calculating surfaces).
+\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
+  before evaluating TS dispersion {\it post-hoc}.
+\end{description}
+
+\subsubsection{MBD}
+\label{sec:dftbp.DispMBD}
+
+Applies the Tkatchenko many-body-dispersion model~\cite{AmbrosettiJCP14,StohrJCP16}.
+
+The following keywords can be used with this dispersion model:
+\begin{ptable}
+  \kw{Beta} & r & & 0.83 & \\
+  \kw{NOmegaGrid} & i & & 15 & \\
+  \kw{KGrid} & 3r & &  & \\
+  \kw{KGridShift} & & & 0.5 0.5 0.5 & \\
+  \kw{VacuumAxis} & & & No No No & \\
+  \kw{ReferenceSet} & & & "TS" & \\
+  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
+\end{ptable}
+\begin{description}
+\item[\is{Beta}] Range separation parameter. Default value is optimised for pure
+  DFT LDA functionals. The value may be different for various SK-sets.
+\item[\is{NOmegaGrid}] \modif{\modtype{force}} Number of integration points.
+\item[\is{KGrid}] Monkhorst-Pack-like k-point grid to integrate the Hamiltonian
+  of the interacting dipoles over the Brillouin-zone. Note, that this grid is
+  independent from the k-point grid used to integrate the atomic Hamiltonian.
+\item[\is{KGrid}] Shift of the Monkhorst-Pack grid.
+\item[\is{VacuumAxis}] Set \is{Yes} for each axis, where there is vacuum between
+  the periodically repeated images of the central cell.
+\item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
+  are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
+  calculating surfaces).
+\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
+  before evaluating MBD dispersion {\itshape post-hoc}.
+\end{description}
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
@@ -3849,6 +3929,7 @@ calculation and/or calculate properties.
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
   \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
+  \kw{WriteNetCharges} & l & MullikenAnalysis = Yes & No & \\
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
@@ -3865,6 +3946,10 @@ calculation and/or calculate properties.
 
 \item[\is{MullikenAnalysis}] If \is{Yes}, the results of a Mulliken analysis of
   the system is given.
+
+\item[\is{WriteNetCharges}] If \is{Yes}, the net charges (component of the
+  charge associated only with the on-site part of the atomic orbitals, not the
+  off-site hybridisation).
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.

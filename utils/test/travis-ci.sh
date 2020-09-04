@@ -15,6 +15,7 @@ fi
 
 cmake_options=(
    "-DWITH_DFTD3=true"
+   "-DWITH_MBD=true"
    "-DWITH_TRANSPORT=true"
    "-DWITH_ARPACK=${WITH_ARPACK}"
    "-DWITH_MPI=${WITH_MPI}"

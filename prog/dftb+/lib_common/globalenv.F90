@@ -59,6 +59,9 @@ module dftbp_globalenv
   logical :: doMpiFinalization = .true.
 #:endif
 
+  !> Whether code was compiled with many-body dispersion support
+  logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
+
 
 
 contains

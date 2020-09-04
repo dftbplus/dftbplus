@@ -11,14 +11,19 @@ Unreleased
 Added
 -----
 
+- Many body and Tkatchenko-Scheffler dispersion
 
 Changed
 -------
+
+- MPI parallelisation for UFF, Slater-Kirkwood and DFT-D4 dispersion
+- OMP parallelisation for UFF and Slater-Kirkwood dispersion
 
 
 Fixed
 -----
 
+- Stress tensor is now calculated with Slater-Kirkwood dispersion
 
 
 20.1 (2020-07-22)
