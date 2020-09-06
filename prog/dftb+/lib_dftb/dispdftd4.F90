@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> implementation of the D4 dispersion model
 module dftbp_dispdftd4
@@ -20,6 +21,7 @@ module dftbp_dispdftd4
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_encharges, only : TEeqCont, init
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   implicit none
   private
@@ -135,13 +137,13 @@ contains
     allocate(this%gradients(3, nAtom))
 
     allocate(this%calculator)
-    call initializeCalculator(this%calculator, inp, speciesNames)
+    call initializeCalculator(this%calculator, inp)
 
   end subroutine DispDftD4_init
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance of DFTD4 data
     class(TDispDftD4), intent(inout) :: this
@@ -161,16 +163,21 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
-      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald)
+      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh,&
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
+          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald, &
+          & stat=stat)
     else
-      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%cnCont, this%energies, this%gradients)
+      call dispersionEnergy(this%calculator, env, this%nAtom, coords, species0, neigh,&
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
     end if
+    @:HANDLE_ERROR(stat)
 
     this%tCoordsUpdated = .true.
 
@@ -278,11 +285,14 @@ contains
   !> meaning q=0. The normal zeta-Vector is used to scale the pair-wise dispersion
   !> terms while the so called zero-Vector is used for the non-additive terms in
   !> the ATM dispersion energy.
-  subroutine weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq, zetadcn,&
+  subroutine weightReferences(calc, env, nAtom, species, cn, q, zetaVec, zeroVec, zetadq, zetadcn,&
       & zerodcn)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calc
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -311,9 +321,11 @@ contains
     !> derivative of the weight'n'scale function w.r.t. the CN for q=0
     real(dp), intent(out) :: zerodcn(:, :)
 
-    integer :: iAt1, iSp1, iRef1, iCount1
+    integer :: iAt1, iSp1, iRef1, iCount1, iAtFirst, iAtLast
     real(dp) :: eta1, zEff1, qRef1
     real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     zetaVec(:,:) = 0.0_dp
     zetadq(:,:) = 0.0_dp
@@ -321,12 +333,11 @@ contains
     zeroVec(:,:) = 0.0_dp
     zerodcn(:,:) = 0.0_dp
 
-    !$OMP PARALLEL DEFAULT(NONE) &
-    !$OMP SHARED(zetaVec, zetadq, zetadcn, zeroVec, zerodcn, calc, nAtom, species, q, cn) &
-    !$OMP PRIVATE(iAt1, iSp1, eta1, zEff1, norm, dnorm, iRef1, iCount1, wf, gw) &
-    !$OMP PRIVATE(expw, expd, gwk, dgwk, qRef1)
-    !$OMP DO SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    !$omp parallel do default(none) schedule(runtime) shared(iAtFirst, iAtLast) &
+    !$omp shared(zetaVec, zetadq, zetadcn, zeroVec, zerodcn, calc, species, q, cn) &
+    !$omp private(iAt1, iSp1, eta1, zEff1, norm, dnorm, iRef1, iCount1, wf, gw) &
+    !$omp private(expw, expd, gwk, dgwk, qRef1)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       eta1 = calc%gc * calc%chemicalHardness(iSp1)
       zEff1 = calc%effectiveNuclearCharge(iSp1)
@@ -374,22 +385,30 @@ contains
         zerodcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, zEff1) * dgwk
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$omp end parallel do
+
+    call assembleChunks(env, zetaVec)
+    call assembleChunks(env, zetadq)
+    call assembleChunks(env, zetadcn)
+    call assembleChunks(env, zeroVec)
+    call assembleChunks(env, zerodcn)
 
   end subroutine weightReferences
 
 
-  !> Actual implementation of the dispersion energy, gradients and stress tensor.
+  !> Actual implementation of the dispersion energy, gradients and sigma tensor.
   !>
   !> This subroutine is somewhat agnostic to the dispersion model, meaning that
   !> it can be used for either D4 or D3(BJ), if the inputs like coordination
   !> number, charges and scaling parameters are chosen accordingly.
-  subroutine dispersionGradient(calc, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
-      & dcndL, q, dqdr, dqdL, energies, gradients, stress)
+  subroutine dispersionGradient(calc, env, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
+      & dcndL, q, dqdr, dqdL, energies, gradients, sigma)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calc
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -430,13 +449,13 @@ contains
     !> Updated gradient vector at return
     real(dp), intent(inout) :: gradients(:, :)
 
-    !> Updated stress tensor at return
-    real(dp), intent(inout) :: stress(:, :)
+    !> Updated sigma tensor at return
+    real(dp), intent(inout) :: sigma(:, :)
 
-    integer :: nRef
+    integer :: iAtFirst, iAtLast, nRef
     integer :: iAt1, iSp1, iNeigh, iAt2, iSp2, iAt2f
     real(dp) :: dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2
-    real(dp) :: vec(3), grad(3), dEr, dGr, sigma(3, 3)
+    real(dp) :: vec(3), grad(3), dEr, dGr, dSr(3, 3)
     real(dp) :: rc, r1, r2, r4, r5, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
     real(dp) :: f6, df6, f8, df8, f10, df10
 
@@ -448,6 +467,7 @@ contains
     real(dp), allocatable :: zetadcn(:, :), zerodcn(:, :)
     real(dp), allocatable :: dEdq(:), dEdcn(:)
     real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
+    real(dp), allocatable :: localDeriv(:,:), localSigma(:, :), localEnergies(:)
 
     nRef = maxval(calc%numberOfReferences(species))
     allocate(nNeighbour(nAtom))
@@ -459,20 +479,28 @@ contains
     dEdq(:) = 0.0_dp
     dEdcn(:) = 0.0_dp
 
-    call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq,&
-        & zetadcn, zerodcn)
+    call weightReferences(calc, env, nAtom, species, cn, q, zetaVec, zeroVec, &
+        & zetadq, zetadcn, zerodcn)
 
-    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn,&
+    call getAtomicC6(calc, env, nAtom, species, zetaVec, zetadq, zetadcn,&
         & c6, dc6dcn, dc6dq)
 
     call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:energies, gradients, stress, dEdq, dEdcn) &
-    !$OMP SHARED(nAtom, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq, dc6dcn, calc) &
-    !$OMP PRIVATE(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
-    !$OMP PRIVATE(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2) &
-    !$OMP PRIVATE(dEr, dGr, grad, sigma, f6, f8, f10, df6, df8, df10)
-    !$OMP DO SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localSigma(:,:) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localSigma, dEdq, dEdcn) &
+    !$omp shared(iAtFirst, iAtLast, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq) &
+    !$omp shared(dc6dcn, calc) &
+    !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
+    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2) &
+    !$omp private(dEr, dGr, grad, dSr, f6, f8, f10, df6, df8, df10)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = neigh%iNeighbour(iNeigh, iAt1)
@@ -512,52 +540,65 @@ contains
         dGr = calc%s6 * df6 + calc%s8 * df8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * df10
 
         grad(:) = -dGr*dc6 * vec / r1
-        sigma(:,:) = spread(grad, 1, 3) * spread(vec, 2, 3)
+        dSr(:,:) = spread(grad, 1, 3) * spread(vec, 2, 3)
 
-        energies(iAt1) = energies(iAt1) - dEr*dc6/2
+        localEnergies(iAt1) = localEnergies(iAt1) - dEr*dc6/2
         dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
         dEdq(iAt1) = dEdq(iAt1) - dc6dq1 * dEr
         if (iAt1 /= iAt2f) then
-          stress(:,:) = stress - sigma
-          energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
-          gradients(:, iAt1) = gradients(:, iAt1) + grad
-          gradients(:, iAt2f) = gradients(:, iAt2f) - grad
+          localSigma(:,:) = localSigma - dSr
+          localEnergies(iAt2f) = localEnergies(iAt2f) - dEr*dc6/2
+          localDeriv(:, iAt1) = localDeriv(:, iAt1) + grad
+          localDeriv(:, iAt2f) = localDeriv(:, iAt2f) - grad
           dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
           dEdq(iAt2f) = dEdq(iAt2f) - dc6dq2 * dEr
         else
-          stress(:,:) = stress - 0.5_dp * sigma
+          localSigma(:,:) = localSigma - 0.5_dp * dSr
         end if
 
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$omp end parallel do
+
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localSigma)
+
+    energies(:) = localEnergies
+    gradients(:,:) = localDeriv
+    sigma(:,:) = localSigma
 
     if (calc%s9 > 0.0_dp) then
       zerodq(:, :) = 0.0_dp  ! really make sure there is no q `dependency' from alloc
       call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
-      call threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour, neigh%iNeighbour,&
-          & neigh%neighDist2, img2CentCell, zeroVec, zerodq, zerodcn, dEdq, dEdcn, energies,&
-          & gradients, stress)
+      call threeBodyDispersionGradient(calc, env, nAtom, coords, species, nNeighbour,&
+          & neigh%iNeighbour, neigh%neighDist2, img2CentCell, zeroVec, zerodq, zerodcn, dEdq,&
+          & dEdcn, energies, gradients, sigma)
     end if
+
+    call assembleChunks(env, dEdcn)
+    call assembleChunks(env, dEdq)
 
     ! handle CN and charge contributions to the gradient by matrix-vector operation
     call gemv(gradients, dcndr, dEdcn, beta=1.0_dp)
     call gemv(gradients, dqdr, dEdq, beta=1.0_dp)
 
-    ! handle CN and charge contributions to the stress tensor
-    call gemv(stress, dcndL, dEdcn, beta=1.0_dp)
-    call gemv(stress, dqdL, dEdq, beta=1.0_dp)
+    ! handle CN and charge contributions to the sigma tensor
+    call gemv(sigma, dcndL, dEdcn, beta=1.0_dp)
+    call gemv(sigma, dqdL, dEdq, beta=1.0_dp)
 
   end subroutine dispersionGradient
 
 
   !> calculate atomic dispersion coefficients and their derivatives w.r.t.
   !> coordination number and partial charge.
-  subroutine getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
+  subroutine getAtomicC6(calc, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calc
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -583,19 +624,20 @@ contains
     !> derivative of the C6 w.r.t. the coordination number
     real(dp), intent(out) :: dc6dcn(:, :)
 
-    integer :: iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
+    integer :: iAtFirst, iAtLast, iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
     real(dp) :: refc6, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     c6(:,:) = 0.0_dp
     dc6dcn(:,:) = 0.0_dp
     dc6dq(:,:) = 0.0_dp
 
-    !$OMP PARALLEL DEFAULT(NONE) SHARED(c6, dc6dcn, dc6dq) &
-    !$OMP SHARED(calc, zetaVec, zetadq, zetadcn, nAtom, species) &
-    !$OMP PRIVATE(iAt1, iAt2, iSp1, iSp2, iRef1, iRef2, refc6) &
-    !$OMP PRIVATE(dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2)
-    !$OMP DO SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    !$omp parallel do default(none) schedule(runtime) shared(c6, dc6dcn, dc6dq) &
+    !$omp shared(calc, zetaVec, zetadq, zetadcn, iAtFirst, iAtLast, species) &
+    !$omp private(iAt1, iAt2, iSp1, iSp2, iRef1, iRef2, refc6) &
+    !$omp private(dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iAt2 = 1, iAt1
         iSp2 = species(iAt2)
@@ -622,20 +664,26 @@ contains
         dc6dq(iAt2, iAt1) = dc6dq2
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$omp end parallel do
+
+    call assembleChunks(env, c6)
+    call assembleChunks(env, dc6dcn)
+    call assembleChunks(env, dc6dq)
 
   end subroutine getAtomicC6
 
 
   !> Energies, derivatives and strain derivatives of the Axilrod-Teller-Muto
   !> non-additive triple-dipole contribution.
-  subroutine threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour, iNeighbour,&
+  subroutine threeBodyDispersionGradient(calc, env, nAtom, coords, species, nNeighbour, iNeighbour,&
       & neighDist2, img2CentCell, zetaVec, zetadq, zetadcn, dEdq, dEdcn, energies, gradients,&
-      & stress)
+      & sigma)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calc
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -679,30 +727,38 @@ contains
     !> Updated gradient vector at return (misses CN and q contributions)
     real(dp), intent(inout) :: gradients(:, :)
 
-    !> Updated stress tensor at return (misses CN and q contributions)
-    real(dp), intent(inout) :: stress(:, :)
+    !> Updated sigma tensor at return (misses CN and q contributions)
+    real(dp), intent(inout) :: sigma(:, :)
 
     integer :: iAt1, iAt2, iAt3, iAt2f, iAt3f, iSp1, iSp2, iSp3
-    integer :: iNeigh2, iNeigh3
+    integer :: iNeigh2, iNeigh3, iAtFirst, iAtLast
     real(dp) :: vec12(3), vec13(3), vec23(3), dist12, dist13, dist23
     real(dp) :: c9, c6_12, c6_13, c6_23, rc12, rc13, rc23, rc
     real(dp) :: r1, r2, r3, r5, rr, fdmp, dfdmp, ang, dang
-    real(dp) :: dEr, dG12(3), dG13(3), dG23(3), sigma(3, 3)
+    real(dp) :: dEr, dG12(3), dG13(3), dG23(3), dSr(3, 3)
     real(dp) :: dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3
     real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
+    real(dp), allocatable :: localDeriv(:,:), localSigma(:, :), localEnergies(:)
 
     allocate(c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom))
-    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
+    call getAtomicC6(calc, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:energies, gradients, stress, dEdq, dEdcn) &
-    !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell, neighDist2) &
-    !$OMP SHARED(c6, dc6dcn, dc6dq, calc) &
-    !$OMP PRIVATE(iAt1, iSp1, iNeigh2, iNeigh3, iAt2, iAt2f, iAt3, iAt3f, iSp2, iSp3) &
-    !$OMP PRIVATE(vec12, vec13, vec23, dist12, dist13, dist23, c6_12, c6_13, c6_23, c9, rr) &
-    !$OMP PRIVATE(rc12, rc13, rc23, rc, r2, r1, r3, r5, fdmp, ang, dfdmp, dang, dG12, dG13, dG23) &
-    !$OMP PRIVATE(dEr, sigma, dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3)
-    !$OMP DO SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localSigma(:,:) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localSigma, dEdq, dEdcn) &
+    !$omp shared(iAtFirst, iAtLast, species, nNeighbour, iNeighbour, coords) &
+    !$omp shared(img2CentCell, neighDist2, c6, dc6dcn, dc6dq, calc) &
+    !$omp private(iAt1, iSp1, iNeigh2, iNeigh3, iAt2, iAt2f, iAt3, iAt3f, iSp2, iSp3) &
+    !$omp private(vec12, vec13, vec23, dist12, dist13, dist23, c6_12, c6_13, c6_23, c9, rr) &
+    !$omp private(rc12, rc13, rc23, rc, r2, r1, r3, r5, fdmp, ang, dfdmp, dang, dG12, dG13, dG23) &
+    !$omp private(dEr, dSr, dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh2 = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh2, iAt1)
@@ -761,19 +817,19 @@ contains
           dG23(:) = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist23 * vec23
 
           dEr = calc%s9 * rr * c9 * tripleScale(iAt1, iAt2f, iAt3f)
-          energies(iAt1) = energies(iAt1) - dEr / 3.0_dp
-          energies(iAt2f) = energies(iAt2f) - dEr / 3.0_dp
-          energies(iAt3f) = energies(iAt3f) - dEr / 3.0_dp
+          localEnergies(iAt1) = localEnergies(iAt1) - dEr / 3.0_dp
+          localEnergies(iAt2f) = localEnergies(iAt2f) - dEr / 3.0_dp
+          localEnergies(iAt3f) = localEnergies(iAt3f) - dEr / 3.0_dp
 
-          gradients(:, iAt1) = gradients(:, iAt1) - dG12 - dG13
-          gradients(:, iAt2f) = gradients(:, iAt2f) + dG12 - dG23
-          gradients(:, iAt3f) = gradients(:, iAt3f) + dG13 + dG23
+          localDeriv(:, iAt1) = localDeriv(:, iAt1) - dG12 - dG13
+          localDeriv(:, iAt2f) = localDeriv(:, iAt2f) + dG12 - dG23
+          localDeriv(:, iAt3f) = localDeriv(:, iAt3f) + dG13 + dG23
 
-          sigma(:,:) = spread(dG12, 1, 3) * spread(vec12, 2, 3)&
+          dSr(:,:) = spread(dG12, 1, 3) * spread(vec12, 2, 3)&
               & + spread(dG13, 1, 3) * spread(vec13, 2, 3)&
               & + spread(dG23, 1, 3) * spread(vec23, 2, 3)
 
-          stress(:,:) = stress - sigma
+          localSigma(:,:) = localSigma - dSr
 
           dc9dcn1 = (dc6dcn(iAt1, iAt2f) / c6_12 + dc6dcn(iAt1, iAt3f) / c6_13) * 0.5_dp
           dc9dcn2 = (dc6dcn(iAt2f, iAt1) / c6_12 + dc6dcn(iAt2f, iAt3f) / c6_23) * 0.5_dp
@@ -791,18 +847,28 @@ contains
         end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$omp end parallel do
+
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localSigma)
+
+    energies(:) = energies + localEnergies
+    gradients(:,:) = gradients + localDeriv
+    sigma(:,:) = sigma + localSigma
 
   end subroutine threeBodyDispersionGradient
 
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
-  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, &
-      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald)
+  subroutine dispersionEnergy(calculator, env, nAtom, coords, species, neigh, img2CentCell, &
+      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald, stat)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calculator
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -840,6 +906,9 @@ contains
     !> Volume, if system is periodic
     real(dp), intent(in), optional :: volume
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
 
@@ -859,11 +928,12 @@ contains
     gradients(:, :) = 0.0_dp
     sigma(:, :) = 0.0_dp
 
-    call eeqCont%updateCoords(neigh, img2CentCell, coords, species)
+    call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
+    @:HANDLE_ERROR(stat)
 
     call cnCont%updateCoords(neigh, img2CentCell, coords, species)
 
-    call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, &
+    call dispersionGradient(calculator, env, nAtom, coords, species, neigh, img2CentCell, &
         & cnCont%cn, cnCont%dcndr, cnCont%dcndL, eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL, &
         & energies, gradients, sigma)
 

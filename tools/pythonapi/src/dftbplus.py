@@ -31,7 +31,7 @@ class DftbPlus:
     '''
 
 
-    def __init__(self, libpath='./libdftbplus', hsdpath='./dftb_in.hsd',
+    def __init__(self, libpath=None, hsdpath='./dftb_in.hsd',
                  logfile=None):
         '''Initializes a ctypes DFTB+ calculator object.
 
@@ -42,6 +42,14 @@ class DftbPlus:
             logfile (str): name of log file
 
         '''
+
+        if libpath is None:
+            # layout when installed in same $PREFIX is usually
+            # $PREFIX/lib/libdftbplus.*
+            # $PREFIX/lib/python3.x/site-packages/dftbplus.py
+            libpath = os.path.join(
+                os.path.dirname(__file__), "..", "..", "libdftbplus",
+            )
 
         self._natoms = 0
 
