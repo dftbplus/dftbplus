@@ -34,7 +34,7 @@ module negf_int
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_linkedlist
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, init_TNeighbourList, updateNeighbourListAndSpecies
   use dftbp_assert
   use dftbp_eigensolver
 #:if WITH_MPI
@@ -1919,7 +1919,7 @@ module negf_int
     allocate(lc_species(lc_nAllAtom))
     allocate(lc_img2CentCell(lc_nAllAtom))
     allocate(lc_iCellVec(lc_nAllAtom))
-    call init(lc_neigh, nAtom, nInitNeigh) 
+    call init_TNeighbourList(lc_neigh, nAtom, nInitNeigh)
 
     call updateNeighbourListAndSpecies(lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)

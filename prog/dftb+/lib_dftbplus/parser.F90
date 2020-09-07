@@ -26,7 +26,8 @@ module dftbp_parser
   use dftbp_oldcompat
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, init_TNeighbourList, getSuperSampling
+  use dftbp_periodic, only : getCellTranslations, updateNeighbourList
   use dftbp_coordnumber
   use dftbp_dispersions
   use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -3812,7 +3813,7 @@ contains
         cellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
         rCellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
       end if
-      call init(neighs, geo%nAtom, 10)
+      call init_TNeighbourList(neighs, geo%nAtom, 10)
       if (geo%tPeriodic) then
         ! Make some guess for the nr. of all interacting atoms
         nAllAtom = int((real(geo%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
