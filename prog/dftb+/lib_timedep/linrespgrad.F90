@@ -608,7 +608,7 @@ contains
 
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
-          call makeSimiliarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+          call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
           call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
         end do
 
@@ -1549,13 +1549,16 @@ contains
     integer, intent(in) :: iLev
 
     !> transition density matrix
-    real(dp), intent(in) :: pc(:,:)
+    real(dp), intent(in) :: pc(:,:,:)
 
     !> ground state density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
     integer :: fdUnit, iErr
+    integer :: iSpin, nSpin
     character(lc) :: tmpStr, error_string
+
+    nSpin = size(pc, dim=3)
 
     write(tmpStr, "(A,I0,A)")"DM", iLev, ".dat"
 
@@ -1567,13 +1570,15 @@ contains
     end if
 
     ! size and spin channels
-    write(fdUnit)size(pc, dim=1), 1
+    do iSpin = 1, nSpin
+      write(fdUnit)size(pc, dim=1), iSpin
 
-    if (present(rhoSqr)) then
-      write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
-    else
-      write(fdUnit)cmplx(pc, 0.0_dp, dp)
-    end if
+      if (present(rhoSqr)) then
+        write(fdUnit)cmplx(pc(:,:,iSpin)+rhoSqr(:,:,iSpin), 0.0_dp, dp)
+      else
+        write(fdUnit)cmplx(pc(:,:,iSpin), 0.0_dp, dp)
+      end if
+    end do
 
     close(fdUnit)
 
