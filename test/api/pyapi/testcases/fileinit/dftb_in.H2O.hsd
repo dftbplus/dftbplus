@@ -38,6 +38,10 @@ Analysis = {
   CalculateForces = Yes
 }
 
+Options = {
+  WriteAutotestTag = No
+}
+
 ParserOptions = {
   ParserVersion = 3
 }

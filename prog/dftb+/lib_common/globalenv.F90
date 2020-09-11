@@ -54,8 +54,13 @@ module dftbp_globalenv
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
+#:if WITH_MPI
   !> Whether MPI finalization should be performed at the end
   logical :: doMpiFinalization = .true.
+#:endif
+
+  !> Whether code was compiled with many-body dispersion support
+  logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
 
 
 
@@ -73,7 +78,11 @@ contains
     !> Customised global standard error
     integer, intent(in), optional :: errorUnit
 
-    integer :: mpiComm0, outputUnit0, errorUnit0
+    integer :: outputUnit0, errorUnit0
+
+  #:if WITH_MPI
+    integer :: mpiComm0
+  #:endif
 
     if (present(outputUnit)) then
       outputUnit0 = outputUnit

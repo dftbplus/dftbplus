@@ -136,7 +136,7 @@ contains
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
-    !> non-SCC hamitonian data
+    !> non-SCC hamiltonian data
     type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
@@ -148,7 +148,7 @@ contains
     !> Differentiator for H0 and S matrices.
     class(TNonSccDiff), intent(in), optional :: derivator
 
-    !> ground state square density matrix
+    !> ground state density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
@@ -247,9 +247,12 @@ contains
     @:ASSERT(present(excgrad) .eqv. present(shift))
     @:ASSERT(present(excgrad) .eqv. present(skHamCont))
     @:ASSERT(present(excgrad) .eqv. present(skOverCont))
-    @:ASSERT(present(excgrad) .eqv. present(rhoSqr))
     @:ASSERT(present(excgrad) .eqv. present(derivator))
-
+  #:block DEBUG_CODE
+    if (present(excgrad)) then
+    @:ASSERT(present(rhoSqr))
+    end if
+  #:endblock DEBUG_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
     ! count initial number of transitions from occupied to empty states
@@ -282,7 +285,8 @@ contains
     end if
 
     !> is a z vector required?
-    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
+    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
+        & this%tWriteDensityMatrix
 
     ! Sanity checks
     nstat = this%nStat
@@ -324,7 +328,7 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getij(nxov, 3))
-    ALLOCATE(transitionDipoles(nxov, 3))
+    ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
     ALLOCATE(nocc_ud(nSpin))
     ALLOCATE(nvir_ud(nSpin))
@@ -375,7 +379,7 @@ contains
       if (.not. this%tEnergyWindow) then
 
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wij, sposz, win, snglPartTransDip,nxov_rd, this%oscillatorWindow,&
+        call dipselect(wij, sposz, win, snglPartTransDip, nxov_rd, this%oscillatorWindow,&
             & grndEigVal, getij)
 
       else
@@ -427,13 +431,13 @@ contains
       write(this%fdTrans,*)
     endif
 
-    ! single particle transition dipole file
+    ! Many-body transition dipole file to excited states
     if (this%fdTradip > 0) then
       open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,57("="))')
+      write(this%fdTradip,'(1x,60("="))')
       write(this%fdTradip,*)
     endif
 
@@ -608,6 +612,10 @@ contains
           call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
         end do
 
+        if (this%tWriteDensityMatrix) then
+          call writeDM(iLev, pc, rhoSqr)
+        end if
+
         if (tMulliken) then
           !> for now, only total Mulliken charges
           call writeExcMulliken(sym, iLev, sum(dq,dim=2), sum(dqex,dim=2), coord0, this%fdMulliken)
@@ -615,7 +623,7 @@ contains
 
         if (tForces) then
           call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-              & nxov_ud(1), getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU,&
+              & getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU,&
               & this%spinW, shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont,&
               & skOverCont, derivator, rhoSqr, excgrad)
         end if
@@ -867,7 +875,7 @@ contains
       tSpin = .false.
     end if
 
-    transitionDipoles = 0.0_dp
+    transitionDipoles(:,:) = 0.0_dp
     osz = 0.0_dp
 
     ! Triplet oscillator strength and transition dipole is zero for
@@ -1309,7 +1317,7 @@ contains
     real(dp), intent(in) :: spinW(:)
 
     integer :: nxov
-    integer :: ia, i, a, k
+    integer :: ia, kk
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qij(:), P(:)
@@ -1350,7 +1358,7 @@ contains
     pkm1(:) = zkm1
 
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
-    do k = 1, nxov**2
+    do kk = 1, nxov**2
 
       ! action of matrix on vector
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
@@ -1371,7 +1379,7 @@ contains
         exit
       end if
 
-      if (k == nxov**2) then
+      if (kk == nxov**2) then
         call error("solveZVectorEq : Z vector not converged!")
       end if
 
@@ -1534,6 +1542,44 @@ contains
   end subroutine calcWvectorZ
 
 
+  !> Write out density matrix, full if rhoSqr is present
+  subroutine writeDM(iLev, pc, rhoSqr)
+
+    !> Lable for excited state level
+    integer, intent(in) :: iLev
+
+    !> transition density matrix
+    real(dp), intent(in) :: pc(:,:)
+
+    !> ground state density matrix
+    real(dp), intent(in), optional :: rhoSqr(:,:,:)
+
+    integer :: fdUnit, iErr
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A)")"DM", iLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='unformatted',iostat=iErr)
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open density matrix"
+      call error(error_string)
+    end if
+
+    ! size and spin channels
+    write(fdUnit)size(pc, dim=1), 1
+
+    if (present(rhoSqr)) then
+      write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
+    else
+      write(fdUnit)cmplx(pc, 0.0_dp, dp)
+    end if
+
+    close(fdUnit)
+
+  end subroutine writeDM
+
+
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
   subroutine getExcMulliken(iAtomStart, pc, s, dqex)
@@ -1569,7 +1615,7 @@ contains
   !> 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nmatup, getij,&
+  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getij,&
       & win, grndEigVecs, pc, stimc, dq_ud, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
       & transChrg, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
 
@@ -1594,14 +1640,11 @@ contains
     !> number of highest occupied state in ground state
     integer, intent(in) :: homo(:)
 
-    !> single particle transition index
-    integer, intent(in) :: win(:)
-
-    !> number of up->up transitions
-    integer, intent(in) :: nmatup
-
     !> index array from composite transition index to specific single particle states
     integer, intent(in) :: getij(:,:)
+
+    !> single particle transition index
+    integer, intent(in) :: win(:)
 
     !> ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
@@ -2103,8 +2146,7 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nmat
-    integer :: ii, j, iweight, indo, m, n, s
-    integer :: iDeg
+    integer :: ii, jj, iweight, indo, m, n, s
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
     integer, allocatable :: wvin(:)
@@ -2185,9 +2227,9 @@ contains
           write(fdTrans,'(1x,45("="))')
 
           sign = " "
-          do j = 1, nmat
-            !if (wvec(j) < 1e-4_dp) exit ! ??????
-            indo = wvin(j)
+          do jj = 1, nmat
+            !if (wvec(jj) < 1e-4_dp) exit ! ??????
+            indo = wvin(jj)
             call indxov(win, indo, getij, m, n, s)
             if (tSpin) then
               updwn = (win(indo) <= nmatup)
@@ -2195,16 +2237,17 @@ contains
               if (updwn) sign = "U"
             end if
             write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
+                & m, '->', n, sign, wvec(jj), Hartree__eV * wij(wvin(jj))
           end do
           write(fdTrans,*)
         end if
 
         if (fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,j)&
-              & * au__Debye, j=1,3)
+          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
+              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
+              & * au__Debye, jj=1,3)
         end if
+
       else
 
         ! find largest coefficient in CI - should use maxloc
@@ -2263,6 +2306,10 @@ contains
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
+        if (fdTradip > 0) then
+          call taggedWriter%write(fdTagged, tagLabels%excDipole,&
+              & sqrt(sum(transitionDipoles**2,dim=2)))
+        end if
       else
         degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
@@ -2272,6 +2319,13 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
+        if (fdTradip > 0) then
+          oDeg(:) = 0.0_dp
+          do ii = 1, size(oDeg)
+            oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
+          end do
+          call taggedWriter%write(fdTagged, tagLabels%excDipole, oDeg)
+        end if
       end if
 
     end if

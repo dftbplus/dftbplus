@@ -11,41 +11,67 @@ Unreleased
 Added
 -----
 
-- REKS calculations for a strongly correlated system
-
-- New algorithm for long-range corrected Hamiltonian
-
-- Support for meta-dynamics via the Plumed library.
-
-- Option to set mass of atoms in modes input file (syntax matches existing DFTB+
-  feature)
-
-- Use of processor groups with transport calculations
-  
-- Read input coordinates in XYZ format
-
-- Read input coordinates in POSCAR format
-
-- The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
-  10.26434/chemrxiv.10299428 )
-
-- Non-SCC helical geometries supported
-
-- Generalized Born (GB) and Analytical Linearized Poisson-Boltzmann (ALPB)
-  implicit solvation model for SCC calculations
-
-- Non-polar solvent accessible surface area solvation model
-
-- Particle-particle random-phase approximation available for suitable excitation calculations
-
-- Range separated excited state calculations for spin free singlet systems
+- Many body and Tkatchenko-Scheffler dispersion
 
 Changed
 -------
 
-- Input in GEN format now strictly follows the format described in the manual
+- MPI parallelisation for UFF, Slater-Kirkwood and DFT-D4 dispersion
+- OMP parallelisation for UFF and Slater-Kirkwood dispersion
+
+
+Fixed
+-----
+
+- Stress tensor is now calculated with Slater-Kirkwood dispersion
+
+
+20.1 (2020-07-22)
+=================
+
+Added
+-----
+
+- REKS (spin-Restricted Ensemble Kohn-Sham) calculations for ground and
+  low-lying exited states
+
+- Support for meta-dynamics in MD via the Plumed library
+
+- Option to set mass of atoms in the modes code input file (syntax matches
+  existing DFTB+ feature)
+
+- Use of processor groups with transport calculations, enabling better
+  parallelism for systems that need k-points
+
+- Reading of input coordinates in XYZ format
+
+- Reading of input coordinates in the VASP POSCAR format
+
+- The DFT-D4 dispersion model
+
+- Helical geometries supported for non-SCC calculations
+
+- Generalised Born (GB) and Analytical Linearised Poisson-Boltzmann (ALPB)
+  implicit solvation models for SCC calculations
+
+- Non-polar solvent accessible surface area solvation model
+
+- Particle-particle random-phase approximation available for suitable excitation
+  calculations
+
+- Range separated excited state calculations for spin free singlet systems
+
+- New algorithm for the ground state range-separated hamiltonian
+
+- Real time electronic and coupled electron-ion Ehrenfest dynamics
+
+
+Changed
+-------
 
 - New build system using CMake (the old makefile system has been retired)
+
+- Input in GEN format now strictly follows the description in the manual
 
 - Versioned format for transport contact shift files (backward compatible), also
   enables the Fermi energy to be read directly from the contact file.
@@ -53,13 +79,29 @@ Changed
 - Removed residual XML input (leaving detailed.xml export, depreciating the
   undocumented <<! tag in HSD)
 
+- Output of energies clarified (total energy when electron entropy is not
+  available, Mermin free energy when it is and force related energy when the
+  energy associated with Helmann-Feynman forces is available)
+
+- API extended for MPI parallel calculations and interfaces added to obtain API
+  version and DFTB+ release.
+
+- Poisson solver available without libNEGF enabled compilation
+
+- Parser input can now be set according to the code release version (20.1)
+  
+
 Fixed
 -----
 
-- Correct update of block mulliken population for onsite correction with
+- Correct update of block Mulliken population for onsite correction with
   range-separation hybrid DFTB.
 
 - MD temperature profiles that do not start with an initial constant temperature
+
+- Free energy for PEXSI calculations
+
+- ELSI calculations for spin-orbit and onsite corrected corrections
 
 
 19.1 (2019-07-01)
@@ -71,7 +113,7 @@ Added
 - Non-equilibrium Green's function transport.
 
 - Use of the ELSI library.
- 
+
 - Ability to perform ground state MD with excitation energies.
 
 - Caching for transition charges in excited state.
@@ -82,7 +124,7 @@ Added
 - Onsite corrected hamiltonian for ground state energies.
 
 - Range-separated hybrid DFTB.
- 
+
 - GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
   currently an experimental feature, so should be used with care.
 

@@ -426,10 +426,10 @@ contains
     !> Occupation numbers
     real(dp), intent(in) :: occNr(:,:)
 
-    !> index array for excitations
+    !> DFTB gamma matrix (nAtm, nAtom)
     real(dp), intent(in) :: gamma(:,:)
 
-    !> DFTB gamma matrix (nAtm, nAtom)
+    !> index array for excitations
     integer, intent(in) :: getij(:,:)
 
     !> Chemical species of the atoms
@@ -447,8 +447,12 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nmat, natom
-    integer :: ia, ii, jj
+    integer :: nmat, natom, ia
+
+  #:if WITH_OMP
+    integer :: ii, jj
+  #:endif
+
     real(dp) :: fact
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
@@ -579,7 +583,7 @@ contains
     real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
     logical :: updwn
     integer :: nmat, nAtom, nOrb
-    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin, nSpin
+    integer :: ia, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin, nSpin
     real(dp) :: degeneracy, partTrace
 
     nmat = size(vin)
@@ -673,13 +677,13 @@ contains
     !> index array
     integer, intent(in) :: win(:)
 
-    !> number of same spin transitions
+    !> number of spin-up transitions
     integer, intent(in) :: nmatup
 
-    !> index array
+    !> array of the occupied->virtual pairs
     integer, intent(in) :: getij(:,:)
 
-    !> indexing array for atomic basis functions
+    !> Starting position of each atom in the list of orbitals.
     integer, intent(in) :: iAtomStart(:)
 
     !> overlap times ground state wavefunction
@@ -688,7 +692,7 @@ contains
     !> ground state wave function coefficients
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> transition charges
+    !> gamma matrix
     real(dp), intent(in) :: gamma(:,:)
 
     !> machinery for transition charges between single particle levels
@@ -700,9 +704,7 @@ contains
     !> ground state spin derivatives for each species
     real(dp), intent(in) :: spinW(:)
 
-    !> gamma matrix
-    integer :: ia, ii, jj
-    real(dp) :: tmp(natom), gtmp(natom), qij(natom)
+    real(dp) :: tmp(natom), gtmp(natom)
     logical :: tSpin
 
     @:ASSERT(size(rkm1) == nmat)
@@ -824,7 +826,7 @@ contains
     tdip(:,:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,rtmp) SCHEDULE(RUNTIME)
     do ii = 1, size(evec, dim=2)
-      rtmp = eval(ii)**(-4) ! 1._dp / sqrt(sqrt(eval(ii)))
+      rtmp = eval(ii)**(-0.25_dp) ! 1._dp / sqrt(sqrt(eval(ii)))
       do ll = 1, 3
         tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) * rtmp
       end do

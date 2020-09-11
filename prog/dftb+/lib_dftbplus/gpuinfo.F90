@@ -26,7 +26,7 @@ module dftbp_gpuinfo
 #:endif
 
 contains
-
+  
   subroutine gpuInfo()
 
 #:if WITH_GPU
@@ -42,5 +42,6 @@ contains
 #:endif
 
   end subroutine gpuInfo
+
 
 end module dftbp_gpuinfo

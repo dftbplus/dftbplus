@@ -6,16 +6,15 @@ python: 3.7
 
 
 env:
- - WITH_MPI=false
- - WITH_MPI=true
+ - WITH_MPI=false FC=gfortran CC=gcc
+ - WITH_MPI=true FC=mpifort CC=gcc
 
 addons:
    apt:
       packages:
       - cmake
       - gfortran
-      - libblas-dev
-      - liblapack-dev
+      - libopenblas-dev
       - libopenmpi-dev
       - libscalapack-openmpi-dev
       - libarpack2-dev

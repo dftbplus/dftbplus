@@ -22,6 +22,7 @@ module dftbp_specieslist
   !> Generic wrapper for species specific data
   interface readSpeciesList
     module procedure :: readSpeciesListReal
+    module procedure :: readSpeciesListInt
   end interface readSpeciesList
 
 
@@ -78,6 +79,45 @@ contains
     end if
 
   end subroutine readSpeciesListReal
+
+
+  !> Read a list of integer valued species data
+  subroutine readSpeciesListInt(node, speciesNames, array, default)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Data array to read
+    integer, intent(out) :: array(:)
+
+    !> Names of all species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Data array to read
+    integer, intent(in), optional :: default(:)
+
+    type(fnode), pointer :: child
+    integer :: dummy
+    integer :: iSp
+
+    if (present(default)) then
+      do iSp = 1, size(speciesNames)
+        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp))
+      end do
+    else
+      do iSp = 1, size(speciesNames)
+        call getChildValue(node, speciesNames(iSp), array(iSp))
+      end do
+    end if
+
+    do iSp = 1, size(elementSymbol)
+      call getChild(node, elementSymbol(iSp), child, requested=.false.)
+      if (associated(child)) then
+        call getChildValue(child, "", dummy)
+      end if
+    end do
+
+  end subroutine readSpeciesListInt
 
 
 end module dftbp_specieslist

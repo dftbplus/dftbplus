@@ -8,4 +8,4 @@ add_executable(skderivs ${sources-f90-preproc})
 
 target_link_libraries(skderivs PRIVATE dftbplus)
 
-install(TARGETS skderivs DESTINATION ${INSTALL_BIN_DIR})
+install(TARGETS skderivs DESTINATION "${CMAKE_INSTALL_BINDIR}")

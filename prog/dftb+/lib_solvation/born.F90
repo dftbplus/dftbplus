@@ -19,6 +19,7 @@ module dftbp_born
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
@@ -200,11 +201,11 @@ contains
 
 
   !> Initialize generalized Born model from input data
-  subroutine TGeneralizedBorn_init(self, input, nAtom, species0, speciesNames, &
+  subroutine TGeneralizedBorn_init(this, input, nAtom, species0, speciesNames, &
       & latVecs)
 
     !> Initialised instance at return
-    type(TGeneralizedBorn), intent(out) :: self
+    type(TGeneralizedBorn), intent(out) :: this
 
     !> Specific input parameters for generalized Born
     type(TGBinput), intent(in) :: input
@@ -225,61 +226,61 @@ contains
     integer :: iAt1, iSp1
 
     nSpecies = size(speciesNames)
-    self%tPeriodic = present(latVecs)
+    this%tPeriodic = present(latVecs)
 
     if (allocated(input%sasaInput)) then
-       allocate(self%sasaCont)
-       if (self%tPeriodic) then
-         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+       allocate(this%sasaCont)
+       if (this%tPeriodic) then
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
              & speciesNames, latVecs)
        else
-         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
              & speciesNames)
        end if
     end if
 
-    if (self%tPeriodic) then
-      call self%updateLatVecs(LatVecs)
+    if (this%tPeriodic) then
+      call this%updateLatVecs(LatVecs)
     end if
-    self%nAtom = nAtom
+    this%nAtom = nAtom
 
-    allocate(self%energies(nAtom))
-    allocate(self%shift(nAtom))
-    allocate(self%chargesPerAtom(nAtom))
-    allocate(self%bornRad(nAtom))
-    allocate(self%bornMat(nAtom, nAtom))
-    allocate(self%rho(nSpecies))
-    allocate(self%dbrdr(3, nAtom, nAtom))
-    allocate(self%dbrdL(3, 3, nAtom))
+    allocate(this%energies(nAtom))
+    allocate(this%shift(nAtom))
+    allocate(this%chargesPerAtom(nAtom))
+    allocate(this%bornRad(nAtom))
+    allocate(this%bornMat(nAtom, nAtom))
+    allocate(this%rho(nSpecies))
+    allocate(this%dbrdr(3, nAtom, nAtom))
+    allocate(this%dbrdL(3, 3, nAtom))
 
-    self%param = input%TGBParameters
-    self%rho(:) = input%vdwRad(:) * input%descreening(:)
+    this%param = input%TGBParameters
+    this%rho(:) = input%vdwRad(:) * input%descreening(:)
 
-    if (allocated(self%sasaCont) .and. allocated(input%hBondPar)) then
+    if (allocated(this%sasaCont) .and. allocated(input%hBondPar)) then
       if (any(input%hBondPar /= 0.0_dp)) then
-        allocate(self%hBondStrength(nAtom))
+        allocate(this%hBondStrength(nAtom))
         do iAt1 = 1, nAtom
           iSp1 = species0(iAt1)
-          self%hBondStrength(iAt1) = input%hBondPar(iSp1) / self%sasaCont%probeRad(iSp1)**2
+          this%hBondStrength(iAt1) = input%hBondPar(iSp1) / this%sasaCont%probeRad(iSp1)**2
         end do
       end if
     end if
 
-    self%rCutoff = input%rCutoff
+    this%rCutoff = input%rCutoff
 
     if (allocated(input%cm5Input)) then
-      allocate(self%cm5)
-      if (self%tPeriodic) then
-        call TChargeModel5_init(self%cm5, input%cm5Input, nAtom, speciesNames, &
+      allocate(this%cm5)
+      if (this%tPeriodic) then
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
            & .true., latVecs)
       else
-        call TChargeModel5_init(self%cm5, input%cm5Input, nAtom, speciesNames, &
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
            & .true.)
       end if
     end if
 
-    self%tCoordsUpdated = .false.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .false.
+    this%tChargesUpdated = .false.
 
   end subroutine TGeneralizedBorn_init
 
@@ -337,24 +338,24 @@ contains
 
   !> Check if this is actually an analyical linearized Poisson-Boltzmann model
   !  masquerading as a generalized Born one
-  pure function isALPB(self) result(alpb)
+  pure function isALPB(this) result(alpb)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(in) :: self
+    class(TGeneralizedBorn), intent(in) :: this
 
     !> Analytical linearized Poisson-Boltzmann model used
     logical :: alpb
 
-    alpb = self%param%alpbet > 0.0_dp
+    alpb = this%param%alpbet > 0.0_dp
 
   end function isALPB
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neighList, img2CentCell, coords, species0)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -374,91 +375,94 @@ contains
     integer, allocatable :: nNeigh(:)
     real(dp) :: aDet
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
     end if
 
-    allocate(nNeigh(self%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getBornRadii(self, nNeigh, neighList%iNeighbour, img2CentCell, &
-        & neighList%neighDist2, species0, coords)
-    call getBornMatrixCluster(self, coords)
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getBornRadii(env, nNeigh, neighList%iNeighbour, img2CentCell, &
+        & neighList%neighDist2, species0, coords, this%param%vdwRad, &
+        & this%rho, this%param%bornOffset, this%param%bornScale, this%param%obc, &
+        & this%bornRad, this%dbrdr)
+    call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, &
+        & this%param%keps, this%bornRad, this%bornMat)
 
     ! Analytical linearized Poission-Boltzmann contribution for charged systems
-    if (self%param%alpbet > 0.0_dp) then
-      call getADet(self%nAtom, coords, species0, self%param%vdwRad, aDet)
-      self%bornMat(:, :) = self%bornMat + self%param%kEps * self%param%alpbet / aDet
+    if (this%param%alpbet > 0.0_dp) then
+      call getADet(this%nAtom, coords, species0, this%param%vdwRad, aDet)
+      this%bornMat(:, :) = this%bornMat + this%param%kEps * this%param%alpbet / aDet
     end if
 
-    if (allocated(self%cm5)) then
-      call self%cm5%updateCoords(neighList, img2CentCell, coords, species0)
+    if (allocated(this%cm5)) then
+      call this%cm5%updateCoords(neighList, img2CentCell, coords, species0)
     end if
 
-    self%tCoordsUpdated = .true.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .true.
+    this%tChargesUpdated = .false.
 
   end subroutine updateCoords
 
 
   !> Update internal copy of lattice vectors
-  subroutine updateLatVecs(self, latVecs)
+  subroutine updateLatVecs(this, latVecs)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%updateLatVecs(latVecs)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateLatVecs(latVecs)
     end if
 
-    self%volume = abs(determinant33(latVecs))
-    self%latVecs(:,:) = latVecs
+    this%volume = abs(determinant33(latVecs))
+    this%latVecs(:,:) = latVecs
 
-    if (allocated(self%cm5)) then
-      call self%cm5%updateLatVecs(LatVecs)
+    if (allocated(this%cm5)) then
+      call this%cm5%updateLatVecs(LatVecs)
     end if
 
-    self%tCoordsUpdated = .false.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .false.
+    this%tChargesUpdated = .false.
 
   end subroutine updateLatVecs
 
 
   !> Get energy contributions
-  subroutine getEnergies(self, energies)
+  subroutine getEnergies(this, energies)
 
     !> data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> energy contributions for each atom
     real(dp), intent(out) :: energies(:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(energies) == self%nAtom)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%getEnergies(energies)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getEnergies(energies)
     else
       energies(:) = 0.0_dp
     end if
 
-    energies(:) = energies + 0.5_dp * (self%shift * self%chargesPerAtom) &
-       & + self%param%freeEnergyShift / real(self%nAtom, dp)
+    energies(:) = energies + 0.5_dp * (this%shift * this%chargesPerAtom) &
+       & + this%param%freeEnergyShift / real(this%nAtom, dp)
 
   end subroutine getEnergies
 
 
   !> Get force contributions
-  subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -478,108 +482,109 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
-    real(dp) :: iAt1
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
     real(dp), allocatable :: dhbds(:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
-      if (allocated(self%hBondStrength)) then
-        allocate(dhbds(self%nAtom))
-        dhbds(:) = self%hBondStrength * self%chargesPerAtom**2
-        call gemv(gradients, self%sasaCont%dsdr, dhbds, beta=1.0_dp)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      if (allocated(this%hBondStrength)) then
+        allocate(dhbds(this%nAtom))
+        dhbds(:) = this%hBondStrength * this%chargesPerAtom**2
+        call gemv(gradients, this%sasaCont%dsdr, dhbds, beta=1.0_dp)
         deallocate(dhbds)
       end if
     end if
 
-    allocate(nNeigh(self%nAtom))
+    allocate(nNeigh(this%nAtom))
     sigma(:, :) = 0.0_dp
-    self%energies(:) = 0.0_dp
+    this%energies(:) = 0.0_dp
 
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getBornEGCluster(self, coords, self%energies, gradients, sigma)
+    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getBornEGCluster(env, this%nAtom, coords, this%chargesPerAtom, &
+      & this%bornRad, this%dbrdr, this%dbrdL, this%param%kernel, this%param%keps, &
+      & this%energies, gradients, sigma)
 
     ! Analytical linearized Poission-Boltzmann contribution for charged systems
-    if (self%param%alpbet > 0.0_dp) then
-      call getADetDeriv(self%nAtom, coords, species, self%param%vdwRad, &
-          & self%param%kEps*self%param%alpbet, self%chargesPerAtom, gradients)
+    if (this%param%alpbet > 0.0_dp) then
+      call getADetDeriv(this%nAtom, coords, species, this%param%vdwRad, &
+          & this%param%kEps*this%param%alpbet, this%chargesPerAtom, gradients)
     end if
 
-    if (allocated(self%cm5)) then
-      allocate(dEdcm5(self%nAtom))
+    if (allocated(this%cm5)) then
+      allocate(dEdcm5(this%nAtom))
       dEdcm5(:) = 0.0_dp
-      call hemv(dEdcm5, self%bornMat, self%chargesPerAtom)
-      call self%cm5%addGradients(dEdcm5, gradients)
-      call self%cm5%addSigma(dEdcm5, sigma)
+      call hemv(dEdcm5, this%bornMat, this%chargesPerAtom)
+      call this%cm5%addGradients(dEdcm5, gradients)
+      call this%cm5%addSigma(dEdcm5, sigma)
     end if
 
-    self%energies = self%energies + self%param%freeEnergyShift / real(self%nAtom, dp)
+    this%energies = this%energies + this%param%freeEnergyShift / real(this%nAtom, dp)
 
-    if (self%tPeriodic) then
-      self%sigma(:, :) = sigma
+    if (this%tPeriodic) then
+      this%sigma(:, :) = sigma
     end if
 
   end subroutine addGradients
 
 
   !> get stress tensor contributions
-  subroutine getStress(self, stress)
+  subroutine getStress(this, stress)
 
     !> data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Stress tensor contributions
     real(dp), intent(out) :: stress(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(self%volume > 0.0_dp)
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(this%volume > 0.0_dp)
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%getStress(stress)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getStress(stress)
     else
       stress(:, :) = 0.0_dp
     end if
 
-    stress(:,:) = stress + self%sigma / self%volume
+    stress(:,:) = stress + this%sigma / this%volume
 
   end subroutine getStress
 
 
   !> Distance cut off for generalized Born calculations
-  function getRCutoff(self) result(cutoff)
+  function getRCutoff(this) result(cutoff)
 
     !> data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%rCutoff
-    if (allocated(self%cm5)) then
-      cutoff = max(cutoff, self%cm5%getRCutoff())
+    cutoff = this%rCutoff
+    if (allocated(this%cm5)) then
+      cutoff = max(cutoff, this%cm5%getRCutoff())
     end if
 
-    if (allocated(self%sasaCont)) then
-      cutoff = max(cutoff, self%sasaCont%getRCutoff())
+    if (allocated(this%sasaCont)) then
+      cutoff = max(cutoff, this%sasaCont%getRCutoff())
     end if
 
   end function getRCutoff
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -602,34 +607,34 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(this%tCoordsUpdated)
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
     end if
 
-    call getSummedCharges(species, orb, qq, q0, dQAtom=self%chargesPerAtom)
-    if (allocated(self%cm5)) then
-      call self%cm5%addCharges(self%chargesPerAtom)
+    call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom)
+    if (allocated(this%cm5)) then
+      call this%cm5%addCharges(this%chargesPerAtom)
     end if
 
-    if (allocated(self%sasaCont) .and. allocated(self%hBondStrength)) then
-      self%shift(:) = 2.0_dp * self%sasaCont%sasa * self%hBondStrength * self%chargesPerAtom
+    if (allocated(this%sasaCont) .and. allocated(this%hBondStrength)) then
+      this%shift(:) = 2.0_dp * this%sasaCont%sasa * this%hBondStrength * this%chargesPerAtom
     else
-      self%shift(:) = 0.0_dp
+      this%shift(:) = 0.0_dp
     end if
-    call hemv(self%shift, self%bornMat, self%chargesPerAtom, beta=1.0_dp)
+    call hemv(this%shift, this%bornMat, this%chargesPerAtom, beta=1.0_dp)
 
-    self%tChargesUpdated = .true.
+    this%tChargesUpdated = .true.
 
   end subroutine updateCharges
 
 
   !> Returns shifts per atom
-  subroutine getShifts(self, shiftPerAtom, shiftPerShell)
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
     !> Data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    class(TGeneralizedBorn), intent(inout) :: this
 
     !> Shift per atom
     real(dp), intent(out) :: shiftPerAtom(:)
@@ -637,29 +642,30 @@ contains
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtom)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(size(shiftPerAtom) == this%nAtom)
+    @:ASSERT(size(shiftPerShell, dim=2) == this%nAtom)
 
-    if (allocated(self%sasaCont)) then
-      call self%sasaCont%getShifts(shiftPerAtom, shiftPerShell)
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getShifts(shiftPerAtom, shiftPerShell)
     else
       shiftPerAtom(:) = 0.0_dp
       shiftPerShell(:,:) = 0.0_dp
     end if
 
-    shiftPerAtom(:) = shiftPerAtom + self%shift
+    shiftPerAtom(:) = shiftPerAtom + this%shift
 
   end subroutine getShifts
 
 
   !> Calculate Born radii for a given geometry
-  pure subroutine getBornRadii(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, species, coords)
+  subroutine getBornRadii(env, nNeighbour, iNeighbour, img2CentCell, &
+      & neighDist2, species, coords, vdwRad, rho, bornOffset, bornScale, obcPar, &
+      & bornRad, dbrdr)
 
-    !> data structure
-    type(TGeneralizedBorn), intent(inout) :: self
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -679,61 +685,82 @@ contains
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    integer :: iAt1, iSp1
-    real(dp) :: br
-    real(dp) :: dpsi
-    real(dp) :: svdwi,vdwri
-    real(dp) :: s1, v1, s2
-    real(dp) :: arg, arg2, th, ch
+    !> Van-der-Waals radii
+    real(dp), intent(in) :: vdwRad(:)
 
-    self%bornRad(:) = 0.0_dp
+    !> Descreened radii
+    real(dp), intent(in) :: rho(:)
 
-    call getPsi(self, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
-        & species, coords)
+    !> Offset parameter for the Born radii
+    real(dp), intent(in) :: bornOffset
 
-    do iAt1 = 1, self%nAtom
+    !> Scaling parameter for the Born radii
+    real(dp), intent(in) :: bornScale
+
+    !> Onufriev-Bashford-Case correction parameters
+    real(dp), intent(in) :: obcPar(3)
+
+    !> Born radii
+    real(dp), intent(out) :: bornRad(:)
+
+    !> Derivatives of the Born radii w.r.t. the cartesian coordinates
+    real(dp), intent(out) :: dbrdr(:,:,:)
+
+    integer :: nAtom, iAt1, iSp1
+    real(dp) :: br, dpsi, svdwi,vdwri, s1, v1, s2, arg, arg2, th, ch
+
+    nAtom = size(nNeighbour)
+
+    call getPsi(env, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
+        & species, coords, vdwRad, rho, bornRad, dbrdr)
+
+    !$omp parallel do default(none) schedule(runtime) shared(bornRad, dbrdr) &
+    !$omp shared(nAtom, species, vdwRad, bornOffset, bornScale, obcPar) &
+    !$omp private(iAt1, iSp1, br, dpsi, svdwi,vdwri, s1, v1, s2, arg, arg2, th, ch)
+    do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
 
-      br = self%bornRad(iAt1)
+      br = bornRad(iAt1)
 
-      svdwi = self%param%vdwRad(iSp1) - self%param%bornOffset
-      vdwri = self%param%vdwRad(iSp1)
+      svdwi = vdwRad(iSp1) - bornOffset
+      vdwri = vdwRad(iSp1)
       s1 = 1.0_dp/svdwi
       v1 = 1.0_dp/vdwri
       s2 = 0.5_dp*svdwi
 
       br = br*s2
 
-      arg2 = br*(self%param%obc(3)*br-self%param%obc(2))
-      arg = br*(self%param%obc(1)+arg2)
-      arg2 = 2.0_dp*arg2+self%param%obc(1)+self%param%obc(3)*br*br
+      arg2 = br*(obcPar(3)*br-obcPar(2))
+      arg = br*(obcPar(1)+arg2)
+      arg2 = 2.0_dp*arg2+obcPar(1)+obcPar(3)*br*br
 
       th = tanh(arg)
       ch = cosh(arg)
 
       br = 1.0_dp/(s1-v1*th)
       ! Include GBMV2-like scaling
-      br = self%param%bornScale*br
+      br = bornScale*br
 
       dpsi = ch*(s1-v1*th)
       dpsi = s2*v1*arg2/(dpsi*dpsi)
-      dpsi = self%param%bornScale*dpsi
+      dpsi = bornScale*dpsi
 
-      self%bornRad(iAt1) = br
-      self%dbrdr(:, :, iAt1) = self%dbrdr(:, :, iAt1) * dpsi
-      self%dbrdL(:, :, iAt1) = self%dbrdL(:, :, iAt1) * dpsi
+      bornRad(iAt1) = br
+      dbrdr(:, :, iAt1) = dbrdr(:, :, iAt1) * dpsi
+      !dbrdL(:, :, iAt1) = dbrdL(:, :, iAt1) * dpsi
 
     end do
+    !$omp end parallel do
 
   end subroutine getBornRadii
 
 
   !> Evaluate volume integrals, intermediate values are stored in Born radii fields
-  pure subroutine getPsi(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, species, coords)
+  subroutine getPsi(env, nNeighbour, iNeighbour, img2CentCell, &
+      & neighDist2, species, coords, vdwRad, rho, psi, dpsidr)
 
-    !> data structure
-    class(TGeneralizedBorn), intent(inout) :: self
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -753,21 +780,43 @@ contains
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
-    logical :: tOvij,tOvji
-    real(dp) :: vec(3),dist,rhoi,rhoj
-    real(dp) :: gi,gj,ap,am,lnab,rhab,ab,dgi,dgj
-    real(dp) :: dGr(3), dSr(3, 3)
-    real(dp) :: rh1,rhr1,r24,rh2,r1,aprh1,r12
-    real(dp) :: rvdwi,rvdwj
-    real(dp), allocatable :: psi(:),dpsidr(:,:,:),dpsitr(:,:)
+    !> Van-der-Waals radii
+    real(dp), intent(in) :: vdwRad(:)
 
-    allocate(psi(self%nAtom), dpsidr(3, self%nAtom, self%nAtom), dpsitr(3, self%nAtom))
+    !> Descreened radii
+    real(dp), intent(in) :: rho(:)
+
+    !> Atomic volumes
+    real(dp), intent(out) :: psi(:)
+
+    !> Derivative of atomic volumes
+    real(dp), intent(out) :: dpsidr(:,:,:)
+
+    integer :: nAtom, iAtFirst, iAtLast, iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
+    logical :: tOvij, tOvji
+    real(dp) :: vec(3), dist, rhoi, rhoj
+    real(dp) :: gi, gj, ap, am, lnab, rhab, ab, dgi, dgj
+    real(dp) :: dGr(3)
+    real(dp) :: rh1, rhr1, r24, r1, aprh1, r12
+    real(dp) :: rvdwi, rvdwj
+    real(dp), allocatable :: dpsitr(:,:)
+
+    nAtom = size(nNeighbour)
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(dpsitr(3, nAtom))
     psi(:) = 0.0_dp
     dpsidr(:, :, :) = 0.0_dp
     dpsitr(:, :) = 0.0_dp
 
-    do iAt1 = 1, self%nAtom
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:psi, dpsidr, dpsitr) shared(iAtFirst, iAtLast, species) &
+    !$omp shared(nNeighbour, iNeighbour, img2CentCell, coords, neighDist2, rho) &
+    !$omp shared(vdwRad) private(iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, dist) &
+    !$omp private(tOvij, tOvji, vec, rhoi, rhoj, gi, gj, ap, am, lnab, rhab) &
+    !$omp private(ab, dgi, dgj, dGr, rh1, rhr1, r24, r1, aprh1, r12, rvdwi, rvdwj)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -776,10 +825,10 @@ contains
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         dist = sqrt(neighDist2(iNeigh, iAt1))
 
-        rhoi = self%rho(iSp1)
-        rhoj = self%rho(iSp2)
-        rvdwi = self%param%vdwRad(iSp1)
-        rvdwj = self%param%vdwRad(iSp2)
+        rhoi = rho(iSp1)
+        rhoj = rho(iSp2)
+        rvdwi = vdwRad(iSp1)
+        rvdwj = vdwRad(iSp2)
 
         tOvij = dist < (rvdwi + rhoj)
         tOvji = dist < (rhoi + rvdwj)
@@ -982,93 +1031,78 @@ contains
 
       end do
     end do
+    !$omp end parallel do
 
-    ! save Born radii
-    self%bornRad(:) = psi
-    ! save derivative of Born radii w.r.t. atomic positions
-    self%dbrdr(:,:,:) = dpsidr
     ! save one-center terms
-    do iAt1 = 1, self%nAtom
-      self%dbrdr(:,iAt1,iAt1) = self%dbrdr(:,iAt1,iAt1) + dpsitr(:,iAt1)
+    do iAt1 = 1, nAtom
+      dpsidr(:,iAt1,iAt1) = dpsidr(:,iAt1,iAt1) + dpsitr(:,iAt1)
     end do
+
+    call assembleChunks(env, psi)
+    call assembleChunks(env, dpsidr)
 
   end subroutine getPsi
 
 
   !> compute Born matrix
-  subroutine getBornMatrixCluster(self, coords0)
+  subroutine getBornMatrixCluster(env, nAtom, coords0, kernel, keps, bornRad, &
+      & bornMat)
 
-    !> data structure
-    type(TGeneralizedBorn), intent(inout) :: self
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
 
     !> coordinates in the central cell
     real(dp), intent(in) :: coords0(:, :)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
-    real(dp) :: aa, dist2, dd, expd, dfgb, fgb
+    !> Born radii
+    real(dp), intent(in) :: bornRad(:)
 
-    self%bornMat(:, :) = 0.0_dp
+    !> Dielectric screening
+    real(dp), intent(in) :: keps
 
-    select case(self%param%kernel)
+    !> Interaction kernel
+    integer, intent(in) :: kernel
+
+    !> Born matrix
+    real(dp), intent(out) :: bornMat(:, :)
+
+    integer :: iAtFirst, iAtLast, iAt1
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    bornMat(:, :) = 0.0_dp
+
+    select case(kernel)
     case(fgbKernel%still)
-      call getBornMatrixStillCluster(self%nAtom, self%bornRad, coords0, &
-          & self%param%keps, self%bornMat)
+      call getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, &
+          & keps, bornMat)
     case(fgbKernel%p16)
-      call getBornMatrixP16Cluster(self%nAtom, self%bornRad, coords0, &
-          & self%param%keps, self%bornMat)
+      call getBornMatrixP16Cluster(iAtFirst, iAtLast, bornRad, coords0, &
+          & keps, bornMat)
     end select
 
     !> self-energy part
-    do iAt1 = 1, self%nAtom
-      self%bornMat(iAt1, iAt1) = self%param%keps/self%bornRad(iAt1)
+    do iAt1 = iAtFirst, iAtLast
+      bornMat(iAt1, iAt1) = keps/bornRad(iAt1)
     end do
+
+    call assembleChunks(env, bornMat)
 
   end subroutine getBornMatrixCluster
 
 
   !> compute Born matrix using Still interaction kernel
-  pure subroutine getBornMatrixStillCluster(nAtom, bornRad, coords0, keps, bornMat)
+  subroutine getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
+      & bornMat)
 
     !> Number of atoms
-    integer, intent(in) :: nAtom
-
-    !> Born radii for each atom
-    real(dp), intent(in) :: bornRad(:)
-
-    !> coordinates in the central cell
-    real(dp), intent(in) :: coords0(:, :)
-
-    !> Dielectric scaling
-    real(dp), intent(in) :: keps
-
-    !> Born matrix
-    real(dp), intent(inout) :: bornMat(:, :)
-
-    integer :: iAt1, iAt2, iAt2f, iNeigh
-    real(dp) :: aa, dist2, dd, expd, dfgb, fgb
-
-    do iAt1 = 1, nAtom
-      do iAt2 = 1, iAt1-1
-        dist2 = sum((coords0(:, iAt1) - coords0(:, iAt2))**2)
-
-        aa = bornRad(iAt1)*bornRad(iAt2)
-        dd = 0.25_dp*dist2/aa
-        expd = exp(-dd)
-        dfgb = 1.0_dp/(dist2+aa*expd)
-        fgb = keps*sqrt(dfgb)
-        bornMat(iAt1, iAt2) = bornMat(iAt1, iAt2) + fgb
-        bornMat(iAt2, iAt1) = bornMat(iAt2, iAt1) + fgb
-      end do
-    end do
-
-  end subroutine getBornMatrixStillCluster
-
-
-  !> compute Born matrix using Still interaction kernel
-  subroutine getBornMatrixP16Cluster(nAtom, bornRad, coords0, keps, bornMat)
+    integer, intent(in) :: iAtFirst
 
     !> Number of atoms
-    integer, intent(in) :: nAtom
+    integer, intent(in) :: iAtLast
 
     !> Born radii for each atom
     real(dp), intent(in) :: bornRad(:)
@@ -1083,11 +1117,58 @@ contains
     real(dp), intent(inout) :: bornMat(:, :)
 
     integer :: iAt1, iAt2
-    real(dp) :: r1, ab, arg, eab, fgb, dfgb
+    real(dp) :: aa, dist2, dd, expd, dfgb, fgb
 
-    !$omp parallel do default(none) shared(bornMat, nAtom, coords0, bornRad, kEps) &
+    !$omp parallel do default(none) &
+    !$omp shared(bornMat, iAtFirst, iAtLast, coords0, bornRad, kEps) &
+    !$omp private(iAt1, iAt2, dist2, aa, dd, expd, fgb, dfgb)
+    do iAt1 = iAtFirst, iAtLast
+      do iAt2 = 1, iAt1-1
+        dist2 = sum((coords0(:, iAt1) - coords0(:, iAt2))**2)
+
+        aa = bornRad(iAt1)*bornRad(iAt2)
+        dd = 0.25_dp*dist2/aa
+        expd = exp(-dd)
+        dfgb = 1.0_dp/(dist2+aa*expd)
+        fgb = keps*sqrt(dfgb)
+        bornMat(iAt1, iAt2) = bornMat(iAt1, iAt2) + fgb
+        bornMat(iAt2, iAt1) = bornMat(iAt2, iAt1) + fgb
+      end do
+    end do
+    !$omp end parallel do
+
+  end subroutine getBornMatrixStillCluster
+
+
+  !> compute Born matrix using Still interaction kernel
+  subroutine getBornMatrixP16Cluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
+      & bornMat)
+
+    !> Number of atoms
+    integer, intent(in) :: iAtFirst
+
+    !> Number of atoms
+    integer, intent(in) :: iAtLast
+
+    !> Born radii for each atom
+    real(dp), intent(in) :: bornRad(:)
+
+    !> coordinates in the central cell
+    real(dp), intent(in) :: coords0(:, :)
+
+    !> Dielectric scaling
+    real(dp), intent(in) :: keps
+
+    !> Born matrix
+    real(dp), intent(inout) :: bornMat(:, :)
+
+    integer :: iAt1, iAt2
+    real(dp) :: r1, ab, arg, fgb, dfgb
+
+    !$omp parallel do default(none) &
+    !$omp shared(bornMat, iAtFirst, iAtLast, coords0, bornRad, kEps) &
     !$omp private(iAt1, iAt2, r1, ab, arg, fgb, dfgb)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       do iAt2 = 1, iAt1-1
         r1 = sqrt(sum((coords0(:, iAt1) - coords0(:, iAt2))**2))
         ab = sqrt(bornRad(iAt1) * bornRad(iAt2))
@@ -1108,13 +1189,35 @@ contains
 
 
   !> GB energy and gradient
-  subroutine getBornEGCluster(self, coords, energies, gradients, sigma)
+  subroutine getBornEGCluster(env, nAtom, coords, chargesPerAtom, bornRad, &
+      & dbrdr, dbrdL, kernel, keps, energies, gradients, sigma)
 
-    !> data structure
-    type(TGeneralizedBorn), intent(in) :: self
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
 
     !> Current atomic positions
     real(dp), intent(in) :: coords(:, :)
+
+    !> Charges
+    real(dp), intent(in) :: chargesPerAtom(:)
+
+    !> Born radii
+    real(dp), intent(in) :: bornRad(:)
+
+    !> Gradient of the Born radii
+    real(dp), intent(in) :: dbrdr(:, :, :)
+
+    !> Strain derivative of the Born radii
+    real(dp), intent(in) :: dbrdL(:, :, :)
+
+    !> Dielectric screening
+    real(dp), intent(in) :: keps
+
+    !> Interaction kernel
+    integer, intent(in) :: kernel
 
     !> Atom resolved energies
     real(dp), intent(out) :: energies(:)
@@ -1125,55 +1228,80 @@ contains
     !> Strain derivative
     real(dp), intent(inout) :: sigma(:, :)
 
-    integer :: iAt1, iAt2
-    real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
-    real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
-    real(dp), allocatable :: dEdbr(:)
-    real(dp), allocatable :: derivs(:, :)
+    integer :: iAt1, iAtFirst, iAtLast
+    real(dp) :: qq, bp
+    real(dp) :: grddbi
+    real(dp), allocatable :: dEdbr(:), localSigma(:, :), derivs(:, :)
 
-    allocate(dEdbr(self%nAtom), derivs(3, self%nAtom))
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
+    allocate(dEdbr(nAtom), derivs(3, nAtom), localSigma(3, 3))
+
+    localSigma(:, :) = 0.0_dp
     derivs(:, :) = 0.0_dp
     energies(:) = 0.0_dp
     dEdbr(:) = 0.0_dp
 
-    select case(self%param%kernel)
+    select case(kernel)
     case(fgbKernel%still)
-      call getBornEGStillCluster(self, coords, energies, gradients, sigma, dEdbr)
+      call getBornEGStillCluster(iAtFirst, iAtLast, coords, chargesPerAtom, &
+          & bornRad, keps, energies, derivs, localSigma, dEdbr)
     case(fgbKernel%p16)
-      call getBornEGP16Cluster(self, coords, energies, gradients, sigma, dEdbr)
+      call getBornEGP16Cluster(iAtFirst, iAtLast, coords, chargesPerAtom, &
+          & bornRad, keps, energies, derivs, localSigma, dEdbr)
     end select
 
     !> self-energy part
-    do iAt1 = 1, self%nAtom
-      bp = 1.0_dp/self%bornRad(iAt1)
-      qq = self%chargesPerAtom(iAt1)*bp
-      energies(iAt1) = energies(iAt1) + 0.5_dp*self%chargesPerAtom(iAt1)*qq*self%param%keps
-      grddbi = -0.5_dp*self%param%keps*qq*bp
-      dEdbr(iAt1) = dEdbr(iAt1) + grddbi*self%chargesPerAtom(iAt1)
+    do iAt1 = iAtFirst, iAtLast
+      bp = 1.0_dp/bornRad(iAt1)
+      qq = chargesPerAtom(iAt1)*bp
+      energies(iAt1) = energies(iAt1) + 0.5_dp*chargesPerAtom(iAt1)*qq*keps
+      grddbi = -0.5_dp*keps*qq*bp
+      dEdbr(iAt1) = dEdbr(iAt1) + grddbi*chargesPerAtom(iAt1)
     end do
 
+    call assembleChunks(env, energies)
+    call assembleChunks(env, derivs)
+    call assembleChunks(env, localSigma)
+    call assembleChunks(env, dEdbr)
+
+    gradients(:, :) = gradients + derivs
+    sigma(:, :) = sigma + localSigma
+
     !> contract with the Born radii derivatives
-    call gemv(gradients, self%dbrdr, dEdbr, beta=1.0_dp)
-    call gemv(sigma, self%dbrdL, dEdbr, beta=1.0_dp)
+    call gemv(gradients, dbrdr, dEdbr, beta=1.0_dp)
+    call gemv(sigma, dbrdL, dEdbr, beta=1.0_dp)
 
   end subroutine getBornEGCluster
 
 
   !> GB energy and gradient using Still interaction kernel
-  subroutine getBornEGStillCluster(self, coords, energies, gradients, sigma, dEdbr)
+  subroutine getBornEGStillCluster(iAtFirst, iAtLast, coords, chargesPerAtom, &
+      & bornRad, keps, energies, derivs, sigma, dEdbr)
 
-    !> data structure
-    type(TGeneralizedBorn), intent(in) :: self
+    !> Number of atoms
+    integer, intent(in) :: iAtFirst
+
+    !> Number of atoms
+    integer, intent(in) :: iAtLast
 
     !> Current atomic positions
     real(dp), intent(in) :: coords(:, :)
+
+    !> Charges
+    real(dp), intent(in) :: chargesPerAtom(:)
+
+    !> Born radii
+    real(dp), intent(in) :: bornRad(:)
+
+    !> Dielectric screening
+    real(dp), intent(in) :: keps
 
     !> Atom resolved energies
     real(dp), intent(inout) :: energies(:)
 
     !> Molecular gradient
-    real(dp), intent(inout) :: gradients(:, :)
+    real(dp), intent(inout) :: derivs(:, :)
 
     !> Strain derivative
     real(dp), intent(inout) :: sigma(:, :)
@@ -1182,32 +1310,31 @@ contains
     real(dp), intent(inout) :: dEdbr(:)
 
     integer :: iAt1, iAt2
-    real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
-    real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
-    real(dp), allocatable :: derivs(:, :)
+    real(dp) :: aa, dist2, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
+    real(dp) :: grddbi, grddbj, vec(3), dGr(3), dSr(3, 3)
 
-    allocate(derivs(3, self%nAtom))
-
-    derivs(:, :) = 0.0_dp
-
-    do iAt1 = 1, self%nAtom
+    !$omp parallel do default(none) reduction(+:energies, derivs, dEdbr, sigma) &
+    !$omp shared(iAtFirst, iAtLast, coords, chargesPerAtom, bornRad, kEps) &
+    !$omp private(iAt1, iAt2, aa, dist2, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3) &
+    !$omp private(ap, bp, grddbi, grddbj, vec, dGr, dSr)
+    do iAt1 = iAtFirst, iAtLast
       do iAt2 = 1, iAt1-1
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         dist2 = sum(vec**2)
 
         ! dielectric scaling of the charges
-        qq = self%chargesPerAtom(iAt1)*self%chargesPerAtom(iAt2)
-        aa = self%bornRad(iAt1)*self%bornRad(iAt2)
+        qq = chargesPerAtom(iAt1)*chargesPerAtom(iAt2)
+        aa = bornRad(iAt1)*bornRad(iAt2)
         dd = 0.25_dp*dist2/aa
         expd = exp(-dd)
         fgb2 = dist2+aa*expd
         dfgb2 = 1.0_dp/fgb2
         dfgb = sqrt(dfgb2)
-        dfgb3 = dfgb2*dfgb*self%param%keps
+        dfgb3 = dfgb2*dfgb*keps
 
-        energies(iAt1) = energies(iAt1) + qq*self%param%keps*dfgb/2
+        energies(iAt1) = energies(iAt1) + qq*keps*dfgb/2
         if (iAt1 /= iAt2) then
-          energies(iAt2) = energies(iAt2) + qq*self%param%keps*dfgb/2
+          energies(iAt2) = energies(iAt2) + qq*keps*dfgb/2
         end if
 
         ap = (1.0_dp-0.25_dp*expd)*dfgb3
@@ -1223,8 +1350,8 @@ contains
         end if
 
         bp = -0.5_dp*expd*(1.0_dp+dd)*dfgb3
-        grddbi = self%bornRad(iAt2)*bp
-        grddbj = self%bornRad(iAt1)*bp
+        grddbi = bornRad(iAt2)*bp
+        grddbj = bornRad(iAt1)*bp
         dEdbr(iAt1) = dEdbr(iAt1) + grddbi*qq
         if (iAt1 /= iAt2) then
           dEdbr(iAt2) = dEdbr(iAt2) + grddbj*qq
@@ -1232,26 +1359,38 @@ contains
 
       end do
     end do
-
-    gradients(:, :) = gradients + derivs
+    !$omp end parallel do
 
   end subroutine getBornEGStillCluster
 
 
   !> GB energy and gradient using P16 interaction kernel
-  subroutine getBornEGP16Cluster(self, coords, energies, gradients, sigma, dEdbr)
+  subroutine getBornEGP16Cluster(iAtFirst, iAtLast, coords, chargesPerAtom, &
+      & bornRad, keps, energies, derivs, sigma, dEdbr)
 
-    !> data structure
-    type(TGeneralizedBorn), intent(in) :: self
+    !> Number of atoms
+    integer, intent(in) :: iAtFirst
+
+    !> Number of atoms
+    integer, intent(in) :: iAtLast
 
     !> Current atomic positions
     real(dp), intent(in) :: coords(:, :)
+
+    !> Charges
+    real(dp), intent(in) :: chargesPerAtom(:)
+
+    !> Born radii
+    real(dp), intent(in) :: bornRad(:)
+
+    !> Dielectric screening
+    real(dp), intent(in) :: keps
 
     !> Atom resolved energies
     real(dp), intent(inout) :: energies(:)
 
     !> Molecular gradient
-    real(dp), intent(inout) :: gradients(:, :)
+    real(dp), intent(inout) :: derivs(:, :)
 
     !> Strain derivative
     real(dp), intent(inout) :: sigma(:, :)
@@ -1260,25 +1399,21 @@ contains
     real(dp), intent(inout) :: dEdbr(:)
 
     integer :: iAt1, iAt2
-    real(dp) :: vec(3), r2, r1, ab, arg1, arg16, qq, fgb, fgb2, dfgb, dfgb2
+    real(dp) :: vec(3), r2, r1, ab, arg1, arg16, qq, fgb, dfgb, dfgb2
     real(dp) :: dEdbr1, dEdbr2, dG(3), ap, bp, dS(3, 3)
-    real(dp), allocatable :: derivs(:, :)
-
-    allocate(derivs(3, self%nAtom))
-
-    derivs(:, :) = 0.0_dp
 
     !$omp parallel do default(none) reduction(+:energies, derivs, dEdbr, sigma) &
+    !$omp shared(iAtFirst, iAtLast, coords, chargesPerAtom, bornRad, kEps) &
     !$omp private(iAt1, iAt2, vec, r1, r2, ab, arg1, arg16, fgb, dfgb, dfgb2, ap, &
-    !$omp& bp, qq, dEdbr1, dEdbr2, dG, dS) shared(coords, self)
-    do iAt1 = 1, self%nAtom
+    !$omp& bp, qq, dEdbr1, dEdbr2, dG, dS)
+    do iAt1 = iAtFirst, iAtLast
       do iAt2 = 1, iAt1-1
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         r2 = sum(vec**2)
         r1 = sqrt(r2)
-        qq = self%chargesPerAtom(iAt1)*self%chargesPerAtom(iAt2)
+        qq = chargesPerAtom(iAt1)*chargesPerAtom(iAt2)
 
-        ab = sqrt(self%bornRad(iAt1) * self%bornRad(iAt2))
+        ab = sqrt(bornRad(iAt1) * bornRad(iAt2))
         arg1 = ab / (ab + zetaP16o16*r1) ! 1 / (1 + ζR/(16·ab))
         arg16 = arg1 * arg1 ! 1 / (1 + ζR/(16·ab))²
         arg16 = arg16 * arg16 ! 1 / (1 + ζR/(16·ab))⁴
@@ -1289,14 +1424,14 @@ contains
         dfgb = 1.0_dp / fgb
         dfgb2 = dfgb * dfgb
 
-        energies(iAt1) = energies(iAt1) + qq*self%param%keps*dfgb/2
+        energies(iAt1) = energies(iAt1) + qq*keps*dfgb/2
         if (iAt1 /= iAt2) then
-          energies(iAt2) = energies(iAt2) + qq*self%param%keps*dfgb/2
+          energies(iAt2) = energies(iAt2) + qq*keps*dfgb/2
         end if
 
         ! (1 - ζ/(1 + Rζ/(16 ab))^17)/(R + ab/(1 + Rζ/(16 ab))¹⁶)²
         ap = (1.0_dp - zetaP16 * arg1 * arg16) * dfgb2
-        dG(:) = ap * vec * self%param%kEps / r1 * qq
+        dG(:) = ap * vec * kEps / r1 * qq
         derivs(:, iAt1) = derivs(:, iAt1) - dG
         derivs(:, iAt2) = derivs(:, iAt2) + dG
 
@@ -1309,16 +1444,14 @@ contains
 
         ! -(Rζ/(2·ab²·(1 + Rζ/(16·ab))¹⁷) + 1/(2·ab·(1 + Rζ/(16·ab))¹⁶))/(R + ab/(1 + Rζ/(16·ab))¹⁶)²
         bp = -0.5_dp*(r1 * zetaP16 / ab * arg1 + 1.0_dp) / ab * arg16 * dfgb2
-        dEdbr1 = self%bornRad(iAt2) * bp * self%param%kEps * qq
-        dEdbr2 = self%bornRad(iAt1) * bp * self%param%kEps * qq
+        dEdbr1 = bornRad(iAt2) * bp * kEps * qq
+        dEdbr2 = bornRad(iAt1) * bp * kEps * qq
         dEdbr(iAt1) = dEdbr(iAt1) + dEdbr1
         dEdbr(iAt2) = dEdbr(iAt2) + dEdbr2
 
       end do
     end do
     !$omp end parallel do
-
-    gradients(:, :) = gradients + derivs
 
   end subroutine getBornEGP16Cluster
 
@@ -1345,7 +1478,7 @@ contains
     real(dp), intent(out) :: inertia(:, :)
 
     integer :: iAt, iSp
-    real(dp) :: r2, rad2, rad3, totRad3, vec(3)
+    real(dp) :: r2, rad2, rad3, vec(3)
     real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
         & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
         & [3, 3])
@@ -1428,7 +1561,7 @@ contains
     real(dp), intent(inout) :: gradient(:, :)
 
     integer :: iAt, iSp
-    real(dp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
+    real(dp) :: rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
     real(dp) :: aDeriv(3, 3), qtotal
 
     qtotal = 0.0_dp

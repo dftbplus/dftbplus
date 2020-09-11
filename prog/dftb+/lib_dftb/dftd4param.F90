@@ -129,6 +129,9 @@ module dftbp_dftd4param
     !> Coordination number specific input
     type(TCNInput) :: cnInput
 
+    !> Atomic numbers
+    integer, allocatable :: izp(:)
+
   end type TDispDftD4Inp
 
 
@@ -431,7 +434,7 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input, nAtom, speciesNames)
+  subroutine initializeCalculator(calculator, input)
 
     !> Calculator
     type(TDftD4Calculator), intent(inout) :: calculator
@@ -439,26 +442,20 @@ contains
     !> Input
     type(TDispDftD4Inp), intent(in) :: input
 
-    !> Nr. of atoms (without periodic images)
-    integer, intent(in) :: nAtom
-
-    !> Names of species.
-    character(*), intent(in) :: speciesNames(:)
-
     integer :: nSpecies
-    integer :: iAt1, iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
+    integer :: iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
     integer :: cncount(0:18)
     real(dp) :: alpha(imagFrequencies), zEff1, c6, eta1
     real(dp) :: tmp_hq(maxReferences, maxElementD4)
 
     real(dp), parameter :: thopi = 3.0_dp/pi
 
-    nSpecies = size(speciesNames)
+    nSpecies = size(input%izp)
     calculator%nSpecies = nSpecies
 
-    calculator%sqrtZr4r2 = getSqrtZr4r2(speciesNames)
-    calculator%ChemicalHardness = getChemicalHardness(speciesNames)
-    calculator%EffectiveNuclearCharge = getEffectiveNuclearCharge(speciesNames)
+    calculator%sqrtZr4r2 = getSqrtZr4r2(input%izp)
+    calculator%ChemicalHardness = getChemicalHardness(input%izp)
+    calculator%EffectiveNuclearCharge = getEffectiveNuclearCharge(input%izp)
 
     calculator%s6 = input%s6
     calculator%s8 = input%s8
@@ -496,7 +493,7 @@ contains
     do iSp1 = 1, nSpecies
       cncount(:) = 0
       cncount(0) = 1
-      iZp1 = symbolToNumber(speciesNames(iSp1))
+      iZp1 = input%izp(iSp1)
       calculator%numberOfReferences(iSp1) = refn(iZp1)
       do iRef1 = 1, calculator%numberOfReferences(iSp1)
         calculator%referenceCharge(iRef1, iSp1) = clsq(iRef1, iZp1)

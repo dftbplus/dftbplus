@@ -9,6 +9,12 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${sources-fpp}" sources-
 
 add_executable(modes ${sources-f90-preproc})
 
-target_link_libraries(modes dftbplus)
+if(WITH_MPI)
+  target_include_directories(modes PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(modes PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
 
-install(TARGETS modes DESTINATION ${INSTALL_BIN_DIR})
+target_link_libraries(modes PRIVATE dftbplus)
+
+
+install(TARGETS modes DESTINATION "${CMAKE_INSTALL_BINDIR}")

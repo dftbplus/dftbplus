@@ -83,7 +83,7 @@ contains
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==nAtom)
 
-    nSpin = size(shift,dim=2)
+    nSpin = size(ham,dim=2)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
     do iSpin = 1, nSpin
@@ -153,9 +153,8 @@ contains
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==orb%mShell)
     @:ASSERT(size(shift,dim=2)==nAtom)
-    @:ASSERT(size(ham,dim=2)==size(shift,dim=3))
 
-    nSpin = size(shift,dim=3)
+    nSpin = size(ham,dim=2)
 
     do iSpin = 1, nSpin
       do iAt1= 1, nAtom
@@ -233,9 +232,8 @@ contains
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(ham,dim=2)==size(shift,dim=4))
 
-    nSpin = size(shift,dim=4)
+    nSpin = size(ham,dim=2)
 
     do iSpin = 1, nSpin
       do iAt1 = 1, nAtom

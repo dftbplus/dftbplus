@@ -31,6 +31,7 @@ module dftbp_lapackroutines
   interface gesv
     module procedure gesv_real
     module procedure gesv_dble
+    module procedure gesv_dcomplex
   end interface gesv
 
 
@@ -258,6 +259,71 @@ contains
     end if
 
   end subroutine gesv_dble
+
+  
+  !> Double precision version of gesv
+  subroutine gesv_dcomplex(aa, bb, nEquation, nSolution, iError)
+
+    !> Contains the coefficients on entry, the LU factorisation on exit.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
+    complex(rdp), intent(inout) :: bb(:,:)
+
+    !> The size of the problem (nr. of variables and equations). Must be only specified if different
+    !> from size(aa, dim=1).
+    integer, intent(in), optional :: nEquation
+
+    !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
+    !> dim=2).
+    integer, intent(in), optional :: nSolution
+
+    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
+    !> will not abort the program.
+    integer, intent(out), optional :: iError
+
+    integer :: info
+    integer :: nn, nrhs, lda, ldb
+    integer, allocatable :: ipiv(:)
+
+    lda = size(aa, dim=1)
+    if (present(nEquation)) then
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      nn = nEquation
+    else
+      nn = lda
+    end if
+    @:ASSERT(size(aa, dim=2) >= nn)
+
+    ldb = size(bb, dim=1)
+    @:ASSERT(ldb >= nn)
+    nrhs = size(bb, dim=2)
+    if (present(nSolution)) then
+      @:ASSERT(nSolution <= nrhs)
+      nrhs = nSolution
+    end if
+
+    info = 0
+    allocate(ipiv(nn))
+    call zgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
+
+    if (info < 0) then
+99020 format ('Failure in linear equation solver dgesv,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99020) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99030   format ('Linear dependent system in linear equation solver dgesv,', &
+            & ' info flag: ',i10)
+        write (error_string, 99030) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine gesv_dcomplex
 
 
   !> Single precision version of getrf.

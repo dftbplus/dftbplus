@@ -18,6 +18,7 @@ module dftbp_sasa
   use dftbp_lebedev, only : getAngGrid, gridSize
   use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
@@ -150,10 +151,10 @@ contains
 
 
   !> Initialize solvent accessible surface area model from input data
-  subroutine TSASACont_init(self, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TSASACont_init(this, input, nAtom, species0, speciesNames, latVecs)
 
     !> Initialised instance at return
-    type(TSASACont), intent(out) :: self
+    type(TSASACont), intent(out) :: this
 
     !> Specific input parameters for solvent accessible surface area model
     type(TSASAInput), intent(in) :: input
@@ -174,41 +175,41 @@ contains
 
     nSpecies = size(speciesNames)
 
-    self%tPeriodic = present(latVecs)
-    if (self%tPeriodic) then
-      call self%updateLatVecs(LatVecs)
+    this%tPeriodic = present(latVecs)
+    if (this%tPeriodic) then
+      call this%updateLatVecs(LatVecs)
     end if
-    self%nAtom = nAtom
+    this%nAtom = nAtom
 
-    allocate(self%energies(nAtom))
-    allocate(self%sasa(nAtom))
-    allocate(self%dsdr(3, nAtom, nAtom))
-    allocate(self%dsdL(3, 3, nAtom))
+    allocate(this%energies(nAtom))
+    allocate(this%sasa(nAtom))
+    allocate(this%dsdr(3, nAtom, nAtom))
+    allocate(this%dsdL(3, 3, nAtom))
 
-    allocate(self%angGrid(3, gridSize(input%gridSize)))
-    allocate(self%angWeight(gridSize(input%gridSize)))
-    call getAngGrid(input%gridSize, self%angGrid, self%angWeight, stat)
+    allocate(this%angGrid(3, gridSize(input%gridSize)))
+    allocate(this%angWeight(gridSize(input%gridSize)))
+    call getAngGrid(input%gridSize, this%angGrid, this%angWeight, stat)
     if (stat /= 0) then
       call error("Could not initialize angular grid for SASA model")
     end if
 
-    allocate(self%probeRad(nSpecies))
-    allocate(self%surfaceTension(nAtom))
-    allocate(self%thresholds(2, nSpecies))
-    allocate(self%radWeight(nSpecies))
-    self%probeRad(:) = input%probeRad + input%vdwRad
+    allocate(this%probeRad(nSpecies))
+    allocate(this%surfaceTension(nAtom))
+    allocate(this%thresholds(2, nSpecies))
+    allocate(this%radWeight(nSpecies))
+    this%probeRad(:) = input%probeRad + input%vdwRad
     do iAt1 = 1, nAtom
       iSp1 = species0(iAt1)
-      self%surfaceTension(iAt1) = input%surfaceTension(iSp1) * 4.0e-5_dp * pi
+      this%surfaceTension(iAt1) = input%surfaceTension(iSp1) * 4.0e-5_dp * pi
     end do
-    call getIntegrationParam(nSpecies, input%smoothingPar, self%smoothingPar, &
-        & self%probeRad, self%thresholds, self%radWeight)
+    call getIntegrationParam(nSpecies, input%smoothingPar, this%smoothingPar, &
+        & this%probeRad, this%thresholds, this%radWeight)
 
-    self%sCutoff = 2.0_dp * (maxval(self%probeRad) + input%smoothingPar) + input%sOffset
-    self%tolerance = input%tolerance
+    this%sCutoff = 2.0_dp * (maxval(this%probeRad) + input%smoothingPar) + input%sOffset
+    this%tolerance = input%tolerance
 
-    self%tCoordsUpdated = .false.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .false.
+    this%tChargesUpdated = .false.
 
   end subroutine TSASACont_init
 
@@ -235,7 +236,7 @@ contains
     real(dp), intent(out) :: wrp(:)
 
     integer :: iSp1
-    real(dp) :: w3, rm, rp
+    real(dp) :: rm, rp
 
     ah(1) = 0.5_dp
     ah(2) = 3.0_dp/(4.0_dp*w)
@@ -272,10 +273,10 @@ contains
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neighList, img2CentCell, coords, species0)
 
     !> Data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -294,62 +295,65 @@ contains
 
     integer, allocatable :: nNeigh(:)
 
-    allocate(nNeigh(self%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%sCutoff)
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neighList, this%sCutoff)
 
-    call getSASA(self, nNeigh, neighList%iNeighbour, img2CentCell, species0, coords)
-    self%energies(:) = self%sasa * self%surfaceTension
+    call getSASA(env, nNeigh, neighList%iNeighbour, img2CentCell, species0, &
+        & coords, this%tolerance, this%smoothingPar, this%probeRad, &
+        & this%thresholds, this%radWeight, this%angGrid, this%angWeight, &
+        & this%sasa, this%dsdr)
+    this%energies(:) = this%sasa * this%surfaceTension
 
-    self%tCoordsUpdated = .true.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .true.
+    this%tChargesUpdated = .false.
 
   end subroutine updateCoords
 
 
   !> Update internal copy of lattice vectors
-  subroutine updateLatVecs(self, latVecs)
+  subroutine updateLatVecs(this, latVecs)
 
     !> Data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
-    self%volume = abs(determinant33(latVecs))
-    self%latVecs(:,:) = latVecs
+    this%volume = abs(determinant33(latVecs))
+    this%latVecs(:,:) = latVecs
 
-    self%tCoordsUpdated = .false.
-    self%tChargesUpdated = .false.
+    this%tCoordsUpdated = .false.
+    this%tChargesUpdated = .false.
 
   end subroutine updateLatVecs
 
 
   !> Get energy contributions
-  subroutine getEnergies(self, energies)
+  subroutine getEnergies(this, energies)
 
     !> data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> energy contributions for each atom
     real(dp), intent(out) :: energies(:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(energies) == self%nAtom)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
-    energies(:) = self%energies
+    energies(:) = this%energies
 
   end subroutine getEnergies
 
 
   !> Get force contributions
-  subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
 
     !> Data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -369,54 +373,54 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    call gemv(gradients, self%dsdr, self%surfaceTension, beta=1.0_dp)
+    call gemv(gradients, this%dsdr, this%surfaceTension, beta=1.0_dp)
 
   end subroutine addGradients
 
 
   !> get stress tensor contributions
-  subroutine getStress(self, stress)
+  subroutine getStress(this, stress)
 
     !> data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Stress tensor contributions
     real(dp), intent(out) :: stress(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(self%volume > 0.0_dp)
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(this%volume > 0.0_dp)
 
-    stress(:,:) = self%stress / self%volume
+    stress(:,:) = this%stress / this%volume
 
   end subroutine getStress
 
 
   !> Distance cut off for solvent accessible surface area calculations
-  function getRCutoff(self) result(cutoff)
+  function getRCutoff(this) result(cutoff)
 
     !> data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%sCutoff
+    cutoff = this%sCutoff
 
   end function getRCutoff
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
 
     !> Data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -439,18 +443,18 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(this%tCoordsUpdated)
 
-    self%tChargesUpdated = .true.
+    this%tChargesUpdated = .true.
 
   end subroutine updateCharges
 
 
   !> Returns shifts per atom
-  subroutine getShifts(self, shiftPerAtom, shiftPerShell)
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
     !> Data structure
-    class(TSASACont), intent(inout) :: self
+    class(TSASACont), intent(inout) :: this
 
     !> Shift per atom
     real(dp), intent(out) :: shiftPerAtom(:)
@@ -458,10 +462,10 @@ contains
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtom)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(this%tChargesUpdated)
+    @:ASSERT(size(shiftPerAtom) == this%nAtom)
+    @:ASSERT(size(shiftPerShell, dim=2) == this%nAtom)
 
     shiftPerAtom(:) = 0.0_dp
     shiftPerShell(:,:) = 0.0_dp
@@ -470,11 +474,12 @@ contains
 
 
   !> Calculate solvent accessible surface area for every atom
-  pure subroutine getSASA(self, nNeighbour, iNeighbour, img2CentCell, &
-      & species, coords)
+  subroutine getSASA(env, nNeighbour, iNeighbour, img2CentCell, &
+      & species, coords, tolerance, smoothingPar, probeRad, thresholds, &
+      & radWeight, angGrid, angWeight, sasa, dsdr)
 
-    !> Data structure
-    class(TSASACont), intent(inout) :: self
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -491,34 +496,72 @@ contains
     !> Current atomic positions
     real(dp), intent(in) :: coords(:,:)
 
-    integer iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
-    integer :: mNeighbour, nNeighs, nEval
+    !> Real space cut-offs for surface area contribution
+    real(dp) :: tolerance
+
+    !> Smoothing dielectric function parameters
+    real(dp) :: smoothingPar(3)
+
+    !> Van-der-Waals radii + probe radius
+    real(dp), allocatable :: probeRad(:)
+
+    !> Thresholds for smooth numerical integration
+    real(dp), allocatable :: thresholds(:, :)
+
+    !> Radial weight
+    real(dp), allocatable :: radWeight(:)
+
+    !> Angular grid for surface integration
+    real(dp), allocatable :: angGrid(:, :)
+
+    !> Weights of grid points for surface integration
+    real(dp), allocatable :: angWeight(:)
+
+    !> Solvent accessible surface area
+    real(dp), allocatable :: sasa(:)
+
+    !> Derivative of solvent accessible surface area w.r.t. coordinates
+    real(dp), allocatable :: dsdr(:, :, :)
+
+    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
+    integer :: iAtFirst, iAtLast, nAtom, mNeighbour, nEval
     real(dp) :: vec(3), dist2, dist
-    real(dp) :: uj, uj3, ah3uj2
+    real(dp) :: uj, ah3uj2
     real(dp) :: sasaij, dsasaij
     real(dp) :: rsas, sasai, point(3), sasap, wsa, dGr(3)
     real(dp), allocatable :: grds(:,:), derivs(:,:)
     integer, allocatable :: grdi(:)
 
+    nAtom = size(nNeighbour)
     mNeighbour = maxval(nNeighbour)
 
-    allocate(derivs(3,self%nAtom))
+    allocate(derivs(3,nAtom))
     allocate(grds(3,mNeighbour))
     allocate(grdi(mNeighbour))
 
-    do iAt1 = 1, self%nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    sasa(:) = 0.0_dp
+    dsdr(:, :, :) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) reduction(+:sasa, dsdr) &
+    !$omp shared(iAtFirst, iAtLast, species, coords, probeRad, angGrid) &
+    !$omp shared(nNeighbour, iNeighbour, img2CentCell, thresholds, smoothingPar) &
+    !$omp private(iAt1, iSp1, rsas, derivs, sasai, ip, point, nEval, grds, grdi) &
+    !$omp private(sasap, iNeigh, iAt2, iAt2f, iSp2, vec, dist2, dist, uj, ah3uj2) &
+    !$omp private(dsasaij, sasaij, wsa, dGr) shared(radWeight, angWeight, tolerance)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
 
-      rsas = self%probeRad(iSp1)
+      rsas = probeRad(iSp1)
 
       ! initialize storage
       derivs(:, :) = 0.0_dp
       sasai = 0.0_dp
 
       ! loop over grid points
-      do ip = 1, size(self%angGrid, dim=2)
+      do ip = 1, size(angGrid, dim=2)
         ! grid point position
-        point(:) = coords(:,iAt1) + rsas * self%angGrid(:, ip)
+        point(:) = coords(:,iAt1) + rsas * angGrid(:, ip)
 
         ! atomic surface function at the grid point
         nEval = 0
@@ -533,16 +576,16 @@ contains
           vec(:) = point(:) - coords(:, iAt2)
           dist2 = vec(1)**2 + vec(2)**2 + vec(3)**2
           ! if within the outer cut-off compute
-          if (dist2 < self%thresholds(2,iSp2)) then
-            if (dist2 < self%thresholds(1,iSp2)) then
+          if (dist2 < thresholds(2,iSp2)) then
+            if (dist2 < thresholds(1,iSp2)) then
               sasap = 0.0_dp
               exit
             else
               dist = sqrt(dist2)
-              uj = dist - self%probeRad(iSp2)
-              ah3uj2 = self%smoothingPar(3)*uj*uj
-              dsasaij = self%smoothingPar(2)+3.0_dp*ah3uj2
-              sasaij =  self%smoothingPar(1)+(self%smoothingPar(2)+ah3uj2)*uj
+              uj = dist - probeRad(iSp2)
+              ah3uj2 = smoothingPar(3)*uj*uj
+              dsasaij = smoothingPar(2)+3.0_dp*ah3uj2
+              sasaij =  smoothingPar(1)+(smoothingPar(2)+ah3uj2)*uj
 
               ! accumulate the molecular surface
               sasap = sasap*sasaij
@@ -555,9 +598,9 @@ contains
           end if
         end do
 
-        if (sasap > self%tolerance) then
+        if (sasap > tolerance) then
           ! numerical quadrature weight
-          wsa = self%angWeight(ip)*self%radWeight(iSp1)*sasap
+          wsa = angWeight(ip)*radWeight(iSp1)*sasap
           ! accumulate the surface area
           sasai = sasai + wsa
           ! accumulate the surface gradient
@@ -570,10 +613,14 @@ contains
         end if
       end do
 
-      self%sasa(iAt1) = sasai
-      self%dsdr(:,:,iAt1) = derivs
+      sasa(iAt1) = sasai
+      dsdr(:,:,iAt1) = derivs
 
     end do
+    !$omp end parallel do
+
+    call assembleChunks(env, sasa)
+    call assembleChunks(env, dsdr)
 
   end subroutine getSASA
 

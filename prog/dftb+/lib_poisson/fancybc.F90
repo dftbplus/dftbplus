@@ -181,7 +181,6 @@ subroutine gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: rhs(iparm(14),iparm(15),iparm(16))
- logical :: period 
 
  real(kind=dp) :: x_x,y_y,z_z,xi,yj,zk
  real(kind=dp) :: x_min_gate,x_max_gate,y_min_gate,y_max_gate
@@ -264,10 +263,9 @@ Subroutine coef_cilgate(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
  
  real(kind=dp) :: cxx,cyy,czz,cx,cy,cz,ce
  real(kind=dp) :: x,y,z,a,b,a1,a2,b1,b2
- real(kind=dp) :: x_min_gate,x_max_gate,y_min_gate,y_max_gate
- real(kind=dp) :: z_min_gate,z_max_gate,d_cntr
- real(kind=dp) :: x_min_ox,x_max_ox,y_min_ox,y_max_ox
- real(kind=dp) :: z_min_ox,z_max_ox
+ real(kind=dp) :: x_min_gate,x_max_gate
+ real(kind=dp) :: d_cntr
+ real(kind=dp) :: x_min_ox,x_max_ox
  real(kind=dp) :: x_x,y_y,z_z,zero(3)
  integer :: i_x, i_y, i_z
 
@@ -431,7 +429,6 @@ subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: rhs(iparm(14),iparm(15),iparm(16))
- logical :: period 
 
  integer :: i,j,k
  real(kind=dp) :: xi,yj,zk
@@ -891,7 +888,7 @@ Subroutine mix_bndyc(kbdy,xory,yorz,alfa,gbdy)
  integer :: kbdy
  real(kind=dp) :: xory,yorz,alfa,gbdy
 
- integer :: m, ii, jj, i_z, i_y
+ integer :: m, i_z, i_y
  real(dp) :: R, yy, zz
  ! kbdy=1: xa; xory = y
  ! kbdy=2: xb; yorz = z

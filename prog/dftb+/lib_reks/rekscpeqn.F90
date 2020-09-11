@@ -564,7 +564,7 @@ module dftbp_rekscpeqn
       ! check singularity for preconditioner
       if (abs(tmpApre(ij)) <= epsilon(1.0_dp)) then
         write(stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
-        call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
+        call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 
       ! preconditioner part for CG

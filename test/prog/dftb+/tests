@@ -5,6 +5,32 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/GNR_kpoint_restart            #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/H2_exc_atoms                  #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_kick_periodic         #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
+timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
+timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_rangesep              #? OMP_THREADS <= 1 and not WITH_MPI
+
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1
 helical/10-0CtubeC_10_origins          #? MPI_PROCS == 1
@@ -12,11 +38,17 @@ helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
 helical/C6H6_stack                     #? MPI_PROCS == 1
 helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
 helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
-helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1
+helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+
+dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
+dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
+dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
+dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
+input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1
 input/unsorted_contcar                 #? MPI_PROCS <= 1
@@ -73,13 +105,15 @@ solvers/Si32C32_OMM_ks                 #? WITH_ELSI and MPI_PROCS % 8 == 0 and M
 solvers/Si32C32_OMM_k_sparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_OMM_ks_sparse          #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 16 and OMP_THREADS == 1
+solvers/Si32C32_LS_OMM                 #? WITH_ELSI and MPI_PROCS <= 20 and OMP_THREADS == 1
+solvers/Si32C32_LS_OMM_kpt             #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 32 and OMP_THREADS == 1
 
-solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
-solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1
-solvers/10-10Ctube_PEXSI_sparse        #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
-solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
-solvers/SiC64+V_PEXSI_kpts             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1
-solvers/SiC64+V_spinkpts_PEXSI_sparse  #? WITH_PEXSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
+solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+solvers/10-10Ctube_PEXSI_sparse        #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+solvers/SiC64+V_PEXSI_kpts             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+solvers/SiC64+V_spinkpts_PEXSI_sparse  #? WITH_PEXSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
 solvers/Si32C32_k_elpaSparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_elpaSparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -106,7 +140,9 @@ dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
+dispersion/specieslist_dftd3_bj        #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd4                  #? MPI_PROCS <= 1
+dispersion/specieslist_dftd4           #? MPI_PROCS <= 1
 dispersion/charged_dftd4               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4               #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
@@ -141,19 +177,19 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
-solvation/sasa_i10e                    #? MPI_PROCS <= 1
+solvation/sasa_i10e                    #? MPI_PROCS <= 2
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 solvation/gb_cm5                       #? MPI_PROCS <= 1
 solvation/gb_specieslist               #? MPI_PROCS <= 1
 solvation/gb_p16                       #? MPI_PROCS <= 1
-solvation/gbsa_e35                     #? MPI_PROCS <= 1
+solvation/gbsa_e35                     #? MPI_PROCS <= 2
 solvation/gbsa_caffeine                #? MPI_PROCS <= 1
 solvation/gbsa_p16                     #? MPI_PROCS <= 1
 solvation/gbsa_param1                  #? MPI_PROCS <= 1
 solvation/gbsa_param2                  #? not WITH_MPI
-solvation/gbsa_param3                  #? MPI_PROCS <= 1
+solvation/gbsa_param3                  #? MPI_PROCS <= 2
 solvation/alpb_cation                  #? MPI_PROCS <= 1
 solvation/alpb_anion                   #? MPI_PROCS <= 1
 solvation/alpb_p16                     #? MPI_PROCS <= 1
