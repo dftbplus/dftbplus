@@ -187,8 +187,8 @@ contains
         call sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
       end if
     #:endif
-      tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
-          & .and. maxSccIter > 1 .and. .not.allocated(reks)
+      tWriteCharges =  allocated(qInput) .and. tWriteRestart .and. tMulliken .and. tSccCalc&
+          & .and. .not. tDerivs .and. maxSccIter > 1
       if (tWriteCharges) then
         call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
       end if
