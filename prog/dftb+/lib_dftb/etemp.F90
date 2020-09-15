@@ -115,7 +115,8 @@ contains
     if (nElectrons < epsilon(1.0_dp)) then
       filling(:,:,:) = 0.0_dp
       Ebs(:) = 0.0_dp
-      Ef = 0.0_dp
+      ! place the Fermi energy well below the lowest eigenvalue
+      Ef = minval(eigenvals) - 1000.0_dp * (kT + epsilon(1.0_rsp))
       TS(:) = 0.0_dp
       E0(:) = 0.0_dp
       return
