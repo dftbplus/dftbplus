@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -28,7 +28,7 @@ class Gen2cifTest(common.TestWithWorkDir):
         common.TestWithWorkDir.setUp(self)
 
     def test_cluster(self):
-        '''Absolute coordinates with default cubic cellsize'''
+        '''Absolute coordinates with a default size cubic cell'''
         infile = self.get_input('h2o.234.gen')
         reffile = self.get_input('h2o.234.cif')
         outfile = self.get_output('h2o.234.cif')
@@ -37,7 +37,7 @@ class Gen2cifTest(common.TestWithWorkDir):
         self.assertTrue(common.cif_file_equals(outfile, reffile))
 
     def test_customcell(self):
-        '''Absolute coordinates with custom cubic cellsize'''
+        '''Absolute coordinates with custom size cubic cell'''
         infile = self.get_input('h2o.234.gen')
         reffile = self.get_input('h2o.234-customcell.cif')
         outfile = self.get_output('h2o.234-customcell.cif')

@@ -24,7 +24,7 @@ else:
 
 
 def gen_file_equals(current, reference):
-    '''Checks whether a gen file equals to an other one.
+    '''Checks whether contents of a gen file equals another one.
 
     Args:
         current (str): Name of gen file to check.
@@ -35,7 +35,7 @@ def gen_file_equals(current, reference):
     return curgen.equals(refgen)
 
 def xyz_file_equals(current, reference, check_comment=False):
-    '''Checks whether a xyz file equals to an other one.
+    '''Checks whether contents of an xyz file equals another one.
 
     Args:
         current (str): Name of xyz file to check.
@@ -46,7 +46,7 @@ def xyz_file_equals(current, reference, check_comment=False):
     return curxyz.equals(refxyz, check_comment=check_comment)
 
 def cif_file_equals(current, reference):
-    '''Checks whether a cif file equals to an other one.
+    '''Checks whether contents of a cif file equals another one.
 
     Args:
         current (str): Name of cif file to check.
@@ -58,7 +58,7 @@ def cif_file_equals(current, reference):
 
 
 def nxy_file_equals(current, reference):
-    '''Checks whether a nxy file equals to an other one.
+    '''Checks whether contents of an nxy file equals another one.
 
     Args:
         current (str): Name of nxy file to check.
