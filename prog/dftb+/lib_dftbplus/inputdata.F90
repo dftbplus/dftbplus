@@ -161,8 +161,8 @@ module dftbp_inputdata
     !> add new geometries at the end of files
     logical :: tAppendGeo  = .false.
 
-    !> use converged SCC forces only
-    logical :: tConvrgForces = .true.
+    !> use converged SCC charges for properties like forces or charge dependent dispersion
+    logical :: isSccConvRequired = .true.
 
     !> geometry step
     integer :: iGeoOpt     = 0
@@ -174,10 +174,13 @@ module dftbp_inputdata
     integer :: iGenGeoOpt = 0
 
     !> internal variable for requirement of Mulliken analysis
-    logical :: tMulliken   = .false.
+    logical :: tMulliken = .false.
 
     !> printout of Mulliken
-    logical :: tPrintMulliken   = .false.
+    logical :: tPrintMulliken = .false.
+
+    !> Net atomic charges (i.e. on-site only part of Mulliken charges)
+    logical :: tNetAtomCharges = .false.
 
     !> Input for CM5 corrected Mulliken charges
     type(TCM5Input), allocatable :: cm5Input

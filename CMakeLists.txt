@@ -3,6 +3,9 @@ cmake_policy(VERSION 3.5)
 
 set(DFTBPLUS_VERSION "20.1")
 
+# Follow GNU conventions for installing directories
+include(GNUInstallDirs)
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
@@ -13,6 +16,7 @@ project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
 # By default, use intrinsic Fortran 2008 erf/erfc
 set(INTERNAL_ERFC CACHE BOOL 0)
+GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
 
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
@@ -155,6 +159,10 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+if(WITH_MBD)
+  add_subdirectory(external/mbd ${exclude})
+endif()
+
 if(WITH_MPI)
   add_subdirectory(external/mpifx ${exclude})
   add_subdirectory(external/scalapackfx ${exclude})
@@ -188,16 +196,19 @@ add_subdirectory(test)
 if(WITH_API)
 
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
-    DESTINATION ${INSTALL_LIB_DIR}/cmake/DftbPlus)
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
   
   configure_file(utils/export/DftbPlusConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake @ONLY)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake DESTINATION
-    ${INSTALL_LIB_DIR}/cmake/DftbPlus)
+    "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
 
   dftbp_get_pkgconfig_params(PKGCONFIG_REQUIRES PKGCONFIG_LIBS PKGCONFIG_LIBS_PRIVATE
     PKGCONFIG_C_FLAGS)
   configure_file(utils/export/dftbplus.pc.in ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc DESTINATION ${INSTALL_LIB_DIR}/pkgconfig)
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  )
   
 endif()

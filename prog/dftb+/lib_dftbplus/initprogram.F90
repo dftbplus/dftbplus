@@ -454,6 +454,9 @@ module dftbp_initprogram
   !> Do we need to show Mulliken charges?
   logical :: tPrintMulliken
 
+  !> Do we need to show net atomic charges?
+  logical :: tNetAtomCharges
+
   !> calculate an electric dipole?
   logical :: tDipole
 
@@ -513,8 +516,8 @@ module dftbp_initprogram
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-  !> Only use converged forces if SCC
-  logical :: tUseConvergedForces
+  !> Use converged SCC charges for properties like forces or charge dependent dispersion
+  logical :: isSccConvRequired
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -560,6 +563,9 @@ module dftbp_initprogram
 
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
+
+  !> net (on-site only contributions) charge per atom
+  real(dp), allocatable :: qNetAtom(:)
 
   !> input Mulliken block charges (diagonal part == Mulliken charges)
   real(dp), allocatable :: qBlockIn(:, :, :, :)
@@ -739,9 +745,6 @@ module dftbp_initprogram
 
   !> Frequency for saving restart info
   integer :: restartFreq
-
-  !> If dispersion should be calculated
-  logical :: tDispersion
 
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
@@ -1088,7 +1091,11 @@ contains
   #:if WITH_DFTD3
     type(TDispDftD3), allocatable :: dftd3
   #:endif
+    type(TSimpleDftD3), allocatable :: sdftd3
     type(TDispDftD4), allocatable :: dftd4
+  #:if WITH_MBD
+    type(TDispMbd), allocatable :: mbd
+  #:endif
 
     ! H5 correction
     type(TH5Corr), allocatable :: pH5Correction
@@ -1706,7 +1713,7 @@ contains
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    isSccConvRequired = input%ctrl%isSccConvRequired
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1974,22 +1981,11 @@ contains
 
     ! Dispersion
     tHHRepulsion = .false.
-    tDispersion = allocated(input%ctrl%dispInp)
-    if (tDispersion) then
+    if (allocated(input%ctrl%dispInp)) then
       if (tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
       if (allocated(input%ctrl%dispInp%slakirk)) then
-
-        tStress = .false.
-        if (tLatOpt) then
-          call error("Sorry, lattice optimisation and Slater-Kirkwood type dispersion can not be&
-              & used together")
-        end if
-        if (tBarostat) then
-          call error("Sorry, barostatic MD and Slater-Kirkwood type dispersion can not be used&
-              & together")
-        end if
         allocate(slaKirk)
         if (tPeriodic) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, latVec)
@@ -2023,6 +2019,14 @@ contains
         end if
         call move_alloc(dftd3, dispersion)
     #:endif
+      else if (allocated(input%ctrl%dispInp%sdftd3)) then
+        allocate(sdftd3)
+        if (tPeriodic) then
+          call init(sdftd3, input%ctrl%dispInp%sdftd3, nAtom, species0, speciesName, LatVec)
+        else
+          call init(sdftd3, input%ctrl%dispInp%sdftd3, nAtom, species0, speciesName)
+        end if
+        call move_alloc(sdftd3, dispersion)
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (tPeriodic) then
@@ -2031,6 +2035,24 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
+    #:if WITH_MBD
+      elseif (allocated(input%ctrl%dispInp%mbd)) then
+        if (isLinResp) then
+          call error("MBD model not currently supported for Casida linear response")
+        end if
+        allocate (mbd)
+        associate (inp => input%ctrl%dispInp%mbd)
+            inp%calculate_forces = tForces
+            inp%atom_types = speciesName(species0)
+            inp%coords = coord0
+            if (tPeriodic) then
+              inp%lattice_vectors = latVec
+            end if
+            call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
+        end associate
+        call mbd%checkError()
+        call move_alloc(mbd, dispersion)
+     #:endif
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     end if
@@ -2070,6 +2092,7 @@ contains
     end if
 
     if (tMulliken) then
+      tNetAtomCharges = input%ctrl%tNetAtomCharges
       if (allocated(input%ctrl%cm5Input)) then
         allocate(cm5Cont)
         if (tPeriodic) then
@@ -2080,7 +2103,9 @@ contains
               & input%geom%speciesNames, .false.)
         end if
         cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
-     end if
+      end if
+    else
+      tNetAtomCharges = .false.
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
@@ -2451,7 +2476,7 @@ contains
     tPoissonTwice = input%poisson%solveTwice
 
     if (tNegf) then
-      if (tDispersion) then
+      if (allocated(dispersion)) then
         call error("Dispersion not currently avalable with transport calculations")
       end if
       if (isLinResp) then
@@ -2940,7 +2965,7 @@ contains
       end do
     end if
 
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       select type (dispersion)
       type is (TDispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
@@ -2950,8 +2975,14 @@ contains
       type is (TDispDftD3)
         write(stdOut, "(A)") "Using DFT-D3 dispersion corrections"
     #:endif
+      type is (TSimpleDftD3)
+        write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
         write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
+    #:if WITH_MBD
+      type is (TDispMbd)
+        call writeMbdInfo(input%ctrl%dispInp%mbd)
+    #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select
@@ -3214,7 +3245,7 @@ contains
       end if
 
     end if
-      
+
     ! Electron dynamics stuff
     if (allocated(input%ctrl%elecDynInp)) then
 
@@ -3453,56 +3484,74 @@ contains
 
 
   !> Initialise partial charges
-  !
-  !  Data used from module:
-  !  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
-  !  iEqBlockDFTBULS, reks, and all logicals present
-  !
+  !>
+  !>  Data used from module:
+  !>  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
+  !>  iEqBlockDFTBULS, reks, and all logicals present
+  !>
   subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
       & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
       & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
+
     !> Labels of atomic species
     character(mc), intent(in) :: speciesName(:)
+
     !> Data type for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
+
     !> Orbital equivalence relations
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
+
     !> nr. of inequivalent orbitals
     integer, intent(in) :: nIneqOrb
+
     !> nr. of elements to go through the mixer
     !> - may contain reduced orbitals and also orbital blocks
     !> (if tDFTBU or onsite corrections)
     integer, intent(in) :: nMixElements
+
     !> Initial spins
     real(dp), allocatable, intent(in) :: initialSpins(:,:)
+
     !> Set of atom-resolved atomic charges
     real(dp), allocatable, intent(in) :: initialCharges(:)
+
     !> Total charge
     real(dp), intent(in) :: nrChrg
 
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
+
     !> input charges (for potentials)
     real(dp), allocatable, intent(inout) :: qInput(:, :, :)
+
     !> output charges
     real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
+
     !> input charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qInpRed(:)
+
     !> output charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qOutRed(:)
+
     !> charge differences packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qDiffRed(:)
+
     !> input Mulliken block charges (diagonal part == Mulliken charges)
     real(dp), allocatable, intent(inout) :: qBlockIn(:, :, :, :)
+
     !> Output Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlockOut(:, :, :, :)
+
     !> Imaginary part of input Mulliken block charges
     real(dp), allocatable, intent(inout) :: qiBlockIn(:, :, :, :)
+
     !> Imaginary part of output Mulliken block charges
     real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
 
@@ -3512,6 +3561,7 @@ contains
     integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
+    logical :: tAllocate
 
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
@@ -3527,6 +3577,23 @@ contains
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
+
+    tAllocate = .false.
+  #:if WITH_MBD
+    if (allocated(dispersion)) then
+      select type (dispersion)
+      type is (TDispMbd)
+        tAllocate = .true.
+      end select
+    end if
+  #:endif
+    tAllocate = tAllocate .or. tNetAtomCharges
+    if (tAllocate) then
+      if (.not. allocated(qNetAtom)) then
+        allocate(qNetAtom(nAtom))
+      endif
+      qNetAtom(:) = 0.0_dp
+    end if
 
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
@@ -3709,18 +3776,23 @@ contains
 
     !> type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
+
     !> reference n_0 charges for each atom, from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
+
     !> Data type for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
     !> Atom indices corresponding to user defined reference atomic charges
     !  Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+
     !> User-defined reference atomic shell charges
     real(dp), allocatable, intent(in) :: customOccFillings(:,:)
 
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
+
     !> shell resolved neutral reference
     real(dp), allocatable, intent(inout) :: qShell0(:,:)
 
@@ -3735,8 +3807,8 @@ contains
        if (isLinResp) then
           call error("Custom occupation not compatible with linear response")
        end if
-       call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, &
-            & species0, orb, referenceN0, q0)
+       call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, species0, orb,&
+           & referenceN0, q0)
     else
        call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
@@ -3893,7 +3965,7 @@ contains
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
-    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qNetAtom)
     @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
     @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
@@ -4661,6 +4733,50 @@ contains
   end subroutine getDenseDescCommon
 
 
+#:if WITH_MBD
+  !> Writes MBD-related info
+  subroutine writeMbdInfo(input)
+    !> MBD input parameters
+    type(TDispMbdInp), intent(in) :: input
+
+    character(lc) :: tmpStr
+
+    write(stdOut, "(A)") ''
+    select case (input%method)
+    case ('ts')
+      write(stdOut, "(A)") "Using TS dispersion corrections [Phys. Rev. B 80, 205414 (2009)]"
+      write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+    case ('mbd-rsscs')
+      write(stdOut,"(A)") "Using MBD dispersion corrections [Phys. Rev. Lett. 108, 236402 (2012)]"
+      write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+    end select
+    select case (trim(input%vdw_params_kind))
+    case ('tssurf')
+      write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+    case ('ts')
+      write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+    end select
+    write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
+    select case (input%method)
+    case ('ts')
+      write(tmpStr,"(E18.6)") input%ts_f_acc
+      write(stdOut, "(A,T30,A)") '  TSForceAccuracy', trim(adjustl(tmpStr))
+      write(tmpStr, "(E18.6)") input%ts_ene_acc
+      write(stdOut, "(A,T30,A)") '  TSEnergyAccuracy', trim(adjustl(tmpStr))
+    case ('mbd-rsscs')
+      write(tmpStr, "(3(I3,1X))") input%k_grid
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
+      write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
+      write(stdOut,"(A,T30,A)") "  MBD k-Grid shift", trim(adjustl(tmpStr))
+      write(tmpStr, "(I3)") input%n_omega_grid
+      write(stdOut, "(A,T30,A)") "  Gridsize (frequencies)", trim(adjustl(tmpStr))
+    end select
+    write(stdOut,"(A)") ""
+
+  end subroutine writeMbdInfo
+#:endif
+
+
   !> Check for compatibility between requested electronic solver and features of the calculation
   subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
 
@@ -4714,8 +4830,8 @@ contains
 
 
   !> Modify the reference atomic shell charges for the neutral atom
-  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species,&
-      & orb, referenceN0, q0)
+  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species, orb,&
+      & referenceN0, q0)
 
     !> Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)

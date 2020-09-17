@@ -17,7 +17,7 @@
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS "-ieee=full ${CMAKE_Fortran_FLAGS}"
+set(Fortran_FLAGS "-ieee=full -maxcontin=512 ${CMAKE_Fortran_FLAGS}"
   CACHE STRING "Build type independent Fortran compiler flags")
 
 set(Fortran_FLAGS_RELEASE "-O2"

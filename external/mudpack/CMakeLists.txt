@@ -9,7 +9,7 @@ set(sources-f77
 add_library(mudpack ${sources-f77})
 
 if(WITH_API OR BUILD_SHARED_LIBS)
-  install(TARGETS mudpack DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
+  install(TARGETS mudpack DESTINATION "${CMAKE_INSTALL_LIBDIR}" EXPORT dftbplus-targets)
 endif()
 
 set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} mudpack PARENT_SCOPE)

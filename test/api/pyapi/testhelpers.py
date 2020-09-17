@@ -25,9 +25,9 @@ def write_autotest_tag(filename, **kwargs):
        created file can then be compared with a validated reference file.
 
     Args:
-        filename  (str): path + name of autotest.tag file
-        **kwargs (dict): keyworded dictionary to pass var-
-                         iable number of keyword arguments
+        filename (str): path + name of autotest.tag file
+        **kwargs (dict): keyworded dictionary to pass variable number of keyword
+            arguments
 
     '''
 

@@ -46,6 +46,7 @@ module dftbp_mainio
   use dftbp_message
   use dftbp_reks
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_dispersions, only : TDispersionIface
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -2354,9 +2355,9 @@ contains
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
-      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic,&
+      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
       & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
+      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2457,8 +2458,8 @@ contains
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
-    !> Are dispersion interactions included
-    logical, intent(in) :: tDispersion
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Is there an external electric field
     logical, intent(in) :: tEfield
@@ -2510,6 +2511,9 @@ contains
 
     !> Charge model 5 for correcting atomic gross charges
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qNetAtom(:)
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2605,6 +2609,17 @@ contains
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
+
+      if (present(qNetAtom)) then
+        write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
+        write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qNetAtom(iAt),&
+              & (1.0_dp - qNetAtom(iAt) / sum(q0(:, iAt, 1)))
+        end do
+        write(fd, *)
+      end if
 
       if (allocated(cm5Cont)) then
          write(fd, "(A)") " CM5 corrected atomic gross charges (e)"
@@ -2871,10 +2886,14 @@ contains
         & 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
-    if (tDispersion) then
-      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-          & energy%eDisp * Hartree__eV, 'eV'
+    if (allocated(dispersion)) then
+      if (dispersion%energyAvailable()) then
+        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+      else
+        write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
+      end if
     end if
+
     if (tHalogenX) then
       write(fd, format2U) 'Halogen correction energy', energy%eHalogenX, 'H',&
           & energy%eHalogenX * Hartree__eV, 'eV'
@@ -4574,7 +4593,7 @@ contains
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, TS, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
+      & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
       & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
 
     !> File ID
@@ -4646,8 +4665,8 @@ contains
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
-    !> Are dispersion interactions included
-    logical, intent(in) :: tDispersion
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4840,9 +4859,12 @@ contains
         & energy%Eelec * Hartree__eV, 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
-    if (tDispersion) then
-      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-          & energy%eDisp * Hartree__eV, 'eV'
+    if (allocated(dispersion)) then
+      if (dispersion%energyAvailable()) then
+        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+      else
+        write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
+      end if
     end if
 
     write(fd, *)

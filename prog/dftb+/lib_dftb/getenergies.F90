@@ -28,6 +28,9 @@ module dftbp_getenergies
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_onsitecorrection
   use dftbp_dispiface
+#:if WITH_MBD
+  use dftbp_dispmbd, only: TDispMbd
+#:endif
   use dftbp_solvation, only : TSolvation
   use dftbp_repcont
   use dftbp_repulsive
@@ -36,13 +39,13 @@ module dftbp_getenergies
   implicit none
 
   private
-  public :: getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
+  public :: calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
 
 contains
 
 
     !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
+  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
       & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
@@ -172,7 +175,7 @@ contains
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
         & img2CentCell, iSparseStart)
-    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
+    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion))
 
     energy%atomExt(:) = 0.0_dp
     if (tExtField) then
@@ -190,12 +193,12 @@ contains
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
 
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
+        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
       end if
     end if
 
@@ -205,12 +208,12 @@ contains
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
       end if
-      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
+      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion))
     end if
 
     if (allocated(solvation)) then
       call solvation%getEnergies(energy%atomSolv)
-      energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion(:)))
+      energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion))
     end if
 
     if (allocated(onSiteElements)) then
@@ -225,54 +228,43 @@ contains
       else
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
       end if
-      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
+      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion))
     end if
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
+      energy%ELS = sum(energy%atomLS(iAtInCentralRegion))
     end if
 
-    energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv
-
-    !> Add exchange conribution for range separated calculations
-    if (allocated(rangeSep)) then
-      if (.not. allocated(reks)) then
-        energy%Efock = 0.0_dp
-        call rangeSep%addLREnergy(energy%Efock)
-      end if
-      energy%Eelec = energy%Eelec + energy%Efock
+    ! Add exchange conribution for range separated calculations
+    if (allocated(rangeSep) .and. .not. allocated(reks)) then
+      energy%Efock = 0.0_dp
+      call rangeSep%addLREnergy(energy%Efock)
     end if
 
-    energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
-        & + energy%atomSolv
-    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
-    energy%EMermin = energy%Etotal - sum(TS)
-    ! extrapolated to 0 K
-    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
-    energy%EGibbs = energy%EMermin + cellVol * extPressure
-
-    energy%EForceRelated = energy%EGibbs
+    ! Free energy contribution if attached to an electron reservoir
     if (tFixEf) then
       if (nSpin == 2) then
-        nEl(:) = sum(sum(qOrb(:,iAtInCentralRegion(:),:),dim=1),dim=1)
+        nEl(:) = sum(sum(qOrb(:,iAtInCentralRegion,:),dim=1),dim=1)
         nEl(1) = 0.5_dp * ( nEl(1) + nEl(2) )
         nEl(2) = nEl(1) - nEl(2)
-        ! negative sign due to electron charge
-        energy%EForceRelated = energy%EForceRelated  - sum(nEl(:2) * Ef(:2))
+        energy%NEf = sum(nEl(:2) * Ef(:2))
       else
         nEl = 0.0_dp
-        nEl(1) = sum(qOrb(:,iAtInCentralRegion(:),1))
-        ! negative sign due to electron charge
-        energy%EForceRelated = energy%EForceRelated  - nEl(1) * Ef(1)
+        nEl(1) = sum(qOrb(:,iAtInCentralRegion,1))
+        energy%NEf = nEl(1) * Ef(1)
       end if
+    else
+      energy%NEf = 0.0_dp
     end if
 
-  end subroutine getEnergies
+    energy%pV = cellVol * extPressure
+
+    ! Electronic entropy term
+    energy%TS = sum(TS)
+
+  end subroutine calcEnergies
 
 
   !> Calculates repulsive energy for current geometry
@@ -329,8 +321,40 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
+  #:if WITH_MBD
+    select type (dispersion)
+    type is (TDispMbd)
+      call dispersion%checkError()
+    end select
+  #:endif
     Etotal = sum(Eatom(iAtInCentralRegion))
 
   end subroutine calcDispersionEnergy
+
+
+  !> Sums together components of final energies
+  subroutine sumEnergies(energy)
+
+    !> energy contributions
+    type(TEnergies), intent(inout) :: energy
+
+    energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock
+
+    energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
+        & + energy%atomSolv
+    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
+    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
+    energy%EMermin = energy%Etotal - energy%TS
+    ! energy extrapolated to 0 K
+    energy%Ezero = energy%Etotal - 0.5_dp * energy%TS
+    energy%EGibbs = energy%EMermin + energy%pV
+
+    ! Free energy of system, with contribution if attached to an electron reservoir
+    ! negative sign due to electron charge
+    energy%EForceRelated = energy%EGibbs  - energy%NEf
+
+  end subroutine sumEnergies
 
 end module dftbp_getenergies

@@ -38,9 +38,9 @@ class PotentialCalculator:
 
         Args:
 
-            qmcoords  (2darray): coordinates of QM-atoms (shape: [qmatoms, 3])
-            mmcoords  (2darray): coordinates of MM-atoms (shape: [mmatoms, 3])
-            mmcharges (1darray): charges of MM-atoms     (shape: [mmatoms, 1])
+            qmcoords (2darray): coordinates of QM-atoms (shape: [qmatoms, 3])
+            mmcoords (2darray): coordinates of MM-atoms (shape: [mmatoms, 3])
+            mmcharges (1darray): charges of MM-atoms (shape: [mmatoms, 1])
 
         '''
 
@@ -54,20 +54,19 @@ class PotentialCalculator:
 
 
     def calc_extpot(self, dqatom):
-        '''Calculates the current external potential
-           using the properties of the MM- and QM-atoms.
+        '''Calculates the current external potential using the properties of the
+           MM- and QM-atoms.
 
         Args:
 
             dqatom (1darray): population difference with respect to reference
-                              population (usually the neutral atom)
-                              Note: population means electrons, so a positive
-                              number indicates electron excess
+                population (usually the neutral atom). Note: population means
+                electrons, so a positive number indicates electron excess
 
         Returns:
 
-            extpot (1darray): updated external potential at
-                              the position of each QM-atom
+            extpot (1darray): updated external potential at the position of each
+                QM-atom
 
         '''
 
@@ -89,21 +88,19 @@ class PotentialCalculator:
 
 
     def calc_extpotgrad(self, dqatom):
-        '''Calculates the current gradients of the external
-           potential using the properties of the MM- and QM-atoms.
+        '''Calculates the current gradients of the external potential using the
+           properties of the MM- and QM-atoms.
 
         Args:
 
-            dqatom     (1darray): population difference with respect
-                                  to reference population
-                                  (usually the neutral atom)
-                                  Note: population means electrons, so a
-                                  positive number indicates electron excess
+            dqatom (1darray): population difference with respect to reference
+                population (usually the neutral atom). Note: population means
+                electrons, so a positive number indicates electron excess
 
         Returns:
 
-            extpotgrad (2darray): updated potential gradient at
-                                  the position of each QM-atom
+            extpotgrad (2darray): updated potential gradient at the position of
+                each QM-atom
 
         '''
 
@@ -132,17 +129,14 @@ def get_extpot(potcalc, dqatom, extpotatom):
 
     Args:
 
-        potcalc   (pyobject): instance of a class that provides
-                              methods for calculating the external
-                              potential and its gradients
-        dqatom     (1darray): population difference with respect to reference
-                              population (usually the neutral atom)
-                              Note: population means electrons, so a positive
-                              number indicates electron excess
-        extpotatom (1darray): potential at the position of each QM-atom
-                              Note: it should be the potential as felt by
-                              an electron (negative potential value means
-                              attraction for an electron)
+        potcalc (pyobject): instance of a class that provides methods for
+            calculating the external potential and its gradients
+        dqatom (1darray): population difference with respect to reference
+            population (usually the neutral atom). Note: population means
+            electrons, so a positive number indicates electron excess
+        extpotatom (1darray): potential at the position of each QM-atom.
+            Note: it should be the potential as felt by an electron
+            (negative potential value means attraction for an electron)
 
     '''
 
@@ -154,28 +148,23 @@ def get_extpotgrad(potcalc, dqatom, extpotatomgrad):
 
     Args:
 
-        potcalc       (pyobject): instance of a class that provides
-                                  methods for calculating the external
-                                  potential and its gradients
-        dqatom         (1darray): population difference with respect to
-                                  reference population
-                                  (usually the neutral atom)
-                                  Note: population means electrons, so a
-                                  positive number indicates electron excess
+        potcalc (pyobject): instance of a class that provides methods for
+            calculating the external potential and its gradients
+        dqatom (1darray): population difference with respect to reference
+            population (usually the neutral atom). Note: population means
+            electrons, so a positive number indicates electron excess
         extpotatomgrad (2darray): potential gradient at the position of each
-                                  QM-atom
-                                  Note: it should be the gradient of the
-                                  potential as felt by an electron (negative
-                                  potential value means attraction for an
-                                  electron)
+            QM-atom. Note: it should be the gradient of the potential as felt by
+            an electron (negative potential value means attraction for an
+            electron)
+
     '''
 
     extpotatomgrad[:, :] = potcalc.calc_extpotgrad(dqatom)
 
 
 def distance(aa, bb):
-    '''Auxiliary function for calculating
-       the distance between two vectors.
+    '''Auxiliary function for calculating the distance between two vectors.
 
     Args:
 

@@ -1,3 +1,5 @@
-add_subdirectory(dptools)
-add_subdirectory(pythonapi)
+if (WITH_PYTHON)
+  add_subdirectory(dptools)
+  add_subdirectory(pythonapi)
+endif()
 add_subdirectory(misc)
