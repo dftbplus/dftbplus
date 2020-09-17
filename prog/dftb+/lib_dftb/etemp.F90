@@ -122,6 +122,13 @@ contains
       return
     end if
 
+    if (size(filling,dim=1)*size(filling,dim=3) <= nElectrons) then
+      ! place the Fermi energy well above the highest eigenvalue, as nOrbs * spin <= nElec
+      Ef = maxval(eigenvals) + 1000.0_dp * (kT + epsilon(1.0_rsp))
+      call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
+      return
+    end if
+
     ! For integer number of electrons, try middle gap for Ef
     if (abs(nElectrons - nint(nElectrons)) <= elecTol) then
       Ef = middleGap(eigenvals, kWeight, nElectrons)
