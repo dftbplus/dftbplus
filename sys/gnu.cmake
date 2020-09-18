@@ -91,3 +91,12 @@ set(MAGMA_INCLUDE_DIRS "" CACHE STRING "Directories to scan for MAGMA include fi
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
 set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
+
+
+#
+# Developer settings
+#
+set(Fortran_FLAGS_COVERAGE "--coverage" CACHE STRING
+  "Fortran compiler flag for obtaining coverage info")
+
+set(C_FLAGS_COVERAGE "--coverage" CACHE STRING "C compiler flag for obtaining coverage info")

@@ -257,6 +257,12 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
       "Invalid language \"${PKGCONFIG_LANGUAGE}\" for PKGCONFIG_LANGUAGE (possible choices: ${pkgconfig_languages_str})")
   endif()
 
+  if(COVERAGE_ANALYSIS AND NOT ("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+      AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    message(FATAL_ERROR "Coverage testing is only available if Fortran and C compilers are "
+      "both GNU compilers")
+  endif()
+
 endfunction()
 
 
@@ -469,8 +475,50 @@ macro (dftbp_setup_global_compiler_flags)
   foreach (lang IN ITEMS Fortran C)
     set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
     set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    if(COVERAGE_ANALYSIS)
+      set(CMAKE_${lang}_FLAGS "${CMAKE_${lang}_FLAGS} ${${lang}_FLAGS_COVERAGE}")
+    endif()
     message(STATUS "Flags for ${lang}-compiler: "
       "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
   endforeach()
 
 endmacro()
+
+
+# Sets up LCOV-related targets
+#
+# Arguments:
+#   lcov [in]: Name of the lcov program
+#   genhtml [in]: Name of the genhtml program
+#   lcov_output_dir [in]: Where to put the lcov/genhtml generated files
+#   lcov_base_dir [in]: Which directory is the base for the analysis.
+#
+function (dftbp_create_lcov_targets lcov genhtml lcov_output_dir lcov_base_dir)
+
+  set(lcov_report_dir ${lcov_output_dir}/report)
+  
+  add_custom_target(lcov_init
+
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${lcov_output_dir}
+
+    COMMAND ${lcov} --zerocounters --directory ${lcov_base_dir} --base-directory ${lcov_base_dir}
+
+    COMMAND ${lcov} --capture --initial --directory ${lcov_base_dir} --base-directory ${lcov_base_dir} --output-file ${lcov_output_dir}/lcov.base)
+
+  add_custom_command(TARGET lcov_init POST_BUILD
+    COMMAND ;
+    COMMENT "LCOV data initialized. Run your tests and then build the 'lcov_report' target")
+  
+  add_custom_target(lcov_report
+
+    COMMAND ${lcov} --capture --directory ${lcov_base_dir} --base-directory ${lcov_base_dir} --output-file ${lcov_output_dir}/lcov.capture
+
+    COMMAND ${lcov} --add-tracefile ${lcov_output_dir}/lcov.base --add-tracefile ${lcov_output_dir}/lcov.capture --output-file ${lcov_output_dir}/lcov.total
+
+    COMMAND ${GENHTML} ${lcov_output_dir}/lcov.total --legend --output-directory=${lcov_report_dir})
+
+  add_custom_command(TARGET lcov_report POST_BUILD
+    COMMAND ;
+    COMMENT "See ${lcov_report_dir}/index.html for the generated coverage report")
+
+endfunction()

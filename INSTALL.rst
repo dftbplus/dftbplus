@@ -376,10 +376,13 @@ CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
 config file.
 
 
-Generating developer documentation
-==================================
+Additional information for developers
+=====================================
 
-Developer documentation can be generated using the FORD source code
+Source code documentation
+-------------------------
+
+Source code documentation can be generated using the FORD source code
 documentation generator by issuing ::
 
   cd doc/dftb+/ford && ford dftbplus-project-file.md
@@ -388,8 +391,8 @@ in the main source directory. The documentation will be created in the
 `doc/dftb+/ford/doc` folder.
 
 
-Developer build instructions
-============================
+Customized developer builds
+---------------------------
 
 You should avoid to customize the build by changing the variables in the CMake
 config files directly as your changes may accidently be checked in into the
@@ -406,3 +409,36 @@ your config file contains toolchain dependent options, consider to define the
 See this `CMake customization file
 <https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7>`_ for a
 template.
+
+
+Coverage analysis
+-----------------
+
+You generate coverage reports locally using the ``lcov`` and the ``genhtml``
+tools, provided they are installed on your system (and CMake can find them). The
+workflow (assuming ``make`` as build backend) is then as follows:
+
+* Configure your project with CMake with the options ``COVERAGE_ANALYSIS`` and
+  ``LCOV_REPORT`` turned on and build the code::
+
+    cd _build
+    cmake -DCOVERAGE_ANALYSIS=True -DLCOV_REPORT=True ..
+    make -j
+
+* Delete and initialise the lcov counters by building the ``lcov_init`` target::
+
+    make lcov_init
+
+* Run the tests as usual::
+
+    ctest -j
+
+* Build the ``lcov_report`` target ::
+
+    make lcov_report
+
+The report can be found in the ``lcov/report`` folder. Just open the
+``lcov/report/index.html`` file in your browser.
+
+Note, that coverage analysis is only possible currently if all compilers are
+GNU-compilers.

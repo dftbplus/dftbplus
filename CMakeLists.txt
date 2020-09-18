@@ -212,3 +212,17 @@ if(WITH_API)
   )
   
 endif()
+
+
+#
+# Coverage testing related targets
+#
+if(LCOV_REPORT)
+  if(NOT DEFINED COVERAGE_ANALYSIS OR NOT COVERAGE_ANALYSIS)
+    message(FATAL_ERROR "LCOV-reporting requires COVERAGE_ANALYSIS turned on")
+  endif()
+  find_program(LCOV lcov REQUIRED)
+  find_program(GENHTML genhtml REQUIRED)
+  dftbp_create_lcov_targets(${LCOV} ${GENHTML} ${CMAKE_CURRENT_BINARY_DIR}/lcov
+    ${CMAKE_CURRENT_BINARY_DIR})
+endif()
