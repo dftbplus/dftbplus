@@ -6308,7 +6308,7 @@ contains
     ! Make inverse square root matrix consisting of eigenvalues (s) of CSC
     tmpS(:,:) = 0.0_dp
     do ii = 1, nOrb
-      tmpS(ii,ii) = 1.0_dp / sqrt(tmpEigen(ii))
+      tmpS(ii,ii) = 1.0_dp / max(sqrt(tmpEigen(ii)), epsilon(0.0_dp))
     end do
 
     ! Calculate a unitary matrix U = CSC^(-1/2) = X * s^(-1/2) * X^T
