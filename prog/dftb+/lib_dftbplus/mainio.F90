@@ -4765,12 +4765,16 @@ contains
     ! Write out atomic charges
     if (tPrintMulliken) then
       if (reks%nstates > 1) then
-        write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
-        write(fd, "(A60)") " These charges do not mean the charges for individual states"
-        write(fd, "(A56)") " Similarly to this, the values in band.out file indicate"
-        write(fd, "(A57)") " the band energies and occupations for the averaged state"
-        write(fd, "(A44)") " If you want to compute the relaxed density,"
-        write(fd, "(A42)") " please, set 'RelaxedDensity = Yes' option"
+        write(fd, "(1X,A)") "SA-REKS optimizes the averaged state, not individual states."
+        write(fd, "(1X,A)") "These charges are not from individual states."
+        write(fd, "(1X,A)") "Similarly, the values in band.out file indicate"
+        write(fd, "(1X,A)") "the band energies and occupations for the averaged state."
+        if (.not.reks%tRD) then
+          write(fd, "(1X,A)") "If you want to compute the relaxed density,"
+          write(fd, "(1X,A)") "please, set 'RelaxedDensity = Yes' option"
+        else
+          write(fd, "(1X,A)") "These results are for a relaxed density."
+        end if
         write(fd, *)
       end if
       write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
