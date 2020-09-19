@@ -4773,7 +4773,7 @@ contains
           write(fd, "(1X,A)") "If you want to compute the relaxed density,"
           write(fd, "(1X,A)") "please, set 'RelaxedDensity = Yes' option"
         else
-          write(fd, "(1X,A)") "These results are for a relaxed density."
+          write(fd, "(1X,A)") "Check the file relaxed_charge.dat for the relaxed density."
         end if
         write(fd, *)
       end if
