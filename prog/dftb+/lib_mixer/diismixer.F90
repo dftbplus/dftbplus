@@ -86,10 +86,10 @@ contains
 
 
   !> Creates an DIIS mixer instance.
-  subroutine DIISMixer_init(self, nGeneration, initMixParam,tFromStart,alpha)
+  subroutine DIISMixer_init(this, nGeneration, initMixParam,tFromStart,alpha)
 
     !> Pointer to an initialized DIIS mixer on exit
-    type(Tdiismixer), intent(out) :: self
+    type(Tdiismixer), intent(out) :: this
 
     !> Nr. of generations (including actual) to consider
     integer, intent(in) :: nGeneration
@@ -105,69 +105,69 @@ contains
 
     @:ASSERT(nGeneration >= 2)
 
-    self%nElem = 0
-    self%mPrevVector = nGeneration
+    this%nElem = 0
+    this%mPrevVector = nGeneration
 
-    allocate(self%prevQInput(self%nElem, self%mPrevVector))
-    allocate(self%prevQDiff(self%nElem, self%mPrevVector))
+    allocate(this%prevQInput(this%nElem, this%mPrevVector))
+    allocate(this%prevQDiff(this%nElem, this%mPrevVector))
 
-    self%initMixParam = initMixParam
+    this%initMixParam = initMixParam
 
     if (present(tFromStart)) then
-      self%tFromStart = tFromStart
+      this%tFromStart = tFromStart
     else
-      self%tFromStart = .false.
+      this%tFromStart = .false.
     end if
 
     if (present(alpha)) then
-      self%tAddIntrpGradient = .true.
-      self%alpha = alpha
-      allocate(self%deltaR(self%nElem))
+      this%tAddIntrpGradient = .true.
+      this%alpha = alpha
+      allocate(this%deltaR(this%nElem))
     else
-      self%tAddIntrpGradient = .false.
-      self%alpha = 0.0_dp
-      allocate(self%deltaR(0))
+      this%tAddIntrpGradient = .false.
+      this%alpha = 0.0_dp
+      allocate(this%deltaR(0))
     end if
 
-    self%deltaR = 0.0_dp
+    this%deltaR = 0.0_dp
 
   end subroutine DIISMixer_init
 
 
   !> Makes the mixer ready for a new SCC cycle
-  subroutine DIISMixer_reset(self, nElem)
+  subroutine DIISMixer_reset(this, nElem)
 
     !> DIIS mixer instance
-    type(Tdiismixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: this
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
 
     @:ASSERT(nElem > 0)
 
-    if (nElem /= self%nElem) then
-      self%nElem = nElem
-      deallocate(self%prevQInput)
-      deallocate(self%prevQDiff)
-      allocate(self%prevQInput(self%nElem, self%mPrevVector))
-      allocate(self%prevQDiff(self%nElem, self%mPrevVector))
-      if (self%tAddIntrpGradient) then
-        deallocate(self%deltaR)
-        allocate(self%deltaR(self%nElem))
-        self%deltaR = 0.0_dp
+    if (nElem /= this%nElem) then
+      this%nElem = nElem
+      deallocate(this%prevQInput)
+      deallocate(this%prevQDiff)
+      allocate(this%prevQInput(this%nElem, this%mPrevVector))
+      allocate(this%prevQDiff(this%nElem, this%mPrevVector))
+      if (this%tAddIntrpGradient) then
+        deallocate(this%deltaR)
+        allocate(this%deltaR(this%nElem))
+        this%deltaR = 0.0_dp
       end if
     end if
-    self%iPrevVector = 0
-    self%indx = 0
+    this%iPrevVector = 0
+    this%indx = 0
 
   end subroutine DIISMixer_reset
 
 
   !> Mixes charges according to the DIIS method
-  subroutine DIISMixer_mix(self, qInpResult, qDiff)
+  subroutine DIISMixer_mix(this, qInpResult, qDiff)
 
     !> Pointer to the diis mixer
-    type(Tdiismixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
@@ -178,70 +178,70 @@ contains
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj
 
-    @:ASSERT(size(qInpResult) == self%nElem)
-    @:ASSERT(size(qDiff) == self%nElem)
+    @:ASSERT(size(qInpResult) == this%nElem)
+    @:ASSERT(size(qDiff) == this%nElem)
 
-    if (self%iPrevVector < self%mPrevVector) then
-      self%iPrevVector = self%iPrevVector + 1
+    if (this%iPrevVector < this%mPrevVector) then
+      this%iPrevVector = this%iPrevVector + 1
     end if
 
-    call storeVectors(self%prevQInput, self%prevQDiff, self%indx, &
-        &qInpResult, qDiff, self%mPrevVector)
+    call storeVectors(this%prevQInput, this%prevQDiff, this%indx, &
+        &qInpResult, qDiff, this%mPrevVector)
 
-    if (self%tFromStart .or. self%iPrevVector == self%mPrevVector) then
+    if (this%tFromStart .or. this%iPrevVector == this%mPrevVector) then
 
-      if (self%tAddIntrpGradient) then
+      if (this%tAddIntrpGradient) then
         ! old DIIS estimate for downhill direction points towards current downhill direction as well
         ! as the actual vector, based on P. Briddon comments
-        if (dot_product(self%deltaR(:),qDiff) > 0.0_dp) then
+        if (dot_product(this%deltaR(:),qDiff) > 0.0_dp) then
           ! mix in larger amounts of the gradient in future
-          self%alpha = 1.5_dp*self%alpha
+          this%alpha = 1.5_dp*this%alpha
         else
           ! points the other way, mix in less
-          self%alpha = 0.5*self%alpha
+          this%alpha = 0.5*this%alpha
         end if
       end if
 
-      allocate(aa(self%iPrevVector+1, self%iPrevVector+1))
-      allocate(bb(self%iPrevVector+1, 1))
+      allocate(aa(this%iPrevVector+1, this%iPrevVector+1))
+      allocate(bb(this%iPrevVector+1, 1))
 
       aa(:,:) = 0.0_dp
       bb(:,:) = 0.0_dp
 
-      do ii = 1, self%iPrevVector
-        do jj = 1, self%iPrevVector
-          aa(ii, jj) = dot_product( self%prevQDiff(:, ii), &
-              & self%prevQDiff(:, jj) )
+      do ii = 1, this%iPrevVector
+        do jj = 1, this%iPrevVector
+          aa(ii, jj) = dot_product( this%prevQDiff(:, ii), &
+              & this%prevQDiff(:, jj) )
         end do
       end do
-      aa(self%iPrevVector+1, 1:self%iPrevVector) = -1.0_dp
-      aa(1:self%iPrevVector, self%iPrevVector+1) = -1.0_dp
+      aa(this%iPrevVector+1, 1:this%iPrevVector) = -1.0_dp
+      aa(1:this%iPrevVector, this%iPrevVector+1) = -1.0_dp
 
-      bb(self%iPrevVector+1,1) = -1.0_dp
+      bb(this%iPrevVector+1,1) = -1.0_dp
 
       ! Solve DIIS system of linear equations
       call gesv(aa, bb)
 
       qInpResult(:) = 0.0_dp
-      do ii = 1, self%iPrevVector
+      do ii = 1, this%iPrevVector
         qInpResult(:) = qInpResult(:) + bb(ii,1) * ( &
-            & self%prevQInput(:,ii) + self%prevQDiff(:,ii) )
+            & this%prevQInput(:,ii) + this%prevQDiff(:,ii) )
       end do
 
-      if (self%tAddIntrpGradient) then
+      if (this%tAddIntrpGradient) then
         ! add a fraction down the DIIS estimated gradient onto the new solution
-        self%deltaR = 0.0_dp
-        do ii = 1, self%iPrevVector
-          self%deltaR(:) = self%deltaR(:) + bb(ii,1) * self%prevQDiff(:,ii)
+        this%deltaR = 0.0_dp
+        do ii = 1, this%iPrevVector
+          this%deltaR(:) = this%deltaR(:) + bb(ii,1) * this%prevQDiff(:,ii)
         end do
-        qInpResult(:) = qInpResult(:) - self%alpha * self%deltaR(:)
+        qInpResult(:) = qInpResult(:) - this%alpha * this%deltaR(:)
       end if
 
     end if
 
-    if (self%iPrevVector < self%mPrevVector) then
+    if (this%iPrevVector < this%mPrevVector) then
       ! First few iterations return simple mixed vector
-      qInpResult(:) = qInpResult(:) + self%initMixParam * qDiff(:)
+      qInpResult(:) = qInpResult(:) + this%initMixParam * qDiff(:)
     end if
 
   end subroutine DIISMixer_mix

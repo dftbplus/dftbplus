@@ -37,6 +37,9 @@ module dftbp_dispdftd3
     !> D3H5 - additional H-H repulsion
     logical :: hhrepulsion
 
+    !> Atomic numbers
+    integer, allocatable :: izp(:)
+
   end type TDispDftD3Inp
 
 
@@ -62,7 +65,7 @@ module dftbp_dispdftd3
     !> stress tensor
     real(dp) :: stress(3, 3)
 
-    !> atomic nuber
+    !> atomic numbers
     integer, allocatable :: izp(:)
 
     !> is this periodic
@@ -151,15 +154,16 @@ contains
 
     allocate(this%izp(nAtom))
     do iAt = 1, this%nAtom
-      this%izp(iAt) =  get_atomic_number(speciesNames(species0(iAt)))
+      this%izp(iAt) = inp%izp(species0(iAt))
     end do
+
     allocate(this%gradients(3, nAtom))
 
   end subroutine DispDftD3_init
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0, stat)
 
     !> Instance of DFTD3 data
     class(TDispDftD3), intent(inout) :: this
@@ -179,7 +183,14 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     @:ASSERT(allocated(this%calculator))
+
+    if (present(stat)) then
+      stat = 0
+    end if
 
     if (this%tPeriodic) then
       ! dftd3 calculates the periodic images by itself -> only coords in central cell must be

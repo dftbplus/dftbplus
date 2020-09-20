@@ -77,133 +77,131 @@ contains
 
 
   !> Creates a thermostat wrapper for a DummyThermostat.
-  subroutine Thermostat_init_Dummy(self, pThermostat)
+  subroutine Thermostat_init_Dummy(this, pThermostat)
 
     !> Wrapper instance on exit.
-    type(TThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: this
 
     !> A DummyThermostat.
     type(TDummyThermostat), allocatable, intent(inout) :: pThermostat
 
-    self%thermostat = dummy_
-    call move_alloc(pThermostat, self%pDummy)
+    this%thermostat = dummy_
+    call move_alloc(pThermostat, this%pDummy)
 
   end subroutine Thermostat_init_Dummy
 
 
   !> Creates a thermostat wrapper for an AndersenThermostat.
-  subroutine Thermostat_init_Andersen(self, pThermostat)
+  subroutine Thermostat_init_Andersen(this, pThermostat)
 
     !> Wrapper instance on exit.
-    type(TThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: this
 
     !> An Andersen Thermostat.
     type(TAndersenThermostat), allocatable, intent(inout) :: pThermostat
 
-    self%thermostat = andersen_
-    call move_alloc(pThermostat, self%pAndersen)
+    this%thermostat = andersen_
+    call move_alloc(pThermostat, this%pAndersen)
 
   end subroutine Thermostat_init_Andersen
 
 
   !> Creates a thermostat wrapper for a BerendsenThermostat.
-  subroutine Thermostat_init_Berendsen(self, pThermostat)
+  subroutine Thermostat_init_Berendsen(this, pThermostat)
 
     !> Wrapper instance on exit.
-    type(TThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: this
 
     !> A Berendsen Thermostat.
     type(TBerendsenThermostat), allocatable, intent(inout) :: pThermostat
 
-    self%thermostat = berendsen_
-    call move_alloc(pThermostat, self%pBerendsen)
+    this%thermostat = berendsen_
+    call move_alloc(pThermostat, this%pBerendsen)
 
   end subroutine Thermostat_init_Berendsen
 
 
   !> Creates a thermostat wrapper for a NHCThermostat.
-  subroutine Thermostat_init_NHC(self, pThermostat)
+  subroutine Thermostat_init_NHC(this, pThermostat)
 
     !> Wrapper instance on exit.
-    type(TThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: this
 
     !> A NHC Thermostat.
     type(TNHCThermostat), allocatable, intent(inout) :: pThermostat
 
-    self%thermostat = nhc_
-    call move_alloc(pThermostat, self%pNHC)
+    this%thermostat = nhc_
+    call move_alloc(pThermostat, this%pNHC)
 
   end subroutine Thermostat_init_NHC
 
 
   !> Returns the initial velocities
-  subroutine Thermostat_getInitVelocities(self, velocities)
+  subroutine Thermostat_getInitVelocities(this, velocities)
 
     !> Wrapper instance.
-    type(TThermostat), intent(inout) :: self
+    type(TThermostat), intent(inout) :: this
 
     !> Velocities on exit.
     real(dp), intent(out) :: velocities(:,:)
 
-    select case (self%thermostat)
+    select case (this%thermostat)
     case (dummy_)
-      call getInitVelocities(self%pDummy, velocities)
+      call getInitVelocities(this%pDummy, velocities)
     case(andersen_)
-      call getInitVelocities(self%pAndersen, velocities)
+      call getInitVelocities(this%pAndersen, velocities)
     case(berendsen_)
-      call getInitVelocities(self%pBerendsen, velocities)
+      call getInitVelocities(this%pBerendsen, velocities)
     case(nhc_)
-      call getInitVelocities(self%pNHC, velocities)
+      call getInitVelocities(this%pNHC, velocities)
     end select
 
   end subroutine Thermostat_getInitVelocities
 
 
   !> Updates the velocities.
-  !>
-
   !> Note: The DummyThermostat has no method to update the velocities, so the wrapper returns
   !> without touching the velocities.
-  subroutine Thermostat_updateVelocities(self, velocities)
+  subroutine Thermostat_updateVelocities(this, velocities)
 
     !> Wrapper instance.
-    type(TThermostat), intent(inout) :: self
+    type(TThermostat), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
-    select case (self%thermostat)
+    select case (this%thermostat)
     case (dummy_)
       continue
     case(andersen_)
-      call updateVelocities(self%pAndersen, velocities)
+      call updateVelocities(this%pAndersen, velocities)
     case(berendsen_)
-      call updateVelocities(self%pBerendsen, velocities)
+      call updateVelocities(this%pBerendsen, velocities)
     case(nhc_)
-      call updateVelocities(self%pNHC, velocities)
+      call updateVelocities(this%pNHC, velocities)
     end select
 
   end subroutine Thermostat_updateVelocities
 
 
   !> Probe internal state of the thermostat
-  subroutine Thermostat_state(self, fd)
+  subroutine Thermostat_state(this, fd)
 
     !> Wrapper instance.
-    type(TThermostat), intent(in) :: self
+    type(TThermostat), intent(in) :: this
 
     !> file handle to write state out to
     integer, intent(in) :: fd
 
-    select case (self%thermostat)
+    select case (this%thermostat)
     case (dummy_)
       continue
     case(andersen_)
-      call state(self%pAndersen, fd)
+      call state(this%pAndersen, fd)
     case(berendsen_)
-      call state(self%pBerendsen, fd)
+      call state(this%pBerendsen, fd)
     case(nhc_)
-      call state(self%pNHC, fd)
+      call state(this%pNHC, fd)
     end select
 
   end subroutine Thermostat_state

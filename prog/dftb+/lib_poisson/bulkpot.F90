@@ -369,20 +369,19 @@ subroutine compbulk_pot(phi_bulk,iparm,fparm)
 end subroutine compbulk_pot
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine compbulk_pot_ewald(phi_bulk,m)
+Subroutine compbulk_pot_ewald(phi_bulk, m)
   type(super_array) :: phi_bulk(:)
   integer :: m
 
   !local variables
   real(dp), allocatable, dimension(:,:,:) :: phi_bulk_PAR
-  integer :: i,j,k,ibsize,atom,a,b,c,na,nb,nc,ff,stepa,stepb
-  real(dp) :: yj,zk,xi
+  integer :: i, j, k, ibsize, atom, a, b, c, na, nb, nc, stepa, stepb
+  real(dp) :: yj, zk, xi
   real(dp) :: basis(3,3), recbasis(3,3)
   real(dp) :: alpha, vol, tol
-  character(2) :: m_id
   real(dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
 
-  integer :: npid,istart,iend, nsh,l
+  integer :: istart, iend, nsh, l
 
   ! set tolerance for convergence
   tol = 1.0d-5
@@ -395,7 +394,7 @@ Subroutine compbulk_pot_ewald(phi_bulk,m)
   basis(1,3) = 0.0_dp
   basis(2,1) = 0.0_dp
   basis(2,2) = phi_bulk(m)%fparm(4)-phi_bulk(m)%fparm(3)
-  basis(2,3) = 0.0_dp  
+  basis(2,3) = 0.0_dp
   basis(3,1) = 0.0_dp
   basis(3,2) = 0.0_dp
   basis(3,3) = phi_bulk(m)%fparm(6)-phi_bulk(m)%fparm(5)
@@ -490,7 +489,7 @@ end subroutine  compbulk_pot_ewald
 subroutine save_bulkpot(phi_bulk,m)
 
   type(super_array) :: phi_bulk(:)
-  integer :: m,i,j,k, fp, fp2
+  integer :: m, i, j, k, fp
   character(2) :: m_id
   real(dp) :: xk
 
@@ -655,19 +654,6 @@ Subroutine bulk_cofz(z,czz,cz,cez)
 
 end subroutine
 
-Subroutine bulk_coef(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
-
-  real(dp) :: x,y,z,cxx,cyy,czz,cx,cy,cz,ce
-  
-  cxx = 1.d0
-  cyy = 1.d0
-  czz = 1.d0
-  cx = 0.d0          
-  cy = 0.d0  
-  cz = 0.d0
-  ce = 0.d0    
-
-end subroutine bulk_coef
 !%-------------------------------------------------------------------
 subroutine set_bulk_rhs(phi_bulk,cont)
 
@@ -783,137 +769,6 @@ subroutine set_bulk_rhs(phi_bulk,cont)
   if (dir.lt.0) phi_bulk(m)%rhs(:,:,1) = phi_bulk(m)%rhs(:,:,nc+rag(3))
 
 end subroutine set_bulk_rhs
-!%--------------------------------------------------------------------------
-
-
-subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential, iErr)
-  real(dp) ::  r(3)
-  real(dp) ::  uhatm
-  real(dp) ::  basis(3,3), recbasis(3,3),  vol, tol
-  integer :: nit
-  real(dp) ::  potential
-  integer, intent(out), optional :: iErr
-
-  real(dp) ::  G(3),help 
-  real(dp) :: lastshell,butlast,err,uhatm2
-  integer nrezi, nreal, nmax, nmin
-  integer i,j,k
-
-  if (present(iErr)) then
-    iErr = 0
-  end if
-
-  nmax = 100
-  nmin = 2
-
-  !evaluate reciprocal space term ( sum over G <> 0) ...  
-  !/* sum over G until tolerance is reached */
-  nrezi = 1
-  err=1.0d8
-  lastshell = 0.d0
-  butlast=0.d0  
-  uhatm2=10.24*uhatm*uhatm
-  potential = 0.d0
-
-  do WHILE (   (nrezi .le. nmax) .and. &
-              ((nrezi .le. nmin).or.(err.gt.tol))  )
-
-    lastshell = 0.d0  
-  
-    do i=-nrezi,nrezi,2*nrezi
-       do j=-nrezi,nrezi
-          do k=-nrezi,nrezi
-             
-             G(1)=i*recbasis(1,1)+j*recbasis(2,1)+k*recbasis(3,1)
-             G(2)=i*recbasis(1,2)+j*recbasis(2,2)+k*recbasis(3,2)
-             G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
-
-             help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-             help = exp(-help/(4.d0*uhatm2))/help
-             help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help               
-
-             !help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-             !help2= (uhatm2/help + 1)*(uhatm2/help + 1)*help
-             !help = (uhatm2/help)*(uhatm2/help)/help2
-             !help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
-             
-             lastshell = lastshell + help       
-             
-          end do
-       end do
-    end do
-    do j=-nrezi,nrezi,2*nrezi
-       do i=-nrezi+1,nrezi-1
-          do k=-nrezi,nrezi
-             
-             G(1)=i*recbasis(1,1)+j*recbasis(2,1)+k*recbasis(3,1)
-             G(2)=i*recbasis(1,2)+j*recbasis(2,2)+k*recbasis(3,2)
-             G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
-
-             help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-             help = exp(-help/(4.d0*uhatm2))/help
-             help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help 
-             
-             !help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-             !help2= (uhatm2/help+1)*(uhatm2/help+1)*help
-             !help = (uhatm2/help)*(uhatm2/help)/help2
-             !help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
-             
-             lastshell = lastshell + help       
-             
-          end do
-       end do
-    end do
-    do k=-nrezi,nrezi,2*nrezi
-       do i=-nrezi+1,nrezi-1
-          do j=-nrezi+1,nrezi-1
-             
-             G(1)=i*recbasis(1,1)+j*recbasis(2,1)+k*recbasis(3,1)
-             G(2)=i*recbasis(1,2)+j*recbasis(2,2)+k*recbasis(3,2)
-             G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
-
-             help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-             help = exp(-help/(4.d0*uhatm2))/help
-             help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help 
-             
-             lastshell = lastshell + help       
-             
-          end do
-       end do
-    end do
-
-    potential = potential + lastshell
-    err=abs(lastshell/potential)
-    !butlast=lastshell
-    nrezi = nrezi + 1
-  end do
-  potential=(4.d0*Pi*potential)/vol
-  nit=nrezi-1
-
-  ! Halt if tolerance not reached
-  if ( err .gt. tol ) then
-    @:FORMATTED_ERROR_HANDLING(iErr, -1, '(A,E12.4,1X,A,1X,E12.4)',&
-        & 'Tolerance in rec_pot not reached in reciprocal space:', err, 'vs', tol)
-  end if
-
-end subroutine
-
-function boundary2string(typ) result(str)
-   integer :: typ
-   character(3) :: str
-              
-   select case(typ)
-   case(0)
-       str=' P '
-   case(1)
-       str=' D '
-   case(2)
-       str=' N '     
-   end select
-
-end function boundary2string
 
 
 end Module bulkpot
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-

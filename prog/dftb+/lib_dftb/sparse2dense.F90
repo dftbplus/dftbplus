@@ -29,6 +29,7 @@ module dftbp_sparse2dense
 
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
+  public :: hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
 
@@ -43,7 +44,7 @@ module dftbp_sparse2dense
   !> Unpack sparse matrix (Hamiltonian, overlap, etc.) to square form
   interface unpackHS
     module procedure unpackHS_real
-    module procedure unpackHS_cmplx
+    module procedure unpackHS_cmplx_kpts
   end interface unpackHS
 
 
@@ -57,10 +58,10 @@ module dftbp_sparse2dense
   !> Pack square matrix to sparse form
   interface packHS
     module procedure packHS_real
-    module procedure packHS_cmplx
+    module procedure packHS_cmplx_kpts
     module procedure packHSPauli
     module procedure packHSPauli_kpts
-
+    module procedure packhs_cmplx
   end interface packHS
 
 
@@ -115,7 +116,7 @@ contains
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
-  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+  subroutine unpackHS_cmplx_kpts(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iSparseStart, img2CentCell)
 
     !> Square form matrix on exit.
@@ -190,7 +191,7 @@ contains
       end do
     end do
 
-  end subroutine unpackHS_cmplx
+  end subroutine unpackHS_cmplx_kpts
 
 
   !> Unpacks sparse matrix to square form (real version for Gamma point)
@@ -596,8 +597,8 @@ contains
   end subroutine unpackSPauli
 
 
-  !> Pack square matrix in the sparse form (complex version).
-  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
+  !> Pack squared matrix in the sparse form (complex version).
+  subroutine packHS_cmplx_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
       & iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
@@ -695,7 +696,7 @@ contains
       end do
     end do
 
-  end subroutine packHS_cmplx
+  end subroutine packHS_cmplx_kpts
 
 
   !> Pack square matrix in the sparse form (real version).
@@ -1484,6 +1485,74 @@ contains
   end subroutine packHSPauliImag_kpts
 
 
+  !> Pack squared matrix in the sparse form (complex version without k-points).
+  subroutine packhs_cmplx(prim, iPrim, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iSparseStart, img2CentCell)
+
+    !> Sparse matrix, real part
+    real(dp), intent(inout) :: prim(:)
+
+    !> Sparse matrix, imaginary part
+    real(dp), intent(inout) :: iPrim(:)
+
+    !> Hermitian matrix
+    complex(dp), intent(in) :: square(:, :)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Maximal number of orbitals on an atom.
+    integer, intent(in) :: mOrb
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    complex(dp) :: tmpSqr(mOrb, mOrb)
+
+    nAtom = size(iNeighbour, dim=2)
+
+    do iAtom1 = 1, nAtom
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+
+        ! Hermitian symmetrise the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+          end do
+        end if
+
+        prim(iOrig : iOrig + nOrb1*nOrb2 - 1) = prim(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(real(tmpSqr(1:nOrb2, 1:nOrb1),dp), [nOrb1 * nOrb2])
+        iPrim(iOrig : iOrig + nOrb1*nOrb2 - 1) = iPrim(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
+      end do
+    end do
+
+  end subroutine packhs_cmplx
+
+
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
   subroutine packHSPauliERho(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
       & iSparseStart, img2CentCell)
@@ -1798,6 +1867,21 @@ contains
   end subroutine symmetrizeHS_real
 
 
+  !> copy lower triangle to upper for a square matrix
+  subroutine hermitianSquareMatrix(matrix)
+
+    !> matrix to symmetrize
+    complex(dp), intent(inout) :: matrix(:,:)
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+    do ii = 1, matSize - 1
+      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
+    end do
+
+  end subroutine hermitianSquareMatrix
+
+
 #:if WITH_SCALAPACK
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Scalapack routines
@@ -2018,7 +2102,7 @@ contains
 
   !> Helper routine for unpacking into Pauli-type Hamiltonians.
   !!
-  !! The routine creates the lower triangle of the 2x2 Pauli Hamiltonian
+  !! The routine creates both triangle of the 2x2 Pauli Hamiltonian
   !! 1*orig(:, 1) + sigma1*orig(:, 2) + sigma2*orig(:, 3) + sigma3*orig(:, 4).
   !!
   subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
@@ -2095,17 +2179,17 @@ contains
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
         ptmp(:, :, :) = 0.5_dp * phase&
             & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
-        ! up-up component and down-down components
+        ! up-up and down-down components
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj, ii, square)
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
         if (iAtom1 /= iAtom2f) then
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii, jj, square)
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
         end if
         ! down-up component
@@ -2118,22 +2202,24 @@ contains
           call scalafx_addl2g(myBlacs%orbitalGrid,&
               & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
+          ! Other triangle
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
+              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
         else
           call scalafx_addl2g(myBlacs%orbitalGrid,&
               & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
+              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
+
           call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac&
               & * conjg(transpose(ptmp(:, :, 2) - imag * ptmp(:, :, 3))), desc%blacsOrbSqr,&
               & ii + nOrb, jj, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & transpose(conjg(imagPrefac * conjg(transpose(ptmp(:, :, 2)&
-              & - imag * ptmp(:, :, 3))))), desc%blacsOrbSqr, jj, ii + nOrb, square)
+          call scalafx_addl2g(myBlacs%orbitalGrid, conjg(imagPrefac * hermPrefac)&
+              & * (ptmp(:, :, 2) - imag * ptmp(:, :, 3))&
+              & , desc%blacsOrbSqr, jj, ii + nOrb, square)
         end if
       end do
     end do
@@ -2306,7 +2392,7 @@ contains
   end subroutine packRhoRealBlacs
 
 
-  !> Packs distributed dense real matrix into sparse form (real).
+  !> Packs distributed dense matrix into sparse form (complex).
   subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
 
@@ -2409,7 +2495,7 @@ contains
   end subroutine packRhoCplxBlacs
 
 
-  !> Pack square matrix into the sparse form (complex Pauli version).
+  !> Pack square dense matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iprimitive)
 

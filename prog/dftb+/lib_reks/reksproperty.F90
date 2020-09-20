@@ -19,10 +19,10 @@ module dftbp_reksproperty
   use dftbp_blasroutines, only : gemm
   use dftbp_densitymatrix
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_message
   use dftbp_sparse2dense
   use dftbp_rekscommon
+  use dftbp_reksio
   use dftbp_reksvar, only : reksTypes
 
   implicit none

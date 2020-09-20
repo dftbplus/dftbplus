@@ -282,11 +282,9 @@ contains
     type(TRangeSepSKTag), intent(inout) :: rangeSepSK
 
     integer :: iostat
-    integer :: nint, ii, jj
     character(lc) :: chdummy
     real(dp) :: omega
     logical :: hasRangeSep
-    real(dp), allocatable :: xend(:)
 
     !> Seek rangesep part in SK file
     do

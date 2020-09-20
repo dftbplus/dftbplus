@@ -39,6 +39,11 @@ program test_extcharges
       & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
       &], [4, nExtChrg])
 
+  !> (optional variable to API call) sets widths of Gaussians to convolve with external charges
+  !> (again set in a.u.). For this particular test, these choices are essentially still point
+  !> charges:
+  real(dp), parameter :: extChargeBlur(nExtChrg) = [0.1_dp, 0.2_dp]
+
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
       & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
 
@@ -56,7 +61,15 @@ program test_extcharges
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
   type(fnode), pointer :: pParserOpts
 
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
   !integer :: devNull
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")
@@ -109,7 +122,7 @@ program test_extcharges
   call dftbp%setupCalculator(input)
 
   ! add external charges
-  call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:))
+  call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:), extChargeBlur)
 
   ! replace QM atom coordinates
   coords(:,:) = initialCoords

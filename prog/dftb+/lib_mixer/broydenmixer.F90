@@ -104,11 +104,11 @@ contains
   !> The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidian
   !> norm of the charge difference vector. If the calculated weigth is outside of the
   !> [minWeight,maxWeight] region it is replaced with the appropriate boundary value.
-  subroutine BroydenMixer_init(self, mIter, mixParam, omega0, minWeight, &
+  subroutine BroydenMixer_init(this, mIter, mixParam, omega0, minWeight, &
       &maxWeight, weightFac)
 
     !> an initialized Broyden mixer on exit
-    type(TBroydenMixer), intent(out) :: self
+    type(TBroydenMixer), intent(out) :: this
 
     !> Maximum nr. of iterations (max. nr. of vectors to store)
     integer, intent(in) :: mIter
@@ -132,57 +132,57 @@ contains
     @:ASSERT(mixParam > 0.0_dp)
     @:ASSERT(omega0 > 0.0_dp)
 
-    self%nElem = 0
-    self%mIter = mIter
-    self%alpha = mixParam
-    self%omega0 = omega0
-    self%minWeight = minWeight
-    self%maxWeight = maxWeight
-    self%weightFac = weightFac
-    allocate(self%ww(mIter-1))
-    allocate(self%qInpLast(self%nElem))
-    allocate(self%qDiffLast(self%nElem))
-    allocate(self%aa(mIter-1, mIter-1))
-    allocate(self%dF(self%nElem, mIter - 1))
-    allocate(self%uu(self%nElem, mIter - 1))
+    this%nElem = 0
+    this%mIter = mIter
+    this%alpha = mixParam
+    this%omega0 = omega0
+    this%minWeight = minWeight
+    this%maxWeight = maxWeight
+    this%weightFac = weightFac
+    allocate(this%ww(mIter-1))
+    allocate(this%qInpLast(this%nElem))
+    allocate(this%qDiffLast(this%nElem))
+    allocate(this%aa(mIter-1, mIter-1))
+    allocate(this%dF(this%nElem, mIter - 1))
+    allocate(this%uu(this%nElem, mIter - 1))
 
   end subroutine BroydenMixer_init
 
 
   !> Makes the mixer ready for a new SCC cycle
-  subroutine BroydenMixer_reset(self, nElem)
+  subroutine BroydenMixer_reset(this, nElem)
 
     !> Broyden mixer instance
-    type(TBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: this
 
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
 
     @:ASSERT(nElem > 0)
 
-    if (nElem /= self%nElem) then
-      self%nElem = nElem
-      deallocate(self%qInpLast)
-      deallocate(self%qDiffLast)
-      allocate(self%qInpLast(self%nElem))
-      allocate(self%qDiffLast(self%nElem))
-      deallocate(self%dF)
-      allocate(self%dF(self%nElem, self%mIter - 1))
-      deallocate(self%uu)
-      allocate(self%uu(self%nElem, self%mIter - 1))
+    if (nElem /= this%nElem) then
+      this%nElem = nElem
+      deallocate(this%qInpLast)
+      deallocate(this%qDiffLast)
+      allocate(this%qInpLast(this%nElem))
+      allocate(this%qDiffLast(this%nElem))
+      deallocate(this%dF)
+      allocate(this%dF(this%nElem, this%mIter - 1))
+      deallocate(this%uu)
+      allocate(this%uu(this%nElem, this%mIter - 1))
     end if
-    self%iIter = 0
-    self%ww(:) = 0.0_dp
-    self%aa(:,:) = 0.0_dp
+    this%iIter = 0
+    this%ww(:) = 0.0_dp
+    this%aa(:,:) = 0.0_dp
 
   end subroutine BroydenMixer_reset
 
 
   !> Mixes charges according to the modified Broyden method
-  subroutine BroydenMixer_mix(self, qInpResult, qDiff)
+  subroutine BroydenMixer_mix(this, qInpResult, qDiff)
 
     !> The Broyden mixer
-    type(TBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
@@ -190,15 +190,15 @@ contains
     !> Charge difference between output and input charges
     real(dp), intent(in) :: qDiff(:)
 
-    self%iIter = self%iIter + 1
-    if (self%iIter > self%mIter) then
+    this%iIter = this%iIter + 1
+    if (this%iIter > this%mIter) then
       call error("Broyden mixer: Maximal nr. of steps exceeded")
     end if
 
-    call modifiedBroydenMixing(qInpResult, self%qInpLast, self%qDiffLast, &
-        &self%aa, self%ww, self%iIter, qDiff, self%alpha, self%omega0, &
-        &self%minWeight, self%maxWeight, self%weightFac, self%nElem, &
-        &self%dF, self%uu)
+    call modifiedBroydenMixing(qInpResult, this%qInpLast, this%qDiffLast, &
+        &this%aa, this%ww, this%iIter, qDiff, this%alpha, this%omega0, &
+        &this%minWeight, this%maxWeight, this%weightFac, this%nElem, &
+        &this%dF, this%uu)
 
   end subroutine BroydenMixer_mix
 
@@ -259,8 +259,7 @@ contains
     real(dp), allocatable :: dF_uu(:)
 
     real(dp) :: invNorm
-    integer :: nn_1
-    integer :: ii, info
+    integer :: ii, nn_1
     integer, allocatable :: ipiv(:)
 
     nn_1 = nn - 1
@@ -345,10 +344,10 @@ contains
 
 
   !> return inverse of the Jacobian for the mixing process
-  subroutine BroydenMixer_getInverseJacobian(self, invJac)
+  subroutine BroydenMixer_getInverseJacobian(this, invJac)
 
     !> Broyden mixer
-    type(TBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: this
 
     !> Inverse of the Jacobian
     real(dp), intent(out) :: invJac(:,:)
@@ -356,45 +355,45 @@ contains
     integer :: ii, jj, kk, mm, nn
     real(dp), allocatable :: beta(:,:), zeta(:)
 
-    @:ASSERT(all(shape(invJac) == [ self%nElem, self%nElem ]))
+    @:ASSERT(all(shape(invJac) == [ this%nElem, this%nElem ]))
 
-    mm = self%iIter - 1
+    mm = this%iIter - 1
     allocate(beta(mm, mm))
-    allocate(zeta(self%nElem))
+    allocate(zeta(this%nElem))
 
     ! Calculating G according to eq (14) in Johnsons paper.
     ! NOTE: The equation in the paper is incorrect, as instead of beta_ij
     ! one has to use (beta_ij * omega(i) * omega(j)) to be consistent
     ! with the mixing as given in eq. (15) and used in this mixer.
     do ii = 1, mm
-      beta(:mm, ii) = self%ww(:mm) * self%ww(ii) * self%aa(:mm, ii)
-      beta(ii, ii) = beta(ii, ii) + self%omega0**2
+      beta(:mm, ii) = this%ww(:mm) * this%ww(ii) * this%aa(:mm, ii)
+      beta(ii, ii) = beta(ii, ii) + this%omega0**2
     end do
     call matinv(beta)
     do ii = 1, mm
       do jj = 1, mm
-        beta(ii, jj) = beta(ii, jj) * self%ww(ii) * self%ww(jj)
+        beta(ii, jj) = beta(ii, jj) * this%ww(ii) * this%ww(jj)
       end do
     end do
 
     ! J^{-1}(m) = -G(m) = -G1 ...
     invJac(:,:) = 0.0_dp
-    do ii = 1, self%nElem
-      invJac(ii, ii) = -self%alpha
+    do ii = 1, this%nElem
+      invJac(ii, ii) = -this%alpha
     end do
 
     ! ... + sum_{k=1}^m |Z_k> <dF^(k)| with |Z_k> = sum_{n}^m beta_{kn} |u(n)>
     do kk = 1, mm
       zeta(:) = 0.0_dp
       do nn = 1, mm
-        zeta(:) = zeta + beta(kk, nn) * self%uu(:, nn)
+        zeta(:) = zeta + beta(kk, nn) * this%uu(:, nn)
       end do
-      call ger(invJac, 1.0_dp, zeta, self%dF(:,kk))
+      call ger(invJac, 1.0_dp, zeta, this%dF(:,kk))
     end do
 
     ! Normalize inverse Jacobian
-    do ii = 1, self%nElem
-      invJac(:,ii) = (invJac(:,ii) / sum(invJac(:,ii))) * (-self%alpha)
+    do ii = 1, this%nElem
+      invJac(:,ii) = (invJac(:,ii) / sum(invJac(:,ii))) * (-this%alpha)
     end do
 
   end subroutine BroydenMixer_getInverseJacobian

@@ -26,7 +26,6 @@ module dftbp_rs_linearresponse
   use dftbp_taggedOutput, only: TTaggedWriter, tagLabels
   use dftbp_linresp
   use dftbp_linrespcommon
-  use dftbp_linrespgrad ! calcTransitionDipoles, getExcSpin, writeSPExcitations, writeExcMulliken
   use dftbp_rangeseparated
   use dftbp_sorting
   use dftbp_qm
@@ -56,13 +55,10 @@ module dftbp_rs_linearresponse
   character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
   character(*), parameter :: transitionsOut = "TRA.DAT"
   character(*), parameter :: XplusYOut = "XplusY.DAT"
-  character(*), parameter :: excitedQOut = "XCH.DAT"
-  character(*), parameter :: excitedDipoleOut = "XREST.DAT"
   character(*), parameter :: excitedCoefsOut = "COEF.DAT"
   character(*), parameter :: excitationsOut = "EXC.DAT"
   character(*), parameter :: transDipOut = "TDP.DAT"
   character(*), parameter :: transChargesOut = "ATQ.DAT"
-  character(*), parameter :: singlePartOut = "SPX.DAT"
 
   !> Tolerance for ARPACK solver.
   real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
@@ -739,7 +735,7 @@ contains
       & fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow,&
       & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
-    logical, intent(in) :: tOnsite ! TODO make intent inout so it can be forced to .false. below
+    logical, intent(in) :: tOnsite
     integer, intent(in) :: nAtom, iAtomStart(:)
     real(dp), intent(in) :: grndEigVecs(:,:,:), grndEigVal(:,:), dQ(:), coord0(:,:)
     type(TScc), intent(in) :: sccCalc
@@ -915,7 +911,7 @@ contains
     ! are gradients required?
     tGrads = present(excGrad)  ! For now no gradients, but keep for later!
     ! is a Z-vector required?
-    tZVector = tGrads .or. tMulliken .or. tCoeffs
+    tZVector = tGrads .or. tMulliken .or. tCoeffs .or. tTransQ
 
     ! Sanity checks
     nStat = nStat0
@@ -923,8 +919,9 @@ contains
       call error("Linresp: Brightest mode only for singlets.")
     elseif (nStat /= 0 .and. cSym == "B") then
       call error("Linresp: Both symmetries not allowed if specific state is excited")
-    elseif (nStat == 0 .and. (tGrads .or. tMulliken .or. tCoeffs)) then
-      call error("Linresp: Gradient, charges and coefficients only with selected excitation.")
+    elseif (nStat == 0 .and. tZVector) then
+      call error("Linresp: Gradient, charges, coefficients and charges only with selected&
+          & excitation.")
     elseif (tGrads .and. nExc > nXov) then
       call error("Linresp: With gradients nExc can be max. the number of occ-virt excitations")
     end if
@@ -1756,13 +1753,13 @@ contains
 
 
   !> Computes excitation spectrum through range separated response calculation
-  subroutine linRespCalcExcitationsRS(spin, tOnsite, self, iAtomStart, eigVec, eigVal, sccCalc,&
+  subroutine linRespCalcExcitationsRS(spin, tOnsite, this, iAtomStart, eigVec, eigVal, sccCalc,&
       & SSqrReal, filling, coords0, dqAt, specie0, hubbUAtom, iNeighbor, img2CentCell, orb, rsData,&
       & tWriteTagged, fdTagged, taggedWriter, excEnergy, skHamCont, skOverCont, derivator,&
       & deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
-    type(TLinResp), intent(inout) :: self
+    type(TLinResp), intent(inout) :: this
     integer, intent(in) :: iAtomStart(:)
     real(dp), intent(in) :: eigVec(:,:,:)
     real(dp), intent(in) :: eigVal(:,:), SSqrReal(:,:)
@@ -1811,12 +1808,12 @@ contains
 
     if (.not. present(excGrad)) then
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nMoved,&
-          & hubbUAtom, self%spinW, self%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans,&
-          & self%fdSPTrans, self%fdTraDip, self%fdTransQ, self%tArnoldi, self%fdArnoldi,&
-          & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow,&
-          & self%oscillatorWindow, self%tCacheCharges, excEnergy)
+          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
+          & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
+          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
       allocate(shiftPerL(orb%mShell, nAtom))
@@ -1825,12 +1822,12 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nMoved,&
-          & hubbUAtom, self%spinW, self%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans,&
-          & self%fdSPTrans, self%fdTraDip, self%fdTransQ, self%tArnoldi, self%fdArnoldi,&
-          & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow,&
-          & self%oscillatorWindow, self%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
+          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
+          & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
+          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
 

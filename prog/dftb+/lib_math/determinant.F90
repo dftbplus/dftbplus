@@ -98,7 +98,7 @@ contains
     ${TYPE}$(dp) :: det
 
     integer, allocatable  :: ipiv(:)
-    integer :: ii, jj, iLoc, jLoc, n, mm, nn
+    integer :: ii, jj, iLoc, jLoc, mm, nn
     logical :: tDiagBlock, tAnyDiag
     ${TYPE}$(dp) :: detLocal
     ${TYPE}$(dp), allocatable :: detBuffer(:)

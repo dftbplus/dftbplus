@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Implementation of the electronegativity equilibration charge model used
 !> for the charge scaling in DFT-D4.
@@ -200,8 +201,6 @@ contains
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:, :)
 
-    real(dp) :: recVecs(3, 3), maxGEwald
-
     this%tPeriodic = present(latVecs)
 
     if (this%tPeriodic) then
@@ -242,7 +241,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species)
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species, stat)
 
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
@@ -259,6 +258,9 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species(:)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     integer, allocatable :: nNeigh(:)
 
     call this%cnCont%updateCoords(neigh, img2CentCell, coords, species)
@@ -271,7 +273,8 @@ contains
         & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
         & this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, &
         & this%energies, this%gradients, this%stress, &
-        & this%charges, this%dqdr, this%dqdL)
+        & this%charges, this%dqdr, this%dqdL, stat)
+    @:HANDLE_ERROR(stat)
 
     this%tCoordsUpdated = .true.
 
@@ -611,8 +614,8 @@ contains
     aMat(:, :) = 0.0_dp
 
     ! Real space part of the Ewald sum.
-    call addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-        & img2CentCell, gam, rad, alpha, aMat)
+    call addRealSpaceContribs(nAtom, species, nNeighbour, iNeighbour, neighDist2, img2CentCell,&
+        & gam, rad, alpha, aMat)
 
     ! Reciprocal space part of the Ewald sum.
     call addEwaldContribs(nAtom, coords, recPoint, alpha, volume, aMat)
@@ -792,17 +795,14 @@ contains
 
 
   !> Real space contributions to interaction matrix.
-  subroutine addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-      & img2CentCell, gam, rad, alpha, aMat)
+  subroutine addRealSpaceContribs(nAtom, species, nNeighbour, iNeighbour, neighDist2, img2CentCell,&
+      & gam, rad, alpha, aMat)
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
 
     !> Species of every atom.
     integer, intent(in) :: species(:)
-
-    !> List of atomic coordinates (all atoms).
-    real(dp), intent(in) :: coords(:, :)
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -940,7 +940,7 @@ contains
   !> Electronegativity equilibration charge model
   subroutine getEEQCharges(nAtom, coords, species, charge, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, energies,&
-      & gradients, stress, qAtom, dqdr, dqdL)
+      & gradients, stress, qAtom, dqdr, dqdL, stat)
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -1015,6 +1015,9 @@ contains
     !> Derivative of partial charges w.r.t. strain deformations.
     real(dp), intent(out), optional :: dqdL(:, :, :)
 
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
     real(dp), parameter :: small = 1.0e-14_dp
 
     !> Matrix of 1/R values for each atom pair.
@@ -1031,7 +1034,7 @@ contains
 
     logical :: tPeriodic
     integer :: nDim
-    integer :: iAt1, iSp1, ii, jj
+    integer :: iAt1, iSp1, ii
     real(dp) :: tmp
 
     tPeriodic = allocated(recPoint)
@@ -1063,7 +1066,8 @@ contains
 
     ! Step 3: invert linear system
     aInv(:, :) = aMat
-    call symmatinv(aInv)
+    call symmatinv(aInv, info=stat)
+    @:HANDLE_ERROR(stat)
     qVec(:) = 0.0_dp
     call hemv(qVec, aInv, xVec)
 

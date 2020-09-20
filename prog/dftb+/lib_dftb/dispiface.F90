@@ -10,6 +10,7 @@ module dftbp_dispiface
   use dftbp_accuracy, only : dp
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
+  use dftbp_commontypes, only : TOrbitals
   implicit none
   private
   
@@ -36,13 +37,23 @@ module dftbp_dispiface
 
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
+
+    !> Updates charges for dispersion models that make use of charges
+    procedure :: updateOnsiteCharges
+
+    !> Add potential contribution from  models which produce an atomic hamiltonian contribution
+    procedure :: addPotential
+
+    !> Is the dispersion energy available for use
+    procedure :: energyAvailable
+
   end type TDispersionIface
 
 
   abstract interface
 
     !> Update internal stored coordinate
-    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0)
+    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0, stat)
       import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
@@ -62,6 +73,9 @@ module dftbp_dispiface
 
       !> central cell chemical species
       integer, intent(in) :: species0(:)
+
+      !> Status of operation
+      integer, intent(out), optional :: stat
     end subroutine updateCoordsIface
 
 
@@ -125,5 +139,56 @@ module dftbp_dispiface
     end function getRCutoffIface
 
   end interface
+
+contains
+
+  !> update charges, dummy interface if not needed
+  subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
+
+    !> data structure
+    class(TDispersionIface), intent(inout) :: this
+
+    !> Net atomic populations
+    real(dp), intent(in), allocatable :: qNetAtom(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Reference neutal charge
+    real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Atomic species of atoms
+    integer, intent(in) :: species0(:)
+
+    !> Are the charges from self-consistent output or otherwise suitable to use if needed
+    logical, intent(in) :: tCanUseCharges
+
+  end subroutine updateOnsiteCharges
+
+
+  !> Adds the atomic potential contribution from suitable dispersion models, no effect otherwise
+  subroutine addPotential(this, vDisp)
+
+    !> data structure
+    class(TDispersionIface), intent(in) :: this
+
+    !> Atomistic potential (dummy for most dispersion models)
+    real(dp), intent(inout) :: vDisp(:)
+
+  end subroutine addPotential
+
+
+  !> Is the dispersion energy available for use in the main code after calling getEnergies
+  function energyAvailable(this)
+
+    !> data structure
+    class(TDispersionIface), intent(in) :: this
+
+    !> result (dummy for most dispersion models)
+    logical :: energyAvailable
+
+    energyAvailable = .true.
+
+  end function energyAvailable
 
 end module dftbp_dispiface
