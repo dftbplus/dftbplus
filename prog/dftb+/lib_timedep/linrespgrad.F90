@@ -351,7 +351,7 @@ contains
       ! use a stable sort so that degenerate transitions from the same single particle state are
       ! grouped together in the results, allowing these to be selected together (since how intensity
       ! is shared out over degenerate transitions is arbitrary between eigensolvers/platforms).
-      call merge_sort(win, wij, 1.0_dp*epsilon(1.0))
+      call merge_sort(win, wij, 1.0E-4_dp*epsilon(0.0_rsp))
     else
       ! do not require stability, use the usual routine to sort, saving an O(N) workspace
       call index_heap_sort(win, wij)
