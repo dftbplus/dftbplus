@@ -43,11 +43,11 @@ Hamiltonian = DFTB{
 
   NonAufbau=Yes
   GroundGuess=Yes
-  
-  Charge = 0 
+
+  Charge = 0
   SCC = Yes
   SpinPolarisation = Colinear {
-  UnpairedElectrons = 0 
+    UnpairedElectrons = 0
   }
   SpinConstants = {
     H = {
@@ -82,7 +82,7 @@ Hamiltonian = DFTB{
     O-H = "O-H.skf"
     O-O = "O-O.skf"
     O-C = "O-C.skf"
-    O-N = "O-N.skf"    
+    O-N = "O-N.skf"
     N-N = "N-N.skf"
     N-O = "N-O.skf"
     N-H = "N-H.skf"
@@ -90,3 +90,10 @@ Hamiltonian = DFTB{
   }
 }
 
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 7
+}
