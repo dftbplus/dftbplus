@@ -97,6 +97,7 @@ module dftbp_main
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_reks
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
+  use dftbp_deltadftb
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -165,13 +166,13 @@ contains
     integer :: iDeterminant
 
     !> first determinant in range to evaluate
-    integer :: startDeterminant
+    integer :: firstDeterminant
 
     !> last determinant in range to evaluate
     integer :: lastDeterminant
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
-        & iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant, startDeterminant)
+        & iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, firstDeterminant, lastDeterminant)
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
@@ -187,12 +188,12 @@ contains
 
       ! TI-DFTB Determinant Loop
       ! Will pass though loop once, unless specified in input
-      lpDets : do iDeterminant = startDeterminant, lastDeterminant
+      lpDets : do iDeterminant = firstDeterminant, lastDeterminant
 
         call processGeometry(env, iGeoStep, iLatGeoStep, iDeterminant, tWriteRestart, tStopScc,&
             & tExitGeoOpt)
 
-        if (.not. iDeterminant == 0) then
+        if (.not. iDeterminant == determinants%ground) then
           call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
               & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
         end if
@@ -923,7 +924,7 @@ contains
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if (isGeoOpt .and. tWriteRestart) then
-      if (.not. (tSpinPurify .and. iDeterminant == 1)) then
+      if (.not. (tSpinPurify .and. iDeterminant == determinants%triplet)) then
         call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
             & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin,&
             & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
@@ -1201,8 +1202,8 @@ contains
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
-      & iGeoStep, iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant,&
-      & startDeterminant)
+      & iGeoStep, iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, firstDeterminant,&
+      & lastDeterminant)
 
     !> Are atomic coordinates changing
     logical, intent(in) :: tCoordOpt
@@ -1234,11 +1235,11 @@ contains
     !> Should the ground state be evaluated
     logical, intent(in) :: tGroundGuess
 
+    !> first determinant in range to evaluate
+    integer, intent(out) :: firstDeterminant
+
     !> last determinant in range to evaluate
     integer, intent(out) :: lastDeterminant
-
-    !> first determinant in range to evaluate
-    integer, intent(out) :: startDeterminant
 
     tGeomEnd = (nGeoSteps == 0)
 
@@ -1251,47 +1252,9 @@ contains
     iGeoStep = 0
     iLatGeoStep = 0
 
-    call initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant, startDeterminant)
+    call initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, firstDeterminant, lastDeterminant)
 
   end subroutine initGeoOptParameters
-
-
-  !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, stopDeterminant, startDeterminant)
-
-    !> Is this a non-aufbau filled TI calculation
-    logical, intent(in) :: tNonAufbau
-
-    !> Is this a spin purified calculation?
-    logical, intent(in) :: tSpinPurify
-
-    !> Should there be a ground state intial guess before Non-Aufbau calc?
-    logical, intent(in) :: tGroundGuess
-
-    !> Which state is being calculated? If 1 = triplet, 2 = mixed
-    integer, intent(out) :: stopDeterminant
-
-    !> First determinant in set to calculate
-    integer, intent(out) :: startDeterminant
-
-    if (.not.tNonAufbau) then
-      startDeterminant = 1
-      stopDeterminant = 1
-      return
-    end if
-
-    if (tGroundGuess) then
-      startDeterminant = 0
-    else
-      startDeterminant = 1
-    end if
-    if (tSpinPurify) then
-      stopDeterminant = 2
-    else
-      stopDeterminant = 1
-    end if
-
-  end subroutine initTIDFTB
 
 
   !> Does the operations that are necessary after a lattice vector update
@@ -3169,8 +3132,9 @@ contains
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
 
-    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    !> Which state is being calculated?
     integer, intent(in) :: iDeterminant
+
     real(dp), intent(in) :: nEl(:)
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
@@ -3617,33 +3581,6 @@ contains
     end if
 
   end subroutine getNextInputDensity
-
-
-  !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine ZieglerSum(energy, derivs, tripletderivs, mixedderivs, tGeoOpt)
-
-    !> energy components
-    type(TEnergies), intent(inout) :: energy
-
-    !> derivative components
-    real(dp), intent(inout), allocatable, optional:: derivs(:,:)
-    real(dp), intent(inout), allocatable, optional :: tripletderivs(:,:)
-    real(dp), intent(inout), allocatable, optional :: mixedderivs(:,:)
-    logical, intent(in) :: tGeoOpt
-
-
-        ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
-        energy%Etotal = 2.0_dp*energy%Emixed-energy%Etriplet
-        energy%EMermin = 2.0_dp*energy%EmixMermin-energy%EtripMermin
-        energy%Ezero = 2.0_dp*energy%EmixZero-energy%EtripZero
-        energy%EGibbs = 2.0_dp*energy%EmixGibbs-energy%EtripGibbs
-        energy%EForceRelated = 2.0_dp*energy%EmixForceRelated-energy%EtripForceRelated
-        ! dE_S1 = 2dE_mix - dE_triplet
-        if (tGeoOpt) then
-          derivs(:,:) = 2.0_dp*mixedderivs-tripletderivs
-        endif
-
-  end subroutine ZieglerSum
 
 
   !> Reduce charges according to orbital equivalency rules.
@@ -5476,9 +5413,9 @@ contains
     if(tNonAufbau) then
       tripletderivs(:,:) = 0.0_dp
       mixedderivs(:,:) = 0.0_dp
-      if (tSpinPurify .and. iDeterminant == 1) then
+      if (tSpinPurify .and. iDeterminant == determinants%triplet) then
         tripletderivs(:,:) = derivs
-      else if (iDeterminant /= 0) then
+      else if (iDeterminant /= determinants%ground) then
         mixedderivs(:,:) = derivs
       end if
     end if

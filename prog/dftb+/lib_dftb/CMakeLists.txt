@@ -7,6 +7,7 @@ set(sources-fpp
   ${curdir}/charges.F90
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90
+  ${curdir}/deltadftb.F90
   ${curdir}/densitymatrix.F90
   ${curdir}/dftbplusu.F90
   ${curdir}/dftd3param.F90
