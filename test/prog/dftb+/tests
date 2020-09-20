@@ -5,9 +5,9 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
-DeltaSCC/C2H4                          #? OMP_THREADS <= 2 and not WITH_MPI
-DeltaSCC/C2H4_noground                 #? OMP_THREADS <= 2 and not WITH_MPI
-DeltaSCC/C2H4_unpurified               #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/C2H4                         #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
