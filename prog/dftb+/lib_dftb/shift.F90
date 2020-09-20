@@ -278,6 +278,7 @@ contains
     integer, intent(in) :: species(:)
 
     integer iAtom, iSpin, nAtom, nSpin
+
     nAtom = size(atom, dim=1)
     nSpin = size(atom, dim=2)
 
@@ -323,6 +324,7 @@ contains
     @:ASSERT(size(shell, dim=2) == nAtom)
     @:ASSERT(size(shell, dim=3) == nSpin)
     @:ASSERT(size(species) >= nAtom)
+
     do iSpin = 1, nSpin
       do iAt = 1, nAtom
         iSp = species(iAt)

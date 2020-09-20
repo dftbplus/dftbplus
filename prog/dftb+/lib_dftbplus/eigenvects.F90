@@ -1,4 +1,3 @@
-
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
 !  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
@@ -75,7 +74,6 @@ contains
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-
     select case(electronicSolver%iSolver)
     case(electronicSolverTypes%QR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)

@@ -16,7 +16,6 @@ module dftbp_sparse2dense
   use dftbp_constants, only : pi, imag
   use dftbp_commontypes
   use dftbp_memman
-  use dftbp_sorting
   use dftbp_periodic, only : TNeighbourList
   use dftbp_densedescr
   use dftbp_angmomentum, only : rotateZ

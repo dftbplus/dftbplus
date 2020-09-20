@@ -158,11 +158,20 @@ contains
     !> Whether charges should be written
     logical :: tWriteCharges
 
+    !> Should the geometry loop be stopped early
     logical :: tExitGeoOpt
 
+    !> Which state is being calculated in the determinant loop?
+    integer :: iDeterminant
+
+    !> first determinant in range to evaluate
+    integer :: startDeterminant
+
+    !> last determinant in range to evaluate
+    integer :: lastDeterminant
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
-        & iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, nDet, det)
+        & iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant, startDeterminant)
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
@@ -177,17 +186,15 @@ contains
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
       ! TI-DFTB Determinant Loop
-      ! Will pass though loop once unless specified in input
-      lpDets : do iDet = det, nDet
-        call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
+      ! Will pass though loop once, unless specified in input
+      lpDets : do iDeterminant = startDeterminant, lastDeterminant
 
-        if (.not. iDet==0) then
+        call processGeometry(env, iGeoStep, iLatGeoStep, iDeterminant, tWriteRestart, tStopScc,&
+            & tExitGeoOpt)
+
+        if (.not. iDeterminant == 0) then
           call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
               & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
-        end if
-
-        if (iDet == nDet) then
-          exit lpDets
         end if
 
       end do lpDets
@@ -196,7 +203,8 @@ contains
         if (tSpinPurify) then
           call ZieglerSum(energy, derivs, tripletderivs, mixedderivs, isGeoOpt)
         end if
-        call printEnergies(energy, electronicSolver, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+        call printEnergies(energy, electronicSolver, tNonAufbau, tSpinPurify, tGroundGuess,&
+            & lastDeterminant)
       end if
 
       if (tExitGeoOpt) then
@@ -361,7 +369,7 @@ contains
 
 
   !> Process current geometry
-  subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
+  subroutine processGeometry(env, iGeoStep, iLatGeoStep, iDeterminant, tWriteRestart, tStopScc,&
       & tExitGeoOpt, stat)
     use dftbp_initprogram
 
@@ -373,6 +381,9 @@ contains
 
     !> Current lattice step
     integer, intent(in) :: iLatGeoStep
+
+    !> The determinant being processed
+    integer, intent(in) :: iDeterminant
 
     !> flag to write out geometries (and charge data if scc)
     logical, intent(in) :: tWriteRestart
@@ -673,7 +684,7 @@ contains
             & rangeSep, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal,&
             & SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal,&
             & deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices,&
-            & tNonAufbau, tSpinPurify, iDet)
+            & tNonAufbau, tSpinPurify, iDeterminant)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (isRangeSep) then
@@ -786,10 +797,11 @@ contains
           call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
         end if
 
-        call sumEnergies(energy, tNonAufbau, iDet, tSpinPurify)
+        call sumEnergies(energy, tNonAufbau, iDeterminant, tSpinPurify)
 
         if (tWriteDetailedOut) then
-          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter,&
+              & iDeterminant)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
@@ -815,12 +827,13 @@ contains
       call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0,&
           & tConverged .or. .not.isSccConvRequired)
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
-      call sumEnergies(energy, tNonAufbau, iDet, tSpinPurify)
+      call sumEnergies(energy, tNonAufbau, iDeterminant, tSpinPurify)
 
 
       if (tWriteDetailedOut) then
         close(fdDetailedOut)
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter,&
+            & iDeterminant)
         if (allocated(reks)) then
           call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
               & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
@@ -910,7 +923,7 @@ contains
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if (isGeoOpt .and. tWriteRestart) then
-      if (.not. (tSpinPurify.and.iDet==1)) then
+      if (.not. (tSpinPurify .and. iDeterminant == 1)) then
         call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
             & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin,&
             & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
@@ -945,7 +958,7 @@ contains
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
             & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
             & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson,&
-            & halogenXCorrection, tHelical, coord0, tNonAufbau, tSpinPurify, iDet)
+            & halogenXCorrection, tHelical, coord0, tNonAufbau, tSpinPurify, iDeterminant)
 
         if (tCasidaForces) then
           derivs(:,:) = derivs + excitedDerivs
@@ -1188,7 +1201,8 @@ contains
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
-      & iGeoStep, iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, nDet, det)
+      & iGeoStep, iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant,&
+      & startDeterminant)
 
     !> Are atomic coordinates changing
     logical, intent(in) :: tCoordOpt
@@ -1211,12 +1225,20 @@ contains
     !> Number of steps changing the lattice vectors
     integer, intent(out) :: iLatGeoStep
 
-    !> Is this a TI-DFTB calculation? If so, init
+    !> Is this a TI-DFTB calculation?
     logical, intent(in) :: tNonAufbau
+
+    !> If TI-DFTB, should this spin purify
     logical, intent(in) :: tSpinPurify
+
+    !> Should the ground state be evaluated
     logical, intent(in) :: tGroundGuess
-    integer, intent(out) :: nDet
-    integer, intent(out) :: det
+
+    !> last determinant in range to evaluate
+    integer, intent(out) :: lastDeterminant
+
+    !> first determinant in range to evaluate
+    integer, intent(out) :: startDeterminant
 
     tGeomEnd = (nGeoSteps == 0)
 
@@ -1229,36 +1251,45 @@ contains
     iGeoStep = 0
     iLatGeoStep = 0
 
-    if (tNonAufbau) then
-      call initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
-    end if
+    call initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, lastDeterminant, startDeterminant)
 
   end subroutine initGeoOptParameters
 
 
-  !> Initialised TI-DFTB conditions for determinant loop
-  subroutine initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
+  !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
+  subroutine initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, stopDeterminant, startDeterminant)
 
-  !> Is this a spin purified calculation?
-  logical, intent(in) :: tSpinPurify
+    !> Is this a non-aufbau filled TI calculation
+    logical, intent(in) :: tNonAufbau
 
-  !> Should there be a ground state intial guess before Non-Aufbau calc?
-  logical, intent(in) :: tGroundGuess
+    !> Is this a spin purified calculation?
+    logical, intent(in) :: tSpinPurify
 
-  !> Which state is being calculated? 1 = triplet, 2 = mixed
-  integer, intent(out) :: nDet
-  integer, intent(out) :: det
+    !> Should there be a ground state intial guess before Non-Aufbau calc?
+    logical, intent(in) :: tGroundGuess
 
-      if (tGroundGuess) then
-        det = 0
-      else
-        det = 1
-      end if
-      if (tSpinPurify) then
-        nDet = 2
-      else
-        nDet = 1
-      end if
+    !> Which state is being calculated? If 1 = triplet, 2 = mixed
+    integer, intent(out) :: stopDeterminant
+
+    !> First determinant in set to calculate
+    integer, intent(out) :: startDeterminant
+
+    if (.not.tNonAufbau) then
+      startDeterminant = 1
+      stopDeterminant = 1
+      return
+    end if
+
+    if (tGroundGuess) then
+      startDeterminant = 0
+    else
+      startDeterminant = 1
+    end if
+    if (tSpinPurify) then
+      stopDeterminant = 2
+    else
+      stopDeterminant = 1
+    end if
 
   end subroutine initTIDFTB
 
@@ -1826,7 +1857,7 @@ contains
       & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling,&
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, tLargeDenseMatrices, tNonAufbau, tSpinPurify, iDet)
+      & nNeighbourLC, tLargeDenseMatrices, tNonAufbau, tSpinPurify, iDeterminant)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2001,7 +2032,7 @@ contains
     logical, intent(in) :: tSpinPurify
 
     !> Which determinant is this in Delta SCF
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iDeterminant
 
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -2040,7 +2071,7 @@ contains
           & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS,&
           & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
           & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-          & tNonAufbau, tSpinPurify, iDet)
+          & tNonAufbau, tSpinPurify, iDeterminant)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -2066,7 +2097,7 @@ contains
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
       & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
       & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
-      & deltaRhoOutSqr, qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, iDet)
+      & deltaRhoOutSqr, qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, iDeterminant)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2233,7 +2264,7 @@ contains
 
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iDeterminant
 
     integer :: nSpin
 
@@ -2258,8 +2289,8 @@ contains
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, tSpinPurify, iDet,&
-        & nEl)
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, tSpinPurify,&
+        & iDeterminant, nEl)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -3087,7 +3118,7 @@ contains
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau,&
-      & tSpinPurify, iDet, nEl)
+      & tSpinPurify, iDeterminant, nEl)
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(inout) :: eigvals(:,:,:)
@@ -3135,11 +3166,11 @@ contains
     !> Is this a non-Aufbau calculation?
     logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation? - MYD
+    !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
 
     !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iDeterminant
     real(dp), intent(in) :: nEl(:)
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
@@ -3162,13 +3193,13 @@ contains
       ! Fixed value of the Fermi level for each spin channel
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, tSpinPurify, iDet,&
-            & nEl, iS)
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, tSpinPurify,&
+            & iDeterminant, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
+          & iDistribFn, tNonAufbau, tSpinPurify, iDeterminant, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
       ! Every spin channel and every k-point filled up individually.
@@ -3180,7 +3211,7 @@ contains
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
               & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn,&
-              & tNonAufbau, tSpinPurify, iDet, nEl, iS)
+              & tNonAufbau, tSpinPurify, iDeterminant, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3192,7 +3223,7 @@ contains
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&
-            & tSpinPurify, iDet, nEl, iS)
+            & tSpinPurify, iDeterminant, nEl, iS)
       end do
     end if
 
@@ -5183,7 +5214,7 @@ contains
       & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
       & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson,&
-      & halogenXCorrection, tHelical, coord0, tNonAufbau, tSpinPurify, iDet)
+      & halogenXCorrection, tHelical, coord0, tNonAufbau, tSpinPurify, iDeterminant)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5307,7 +5338,7 @@ contains
 
     !> Is this a TI-DFTB calculation?
     logical, intent(in) :: tNonAufbau
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iDeterminant
     logical, intent(in) :: tSpinPurify
 
     ! Locals
@@ -5445,9 +5476,9 @@ contains
     if(tNonAufbau) then
       tripletderivs(:,:) = 0.0_dp
       mixedderivs(:,:) = 0.0_dp
-      if (tSpinPurify.and.iDet==1) then
+      if (tSpinPurify .and. iDeterminant == 1) then
         tripletderivs(:,:) = derivs
-      else if (iDet/=0) then
+      else if (iDeterminant /= 0) then
         mixedderivs(:,:) = derivs
       end if
     end if

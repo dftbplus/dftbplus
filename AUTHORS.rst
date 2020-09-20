@@ -41,7 +41,7 @@ contributed to DFTB+ :
 
 * Jan Hermann (Free University of Berlin, Germany)
 
-* Tim Kowalczyk (Western Washington University) 
+* Tim Kowalczyk (Western Washington University)
 
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 

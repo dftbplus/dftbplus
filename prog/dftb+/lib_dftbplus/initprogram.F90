@@ -1025,17 +1025,11 @@ module dftbp_initprogram
   !> Should there be a ground state intial guess before Non-Aufbau calc?
   logical :: tGroundGuess
 
-  !> Which state is being calculated in the determinant loop?
-  integer :: iDet
-  integer :: nDet =1
-  integer :: det =1
-
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
 
   !> atomic charge contribution in excited state
   real(dp), allocatable :: dQAtomEx(:)
-
 
 contains
 
@@ -1175,10 +1169,6 @@ contains
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
-    !> Which state is being calculated in the determinant loop?
-    integer :: iDet
-    integer :: nDet =1
-
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1237,7 +1227,7 @@ contains
     ! start by assuming stress can be calculated if periodic
     tStress = tPeriodic ! .or. tHelical
 
-    ! TI-DFTB related variables - MYD, TDK, RAS
+    ! TI-DFTB related variables
     tNonAufbau = input%ctrl%tNonAufbau
     tSpinPurify = input%ctrl%tSpinPurify
     tGroundGuess = input%ctrl%tGroundGuess

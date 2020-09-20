@@ -80,7 +80,6 @@ contains
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
-
     dm(:,:) = 0.0_dp
     do ii =  size(filling), 1, -1
       nLevels = ii
@@ -89,21 +88,21 @@ contains
       end if
     end do
     ! Determine whether fillings are non-Aufbau
-    if (nLevels/=1)then 
-      mixIndx=nLevels-1 !sets to HOMO-1
-      if (filling(mixIndx)==0.0_dp) then
-        tNonAufbau=.true.
+    if (nLevels /= 1)then
+      mixIndx = nLevels - 1 ! sets to HOMO-1
+      if (abs(filling(mixIndx)) > epsilon(0.0_dp)) then
+        tNonAufbau = .true.
       end if
-    end if 
+    end if
     ! default density matrix build assumes Aufbau fillings;
     ! if non-Aufbau, store the HOMO-1 eigenvector for later
     if (tNonAufbau) then
       allocate(tmpMtx(size(eigenvecs, dim=1)))
-      tmpMtx=eigenVecs(:,mixIndx)
+      tmpMtx(:) = eigenVecs(:,mixIndx)
     endif
     shift = minval(filling(1:nLevels))
-    if (shift >epsilon(1.0_dp)) then
-    ! all fillings are positive
+    if (shift > epsilon(1.0_dp)) then
+      ! all fillings are definitely positive
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
@@ -112,7 +111,6 @@ contains
       !$OMP  END PARALLEL DO
 
       call herk(dm, eigenvecs(:,1:nLevels))
-
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
@@ -140,7 +138,7 @@ contains
     end if
 
     if (tNonAufbau) then
-       eigenvecs(:,mixIndx)=tmpMtx
+       eigenvecs(:,mixIndx) = tmpMtx
     endif
 
   end subroutine fullDensityMatrix_real

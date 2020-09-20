@@ -103,6 +103,8 @@ contains
 
     !> Number of electrons and spin channel index
     real(dp), intent(in) :: nEl(:)
+
+    !> Spin channel
     integer, intent(in) :: iS
 
     real(dp) :: upperEf, lowerEf
@@ -292,13 +294,13 @@ contains
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x <= mExpArg) then
               electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
             end if
-#:else
+          #:else
             electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-#:endif
+          #:endif
           end do
         end do
       end do
@@ -348,15 +350,15 @@ contains
             if (x<10.0_dp) then
               ! Where the compiler does not handle inf gracefully, trap the exponential function for
               ! small input values
-#:if EXP_TRAP
+            #:if EXP_TRAP
               if (x <= mExpArg) then
                 derivElectronCount = derivElectronCount + &
                     & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
               end if
-#:else
+            #:else
               derivElectronCount = derivElectronCount + &
                   & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-#:endif
+            #:endif
             end if
           end do
         end do
@@ -414,9 +416,11 @@ contains
 
     !> Number of electrons and spin channel index
     real(dp), intent(in) :: nEl(:)
+
+    !> Current spin channel (if relevant)
     integer, intent(in) :: iS
 
-    real(dp) :: swapfill
+    real(dp) :: swapFill
     integer :: MPorder
     integer :: kpts
     real(dp) :: w
@@ -486,7 +490,7 @@ contains
 ! TI-DFTB Non-Aufbau filling routine
       if (tNonAufbau) then
         allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
-        tmpMtx=eigenvals
+        tmpMtx(:,:,:) = eigenvals
         do iSpin = 1, size(eigenvals, dim=3)
           do i = 1, kpts
             if (iDet == 1 .and. tSpinPurify .and. iS==1) then
@@ -494,9 +498,9 @@ contains
             else if (iDet == 1 .and. tSpinPurify .and. iS==2) then
               eigenvals(int(nEl(iS)), i, iSpin)=eigenvals(int(nEl(iS)) + 1, i, iSpin)
             else if (iS==1 .and. iDet/=0) then
-              swapfill = eigenvals(int(nEl(iS)) + 1, iSpin, iSpin)
+              swapFill = eigenvals(int(nEl(iS)) + 1, iSpin, iSpin)
               eigenvals(int(nEl(iS)) + 1, iSpin, iSpin) = eigenvals(int(nEl(iS)), iSpin, iSpin)
-              eigenvals(int(nEl(iS)), iSpin, iSpin)  = swapfill
+              eigenvals(int(nEl(iS)), iSpin, iSpin)  = swapFill
             end if
           end do
         end do
@@ -507,15 +511,15 @@ contains
             x = (eigenvals(j, i, iSpin) - Ef) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x > mExpArg) then
               filling(j, i, iSpin) = 0.0_dp
             else
               filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
             endif
-#:else
+          #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-#:endif
+          #:endif
             if (tNonAufbau .and. j/=1) then
               if ( ((filling(max(j-1,1), i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
                 exit
@@ -536,7 +540,7 @@ contains
         end do
       end do
       if (tNonAufbau) then
-        eigenvals=tmpMtx
+        eigenvals(:,:,:) = tmpMtx
       end if
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
