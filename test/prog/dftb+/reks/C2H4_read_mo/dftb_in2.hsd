@@ -14,34 +14,29 @@ Hamiltonian = DFTB {
   SCCTolerance = 1e-8
   MaxSCCIterations = 1000
   Charge = 0.0
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "/home/islee/program/dftb/slko/mio-1-1/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
   SpinConstants = {
     ShellResolvedSpin = Yes
     H = { -0.072 }
     C = { -0.031 -0.025 -0.025 -0.023 }
   }
-  MaxAngularMomentum = {
-    H = "s"
-    C = "p"
-  }
-  SlaterKosterFiles = {
-    C-C = "C-C.skf"
-    C-H = "C-H.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
-  }
 }
 
-Analysis {
-  CalculateForces = Yes
-}
-
-Reks = SSR22 {
+REKS = SSR22 {
   Energy = {
     Functional = { "PPS" "OSS" }
   }
   TargetState = 1
   ReadEigenvectors = Yes
-  FonMaxIter = 30
+  FonMaxIter = 100
   Shift = 1.0
   Gradient = ConjugateGradient {
     CGmaxIter = 100
@@ -50,6 +45,11 @@ Reks = SSR22 {
     SaveMemory = Yes
   }
   VerbosityLevel = 1
+}
+
+Analysis {
+  CalculateForces = Yes
+  WriteEigenvectors = Yes
 }
 
 Options {
