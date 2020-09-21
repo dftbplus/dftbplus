@@ -5,9 +5,9 @@ set(sources-fpp
   slater.F90
   waveplot.F90)
 
-list(APPEND FYPP_FLAGS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
+set(fypp_flags ${FYPP_BUILD_FLAGS} -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
 
-dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 
 add_executable(waveplot ${sources-f90-preproc})
 

@@ -49,13 +49,6 @@ function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
 
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
-    list(APPEND _fyppflags -DDEBUG=1)
-  else()
-    list(APPEND _fyppflags -DDEBUG=0)
-  endif()
-
   if(INTERNAL_ERFC)
     list(APPEND _fyppflags -DINTERNAL_ERFC=1)
   endif()
@@ -227,14 +220,6 @@ function (dftbp_ensure_config_consistency)
 
   if(WITH_GPU AND WITH_MPI)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
-  endif()
-
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
-      AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
-    message(FATAL_ERROR
-      "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
-Disable OpenMP (WITH_OMP) when compiling in debug mode")
   endif()
 
   if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
@@ -425,6 +410,18 @@ macro (dftbp_load_build_settings)
 endmacro()
 
 
+# Sets up the build type.
+function (dftbp_setup_build_type)
+  set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Coverage")
+  set(default_build_type "Release")
+  if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to ${default_build_type} as none was specified")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "Coverage")
+  endif()
+endfunction()
+
+
 # Tries to guess which toolchain to load based on the environment.
 #
 # Args:
@@ -471,17 +468,15 @@ endmacro()
 # Sets up the global compiler flags
 #
 macro (dftbp_setup_global_compiler_flags)
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
-  foreach (lang IN ITEMS Fortran C)
-    set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
-    set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
-    if(COVERAGE_ANALYSIS)
-      set(CMAKE_${lang}_FLAGS "${CMAKE_${lang}_FLAGS} ${${lang}_FLAGS_COVERAGE}")
-    endif()
-    message(STATUS "Flags for ${lang}-compiler: "
-      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+  foreach (buildtype IN LISTS CMAKE_CONFIGURATION_TYPES)
+    foreach (lang IN ITEMS Fortran C)
+      string(TOUPPER "${buildtype}" BUILDTYPE_UPPER)
+      set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+      set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+      message(STATUS "Flags for ${lang}-compiler (build type: ${buildtype}): "
+        "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    endforeach()
   endforeach()
-
 endmacro()
 
 

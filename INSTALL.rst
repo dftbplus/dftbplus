@@ -418,11 +418,11 @@ You generate coverage reports locally using the ``lcov`` and the ``genhtml``
 tools, provided they are installed on your system (and CMake can find them). The
 workflow (assuming ``make`` as build backend) is then as follows:
 
-* Configure your project with CMake with the options ``COVERAGE_ANALYSIS`` and
-  ``LCOV_REPORT`` turned on and build the code::
+* You must configure the project to build a ``Coverage`` config (to collect
+  coverage information) and must enable ``LCOV_REPORT``::
 
     cd _build
-    cmake -DCOVERAGE_ANALYSIS=True -DLCOV_REPORT=True ..
+    cmake -DCMAKE_BUILD_TYPE=Coverage -DLCOV_REPORT=True ..
     make -j
 
 * Delete and initialise the lcov counters by building the ``lcov_init`` target::

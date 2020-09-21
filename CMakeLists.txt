@@ -3,24 +3,18 @@ cmake_policy(VERSION 3.5)
 
 set(DFTBPLUS_VERSION "20.1")
 
-# Follow GNU conventions for installing directories
-include(GNUInstallDirs)
-
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Coverage")
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
-# By default, use intrinsic Fortran 2008 erf/erfc
-set(INTERNAL_ERFC CACHE BOOL 0)
-GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
-
+dftbp_setup_build_type()
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
@@ -36,6 +30,14 @@ dftbp_get_release_name(RELEASE)
 if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
+
+# By default, use intrinsic Fortran 2008 erf/erfc
+# Follow GNU conventions for installing directories
+include(GNUInstallDirs)
+GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
+
+set(INTERNAL_ERFC CACHE BOOL 0)
+
 
 find_package(MPI)
 if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
@@ -130,6 +132,9 @@ list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
 #
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_add_fypp_defines(FYPP_FLAGS)
+set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
+set(FYPP_BUILD_FLAGS "${FYPP_FLAGS} $<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
+
 
 set(PYTHON_INTERPRETER "python3" CACHE STRING
   "Python interpreter to use for installing and test python components")
@@ -218,9 +223,6 @@ endif()
 # Coverage testing related targets
 #
 if(LCOV_REPORT)
-  if(NOT DEFINED COVERAGE_ANALYSIS OR NOT COVERAGE_ANALYSIS)
-    message(FATAL_ERROR "LCOV-reporting requires COVERAGE_ANALYSIS turned on")
-  endif()
   find_program(LCOV lcov REQUIRED)
   find_program(GENHTML genhtml REQUIRED)
   dftbp_create_lcov_targets(${LCOV} ${GENHTML} ${CMAKE_CURRENT_BINARY_DIR}/lcov

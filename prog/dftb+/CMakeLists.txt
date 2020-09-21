@@ -1,17 +1,5 @@
 #
-# General options for all targets
-#
-list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
-
-if(WITH_API)
-  message(STATUS "DFTB+ API version: ${API_VERSION}")
-  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_VERSION}'")
-  list(APPEND FYPP_FLAGS -DAPIMAJOR=${API_VERSION_MAJOR} -DAPIMINOR=${API_VERSION_MINOR}
-    -DAPIPATCH=${API_VERSION_PATCH})
-endif()
-
-#
-# Compile and install library
+# Include necessary sources
 #
 
 set(ALL-SOURCES-F90)
@@ -41,7 +29,21 @@ if(WITH_GPU)
   add_subdirectory(lib_magmahelper)
 endif()
 
-dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+
+#
+# Set up preprocessing
+#
+set(fypp_flags ${FYPP_BUILD_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/include 
+  -DRELEASE=\"'${releasename}'\")
+
+if(WITH_API)
+  message(STATUS "DFTB+ API version: ${API_VERSION}")
+  list(APPEND fypp_flags -DAPIVERSION="'${API_VERSION}'")
+  list(APPEND fypp_flags -DAPIMAJOR=${API_VERSION_MAJOR} -DAPIMINOR=${API_VERSION_MINOR}
+    -DAPIPATCH=${API_VERSION_PATCH})
+endif()
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 
 # Library components
@@ -171,7 +173,7 @@ set(ALL-SOURCES-FPP)
 
 add_subdirectory(prg_dftb)
 
-dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_executable(dftb+ ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 

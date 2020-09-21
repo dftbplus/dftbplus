@@ -30,6 +30,9 @@ set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops"
 set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check"
   CACHE STRING "Fortran compiler flags for Debug build")
 
+set(Fortran_FLAGS_COVERAGE "-O0 --coverage" CACHE STRING
+  "Fortran compiler flags for coverage analysis build")
+
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
 
@@ -41,6 +44,8 @@ set(C_FLAGS "${CMAKE_C_FLAGS}"
 
 set(C_FLAGS_RELEASE "-O2 -funroll-all-loops"
   CACHE STRING  "C compiler flags for Release build")
+
+set(C_FLAGS_COVERAGE "-O0 --coverage" CACHE STRING "C compiler flags for coverage analysis build")
 
 set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
   CACHE STRING "C compiler flags for Debug build")
@@ -92,11 +97,3 @@ set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
 set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
 
-
-#
-# Developer settings
-#
-set(Fortran_FLAGS_COVERAGE "--coverage" CACHE STRING
-  "Fortran compiler flag for obtaining coverage info")
-
-set(C_FLAGS_COVERAGE "--coverage" CACHE STRING "C compiler flag for obtaining coverage info")

@@ -1,11 +1,6 @@
 #
 # Global architecture independent build settings
 #
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
-
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
-  "Directory to install the compiled code into")
-
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
 option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
@@ -74,6 +69,9 @@ endif()
 #
 # Installation options
 #
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
+  "Directory to install the compiled code into")
+
 set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
   "Installation directory for executables")
 
@@ -102,10 +100,8 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 #
 # Developer settings
 #
-option(COVERAGE_ANALYSIS "Whether coverage info should be collected" FALSE)
-# Works only with the GNU compiler
-
 option(LCOV_REPORT "Whether coverage report should be generated via lcov/genhtml" FALSE)
 # Requires lcov and genhtml to be installed on the system. After building the code, you have to
 # build manually the 'lcov_init' target (e.g. `make lcov_init`), then run the tests (e.g. `ctest`)
-# and finally generate the report with the lcov_report target (e.g. `make lcov_target`).
+# and finally generate the report with the lcov_report target (e.g. `make lcov_target`). Makes
+# only sense for build type 'Coverage'.
