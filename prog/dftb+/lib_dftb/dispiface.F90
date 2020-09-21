@@ -41,6 +41,9 @@ module dftbp_dispiface
     !> Updates charges for dispersion models that make use of charges
     procedure :: updateOnsiteCharges
 
+    !> Add potential contribution from  models which produce an atomic hamiltonian contribution
+    procedure :: addPotential
+
     !> Is the dispersion energy available for use
     procedure :: energyAvailable
 
@@ -139,14 +142,14 @@ module dftbp_dispiface
 
 contains
 
-  !> update charges, dummy iterface if not needed
-  subroutine updateOnsiteCharges(this, qOnsite, orb, referenceN0, species0, tCanUseCharges)
+  !> update charges, dummy interface if not needed
+  subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
 
     !> data structure
     class(TDispersionIface), intent(inout) :: this
 
     !> Net atomic populations
-    real(dp), intent(in) :: qOnsite(:)
+    real(dp), intent(in), allocatable :: qNetAtom(:)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -161,6 +164,18 @@ contains
     logical, intent(in) :: tCanUseCharges
 
   end subroutine updateOnsiteCharges
+
+
+  !> Adds the atomic potential contribution from suitable dispersion models, no effect otherwise
+  subroutine addPotential(this, vDisp)
+
+    !> data structure
+    class(TDispersionIface), intent(in) :: this
+
+    !> Atomistic potential (dummy for most dispersion models)
+    real(dp), intent(inout) :: vDisp(:)
+
+  end subroutine addPotential
 
 
   !> Is the dispersion energy available for use in the main code after calling getEnergies

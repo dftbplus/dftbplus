@@ -39,6 +39,8 @@ option(WITH_API "Whether public API should be included and the DFTB+ library ins
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
 
+option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
+
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
 # dynamically linked to their applications. This results in smaller applications, but the libraries
@@ -72,15 +74,15 @@ endif()
 #
 # Installation options
 #
-set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH
+set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
   "Installation directory for executables")
 
-set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
+set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
 
-set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
+set(CMAKE_INSTALL_INCLUDDIR "include/dftb+" CACHE PATH
   "Installation directory for header and include files")
 
-set(INSTALL_MOD_DIR "${INSTALL_INC_DIR}/modfiles" CACHE PATH
+set(CMAKE_INSTALL_MODULEDIR "${CMAKE_INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
   "Installation directory for Fortran module files")
 
 option(EXPORT_EXTLIBS_WITH_PATH

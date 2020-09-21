@@ -14,6 +14,7 @@ else
 fi
 
 cmake_options=(
+   "-DCMAKE_INSTALL_PREFIX=/opt/dftbplus"
    "-DWITH_DFTD3=true"
    "-DWITH_MBD=true"
    "-DWITH_TRANSPORT=true"
@@ -35,3 +36,5 @@ pushd _build
 cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} "${cmake_options[@]}" ..
 make -j 2
 ctest -j 2
+popd
+DESTDIR=$PWD/dist make install -C _build

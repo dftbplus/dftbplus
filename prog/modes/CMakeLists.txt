@@ -17,4 +17,4 @@ endif()
 target_link_libraries(modes PRIVATE dftbplus)
 
 
-install(TARGETS modes DESTINATION ${INSTALL_BIN_DIR})
+install(TARGETS modes DESTINATION "${CMAKE_INSTALL_BINDIR}")
