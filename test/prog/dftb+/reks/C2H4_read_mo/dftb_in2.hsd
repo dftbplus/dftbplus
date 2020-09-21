@@ -31,17 +31,13 @@ Hamiltonian = DFTB {
   }
 }
 
-Analysis {
-  CalculateForces = Yes
-}
-
-Reks = SSR22 {
+REKS = SSR22 {
   Energy = {
     Functional = { "PPS" "OSS" }
   }
   TargetState = 1
   ReadEigenvectors = Yes
-  FonMaxIter = 30
+  FonMaxIter = 100
   Shift = 1.0
   Gradient = ConjugateGradient {
     CGmaxIter = 100
@@ -50,6 +46,11 @@ Reks = SSR22 {
     SaveMemory = Yes
   }
   VerbosityLevel = 1
+}
+
+Analysis {
+  CalculateForces = Yes
+  WriteEigenvectors = Yes
 }
 
 Options {
