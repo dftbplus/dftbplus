@@ -4573,13 +4573,10 @@ contains
 
     inquire(file=fname,exist=exst)
     if (exst) then
-      open(newunit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
-      read(funit,rec=1) dummy
+      open(newunit=funit,file=fname,action="read",form="unformatted",position='rewind')
+      read(funit) dummy
       do iMO = 1, nOrb
-        read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
-        do iAO = 1, nOrb
-          read(funit,rec=2+iAO+(nOrb+1)*(iMO-1)) eigenvecs(iAO,iMO)
-        end do
+        read(funit) eigenvecs(:,iMO)
       end do
       close(funit)
     else
