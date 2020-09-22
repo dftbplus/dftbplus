@@ -20,7 +20,7 @@ module dftbp_mainapi
   use dftbp_initprogram, only : species0, mass, origin, tCoordsChanged, tLatticeChanged, tExtField
   use dftbp_initprogram, only : tExtChrg, tForces, tSccCalc, tDFTBU, tFracCoord, tMulliken, tSpin
   use dftbp_initprogram, only : tReadChrg, tMixBlockCharges, isRangeSep, t2Component, tRealHS
-  use dftbp_initprogram, only : q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0
+  use dftbp_initprogram, only : q0, qInput, qOutput, qDiff, qInpRed, qOutRed, qshell0, referenceN0
   use dftbp_initprogram, only : qDiffRed, nrChrg, nrSpinPol, setEquivalencyRelations, iEqOrbitals
   use dftbp_initprogram, only : nIneqOrb, nMixElements, onSiteElements, denseDesc, parallelKS
   use dftbp_initprogram, only : HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal
@@ -373,7 +373,7 @@ contains
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
         & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
-        & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+        & qDiff, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
   end subroutine updateDataDependentOnSpeciesOrdering
 

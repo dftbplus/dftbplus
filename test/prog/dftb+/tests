@@ -70,6 +70,7 @@ rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI and WITH_ARPACK
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
 reks/C2H4_nosave                       #? not WITH_MPI
+reks/C2H4_read_mo                      #? not WITH_MPI
 reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI

@@ -111,6 +111,11 @@ module dftbp_mainio
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
 
 
+  interface readEigenvecs
+    module procedure readRealEigenvecs
+    module procedure readCplxEigenvecs
+  end interface readEigenvecs
+
 contains
 
   !> Writes the eigenvectors to disc.
@@ -4558,35 +4563,48 @@ contains
   end subroutine writeEsp
 
 
+#:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
+
   !> Read external eigenvector file (eigenvec.bin)
-  subroutine readEigenvecs(eigenvecs)
+  subroutine read${NAME}$Eigenvecs(eigenvecs, jobId)
 
-    real(dp), intent(out) :: eigenvecs(:,:)
+    !> Resulting eigenvectors read from file
+    ${DTYPE}$(dp), intent(out) :: eigenvecs(:,:)
 
-    character(len=16), parameter :: fname = "eigenvec.bin"
-    integer :: funit
+    !> ID of the calculation which produced the file
+    integer, intent(out), optional :: jobId
+
+  #:if WITH_SCALAPACK
+
+    call error("Eigenvector reading not currently supported for ScaLAPACK enabled builds")
+
+  #:else
+
+    integer :: funit, iMO, nOrb, dummy
     logical :: exst
-    integer :: iAO, iMO, nOrb
-    integer :: dummy
 
     nOrb = size(eigenvecs,dim=1)
 
-    inquire(file=fname,exist=exst)
+    inquire(file=eigvecBin, exist=exst)
     if (exst) then
-      open(newunit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
-      read(funit,rec=1) dummy
+      open(newunit=funit, file=eigvecBin, action="read", form="unformatted", position='rewind')
+      read(funit) dummy
+      if (present(jobId)) then
+        jobId = dummy
+      end if
       do iMO = 1, nOrb
-        read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
-        do iAO = 1, nOrb
-          read(funit,rec=2+iAO+(nOrb+1)*(iMO-1)) eigenvecs(iAO,iMO)
-        end do
+        read(funit) eigenvecs(:,iMO)
       end do
       close(funit)
     else
-      call error('no eigenvec.bin file!')
+      call error('no ' // eigvecBin // ' file!')
     end if
 
-  end subroutine readEigenvecs
+  #:endif
+
+  end subroutine read${NAME}$Eigenvecs
+
+#:endfor
 
 
   !> First group of data to go to detailed.out
