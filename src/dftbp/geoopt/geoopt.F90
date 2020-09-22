@@ -168,7 +168,7 @@ contains
   end subroutine GeoOpt_reset
 
 
-  !> Delivers the next point in the geometry optimization. When calling the first time, funciton
+  !> Delivers the next point in the geometry optimization. When calling the first time, function
   !> value and gradient for the starting point of the minimization should be passed.
   subroutine GeoOpt_next(this, fx, dx, xNew, tConverged)
 

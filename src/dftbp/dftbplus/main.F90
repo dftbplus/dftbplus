@@ -215,7 +215,7 @@ contains
       end if
 
       ! DFTB Determinant Loop
-      ! Will pass though loop once, unless specified in input to perform multiple determiants
+      ! Will pass though loop once, unless specified in input to perform multiple determinants
       lpDets : do iDet = 1, this%nDets
 
         this%deltaDftb%iDeterminant = iDet
@@ -816,7 +816,7 @@ contains
             & qNetAtom=this%qNetAtom, &
             & dipAtom=this%multipoleOut%dipoleAtom, quadAtom=this%multipoleOut%quadrupoleAtom)
 
-        ! Check charge convergece and guess new eigenvectors
+        ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (this%isRangeSep) then
           call getReksNextInputDensity(sccErrorQ, this%sccTol, tConverged, iSccIter,&
@@ -1591,7 +1591,7 @@ contains
     !> evaluate stress
     logical, intent(in) :: tStress
 
-    !> External presure
+    !> External pressure
     real(dp), intent(in) :: extPressure
 
     !> Maximum distance for interactions
@@ -2169,7 +2169,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> Is the Fermi level common accross spin channels?
+    !> Is the Fermi level common across spin channels?
     logical, intent(in) :: tSpinSharedEf
 
     !> Are spin orbit interactions present
@@ -2178,7 +2178,7 @@ contains
     !> Are block population spin orbit interactions present
     logical, intent(in) :: tDualSpinOrbit
 
-    !> Fill k-points separately if true (no charge transfer accross the BZ)
+    !> Fill k-points separately if true (no charge transfer across the BZ)
     logical, intent(in) :: tFillKSep
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
@@ -2388,7 +2388,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> Is the Fermi level common accross spin channels?
+    !> Is the Fermi level common across spin channels?
     logical, intent(in) :: tSpinSharedEf
 
     !> Are spin orbit interactions present
@@ -2397,7 +2397,7 @@ contains
     !> Are block population spin orbit interactions present
     logical, intent(in) :: tDualSpinOrbit
 
-    !> Fill k-points separately if true (no charge transfer accross the BZ)
+    !> Fill k-points separately if true (no charge transfer across the BZ)
     logical, intent(in) :: tFillKSep
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
@@ -2581,7 +2581,7 @@ contains
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
-    !>Data for rangeseparated calcualtion
+    !>Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Change in density matrix during last rangesep SCC cycle
@@ -3570,7 +3570,7 @@ contains
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
-    !> minumum number of SCC iterations to perform
+    !> minimum number of SCC iterations to perform
     integer, intent(in) :: minSccIter
 
     !> maximum number of SCC iterations before terminating loop
@@ -3585,7 +3585,7 @@ contains
     !> are orbital potentials being used
     logical, intent(in) :: tMixBlockCharges
 
-    !> Were intial charges read from disc?
+    !> Were initial charges read from disc?
     logical, intent(in) :: tReadChrg
 
     !> Resulting input charges for next SCC iteration
@@ -3762,7 +3762,7 @@ contains
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
-    !> minumum number of SCC iterations to perform
+    !> minimum number of SCC iterations to perform
     integer, intent(in) :: minSccIter
 
     !> maximum number of SCC iterations before terminating loop
@@ -3774,7 +3774,7 @@ contains
     !> Should the SCC loop stop
     logical, intent(in) :: tStopScc
 
-    !> Were intial charges read from disc?
+    !> Were initial charges read from disc?
     logical, intent(in) :: tReadChrg
 
     !> reference charges
@@ -4193,7 +4193,7 @@ contains
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: dftbEnergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: energies(:)
 
     !> Working array of the size of the dense matrices.
@@ -4368,7 +4368,7 @@ contains
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: dftbEnergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: energies(:)
 
     !> Working array of the size of the dense matrices.
@@ -4942,7 +4942,7 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Is the geometry haelical
+    !> Is the geometry helical
     logical, intent(in) :: tHelical
 
     !> species of atoms
@@ -5805,7 +5805,7 @@ contains
     !> electrons in orbitals
     real(dp), intent(in) :: qOutput(:,:,:)
 
-    !> refernce charges
+    !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
     !> non-SCC hamiltonian information
@@ -6083,7 +6083,7 @@ contains
   end subroutine constrainLatticeDerivs
 
 
-  !> Unfold contrained lattice vectors to full one.
+  !> Unfold constrained lattice vectors to full one.
   subroutine unconstrainLatticeVectors(constrLatVecs, origLatVecs, tLatOptFixAng, tLatOptFixLen,&
       & tLatOptIsotropic, newLatVecs)
 
@@ -6529,13 +6529,13 @@ contains
     !> Gradients on atoms ]3, nAtom]
     real(dp), intent(in), allocatable :: derivs(:,:)
 
-    !> Lattcie derivatives. Shape: [9]
+    !> Lattice derivatives. Shape: [9]
     real(dp), intent(in) :: constrLatDerivs(:)
 
     !> Whether coordinate optimization is on.
     logical, intent(in) :: tCoordOpt
 
-    !> Wheter lattice optimization is on.
+    !> Whether lattice optimization is on.
     logical, intent(in) :: tLatOpt
 
     !> Indices of moved atoms. Shape [nMovedAtoms].
@@ -7346,7 +7346,7 @@ contains
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
-    !> minumum number of SCC iterations to perform
+    !> minimum number of SCC iterations to perform
     integer, intent(in) :: minSccIter
 
     !> maximum number of SCC iterations before terminating loop
@@ -7394,7 +7394,7 @@ contains
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
-    !> minumum number of SCC iterations to perform
+    !> minimum number of SCC iterations to perform
     integer, intent(in) :: minSccIter
 
     !> maximum number of SCC iterations before terminating loop

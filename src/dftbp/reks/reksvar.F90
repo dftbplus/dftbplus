@@ -9,7 +9,7 @@
 !>
 !> The functionality of the module has some limitation:
 !> * Third order does not work.
-!> * Periodic system do not work yet appart from Gamma point.
+!> * Periodic system do not work yet apart from Gamma point.
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
@@ -1086,7 +1086,7 @@ module dftbp_reks_reksvar
       spinW(:,:,iAt) = this%Tuning(iAt) * spinW(:,:,iAt)
     end do
 
-    ! Set the ordering information betwen R_mat_L and filling_L
+    ! Set the ordering information between R_mat_L and filling_L
     if (this%Efunction > 1 .and. this%tForces) then
       select case (this%reksAlg)
       case (reksTypes%noReks)

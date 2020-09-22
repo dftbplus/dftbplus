@@ -2481,10 +2481,10 @@ contains
     !> Is the lattice being optimised?
     logical, intent(in) :: tLatOpt
 
-    !> Which step of lattice optimisation is occuring
+    !> Which step of lattice optimisation is occurring
     integer, intent(in) :: iLatGeoStep
 
-    !> Which scc step is occuring
+    !> Which scc step is occurring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system
@@ -3453,7 +3453,7 @@ contains
     !> Is the geometry changing during the run
     logical, intent(in) :: tGeoOpt
 
-    !> Did the geometry changes sucessfully complete
+    !> Did the geometry changes successfully complete
     logical, intent(in) :: tGeomEnd
 
     !> Is this a molecular dynamics run
@@ -5187,10 +5187,10 @@ contains
     !> Is the lattice being optimised?
     logical, intent(in) :: tLatOpt
 
-    !> Which step of lattice optimisation is occuring
+    !> Which step of lattice optimisation is occurring
     integer, intent(in) :: iLatGeoStep
 
-    !> Which scc step is occuring
+    !> Which scc step is occurring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system

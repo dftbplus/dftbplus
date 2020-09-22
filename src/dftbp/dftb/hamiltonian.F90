@@ -277,7 +277,7 @@ contains
   end subroutine addChargePotentials
 
 
-  !> Add potentials comming from on-site block of the dual density matrix.
+  !> Add potentials coming from on-site block of the dual density matrix.
   subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam, species, orb, potential)
 
     !> block input charges

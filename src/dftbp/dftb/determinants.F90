@@ -86,7 +86,7 @@ module dftbp_dftb_determinants
 
 contains
 
-  !> Counts number of determiants to be evaluated
+  !> Counts number of determinants to be evaluated
   pure function nDeterminant(this) result(nDet)
 
     !> Instance
@@ -261,7 +261,7 @@ contains
     !> Is this a spin purified calculation?
     logical, intent(in) :: isSpinPurify
 
-    !> Should there be a ground state intial guess before Non-Aufbau calc?
+    !> Should there be a ground state initial guess before Non-Aufbau calc?
     logical, intent(in) :: isGroundGuess
 
     !> Number of electrons in each spin channel

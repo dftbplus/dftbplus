@@ -64,7 +64,7 @@ module dftbp_solvation_born
     !> Van-der-Waals radii
     real(dp), allocatable :: vdwRad(:)
 
-    !> Analytical linearized Poission-Boltzmann parameter alpha
+    !> Analytical linearized Poisson-Boltzmann parameter alpha
     real(dp) :: alpbet = 0.0_dp
 
     !> Used interaction kernel
@@ -390,7 +390,7 @@ contains
     call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, &
         & this%param%keps, this%bornRad, this%bornMat)
 
-    ! Analytical linearized Poission-Boltzmann contribution for charged systems
+    ! Analytical linearized Poisson-Boltzmann contribution for charged systems
     if (this%param%alpbet > 0.0_dp) then
       call getADet(this%nAtom, coords, species0, this%param%vdwRad, aDet)
       this%bornMat(:, :) = this%bornMat + this%param%kEps * this%param%alpbet / aDet
@@ -512,7 +512,7 @@ contains
       & this%bornRad, this%dbrdr, this%dbrdL, this%param%kernel, this%param%keps, &
       & this%energies, gradients, sigma)
 
-    ! Analytical linearized Poission-Boltzmann contribution for charged systems
+    ! Analytical linearized Poisson-Boltzmann contribution for charged systems
     if (this%param%alpbet > 0.0_dp) then
       call getADetDeriv(this%nAtom, coords, species, this%param%vdwRad, &
           & this%param%kEps*this%param%alpbet, this%chargesPerAtom, gradients)

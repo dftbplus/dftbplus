@@ -473,7 +473,7 @@ contains
     !> C-type string as array
     character(kind=c_char), intent(in) :: cstring(*)
 
-    !> Maximal string lenght. If C-string is longer, it will be chopped.
+    !> Maximal string length. If C-string is longer, it will be chopped.
     integer, intent(in), optional  :: maxlen
 
     !> Resulting Fortran string

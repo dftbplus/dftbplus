@@ -312,7 +312,7 @@ contains
       end do
     end do
 
-    ! Prevent equations from beeing linearly dependent if desired
+    ! Prevent equations from being linearly dependent if desired
     if (tBreakSym) then
       tmp2 = (1.0_dp + omega02)
       do ii = 1, nPrevVector

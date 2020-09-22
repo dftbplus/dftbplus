@@ -310,7 +310,7 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in case it needs to be converted, for example because of compability
+    !> Root of the entire tree (in case it needs to be converted, for example because of compatibility
     !> options)
     type(fnode), pointer :: root
 
@@ -777,7 +777,7 @@ contains
             & communication')
       end if
 
-      ! File communiation
+      ! File communication
       if (associated(child2)) then
         call getChildValue(child2, "", buffer2)
         ctrl%socketInput%host = unquote(char(buffer2))
@@ -1362,7 +1362,7 @@ contains
         end do
       end do
       if (.not. all(repPoly .eqv. transpose(repPoly))) then
-        call detailedError(value1, "Assymetric definition (both A-B and B-A must&
+        call detailedError(value1, "Asymmetric definition (both A-B and B-A must&
             & be defined for using polynomial repulsive)")
       end if
     end select
@@ -1606,7 +1606,7 @@ contains
         if (any(iTmpN(:)>1)) then
           write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
           write(stdout, "(A,A3,A,I2)") &
-              & 'The count for the occurance of shells of species ', &
+              & 'The count for the occurrence of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
           write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
           call abortProgram()
@@ -3020,7 +3020,7 @@ contains
   end subroutine SKTruncations
 
 
-  !> Reads inital charges
+  !> Reads initial charges
   subroutine getInitialCharges(node, geo, initCharges)
 
     !> relevant node in input tree
@@ -4505,7 +4505,7 @@ contains
     !> Label
     character(*), intent(in) :: name
 
-    !> data tree for error useage
+    !> data tree for error usage
     type(fnode), pointer, intent(in) :: node
 
     if (name /= 'ts' .and. name /= 'tssurf') then
@@ -4547,7 +4547,7 @@ contains
   !> reads a temperature profile for MD with sanity checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
 
-    !> parser node contaning the relevant part of the user input
+    !> parser node containing the relevant part of the user input
     type(fnode), pointer :: node
 
     !> unit modifier for the profile
@@ -5658,7 +5658,7 @@ contains
       do while (.not. mask(ind))
         ind = ind + 1
       end do
-      ! Note: ind is one-based, substract 1 before modulo and add 1 after.
+      ! Note: ind is one-based, subtract 1 before modulo and add 1 after.
       indNext = modulo(ind + 1 - 1, 3) + 1
       indPrev = modulo(ind - 1 - 1, 3) + 1
       newLatVecs(indNext, 2) = -newLatVecs(ind, 1)
@@ -5819,7 +5819,7 @@ contains
       ! than zero, no matter if there's bias or not.
       ! Therefore I restored the default on the energy step, as it works at zero
       ! bias and it scales flawlessy with increasing bias
-      ! It is still allowed to directly set the number of points, if prefered
+      ! It is still allowed to directly set the number of points, if preferred
       ! libNEGF only wants the number of points in input
       call getChild(pNode, "RealAxisPoints", child1, requested=.false.)
       call getChild(pNode, "RealAxisStep", child2, requested=.false., &
@@ -6375,7 +6375,7 @@ contains
       call detailedError(dephModel,"voltageProbes have been not implemented yet")
       tp%tZeroCurrent=.false.
     case default
-      call detailedError(dephModel,"unkown model")
+      call detailedError(dephModel,"unknown model")
     end select
 
     elph%model = 1
@@ -7052,7 +7052,7 @@ contains
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
         call detailedError(child, "Atom region contains atom(s) which have&
-            & already been overriden")
+            & already been overridden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
       iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))

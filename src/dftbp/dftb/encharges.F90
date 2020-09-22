@@ -1042,7 +1042,7 @@ contains
     allocate(xVec(nDim), xFac(nAtom), aMatdr(3, nAtom, nDim), aMat(nDim, nDim), &
         & aInv(nDim, nDim), qVec(nDim), aMatdL(3, 3, nDim), aTrace(3, nAtom))
 
-    ! Step 1: contruct RHS for linear system
+    ! Step 1: construct RHS for linear system
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       tmp = kcn(iSp1) / (sqrt(cn(iAt1)) + small)

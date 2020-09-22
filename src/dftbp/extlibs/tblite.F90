@@ -968,7 +968,7 @@ contains
     !> Basis set information
     type(basis_type), intent(in) :: bas
 
-    !> Diagonal elememts of the Hamiltonian
+    !> Diagonal elements of the Hamiltonian
     real(dp), intent(in) :: selfenergy(:)
 
     !> Overlap integral matrix
@@ -1089,7 +1089,7 @@ contains
     !> Hamiltonian interaction data
     type(tb_hamiltonian), intent(in) :: h0
 
-    !> Diagonal elememts of the Hamiltonian
+    !> Diagonal elements of the Hamiltonian
     real(dp), intent(in) :: selfenergy(:)
 
     !> Overlap integral matrix
@@ -1360,7 +1360,7 @@ contains
     !> Basis set information
     type(basis_type), intent(in) :: bas
 
-    !> Derivative of diagonal elememts of the Hamiltonian w.r.t. coordination number
+    !> Derivative of diagonal elements of the Hamiltonian w.r.t. coordination number
     real(dp), intent(in) :: dsedcn(:)
 
     !> Density matrix
@@ -1434,10 +1434,10 @@ contains
     !> Hamiltonian interaction data
     type(tb_hamiltonian), intent(in) :: h0
 
-    !> Diagonal elememts of the Hamiltonian
+    !> Diagonal elements of the Hamiltonian
     real(dp), intent(in) :: selfenergy(:)
 
-    !> Derivative of diagonal elememts of the Hamiltonian w.r.t. coordination number
+    !> Derivative of diagonal elements of the Hamiltonian w.r.t. coordination number
     real(dp), intent(in) :: dsedcn(:)
 
     !> Density matrix in packed form with spin information

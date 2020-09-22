@@ -11,7 +11,7 @@
 !>
 !> The functionality of the module has some limitation:
 !> * Third order does not work.
-!> * Periodic system do not work yet appart from Gamma point.
+!> * Periodic system do not work yet apart from Gamma point.
 !> * Orbital potentials or spin-orbit does not work yet.
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
@@ -290,10 +290,10 @@ contains
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> excitation energy (only when nStat /=0, othewise set numerically 0)
+    !> excitation energy (only when nStat /=0, otherwise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     if (withArpack) then
@@ -330,7 +330,7 @@ contains
     !> ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix (must be symmetriezed)
+    !> square overlap matrix (must be symmetrized)
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> ground state occupations
@@ -381,7 +381,7 @@ contains
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     !> contribution to forces from derivative of excited state energy

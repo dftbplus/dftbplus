@@ -3,7 +3,7 @@ Building and installing DFTB+
 *****************************
 
 If you have problems with the build, you can find suggestions for some
-frequently occuring scenarios in the `Troubleshooting <#troubleshooting>`_
+frequently occurring scenarios in the `Troubleshooting <#troubleshooting>`_
 section at the bottom.
 
 
@@ -189,7 +189,7 @@ In order to build DFTB+ carry out the following steps:
   compiler specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or the generic
   one (`generic.cmake`) if the detected compiler combination does not correspond
   to any of the specific settings. The selected toolchain is indicated in the
-  CMake output. (The toolchain file selection can be manually overriden by
+  CMake output. (The toolchain file selection can be manually overridden by
   setting the ``TOOLCHAIN`` CMake variable.)
 
   You may adjust any CMake variable defined in `config.make` or in the
@@ -200,7 +200,7 @@ In order to build DFTB+ carry out the following steps:
 
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
-  When needed, you can specify the complete path to a libray or pass linker
+  When needed, you can specify the complete path to a library or pass linker
   options as defined variables, e.g.::
 
     -DLAPACK_LIBRARY="/opt/openblas/libopenblas.a"
@@ -308,7 +308,7 @@ for linking DFTB+ with C and Fortran programs.
 Linking the library in CMake based builds
 -----------------------------------------
 
-This is the prefered way of invoking the DFTB+ library into your project.  In
+This is the preferred way of invoking the DFTB+ library into your project.  In
 CMake based projects you can directly use the CMake export file of DFTB+, which
 is installed in the `lib/cmake/dftbplus/` folder in the installation folder. It
 exports the target ``DftbPlus::DftbPlus`` which you can use to obtain all
@@ -376,7 +376,7 @@ Developer build instructions
 ============================
 
 You should avoid customizing the build by directly changing variables in the
-CMake config files, as your changes may accidently be checked in into the
+CMake config files, as your changes may accidentally be checked in into the
 repository. Instead, create a customized CMake config file, where you
 pre-populate the appropriate cache variables. Then use the `-C` option to load
 that file::

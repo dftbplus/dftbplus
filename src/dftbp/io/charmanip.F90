@@ -61,7 +61,7 @@ module dftbp_io_charmanip
 contains
 
 
-  !> Returns the first unquoted occurance of a substring in a string
+  !> Returns the first unquoted occurrence of a substring in a string
   function unquotedIndex(string, substring) result(unqIndex)
 
     !> String to investigate (hay)
@@ -70,7 +70,7 @@ contains
     !> Substring to look for (needle)
     character(len=*), intent(in) :: substring
 
-    !> Position of the first occurance or zero if substring was not found
+    !> Position of the first occurrence or zero if substring was not found
     integer :: unqIndex
 
     integer :: strPos, quoteStart, quoteEnd
@@ -86,7 +86,7 @@ contains
     do while (.not. tFinished)
 
 
-      ! Occurance of substr after last quotation end -> get next quotation
+      ! Occurrence of substr after last quotation end -> get next quotation
       if (strPos > quoteEnd) then
         shift = quoteEnd
         call getNextQuotationPos(string(shift+1:lenStr), quoteStart, quoteEnd)
@@ -95,7 +95,7 @@ contains
 
 
         ! Substring occurs after quotation start but before quotation end -> Look for next
-        ! occurance. (If not found, no unquoted occurance exists.)
+        ! occurrence. (If not found, no unquoted occurrence exists.)
       elseif (strPos > quoteStart) then
         shift = strPos
         strPos = index(string(strPos+1:lenStr), substring)
@@ -106,7 +106,7 @@ contains
         end if
 
 
-        ! Substring before quotation start -> unquoted occurance found
+        ! Substring before quotation start -> unquoted occurrence found
       else
         tFinished = .true.
       end if
@@ -219,7 +219,7 @@ contains
   end subroutine getNextQuotationPos
 
 
-  !> Returns the first occurance of any of the passed substrings in a string
+  !> Returns the first occurrence of any of the passed substrings in a string
   subroutine getFirstOccurance(string, substrs, masks, iSubstr, pos)
 
     !> String to investigate
@@ -244,7 +244,7 @@ contains
     @:ASSERT(size(masks) == nSubstr)
 
 
-    !> Get first occurance of a separator
+    !> Get first occurrence of a separator
     iSubstr = 0
     pos = len(string) + 1
     do ii = 1, nSubstr
@@ -310,7 +310,7 @@ contains
   end function complementaryScan
 
 
-  !> Returns the first unquoted occurance of a substring in a string
+  !> Returns the first unquoted occurrence of a substring in a string
   function unquotedScan(string, set) result(unqIndex)
 
     !> String to investigate (hay)
@@ -319,7 +319,7 @@ contains
     !> Substring to look for (needle)
     character(len=*), intent(in) :: set
 
-    !> Position of the first occurance or zero if substring was not found
+    !> Position of the first occurrence or zero if substring was not found
     integer :: unqIndex
 
     integer :: strPos, quoteStart, quoteEnd
@@ -334,7 +334,7 @@ contains
     do while (.not. tFinished)
 
 
-      !> Occurance after last quotation end -> get next quotation
+      !> Occurrence after last quotation end -> get next quotation
       if (strPos > quoteEnd) then
         shift = quoteEnd
         call getNextQuotationPos(string(shift+1:), quoteStart, quoteEnd)
@@ -342,7 +342,7 @@ contains
         quoteEnd = quoteEnd + shift
 
         ! Char occurs after quotation start but before quotation end ->
-        ! Look for next occurance. (If not found, no unquoted occurance exists.)
+        ! Look for next occurrence. (If not found, no unquoted occurrence exists.)
       elseif (strPos > quoteStart) then
         shift = strPos
         strPos = scan(string(shift+1:), set)
@@ -352,7 +352,7 @@ contains
           strPos = strPos + shift
         end if
 
-        ! Substring before quotation start -> unquoted occurance found
+        ! Substring before quotation start -> unquoted occurrence found
       else
         tFinished = .true.
       end if

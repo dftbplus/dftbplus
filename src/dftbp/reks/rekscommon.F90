@@ -9,7 +9,7 @@
 !>
 !> The functionality of the module has some limitation:
 !> * Third order does not work.
-!> * Periodic system do not work yet appart from Gamma point.
+!> * Periodic system do not work yet apart from Gamma point.
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
@@ -134,7 +134,7 @@ module dftbp_reks_rekscommon
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
           if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
-            call error("Inconsistent maching exists between sparse and dense")
+            call error("Inconsistent matching exists between sparse and dense")
           end if
           this%getDenseAO(iOrig1+kk-1,1) = mu
           this%getDenseAO(iOrig1+kk-1,2) = nu

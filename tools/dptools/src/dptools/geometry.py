@@ -35,7 +35,7 @@ class Geometry:
         """Initializes a geometry object.
 
         Args:
-            specienames: Names of the species occuring in the geometry.
+            specienames: Names of the species occurring in the geometry.
             indexes: Species index for every atom. Shape (natom,)
             coords: Coordinates of the atoms.
             latvecs: Lattice vectors (default: None, non-periodic modell).

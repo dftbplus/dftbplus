@@ -53,7 +53,7 @@ The following cache variables may be set to influence the library detection:
   libraries with their with full path.
 
   Note: On Ubuntu (20.4 LTS and probably also previous Ubuntu versions), the
-  installed CMake export file is broken.  You should not realy on the
+  installed CMake export file is broken.  You should not rely on the
   CMake-autodetection on those systems.
 
 ``SCALAPACK_LIBRARY_DIR``

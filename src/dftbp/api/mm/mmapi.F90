@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Proviedes DFTB+ API for MM-type high level access
+!> Provides DFTB+ API for MM-type high level access
 module dftbp_mmapi
   use iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
@@ -123,7 +123,7 @@ module dftbp_mmapi
 
 #:if not INSTANCE_SAFE_BUILD
 
-  !> Nr. of exisiting instances (if build is not instance safe)
+  !> Nr. of existing instances (if build is not instance safe)
   integer :: nInstance_ = 0
 
 #:endif
@@ -253,7 +253,7 @@ contains
   end subroutine TDftbPlusAtomList_addToInpData
 
 
-  !> Initalises a DFTB+ instance
+  !> Initialises a DFTB+ instance
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
@@ -439,7 +439,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> Coordiante of the external charges
+    !> Coordinate of the external charges
     real(dp), intent(in) :: chargeCoords(:,:)
 
     !> Charges of the external point charges (sign convention: electron is negative)
@@ -728,7 +728,7 @@ contains
   end subroutine TDftbPlus_setSpeciesAndDependents
 
 
-  !> Initialise propagatos for electron and nuclei dynamics
+  !> Initialise propagators for electron and nuclei dynamics
   subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
     !> Instance
     class(TDftbPlus), intent(inout) :: this

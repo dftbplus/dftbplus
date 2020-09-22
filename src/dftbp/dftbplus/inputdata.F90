@@ -345,7 +345,7 @@ module dftbp_dftbplus_inputdata
     real(dp), allocatable :: kWeight(:)
 
 
-    !> cell presure if periodic
+    !> cell pressure if periodic
     real(dp) :: pressure       = 0.0_dp
     logical :: tBarostat = .false.
 

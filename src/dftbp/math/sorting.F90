@@ -644,7 +644,7 @@ contains
     !> vector to sort
     real(dp), intent(in) :: array(:)
 
-    !> tolerance for comparisions
+    !> tolerance for comparisons
     real(dp), intent(in) :: tol
 
     real(dp), allocatable :: work(:,:), tmp(:,:)
@@ -726,7 +726,7 @@ contains
     !> workspace of at least (N+1)/2 size
     real(dp), intent (out) :: T(:,:)
 
-    !> tolerance for comparisions
+    !> tolerance for comparisons
     real(dp), intent(in) :: tol
 
     integer :: NA, NB

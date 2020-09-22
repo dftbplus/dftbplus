@@ -28,7 +28,7 @@ separated by ``|''.  Parentheses serve only to delimit groups of
 settings.
 
 Sometimes a property is only interpreted on meeting some condition(s).  If this
-is the case, the the third column gives details of the requirement(s). The
+is the case, the third column gives details of the requirement(s). The
 fourth column contains the default value for the property.  If no default value
 is specified (``-''), the user is required to assign a value to that property.
 The description of the properties immediately follows the table.  If there is
@@ -333,7 +333,7 @@ methods are available:
   $x$, $y$, $z$ components of a constraint vector. The specified atom
   is not allowed to move along the constraint vector. If two
   constraints are defined for the same atom, the atom will only by
-  able to move normal to the the plane containing the two constraining
+  able to move normal to the plane containing the two constraining
   vectors.
 
   Example:
@@ -1833,7 +1833,7 @@ listed for SlaterKosterFiles.
     }
 \end{verbatim}
 
-For cases where \is{ShellResolvedSpin} = \is{No}, the spin constant for the the
+For cases where \is{ShellResolvedSpin} = \is{No}, the spin constant for the
 highest occupied orbital of each atom should be supplied: Example (GGA parameters
 for H$_2$O):
 \begin{verbatim}
@@ -2140,7 +2140,7 @@ rule,\cite{baerends-TCA-43-261}
 A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
 $\Delta$DFTB calculations can be more challenging to converge than their
 ground-state analogs. To aid convergence, one can first run a ground-state
-intial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
+initial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
 alternative mixer for converging $\Delta$DFTB calculations in cases where the
 calculation fails to converge with the Broyden mixer.
 
@@ -2459,7 +2459,7 @@ implemented. These potentials effect the energy of states on
 designated shells of particular atoms, usually increasing the
 localisation of states at these sites. The \is{FLL} potential lowers
 the energy of occupied states localised on the specified atomic shells
-while raising the energy of unoccupied states. The the \is{pSIC}
+while raising the energy of unoccupied states. The \is{pSIC}
 potential corrects the local part of the self-interaction error and so
 lowers the energy of occupied states (see Ref.~\cite{hourahine07} for
 a discussion of the relation between these two potentials, and
@@ -3567,7 +3567,7 @@ In the domain decomposition algorithm the solvation energy is given by
 \end{equation}
 %
 where $N_\text{basis}$ is the maximum degree of the expansion in spherical harmonics,
-$\left[\Psi_j\right]^m_l$ decribes the interaction of the tight-binding Hamiltonian with
+$\left[\Psi_j\right]^m_l$ describes the interaction of the tight-binding Hamiltonian with
 the spherical harmonics and $\left[X_j\right]^m_l$ are the local solution of the
 block sparse COSMO equation
 %
@@ -4175,7 +4175,7 @@ This block collects some global options for the run.
 
 \item[\is{TimingVerbosity}] Level of information regarding CPU and wall clock
   timings of sections of the code, higher values becoming more verbose. Setting
-  this parameter to 0 or below supresses any information being printed
+  this parameter to 0 or below suppresses any information being printed
   (default). Setting it to -1 includes all measured timings.
 
 \item[\is{ShowFoldedCoords}] Print coordinates folded back into the
@@ -4764,7 +4764,7 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
   \verb|tddump.dat|.
 
 \item[\is{RestartFrequency}] Number of steps every which the system's
-  state should be writen to restart file.
+  state should be written to restart file.
 
 \item[\is{WriteFrequency}] Number of steps every which the atomic
   charges and molecular orbital populations (if \is{Populations} =
@@ -4881,7 +4881,7 @@ Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
    will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|,
    respectively.
 
- \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for
+ \item[\is{SpinType}] Must be either ``Singlet'' or ``Triplet'' for
    singlet or triplet spectra, respectively. Only implemented for
    collinear spin polarisation.
 \end{description}
@@ -5318,7 +5318,7 @@ the code. They only take effect, if the code was compiled with MPI-support.
   section~\ref{app:transp}).
 
 \item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
-  MPI/OpenMP-parallelisation). In order to prevent you from accidently running
+  MPI/OpenMP-parallelisation). In order to prevent you from accidentally running
   more processes and threads than appropriate for your hardware, this feature is
   turned off by default. Consequently in this case the MPI-parallelised binary
   will stop if the maximal number of OpenMP-threads is greater than one when

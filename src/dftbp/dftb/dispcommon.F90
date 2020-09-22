@@ -60,7 +60,7 @@ contains
     !> Van der Waals coefficients (nAtom, nAtom)
     real(dp), intent(in) :: c6(:,:)
 
-    !> Controling partitioning between real and reciprocal space sum
+    !> Controlling partitioning between real and reciprocal space sum
     real(dp), intent(in) :: eta
 
     !> Volume of the unit cell
@@ -215,7 +215,7 @@ contains
     !> Van der Waals coefficients (nSpecies, nSpecies)
     real(dp), intent(in) :: c6(:,:)
 
-    !> Controling partitioning between real and reciprocal space sum
+    !> Controlling partitioning between real and reciprocal space sum
     real(dp), intent(in) :: eta
 
     !> Volume of the unit cell
@@ -340,7 +340,7 @@ contains
   end subroutine addDispEGr_per_species
 
 
-  !> Delivers the optimal paramater eta for the Ewald-like summation
+  !> Delivers the optimal parameter eta for the Ewald-like summation
   function getOptimalEta(latVecs, vol) result(eta)
 
     !> Lattice vectors
@@ -363,7 +363,7 @@ contains
   end function getOptimalEta
 
 
-  !> Returns the longest real space vector needed to achive a given accuracy in the Ewald summation
+  !> Returns the longest real space vector needed to achieve a given accuracy in the Ewald summation
   !> for the dispersion.
   function getMaxRDispersion(eta, c6sum, vol, minValue) result(xx)
 
@@ -433,7 +433,7 @@ contains
   end function getMaxRDispersion
 
 
-  !> Returns the longest reciprocal space vector needed to achive a given accuracy in the Ewald
+  !> Returns the longest reciprocal space vector needed to achieve a given accuracy in the Ewald
   !> summation for the dispersion.
   function getMaxGDispersion(eta, c6sum, minValue) result(xx)
 

@@ -918,7 +918,7 @@ contains
     !> function value at a
     real(dp), intent(in) :: fa
 
-    !> Derviative at a
+    !> Derivative at a
     real(dp), intent(in) :: fpa
 
     !> point b
@@ -962,7 +962,7 @@ contains
     !> function value at a
     real(dp), intent(in) :: fa
 
-    !> Derviative at a
+    !> Derivative at a
     real(dp), intent(in) :: fpa
 
     !> point b

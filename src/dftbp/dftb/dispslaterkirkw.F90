@@ -19,7 +19,7 @@
 !> but the one found in the old code (implemented by him as well). Furthermore, the expression for
 !> the dispersion energy in the paper (eq. 9) misses a factor of 1/2.
 !>
-!> Todo: The generation of the reciprocal lattice vectors should not be done localy, but somewhere
+!> Todo: The generation of the reciprocal lattice vectors should not be done locally, but somewhere
 !> outside, since the Coulomb module does the same.
 module dftbp_dftb_dispslaterkirkw
   use dftbp_common_accuracy, only : dp, tolDispDamp, tolDispersion

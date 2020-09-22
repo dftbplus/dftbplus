@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-#! Template paramters: (data type, suffix name, data type name in the tagged output, format string)
+#! Template parameters: (data type, suffix name, data type name in the tagged output, format string)
 #:set TEMPLATE_PARAMS = [('real(dp)', 'Real', 'real', 'formReal'),&
     & ('complex(dp)', 'Cplx', 'complex', 'formCmplx'),&
     & ('integer', 'Integer', 'integer', 'formInt'),&

@@ -159,7 +159,7 @@ contains
     type(fnode), pointer :: node
 
     !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of
-    !> compability options)
+    !> compatibility options)
     type(fnode), pointer :: root
 
     !> Contains parser flags on exit.

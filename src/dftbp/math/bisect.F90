@@ -33,7 +33,7 @@ contains
     !> value to locate j for
     real(dp), intent(in) :: x
 
-    !> Tolerance for equality comparision
+    !> Tolerance for equality comparison
     real(dp), intent(in), optional :: tol
 
     integer :: n

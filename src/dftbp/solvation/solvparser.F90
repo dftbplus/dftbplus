@@ -586,7 +586,7 @@ contains
     !> Node to process
     type(fnode), pointer :: node
 
-    !> Grid identifer
+    !> Grid identifier
     integer, intent(out) :: angGrid
 
     !> Default grid size

@@ -191,7 +191,7 @@ module dftbp_poisson_structure
 
 
   ! ----------------------------------------------------------------------
-  ! find the lenght of the shortest vertex in your supercell 
+  ! find the length of the shortest vertex in your supercell
   ! ---------------------------------------------------------------------
 
   real(dp) function shortvertice()

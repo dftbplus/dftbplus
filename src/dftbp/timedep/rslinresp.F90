@@ -931,7 +931,7 @@ contains
     nXvv_max = maxval(nxvvUD)
 
     if (nExc + 1 >= nXov) then
-      write(tmpStr,"(' Insufficent single particle excitations, ', I0,&
+      write(tmpStr,"(' Insufficient single particle excitations, ', I0,&
           & ', for required number of excited states ', I0)") nXov, nExc
       call error(tmpStr)
     end if
@@ -1295,7 +1295,7 @@ contains
     allocate(vecXpYtest(size(evec,dim=1), size(evec,dim=2)))
 
     ! initial allocations
-    ! start with lowest excitations. Inital number somewhat arbritary.
+    ! start with lowest excitations. Initial number somewhat arbritary.
     subSpaceDim = min(initExc, nXov)
     memDim = min(subSpaceDim + 6 * nExc, nXov) ! memory available for subspace calcs.
     workDim = 3 * memDim + 1
@@ -1551,7 +1551,7 @@ contains
 
   !> Write out transitions from ground to excited state along with single particle transitions
   !> and dipole strengths
-  !> Modified routine because some expresions in original routine don't apply in the RS case
+  !> Modified routine because some expressions in original routine don't apply in the RS case
   subroutine writeExcitationsRS(cSym, oscStrength, nExc, nMatUp, getIA, win, eval, mXpYall, wIJ,&
       & fdXplusY, fdTrans, fdTraDip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
       & fdExc, Ssq)

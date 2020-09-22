@@ -418,7 +418,7 @@ contains
     !> Updated gradient vector at return
     real(dp), intent(out) :: gradients(:,:)
 
-    !> If yes, the 1/r^6 term is substracted from every interaction.
+    !> If yes, the 1/r^6 term is subtracted from every interaction.
     logical , intent(in), optional :: removeR6
 
     !> Stress tensor

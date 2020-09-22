@@ -28,7 +28,7 @@ helpTxt = """
 Combines the passed cube files (<cubeFile1>, <cubeFile2>, ...)  according the
 expression <expr> to a new cube file.  The cube files provided as arguments
 after the expression must be referenced in the expression as ($n), where n the
-index of appropriate file is. The expression can be any arbitary expression
+index of appropriate file is. The expression can be any arbitrary expression
 which is valid in python using the Numerical and LinearAlgebra packages and
 results in a float or a float array. Unless the '-d' option is passed, the
 result must have the same shape, as the data arrays in the cube files. The
@@ -148,7 +148,7 @@ def dumpCubeFile(cc):
 
 
 def dumpData(data):
-  """Dumps an arbitary shaped numerical array"""
+  """Dumps an arbitrary shaped numerical array"""
 
   shape = data.shape
   if not len(shape):

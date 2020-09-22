@@ -53,7 +53,7 @@ module dftbp_md_nhctherm
     !> weight coefficients
     real(dp), allocatable :: w(:)
 
-    !> times steps to expand propogator of NHC part of evolution operator
+    !> times steps to expand propagator of NHC part of evolution operator
     integer :: nresn
 
     !> number of thermostat particles in chain
@@ -82,7 +82,7 @@ module dftbp_md_nhctherm
   end interface
 
 
-  !> update velocites acording to the thermostat
+  !> update velocities according to the thermostat
   interface updateVelocities
     module procedure NHC_updateVelos
   end interface
@@ -154,7 +154,7 @@ contains
     ! pg 1124 'For typical simulations, nc can be taken to be one.'
     this%nresn = nc
     if (this%nresn < 1) then
-      call error('Nose-Hoover propogation steps must be at least 1.')
+      call error('Nose-Hoover propagation steps must be at least 1.')
     end if
 
     ! particles in the chain
@@ -184,7 +184,7 @@ contains
     allocate(this%vnose(this%nnos))
     allocate(this%gnose(this%nnos))
 
-    ! set intial thermostat positions, velocities and forces
+    ! set initial thermostat positions, velocities and forces
     if (present(xnose)) then
       this%xnose(1:this%nnos)=xnose
       this%vnose(1:this%nnos)=vnose

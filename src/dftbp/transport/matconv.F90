@@ -10,7 +10,7 @@
 
 
 !> Contains routines for folding internal sparse matrixes into Compressed
-!> Sparse Row Format and vica-versa.
+!> Sparse Row Format and vice-versa.
 !>
 !> Caveat All folding and unfolding routines assume, that the CSR matrices have the same sparsity
 !> structure as the internal sparse matrices. The CSR matrices must be created using the
@@ -64,7 +64,7 @@ contains
   !> accordance with current geometry.
   !>
   !> Note: The subroutine only creates the structure of the CSR matrix, but
-  !> does not fill up the nonzero values with anything usefull.
+  !> does not fill up the nonzero values with anything useful.
   !> The resulting CSR matrix has storage for both triangles of the square matrix.
   subroutine createEquivCSR_real(csr, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
 
@@ -373,7 +373,7 @@ contains
   !> geometry.
   !>
   !> Note: The subroutine only creates the structure of the CSR matrix, but does not fill up the
-  !> nonzero values with anything usefull. The resulting CSR matrix has storage for both triangles
+  !> nonzero values with anything useful. The resulting CSR matrix has storage for both triangles
   !> of the square matrix.
   subroutine createEquivCSR_cplx(csr, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
 

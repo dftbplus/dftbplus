@@ -342,7 +342,7 @@ contains
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
 
@@ -401,7 +401,7 @@ contains
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
 
@@ -460,7 +460,7 @@ contains
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
 
@@ -519,7 +519,7 @@ contains
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
 
@@ -574,7 +574,7 @@ contains
     !> the passed matrix)
     integer, intent(in), optional :: nRow
 
-    !> iError Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> iError Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
 
@@ -632,7 +632,7 @@ contains
     !> the passed matrix)
     integer, intent(in), optional :: nRow
 
-    !> iError Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> iError Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
 
@@ -686,8 +686,8 @@ contains
     !> Nr. of rows of the matrix (if different from size(aa, dim=1)
     integer, intent(in), optional :: nRow
 
-    !> iError Error flag. Returns 0 on successfull operation. If this variable is not specified, any
-    !> occuring error (e.g. singular matrix) stops the program.
+    !> iError Error flag. Returns 0 on successful operation. If this variable is not specified, any
+    !> occurring error (e.g. singular matrix) stops the program.
     integer, intent(out), optional :: iError
 
     integer :: nn, info
@@ -828,7 +828,7 @@ contains
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
 
-    !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
+    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
     integer, intent(out), optional :: info
 
     integer :: nn, info0, lwork
@@ -868,7 +868,7 @@ contains
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
 
-    !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
+    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
     integer, intent(out), optional :: info
 
     integer :: nn, info0, lwork
@@ -908,7 +908,7 @@ contains
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
 
-    !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
+    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
     integer, intent(out), optional :: info
 
     integer :: nn, info0, lwork
@@ -948,7 +948,7 @@ contains
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
 
-    !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
+    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
     integer, intent(out), optional :: info
 
     integer :: nn, info0, lwork
@@ -1133,7 +1133,7 @@ contains
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
 
@@ -1212,7 +1212,7 @@ contains
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
 
-    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
 

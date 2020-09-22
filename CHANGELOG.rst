@@ -60,7 +60,7 @@ Fixed
 -----
 
 - Fix bug in binary eigenvector output in non-MPI builds (only eigenvectors
-  belonging to the the first k-point and spin channel were stored)
+  belonging to the first k-point and spin channel were stored)
 
 - Fix transpose of lattice vectors on return from iPI (thanks to Bingqing Cheng
   and Edgar Engel)

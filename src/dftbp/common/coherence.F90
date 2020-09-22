@@ -184,7 +184,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> Tolerance for comparision, if absent use eps
+    !> Tolerance for comparison, if absent use eps
     real(dp), intent(in), optional :: tol
 
     !> Is the local data the same as the lead version?
@@ -230,7 +230,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> Tolerance for comparision, if absent use eps
+    !> Tolerance for comparison, if absent use eps
     real(dp), intent(in), optional :: tol
 
     !> Is the data the same?
@@ -254,7 +254,7 @@ contains
     !> string detailing data
     character(len=*), intent(in) :: message
 
-    !> Tolerance for comparision, if absent use eps
+    !> Tolerance for comparison, if absent use eps
     real(dp), intent(in), optional :: tol
 
     !> Error code return, 0 if no problems

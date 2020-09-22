@@ -51,7 +51,7 @@ module dftbp_io_hsdutils
   !> it must be also indicated, if the created child is only allowed to have one further child or
   !> not. (This corresponds to an assignment with '=' in the HSD input.) If the child (identified by
   !> the provided name) is allowed to have a modifier, an argument for the modifier must be provided
-  !> to contain the the parsed value on return. If the argument for the modifier is missing, but a
+  !> to contain the parsed value on return. If the argument for the modifier is missing, but a
   !> modifier is found, the program raises an error. The pointer to the found (or created) child can
   !> be queried through an appropriate argument. If the name of the child to look for is an empty
   !> string, the passed node itself is treated as if it would be the child, which had been found.
@@ -83,7 +83,7 @@ module dftbp_io_hsdutils
   !> of type node) containing the provided value. It must be indicated, if the created child is
   !> allowed to have only one single further child. If a child with the specified name already
   !> exists, the program raises an error, unless replacement flag is set on .true.. In that case,
-  !> the the existing child is replaced. If the name of the child is the empty string, the current
+  !> the existing child is replaced. If the name of the child is the empty string, the current
   !> node is treated as if it would be the child, which had been found.
   interface setChildValue
     module procedure setChVal_logical
@@ -785,7 +785,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lString(node, name, variableValue, modifier, child)
 
@@ -861,7 +861,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lReal(node, name, variableValue, modifier, child)
 
@@ -936,7 +936,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lRealR1(node, name, dim, variableValue, modifier, child)
 
@@ -1022,7 +1022,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lInt(node, name, variableValue, modifier, child)
 
@@ -1099,7 +1099,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lIntR1(node, name, dim, variableValue, modifier, child)
 
@@ -1186,7 +1186,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lIntR1RealR1(node, name, dimInt, valueInt, dimReal, valueReal, modifier, &
       & child)
@@ -1203,7 +1203,7 @@ contains
     !> List of integer arrays on return
     integer, intent(in) :: dimReal
 
-    !> Dimensio of the real arrays in the list
+    !> Dimension of the real arrays in the list
     type(TListIntR1), intent(inout) :: valueInt
 
     !> List of real array on return
@@ -1300,7 +1300,7 @@ contains
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
-  !> be explicitely queried in the caller routine and an eventual default setting must be set with
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lStringIntR1RealR1(node, name, valueStr, dimInt, valueInt, dimReal, &
       & valueReal, modifier, child)
@@ -1438,7 +1438,7 @@ contains
     !> Default value for the child, if child is not found. If the empty string is passed as default
     !> value, the child is created but no value is added to it. The returned value pointer will be
 
-    !> unassociated. (allowEmptyValue must be explicitely set to .true.)
+    !> unassociated. (allowEmptyValue must be explicitly set to .true.)
     character(len=*), intent(in), optional :: default
 
     !> Modifier of the child on return
@@ -2843,7 +2843,7 @@ contains
   !> Workhorse for the setChildValue routines
   !>
   !> If an empty string is provided as child name, no child is created, and the current node is
-  !> replace instead. The pointer "node" becames associated with the new node, since the old
+  !> replace instead. The pointer "node" becomes associated with the new node, since the old
   !> instance will be destroyed.
   subroutine createChild_local(node, name, list, replace, child, variableValue)
 
@@ -2933,7 +2933,7 @@ contains
     !> node name
     character(len=*), intent(in) :: name
 
-    !> stored variale string
+    !> stored variable string
     character(len=*), intent(in) :: variableValue
 
     call xml_NewElement(xf, name)
@@ -3036,7 +3036,7 @@ contains
     !> Content of the error flag.
     integer, intent(in) :: iErr
 
-    !> Message to print, if error occured
+    !> Message to print, if error occurred
     character(len=*), intent(in) :: msg
 
     if (iErr == TOKEN_ERROR) then
@@ -3070,7 +3070,7 @@ contains
   !> Prints detailed error, including line number and path
   subroutine detailedError(node, msg)
 
-    !> Node where the error occured.
+    !> Node where the error occurred.
     type(fnode), pointer :: node
 
     !> Message to print
@@ -3088,7 +3088,7 @@ contains
   !> Prints detailed warning, including line number and path
   subroutine detailedWarning(node, msg)
 
-    !> Node where the error occured.
+    !> Node where the error occurred.
     type(fnode), pointer :: node
 
     !> Message to print
