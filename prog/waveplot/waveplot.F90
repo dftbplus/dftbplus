@@ -424,12 +424,12 @@ contains
       write (fd, "(A)") "Made by waveplot"
       write (fd, *)
     end if
-    write (fd,"(I10,3E18.10)") geo%nAtom, origin(:)
-    write (fd,"(I10,3E18.10)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
-    write (fd,"(I10,3E18.10)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
-    write (fd,"(I10,3E18.10)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
+    write (fd,"(I5,3F12.6)") geo%nAtom, origin(:)
+    write (fd,"(I5,3F12.6)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
+    write (fd,"(I5,3F12.6)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
+    write (fd,"(I5,3F12.6)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
     do ii = 1, geo%nAtom
-      write (fd, "(I4,4E18.10)") atomicNumbers(geo%species(ii)), 0.0_dp, &
+      write (fd, "(I5,4F12.6)") atomicNumbers(geo%species(ii)), 0.0_dp, &
           &geo%coords(:, ii)
     end do
 
