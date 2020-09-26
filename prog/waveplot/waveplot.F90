@@ -386,7 +386,7 @@ contains
 
     integer, parameter :: bufferSize = 4
     real(dp) :: buffer(bufferSize)
-    character(len=*), parameter :: formBuffer = "(4E18.10)"
+    character(len=*), parameter :: formBuffer = "(6E13.5)"
     integer :: rep(3)
 
     integer, save :: fd = -1
@@ -446,7 +446,7 @@ contains
                 end if
               end do
               if (ii /= bufferSize) then
-                write (fd, "(" // i2c(ii) // "E18.10)") buffer(:ii)
+                write (fd, "(" // i2c(ii) // "E13.5)") buffer(:ii)
               end if
             end do
           end do
