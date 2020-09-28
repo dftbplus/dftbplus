@@ -2772,6 +2772,9 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      if (tPeriodic) then
+        write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", sccCalc%getEwaldPar()
+      end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
