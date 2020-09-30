@@ -72,6 +72,9 @@ module dftbp_taggedoutput
     !> oscillator strength for excitations
     character(lenLabel) :: excOsc = 'exc_oscillator'
 
+    !> Transition dipole moments for excitations
+    character(lenLabel) :: excDipole = 'exc_transdip'
+
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
 

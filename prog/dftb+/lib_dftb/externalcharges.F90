@@ -324,10 +324,10 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces, blurWidths1=this%blurWidths)
+          & this%charges, atomForces, chrgForces, tHamDeriv=.false., blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces)
+          & this%charges, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcCluster
@@ -375,11 +375,11 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.,&
           & blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces)
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcPeriodic

@@ -4,15 +4,10 @@
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 if(WITH_API)
-  # Define the API version string
-  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_RELEASE}'")
-  # individual components
-  string(REGEX MATCHALL "[0-9]+" API_LIST "${API_RELEASE}")
-  list(GET API_LIST 0 api_major)
-  list(GET API_LIST 1 api_minor)
-  list(GET API_LIST 2 api_patch)
-  MESSAGE("DFTB+ API : ${api_major}.${api_minor}.${api_patch}")
-  list(APPEND FYPP_FLAGS -DAPIMAJOR=${api_major} -DAPIMINOR=${api_minor} -DAPIPATCH=${api_patch})
+  message(STATUS "DFTB+ API version: ${API_VERSION}")
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_VERSION}'")
+  list(APPEND FYPP_FLAGS -DAPIMAJOR=${API_VERSION_MAJOR} -DAPIMINOR=${API_VERSION_MINOR}
+    -DAPIPATCH=${API_VERSION_PATCH})
 endif()
 
 #
@@ -53,6 +48,11 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-
 
 add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES-C})
 
+if(WITH_MPI)
+  target_include_directories(dftbplus PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(dftbplus PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
+
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
 if(WITH_SOCKETS)
@@ -63,10 +63,10 @@ set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
 target_include_directories(dftbplus PUBLIC
-  $<BUILD_INTERFACE:${includedir}> $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
+  $<BUILD_INTERFACE:${includedir}> $<INSTALL_INTERFACE:${CMAKE_INSTALL_MODULEDIR}>)
 if(WITH_API)
   target_include_directories(dftbplus INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm> $<INSTALL_INTERFACE:${INSTALL_INC_DIR}>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 endif()
 
 
@@ -84,6 +84,10 @@ endif()
 
 if(WITH_DFTD3)
   target_link_libraries(dftbplus PUBLIC dftd3)
+endif()
+
+if(WITH_MBD)
+  target_link_libraries(dftbplus PUBLIC mbd)
 endif()
 
 if(WITH_TRANSPORT)
@@ -110,11 +114,11 @@ if(WITH_MPI)
   target_link_libraries(dftbplus PRIVATE ${SCALAPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
-
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
 endif()
+
+target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if (WITH_GPU)
   target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
@@ -129,22 +133,30 @@ target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 # Installation
 
 if(WITH_API OR BUILD_SHARED_LIBS)
-  install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
+  install(TARGETS dftbplus DESTINATION "${CMAKE_INSTALL_LIBDIR}" EXPORT dftbplus-targets)
 endif()
 
 if(INSTALL_INCLUDE_FILES)
-  install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h ${INSTALL_INC_DIR}/dftbplus.h @ONLY)
+  install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
+  CONFIGURE_FILE(
+    "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+    @ONLY
+  )
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  )
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)
-    install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
+    install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
   endforeach()
 
   if (WITH_SOCKETS)
     get_target_property(moddirs fsockets_objlib INTERFACE_INCLUDE_DIRECTORIES)
     foreach(moddir IN LISTS moddirs)
-      install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
+      install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
     endforeach()
   endif()
 endif()
@@ -165,4 +177,4 @@ add_executable(dftb+ ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 target_link_libraries(dftb+ dftbplus)
 
-install(TARGETS dftb+ DESTINATION ${INSTALL_BIN_DIR})
+install(TARGETS dftb+ DESTINATION ${CMAKE_INSTALL_BINDIR})

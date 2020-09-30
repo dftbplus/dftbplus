@@ -69,7 +69,6 @@ contains
     integer, allocatable :: fpHam(:), fpOver(:)
     character(lc) :: strTmp
     type(string) :: buffer
-    integer :: nGridform1, form2
     integer :: ii, jj, nGrid
     real(dp) :: rr
 
@@ -172,10 +171,10 @@ contains
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
 
-    type(fNode), pointer :: hsdTree, root, dummy, child
+    type(fNode), pointer :: hsdTree, root, child
     type(TOldSKData) :: skData12(1,1), skData21(1,1)
     character(lc) :: strTmp
-    logical :: isHSD, inputMissing, useOldInter
+    logical :: useOldInter
     type(string) :: buffer
     integer :: angShellOrdered(size(shellNames))
     type(TListIntR1) :: angShells(2)

@@ -117,7 +117,7 @@ module negf_int
 
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
-    integer :: i, l, ncont, nc_vec(1), j, nldos
+    integer :: i, l, ncont, nldos
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
@@ -551,7 +551,6 @@ module negf_int
     integer, allocatable :: minv(:,:)
     Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
     integer :: i, m, i1, j1, info
-    integer, allocatable :: inRegion(:)
 
     iatm2 = transpar%idxdevice(2)
     ncont = transpar%ncont
@@ -1365,15 +1364,14 @@ module negf_int
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
+    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont
     type(units) :: unitOfEnergy        ! Set the units of H
     type(units) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
-    integer :: i, j, k, NumStates, icont
+    integer :: NumStates
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
-    character(2) :: id1, id2
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%groupComm)
@@ -1415,7 +1413,7 @@ module negf_int
       end if
 
       !*** ORTHOGONALIZATIONS ***
-      ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin
+      ! THIS MAKES SENSE ONLY FOR REAL MATRICES, i.e. k==0 && collinear spin
       if (all(kPoints(:,iK) == 0.0_dp) .and. (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
         NumStates = negf%NumStates
@@ -1563,7 +1561,10 @@ module negf_int
     !> number of k-points
     integer, intent(in) :: nK
 
+    #:if WITH_MPI
     real(dp), allocatable :: tmpMat(:,:)
+    #:endif
+
     integer :: err
 
     if (associated(pMat)) then
@@ -1861,7 +1862,7 @@ module negf_int
 
 
     ! Local stuff ---------------------------------------------------------
-    integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
+    integer :: n0, nn, mm,  mu, nu, nAtom, irow
     integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
     real(dp), dimension(:,:,:), allocatable :: lcurr 
     real(dp) :: Im
@@ -1869,7 +1870,6 @@ module negf_int
     integer, dimension(:), allocatable :: lc_img2CentCell, lc_iCellVec, lc_species
     real(dp), dimension(:,:), allocatable :: lc_coord 
     integer :: lc_nAllAtom
-    real(dp) :: cutoff
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
     character(:), allocatable :: skp
@@ -2079,7 +2079,7 @@ module negf_int
   !> pack dense matrices into CSR format
   subroutine MakeHHSS(H_all, S_all, HH, SS)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(in) :: H_all(:,:)
 
     !> overlap matrix
@@ -2091,7 +2091,7 @@ module negf_int
     !> overlap in CSR
     type(z_CSR), intent(inout) :: SS
 
-    integer :: i,j,k,l,m,n,NumStates, nnz
+    integer :: i, j, k, NumStates, nnz
 
     NumStates = negf%NumStates
 
@@ -2140,14 +2140,14 @@ module negf_int
   !> form orthogonal matrices via Lowdin transform for whole system
   subroutine orthogonalization(H,S)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(inout) :: H(:,:)
 
     !> overlap matrix
     real(dp), intent(inout) :: S(:,:)
 
     integer :: i, m, n1_first, n1_last, n2_first, n2_last
-    integer :: INFO, N
+    integer :: N
     real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:),C(:,:)
 
@@ -2253,7 +2253,7 @@ module negf_int
 
 
     integer :: i, m, n1_first, n1_last, n2_first, n2_last
-    integer :: INFO, N, N2
+    integer :: N, N2
     real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:), U(:,:), C(:,:)
 

@@ -409,7 +409,7 @@ contains
     integer, intent(out) :: n
 
 
-    real(dp) :: a, b, v
+    real(dp) :: v
 
     n = 1
     v = 0.1666666666666667e+0_dp
@@ -431,7 +431,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: v
 
     n = 1
     v = 0.6666666666666667e-1_dp
@@ -455,7 +455,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: v
 
     n = 1
     v = 0.4761904761904762e-1_dp
@@ -481,7 +481,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: a, v
 
     n = 1
     v = 0.9523809523809524e-2_dp
@@ -508,7 +508,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: a, v
 
     n = 1
     v = 0.1269841269841270e-1_dp
@@ -537,7 +537,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: a, v
 
     n = 1
     v = 0.5130671797338464e-3_dp
@@ -569,7 +569,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: a, v
 
     n = 1
     v = 0.1154401154401154e-1_dp
@@ -602,7 +602,7 @@ contains
     !> Number of generated grid points
     integer, intent(out) :: n
 
-    real(dp) :: a, b, v
+    real(dp) :: a, v
 
     n = 1
     v = 0.3828270494937162e-2_dp

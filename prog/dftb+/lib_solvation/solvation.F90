@@ -49,11 +49,11 @@ module dftbp_solvation
 
   abstract interface
     !> Update internal stored coordinates
-    subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+    subroutine updateCoords(this, env, neighList, img2CentCell, coords, species0)
       import :: TSolvation, TEnvironment, TNeighbourList, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Computational environment settings
       type(TEnvironment), intent(in) :: env
@@ -73,11 +73,11 @@ module dftbp_solvation
 
 
     !> Update internal copy of lattice vectors
-    subroutine updateLatVecs(self, latVecs)
+    subroutine updateLatVecs(this, latVecs)
       import :: TSolvation, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Lattice vectors
       real(dp), intent(in) :: latVecs(:,:)
@@ -85,11 +85,11 @@ module dftbp_solvation
 
 
     !> Get energy contributions
-    subroutine getEnergies(self, energies)
+    subroutine getEnergies(this, energies)
       import :: TSolvation, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Energy contributions for each atom
       real(dp), intent(out) :: energies(:)
@@ -97,11 +97,11 @@ module dftbp_solvation
 
 
     !> Get force contributions
-    subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+    subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
       import :: TSolvation, TEnvironment, TNeighbourList, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Computational environment settings
       type(TEnvironment), intent(in) :: env
@@ -124,11 +124,11 @@ module dftbp_solvation
 
 
     !> Get stress tensor contributions
-    subroutine getStress(self, stress)
+    subroutine getStress(this, stress)
       import :: TSolvation, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Stress tensor contributions
       real(dp), intent(out) :: stress(:,:)
@@ -136,11 +136,11 @@ module dftbp_solvation
 
 
     !> Distance cut off for dispersion interactions
-    function getRCutoff(self) result(cutoff)
+    function getRCutoff(this) result(cutoff)
       import :: TSolvation, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Resulting cutoff
       real(dp) :: cutoff
@@ -148,11 +148,11 @@ module dftbp_solvation
 
 
     !> Updates with changed charges for the instance.
-    subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+    subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
       import :: TSolvation, TEnvironment, TNeighbourList, TOrbitals, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Computational environment settings
       type(TEnvironment), intent(in) :: env
@@ -178,11 +178,11 @@ module dftbp_solvation
 
 
     !> Returns shifts per atom
-    subroutine getShifts(self, shiftPerAtom, shiftPerShell)
+    subroutine getShifts(this, shiftPerAtom, shiftPerShell)
       import :: TSolvation, dp
 
       !> Data structure
-      class(TSolvation), intent(inout) :: self
+      class(TSolvation), intent(inout) :: this
 
       !> Shift per atom
       real(dp), intent(out) :: shiftPerAtom(:)

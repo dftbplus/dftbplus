@@ -56,6 +56,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DDEBUG=0)
   endif()
 
+  if(INTERNAL_ERFC)
+    list(APPEND _fyppflags -DINTERNAL_ERFC=1)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -66,6 +70,10 @@ function (dftbp_add_fypp_defines fyppflags)
 
   if(WITH_DFTD3)
     list(APPEND _fyppflags -DWITH_DFTD3)
+  endif()
+
+  if(WITH_MBD)
+      list(APPEND _fyppflags -DWITH_MBD)
   endif()
 
   if(WITH_PLUMED)
@@ -133,15 +141,27 @@ function(dftbp_get_release_name release)
 endfunction()
 
 
-# Gets DFTB+ API release information.
+# Gets DFTB+ API version information.
 #
 # Args:
-#   release [out]: Release string.
+#   apiversion [out]: Version string.
+#   apimajor [out]: Major release number (as string).
+#   apiminor [out]: Minor release number (as string).
+#   apipatch [out]: Patch release number (as string).
 #
-function(dftbp_get_api_release apiversion)
+function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
+    REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
+  list(GET _api_list 0 _api_major)
+  list(GET _api_list 1 _api_minor)
+  list(GET _api_list 2 _api_patch)
+
   set(${apiversion} "${_api}" PARENT_SCOPE)
+  set(${apimajor} "${_api_major}" PARENT_SCOPE)
+  set(${apiminor} "${_api_minor}" PARENT_SCOPE)
+  set(${apipatch} "${_api_patch}" PARENT_SCOPE)
 
 endfunction()
 
@@ -154,6 +174,11 @@ endfunction()
 #
 function (dftbp_create_library_targets libraries libpaths)
   foreach(lib IN LISTS libraries)
+    string(REGEX MATCH "^[ ]*-.*" option ${lib})
+    # If the library is a linker option, skip target conversion (use it literally)
+    if(NOT "${option}" STREQUAL "")
+      continue()
+    endif()
     if(TARGET ${lib})
       continue()
     endif()
@@ -217,8 +242,9 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
     string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
     string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
     if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-      message(FATAL_ERROR "Intel compiler needs either the '-standard-semantics' or the '-assume \
-realloc_lhs' option to produce correctly behaving (Fortran standard complying) code")
+      message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
+        "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
+        "code")
     endif()
   endif()
 
@@ -256,12 +282,13 @@ endfunction()
 #     pkgconfig_requires [out]: Value for the Requires field.
 #     pkgconfig_libs [out]: Value for the Libs field.
 #     pkgconfig_libs_private [out]: Value for the Libs.private field.
-#     pkgconfig_c_flags [out]: value for the cflags field.
+#     pkgconfig_c_flags [out]: Value for the cflags field.
+#     pkgconfig_prefix [out]: Value for the installation prefix.
 #
 function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_libs_private
     pkgconfig_c_flags)
 
-  set(_pkgconfig_libs "-L${INSTALL_LIB_DIR} -ldftbplus")
+  set(_pkgconfig_libs "-L${CMAKE_INSTALL_FULL_LIBDIR} -ldftbplus")
   set(_pkgconfig_libs_private)
 
   dftbp_add_prefix("-l" "${EXPORTED_COMPILED_LIBRARIES}" complibs)
@@ -285,7 +312,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_INC_DIR} ${CMAKE_C_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_INCLUDEDIR} ${CMAKE_C_FLAGS}")
 
   else()
 
@@ -299,7 +326,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_MOD_DIR} ${CMAKE_Fortran_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_MODULEDIR} ${CMAKE_Fortran_FLAGS}")
 
   endif()
 
@@ -309,6 +336,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   set(_pkgconfig_libs_private "${_pkgconfig_libs_private} ${CMAKE_EXE_LINKER_FLAGS}")
   string(REPLACE ";" " " _pkgconfig_requires "${EXPORTED_EXTERNAL_PACKAGES}")
 
+  set(${pkgconfig_prefix} "${CMAKE_INSTALL_PREFIX}" PARENT_SCOPE)
   set(${pkgconfig_requires} "${_pkgconfig_requires}" PARENT_SCOPE)
   set(${pkgconfig_libs} "${_pkgconfig_libs}" PARENT_SCOPE)
   set(${pkgconfig_libs_private} "${_pkgconfig_libs_private}" PARENT_SCOPE)
@@ -372,3 +400,77 @@ toolchain file). See the INSTALL.rst file for detailed instructions.")
   endif()
 
 endfunction()
+
+
+# Loads global build settings (either from config.cmake or from user defined file)
+#
+macro (dftbp_load_build_settings)
+
+  if(NOT DEFINED BUILD_CONFIG_FILE)
+    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE} AND NOT ENV{DFTBPLUS_BUILD_CONFIG_FILE} STREQUAL "")
+      set(BUILD_CONFIG_FILE "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}")
+    else()
+      set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
+    endif()
+  endif()
+  message(STATUS "Reading global build config file: ${BUILD_CONFIG_FILE}")
+  include(${BUILD_CONFIG_FILE})
+  
+endmacro()
+
+
+# Tries to guess which toolchain to load based on the environment.
+#
+# Args:
+#     toolchain [out]: Name of the selected toolchain or undefined if it could not be selected
+#
+function(dftbp_guess_toolchain toolchain)
+
+  if("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "GNU|GNU")
+    set(_toolchain "gnu")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "Intel|Intel")
+    set(_toolchain "intel")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
+    set(_toolchain "nag")
+  else()
+    set(_toolchain "generic")
+  endif()
+    
+  set(${toolchain} "${_toolchain}" PARENT_SCOPE)
+  
+endfunction()
+
+
+# Loads toolchain settings.
+#
+macro(dftbp_load_toolchain_settings)
+  
+  if(NOT DEFINED TOOLCHAIN_FILE AND NOT "$ENV{DFTBPLUS_TOOLCHAIN_FILE}" STREQUAL "")
+    set(TOOLCHAIN_FILE "$ENV{DFTBPLUS_TOOLCHAIN_FILE}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN AND NOT "$ENV{DFTBPLUS_TOOLCHAIN}" STREQUAL "")
+    set(TOOLCHAIN "$ENV{DFTBPLUS_TOOLCHAIN}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN_FILE OR TOOLCHAIN_FILE STREQUAL "")
+    if(NOT DEFINED TOOLCHAIN OR TOOLCHAIN STREQUAL "")
+      dftbp_guess_toolchain(TOOLCHAIN)
+    endif()
+    set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
+  endif()
+  message(STATUS "Reading build environment specific toolchain file: ${TOOLCHAIN_FILE}")
+  include(${TOOLCHAIN_FILE})
+endmacro()
+
+
+# Sets up the global compiler flags
+#
+macro (dftbp_setup_global_compiler_flags)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
+  foreach (lang IN ITEMS Fortran C)
+    set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+    set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    message(STATUS "Flags for ${lang}-compiler: "
+      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+  endforeach()
+
+endmacro()

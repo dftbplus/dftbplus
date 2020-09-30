@@ -165,8 +165,8 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     integer :: iOrig, ii, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iAtFirst, iAtLast
-    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb), theta
-    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3), intermed(3)
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
@@ -374,13 +374,8 @@ contains
     !> Optional signalling of helical operations
     logical, intent(in), optional :: tHelical
 
-    integer :: iOrig, iSpin, ii, nSpin, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer :: nOrb1, nOrb2, iAtFirst, iAtLast
+    integer :: nSpin, nAtom
 
-    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
-    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp) :: derivTmp(3), theta
     logical :: tHelix
 
     tHelix = .false.
@@ -604,7 +599,7 @@ contains
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp) :: derivTmp(3), theta
+    real(dp) :: derivTmp(3)
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)

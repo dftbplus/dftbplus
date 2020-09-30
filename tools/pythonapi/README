@@ -14,17 +14,17 @@ DftbPlus
 Compiling DFTB+
 ===============
 
-In order to be able to use the Python interface, DFTB+ has to get
-compiled as a shared library and with API support enabled. To
-instruct DFTB+ that a dynamically linked shared library should be
-created, the WITH_API and BUILD_SHARED_LIBS flag in the cmake
-configuration file config.cmake must be set to TRUE, before starting
-the compilation process. If you do not want to mess around with files,
-a construct like the following is a convenient way to specify these
-flags, while configuring CMake:
+In order to be able to use the Python interface, DFTB+ has to be
+compiled as a shared library with API support enabled. To instruct
+cmake that a dynamically linked shared library should be created
+containing DFTB+. This can be done by setting the WITH_API and
+BUILD_SHARED_LIBS flags to be TRUE in the configuration file
+config.cmake, before starting the configuration and compilation
+process. Alternatively, if you do not want to modify files, a
+construct like the following is a convenient way to specify these
+flags on the command line while configuring with CMake:
 
-cmake -DBUILD_SHARED_LIBS=1 -DWITH_API=1 \
--DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+cmake -DBUILD_SHARED_LIBS=1 -DWITH_API=1 ..
 
 
 Testing pythonapi
@@ -34,13 +34,14 @@ In the _build/ directory, running
 
 ctest -R pyapi_*
 
-will validate the source of pythonapi by executing regression tests.
+will validate the compiled library and the source of the pythonapi by
+executing regression tests.
 
 For developers
 --------------
 
-To perform pylint static checking, in the top DFTB+ directory the
-individual files can be tested, for example by
+To perform pylint static checking from the top level directory of the
+DFTB+ project, use
 
 pylint3 --rcfile utils/srccheck/pylint/pylintrc-3.ini tools/pythonapi/src/*
 
@@ -48,7 +49,7 @@ pylint3 --rcfile utils/srccheck/pylint/pylintrc-3.ini tools/pythonapi/src/*
 Installation
 ============
 
-Please note, that the package has been tested for **Python 3.X**
+Please note, that this package has been tested for **Python 3.X**
 support. It additionally needs Numerical Python (the numpy module).
 
 System install
@@ -56,9 +57,12 @@ System install
 
 You can install the script package via the standard 'python setup'
 mechanism. If you want to install it system-wide into your normal
-python installation, you simply issue::
+python installation, for the script in the tools/pythonapi/
+sub-directory you simply issue::
 
   python setup.py
+
+with an appropriate level of permission.
 
 Local install
 -------------

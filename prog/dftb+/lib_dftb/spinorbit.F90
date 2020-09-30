@@ -147,7 +147,7 @@ contains
     !> index array for atomic blocks in dense matrices
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Dense hamitonian matrix (2 component)
+    !> Dense hamiltonian matrix (2 component)
     complex(dp), intent(inout) :: HSqrCplx(:,:)
 
     complex(dp), allocatable :: speciesZ(:,:,:), speciesPlus(:,:,:)

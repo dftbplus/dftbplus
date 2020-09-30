@@ -15,7 +15,6 @@ module dftbp_nhctherm
   use dftbp_mdcommon
   use dftbp_ranlux
   use dftbp_tempprofile
-  use dftbp_energies
   use dftbp_message
   implicit none
 
@@ -104,12 +103,12 @@ contains
 
 
   !> Creates an NHC thermostat instance.
-  subroutine NHC_init(self, pRanlux, masses, tempProfile, &
+  subroutine NHC_init(this, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame, deltaT, npart, nys, nc, &
       & xnose, vnose, gnose)
 
     !> Initialised instance on exit.
-    type(TNHCThermostat), intent(out) :: self
+    type(TNHCThermostat), intent(out) :: this
 
     !> Random generator.
     type(TRanlux), allocatable, intent(inout) :: pRanlux
@@ -145,67 +144,67 @@ contains
     end if
   #:endblock DEBUG_CODE
 
-    call move_alloc(pRanlux, self%pRanlux)
-    self%nAtom = size(masses)
-    allocate(self%mass(self%nAtom))
-    self%mass(:) = masses(:)
-    self%pTempProfile => tempProfile
-    self%couplingParameter = couplingParameter
-    self%pMDFrame = pMDFrame
-    self%deltaT = deltaT
+    call move_alloc(pRanlux, this%pRanlux)
+    this%nAtom = size(masses)
+    allocate(this%mass(this%nAtom))
+    this%mass(:) = masses(:)
+    this%pTempProfile => tempProfile
+    this%couplingParameter = couplingParameter
+    this%pMDFrame = pMDFrame
+    this%deltaT = deltaT
 
     ! pg 1124 'For typical simulations, nc can be taken to be one.'
-    self%nresn = nc
-    if (self%nresn < 1) then
+    this%nresn = nc
+    if (this%nresn < 1) then
       call error('Nose-Hoover propogation steps must be at least 1.')
     end if
 
     ! particles in the chain
-    self%nnos = npart
-    if (self%nnos < 1) then
+    this%nnos = npart
+    if (this%nnos < 1) then
       call error('Nose-Hoover chains must contain at least one mass.')
     end if
 
     ! current choice of order
-    self%nyosh = nys
-    allocate(self%w(self%nyosh))
-    select case (self%nyosh)
+    this%nyosh = nys
+    allocate(this%w(this%nyosh))
+    select case (this%nyosh)
     case (3)
-      self%w(1)=1.0_dp/(2.0_dp - 2.0_dp**(1.0_dp/3.0_dp))
-      self%w(2)=1.0_dp-2.0_dp*self%w(1)
-      self%w(3)=self%w(1)
+      this%w(1)=1.0_dp/(2.0_dp - 2.0_dp**(1.0_dp/3.0_dp))
+      this%w(2)=1.0_dp-2.0_dp*this%w(1)
+      this%w(3)=this%w(1)
     case (5)
-      self%w(1) = 1.0_dp / (4.0_dp - 4.0_dp**(1.0_dp/3.0_dp))
-      self%w(2:5) = self%w(1)
-      self%w(3) = 1.0_dp - 4.0_dp*self%w(1)
+      this%w(1) = 1.0_dp / (4.0_dp - 4.0_dp**(1.0_dp/3.0_dp))
+      this%w(2:5) = this%w(1)
+      this%w(3) = 1.0_dp - 4.0_dp*this%w(1)
     case default
       write (lcTmp, "('Order ',I0,' Nose-Hoover evolution operators are not&
-          & available, only order 3 or 5.')") self%nyosh
+          & available, only order 3 or 5.')") this%nyosh
       call error(lcTmp)
     end select
-    allocate(self%xnose(self%nnos))
-    allocate(self%vnose(self%nnos))
-    allocate(self%gnose(self%nnos))
+    allocate(this%xnose(this%nnos))
+    allocate(this%vnose(this%nnos))
+    allocate(this%gnose(this%nnos))
 
     ! set intial thermostat positions, velocities and forces
     if (present(xnose)) then
-      self%xnose(1:self%nnos)=xnose
-      self%vnose(1:self%nnos)=vnose
-      self%gnose(1:self%nnos)=gnose
+      this%xnose(1:this%nnos)=xnose
+      this%vnose(1:this%nnos)=vnose
+      this%gnose(1:this%nnos)=gnose
     else
-      self%xnose(1:self%nnos)=1.0_dp
-      self%vnose(1:self%nnos)=0.0_dp
-      self%gnose(1:self%nnos)=0.0_dp
+      this%xnose(1:this%nnos)=1.0_dp
+      this%vnose(1:this%nnos)=0.0_dp
+      this%gnose(1:this%nnos)=0.0_dp
     end if
 
   end subroutine NHC_init
 
 
   !> Returns the initial velocities.
-  subroutine NHC_getInitVelos(self, velocities)
+  subroutine NHC_getInitVelos(this, velocities)
 
     !> NHCThermostat instance.
-    type(TNHCThermostat), intent(inout) :: self
+    type(TNHCThermostat), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -213,91 +212,91 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    call self%pTempProfile%getTemperature(kT)
+    call this%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Nose-Hover thermostat not supported at zero temperature")
     end if
-    do ii = 1, self%nAtom
-       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
+    do ii = 1, this%nAtom
+       call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(self%pMDFrame, velocities, self%mass)
-    call rescaleTokT(self%pMDFrame, velocities, self%mass, kT)
+    call restFrame(this%pMDFrame, velocities, this%mass)
+    call rescaleTokT(this%pMDFrame, velocities, this%mass, kT)
 
   end subroutine NHC_getInitVelos
 
 
   !> Updates the provided velocities according the current temperature.
   !> routines based on NHCINT from reference
-  subroutine NHC_updateVelos(self, velocities)
+  subroutine NHC_updateVelos(this, velocities)
 
     !> NHCThermostat instance.
-    type(TNHCThermostat), intent(inout) :: self
+    type(TNHCThermostat), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
     integer :: nnos1, iresn, iyosh, inos
-    real(dp) :: qmass(self%nnos)
-    real(dp) :: wdti(self%nyosh), wdti2(self%nyosh)
-    real(dp) :: wdti4(self%nyosh), wdti8(self%nyosh)
+    real(dp) :: qmass(this%nnos)
+    real(dp) :: wdti(this%nyosh), wdti2(this%nyosh)
+    real(dp) :: wdti4(this%nyosh), wdti8(this%nyosh)
     real(dp) :: scaling, gkt, gnkt, akin, aa
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    nnos1=self%nnos+1
+    nnos1=this%nnos+1
 
-    call self%pTempProfile%getTemperature(gkt)
-    gnkt=real(self%pMDFrame%Nf,dp)*gkt
+    call this%pTempProfile%getTemperature(gkt)
+    gnkt=real(this%pMDFrame%Nf,dp)*gkt
 
-    qmass(1)=gnkt/(self%couplingParameter*self%couplingParameter)
-    qmass(2:self%nnos)=gkt/(self%couplingParameter*self%couplingParameter)
+    qmass(1)=gnkt/(this%couplingParameter*this%couplingParameter)
+    qmass(2:this%nnos)=gkt/(this%couplingParameter*this%couplingParameter)
 
     ! move to init routine
-    wdti(1:self%nyosh)=self%w(1:self%nyosh)*self%deltaT/real(self%nresn,dp)
-    wdti2(1:self%nyosh)=wdti(1:self%nyosh)/2.0_dp
-    wdti4(1:self%nyosh)=wdti(1:self%nyosh)/4.0_dp
-    wdti8(1:self%nyosh)=wdti(1:self%nyosh)/8.0_dp
+    wdti(1:this%nyosh)=this%w(1:this%nyosh)*this%deltaT/real(this%nresn,dp)
+    wdti2(1:this%nyosh)=wdti(1:this%nyosh)/2.0_dp
+    wdti4(1:this%nyosh)=wdti(1:this%nyosh)/4.0_dp
+    wdti8(1:this%nyosh)=wdti(1:this%nyosh)/8.0_dp
 
     ! get the total kinetic energy
     scaling=1.0_dp
-    call evalKE(akin,velocities,self%mass)
+    call evalKE(akin,velocities,this%mass)
     akin = 2.0_dp * akin ! Paper defines eqn 1 without 1/2 in K.E. so scale
     ! update the forces
-    self%gnose(1) = (akin-gnkt)/qmass(1)
+    this%gnose(1) = (akin-gnkt)/qmass(1)
     ! start the multiple time step procedure
-    do iresn=1,self%nresn
-      do iyosh=1,self%nyosh
+    do iresn=1,this%nresn
+      do iyosh=1,this%nyosh
         ! update the thermostat velocities
-        self%vnose(self%nnos)=self%vnose(self%nnos) &
-            & + self%gnose(self%nnos)*wdti4(iyosh)
-        do inos=1, self%nnos-1
-          aa=exp(-wdti8(iyosh)*self%vnose(nnos1-inos))
-          self%vnose(self%nnos-inos)=self%vnose(self%nnos-inos)*aa*aa &
-              & +wdti4(iyosh)*self%gnose(self%nnos-inos)*aa
+        this%vnose(this%nnos)=this%vnose(this%nnos) &
+            & + this%gnose(this%nnos)*wdti4(iyosh)
+        do inos=1, this%nnos-1
+          aa=exp(-wdti8(iyosh)*this%vnose(nnos1-inos))
+          this%vnose(this%nnos-inos)=this%vnose(this%nnos-inos)*aa*aa &
+              & +wdti4(iyosh)*this%gnose(this%nnos-inos)*aa
         end do
         ! update the particle velocities
-        aa=exp(-wdti2(iyosh)*self%vnose(1))
+        aa=exp(-wdti2(iyosh)*this%vnose(1))
         scaling=scaling*aa
         ! update the forces
-        self%gnose(1)=(scaling*scaling*akin-gnkt)/qmass(1)
+        this%gnose(1)=(scaling*scaling*akin-gnkt)/qmass(1)
         ! update thermostat positions
-        do inos= 1, self%nnos
-          self%xnose(inos)=self%xnose(inos)+self%vnose(inos)*wdti2(iyosh)
+        do inos= 1, this%nnos
+          this%xnose(inos)=this%xnose(inos)+this%vnose(inos)*wdti2(iyosh)
         enddo
 
         ! update thermostat velocities
-        do inos=1, self%nnos-1
-          aa=exp(-wdti8(iyosh)*self%vnose(inos+1))
-          self%vnose(inos)=self%vnose(inos)*aa*aa &
-              & + wdti4(iyosh)*self%gnose(inos)*aa
-          self%gnose(inos+1)=(qmass(inos)*self%vnose(inos) &
-              & * self%vnose(inos)-gkt)/qmass(inos+1)
+        do inos=1, this%nnos-1
+          aa=exp(-wdti8(iyosh)*this%vnose(inos+1))
+          this%vnose(inos)=this%vnose(inos)*aa*aa &
+              & + wdti4(iyosh)*this%gnose(inos)*aa
+          this%gnose(inos+1)=(qmass(inos)*this%vnose(inos) &
+              & * this%vnose(inos)-gkt)/qmass(inos+1)
         enddo
 
-        self%vnose(self%nnos)=self%vnose(self%nnos) &
-            & +self%gnose(self%nnos)*wdti4(iyosh)
+        this%vnose(this%nnos)=this%vnose(this%nnos) &
+            & +this%gnose(this%nnos)*wdti4(iyosh)
       end do
 
     end do
@@ -305,27 +304,27 @@ contains
     velocities = scaling * velocities
 
     ! is this needed :
-    call restFrame(self%pMDFrame, velocities, self%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass)
 
   end subroutine NHC_updateVelos
 
 
   !> Outputs internals of thermostat
-  subroutine NHC_state(self, fd)
+  subroutine NHC_state(this, fd)
 
     !> instance of thermostat
-    type(TNHCThermostat), intent(in) :: self
+    type(TNHCThermostat), intent(in) :: this
 
     !> filehandle to write out to
     integer,intent(in) :: fd
 
     write(fd,*)'Nose-Hoover chain variables'
     write(fd,*)'x:'
-    write(fd,"(3E20.10)")self%xnose
+    write(fd,"(3E20.10)")this%xnose
     write(fd,*)'v:'
-    write(fd,"(3E20.10)")self%vnose
+    write(fd,"(3E20.10)")this%vnose
     write(fd,*)'g:'
-    write(fd,"(3E20.10)")self%gnose
+    write(fd,"(3E20.10)")this%gnose
 
   end subroutine NHC_state
 
