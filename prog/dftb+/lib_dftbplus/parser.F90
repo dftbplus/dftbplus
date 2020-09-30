@@ -6216,9 +6216,12 @@ contains
 
       call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
           & tShellResInRegion, regionLabelPrefixes)
-      call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
-          & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
-          & tundos%dosLabels)
+    
+      if (allocated(iAtInRegion)) then
+        call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
+            & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
+            & tundos%dosLabels)
+      end if   
 
   end subroutine readTunAndDos
 
@@ -6471,17 +6474,23 @@ contains
     type(fnode), pointer :: child, child2
     type(string) :: buffer
     character(lc) :: strTmp
+    logical :: do_ldos
 
     call getChildren(node, "Region", children)
     nReg = getLength(children)
 
     if (nReg == 0) then
-      write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
-      call setChild(node, "Region", child)
-      call setChildValue(child, "Atoms", trim(strTmp))
-      call setChildValue(child, "Label", "localDOS")
-      call getChildren(node, "Region", children)
-      nReg = getLength(children)
+      call getChildValue(node, "ComputeLDOS", do_ldos, .true.)
+      if (do_ldos) then
+        write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
+        call setChild(node, "Region", child)
+        call setChildValue(child, "Atoms", trim(strTmp))
+        call setChildValue(child, "Label", "localDOS")
+        call getChildren(node, "Region", children)
+        nReg = getLength(children)
+      else
+        return
+      end if    
     end if
 
     allocate(tShellResInRegion(nReg))
