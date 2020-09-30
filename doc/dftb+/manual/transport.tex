@@ -974,6 +974,7 @@ conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
   \kw{TerminalCurrents} &p& & & \\
   \kw{ContactTemperature} & Nr& & T$_{elec}$ & \\
   \kw{Region} & p & & & \pref{Region} \\
+  \kw{computeLDOS} & l & & Yes & \\
   \kw{WriteTunn} & l & & Yes & \\
   \kw{WriteLDOS} & l & & Yes & \\
 \end{ptable}
@@ -1006,7 +1007,11 @@ conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
 \item[\iscb{Region}] \label{Region} This block defines atomic ranges or orbitals
   on to which the local density of states is projected. The definition in the
   block follow the same syntax as a \dftbp{} calculation without transport (see
-  section~\ref{sec:dftbp.ProjectStates}).
+  section~\ref{sec:dftbp.ProjectStates}). If \label{Region} is absent the default
+  behaviour is to compute the projected DOS on the whole central region.
+\item[\is{ComputeLDOS}] Change the default bahaviour of projected DOS calculation.
+  When set to No, PDOS is not computed. In the case of two contacts
+  the code can exploit a fast and less memory consuming algorithm for transmission.
 \item[\is{WriteTunn}] The transmission coefficients are written also to a
   separate file for quick reference. If set to \is{No}, the transmission
   coefficient are only written to \dftbp{} output files (detailed.out and
