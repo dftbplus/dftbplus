@@ -2331,8 +2331,10 @@ contains
 
   end subroutine writeHessianOut
 
+
   !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+
     !> File  ID
     integer, intent(in) :: fd
 
@@ -2342,23 +2344,19 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    !> Current geometry step
-    integer, intent(in) :: iGeoStep
+    logical isOpen
 
-    !> Which scc step is occuring
-    integer, intent(in) :: iSccIter
-
-    !> Which state is being calculated?
-    integer, intent(in) :: iDet
-
-    if (iGeoStep == 0 .and. iSccIter == 1 .and. iDet == 0) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
+    inquire(unit=fd, opened=isOpen)
+    if (isOpen .and. .not. tAppendDetailedOut) then
       close(fd)
+      isOpen = .false.
+    end if
+    if (.not.isOpen) then
       open(fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
+
 
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&

@@ -511,7 +511,7 @@ contains
     ! For non-scc calculations with transport only, jump out of geometry loop
     if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
       if (tWriteDetailedOut) then
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1, 1)
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
       end if
       ! We need to define hamltonian by adding the potential
       call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
@@ -604,8 +604,7 @@ contains
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
-            call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter,&
-                & 1)
+            call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
             call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
                 & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol, TS,&
@@ -802,8 +801,7 @@ contains
         call sumEnergies(energy, deltaDftb)
 
         if (tWriteDetailedOut) then
-          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter,&
-              & deltaDftb%iDeterminant)
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb, species, tDFTBU,&
@@ -834,8 +832,7 @@ contains
 
       if (tWriteDetailedOut) then
         close(fdDetailedOut)
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter,&
-            & deltaDftb%iDeterminant)
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
         if (allocated(reks)) then
           call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
               & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
