@@ -2072,13 +2072,6 @@ contains
           & char(buffer) // "'")
     end select
 
-  #:if WITH_TRANSPORT
-    if (ctrl%tSpin .and. tp%ncont > 0) then
-       call detailedError(child, "Spin-polarized transport is under development" //&
-             & "and not currently available")
-    end if
-  #:endif
-
   end subroutine readSpinPolarisation
 
 

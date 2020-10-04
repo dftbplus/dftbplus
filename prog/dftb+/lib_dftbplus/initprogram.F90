@@ -565,6 +565,9 @@ module dftbp_initprogram
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
 
+  !> charge differences between input and output charges
+  real(dp), allocatable :: qDiff(:, :, :)
+
   !> net (on-site only contributions) charge per atom
   real(dp), allocatable :: qNetAtom(:)
 
@@ -1876,8 +1879,9 @@ contains
 
     ! temporary disables for various issues with NEGF
     if (tNegf) then
-      if (tSpin) then
-        call error("Spin polarization temporarily disabled for transport calculations.")
+      if (nSpin > 2) then
+        call error("Non-collinear spin polarization disabled for transport calculations at the&
+            & moment.")
       end if
       if (tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&
@@ -2400,7 +2404,7 @@ contains
 
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
          & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg, &
-         & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
+         & q0, qInput, qOutput, qDiff, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
          & qiBlockIn, qiBlockOut)
 
     ! Initialise images (translations)
@@ -2786,6 +2790,9 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      if (tPeriodic) then
+        write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", sccCalc%getEwaldPar()
+      end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
@@ -3507,8 +3514,8 @@ contains
   !>  iEqBlockDFTBULS, reks, and all logicals present
   !>
   subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
-      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
-      & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qDiff,&
+      & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3551,6 +3558,9 @@ contains
     !> output charges
     real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
 
+    !> charge differences between input and output charges
+    real(dp), allocatable, intent(inout) :: qDiff(:, :, :)
+
     !> input charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qInpRed(:)
 
@@ -3583,17 +3593,22 @@ contains
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
 
-    if (.not.allocated(reks)) then
-       if (.not. allocated(qInput)) then
-          allocate(qInput(orb%mOrb, nAtom, nSpin))
-       endif
-       qInput(:,:,:) = 0.0_dp
+    if (.not. allocated(qInput)) then
+       allocate(qInput(orb%mOrb, nAtom, nSpin))
     endif
+    qInput(:,:,:) = 0.0_dp
 
     if (.not. allocated(qOutput)) then
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
+
+    if (allocated(reks)) then
+       if (.not. allocated(qDiff)) then
+          allocate(qDiff(orb%mOrb, nAtom, nSpin))
+       endif
+       qDiff(:,:,:) = 0.0_dp
+    endif
 
     tAllocate = .false.
   #:if WITH_MBD
@@ -3613,13 +3628,15 @@ contains
     end if
 
     if (tMixBlockCharges) then
-       if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
-          allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       if (.not. allocated(reks)) then
+          if (.not. allocated(qBlockIn)) then
+             allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          qBlockIn(:,:,:,:) = 0.0_dp
        endif
        if (.not. allocated(qBlockOut)) then
           allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
        endif
-       qBlockIn(:,:,:,:) = 0.0_dp
        qBlockOut(:,:,:,:) = 0.0_dp
        if (tImHam) then
           if(.not. allocated(qiBlockIn)) then
@@ -3657,13 +3674,15 @@ contains
        end if
     endif
 
-    !Input charges packed into unique equivalence elements
-    #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
-       if (.not. allocated(${NAME}$)) then
-          allocate(${NAME}$(nMixElements))
-       end if
-       ${NAME}$(:) = 0.0_dp
-    #:endfor
+    if (.not. allocated(reks)) then
+       !Input charges packed into unique equivalence elements
+       #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
+          if (.not. allocated(${NAME}$)) then
+             allocate(${NAME}$(nMixElements))
+          end if
+          ${NAME}$(:) = 0.0_dp
+       #:endfor
+    end if
 
 
     !TODO(Alex) Could definitely split the code here
