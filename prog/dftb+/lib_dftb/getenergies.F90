@@ -35,7 +35,7 @@ module dftbp_getenergies
   use dftbp_repcont
   use dftbp_repulsive
   use dftbp_reks, only : TReksCalc
-
+  use dftbp_deltadftb, only : TDeltaDftb, determinants
   implicit none
 
   private
@@ -333,19 +333,13 @@ contains
 
 
   !> Sums together components of final energies
-  subroutine sumEnergies(energy, tNonAufbau, iDet, tSpinPurify)
+  subroutine sumEnergies(energy, deltaDftb)
 
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
 
-    !> Is this a TI-DFTB calculation?
-    logical, intent(in), optional :: tNonAufbau
-
-    !> Current determinant
-    integer, intent(in), optional :: iDet
-
-    !> Is Ziegler purification required
-    logical, intent(in), optional :: tSpinPurify
+    !> Delta DFTB control and data structure
+    type(TDeltaDftb), intent(in), optional :: deltaDftb
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock
@@ -364,22 +358,18 @@ contains
     ! negative sign due to electron charge
     energy%EForceRelated = energy%EGibbs  - energy%NEf
 
-    if (present(tNonAufbau)) then
-      @:ASSERT(present(iDet))
-      @:ASSERT(present(tSpinPurify))
-      if (tNonAufbau) then
-        select case(iDet)
-        case(0)
+    if (present(deltaDftb)) then
+      if (deltaDftb%isNonAufbau) then
+        select case(deltaDftb%iDeterminant)
+        case(determinants%ground)
           energy%Egroundguess = energy%Etotal
-        case(1)
-          if (tSpinPurify) then
-            energy%Etriplet = energy%Etotal
-            energy%EtripMermin = energy%EMermin
-            energy%EtripZero = energy%Ezero
-            energy%EtripGibbs = energy%EGibbs
-            energy%EtripForceRelated = energy%EForceRelated
-          end if
-        case(2)
+        case(determinants%triplet)
+          energy%Etriplet = energy%Etotal
+          energy%EtripMermin = energy%EMermin
+          energy%EtripZero = energy%Ezero
+          energy%EtripGibbs = energy%EGibbs
+          energy%EtripForceRelated = energy%EForceRelated
+        case(determinants%mixed)
           energy%Emixed = energy%Etotal
           energy%EmixMermin = energy%EMermin
           energy%EmixZero = energy%Ezero

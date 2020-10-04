@@ -11,16 +11,22 @@
 module dftbp_deltadftb
   use dftbp_accuracy, only : dp
   use dftbp_energytypes, only : TEnergies
+  use dftbp_message, only : error
   implicit none
 
   private
-  public :: ZieglerSum, determinants, initTIDFTB
+  public :: determinants, TDeltaDftb_init, TDeltaDftb
 
   !> Name space for determinants
   type :: TDeterminantsEnum
 
+    !> Conventional DFTB ground state
     integer :: ground = 0
+
+    !> Triplet configuration
     integer :: triplet = 1
+
+    !> Hole under occupied levels, spin contaminated
     integer :: mixed = 2
 
   end type TDeterminantsEnum
@@ -28,26 +34,152 @@ module dftbp_deltadftb
   !> Actual values for elecSolverTypes.
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
 
+  !> Control type for Delta DFTB / TI-DFTB
+  type TDeltaDftb
+
+    !> Is this a non-Aufbau filling
+    logical :: isNonAufbau
+
+    !> Should the non-Aufbau fillings be spin purified
+    logical :: isSpinPurify
+
+    !> Should a ground state case be calculated as well
+    logical :: isGroundGuess
+
+    !> Current determinant being solved
+    integer :: iDeterminant
+
+    !> Number of electrons in each spin channel
+    real(dp), allocatable :: nEl(:)
+
+    !> Has the calculation finished and results are now ready to use
+    logical :: isFinished
+
+  contains
+
+    procedure :: zieglerSum
+    procedure :: nDeterminant
+    procedure :: whichDeterminant
+
+  end type TDeltaDftb
+
+
 contains
 
+  !> Counts number of determiants to be evaluated
+  pure function nDeterminant(this) result(nDet)
+
+    !> Instance
+    class(TDeltaDftb), intent(in) :: this
+
+    integer :: nDet
+
+    nDet = 1
+    if (.not.this%isNonAufbau) then
+      return
+    end if
+
+    if (this%isSpinPurify) then
+      nDet = 2
+    end if
+
+    if (this%isGroundGuess) then
+      nDet = nDet + 1
+    end if
+
+  end function nDeterminant
+
+
+  !> Converts determinant number into what type it should be
+  function whichDeterminant(this, iDet) result(det)
+
+    !> Instance
+    class(TDeltaDftb), intent(inout) :: this
+
+    integer, intent(in) :: iDet
+
+    integer :: det
+
+    this%isFinished = .false.
+
+    if (.not.this%isNonAufbau) then
+      if (iDet /= 1) then
+        call error("Internal error, unspecified determinant")
+      end if
+      det = determinants%ground
+      return
+    end if
+
+    select case(iDet)
+    case(1)
+      if (this%isGroundGuess) then
+        det = determinants%ground
+        return
+      else if (this%isSpinPurify) then
+        det = determinants%triplet
+        return
+      else
+        det = determinants%mixed
+        return
+      end if
+    case(2)
+      if (this%isGroundGuess) then
+        if (this%isSpinPurify) then
+          det = determinants%triplet
+          return
+        else
+          det = determinants%mixed
+          return
+        end if
+      else
+        if (this%isSpinPurify) then
+          det = determinants%mixed
+          return
+        else
+          call error("Internal error, unspecified determinant combination in Delta DFTB 2nd det")
+        end if
+      end if
+    case(3)
+      if (this%isGroundGuess .and. this%isSpinPurify) then
+        det = determinants%mixed
+        return
+      else
+        call error("Internal error, unspecified determinant combination in Delta DFTB 3rd det")
+      end if
+    case default
+      call error("Internal error, unspecified determinant combination in Delta DFTB unknown det")
+    end select
+
+  end function whichDeterminant
+
+  
   !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine ZieglerSum(energy, derivs, tripletderivs, mixedderivs, tGeoOpt)
+  subroutine zieglerSum(this, energy, derivs, tripletderivs, mixedderivs)
+
+    !> Instance
+    class(TDeltaDftb), intent(inout) :: this
 
     !> energy components
     type(TEnergies), intent(inout) :: energy
 
     !> derivative components
-    real(dp), intent(inout), allocatable, optional:: derivs(:,:)
+    real(dp), intent(inout), optional:: derivs(:,:)
 
     !> Triplet state derivatives
-    real(dp), intent(inout), allocatable, optional :: tripletderivs(:,:)
+    real(dp), intent(inout), optional :: tripletderivs(:,:)
 
     !> Spin contaminated derivatives
-    real(dp), intent(inout), allocatable, optional :: mixedderivs(:,:)
+    real(dp), intent(inout), optional :: mixedderivs(:,:)
 
-    !> Is geometry being optimised
-    logical, intent(in) :: tGeoOpt
+    this%isFinished = .true.
 
+    if (.not.this%isNonAufbau) then
+      return
+    end if
+
+    if (.not.this%isSpinPurify) then
+      return
+    end if
 
     ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
     energy%Etotal = 2.0_dp * energy%Emixed - energy%Etriplet
@@ -56,49 +188,38 @@ contains
     energy%EGibbs = 2.0_dp * energy%EmixGibbs - energy%EtripGibbs
     energy%EForceRelated = 2.0_dp * energy%EmixForceRelated - energy%EtripForceRelated
     ! dE_S1 = 2dE_mix - dE_triplet
-    if (tGeoOpt) then
-      derivs(:,:) = 2.0_dp * mixedderivs - tripletderivs
+    if (present(derivs)) then
+      derivs(:,:) = 2.0_dp * mixedDerivs - tripletDerivs
     endif
 
-  end subroutine ZieglerSum
+  end subroutine zieglerSum
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine initTIDFTB(tNonAufbau, tSpinPurify, tGroundGuess, firstDeterminant, lastDeterminant)
+  subroutine TDeltaDftb_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl)
+
+    !> Instance
+    type(TDeltaDftb), intent(out) :: this
 
     !> Is this a non-aufbau filled TI calculation
-    logical, intent(in) :: tNonAufbau
+    logical, intent(in) :: isNonAufbau
 
     !> Is this a spin purified calculation?
-    logical, intent(in) :: tSpinPurify
+    logical, intent(in) :: isSpinPurify
 
     !> Should there be a ground state intial guess before Non-Aufbau calc?
-    logical, intent(in) :: tGroundGuess
+    logical, intent(in) :: isGroundGuess
 
-    !> First determinant in space to calculate
-    integer, intent(out) :: firstDeterminant
+    !> Number of electrons in each spin channel
+    real(dp), intent(in) :: nEl(:)
 
-    !> Last state being calculated
-    integer, intent(out) :: lastDeterminant
+    this%isNonAufbau = isNonAufbau
+    this%isGroundGuess = isGroundGuess
+    this%isSpinPurify = isSpinPurify
+    this%nEl = nEl
 
-    if (.not.tNonAufbau) then
-      firstDeterminant = 1
-      lastDeterminant = 1
-      return
-    end if
+    this%isFinished = .false.
 
-    if (tGroundGuess) then
-      firstDeterminant = determinants%ground
-    else
-      firstDeterminant = determinants%triplet
-    end if
-    if (tSpinPurify) then
-      lastDeterminant = determinants%mixed
-    else
-      lastDeterminant = determinants%triplet
-    end if
-
-  end subroutine initTIDFTB
-
+  end subroutine TDeltaDftb_init
 
 end module dftbp_deltadftb

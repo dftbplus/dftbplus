@@ -115,6 +115,7 @@ module dftbp_initprogram
 #:endif
   use poisson_init
   use dftbp_transportio
+  use dftbp_deltadftb
   implicit none
 
 
@@ -1014,16 +1015,8 @@ module dftbp_initprogram
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
 
-  ! TI-DFTB Variables - Full deltaDFTB without MOM
-
-  !> Is this a non-Aufbau calculation?
-  logical :: tNonAufbau
-
-  !> Is this a spin purified calculation?
-  logical :: tSpinPurify
-
-  !> Should there be a ground state intial guess before Non-Aufbau calc?
-  logical :: tGroundGuess
+  !> Type for determinant control in DFTB (Delta DFTB)
+  type(TDeltaDftb) :: deltaDftb
 
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
@@ -1164,6 +1157,8 @@ contains
     character(sc), allocatable :: shellNamesTmp(:)
     logical :: tRequireDerivator
 
+    logical :: isNonAufbau
+
     logical :: tInitialized
 
     !> Format for two using exponential notation values with units
@@ -1226,11 +1221,6 @@ contains
 
     ! start by assuming stress can be calculated if periodic
     tStress = tPeriodic ! .or. tHelical
-
-    ! TI-DFTB related variables
-    tNonAufbau = input%ctrl%tNonAufbau
-    tSpinPurify = input%ctrl%tSpinPurify
-    tGroundGuess = input%ctrl%tGroundGuess
 
     ! Brillouin zone sampling
     if (tPeriodic .or. tHelical) then
@@ -1774,6 +1764,10 @@ contains
     call initializeReferenceCharges(species0, referenceN0, orb, input%ctrl%customOccAtoms, &
          & input%ctrl%customOccFillings, q0, qShell0)
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
+
+    ! TI-DFTB related variables
+    call TDeltaDftb_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
+        & input%ctrl%isGroundGuess, nEl)
 
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
@@ -2541,12 +2535,12 @@ contains
 
     call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
         & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-        & tPrintExcitedEigvecs, tDipole, allocated(reks), orb, nAtom, nMovedAtom, nKPoint, nSpin,&
-        & nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim,&
-        & derivs, tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen,&
-        & filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal,&
-        & SSqrReal, eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel,&
-        & movedMass, dipoleMoment)
+        & tPrintExcitedEigvecs, tDipole, allocated(reks), input%ctrl%isNonAufbau, orb, nAtom,&
+        & nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
+        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, tripletderivs, mixedderivs, chrgForces,&
+        & energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL,&
+        & HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
+        & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -4257,12 +4251,12 @@ contains
   !> Allocates most of the large arrays needed during the DFTB run.
   subroutine initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
       & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-      & tPrintExcitedEigvecs, tDipole, isREKS, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
-      & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
-      & tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen, filling,&
-      & coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal,&
-      & eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass,&
-      & dipoleMoment)
+      & tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom, nKPoint, nSpin,&
+      & nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim,&
+      & derivs, tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen,&
+      & filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal,&
+      & SSqrReal, eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel,&
+      & movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4314,6 +4308,9 @@ contains
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
+
+    !> Is this a Delta DFTB calculation
+    logical, intent(in) :: isNonAufbau
 
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -4457,7 +4454,7 @@ contains
         allocate(ERhoPrim(0))
       end if
       allocate(derivs(3, nAtom))
-      if (tNonAufbau) then
+      if (isNonAufbau) then
         allocate(tripletderivs(3, nAtom))
         allocate(mixedderivs(3, nAtom))
       end if

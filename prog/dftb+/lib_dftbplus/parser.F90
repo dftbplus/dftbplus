@@ -2293,19 +2293,23 @@ contains
     end if
 
     !> TI-DFTB varibles for deltaDFTB with input stipulations
-    call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.)
-    if(ctrl%tNonAufbau) then
-      call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.)
-      call getChildValue(node, "GroundGuess", ctrl%tGroundGuess, .false.)
+    call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
+    if(ctrl%isNonAufbau) then
+      call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
+      call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
       if (.not.(ctrl%tSpin .and. .not. ctrl%t2Component)) then
         call error("Must specify colinear spin-polarisation for non-Aufbau.")
       end if
       if(mod(int(ctrl%nrChrg),2)/=0) then
         call error("Must have system with even number of electrons for non-Aufbau.")
       end if
+      if(ctrl%nrChrg /= 0.0_dp) then
+        call error("System must be neutral for non-Aufbau.")
+      end if
       if(ctrl%nrSpinPol/=0.0_dp) then
         call error("Must have closed shell system for non-Aufbau.")
       end if
+
     end if
 
   end subroutine readFilling

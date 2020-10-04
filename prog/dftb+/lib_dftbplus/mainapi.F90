@@ -509,7 +509,7 @@ contains
     logical :: tStopScc, tExitGeoOpt
 
     if (tLatticeChanged .or. tCoordsChanged) then
-      call processGeometry(env, 1, 1, 0, .false., tStopScc, tExitGeoOpt)
+      call processGeometry(env, 1, 1, .false., tStopScc, tExitGeoOpt)
       tLatticeChanged = .false.
       tCoordsChanged = .false.
     end if

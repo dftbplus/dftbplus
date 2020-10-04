@@ -50,6 +50,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
+  use dftbp_deltadftb
   implicit none
   private
 
@@ -3858,7 +3859,7 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, electronicSolver, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+  subroutine printEnergies(energy, electronicSolver, deltaDftb)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3866,54 +3867,45 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
-    !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
-
-    !> Is this a spin purified calculation?
-    logical, intent(in), optional :: tSpinPurify
-
-    !> Should there be a ground state intial guess before Non-Aufbau calc?
-    logical, intent(in), optional :: tGroundGuess
-
-    !> Number of current determinant in Delta SCF
-    integer, intent(in), optional :: iDet
+    !> type for DFTB determinants
+    type(TDeltaDftb), intent(in) :: deltaDftb
 
     write(stdOut, *)
-    if (tNonAufbau) then
-      @:ASSERT(present(tSpinPurify))
-      @:ASSERT(present(tGroundGuess))
-      @:ASSERT(present(iDet))
-      if (tGroundGuess .and. iDet==0) then
+    select case(deltaDftb%iDeterminant)
+    case (determinants%ground)
+      if (deltaDftb%isNonAufbau) then
         write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
-          & Hartree__eV * energy%Egroundguess, "eV"
-      else if (tSpinPurify .and. iDet == 2) then
-        write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H",&
-            & Hartree__eV * energy%Etriplet, "eV"
-        write (stdOut, format2U) 'Mixed Energy', energy%Emixed,&
-            & "H", Hartree__eV * energy%Emixed, "eV"
-        write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H", &
-          & Hartree__eV * energy%Etotal, "eV"
-        if (tGroundGuess) then
-          write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
             & Hartree__eV * energy%Egroundguess, "eV"
+      else
+        if (electronicSolver%providesElectronEntropy) then
+          write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+              & Hartree__eV * energy%EMermin, "eV"
         end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+              & energy%EForceRelated * Hartree__eV, 'eV'
+        end if
+      end if
+
+      write(stdOut, *)
+    case (determinants%triplet)
+      write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H",&
+          & Hartree__eV * energy%Etriplet, "eV"
+      write(stdOut, *)
+    case (determinants%mixed)
+      if (.not. deltaDftb%isFinished) then
+        write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H",&
+            & Hartree__eV * energy%Emixed, "eV"
+      end if
+    end select
+
+    if (deltaDftb%isFinished) then
+      if (deltaDftb%isSpinPurify) then
+        write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H",&
+            & Hartree__eV * energy%Etotal, "eV"
       else
         write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H",&
-            & Hartree__eV * energy%Etotal,&
-            & "eV"
-        if (tGroundGuess) then
-          write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
-              & Hartree__eV * energy%Etotal, "eV"
-        endif
-      end if
-    else
-      if (electronicSolver%providesElectronEntropy) then
-        write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-            & Hartree__eV * energy%EMermin, "eV"
-      end if
-      if (electronicSolver%providesFreeEnergy) then
-        write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
-            & energy%EForceRelated * Hartree__eV, 'eV'
+            & Hartree__eV * energy%Etotal, "eV"
       end if
     end if
 

@@ -57,8 +57,7 @@ contains
   !> filling for different k-points and/or spins.
   !>
   !> Note: If no electrons are present, the Fermi energy is set to zero per default.
-  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
@@ -76,7 +75,7 @@ contains
     real(dp), intent(out) :: filling(:,:,:)
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Number of electrons
     real(dp), intent(in) :: nElectrons
@@ -91,21 +90,6 @@ contains
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
     !> scheme
     integer, intent(in) :: distrib
-
-    !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
-
-    !> If non-Aufbau, is this a spin purified calculation?
-    logical, intent(in) :: tSpinPurify
-
-    !> Which TI-DFTB determinant is being calculated? 1 = triplet, 2 = mixed
-    integer, intent(in) :: iDet
-
-    !> Number of electrons and spin channel index
-    real(dp), intent(in) :: nEl(:)
-
-    !> Spin channel
-    integer, intent(in) :: iS
 
     real(dp) :: upperEf, lowerEf
     real(dp) :: nElec
@@ -131,9 +115,17 @@ contains
     if (nElectrons < epsilon(1.0_dp)) then
       filling(:,:,:) = 0.0_dp
       Ebs(:) = 0.0_dp
-      Ef = 0.0_dp
+      ! place the Fermi energy well below the lowest eigenvalue
+      Ef = minval(eigenvals) - 1000.0_dp * (kT + epsilon(1.0_rsp))
       TS(:) = 0.0_dp
       E0(:) = 0.0_dp
+      return
+    end if
+
+    if (size(filling,dim=1)*size(filling,dim=3) <= nElectrons) then
+      ! place the Fermi energy well above the highest eigenvalue, as nOrbs * spin <= nElec
+      Ef = maxval(eigenvals) + 1000.0_dp * (kT + epsilon(1.0_rsp))
+      call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
       return
     end if
 
@@ -142,8 +134,7 @@ contains
       Ef = middleGap(eigenvals, kWeight, nElectrons)
       nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
       if (abs(nElectrons - nElec) <= elecTolMax) then
-        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
         return
       end if
     end if
@@ -216,8 +207,7 @@ contains
     end if
 
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
-    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight)
 
     ! re-scale to give exact number of electrons, this is a temporay hack
     if (nElec > epsilon(1.0_dp)) then
@@ -322,7 +312,7 @@ contains
 
     !> The eigenvalues of the levels, 1st index is energy
     !> 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
@@ -373,8 +363,7 @@ contains
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
-  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
@@ -392,7 +381,7 @@ contains
     real(dp), intent(in) :: Ef
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
@@ -405,28 +394,11 @@ contains
     !> k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
-    !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
-
-    !> If non-Aufbau, is this a spin-purified calculation?
-    logical, intent(in) :: tSpinPurify
-
-    !> Which non-Aufbau determinant is being calculated? 1 = triplet, 2 = mixed
-    integer, intent(in) :: iDet
-
-    !> Number of electrons and spin channel index
-    real(dp), intent(in) :: nEl(:)
-
-    !> Current spin channel (if relevant)
-    integer, intent(in) :: iS
-
-    real(dp) :: swapFill
     integer :: MPorder
     integer :: kpts
     real(dp) :: w
     real(dp), allocatable :: A(:)
     real(dp), allocatable :: hermites(:)
-    real(dp), allocatable :: tmpMtx(:,:,:)
     integer :: i, j , k, l, iSpin
     real(dp) :: occ, x
 
@@ -487,24 +459,6 @@ contains
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
     else
-! TI-DFTB Non-Aufbau filling routine
-      if (tNonAufbau) then
-        allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
-        tmpMtx(:,:,:) = eigenvals
-        do iSpin = 1, size(eigenvals, dim=3)
-          do i = 1, kpts
-            if (iDet == 1 .and. tSpinPurify .and. iS==1) then
-              eigenvals(int(nEl(iS)) + 1, i, iSpin)=eigenvals(int(nEl(iS)), i, iSpin)
-            else if (iDet == 1 .and. tSpinPurify .and. iS==2) then
-              eigenvals(int(nEl(iS)), i, iSpin)=eigenvals(int(nEl(iS)) + 1, i, iSpin)
-            else if (iS==1 .and. iDet/=0) then
-              swapFill = eigenvals(int(nEl(iS)) + 1, iSpin, iSpin)
-              eigenvals(int(nEl(iS)) + 1, iSpin, iSpin) = eigenvals(int(nEl(iS)), iSpin, iSpin)
-              eigenvals(int(nEl(iS)), iSpin, iSpin)  = swapFill
-            end if
-          end do
-        end do
-      end if
       do iSpin = 1, size(eigenvals, dim=3)
         do i = 1, kpts
           do j = 1, size(eigenvals, dim=1)
@@ -520,11 +474,7 @@ contains
           #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
           #:endif
-            if (tNonAufbau .and. j/=1) then
-              if ( ((filling(max(j-1,1), i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
-                exit
-              end if
-            else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
+            if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
@@ -539,9 +489,6 @@ contains
           end do
         end do
       end do
-      if (tNonAufbau) then
-        eigenvals(:,:,:) = tmpMtx
-      end if
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
     end if
@@ -576,7 +523,7 @@ contains
   function middleGap(eigenvals, kWeight, nElectrons)
 
     !> Eigenvalues of states
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Weights of k-points
     real(dp), intent(in) :: kWeight(:)
@@ -610,6 +557,7 @@ contains
     ! just in case the system has all levels filled, but eventually this means Ef has to be above
     ! last eigenvalue:
     ind = min(size(eigenvals), ind)
+
     iLev = tmpIndx(ind)
     jOrb = mod(iLev - 1, size1) + 1
     jKpt = mod((iLev - 1) / size1, size2) + 1

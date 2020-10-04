@@ -511,14 +511,14 @@ module dftbp_inputdata
 
     ! TI-DFTB variables
 
-    !> NonAufbau
-    logical :: tNonAufbau = .false.
+    !> Non-Aufbau filling
+    logical :: isNonAufbau = .false.
 
     !> SpinPurify
-    logical :: tSpinPurify = .true.
+    logical :: isSpinPurify = .true.
 
     !> GroundGuess
-    logical :: tGroundGuess = .false.
+    logical :: isGroundGuess = .false.
 
     !> REKS input
     type(TReksInp) :: reksInp
