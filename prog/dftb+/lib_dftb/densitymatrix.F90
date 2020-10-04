@@ -71,11 +71,6 @@ contains
     integer :: ii, nLevels
     real(dp) :: shift
 
-    !> detect and handle density matrix builds for non-Aufbau fillings
-    logical :: tNonAufbau = .false.
-    real(dp), allocatable :: tmpMtx(:)
-    integer :: mixIndx
-
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
@@ -87,19 +82,6 @@ contains
         exit
       end if
     end do
-    ! Determine whether fillings are non-Aufbau
-    if (nLevels /= 1)then
-      mixIndx = nLevels - 1 ! sets to HOMO-1
-      if (abs(filling(mixIndx)) > epsilon(0.0_dp)) then
-        tNonAufbau = .true.
-      end if
-    end if
-    ! default density matrix build assumes Aufbau fillings;
-    ! if non-Aufbau, store the HOMO-1 eigenvector for later
-    if (tNonAufbau) then
-      allocate(tmpMtx(size(eigenvecs, dim=1)))
-      tmpMtx(:) = eigenVecs(:,mixIndx)
-    endif
     shift = minval(filling(1:nLevels))
     if (shift > epsilon(1.0_dp)) then
       ! all fillings are definitely positive
@@ -136,11 +118,6 @@ contains
       !$OMP  END PARALLEL DO
 
     end if
-
-    if (tNonAufbau) then
-       eigenvecs(:,mixIndx) = tmpMtx
-    endif
-
   end subroutine fullDensityMatrix_real
 
 
