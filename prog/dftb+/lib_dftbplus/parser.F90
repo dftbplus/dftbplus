@@ -159,6 +159,9 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
+    call getChildValue(root, "Reks", dummy, "None", child=child)
+    call readReks(child, dummy, input%ctrl, input%geom)
+
     call getChild(root, "Transport", child, requested=.false.)
 
   #:if WITH_TRANSPORT
@@ -174,26 +177,22 @@ contains
       input%transpar%idxdevice(2) = input%geom%nAtom
     end if
 
-    ! electronic Hamiltonian
-    call getChildValue(root, "Hamiltonian", hamNode)
-
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
-        & input%ginfo%greendens, input%poisson)
-
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
       call detailedError(child, "Be patient... Dephasing feature will be available soon!")
       !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
+    ! electronic Hamiltonian
+    call getChildValue(root, "Hamiltonian", hamNode)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
+        & input%ginfo%greendens, input%poisson)
+
   #:else
 
     if (associated(child)) then
-      call detailedError(child, "Program had been compiled without transport enabled")
+      call detailedError(child, "Program has been compiled without transport enabled")
     end if
-
-    call getChildValue(root, "Reks", dummy, "None", child=child)
-    call readReks(child, dummy, input%ctrl, input%geom)
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
