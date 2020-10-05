@@ -222,7 +222,7 @@ module dftbp_timeprop
     logical :: isRangeSep
     logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
     logical :: tPeriodic = .false., tFillingsFromFile = .false.
-    logical :: tNetCharges = .false.
+    logical :: tNetCharges = .false., tSCC = .true.
     type(TThermostat), allocatable :: pThermostat
     type(TMDIntegrator), allocatable :: pMDIntegrator
     class(TDispersionIface), allocatable :: dispersion
@@ -301,7 +301,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, tSCC)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -369,6 +369,9 @@ contains
     !> LC correction
     logical, intent(in) :: isRangeSep
 
+    !> Is calculation SCC?
+    logical, intent(in) :: tSCC
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -393,6 +396,8 @@ contains
     this%tRealHS = tRealHS
     this%kPoint = kPoint
     this%KWeight = KWeight
+    this%tSCC = tSCC
+
     allocate(this%parallelKS, source=parallelKS)
 
     if (inp%envType /= envTypes%constant) then
@@ -694,10 +699,12 @@ contains
     integer :: iPol, iCall
     logical :: tWriteAutotest
 
-    if (.not. allocated(sccCalc)) then
-      call error("SCC calculations are currently required for dynamics")
+!    if (.not. allocated(sccCalc)) then
+!      call error("SCC calculations are currently required for dynamics")
+    !    end if
+    if (this%tSCC) then
+      this%sccCalc = sccCalc
     end if
-    this%sccCalc = sccCalc
     this%speciesAll = speciesAll
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
@@ -966,7 +973,10 @@ contains
       call initLatticeVectors(this)
     end if
 
-    call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
+    if (this%tSCC) then
+      call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
+    end if
+
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
@@ -981,11 +991,13 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
-        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
-        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
-        & trho)
+    if (this%tSCC) then
+      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
+          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
+          & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+          & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
+          & trho)
+    end if
 
     if (this%tForces) then
       totalForce(:,:) = 0.0_dp
@@ -1088,11 +1100,13 @@ contains
             & this%speciesAll(:this%nAtom), .true.)
       end if
 
-      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
-          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
-          & this%dispersion,rho)
+      if (this%tSCC) then
+        call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
+            & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+            & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
+            & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
+            & this%dispersion,rho)
+      end if
 
       if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1982,11 +1996,15 @@ contains
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
-        if (this%tRealHS) then
+        if (this%tRealHS .and. this%tSCC) then
           call unpackHS(T3, ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
               & img2CentCell)
           call blockSymmetrizeHS(T3, iSquare)
           H1(:,:,iKS) = cmplx(T3, 0, dp)
+        else if (this%tRealHS .and. (.not. this%tSCC)) then
+          call unpackHS(H1(:,:,iKS), ham0(:), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+          call blockHermitianHS(H1(:,:,iKS), iSquare)
         else
           call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
