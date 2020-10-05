@@ -15,9 +15,6 @@ Hamiltonian = DFTB {
   NonAufbau = Yes
   GroundGuess = Yes
   SpinPurify = Yes
-  SpinPolarisation = Colinear {
-    UnpairedElectrons = 0.0
-  }
   SpinConstants = {
     ShellResolvedSpin = Yes
     H = { -0.072 }

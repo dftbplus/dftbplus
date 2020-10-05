@@ -44,11 +44,8 @@ Hamiltonian = DFTB{
   NonAufbau=Yes
   GroundGuess=Yes
 
-  Charge = 0
   SCC = Yes
-  SpinPolarisation = Colinear {
-    UnpairedElectrons = 0
-  }
+
   SpinConstants = {
     H = {
       -0.072

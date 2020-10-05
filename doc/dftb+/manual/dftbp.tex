@@ -1072,8 +1072,7 @@ following properties:
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
-  \kw{NonAufbau} &l& SpinPolarisation = Colinear & No &
-  \pref{sec:dftbp.NonAufbau} \\
+  \kw{NonAufbau} &l& & No & \pref{sec:dftbp.NonAufbau} \\
   \kw{SpinPurify} & l & NonAufbau = Yes & Yes & \pref{sec:dftbp.NonAufbau} \\
   \kw{GroundGuess} & l & NonAufbau = Yes & No & \pref{sec:dftbp.NonAufbau} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
@@ -2109,10 +2108,12 @@ calculation fails to converge with the Broyden mixer.
   \kw{GroundGuess} & l & NonAufbau = Yes & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{NonAufbau}] Runs a non-Aufbau excited state energy
-  calculation. \is{SpinPurify} is automatically set to \is{Yes}. Therefore, the
-  SCC loop will run twice: first to calculate a triplet state, and second to
-  calculate the ``mixed'' state. The energy is then spin-purified.
+\item[\is{NonAufbau}] Runs a non-Aufbau excited state energy calculation. This
+  is for a neutral, spin zero system, so neither \is{Charge} or
+  \is{SpinPolarisation} should be set in the input if this option is used.
+  \is{SpinPurify} is automatically set to \is{Yes}. Therefore, the SCC loop will
+  run twice: first to calculate a triplet state, and second to calculate the
+  ``mixed'' state. The energy is then spin-purified.
 \item[\is{SpinPurify}] Calculates both a triplet and mixed state for
   spin-purification. If set to \is{No}, only the mixed state is calculated. The
   mixed state is formed by promoting an $\alpha$ electron from the HOMO to the

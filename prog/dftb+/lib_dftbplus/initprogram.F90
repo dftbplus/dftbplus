@@ -1160,8 +1160,6 @@ contains
     character(sc), allocatable :: shellNamesTmp(:)
     logical :: tRequireDerivator
 
-    logical :: isNonAufbau
-
     logical :: tInitialized
 
     !> Format for two using exponential notation values with units
@@ -1771,6 +1769,17 @@ contains
     ! TI-DFTB related variables
     call TDeltaDftb_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
         & input%ctrl%isGroundGuess, nEl)
+    if (deltaDftb%isNonAufbau) then
+      if (nrChrg /= 0.0_dp) then
+        call error("Delta DFTB requires neutral reference")
+      end if
+      if (nSpin /= 2) then
+        call error("Delta DFTB requires two spin channels")
+      end if
+      if (nEl(1) /= nEl(2)) then
+        call error("Delta DFTB requires a spin free reference")
+      end if
+    end if
 
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces

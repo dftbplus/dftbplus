@@ -192,6 +192,9 @@ contains
       call detailedError(child, "Program had been compiled without transport enabled")
     end if
 
+    call getChildValue(root, "Reks", dummy, "None", child=child)
+    call readReks(child, dummy, input%ctrl, input%geom)
+
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson)
@@ -227,9 +230,6 @@ contains
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
-
-    call getChildValue(root, "Reks", dummy, "None", child=child)
-    call readReks(child, dummy, input%ctrl, input%geom)
 
     ! Hamiltonian settings that need to know settings from the REKS block
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
@@ -1384,6 +1384,18 @@ contains
       ! DFTB hydrogen bond corrections
       call readHCorrection(node, geo, ctrl)
 
+      !> TI-DFTB varibles for Delta DFTB
+      call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
+      if(ctrl%isNonAufbau) then
+        call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
+        call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
+        ctrl%nrChrg = 0.0_dp
+        ctrl%tSpin = .true.
+        ctrl%t2Component = .false.
+        ctrl%nrSpinPol = 0.0_dp
+        ctrl%tSpinSharedEf = .false.
+      end if
+
     end if ifSCC
 
     ! Customize the reference atomic charges for virtual doping
@@ -1391,11 +1403,13 @@ contains
         & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     ! Spin calculation
-  #:if WITH_TRANSPORT
-    call readSpinPolarisation(node, ctrl, geo, tp)
-  #:else
-    call readSpinPolarisation(node, ctrl, geo)
-  #:endif
+    if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
+    #:if WITH_TRANSPORT
+      call readSpinPolarisation(node, ctrl, geo, tp)
+    #:else
+      call readSpinPolarisation(node, ctrl, geo)
+    #:endif
+    end if
 
     ! temporararily removed until debugged
     !if (.not. ctrl%tscc) then
@@ -1440,8 +1454,11 @@ contains
     call readSolver(node, ctrl, geo, poisson)
   #:endif
 
+
     ! Charge
-    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    if (.not. ctrl%isNonAufbau) then
+      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    end if
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
@@ -1732,14 +1749,28 @@ contains
       ! get charge mixing options etc.
       call readSccOptions(node, ctrl, geo)
 
+      !> TI-DFTB varibles for Delta DFTB
+      call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
+      if(ctrl%isNonAufbau) then
+        call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
+        call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
+        ctrl%nrChrg = 0.0_dp
+        ctrl%tSpin = .true.
+        ctrl%t2Component = .false.
+        ctrl%nrSpinPol = 0.0_dp
+        ctrl%tSpinSharedEf = .false.
+      end if
+
     end if ifSCC
 
     ! Spin calculation
-  #:if WITH_TRANSPORT
-    call readSpinPolarisation(node, ctrl, geo, tp)
-  #:else
-    call readSpinPolarisation(node, ctrl, geo)
-  #:endif
+    if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau) then
+    #:if WITH_TRANSPORT
+      call readSpinPolarisation(node, ctrl, geo, tp)
+    #:else
+      call readSpinPolarisation(node, ctrl, geo)
+    #:endif
+    end if
 
     ! temporararily removed until debugged
     !if (.not. ctrl%tscc) then
@@ -1757,7 +1788,9 @@ contains
   #:endif
 
     ! Charge
-    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    if (.not. ctrl%isNonAufbau) then
+      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    end if
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
@@ -2283,26 +2316,6 @@ contains
 
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value1, "IndependentKFilling", ctrl%tFillKSep, .false.)
-    end if
-
-    !> TI-DFTB varibles for deltaDFTB with input stipulations
-    call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
-    if(ctrl%isNonAufbau) then
-      call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
-      call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
-      if (.not.(ctrl%tSpin .and. .not. ctrl%t2Component)) then
-        call error("Must specify colinear spin-polarisation for non-Aufbau.")
-      end if
-      if(mod(int(ctrl%nrChrg),2)/=0) then
-        call error("Must have system with even number of electrons for non-Aufbau.")
-      end if
-      if(ctrl%nrChrg /= 0.0_dp) then
-        call error("System must be neutral for non-Aufbau.")
-      end if
-      if(ctrl%nrSpinPol/=0.0_dp) then
-        call error("Must have closed shell system for non-Aufbau.")
-      end if
-
     end if
 
   end subroutine readFilling
