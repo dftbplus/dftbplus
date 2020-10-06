@@ -1455,9 +1455,7 @@ contains
 
 
     ! Charge
-    if (.not. ctrl%isNonAufbau) then
-      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
-    end if
+    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
@@ -1787,9 +1785,7 @@ contains
   #:endif
 
     ! Charge
-    if (.not. ctrl%isNonAufbau) then
-      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
-    end if
+    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
