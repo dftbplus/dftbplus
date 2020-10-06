@@ -37,33 +37,34 @@ build process, consult the `detailed building instructions <INSTALL.rst>`_.
 Download the source code from the `stable release page
 <http://www.dftbplus.org/download/dftb-stable/>`_.
 
-You need CMake (>= 3.5.0) to build DFTB+. Create a build folder
-(e.g. ``build``) in the source folder and start the configuration from
-there. Pass your compilers as environment variables (``FC`` and ``CC``) and
-the location where the code should be installed (``-DCMAKE_INSTALL_PREFIX``)::
+You need CMake (>= 3.16) to build DFTB+. If your environment offers no CMake or
+an only an older one, you can easily install the latest CMake via Python's
+``pip`` command::
 
-  mkdir build
-  cd build
-  FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ ..
+  pip install cmake
 
-If the configuration was successful, start the build with ::
+Start CMake by passing your compilers as environment variables (``FC`` and
+``CC``), and the build directory (``build``) and the location where the code
+should be installed als options::
 
-  make -j
+  FC=gfortran CC=gcc cmake -B build -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ .
+
+If the configuration was successful, start the build with::
+
+  cmake --build build -- -j
 
 After successful build, you should test the code. First download the SK-files
 needed for the test ::
 
-  cd ..
   ./utils/get_opt_externals slakos
-  cd build
 
 and then run the tests with ::
 
-  ctest -j
+  pushd build; ctest -j; popd
 
 If the tests were successful, install the package with ::
 
-  make install
+  cmake --install build
 
 For further details see the `detailed building instructions <INSTALL.rst>`_.
 

@@ -49,13 +49,6 @@ function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
 
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
-    list(APPEND _fyppflags -DDEBUG=1)
-  else()
-    list(APPEND _fyppflags -DDEBUG=0)
-  endif()
-
   if(INTERNAL_ERFC)
     list(APPEND _fyppflags -DINTERNAL_ERFC=1)
   endif()
@@ -124,17 +117,17 @@ endfunction()
 #
 function(dftbp_get_release_name release)
 
-  if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
-    file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/RELEASE)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
   else()
     execute_process(
-      COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
+      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/utils/build/update_release ${CMAKE_CURRENT_BINARY_DIR}/RELEASE
       RESULT_VARIABLE exitcode)
     if(NOT exitcode EQUAL 0)
-      file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
     endif()
   endif()
-  file(READ ${CMAKE_BINARY_DIR}/RELEASE _release)
+  file(READ ${CMAKE_CURRENT_BINARY_DIR}/RELEASE _release)
   separate_arguments(_release)
   set(${release} "${_release}" PARENT_SCOPE)
 
@@ -151,7 +144,7 @@ endfunction()
 #
 function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
+  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
     REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
   string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
   list(GET _api_list 0 _api_major)
@@ -229,13 +222,13 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
-      AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
-    message(FATAL_ERROR
-      "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
-Disable OpenMP (WITH_OMP) when compiling in debug mode")
-  endif()
+#  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+#  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
+#      AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
+#    message(FATAL_ERROR
+#      "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
+#Disable OpenMP (WITH_OMP) when compiling in debug mode")
+#  endif()
 
   if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
     string(FIND "${CMAKE_Fortran_FLAGS}" "-standard-semantics" pos1)
@@ -288,17 +281,11 @@ endfunction()
 function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_libs_private
     pkgconfig_c_flags)
 
-  set(_pkgconfig_libs "-L${CMAKE_INSTALL_FULL_LIBDIR} -ldftbplus")
-  set(_pkgconfig_libs_private)
+  set(_pkgconfig_libs "-L${CMAKE_INSTALL_FULL_LIBDIR}")
+  dftbp_add_prefix("-l" "${PKG_CONFIG_LIBS}" _libs)
+  list(APPEND _pkgconfig_libs "${_libs}")
 
-  dftbp_add_prefix("-l" "${EXPORTED_COMPILED_LIBRARIES}" complibs)
-  list(APPEND _pkgconfig_libs "${complibs}")
-
-  dftbp_add_prefix("-L" "${EXPORTED_EXTERNAL_LIBRARY_DIRS}" extlibdirs)
-  list(APPEND _pkgconfig_libs_private "${extlibdirs}")
-
-  dftbp_library_linking_flags("${EXPORTED_EXTERNAL_LIBRARIES}" extlibs)
-  list(APPEND _pkgconfig_libs_private "${extlibs}")
+  set(_pkgconfig_libs_private "${PKG_CONFIG_LIBS_PRIVATE}")
 
   if(PKGCONFIG_LANGUAGE STREQUAL "C")
 
@@ -334,7 +321,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   string(REPLACE ";" " " _pkgconfig_libs_private "${_pkgconfig_libs_private}")
 
   set(_pkgconfig_libs_private "${_pkgconfig_libs_private} ${CMAKE_EXE_LINKER_FLAGS}")
-  string(REPLACE ";" " " _pkgconfig_requires "${EXPORTED_EXTERNAL_PACKAGES}")
+  string(REPLACE ";" " " _pkgconfig_requires "${PKG_CONFIG_REQUIRES}")
 
   set(${pkgconfig_prefix} "${CMAKE_INSTALL_PREFIX}" PARENT_SCOPE)
   set(${pkgconfig_requires} "${_pkgconfig_requires}" PARENT_SCOPE)
@@ -373,8 +360,8 @@ endfunction()
 #
 function(dftbp_ensure_out_of_source_build)
 
-  get_filename_component(srcdir "${CMAKE_SOURCE_DIR}" REALPATH)
-  get_filename_component(bindir "${CMAKE_BINARY_DIR}" REALPATH)
+  get_filename_component(srcdir "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
+  get_filename_component(bindir "${CMAKE_CURRENT_BINARY_DIR}" REALPATH)
 
   if("${srcdir}" STREQUAL "${bindir}")
     message(FATAL_ERROR
@@ -407,16 +394,35 @@ endfunction()
 macro (dftbp_load_build_settings)
 
   if(NOT DEFINED BUILD_CONFIG_FILE)
-    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE} AND NOT ENV{DFTBPLUS_BUILD_CONFIG_FILE} STREQUAL "")
+    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE}
+        AND NOT "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}" STREQUAL "")
       set(BUILD_CONFIG_FILE "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}")
     else()
-      set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
+      set(BUILD_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config.cmake")
     endif()
   endif()
   message(STATUS "Reading global build config file: ${BUILD_CONFIG_FILE}")
   include(${BUILD_CONFIG_FILE})
   
 endmacro()
+
+
+# Sets up the build type.
+function (dftbp_setup_build_type)
+
+  set(default_build_type "RelWithDebInfo")
+  if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Build type: ${default_build_type} (default single-config)")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
+  elseif(CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS
+      "Build type: ${CMAKE_BUILD_TYPE} (manually selected single-config)")
+  else()
+    message(STATUS "Build type: Multi-Config (build type selected at the build step)")
+  endif()
+
+endfunction()
 
 
 # Tries to guess which toolchain to load based on the environment.
@@ -455,7 +461,7 @@ macro(dftbp_load_toolchain_settings)
     if(NOT DEFINED TOOLCHAIN OR TOOLCHAIN STREQUAL "")
       dftbp_guess_toolchain(TOOLCHAIN)
     endif()
-    set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
+    set(TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
   endif()
   message(STATUS "Reading build environment specific toolchain file: ${TOOLCHAIN_FILE}")
   include(${TOOLCHAIN_FILE})
@@ -465,12 +471,15 @@ endmacro()
 # Sets up the global compiler flags
 #
 macro (dftbp_setup_global_compiler_flags)
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
-  foreach (lang IN ITEMS Fortran C)
-    set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
-    set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
-    message(STATUS "Flags for ${lang}-compiler: "
-      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+  
+  foreach (buildtype IN LISTS CMAKE_CONFIGURATION_TYPES)
+    foreach (lang IN ITEMS Fortran C)
+      string(TOUPPER "${buildtype}" BUILDTYPE_UPPER)
+      set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+      set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+      message(STATUS "Flags for ${lang}-compiler (build type: ${buildtype}): "
+        "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    endforeach()
   endforeach()
 
 endmacro()

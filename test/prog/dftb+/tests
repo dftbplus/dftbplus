@@ -199,7 +199,7 @@ timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
+#timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
 analysis/H2O_mdESP                     #? MPI_PROCS <= 2

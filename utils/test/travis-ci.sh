@@ -13,28 +13,43 @@ else
    ELSI_VERSION="${elsi_VERSION}"
 fi
 
-cmake_options=(
-   "-DCMAKE_INSTALL_PREFIX=/opt/dftbplus"
-   "-DWITH_DFTD3=true"
-   "-DWITH_MBD=true"
-   "-DWITH_TRANSPORT=true"
-   "-DWITH_ARPACK=${WITH_ARPACK}"
-   "-DWITH_MPI=${WITH_MPI}"
-   "-DELSI_VERSION=${ELSI_VERSION}"
-   "-DWITH_API=true"
-   "-DFYPP_FLAGS='-DTRAVIS'"
-)
-
 if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
    BUILD_TYPE="Debug"
 else
    BUILD_TYPE="Release"
 fi
 
-mkdir -p _build
-pushd _build
-cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} "${cmake_options[@]}" ..
-make -j 2
-ctest -j 2
+SOURCE_DIR="${PWD}"
+BUILD_DIR="${PWD}/_build"
+INSTALL_DIR="${PWD}/_install"
+
+cmake_options=(
+   "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}"
+   "-DWITH_DFTD3=true"
+   "-DWITH_MBD=true"
+   "-DWITH_TRANSPORT=true"
+   "-DWITH_ARPACK=${WITH_ARPACK}"
+   "-DWITH_MPI=${WITH_MPI}"
+   "-DELSI_VERSION=${ELSI_VERSION}"
+   "-DSCALAPACK_LIBRARY='scalapack-openmpi'"
+   "-DWITH_API=true"
+   "-DFYPP_FLAGS='-DTRAVIS'"
+   "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
+)
+
+cmake -B ${BUILD_DIR}  "${cmake_options[@]}" .
+cmake --build ${BUILD_DIR} -- -j
+pushd ${BUILD_DIR}
+ctest -j
 popd
-DESTDIR=$PWD/dist make install -C _build
+cmake --install ${BUILD_DIR}
+
+
+CMAKE_PREFIX_PATH="${INSTALL_DIR}:${CMAKE_PREFIX_PATH}" \
+    ./test/integration/cmake/runtest.sh _build_cmake \
+    -DCMAKE_MODULE_PATH="${SOURCE_DIR}/cmake;${SOURCE_DIR}/external/scalapackfx/origin/cmake" \
+    -DSCALAPACK_LIBRARY='scalapack-openmpi'
+
+PKG_CONFIG_PATH="${INSTALL_DIR}/lib/pkgconfig:$PKG_CONFIG_PATH" \
+    ./test/integration/pkgconfig/runtest.sh _build_pkgconfig
+

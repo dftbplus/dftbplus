@@ -1,4 +1,4 @@
-set(LIBRARY_ONLY TRUE)
-set(INSTALL_EXPORT_NAME dftbplus-targets)
+set(BUILD_EXPORTED_TARGETS_ONLY TRUE)
 add_subdirectory(origin)
-set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} scalapackfx PARENT_SCOPE)
+add_library(ScalapackFx::ScalapackFx INTERFACE IMPORTED GLOBAL)
+target_link_libraries(ScalapackFx::ScalapackFx INTERFACE ScalapackFx)

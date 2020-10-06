@@ -1,10 +1,12 @@
 #
 # Global architecture independent build settings
 #
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
-  "Directory to install the compiled code into")
+# CMAKE_BUILD_TYPE is commented out in order to allow for multi-configuration builds. It will
+# automatically default to RelWithDebInfo if used in a single configuration build. Uncomment or
+# override it only if you want a non-default single configuration build.
+#
+#set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (Release|RelWithDebInfo|Debug|MinSizeRel)")
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
@@ -50,7 +52,6 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # calling DFTB+ functions from Python or Julia).
 
 
-
 #
 # Test environment settings
 #
@@ -74,12 +75,15 @@ endif()
 #
 # Installation options
 #
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
+  "Directory to install the compiled code into")
+
 set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
   "Installation directory for executables")
 
 set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
 
-set(CMAKE_INSTALL_INCLUDDIR "include/dftb+" CACHE PATH
+set(CMAKE_INSTALL_INCLUDEDIR "include/dftb+" CACHE PATH
   "Installation directory for header and include files")
 
 set(CMAKE_INSTALL_MODULEDIR "${CMAKE_INSTALL_INCLUDEDIR}/modfiles" CACHE PATH

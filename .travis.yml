@@ -1,26 +1,26 @@
 os: linux
-dist: bionic
+dist: focal
 
 language: python
 python: 3.7
 
-
 env:
- - WITH_MPI=false FC=gfortran CC=gcc
- - WITH_MPI=true FC=mpifort CC=gcc
+  - WITH_MPI=false FC=gfortran CC=gcc
+  - WITH_MPI=true FC=mpifort CC=gcc
 
 addons:
-   apt:
-      packages:
+  apt:
+    packages:
       - cmake
       - gfortran
       - libopenblas-dev
       - libopenmpi-dev
       - libscalapack-openmpi-dev
       - libarpack2-dev
+      - pkg-config
 
 install:
-- echo "y" | ./utils/get_opt_externals ALL
+  - echo "y" | ./utils/get_opt_externals ALL
 
 script:
-- ./utils/test/travis-ci.sh
+  - ./utils/test/travis-ci.sh
