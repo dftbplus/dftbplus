@@ -1771,16 +1771,22 @@ contains
         & input%ctrl%isGroundGuess, nEl)
     if (deltaDftb%isNonAufbau) then
       if (nSpin /= 2) then
-        call error("Delta DFTB requires two spin channels")
+        call error("Internal error, Delta DFTB requires two spin channels")
       end if
       if (nEl(1) /= nEl(2)) then
-        call error("Delta DFTB requires a spin free reference")
+        call error("Internal error, Delta DFTB requires a spin free reference")
       end if
       if (abs(nEl(1) - nint(nEl(1))) > epsilon(0.0)) then
-        call error("Delta DFTB requires an integer number of electrons in reference state")
+        call error("Delta DFTB requires an integer number of electrons in the reference state")
       end if
       if (mod(sum(nint(nEl)),2) /= 0) then
         call error("Delta DFTB requires an even number of electrons in reference state")
+      end if
+      if (sum(nEl) > 2*nOrb) then
+        call error("Delta DFTB requires at least one empty orbital")
+      end if
+      if (sum(nEl) < 2) then
+        call error("Delta DFTB requires at least one full orbital")
       end if
     end if
 
@@ -3230,6 +3236,28 @@ contains
       end do
     end if
 
+    if (deltaDftb%tNonAufbau .and. .not.tSccCalc) then
+      call error("Delta DFTB must use SCC = Yes")
+    end if
+    if (deltaDftb%tNonAufbau .and. isLinResp) then
+      call error("Delta DFTB incompatible with linear response")
+    end if
+    if (deltaDftb%tNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
+      call error("Delta DFTB incompatible with electron dynamics")
+    end if
+    if (deltaDftb%tNonAufbau .and. tFixEf) then
+      call error("Delta DFTB incompatible with fixed Fermi energy")
+    end if
+    if (deltaDftb%tNonAufbau .and. tSpinSharedEf) then
+      call error("Delta DFTB incompatible with shared Fermi energy")
+    end if
+    if (deltaDftb%tNonAufbau .and. allocated(reks)) then
+      call error("Delta DFTB incompatible with REKS")
+    end if
+    if (deltaDftb%tNonAufbau .and. tNegf) then
+      call error("Delta DFTB incompatible with transport")
+    end if
+
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
     end if
@@ -4172,7 +4200,7 @@ contains
         call error('Internal error: DenseDesc not created')
       end if
 
-      ! Some sanity checks and initialization of GDFTB/NEGF
+      ! Some checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos, tempElec,&
           & electronicSolver%iSolver)
 
