@@ -114,7 +114,9 @@ if(WITH_MPI)
 endif()
 
 if(WITH_OMP)
-  target_link_libraries(dftbplus PRIVATE OpenMP::OpenMP_Fortran)
+  # OpenMP dependency must be public in order to forward eventual linker flags
+  # (workaround for NAG compiler) to targets linking to it.
+  target_link_libraries(dftbplus PUBLIC OpenMP::OpenMP_Fortran)
 endif()
 
 if(WITH_ARPACK)

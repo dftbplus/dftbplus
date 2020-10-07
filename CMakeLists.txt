@@ -39,8 +39,14 @@ elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
     "build.")
 endif()
 
-if(WITH_OMP)
+if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
   find_package(OpenMP REQUIRED)
+  # Fix CMake bug on OpenMP settings for the NAG compiler
+  # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
+    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+  endif()
 endif()
 
 #
@@ -50,7 +56,7 @@ set(PKG_CONFIG_REQUIRES)
 set(PKG_CONFIG_LIBS)
 set(PKG_CONFIG_LIBS_PRIVATE)
 
-if(WITH_ELSI)
+if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
   find_package(elsi ${ELSI_MIN_VERSION} REQUIRED PATHS ${ELSI_ROOT})
   list(APPEND PKG_CONFIG_REQUIRES elsi)
@@ -102,7 +108,7 @@ dftbp_add_fypp_defines(FYPP_FLAGS)
 set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
 # Make sure, the line-marker option is not set in fypp
 list(REMOVE_ITEM FYPP_CONFIG_FLAGS "-n")
-set(FYPP_BUILD_FLAGS "${FYPP_FLAGS} $<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
+set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
 
 set(PYTHON_INTERPRETER "python3" CACHE STRING
   "Python interpreter to use for installing and test python components")

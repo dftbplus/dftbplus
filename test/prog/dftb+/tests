@@ -199,7 +199,7 @@ timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
-#timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
 analysis/H2O_mdESP                     #? MPI_PROCS <= 2
@@ -334,7 +334,7 @@ md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4 and LONG_TEST
 md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4 and LONG_TEST
 
 timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
+#!timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C60_EandOsc                    #? WITH_ARPACK and MPI_PROCS <= 1
 
 non-scc/Si_216                         #? MPI_PROCS <= 4 and LONG_TEST
