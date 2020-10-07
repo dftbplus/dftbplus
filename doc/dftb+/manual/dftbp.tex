@@ -2109,11 +2109,11 @@ calculation fails to converge with the Broyden mixer.
 \end{ptable}
 \begin{description}
 \item[\is{NonAufbau}] Runs a non-Aufbau excited state energy calculation. This
-  is for a neutral, spin zero system, so neither \is{Charge} or
-  \is{SpinPolarisation} should be set in the input if this option is used.
-  \is{SpinPurify} is automatically set to \is{Yes}. Therefore, the SCC loop will
-  run twice: first to calculate a triplet state, and second to calculate the
-  ``mixed'' state. The energy is then spin-purified.
+  is for a spin zero system, so \is{SpinPolarisation} should not be set in the
+  input for this type of calculation.  \is{SpinPurify} is automatically set to
+  \is{Yes}. Therefore, the SCC loop will run twice: first to calculate a triplet
+  state, and second to calculate the ``mixed'' state. The energy is then
+  spin-purified.
 \item[\is{SpinPurify}] Calculates both a triplet and mixed state for
   spin-purification. If set to \is{No}, only the mixed state is calculated. The
   mixed state is formed by promoting an $\alpha$ electron from the HOMO to the

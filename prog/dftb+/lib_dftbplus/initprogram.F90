@@ -1770,14 +1770,17 @@ contains
     call TDeltaDftb_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
         & input%ctrl%isGroundGuess, nEl)
     if (deltaDftb%isNonAufbau) then
-      if (nrChrg /= 0.0_dp) then
-        call error("Delta DFTB requires neutral reference")
-      end if
       if (nSpin /= 2) then
         call error("Delta DFTB requires two spin channels")
       end if
       if (nEl(1) /= nEl(2)) then
         call error("Delta DFTB requires a spin free reference")
+      end if
+      if (abs(nEl(1) - nint(nEl(1))) > epsilon(0.0)) then
+        call error("Delta DFTB requires an integer number of electrons in reference state")
+      end if
+      if (mod(sum(nint(nEl)),2) /= 0) then
+        call error("Delta DFTB requires an even number of electrons in reference state")
       end if
     end if
 
