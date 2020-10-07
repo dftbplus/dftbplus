@@ -1384,15 +1384,18 @@ contains
       call readHCorrection(node, geo, ctrl)
 
       !> TI-DFTB varibles for Delta DFTB
-      call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
-      if(ctrl%isNonAufbau) then
-        call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
-        call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
+      call getChild(node, "NonAufbau", child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isNonAufbau = .true.
+        call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
+        call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
         ctrl%nrChrg = 0.0_dp
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
         ctrl%tSpinSharedEf = .false.
+      else
+        ctrl%isNonAufbau = .false.
       end if
 
     end if ifSCC
@@ -1747,15 +1750,18 @@ contains
       call readSccOptions(node, ctrl, geo)
 
       !> TI-DFTB varibles for Delta DFTB
-      call getChildValue(node, "NonAufbau", ctrl%isNonAufbau, .false.)
-      if(ctrl%isNonAufbau) then
-        call getChildValue(node, "SpinPurify", ctrl%isSpinPurify, .true.)
-        call getChildValue(node, "GroundGuess", ctrl%isGroundGuess, .false.)
+      call getChild(node, "NonAufbau", child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isNonAufbau = .true.
+        call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
+        call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
         ctrl%nrChrg = 0.0_dp
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
         ctrl%tSpinSharedEf = .false.
+      else
+        ctrl%isNonAufbau = .false.
       end if
 
     end if ifSCC

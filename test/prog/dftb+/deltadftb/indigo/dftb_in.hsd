@@ -41,8 +41,9 @@ Driver = ConjugateGradient{
 
 Hamiltonian = DFTB{
 
-  NonAufbau=Yes
-  GroundGuess=Yes
+  NonAufbau = {
+    GroundGuess=Yes
+  }
 
   SCC = Yes
 

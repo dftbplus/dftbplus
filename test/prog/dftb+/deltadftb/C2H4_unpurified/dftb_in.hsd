@@ -12,9 +12,10 @@ Geometry = GenFormat {
 Hamiltonian = DFTB { 
   SCC = Yes
   SCCTolerance = 1E-6
-  NonAufbau = Yes
-  GroundGuess = Yes
-  SpinPurify = No
+  NonAufbau = {
+    GroundGuess = Yes
+    SpinPurify = No
+  }
   SpinConstants = {
     ShellResolvedSpin = Yes
     H = { -0.072 }
