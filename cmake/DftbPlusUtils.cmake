@@ -222,23 +222,36 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
-#  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-#  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
-#      AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
-#    message(FATAL_ERROR
-#      "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
-#Disable OpenMP (WITH_OMP) when compiling in debug mode")
-#  endif()
-
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-    string(FIND "${CMAKE_Fortran_FLAGS}" "-standard-semantics" pos1)
-    string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
-    string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
-    if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-      message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
-        "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
-        "code")
+  # Note: The consistency check below will / can not be executed in multi-config mode
+  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND CMAKE_BUILD_TYPE)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _buildtype)
+    if(("${_buildtype}"  STREQUAL "DEBUG") AND WITH_OMP)
+      message(FATAL_ERROR
+        "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
+Disable OpenMP (WITH_OMP) when compiling in debug mode")
     endif()
+  endif()
+
+  # Make sure Intel has the proper flag
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+    if(CMAKE_BUILD_TYPE)
+      set(_buildtypes "${CMAKE_BUILD_TYPE}")
+    else()
+      set(_buildtypes "${CMAKE_CONFIGURATION_TYPES}")
+    endif()
+    foreach(_buildtype IN LISTS _buildtypes)
+      string(TOUPPER "${_buildtype}" _buildtype_upper)
+      set(_flags "${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${_buildtype_upper}}")
+      message(STATUS "FLAGS: ${_flags}")
+      string(FIND "${_flags} "  "-standard-semantics" pos1)
+      string(FIND "${_flags}" "realloc_lhs" pos2)
+      string(FIND "${_flags}" "norealloc_lhs" pos3)
+      if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
+        message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
+          "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
+          "code (missing flag in build type '${_buildtype}'")
+      endif()
+    endforeach()
   endif()
 
   set(pkgconfig_languages C Fortran)
@@ -470,16 +483,23 @@ endmacro()
 
 # Sets up the global compiler flags
 #
-macro (dftbp_setup_global_compiler_flags)
-  
-  foreach (buildtype IN LISTS CMAKE_CONFIGURATION_TYPES)
+macro(dftbp_setup_global_compiler_flags)
+
+  if(CMAKE_BUILD_TYPE)
+    set(_buildtypes ${CMAKE_BUILD_TYPE})
+  else()
+    set(_buildtypes ${CMAKE_CONFIGURATION_TYPES})
+  endif()
+  foreach(_buildtype IN LISTS _buildtypes)
     foreach (lang IN ITEMS Fortran C)
-      string(TOUPPER "${buildtype}" BUILDTYPE_UPPER)
+      string(TOUPPER "${_buildtype}" _buildtype_upper)
       set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
-      set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
-      message(STATUS "Flags for ${lang}-compiler (build type: ${buildtype}): "
-        "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+      set(CMAKE_${lang}_FLAGS_${_buildtype_upper} " ${${lang}_FLAGS_${_buildtype_upper}}")
+      message(STATUS "Flags for ${lang}-compiler (build type: ${_buildtype}): "
+        "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${_buildtype_upper}}")
     endforeach()
   endforeach()
-
+  unset(_buildtypes)
+  unset(_buildtype)
+  unset(_buildtype_upper)
 endmacro()

@@ -23,6 +23,9 @@ set(Fortran_FLAGS "-ieee=full ${CMAKE_Fortran_FLAGS}"
 set(Fortran_FLAGS_RELEASE "-O2"
   CACHE STRING "Fortran compiler flags for Release build")
 
+set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
+  CACHE STRING "Fortran compiler flags for Release build")
+
 set(Fortran_FLAGS_DEBUG "-g -f2008 -nan -C=all"
   CACHE STRING "Fortran compiler flags for Debug build")
 
