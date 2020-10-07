@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/coulomb.F90
   ${curdir}/densitymatrix.F90
   ${curdir}/dftbplusu.F90
+  ${curdir}/dftd3param.F90
   ${curdir}/dftd4param.F90
   ${curdir}/dispcommon.F90
   ${curdir}/dispdftd4.F90
@@ -45,6 +46,7 @@ set(sources-fpp
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90
   ${curdir}/shortgamma.F90
+  ${curdir}/simpledftd3.F90
   ${curdir}/sk.F90
   ${curdir}/slakocont.F90
   ${curdir}/slakoeqgrid.F90

@@ -282,12 +282,13 @@ endfunction()
 #     pkgconfig_requires [out]: Value for the Requires field.
 #     pkgconfig_libs [out]: Value for the Libs field.
 #     pkgconfig_libs_private [out]: Value for the Libs.private field.
-#     pkgconfig_c_flags [out]: value for the cflags field.
+#     pkgconfig_c_flags [out]: Value for the cflags field.
+#     pkgconfig_prefix [out]: Value for the installation prefix.
 #
 function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_libs_private
     pkgconfig_c_flags)
 
-  set(_pkgconfig_libs "-L${INSTALL_LIB_DIR} -ldftbplus")
+  set(_pkgconfig_libs "-L${CMAKE_INSTALL_FULL_LIBDIR} -ldftbplus")
   set(_pkgconfig_libs_private)
 
   dftbp_add_prefix("-l" "${EXPORTED_COMPILED_LIBRARIES}" complibs)
@@ -311,7 +312,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_INC_DIR} ${CMAKE_C_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_INCLUDEDIR} ${CMAKE_C_FLAGS}")
 
   else()
 
@@ -325,7 +326,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${INSTALL_MOD_DIR} ${CMAKE_Fortran_FLAGS}")
+    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_MODULEDIR} ${CMAKE_Fortran_FLAGS}")
 
   endif()
 
@@ -335,6 +336,7 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   set(_pkgconfig_libs_private "${_pkgconfig_libs_private} ${CMAKE_EXE_LINKER_FLAGS}")
   string(REPLACE ";" " " _pkgconfig_requires "${EXPORTED_EXTERNAL_PACKAGES}")
 
+  set(${pkgconfig_prefix} "${CMAKE_INSTALL_PREFIX}" PARENT_SCOPE)
   set(${pkgconfig_requires} "${_pkgconfig_requires}" PARENT_SCOPE)
   set(${pkgconfig_libs} "${_pkgconfig_libs}" PARENT_SCOPE)
   set(${pkgconfig_libs_private} "${_pkgconfig_libs_private}" PARENT_SCOPE)
