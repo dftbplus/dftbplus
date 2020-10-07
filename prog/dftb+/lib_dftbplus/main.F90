@@ -493,6 +493,8 @@ contains
     if (.not.tRestartNoSC) then
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
           & tNegf, reks)
+    else
+      tConverged = .true.
     end if
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
