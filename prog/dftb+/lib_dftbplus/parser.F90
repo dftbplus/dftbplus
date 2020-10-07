@@ -7389,10 +7389,13 @@ contains
     integer, intent(out) :: parserVersion
 
     select case(trim(versionString))
-    case("20.2")
-      parserVersion = 9
+    ! upcomming release
+    !case("20.2")
+      !parserVersion = 9
     case("20.1")
-      parserVersion = 8
+      ! parserVersion = 8
+      ! temporarily until 20.2 release:
+      parserVersion = 9
     case("19.1")
       parserVersion = 7
     case("18.2")

@@ -481,11 +481,15 @@ contains
     type(fnode), pointer :: pTaskType
     type(string) :: buffer
 
+    ! If this is an electron dynamics restart, then remove keywords for the (un-needed) ground state
+    ! calculation (unless the eigenvectors are required)
     call getDescendant(root, "ElectronDynamics/Restart", ch1)
     if (associated(ch1)) then
       call getChildValue(ch1, "", tVal1)
       call setUnprocessed(ch1)
       tVal2 = .false.
+      ! Population projection requires eigenvectors, which are not currently stored in the restart
+      ! file.
       call getDescendant(root, "ElectronDynamics/Populations", ch2)
       if (associated(ch2)) then
         call getChildValue(ch2, "", tVal2)
