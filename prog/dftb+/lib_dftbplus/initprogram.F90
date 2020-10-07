@@ -3236,25 +3236,25 @@ contains
       end do
     end if
 
-    if (deltaDftb%tNonAufbau .and. .not.tSccCalc) then
+    if (deltaDftb%isNonAufbau .and. .not.tSccCalc) then
       call error("Delta DFTB must use SCC = Yes")
     end if
-    if (deltaDftb%tNonAufbau .and. isLinResp) then
+    if (deltaDftb%isNonAufbau .and. isLinResp) then
       call error("Delta DFTB incompatible with linear response")
     end if
-    if (deltaDftb%tNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
+    if (deltaDftb%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
       call error("Delta DFTB incompatible with electron dynamics")
     end if
-    if (deltaDftb%tNonAufbau .and. tFixEf) then
+    if (deltaDftb%isNonAufbau .and. tFixEf) then
       call error("Delta DFTB incompatible with fixed Fermi energy")
     end if
-    if (deltaDftb%tNonAufbau .and. tSpinSharedEf) then
+    if (deltaDftb%isNonAufbau .and. tSpinSharedEf) then
       call error("Delta DFTB incompatible with shared Fermi energy")
     end if
-    if (deltaDftb%tNonAufbau .and. allocated(reks)) then
+    if (deltaDftb%isNonAufbau .and. allocated(reks)) then
       call error("Delta DFTB incompatible with REKS")
     end if
-    if (deltaDftb%tNonAufbau .and. tNegf) then
+    if (deltaDftb%isNonAufbau .and. tNegf) then
       call error("Delta DFTB incompatible with transport")
     end if
 
