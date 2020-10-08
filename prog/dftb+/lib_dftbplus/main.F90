@@ -332,7 +332,8 @@ contains
       call poiss_destroy(env)
     end if
   #:if WITH_TRANSPORT
-    if (electronicSolver%iSolver == electronicSolverTypes%GF) then
+    if (electronicSolver%iSolver == electronicSolverTypes%GF .or. & 
+      & electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
       call negf_destroy()
     end if
   #:endif
