@@ -174,7 +174,9 @@ contains
     geoOpt: do iGeoStep = 0, nGeoSteps
       tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
-      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+      if (.not.tRestartNoSC) then
+        call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+      end if
       call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
       if (tExitGeoOpt) then
         exit geoOpt
@@ -303,7 +305,7 @@ contains
           & SSqrReal, eigvecsCplx, SSqrCplx, tHelical, coord)
     end if
 
-    if (tWriteAutotest) then
+    if (tWriteAutotest.and..not.tRestartNoSC) then
       if (tPeriodic) then
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
@@ -420,7 +422,7 @@ contains
       end if
     #:endif
 
-    if (tSccCalc .and. .not.allocated(reks)) then
+    if (tSccCalc .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
       call reset(pChrgMixer, nMixElements)
     end if
 
@@ -488,8 +490,12 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-        & tNegf, reks)
+    if (.not.tRestartNoSC) then
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+          & tNegf, reks)
+    else
+      tConverged = .true.
+    end if
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -860,7 +866,7 @@ contains
           & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
     end if
 
-    if (tDipole .and. .not.allocated(reks)) then
+    if (tDipole .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
       call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
@@ -890,7 +896,9 @@ contains
           & iLatGeoStep, nSpin, qOutput, velocities)
     end if
 
-    call printEnergies(energy, electronicSolver)
+    if (.not.tRestartNoSC) then
+      call printEnergies(energy, electronicSolver)
+    end if
 
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -966,7 +974,7 @@ contains
       end if
     end if
 
-    if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged) then
+    if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged .and. .not.tRestartNoSC) then
       call warning("SCC is NOT converged, maximal SCC iterations exceeded")
       if (isSccConvRequired) then
         call env%shutdown()
