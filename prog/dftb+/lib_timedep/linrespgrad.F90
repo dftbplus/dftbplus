@@ -618,7 +618,7 @@ contains
 
         if (tMulliken) then
           !> for now, only total Mulliken charges
-          call writeExcMulliken(sym, iLev, sum(dq,dim=2), sum(dqex,dim=2), coord0, this%fdMulliken)
+          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0, this%fdMulliken)
         end if
 
         if (tForces) then
@@ -1755,7 +1755,7 @@ contains
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
     ALLOCATE(dq(natom))
-    dq(:) = sum(dq_ud, dim=2)
+    dq(:) = dq_ud(:,1)
 
     if (tSpin) then
       ALLOCATE(dm(natom))
@@ -1768,7 +1768,7 @@ contains
       ALLOCATE(dsigma(2))
       dsigma(1) = 1.0_dp
       dsigma(2) = -1.0_dp
-      dm(:) = dq_ud(:,1) - dq_ud(:,2)
+      dm(:) = dq_ud(:,2)
     end if
 
     excgrad = 0.0_dp

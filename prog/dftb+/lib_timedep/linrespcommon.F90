@@ -727,7 +727,7 @@ contains
       !magnetization part
       tmp(:) = 0.0_dp
       call transChrg%qMatVecDs(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
-      call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, 2.0_dp*tmp*spinW(species0), rkm1)
+      call transChrg%qVecMatDs(iAtomStart, stimc, grndEigVecs, getij, win, 2.0_dp*tmp*spinW(species0), rkm1)
     end if
 
   end subroutine apbw
