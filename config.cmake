@@ -75,13 +75,12 @@ endif()
 #
 # Installation options
 #
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
   "Directory to install the compiled code into")
 
-set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
-  "Installation directory for executables")
+#set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH "Installation directory for executables")
 
-set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
+#set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
 
 set(CMAKE_INSTALL_INCLUDEDIR "include/dftb+" CACHE PATH
   "Installation directory for header and include files")
@@ -102,3 +101,14 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 # Depending on the language setting ("C" or "Fortran") you would get the flags for the case of using
 # that compiler for the linking.
 
+
+#
+# Whether to build external dependencies instead of finding and using installed versions of those.
+# When enabled for a given dependency, its source code must be present in the corresponding
+# external/DEPENDENCY/orig/ folder.
+#
+option(BUILD_MPIFX "Whether to build MpiFx as part of the build process" TRUE)
+
+option(BUILD_SCALAPACKFX "Whether to build ScalapackFx as part of the build process" TRUE)
+
+option(BUILD_MBD "Whether to build LibMbd as part of the build process" TRUE)

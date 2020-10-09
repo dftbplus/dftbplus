@@ -167,12 +167,13 @@ In order to build DFTB+ carry out the following steps:
 * Inspect the `config.cmake` file and customise the global build parameters. (If
   you are unsure, leave the defaults as they are.)
 
-* Invoke CMake to configure the build. Pass an arbitrary folder (e.g. ``build``)
-  for the build.  You also have to pass the source directory (``.``) as argument
-  to CMake. Additionally pass your Fortran and C compilers as environment
-  variables, e.g. (in a BASH compatible shell)::
+* Invoke CMake to configure the build. Specify the installation destination
+  (e.g. ``$HOME/opt/dftb+``) and pass an arbitrary folder (e.g. ``_build``) for
+  the build and the directory containing the source files (e.g. ``.``) as
+  arguments to CMake. Additionally define your Fortran and C compilers as
+  environment variables, e.g. (in a BASH compatible shell)::
 
-    FC=gfortran CC=gcc cmake -B build .
+    FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ -B _build .
 
   Based on the detected compilers, the build system will read further settings
   from a corresponding toolchain file in the `sys/` folder. Either from a
@@ -185,9 +186,9 @@ In order to build DFTB+ carry out the following steps:
   by either modifying the files directly or by overriding the definitions via
   the ``-D`` command line option. For example, in order to use the MKL-library
   with the GNU-compiler, you would have to override the ``LAPACK_LIBRARY``
-  variable::
+  variable with the CMake command line argument ``-D``::
 
-    FC=gfortran CC=gcc cmake -B build -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"  .
+    -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
   When needed, you can also pass linker options in the library variables, e.g.::
 
@@ -199,12 +200,12 @@ In order to build DFTB+ carry out the following steps:
   ``*_LIBRARY_DIR`` variable for each external library to add path hints for
   the library search, e.g.::
 
-    FC=gfortran CC=gcc cmake -B build -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib .
+    -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib
 
   Note: You can override the toolchain file selection by passing the
   ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
 
-    FC=ifort CC=gcc cmake -B build -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake .
+    -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake
 
   or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
   environment variable. If the customized toolchain file is within the `sys/`
@@ -212,7 +213,7 @@ In order to build DFTB+ carry out the following steps:
   ``DFTBPLUS_TOOLCHAIN`` environment variable with the plain name of the file
   (without the full path) instead::
 
-    FC=ifort CC=gcc cmake -B build -DTOOLCHAIN=gnu .
+    -DTOOLCHAIN=gnu .
 
   Similarly, you can use an alternative build config file instead of
   `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
@@ -222,7 +223,7 @@ In order to build DFTB+ carry out the following steps:
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::
 
-    cmake --build build -- -j
+    cmake --build _build -- -j
 
   This will compile the code using several threads and showing only the most
   relevant information.
@@ -230,7 +231,7 @@ In order to build DFTB+ carry out the following steps:
   If, for debugging purposes, you wish to see the exact compiling commands, you
   should execute a serial build with verbosity turned on instead::
 
-    cmake --build build -- VERBOSE=1
+    cmake --build _build -- VERBOSE=1
 
 * Note: The code can be compiled with distributed memory parallelism (MPI), but
   for smaller shared memory machines, you may find that the performance is
@@ -244,7 +245,7 @@ Testing DFTB+
 * After successful compilation, change to the build folder and execute the code
   tests::
 
-    pushd build
+    pushd _build
     ctest
     popd
 
@@ -275,8 +276,8 @@ Testing DFTB+
   or changed also after the compilation by invoking CMake with the appropriate
   ``-D`` options, e.g.::
 
-    cmake -B build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 .
-    pushd build; ctest; popd
+    cmake -B _build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 .
+    pushd _build; ctest; popd
 
 
 Installing DFTB+
@@ -285,7 +286,7 @@ Installing DFTB+
 * The compiled executables, libraries, module files etc. can be copied into an
   installation directory by ::
 
-    cmake --install build
+    cmake --install _build
 
   where the destination directory can be configured by the variable
   ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
@@ -377,7 +378,7 @@ repository. Create a customized CMake config file instead, where you
 pre-populate the appropriate cache variables. Use the `-C` option to load that
 file::
 
-  cmake -C ../custom.cmake ..
+  FC=gfortran CC=gcc cmake -C custom.cmake -B _build .
 
 The customized config file is read by CMake before the compiler detection. If
 your config file contains toolchain dependent options, consider to define the

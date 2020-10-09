@@ -1,4 +1,4 @@
-# Distributed under the OSI-approved BSD 3-Clause License.
+# Distributed under the OSI-approved BSD 2-Clause License.
 #
 # Copyright (C) 2020 DFTB+ developers group
 #
@@ -113,9 +113,9 @@ else()
 
 
   if(LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
-    add_library(LAPACK::LAPACK INTERFACE IMPORTED)
 
-    if (NOT "${LAPACK_LIBRARY}" STREQUAL "NONE")
+    add_library(LAPACK::LAPACK INTERFACE IMPORTED)
+    if(NOT "${LAPACK_LIBRARY}" STREQUAL "NONE")
       target_link_libraries(LAPACK::LAPACK INTERFACE "${LAPACK_LIBRARY}")
     endif()
     if(NOT "${LAPACK_LINKER_FLAG}" STREQUAL "")

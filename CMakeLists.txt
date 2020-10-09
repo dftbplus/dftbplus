@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(DFTBPLUS_VERSION "20.1")
-
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 include(DftbPlusUtils)
 
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
+
+set(DFTBPLUS_VERSION "20.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -106,7 +107,7 @@ set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp pre
 dftbp_add_fypp_defines(FYPP_FLAGS)
 
 set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
-# Make sure, the line-marker option is not set in fypp
+# Make sure, the line-marker option is not set
 list(REMOVE_ITEM FYPP_CONFIG_FLAGS "-n")
 set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
 
@@ -143,13 +144,25 @@ if(WITH_DFTD3)
 endif()
 
 if(WITH_MPI)
+  if(BUILD_MPIFX)
     add_subdirectory(external/mpifx ${exclude})
+  else()
+    find_package(MpiFx REQUIRED)
+  endif()
+  if (BUILD_SCALAPACKFX)
     add_subdirectory(external/scalapackfx ${exclude})
+  else()
+    find_package(ScalapackFx REQUIRED)
+  endif()
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
-  add_subdirectory(external/mbd ${exclude})
+  if(BUILD_MBD)
+    add_subdirectory(external/mbd ${exclude})
+  else()
+    find_package(Mbd REQUIRED)
+  endif()
 endif()
 
 
@@ -183,6 +196,7 @@ endif()
 # Export package info
 # 
 if(WITH_API)
+  include(CMakePackageConfigHelpers)
 
   add_library(DftbPlus INTERFACE)
   target_link_libraries(DftbPlus INTERFACE dftbplus)
@@ -192,8 +206,6 @@ if(WITH_API)
     FILE dftbplus-targets.cmake
     NAMESPACE DftbPlus::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus")
-
-  include(CMakePackageConfigHelpers)
   
   configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/export/dftbplus-config.cmake.in
@@ -208,6 +220,10 @@ if(WITH_API)
   install(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus)
+
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus)
 
   dftbp_get_pkgconfig_params(PKGCONFIG_REQUIRES PKGCONFIG_LIBS PKGCONFIG_LIBS_PRIVATE

@@ -44,14 +44,14 @@ an only an older one, you can easily install the latest CMake via Python's
   pip install cmake
 
 Start CMake by passing your compilers as environment variables (``FC`` and
-``CC``), and the build directory (``build``) and the location where the code
-should be installed als options::
+``CC``), and the location where the code should be installed and the build
+directory (``_build``) and als options::
 
-  FC=gfortran CC=gcc cmake -B build -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ .
+  FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ -B _build .
 
 If the configuration was successful, start the build with::
 
-  cmake --build build -- -j
+  cmake --build _build -- -j
 
 After successful build, you should test the code. First download the SK-files
 needed for the test ::
@@ -60,11 +60,11 @@ needed for the test ::
 
 and then run the tests with ::
 
-  pushd build; ctest -j; popd
+  pushd _build; ctest -j; popd
 
 If the tests were successful, install the package with ::
 
-  cmake --install build
+  cmake --install _build
 
 For further details see the `detailed building instructions <INSTALL.rst>`_.
 
