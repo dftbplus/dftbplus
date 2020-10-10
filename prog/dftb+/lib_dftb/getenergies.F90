@@ -35,7 +35,7 @@ module dftbp_getenergies
   use dftbp_repcont
   use dftbp_repulsive
   use dftbp_reks, only : TReksCalc
-  use dftbp_deltadftb, only : TDeltaDftb, determinants
+  use dftbp_dftbdeterminants, only : TDftbDeterminants, determinants
   implicit none
 
   private
@@ -339,7 +339,7 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Delta DFTB control and data structure
-    type(TDeltaDftb), intent(in), optional :: deltaDftb
+    type(TDftbDeterminants), intent(in), optional :: deltaDftb
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock

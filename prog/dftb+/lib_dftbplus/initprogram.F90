@@ -115,7 +115,7 @@ module dftbp_initprogram
 #:endif
   use poisson_init
   use dftbp_transportio
-  use dftbp_deltadftb
+  use dftbp_dftbdeterminants
   implicit none
 
 
@@ -1019,7 +1019,7 @@ module dftbp_initprogram
   real(dp), allocatable :: energiesCasida(:)
 
   !> Type for determinant control in DFTB (Delta DFTB)
-  type(TDeltaDftb) :: deltaDftb
+  type(TDftbDeterminants) :: deltaDftb
 
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
@@ -1767,7 +1767,7 @@ contains
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
     ! TI-DFTB related variables
-    call TDeltaDftb_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
+    call TDftbDeterminants_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
         & input%ctrl%isGroundGuess, nEl)
     if (deltaDftb%isNonAufbau) then
       if (nSpin /= 2) then

@@ -8,14 +8,15 @@
 #:include 'common.fypp'
 
 !> Routines for (time independent excited) TI-DFTB
-module dftbp_deltadftb
+module dftbp_dftbdeterminants
   use dftbp_accuracy, only : dp
   use dftbp_energytypes, only : TEnergies
   use dftbp_message, only : error
+  use dftbp_etemp, only : Efilling
   implicit none
 
   private
-  public :: determinants, TDeltaDftb_init, TDeltaDftb
+  public :: determinants, TDftbDeterminants_init, TDftbDeterminants
 
   !> Name space for determinants
   type :: TDeterminantsEnum
@@ -35,7 +36,7 @@ module dftbp_deltadftb
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
 
   !> Control type for Delta DFTB / TI-DFTB
-  type TDeltaDftb
+  type TDftbDeterminants
 
     !> Is this a non-Aufbau filling
     logical :: isNonAufbau
@@ -57,11 +58,12 @@ module dftbp_deltadftb
 
   contains
 
-    procedure :: zieglerSum
+    procedure :: postProcessDets
     procedure :: nDeterminant
     procedure :: whichDeterminant
+    procedure :: detFilling
 
-  end type TDeltaDftb
+  end type TDftbDeterminants
 
 
 contains
@@ -70,7 +72,7 @@ contains
   pure function nDeterminant(this) result(nDet)
 
     !> Instance
-    class(TDeltaDftb), intent(in) :: this
+    class(TDftbDeterminants), intent(in) :: this
 
     integer :: nDet
 
@@ -94,7 +96,7 @@ contains
   function whichDeterminant(this, iDet) result(det)
 
     !> Instance
-    class(TDeltaDftb), intent(inout) :: this
+    class(TDftbDeterminants), intent(inout) :: this
 
     integer, intent(in) :: iDet
 
@@ -154,10 +156,10 @@ contains
 
   
   !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine zieglerSum(this, energy, derivs, tripletderivs, mixedderivs)
+  subroutine postProcessDets(this, energy, derivs, tripletderivs, mixedderivs)
 
     !> Instance
-    class(TDeltaDftb), intent(inout) :: this
+    class(TDftbDeterminants), intent(inout) :: this
 
     !> energy components
     type(TEnergies), intent(inout) :: energy
@@ -192,14 +194,14 @@ contains
       derivs(:,:) = 2.0_dp * mixedDerivs - tripletDerivs
     endif
 
-  end subroutine zieglerSum
+  end subroutine postProcessDets
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine TDeltaDftb_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl)
+  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl)
 
     !> Instance
-    type(TDeltaDftb), intent(out) :: this
+    type(TDftbDeterminants), intent(out) :: this
 
     !> Is this a non-aufbau filled TI calculation
     logical, intent(in) :: isNonAufbau
@@ -220,6 +222,93 @@ contains
 
     this%isFinished = .false.
 
-  end subroutine TDeltaDftb_init
+  end subroutine TDftbDeterminants_init
 
-end module dftbp_deltadftb
+
+  !> Fillings for determinants
+  subroutine detFilling(this, fillings, EBand, Ef, TS, E0, nElec, eigVals, tempElec, kWeights,&
+      & iDistribFn)
+
+    !> Instance
+    class(TDftbDeterminants), intent(in) :: this
+
+    !> Fillings (orbital, kpoint, spin)
+    real(dp), intent(out) :: fillings(:,:,:)
+
+    !> Band energies
+    real(dp), intent(out) :: Eband(:)
+
+    !> Fermi levels found for the given number of electrons on exit
+    real(dp), intent(out) :: Ef(:)
+
+    !> Band entropies
+    real(dp), intent(out) :: TS(:)
+
+    !> Band energies extrapolated to zero Kelvin
+    real(dp), intent(out) :: E0(:)
+
+    !> Number of electrons
+    real(dp), intent(in) :: nElec(:)
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigVals(:,:,:)
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Weight of the k-points.
+    real(dp), intent(in) :: kWeights(:)
+
+    !> Selector for the distribution function
+    integer, intent(in) :: iDistribFn
+
+    real(dp), allocatable :: fillingsTmp(:,:,:,:), nElecFill(:)
+    integer :: nSpinHams, nKPoints, nLevels, iS, iK, iConfig
+
+    nLevels = size(fillings, dim=1)
+    nKPoints = size(fillings, dim=2)
+    nSpinHams = size(fillings, dim=3)
+
+    nElecFill = nElec
+
+    if (this%iDeterminant == determinants%mixed) then
+
+      allocate(fillingsTmp(nLevels,nKPoints,2,3))
+      fillingsTmp(:,:,:,:) = 0.0_dp
+
+      do iConfig = 1, 3
+        nElecFill(:2) = nElec(:2)
+        select case(iConfig)
+        case(1)
+          nElecFill(1) = nElecFill(1) + 1.0_dp
+        case(3)
+          nElecFill(1) = nElecFill(1) - 1.0_dp
+        end select
+        ! Every spin channel (but not the k-points) filled up individually
+        do iS = 1, nSpinHams
+          call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS),&
+              & fillingsTmp(:,:,iS:iS, iConfig), eigvals(:,:,iS:iS), nElecFill(iS), tempElec,&
+              & kWeights, iDistribFn)
+        end do
+      end do
+      fillings(:,:,:) = fillingsTmp(:,:,:,1) - fillingsTmp(:,:,:,2) + fillingsTmp(:,:,:,3)
+
+    else
+
+      if (this%iDeterminant == determinants%triplet) then
+        ! transfer an electron between spin channels
+        nElecFill(1) = nElecFill(1) + 1.0_dp
+        nElecFill(2) = nElecFill(2) - 1.0_dp
+      end if
+
+      ! Every spin channel (but not the k-points) filled up individually
+      do iS = 1, nSpinHams
+        call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
+            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
+      end do
+
+    end if
+
+  end subroutine detFilling
+
+end module dftbp_dftbdeterminants

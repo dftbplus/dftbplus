@@ -97,7 +97,7 @@ module dftbp_main
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_reks
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
-  use dftbp_deltadftb
+  use dftbp_dftbdeterminants
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -211,7 +211,7 @@ contains
 
       end do lpDets
 
-      call deltaDftb%ZieglerSum(energy, derivs, tripletderivs, mixedderivs)
+      call deltaDftb%postProcessDets(energy, derivs, tripletderivs, mixedderivs)
       call printEnergies(energy, electronicSolver, deltaDftb)
 
       if (tExitGeoOpt) then
@@ -1968,7 +1968,7 @@ contains
     logical, intent(in) :: tLargeDenseMatrices
 
     !> Determinant derived type
-    type(TDeltaDftb), intent(inout) :: deltaDftb
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
 
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -2196,7 +2196,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Determinant derived type
-    type(TDeltaDftb), intent(inout) :: deltaDftb
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
 
     integer :: nSpin
 
@@ -3094,11 +3094,10 @@ contains
     real(dp), intent(out) :: E0(:)
 
     !> Determinant derived type
-    type(TDeltaDftb), intent(inout) :: deltaDftb
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
 
-    real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1), EfTmp, nElecFill(2)
+    real(dp) :: EbandTmp(2), TSTmp(2), E0Tmp(2), EfTmp(2), nElecFill(2), kWeightTmp(2)
     integer :: nSpinHams, nKPoints, nLevels, iS, iK, iConfig
-    real(dp), allocatable :: fillingTmp(:,:,:,:)
 
     nLevels = size(fillings, dim=1)
     nKPoints = size(fillings, dim=2)
@@ -3108,7 +3107,7 @@ contains
       ! Filling functions assume one electron per level, but for spin unpolarised we have two
       nElecFill(1) = 0.5_dp * nElectrons(1)
     else
-      nElecFill(1:nSpinHams) = nElectrons(1:nSpinHams)
+      nElecFill(:nSpinHams) = nElectrons(:nSpinHams)
     end if
 
     if (tFixEf) then
@@ -3128,56 +3127,18 @@ contains
       Ef(:) = 0.0_dp
       TS(:) = 0.0_dp
       E0(:) = 0.0_dp
-      do iS = 1, nSpinHams
-        do iK = 1, nKPoints
-          call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn)
-          Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
-          Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
-          TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
-          E0(iS) = E0(iS) + E0Tmp(1) * kWeights(iK)
-        end do
+      kWeightTmp(:) = 1.0_dp
+      do iK = 1, nKPoints
+        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBand, EfTmp, TSTmp, E0Tmp, nElecFill,&
+            & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
+        Eband(:) = Eband + EbandTmp(1) * kWeights(iK)
+        Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
+        TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
+        E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)
       end do
     else
-
-      if (deltaDftb%iDeterminant == determinants%mixed) then
-
-        allocate(fillingTmp(nLevels,nKPoints,2,3))
-        fillingTmp(:,:,:,:) = 0.0_dp
-
-        do iConfig = 1, 3
-          nElecFill(:2) = nElectrons(:2)
-          select case(iConfig)
-          case(1)
-            nElecFill(1) = nElecFill(1) + 1.0_dp
-          case(3)
-            nElecFill(1) = nElecFill(1) - 1.0_dp
-          end select
-          ! Every spin channel (but not the k-points) filled up individually
-          do iS = 1, nSpinHams
-            call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS),&
-                & fillingTmp(:,:,iS:iS, iConfig), eigvals(:,:,iS:iS), nElecFill(iS), tempElec,&
-                & kWeights, iDistribFn)
-          end do
-        end do
-        fillings(:,:,:) = fillingTmp(:,:,:,1) - fillingTmp(:,:,:,2) + fillingTmp(:,:,:,3)
-
-      else
-
-        if (deltaDftb%iDeterminant == determinants%triplet) then
-          ! transfer an electron between spin channels
-          nElecFill(1) = nElecFill(1) + 1.0_dp
-          nElecFill(2) = nElecFill(2) - 1.0_dp
-        end if
-
-        ! Every spin channel (but not the k-points) filled up individually
-        do iS = 1, nSpinHams
-          call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
-              & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
-        end do
-
-      end if
-
+      call deltaDftb%detFilling(fillings, EBand, Ef, TS, E0, nElecFill, eigVals, tempElec,&
+          & kWeights, iDistribFn)
     end if
 
     if (nSpinBlocks == 1) then

@@ -50,7 +50,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
-  use dftbp_deltadftb
+  use dftbp_dftbdeterminants
   implicit none
   private
 
@@ -3871,7 +3871,7 @@ contains
     type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> type for DFTB determinants
-    type(TDeltaDftb), intent(in) :: deltaDftb
+    type(TDftbDeterminants), intent(in) :: deltaDftb
 
     write(stdOut, *)
     select case(deltaDftb%iDeterminant)
