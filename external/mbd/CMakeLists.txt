@@ -7,4 +7,4 @@ set(BUILD_TESTING FALSE)
 
 add_subdirectory(origin)
 add_library(Mbd::Mbd INTERFACE IMPORTED GLOBAL)
-target_link_libraries(Mbd::Mbd INTERFACE mbd)
+target_link_libraries(Mbd::Mbd INTERFACE Mbd)
