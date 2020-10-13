@@ -61,12 +61,12 @@ set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:${includedir}>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_MODULEDIR}>)
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}>)
 
 if(WITH_API)
   target_include_directories(dftbplus INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_INCLUDEDIR}>)
 endif()
 
 
@@ -142,7 +142,7 @@ if(WITH_API OR BUILD_SHARED_LIBS)
 endif()
 
 if(INSTALL_INCLUDE_FILES)
-  install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
+  install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
   CONFIGURE_FILE(
     "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
     "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
@@ -155,13 +155,13 @@ if(INSTALL_INCLUDE_FILES)
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)
-    install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
+    install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
   endforeach()
 
   if (WITH_SOCKETS)
     get_target_property(moddirs fsockets_objlib INTERFACE_INCLUDE_DIRECTORIES)
     foreach(moddir IN LISTS moddirs)
-      install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_MODULEDIR}")
+      install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
     endforeach()
   endif()
 endif()

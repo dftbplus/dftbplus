@@ -159,50 +159,6 @@ function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 endfunction()
 
 
-# Finds libraries and turns them into imported library targets
-#
-# Args:
-#     libraries [in]: List of the library names to look for.
-#     libpaths [in]: List of the paths to be used as hints when looking for the libraries.
-#
-function (dftbp_create_library_targets libraries libpaths)
-  foreach(lib IN LISTS libraries)
-    string(REGEX MATCH "^[ ]*-.*" option ${lib})
-    # If the library is a linker option, skip target conversion (use it literally)
-    if(NOT "${option}" STREQUAL "")
-      continue()
-    endif()
-    if(TARGET ${lib})
-      continue()
-    endif()
-    if(IS_ABSOLUTE "${lib}")
-      if(EXISTS "${lib}")
-        message(STATUS "Found library file ${lib}")
-      else()
-        message(FATAL_ERROR "Library file '${lib}' not found")
-      endif()
-    else()
-      find_library(LIBPATH ${lib} HINTS ${libpaths})
-      if(LIBPATH)
-	message(STATUS "Found library ${lib} as ${LIBPATH}")
-	if(EXPORT_EXTLIBS_WITH_PATH)
-	  add_library(${lib} INTERFACE)
-	  target_link_libraries(${lib} INTERFACE ${LIBPATH})
-	  install(TARGETS ${lib} EXPORT dftbplus-targets)
-	else()
-          add_library(${lib} IMPORTED UNKNOWN)
-          set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH})
-	endif()
-      else()
-        message(FATAL_ERROR
-	  "Could not find library '${lib}' using library path hints '${libpaths}'")
-      endif()
-      unset(LIBPATH CACHE)
-    endif()
-  endforeach()
-endfunction()
-
-
 # Checks the build configuration on consistency and stops in case of inconsistencies
 function (dftbp_ensure_config_consistency)
 
@@ -312,7 +268,8 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_INCLUDEDIR} ${CMAKE_C_FLAGS}")
+    set(_pkgconfig_c_flags
+      "-I${CMAKE_INSTALL_FULL_INCLUDEDIR}/${INSTALL_INCLUDEDIR} ${CMAKE_C_FLAGS}")
 
   else()
 
@@ -326,7 +283,8 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
-    set(_pkgconfig_c_flags "-I${CMAKE_INSTALL_FULL_MODULEDIR} ${CMAKE_Fortran_FLAGS}")
+    set(_pkgconfig_c_flags
+      "-I${CMAKE_INSTALL_FULL_INCLUDEDIR}/${INSTALL_MODULEDIR} ${CMAKE_Fortran_FLAGS}")
 
   endif()
 

@@ -78,21 +78,11 @@ endif()
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
   "Directory to install the compiled code into")
 
-#set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH "Installation directory for executables")
+set(INSTALL_INCLUDEDIR "dftbplus" CACHE PATH
+  "Name of the project specific sub-folder within the install folder for include files")
 
-#set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
-
-set(CMAKE_INSTALL_INCLUDEDIR "include/dftb+" CACHE PATH
-  "Installation directory for header and include files")
-
-set(CMAKE_INSTALL_MODULEDIR "${CMAKE_INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
-  "Installation directory for Fortran module files")
-
-option(EXPORT_EXTLIBS_WITH_PATH
-  "Whether external libraries in the CMake export file should contain their full path" FALSE)
-# For CMake experts only: It allows to link exact the same external libraries when using
-# the library in an other CMake project. It does not play well with the CMake export file of
-# the ELSI library.
+set(INSTALL_MODULEDIR "${INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
+  "Installation directory for Fortran module files (within the install folder for include files)")
 
 set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
   "Compiler and Linker language to assume when creating the pkg-config export file (C or Fortran)")

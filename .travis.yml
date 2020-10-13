@@ -6,7 +6,7 @@ python: 3.7
 
 env:
   - WITH_MPI=false FC=gfortran CC=gcc
-  - WITH_MPI=true FC=mpifort CC=gcc
+  - WITH_MPI=true FC=mpifort CC=gcc SCALAPACK_LIBRARY="scalapack-openmpi"
 
 addons:
   apt:
@@ -23,4 +23,14 @@ install:
   - echo "y" | ./utils/get_opt_externals ALL
 
 script:
-  - ./utils/test/travis-ci.sh
+  - >
+    SOURCE_DIR=${PWD} BUILD_DIR=${PWD}/_build INSTALL_DIR=${PWD}/_install
+    ./utils/test/travis-regression.sh
+
+  - >
+    SOURCE_DIR=${PWD} INSTALL_DIR=${PWD}/_install BUILD_DIR=${PWD}/_build_integ 
+    ./utils/test/travis-integration.sh
+    
+  - >
+    SOURCE_DIR=${PWD} BUILD_DIR=${PWD}/_build_extbuild INSTALL_DIR=${PWD}/_install_extbuild
+    ./utils/test/travis-extbuild.sh

@@ -131,7 +131,6 @@ endif()
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
-GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
