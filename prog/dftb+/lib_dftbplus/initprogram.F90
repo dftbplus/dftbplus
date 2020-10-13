@@ -148,6 +148,10 @@ module dftbp_initprogram
   !> file name for shift data
   character(*), parameter :: fShifts = "shifts.dat"
 
+  !> Is this calculation using a restarted input that does not require self consistency before
+  !> moving to the post SCC loop part (i.e. Ehrenfest)
+  logical :: tRestartNoSC = .false.
+
   !> Is the calculation SCC?
   logical :: tSccCalc
 
@@ -563,6 +567,9 @@ module dftbp_initprogram
 
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
+
+  !> charge differences between input and output charges
+  real(dp), allocatable :: qDiff(:, :, :)
 
   !> net (on-site only contributions) charge per atom
   real(dp), allocatable :: qNetAtom(:)
@@ -1091,6 +1098,7 @@ contains
   #:if WITH_DFTD3
     type(TDispDftD3), allocatable :: dftd3
   #:endif
+    type(TSimpleDftD3), allocatable :: sdftd3
     type(TDispDftD4), allocatable :: dftd4
   #:if WITH_MBD
     type(TDispMbd), allocatable :: mbd
@@ -1263,6 +1271,8 @@ contains
     end if
     tFracCoord = input%geom%tFracCoord
 
+    isSccConvRequired = (input%ctrl%isSccConvRequired .and. tSccCalc) ! no point if not SCC
+
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -1270,6 +1280,15 @@ contains
     end if
     if (maxSccIter < 1) then
       call error("SCC iterations must be larger than 0")
+    end if
+    if (tSccCalc) then
+      if (allocated(input%ctrl%elecDynInp)) then
+        if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
+          maxSccIter = 0
+          isSccConvRequired = .false.
+          tRestartNoSC = .true.
+        end if
+      end if
     end if
 
     tWriteHS = input%ctrl%tWriteHS
@@ -1637,7 +1656,7 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
-    if (tSccCalc .and. .not.allocated(reks)) then
+    if (tSccCalc .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
@@ -1859,8 +1878,9 @@ contains
 
     ! temporary disables for various issues with NEGF
     if (tNegf) then
-      if (tSpin) then
-        call error("Spin polarization temporarily disabled for transport calculations.")
+      if (nSpin > 2) then
+        call error("Non-collinear spin polarization disabled for transport calculations at the&
+            & moment.")
       end if
       if (tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&
@@ -2018,6 +2038,14 @@ contains
         end if
         call move_alloc(dftd3, dispersion)
     #:endif
+      else if (allocated(input%ctrl%dispInp%sdftd3)) then
+        allocate(sdftd3)
+        if (tPeriodic) then
+          call init(sdftd3, input%ctrl%dispInp%sdftd3, nAtom, species0, speciesName, LatVec)
+        else
+          call init(sdftd3, input%ctrl%dispInp%sdftd3, nAtom, species0, speciesName)
+        end if
+        call move_alloc(sdftd3, dispersion)
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (tPeriodic) then
@@ -2319,6 +2347,7 @@ contains
     end if
 
     minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
+    minSccIter = min(minSccIter, maxSccIter)
     if (isXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
@@ -2375,7 +2404,7 @@ contains
 
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
          & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg, &
-         & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
+         & q0, qInput, qOutput, qDiff, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
          & qiBlockIn, qiBlockOut)
 
     ! Initialise images (translations)
@@ -2401,7 +2430,7 @@ contains
     tWriteAutotest = env%tGlobalLead .and. input%ctrl%tWriteTagged
     tWriteDetailedXML = env%tGlobalLead .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalLead .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut
+    tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut .and. .not.tRestartNoSC
     tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
         & .and. electronicSolver%providesEigenvals
 
@@ -2757,9 +2786,14 @@ contains
     end if
 
     if (tSccCalc) then
-      write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
-      write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
-      write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      if (.not.tRestartNoSC) then
+        write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
+        write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
+        write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      end if
+      if (tPeriodic) then
+        write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", sccCalc%getEwaldPar()
+      end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
@@ -2811,13 +2845,15 @@ contains
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
-    write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
+    if (.not.tRestartNoSC) then
+      write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
+    end if
 
     if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
       call gpuInfo()
     endif
 
-    if (tSccCalc) then
+    if (tSccCalc .and. .not.tRestartNoSC) then
       if (.not. allocated(reks)) then
         select case (iMixer)
         case(mixerTypes%simple)
@@ -2873,7 +2909,7 @@ contains
       end do
     end if
 
-    if (.not. allocated(reks)) then
+    if (.not. allocated(reks) .and. .not.tRestartNoSC) then
       if (.not.input%ctrl%tSetFillingTemp) then
         write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec,&
             & 'eV'
@@ -2889,7 +2925,7 @@ contains
       end if
     end if
 
-    if (tSccCalc) then
+    if (tSccCalc .and. .not.tRestartNoSC) then
       if (tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
@@ -2966,6 +3002,8 @@ contains
       type is (TDispDftD3)
         write(stdOut, "(A)") "Using DFT-D3 dispersion corrections"
     #:endif
+      type is (TSimpleDftD3)
+        write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
         write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
     #:if WITH_MBD
@@ -3479,8 +3517,8 @@ contains
   !>  iEqBlockDFTBULS, reks, and all logicals present
   !>
   subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
-      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
-      & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qDiff,&
+      & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3523,6 +3561,9 @@ contains
     !> output charges
     real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
 
+    !> charge differences between input and output charges
+    real(dp), allocatable, intent(inout) :: qDiff(:, :, :)
+
     !> input charges packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qInpRed(:)
 
@@ -3555,17 +3596,22 @@ contains
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
 
-    if (.not.allocated(reks)) then
-       if (.not. allocated(qInput)) then
-          allocate(qInput(orb%mOrb, nAtom, nSpin))
-       endif
-       qInput(:,:,:) = 0.0_dp
+    if (.not. allocated(qInput)) then
+       allocate(qInput(orb%mOrb, nAtom, nSpin))
     endif
+    qInput(:,:,:) = 0.0_dp
 
     if (.not. allocated(qOutput)) then
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
+
+    if (allocated(reks)) then
+       if (.not. allocated(qDiff)) then
+          allocate(qDiff(orb%mOrb, nAtom, nSpin))
+       endif
+       qDiff(:,:,:) = 0.0_dp
+    endif
 
     tAllocate = .false.
   #:if WITH_MBD
@@ -3585,13 +3631,15 @@ contains
     end if
 
     if (tMixBlockCharges) then
-       if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
-          allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       if (.not. allocated(reks)) then
+          if (.not. allocated(qBlockIn)) then
+             allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          qBlockIn(:,:,:,:) = 0.0_dp
        endif
        if (.not. allocated(qBlockOut)) then
           allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
        endif
-       qBlockIn(:,:,:,:) = 0.0_dp
        qBlockOut(:,:,:,:) = 0.0_dp
        if (tImHam) then
           if(.not. allocated(qiBlockIn)) then
@@ -3629,13 +3677,15 @@ contains
        end if
     endif
 
-    !Input charges packed into unique equivalence elements
-    #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
-       if (.not. allocated(${NAME}$)) then
-          allocate(${NAME}$(nMixElements))
-       end if
-       ${NAME}$(:) = 0.0_dp
-    #:endfor
+    if (.not. allocated(reks)) then
+       !Input charges packed into unique equivalence elements
+       #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
+          if (.not. allocated(${NAME}$)) then
+             allocate(${NAME}$(nMixElements))
+          end if
+          ${NAME}$(:) = 0.0_dp
+       #:endfor
+    end if
 
 
     !TODO(Alex) Could definitely split the code here

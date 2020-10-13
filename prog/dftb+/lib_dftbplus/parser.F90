@@ -78,7 +78,7 @@ module dftbp_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 8
+  integer, parameter :: parserVersion = 9
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -128,7 +128,7 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
-    logical :: hasInputVersion
+    logical :: hasInputVersion, tReadAnalysis
     integer :: inputVersion
     type(string) :: versionString
 
@@ -205,23 +205,31 @@ contains
     call readDriver(driverNode, child, input%geom, input%ctrl)
   #:endif
 
-    ! Analysis of properties
-    call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-
-  #:if WITH_TRANSPORT
-    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
-        & input%ginfo%tundos)
-
-    call finalizeNegf(input)
-  #:else
-    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
-  #:endif
-
+    tReadAnalysis = .true.
     call getChild(root, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
-       allocate(input%ctrl%elecDynInp)
-       call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+      allocate(input%ctrl%elecDynInp)
+      call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+      if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
+        tReadAnalysis = .false.
+      end if
+
+    end if
+
+    if (tReadAnalysis) then
+      ! Analysis of properties
+      call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
+          & allowEmptyValue=.true., dummyValue=.true.)
+
+    #:if WITH_TRANSPORT
+      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+          & input%ginfo%tundos)
+
+      call finalizeNegf(input)
+    #:else
+      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
+    #:endif
+
     end if
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
@@ -231,7 +239,7 @@ contains
     call getChildValue(root, "Reks", dummy, "None", child=child)
     call readReks(child, dummy, input%ctrl, input%geom)
 
-    ! Hamiltonian settings that need to know settings from the REKS block
+    ! Hamiltonian settings that need to know settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -2072,13 +2080,6 @@ contains
           & char(buffer) // "'")
     end select
 
-  #:if WITH_TRANSPORT
-    if (ctrl%tSpin .and. tp%ncont > 0) then
-       call detailedError(child, "Spin-polarized transport is under development" //&
-             & "and not currently available")
-    end if
-  #:endif
-
   end subroutine readSpinPolarisation
 
 
@@ -3703,6 +3704,9 @@ contains
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
+    case ("simpledftd3")
+      allocate(input%sdftd3)
+      call readSimpleDFTD3(dispModel, geo, input%sdftd3)
     case ("dftd4")
       allocate(input%dftd4)
       call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
@@ -3999,6 +4003,37 @@ contains
   end subroutine readDispDFTD3
 
 #:endif
+
+
+  !> Reads in initialization data for the simple D3 dispersion model.
+  subroutine readSimpleDFTD3(node, geo, input)
+
+    !> Node to process.
+    type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Filled input structure on exit.
+    type(TSimpleDftD3Input), intent(out) :: input
+
+    type(fnode), pointer :: value1, child, childval
+    type(string) :: buffer
+
+    call getChildValue(node, "s6", input%s6, default=1.0_dp)
+    call getChildValue(node, "s8", input%s8)
+    call getChildValue(node, "s10", input%s10, default=0.0_dp)
+    call getChildValue(node, "a1", input%a1)
+    call getChildValue(node, "a2", input%a2)
+    call getChildValue(node, "alpha", input%alpha, default=14.0_dp)
+    call getChildValue(node, "weightingFactor", input%weightingFactor, default=4.0_dp)
+    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
+        & child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
+
+    call readCoordinationNumber(node, input%cnInput, geo, "exp", 0.0_dp)
+
+  end subroutine readSimpleDFTD3
 
 
   !> Reads in initialization data for the D4 dispersion model.
@@ -4796,7 +4831,7 @@ contains
   end subroutine readLaterAnalysis
 
 
-  !> Read in hamiltonian settings that are influenced by those read from REKS{}
+  !> Read in hamiltonian settings that are influenced by those read from REKS{}, electronDynamics{}
   subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
 
     !> Hamiltonian node to parse
@@ -4884,6 +4919,16 @@ contains
         end if
       end if
 
+    end if
+
+    hamNeedsT: if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+
+      if (allocated(ctrl%elecDynInp)) then
+        if (ctrl%elecDynInp%tReadRestart .and. .not.ctrl%elecDynInp%tPopulations) then
+          exit hamNeedsT
+        end if
+      end if
+
       ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
       ! thermostat.)
       select case(ctrl%hamiltonian)
@@ -4893,7 +4938,7 @@ contains
         call readFilling(hamNode, ctrl, geo, 0.0_dp)
       end select
 
-    end if
+    end if hamNeedsT
 
   end subroutine readLaterHamiltonian
 
@@ -6428,9 +6473,12 @@ contains
 
       call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
           & tShellResInRegion, regionLabelPrefixes)
-      call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
-          & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
-          & tundos%dosLabels)
+    
+      if (allocated(iAtInRegion)) then
+        call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
+            & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
+            & tundos%dosLabels)
+      end if   
 
   end subroutine readTunAndDos
 
@@ -6681,17 +6729,23 @@ contains
     type(fnode), pointer :: child, child2
     type(string) :: buffer
     character(lc) :: strTmp
+    logical :: do_ldos
 
     call getChildren(node, "Region", children)
     nReg = getLength(children)
 
     if (nReg == 0) then
-      write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
-      call setChild(node, "Region", child)
-      call setChildValue(child, "Atoms", trim(strTmp))
-      call setChildValue(child, "Label", "localDOS")
-      call getChildren(node, "Region", children)
-      nReg = getLength(children)
+      call getChildValue(node, "ComputeLDOS", do_ldos, .true.)
+      if (do_ldos) then
+        write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
+        call setChild(node, "Region", child)
+        call setChildValue(child, "Atoms", trim(strTmp))
+        call setChildValue(child, "Label", "localDOS")
+        call getChildren(node, "Region", children)
+        nReg = getLength(children)
+      else
+        return
+      end if    
     end if
 
     allocate(tShellResInRegion(nReg))
@@ -7371,6 +7425,9 @@ contains
     integer, intent(out) :: parserVersion
 
     select case(trim(versionString))
+    ! upcoming release
+    !case("20.2")
+      !parserVersion = 9
     case("20.1")
       parserVersion = 8
     case("19.1")

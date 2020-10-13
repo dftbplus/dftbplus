@@ -115,9 +115,17 @@ contains
     if (nElectrons < epsilon(1.0_dp)) then
       filling(:,:,:) = 0.0_dp
       Ebs(:) = 0.0_dp
-      Ef = 0.0_dp
+      ! place the Fermi energy well below the lowest eigenvalue
+      Ef = minval(eigenvals) - 1000.0_dp * (kT + epsilon(1.0_rsp))
       TS(:) = 0.0_dp
       E0(:) = 0.0_dp
+      return
+    end if
+
+    if (size(filling,dim=1)*size(filling,dim=3) <= nElectrons) then
+      ! place the Fermi energy well above the highest eigenvalue, as nOrbs * spin <= nElec
+      Ef = maxval(eigenvals) + 1000.0_dp * (kT + epsilon(1.0_rsp))
+      call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
       return
     end if
 
