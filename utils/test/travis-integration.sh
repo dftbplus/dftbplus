@@ -13,8 +13,8 @@ set -ex
 # Integration test for CMake builds
 CMAKE_PREFIX_PATH="${INSTALL_DIR}:${CMAKE_PREFIX_PATH}" \
     ${SOURCE_DIR}/test/integration/cmake/runtest.sh ${BUILD_DIR}/cmake \
-    -DSCALAPACK_LIBRARY='${SCALAPACK_LIBRARY}'
+    -DSCALAPACK_LIBRARY="${SCALAPACK_LIBRARY}"
 
 # Integration test for PKG-CONFIG builds
-PKG_CONFIG_PATH="${INSTALL_DIR}/lib64/pkgconfig:$PKG_CONFIG_PATH" \
+PKG_CONFIG_PATH="${INSTALL_DIR}/lib/pkgconfig:$PKG_CONFIG_PATH" \
     ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}/pkgconfig
