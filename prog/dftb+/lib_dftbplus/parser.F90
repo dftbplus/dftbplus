@@ -250,7 +250,9 @@ contains
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
     ! analysis settings that need to know settings from the options block
-    call readLaterAnalysis(analysisNode, input%ctrl)
+    if (tReadAnalysis) then
+      call readLaterAnalysis(analysisNode, input%ctrl)
+    end if
 
     ! read parallel calculation settings
     call readParallel(root, input)
