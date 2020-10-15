@@ -13,3 +13,4 @@ __pycache__
 .idea
 RELEASE
 tools/dptools/build
+.nfs*
