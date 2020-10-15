@@ -1,5 +1,4 @@
 set(sources-fpp
-  masses.F90	
   libnegf_int.F90
   initphonons.F90
   phonons.F90)

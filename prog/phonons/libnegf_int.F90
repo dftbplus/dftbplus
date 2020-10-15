@@ -532,27 +532,32 @@ module libnegf_int
       enddo
     endif
 
-    if (allocated(tunnMat)) then
+    if (allocated(tunnMat)) then    
+      allocate(conductance(ntemp,size(tunnMat,2)+1)) 
+      print*,ntemp,size(conductance),allocated(conductance)
+      emin = negf%Emin*negf%eneconv
+      emax = negf%Emax*negf%eneconv
+      estep = negf%Estep*negf%eneconv
+      ntemp=nint((TempMax-TempMin)/TempStep)
+      do ii = 1, size(tunnMat,2)
+        do jj = 1, ntemp
+          TT1 = TempMin + TempStep*(jj-1)
+          kappa = thermal_conductance(tunnMat(:,ii),TT1,emin,emax,estep) 
+          kappa = kappa * convertHeatConductance(HessianUnits,HeatCondUnits)
+          conductance(jj,1) = TT1/kb
+          conductance(jj,ii+1) = kappa  
+        end do
+      end do
       ! Write Total tunneling on a separate file (optional)
       if (tIOProc .and. twriteTunn) then
         filename = 'transmission'
         call write_file(negf, tunnMat, tunnSKRes, filename, kpoints, kWeights)
      
         open(newunit=fu,file='conductance.dat',action='write')
-        emin = negf%Emin*negf%eneconv
-        emax = negf%Emax*negf%eneconv
-        estep = negf%Estep*negf%eneconv
-        ntemp=nint((TempMax-TempMin)/TempStep)
-        allocate(conductance(ntemp,size(tunnMat,2)+1)) 
         do ii = 1, size(tunnMat,2)
           write(fu,*) '# T [K]', 'Thermal Conductance [W/K]'  
           do jj = 1, ntemp
-            TT1 = TempMin + TempStep*(jj-1)
-            kappa = thermal_conductance(tunnMat(:,ii),TT1,emin,emax,estep) 
-            kappa = kappa * convertHeatConductance(HessianUnits,HeatCondUnits)
-            write(fu,*)  TT1/kb, kappa
-            conductance(jj,1) = TT1/kb
-            conductance(jj,ii+1) = kappa  
+            write(fu,*) conductance(jj,1), conductance(jj,ii+1) 
           end do
         end do
       endif 
@@ -560,6 +565,7 @@ module libnegf_int
     else
       allocate(tunnMat(0,0))
     endif
+
     if (allocated(tunnSKRes)) then
       deallocate(tunnSKRes)
     end if

@@ -22,7 +22,7 @@ module dftbp_initphonons
   use dftbp_accuracy
   use dftbp_periodic
   use dftbp_constants
-  use dftbp_masses
+  use dftbp_atomicmass
   use dftbp_typeGeometryhsd
   use dftbp_message
   use dftbp_fileId
