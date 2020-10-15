@@ -117,7 +117,7 @@ module negf_int
 
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
-    integer :: i, l, ncont, nc_vec(1), j, nldos
+    integer :: i, l, ncont, nldos
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
@@ -125,7 +125,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+    call negf_mpi_init(env%mpi%globalComm)
 #:endif
 
     if (transpar%defined) then
@@ -345,11 +345,13 @@ module negf_int
       params%nf(1:l) = tundos%nf(1:l)
 
       ! setting of intervals and indices for projected DOS
-      nldos = size(tundos%dosOrbitals)
-      call init_ldos(negf, nldos)
-      do i = 1, nldos
-         call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
-      end do
+      if (allocated(tundos%dosOrbitals)) then
+        nldos = size(tundos%dosOrbitals)
+        call init_ldos(negf, nldos)
+        do i = 1, nldos
+           call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
+        end do
+      end if
 
       params%Emin =  tundos%Emin
       params%Emax =  tundos%Emax
@@ -539,12 +541,11 @@ module negf_int
     !> neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
 
-    integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
-    integer, allocatable :: atomst(:), plcont(:)
+    integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:)
+    integer, allocatable :: ind(:), atomst(:), plcont(:)
     integer, allocatable :: minv(:,:)
     Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
     integer :: i, m, i1, j1, info
-    integer, allocatable :: inRegion(:)
 
     iatm2 = transpar%idxdevice(2)
     ncont = transpar%ncont
@@ -570,6 +571,7 @@ module negf_int
     allocate(cblk(ncont))
     allocate(cont_end(ncont))
     allocate(surf_end(ncont))
+    allocate(surf_start(ncont))
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
@@ -579,6 +581,7 @@ module negf_int
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
+       surf_start(i) = ind(transpar%contacts(i)%idxrange(1))+1
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
     enddo
 
@@ -668,7 +671,7 @@ module negf_int
 
     end if
 
-    call init_structure(negf, ncont, cont_end, surf_end, nbl, PL_end, cblk)
+    call init_structure(negf, ncont, surf_start, surf_end, cont_end, nbl, PL_end, cblk)
 
     deallocate(PL_end)
     deallocate(plcont)
@@ -871,7 +874,7 @@ module negf_int
 
   !> Debug routine to dump H and S as a file in Matlab format
   !>
-  !> NOTE: This routine is not MPI-aware, call it only on MPI-master!
+  !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
   subroutine negf_dumpHS(HH,SS)
 
@@ -1071,7 +1074,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1209,7 +1212,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1361,13 +1364,12 @@ module negf_int
     type(units) :: unitsOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
-    integer :: i, j, k, NumStates, icont
+    integer :: NumStates
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
-    character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1406,7 +1408,7 @@ module negf_int
       end if
 
       !*** ORTHOGONALIZATIONS ***
-      ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin
+      ! THIS MAKES SENSE ONLY FOR REAL MATRICES, i.e. k==0 && collinear spin
       if (all(kPoints(:,iK) == 0.0_dp) .and. (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
         NumStates = negf%NumStates
@@ -1554,7 +1556,10 @@ module negf_int
     !> number of k-points
     integer, intent(in) :: nK
 
+    #:if WITH_MPI
     real(dp), allocatable :: tmpMat(:,:)
+    #:endif
+
     integer :: err
 
     if (associated(pMat)) then
@@ -1852,7 +1857,7 @@ module negf_int
 
 
     ! Local stuff ---------------------------------------------------------
-    integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
+    integer :: n0, nn, mm,  mu, nu, nAtom, irow
     integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
     real(dp), dimension(:,:,:), allocatable :: lcurr 
     real(dp) :: Im
@@ -1860,7 +1865,6 @@ module negf_int
     integer, dimension(:), allocatable :: lc_img2CentCell, lc_iCellVec, lc_species
     real(dp), dimension(:,:), allocatable :: lc_coord 
     integer :: lc_nAllAtom
-    real(dp) :: cutoff
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
     character(:), allocatable :: skp
@@ -1876,7 +1880,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1942,12 +1946,12 @@ module negf_int
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
     #:if WITH_MPI
-      ! Reduce on node 0 as group master node
+      ! Reduce on node 0 as group lead node
       call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
       call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
-      ! Each group master node prints the local currents
-      tPrint = env%mpi%groupComm%master
+      ! Each group lead node prints the local currents
+      tPrint = env%mpi%groupComm%lead
 
     #:else
 
@@ -2070,7 +2074,7 @@ module negf_int
   !> pack dense matrices into CSR format
   subroutine MakeHHSS(H_all, S_all, HH, SS)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(in) :: H_all(:,:)
 
     !> overlap matrix
@@ -2082,7 +2086,7 @@ module negf_int
     !> overlap in CSR
     type(z_CSR), intent(inout) :: SS
 
-    integer :: i,j,k,l,m,n,NumStates, nnz
+    integer :: i, j, k, NumStates, nnz
 
     NumStates = negf%NumStates
 
@@ -2131,14 +2135,14 @@ module negf_int
   !> form orthogonal matrices via Lowdin transform for whole system
   subroutine orthogonalization(H,S)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(inout) :: H(:,:)
 
     !> overlap matrix
     real(dp), intent(inout) :: S(:,:)
 
     integer :: i, m, n1_first, n1_last, n2_first, n2_last
-    integer :: INFO, N
+    integer :: N
     real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:),C(:,:)
 
@@ -2244,7 +2248,7 @@ module negf_int
 
 
     integer :: i, m, n1_first, n1_last, n2_first, n2_last
-    integer :: INFO, N, N2
+    integer :: N, N2
     real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:), U(:,:), C(:,:)
 

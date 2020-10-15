@@ -1529,7 +1529,7 @@ contains
     !> Contains for every atom its species index
     integer, intent(in) :: species(:)
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> Integer list of atom indices on return.
@@ -1585,7 +1585,7 @@ contains
     !> Upper limit on range of atoms
     integer, intent(in) :: nAtom
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> List of the converted atom numbers
@@ -1667,7 +1667,7 @@ contains
     !> String to convert
     character(len=*), intent(in) :: str
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> Integer list of atom indices on return.

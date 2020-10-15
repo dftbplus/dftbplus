@@ -41,7 +41,7 @@ module mpi_poisson
       id = comm%rank
       numprocs = comm%size
       
-      ! i/o master and node that actually solves the multigrid
+      ! i/o node that also actually solves the multigrid
       id0 = (id == 0)
       
       ! nodes parallelizing r.h.s. assembly

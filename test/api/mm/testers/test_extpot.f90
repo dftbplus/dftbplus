@@ -40,11 +40,19 @@ program test_extpot
 
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg), grossCharges(nAtom)
+  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
   type(fnode), pointer :: pParserOpts
 
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
   !integer :: devNull
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")

@@ -12,7 +12,7 @@ module dftbp_solvparser
   use dftbp_accuracy, only : dp
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
-  use dftbp_born, only : TGBInput
+  use dftbp_born, only : TGBInput, fgbKernel
   use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
@@ -86,7 +86,7 @@ contains
 
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, child2, value2, dummy
+    type(fnode), pointer :: child, value1, field, dummy
     logical :: found, tHBondCorr, tALPB
     real(dp) :: temperature, shift, conv, alphaALPB
     real(dp), allocatable :: vdwRadDefault(:)
@@ -142,6 +142,16 @@ contains
     end if
     input%keps = (1.0_dp / solvent%dielectricConstant - 1.0_dp) / (1.0_dp + input%alpbet)
 
+    call getChildValue(node, "Kernel", buffer, "Still", child=child)
+    select case(tolower(unquote(char(buffer))))
+    case default
+      call detailedError(child, "Unknown interaction kernel: "//char(buffer))
+    case("still")
+      input%kernel = fgbKernel%still
+    case("p16")
+      input%kernel = fgbKernel%p16
+    end select
+
     ! shift value for the free energy (usually fitted)
     if (allocated(defaults)) then
       call getChildValue(node, "FreeEnergyShift", shift, defaults%freeEnergyShift, &
@@ -161,7 +171,7 @@ contains
     call getChildValue(node, "State", state, "gsolv", child=child)
     select case(tolower(unquote(char(state))))
     case default
-      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+      call detailedError(child, "Unknown reference state: "//char(state))
     case("gsolv") ! just the bare shift
       input%freeEnergyShift = shift
     case("reference") ! gsolv=reference option in cosmotherm
@@ -307,7 +317,7 @@ contains
     real(dp), intent(in), optional :: surfaceTensionDefault(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, value2, field, child2, dummy
+    type(fnode), pointer :: child, value1, field, dummy
     character(lc) :: errorStr
     integer :: gridPoints
     real(dp) :: conv
@@ -399,7 +409,7 @@ contains
     !> Contains the input for the CM5 module on exit
     type(TCM5Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, value2, dummy, child, child2, field
+    type(fnode), pointer :: value1, dummy, child, field
     type(string) :: buffer, modifier
     real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)

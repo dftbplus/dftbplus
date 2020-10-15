@@ -37,21 +37,21 @@ module dftbp_reksfon
   contains
 
   !> Optimize the fractional occupation numbers (FONs) in REKS
-  subroutine optimizeFons(self)
+  subroutine optimizeFons(this)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     real(dp) :: x
 
-    select case (self%reksAlg)
+    select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
 
-      call getFONs22_(x, self%hess, self%enLtot, self%delta, self%FonMaxIter, self%Plevel)
+      call getFONs22_(x, this%hess, this%enLtot, this%delta, this%FonMaxIter, this%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
-      self%FONs(1,1) = 2.0_dp * x
-      self%FONs(2,1) = 2.0_dp - self%FONs(1,1)
+      this%FONs(1,1) = 2.0_dp * x
+      this%FONs(2,1) = 2.0_dp - this%FONs(1,1)
 
     case (reksTypes%ssr44)
 

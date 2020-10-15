@@ -1580,7 +1580,7 @@ contains
     real(dp), allocatable :: invRDeriv(:,:,:)
 
     real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
-    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii, jj
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii
 
     allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
     allocate(invRDeriv(this%nAtom,this%nAtom,3))

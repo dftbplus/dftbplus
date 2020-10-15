@@ -10,4 +10,8 @@
         path = external/scalapackfx/origin
         url = https://github.com/dftbplus/scalapackfx.git
         branch = master
+[submodule "external/mbd/origin"]
+	path = external/mbd/origin
+	url = https://github.com/jhrmnn/libmbd.git
+    branch = master
 

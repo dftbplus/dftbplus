@@ -77,7 +77,7 @@ contains
     !> output string naming the atomic orbital
     character(sc), intent(out), allocatable :: shellNamesTmp(:)
 
-    integer :: ii, jj
+    integer :: ii
     integer, allocatable :: ind(:)
     character(sc) :: sindx
 

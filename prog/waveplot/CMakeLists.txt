@@ -11,6 +11,11 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${sources-fpp}" sources-
 
 add_executable(waveplot ${sources-f90-preproc})
 
-target_link_libraries(waveplot dftbplus)
+if(WITH_MPI)
+  target_include_directories(waveplot PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(waveplot PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
 
-install(TARGETS waveplot DESTINATION ${INSTALL_BIN_DIR})
+target_link_libraries(waveplot PRIVATE dftbplus)
+
+install(TARGETS waveplot DESTINATION "${CMAKE_INSTALL_BINDIR}")

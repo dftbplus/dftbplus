@@ -37,6 +37,7 @@ ExcitedState {
         StateOfInterest = 0
         Symmetry = Singlet
         OscillatorWindow = 1E-2
+	WriteTransitionDipole = Yes
     }
 }
 
@@ -49,4 +50,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

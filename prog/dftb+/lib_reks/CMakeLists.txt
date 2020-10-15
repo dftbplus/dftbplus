@@ -8,6 +8,7 @@ set(sources-fpp
   ${curdir}/reksfon.F90
   ${curdir}/reksgrad.F90
   ${curdir}/reksinterface.F90
+  ${curdir}/reksio.F90
   ${curdir}/reksproperty.F90
   ${curdir}/reksvar.F90)
 

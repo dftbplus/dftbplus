@@ -12,4 +12,4 @@ add_executable(phonons ${sources-f90-preproc})
 target_link_libraries(phonons PUBLIC dftbplus)
 target_link_libraries(phonons PUBLIC negf)
 
-install(TARGETS phonons DESTINATION ${INSTALL_BIN_DIR})
+install(TARGETS phonons DESTINATION ${CMAKE_INSTALL_BINDIR})

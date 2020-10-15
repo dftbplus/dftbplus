@@ -40,7 +40,7 @@ module dftbp_globalenv
   !> Standard error file handler
   integer, protected :: stdErr = stdErr0
 
-  !> Whether current process is the global master process
+  !> Whether current process is the global lead process
   logical, protected :: tIoProc = .true.
 
 #:if WITH_MPI
@@ -54,8 +54,13 @@ module dftbp_globalenv
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
+#:if WITH_MPI
   !> Whether MPI finalization should be performed at the end
   logical :: doMpiFinalization = .true.
+#:endif
+
+  !> Whether code was compiled with many-body dispersion support
+  logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
 
 
 
@@ -73,7 +78,11 @@ contains
     !> Customised global standard error
     integer, intent(in), optional :: errorUnit
 
-    integer :: mpiComm0, outputUnit0, errorUnit0
+    integer :: outputUnit0, errorUnit0
+
+  #:if WITH_MPI
+    integer :: mpiComm0
+  #:endif
 
     if (present(outputUnit)) then
       outputUnit0 = outputUnit
@@ -97,14 +106,14 @@ contains
     end if
 
     call globalMpiComm%init(commid=mpiComm0)
-    if (globalMpiComm%master) then
+    if (globalMpiComm%lead) then
       stdOut = outputUnit0
       stdErr = errorUnit0
     else
       open(newunit=stdOut, file="/dev/null", action="write")
       stdErr = stdOut
     end if
-    tIoProc = globalMpiComm%master
+    tIoProc = globalMpiComm%lead
   #:else
     stdOut = outputUnit0
     stdErr = errorUnit0

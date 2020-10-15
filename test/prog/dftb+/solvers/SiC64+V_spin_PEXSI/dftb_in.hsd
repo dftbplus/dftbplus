@@ -72,9 +72,9 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
     SCC = Yes
-    SCCTolerance = 1.0E-6 # relatively small
+    SCCTolerance = 1.0E-7 # relatively small
     Eigensolver = PEXSI {
-        Poles = 20
+        Method = 3
     }
     MaxAngularMomentum {
         Si = "p"
@@ -111,8 +111,7 @@ Options {
 }
 
 Analysis {
-    # PEXSI bug at the moment (May 2019)
-    CalculateForces = No
+    CalculateForces = Yes
 }
 
 ParserOptions {

@@ -15,10 +15,12 @@ module dftbp_dispcommon
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants, only : pi
-  use dftbp_message
-  use dftbp_sorting
-  use dftbp_simplealgebra, only : cross3
+  use dftbp_environment, only : TEnvironment
   use dftbp_errorfunction
+  use dftbp_message
+  use dftbp_simplealgebra, only : cross3
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_sorting
   implicit none
   private
 
@@ -32,8 +34,11 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
-  subroutine addDispEGr_per_atom(nAtom, coords, nNeighbourSK, iNeighbour, neighDist2, img2CentCell,&
-      & c6, eta, vol, gLatVecs, energies, gradients, stress)
+  subroutine addDispEGr_per_atom(env, nAtom, coords, nNeighbourSK, iNeighbour, neighDist2,&
+      & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -74,10 +79,12 @@ contains
     !> Updated stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
+    integer :: iAtFirst, iAtLast
     integer :: iAt1, iNeigh, iAt2, iAt2f, iG, ii
     real(dp) :: rSum, rSum3(3), gSum, gSum3(3), gg(3), ggAbs, vec(3)
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp
     real(dp) :: etam3, rTmp33, gsum33(3,3)
+    real(dp), allocatable :: localDeriv(:,:), localStress(:, :), localEnergies(:)
 
     @:ASSERT(size(energies) == nAtom)
     @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
@@ -88,7 +95,22 @@ contains
     r3c = 2.0_dp * rc / (eta * eta)
     gc = pi**1.5_dp / (12.0_dp * vol)
     g3c = pi**1.5_dp / (6.0_dp * vol)
-    do iAt1 = 1, nAtom
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localStress(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localStress(:,:) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localStress) shared(etam3, nAtom) &
+    !$omp shared(iAtFirst, iAtLast, nNeighbourSK, iNeighbour, coords, c6, eta) &
+    !$omp shared(img2CentCell, neighDist2, vol, gLatVecs, rc, r3c, gc, g3c) &
+    !$omp private(iAt1, iNeigh, iAt2, iAt2f, iG, ii, rSum, rSum3, gSum, gSum3) &
+    !$omp private(gg, ggAbs, vec, aam2, bb, bbm2, rTmp, rTmp2, rTmp3, ddp) &
+    !$omp private(rTmp33, gsum33)
+    do iAt1 = iAtFirst, iAtLast
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1) - coords(:,iAt2)
@@ -96,18 +118,18 @@ contains
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
         rSum =  rc * c6(iAt2f, iAt1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
         rSum3(:) = r3c * c6(iAt2f, iAt1) * exp(-1.0_dp / aam2)&
-            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
-        energies(iAt1) = energies(iAt1) - rSum
-        gradients(:,iAt1) = gradients(:,iAt1) + rSum3(:)
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec
+        localEnergies(iAt1) = localEnergies(iAt1) - rSum
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3
         if (iAt1 /= iAt2f) then
-          energies(iAt2f) = energies(iAt2f) - rSum
-          gradients(:,iAt2f) = gradients(:,iAt2f) - rSum3(:)
+          localEnergies(iAt2f) = localEnergies(iAt2f) - rSum
+          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3
           do ii = 1, 3
-            stress(:,ii) = stress(:,ii) - rSum3(:)*vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - rSum3 * vec(ii) / vol
           end do
         else
           do ii = 1, 3
-            stress(:,ii) = stress(:,ii) - 0.5_dp*rSum3(:)*vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - 0.5_dp * rSum3 * vec(ii) / vol
           end do
         end if
       end do
@@ -130,23 +152,32 @@ contains
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
-        gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
+        gSum3(:) = gSum3 + gg * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
-          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp*ggAbs*rTmp33*gg(:)*gg(ii)
+          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp * ggAbs * rTmp33 * gg * gg(ii)
         end do
       end do
       gSum = gSum * gc
-      gSum3(:) = gSum3(:) * g3c
+      gSum3(:) = gSum3 * g3c
       gSum33 = gSum33 * gc
-      energies(iAt1) = energies(iAt1) - gSum + (c6(iAt1,iAt1)/12.0_dp * etam3&
+      localEnergies(iAt1) = localEnergies(iAt1) - gSum + (c6(iAt1,iAt1)/12.0_dp * etam3&
           & - pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
-        stress(ii,ii) = stress(ii,ii) - gSum/vol&
+        localStress(ii,ii) = localStress(ii,ii) - gSum/vol&
             & - (pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
       end do
-      stress = stress - gSum33 / vol
-      gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
+      localStress = localStress - gSum33 / vol
+      localDeriv(:,iAt1) =  localDeriv(:,iAt1) +  gSum3
     end do
+    !$omp end parallel do
+
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localStress)
+
+    energies(:) = energies + localEnergies
+    gradients(:,:) = gradients + localDeriv
+    stress(:,:) = stress + localStress
 
   end subroutine addDispEGr_per_atom
 
@@ -155,8 +186,11 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
-  subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbourSK, iNeighbour, neighDist2,&
-      & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
+  subroutine addDispEGr_per_species(env, nAtom, coords, species0, nNeighbourSK, iNeighbour,&
+      & neighDist2, img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -200,10 +234,12 @@ contains
     !> Updated stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
+    integer :: iAtFirst, iAtLast
     integer :: iAt1, iNeigh, iAt2, iAt2f, iG, iSp1, iSp2, ii
     real(dp) :: rSum, rSum3(3), gSum, gSum3(3),gsum33(3,3),gg(3), ggAbs, vec(3)
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp, etam3
     real(dp) :: rTmp33
+    real(dp), allocatable :: localDeriv(:,:), localStress(:, :), localEnergies(:)
 
     @:ASSERT(size(energies) == nAtom)
     @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
@@ -214,7 +250,23 @@ contains
     r3c = 2.0_dp * rc / (eta * eta)
     gc = pi**1.5_dp / (12.0_dp * vol)
     g3c = pi**1.5_dp / (6.0_dp * vol)
-    do iAt1 = 1, nAtom
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localStress(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localStress(:,:) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp reduction(+:localEnergies, localDeriv, localStress) &
+    !$omp shared(iAtFirst, iAtLast, nNeighbourSK, iNeighbour, coords, c6, eta) &
+    !$omp shared(img2CentCell, neighDist2, vol, gLatVecs, rc, r3c, gc, g3c) &
+    !$omp shared(species0, etam3, nAtom) &
+    !$omp private(iAt1, iNeigh, iAt2, iAt2f, iG, ii, rSum, rSum3, gSum, gSum3) &
+    !$omp private(gg, ggAbs, vec, aam2, bb, bbm2, rTmp, rTmp2, rTmp3, ddp) &
+    !$omp private(rTmp33, gsum33, iSp1, iSp2)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species0(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -224,18 +276,18 @@ contains
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
         rSum =  rc * c6(iSp2, iSp1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
         rSum3(:) = r3c * c6(iSp2, iSp1) * exp(-1.0_dp / aam2)&
-            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
-        energies(iAt1) = energies(iAt1) - rSum
-        gradients(:,iAt1) = gradients(:,iAt1) + rSum3(:)
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec
+        localEnergies(iAt1) = localEnergies(iAt1) - rSum
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + rSum3
         if (iAt1 /= iAt2f) then
-          energies(iAt2f) = energies(iAt2f) - rSum
-          gradients(:,iAt2f) = gradients(:,iAt2f) - rSum3(:)
+          localEnergies(iAt2f) = localEnergies(iAt2f) - rSum
+          localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - rSum3
           do ii = 1, 3
-            stress(:,ii) = stress(:,ii) - rSum3 * vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - rSum3 * vec(ii) / vol
           end do
         else
           do ii = 1, 3
-            stress(:,ii) = stress(:,ii) - 0.5_dp * rSum3 * vec(ii) / vol
+            localStress(:,ii) = localStress(:,ii) - 0.5_dp * rSum3 * vec(ii) / vol
           end do
         end if
       end do
@@ -259,23 +311,32 @@ contains
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
-        gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
+        gSum3(:) = gSum3 + gg * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
-          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp*ggAbs*rTmp33*gg(:)*gg(ii)
+          gSum33(:,ii) = gSum33(:,ii) + rTmp * 3.0_dp * ggAbs * rTmp33 * gg * gg(ii)
         end do
       end do
       gSum = gSum * gc
-      gSum3(:) = gSum3(:) * g3c
+      gSum3(:) = gSum3 * g3c
       gSum33 = gSum33 * gc
-      energies(iAt1) = energies(iAt1) - gSum + (c6(iSp1,iSp1)/12.0_dp * etam3&
+      localEnergies(iAt1) = localEnergies(iAt1) - gSum + (c6(iSp1,iSp1)/12.0_dp * etam3&
           & - pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
-        stress(ii,ii) = stress(ii,ii) - gSum/vol&
+        localStress(ii,ii) = localStress(ii,ii) - gSum/vol&
             & - (pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol*vol)) * etam3
       end do
-      stress = stress - gSum33 / vol
-      gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
+      localStress = localStress - gSum33 / vol
+      localDeriv(:,iAt1) =  localDeriv(:,iAt1) +  gSum3
     end do
+    !$omp end parallel do
+
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localStress)
+
+    energies(:) = energies + localEnergies
+    gradients(:,:) = gradients + localDeriv
+    stress(:,:) = stress + localStress
 
   end subroutine addDispEGr_per_species
 
