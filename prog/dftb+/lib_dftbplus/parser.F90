@@ -159,6 +159,7 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
+    ! Hamiltonian settings that need to know settings from the REKS block
     call getChildValue(root, "Reks", dummy, "None", child=child)
     call readReks(child, dummy, input%ctrl, input%geom)
 
@@ -237,10 +238,6 @@ contains
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
-
-    ! Hamiltonian settings that need to know settings from the REKS block
-    call getChildValue(root, "Reks", dummy, "None", child=child)
-    call readReks(child, dummy, input%ctrl, input%geom)
 
     ! Hamiltonian settings that need to know settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
