@@ -162,7 +162,8 @@ contains
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine postProcessDets(this, energies, derivs, tripletderivs, mixedderivs)
+  subroutine postProcessDets(this, energies, stress, tripletStress, mixedStress, derivs,&
+      & tripletderivs, mixedderivs)
 
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
@@ -170,14 +171,23 @@ contains
     !> energy components for whatever determinants are present
     type(TEnergies), intent(inout) :: energies(:)
 
-    !> derivative components
+    !> stress tensor
+    real(dp), intent(inout) :: stress(:,:)
+
+    !> Triplet stress
+    real(dp), intent(inout), optional :: tripletStress(:,:)
+
+    !> Spin contaminated stress
+    real(dp), intent(inout), optional :: mixedStress(:,:)
+
+    !> derivatives for atom positions
     real(dp), intent(inout), optional:: derivs(:,:)
 
     !> Triplet state derivatives
-    real(dp), intent(inout), optional :: tripletderivs(:,:)
+    real(dp), intent(inout), optional :: tripletDerivs(:,:)
 
     !> Spin contaminated derivatives
-    real(dp), intent(inout), optional :: mixedderivs(:,:)
+    real(dp), intent(inout), optional :: mixedDerivs(:,:)
 
   #! Macro for Ziegler purification and copy to final output
   #:def PURIFY(arg)
@@ -234,6 +244,15 @@ contains
         derivs(:,:) = mixedDerivs
       end if
     endif
+
+    if (present(mixedStress)) then
+      if (this%isSpinPurify) then
+        ! dE_S1 = 2dE_mix - dE_triplet
+        stress(:,:) = 2.0_dp * mixedStress - tripletStress
+      else
+        derivs(:,:) = mixedStress
+      end if
+    end if
 
   end subroutine postProcessDets
 

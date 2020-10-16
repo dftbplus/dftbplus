@@ -3879,12 +3879,12 @@ contains
               & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(stdOut, format2U) "Total Ground State Mermin free energy",&
+          write(stdOut, format2U) "Total Ground State Mermin egy",&
               & energy(deltaDftb%iGround)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(stdOut, format2U) 'Ground State Force related energy',&
+          write(stdOut, format2U) 'Ground State Force related egy',&
               & energy(deltaDftb%iGround)%EForceRelated, 'H',&
               & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
@@ -3904,7 +3904,7 @@ contains
               & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       end if
-
+      write(stdOut,*)
     end if
 
     if (deltaDftb%iTriplet > 0) then
@@ -3917,16 +3917,16 @@ contains
             & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
       end if
       if (electronicSolver%providesElectronEntropy) then
-        write(stdOut, format2U) "Total Triplet State Mermin free energy",&
+        write(stdOut, format2U) "Triplet State Mermin free egy",&
             & energy(deltaDftb%iTriplet)%EMermin, "H",&
             & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(stdOut, format2U) 'Triplet State Force related energy',&
+        write(stdOut, format2U) 'Triplet State Force related egy',&
             & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
             & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
       end if
-
+      write(stdOut,*)
     end if
 
     if (deltaDftb%iMixed > 0) then
@@ -3936,17 +3936,17 @@ contains
         write(stdOut, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(stdOut, format2U) "Purified State Extrapolated to 0K",&
+          write(stdOut, format2U) "Purified Extrapolated 0K",&
               & energy(deltaDftb%iFinal)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(stdOut, format2U) "Total Purified State Mermin free energy",&
+          write(stdOut, format2U) "Purified State Mermin free egy",&
               & energy(deltaDftb%iFinal)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(stdOut, format2U) 'Purified State Force related energy',&
+          write(stdOut, format2U) 'Purified Force related egy',&
               & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
               & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
         end if
@@ -3956,17 +3956,17 @@ contains
         write(stdOut, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
             & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
         if (electronicSolver%providesEigenvals) then
-          write(stdOut, format2U) "Mixed State Extrapolated to 0K",&
+          write(stdOut, format2U) "Mixed Extrapolated to 0K",&
               & energy(deltaDftb%iMixed)%Ezero, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(stdOut, format2U) "Total Mixed State Mermin free energy",&
+          write(stdOut, format2U) "Mixed State Mermin free egy",&
               & energy(deltaDftb%iMixed)%EMermin, "H",&
               & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(stdOut, format2U) 'Mixed State Force related energy',&
+          write(stdOut, format2U) 'Mixed State Force related egy',&
               & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
               & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
         end if

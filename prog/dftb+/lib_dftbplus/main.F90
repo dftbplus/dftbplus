@@ -166,6 +166,7 @@ contains
     integer :: iDet, nDets
 
     real(dp), allocatable :: qDets(:,:,:,:)
+
     nDets = deltaDftb%nDeterminant()
     if (nDets > 1) then
       allocate(qDets(size(qOutput,dim=1),size(qOutput,dim=2),size(qOutput,dim=3),nDets))
@@ -214,7 +215,21 @@ contains
 
       end do lpDets
 
-      call deltaDftb%postProcessDets(dftbEnergy, derivs, tripletderivs, mixedderivs)
+      call deltaDftb%postProcessDets(dftbEnergy, totalStress, tripletStress, mixedStress, derivs,&
+          & tripletderivs, mixedderivs)
+
+      if (tStress) then
+        intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+        totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+
+        call printVolume(cellVol)
+
+        ! MD case includes the atomic kinetic energy contribution, so print that later
+        if (.not. (tMD .or. tHelical)) then
+          call printPressureAndFreeEnergy(extPressure, intPressure,&
+              & dftbEnergy(deltaDftb%iDeterminant)%EGibbs)
+        end if
+      end if
 
       if (.not.tRestartNoSC) then
         call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
@@ -1000,16 +1015,9 @@ contains
               & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
               & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
               & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-              & solvation, dispersion, halogenXCorrection)
+              & solvation, dispersion, halogenXCorrection, deltaDftb, tripletStress, mixedStress)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
-        call printVolume(cellVol)
-
-        ! MD case includes the atomic kinetic energy contribution, so print that later
-        if (.not. (tMD .or. tHelical)) then
-          call printPressureAndFreeEnergy(extPressure, intPressure,&
-              & dftbEnergy(deltaDftb%iDeterminant)%EGibbs)
-        end if
 
       end if
 
@@ -5187,10 +5195,10 @@ contains
     real(dp), intent(out) :: derivs(:,:)
 
     !> derivatives of triplet energy wrt to atomic positions (TI-DFTB excited states)
-    real(dp), intent(inout), allocatable :: tripletderivs(:,:)
+    real(dp), intent(inout), allocatable :: tripletDerivs(:,:)
 
     !> derivatives of mixed energy wrt to atomic positions (TI-DFTB excited states)
-    real(dp), intent(inout), allocatable :: mixedderivs(:,:)
+    real(dp), intent(inout), allocatable :: mixedDerivs(:,:)
 
     !> imaginary part of density matrix
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
@@ -5475,7 +5483,7 @@ contains
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
       & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
-      & halogenXCorrection)
+      & halogenXCorrection, deltaDftb, tripletStress, mixedStress)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5573,6 +5581,15 @@ contains
     !> Correction for halogen bonds
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
 
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Stress tensor in triplet state (TI-DFTB excited states)
+    real(dp), intent(inout), optional :: tripletStress(:,:)
+
+    !> Stress tensor in mixed state (TI-DFTB excited states)
+    real(dp), intent(inout), optional :: mixedStress(:,:)
+
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
 
@@ -5629,8 +5646,14 @@ contains
         & img2CentCell, pRepCont, cellVol)
     totalStress(:,:) = totalStress + tmpStress
 
-    intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
-    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    if(deltaDftb%isNonAufbau) then
+      select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
+      case (determinants%triplet)
+        tripletStress(:,:) = totalStress
+      case (determinants%mixed)
+        mixedStress(:,:) = totalStress
+      end select
+    end if
 
   end subroutine getStress
 

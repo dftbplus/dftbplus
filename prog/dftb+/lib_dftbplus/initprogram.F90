@@ -854,10 +854,10 @@ module dftbp_initprogram
   real(dp), allocatable :: derivs(:,:)
 
   !> Energy derivative for triplet determinant (TI-DFTB excited states)
-  real(dp), allocatable :: tripletderivs(:,:)
+  real(dp), allocatable :: tripletDerivs(:,:)
 
   !> Energy derivative for mixed determinant (TI-DFTB excited states)
-  real(dp), allocatable :: mixedderivs(:,:)
+  real(dp), allocatable :: mixedDerivs(:,:)
 
   !> Forces on any external charges
   real(dp), allocatable :: chrgForces(:,:)
@@ -928,6 +928,9 @@ module dftbp_initprogram
   !> Stress tensors for various contribution in periodic calculations
   !> Sign convention: Positive diagonal elements expand the supercell
   real(dp) :: totalStress(3,3)
+
+  !> Stress tensors for determinants if using TI-DFTB
+  real(dp), allocatable :: mixedStress(:,:), tripletStress(:,:)
 
   ! Tagged writer
   type(TTaggedWriter) :: taggedWriter
@@ -1856,6 +1859,10 @@ contains
 
     end if
 
+    if (deltaDftb%isNonAufbau .and. .not.electronicSolver%providesEigenvals) then
+      call error("Eigensolver that calculates eigenvalues is required for Delta DFTB")
+    end if
+
     if (allocated(reks)) then
       electronicSolver%providesElectronEntropy = .false.
     end if
@@ -2542,14 +2549,15 @@ contains
           & nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
 
-    call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
-        & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-        & tPrintExcitedEigvecs, tDipole, allocated(reks), input%ctrl%isNonAufbau, orb, nAtom,&
+    call initArrays(env, electronicSolver, tForces, tStress, tExtChrg, isLinResp, tLinRespZVect,&
+        & tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+        & tPrintExcitedEigvecs, tDipole, allocated(reks), deltaDftb%isNonAufbau, orb, nAtom,&
         & nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
-        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, tripletderivs, mixedderivs, chrgForces,&
-        & dftbEnergy, potential, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx,&
-        & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
-        & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, tripletDerivs, mixedDerivs, tripletStress,&
+        & mixedStress, chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords,&
+        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -4060,7 +4068,7 @@ contains
     @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
     @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling)
     @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
-    @:SAFE_DEALLOC(tripletderivs, mixedderivs)
+    @:SAFE_DEALLOC(tripletDerivs, mixedDerivs, tripletStress, mixedStress)
     @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
     @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, shiftPerLUp, chargeUp)
@@ -4319,14 +4327,14 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
-      & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-      & tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom, nKPoint, nSpin,&
-      & nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim,&
-      & derivs, tripletderivs, mixedderivs, chrgForces, dftbEnergy, potential, eigen, filling,&
-      & coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal,&
-      & eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass,&
-      & dipoleMoment)
+  subroutine initArrays(env, electronicSolver, tForces, tStress, tExtChrg, isLinResp,&
+      & tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component,&
+      & tRealHS, tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom,&
+      & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim,&
+      & excitedDerivs, ERhoPrim, derivs, tripletderivs, mixedderivs, tripletStress, mixedStress,&
+      & chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords, orbitalL,&
+      & HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
+      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4336,6 +4344,9 @@ contains
 
     !> Are forces required
     logical, intent(in) :: tForces
+
+    !> Can stress be calculated?
+    logical :: tStress
 
     !> Are the external charges
     logical, intent(in) :: tExtChrg
@@ -4428,10 +4439,16 @@ contains
     real(dp), intent(out), allocatable :: derivs(:,:)
 
     !> Energy derivative for triplet determinant (TI-DFTB excited states)
-    real(dp), intent(out), allocatable :: tripletderivs(:,:)
+    real(dp), intent(out), allocatable :: tripletDerivs(:,:)
 
     !> Energy derivative for mixed determinant (TI-DFTB excited states)
-    real(dp), intent(out), allocatable :: mixedderivs(:,:)
+    real(dp), intent(out), allocatable :: mixedDerivs(:,:)
+
+    !> Stress tensor for triplet determinant (TI-DFTB excited states)
+    real(dp), intent(out), allocatable :: tripletStress(:,:)
+
+    !> Stress tensor for mixed determinant (TI-DFTB excited states)
+    real(dp), intent(out), allocatable :: mixedStress(:,:)
 
     !> Forces on (any) external charges
     real(dp), intent(out), allocatable :: chrgForces(:,:)
@@ -4517,6 +4534,10 @@ contains
       if (isNonAufbau) then
         allocate(tripletderivs(3, nAtom))
         allocate(mixedderivs(3, nAtom))
+        if (tStress) then
+          allocate(mixedStress(3,3))
+          allocate(tripletStress(3,3))
+        end if
       end if
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
