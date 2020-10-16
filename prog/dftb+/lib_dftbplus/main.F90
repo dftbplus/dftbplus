@@ -185,7 +185,10 @@ contains
     geoOpt: do iGeoStep = 0, nGeoSteps
       tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
-      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+
+      if (.not.tRestartNoSC) then
+        call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+      end if
 
       ! DFTB Determinant Loop
       ! Will pass though loop once, unless specified in input to perform multiple determiants
@@ -213,7 +216,9 @@ contains
 
       call deltaDftb%postProcessDets(dftbEnergy, derivs, tripletderivs, mixedderivs)
 
-      call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
+      if (.not.tRestartNoSC) then
+        call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
+      end if
 
       if (tExitGeoOpt) then
         exit geoOpt
@@ -342,7 +347,7 @@ contains
           & SSqrReal, eigvecsCplx, SSqrCplx, tHelical, coord)
     end if
 
-    if (tWriteAutotest) then
+    if (tWriteAutotest.and..not.tRestartNoSC) then
       if (tPeriodic) then
         cellVol = abs(determinant33(latVec))
         dftbEnergy(deltaDftb%iFinal)%EGibbs = dftbEnergy(deltaDftb%iFinal)%EMermin&
@@ -370,7 +375,8 @@ contains
       call poiss_destroy(env)
     end if
   #:if WITH_TRANSPORT
-    if (electronicSolver%iSolver == electronicSolverTypes%GF) then
+    if (electronicSolver%iSolver == electronicSolverTypes%GF .or. & 
+      & electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
       call negf_destroy()
     end if
   #:endif
@@ -460,7 +466,7 @@ contains
       end if
     #:endif
 
-    if (tSccCalc .and. .not.allocated(reks)) then
+    if (tSccCalc .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
       call reset(pChrgMixer, nMixElements)
     end if
 
@@ -530,8 +536,12 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-        & tNegf, reks)
+    if (.not.tRestartNoSC) then
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+          & tNegf, reks)
+    else
+      tConverged = .true.
+    end if
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -910,7 +920,7 @@ contains
           & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
     end if
 
-    if (tDipole .and. .not.allocated(reks)) then
+    if (tDipole .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
       call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
@@ -1018,7 +1028,7 @@ contains
       end if
     end if
 
-    if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged) then
+    if (tSccCalc .and. .not. isXlbomd .and. .not. tConverged .and. .not.tRestartNoSC) then
       call warning("SCC is NOT converged, maximal SCC iterations exceeded")
       if (isSccConvRequired) then
         call env%shutdown()

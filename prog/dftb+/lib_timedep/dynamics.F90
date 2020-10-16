@@ -1032,7 +1032,10 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
 
-    write(stdOut, "(A)") 'Starting dynamics'
+    write(stdOut, "(A)")
+    write(stdOut, "(A)") 'Starting electronic dynamics...'
+    write(stdOut, "(A80)") repeat("-", 80)
+
 
     rho => trho
     rhoOld => trhoOld
