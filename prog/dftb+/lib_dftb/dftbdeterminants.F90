@@ -227,9 +227,6 @@ contains
 
 
     if (present(derivs)) then
-      write(*,*)'GOT HERE'
-      write(*,*)mixedDerivs
-      write(*,*)tripletDerivs
       if (this%isSpinPurify) then
         ! dE_S1 = 2dE_mix - dE_triplet
         derivs(:,:) = 2.0_dp * mixedDerivs - tripletDerivs
