@@ -203,12 +203,6 @@ contains
 
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
 
-        if (.not. deltaDftb%isNonAufbau .or. .not. deltaDftb%iDeterminant == determinants%ground)&
-            & then
-          call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
-              & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
-        end if
-
         if (nDets > 1) then
           qDets(:,:,:,iDet) = qInput(:,:,:)
         end if
@@ -230,6 +224,9 @@ contains
               & dftbEnergy(deltaDftb%iDeterminant)%EGibbs)
         end if
       end if
+
+      call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
+          & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
 
       if (.not.tRestartNoSC) then
         call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
@@ -1052,6 +1049,7 @@ contains
   end subroutine processGeometry
 
 
+  !> Process geometry for constrains
   subroutine postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDerivs,&
       & extLatDerivs, normLatVecs, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic,&
       & constrLatDerivs)
