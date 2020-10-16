@@ -56,6 +56,13 @@ module dftbp_dftbdeterminants
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
 
+    integer :: iGround
+    integer :: iTriplet
+    integer :: iMixed
+
+    !> Resulting final energy
+    integer :: iFinal
+
   contains
 
     procedure :: postProcessDets
@@ -96,13 +103,12 @@ contains
   function whichDeterminant(this, iDet) result(det)
 
     !> Instance
-    class(TDftbDeterminants), intent(inout) :: this
+    class(TDftbDeterminants), intent(in) :: this
 
+    !> Number of current determinant
     integer, intent(in) :: iDet
 
     integer :: det
-
-    this%isFinished = .false.
 
     if (.not.this%isNonAufbau) then
       if (iDet /= 1) then
@@ -154,15 +160,15 @@ contains
 
   end function whichDeterminant
 
-  
+
   !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine postProcessDets(this, energy, derivs, tripletderivs, mixedderivs)
+  subroutine postProcessDets(this, energies, derivs, tripletderivs, mixedderivs)
 
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
 
-    !> energy components
-    type(TEnergies), intent(inout) :: energy
+    !> energy components for whatever determinants are present
+    type(TEnergies), intent(inout) :: energies(:)
 
     !> derivative components
     real(dp), intent(inout), optional:: derivs(:,:)
@@ -173,32 +179,70 @@ contains
     !> Spin contaminated derivatives
     real(dp), intent(inout), optional :: mixedderivs(:,:)
 
+  #! Macro for Ziegler purification and copy to final output
+  #:def PURIFY(arg)
+    energies(this%iMixed+1)%${arg}$ = 2.0_dp * energies(this%iMixed)%${arg}$&
+        & - energies(this%iTriplet)%${arg}$
+  #:enddef
+
+  #! Macro for Ziegler purification and copy to final output
+  #:def PURIFY_ALLOC(arg)
+    if (allocated(energies(this%iMixed+1)%${arg}$)) then
+      energies(this%iMixed+1)%${arg}$(:) = 2.0_dp * energies(this%iMixed)%${arg}$&
+          & - energies(this%iTriplet)%${arg}$
+    end if
+  #:enddef
+
     this%isFinished = .true.
 
-    if (.not.this%isNonAufbau) then
+    if (this%isNonAufbau) then
+      if (this%isSpinPurify) then
+        ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
+        @:PURIFY(Etotal)
+        @:PURIFY(Ezero)
+        @:PURIFY(EMermin)
+        @:PURIFY(EGibbs)
+        @:PURIFY(EForceRelated)
+        @:PURIFY_ALLOC(TS)
+        @:PURIFY_ALLOC(EBand)
+        @:PURIFY_ALLOC(E0)
+        @:PURIFY_ALLOC(atomRep)
+        @:PURIFY_ALLOC(atomNonSCC)
+        @:PURIFY_ALLOC(atomSCC)
+        @:PURIFY_ALLOC(atomSpin)
+        @:PURIFY_ALLOC(atomLS)
+        @:PURIFY_ALLOC(atomDftbu)
+        @:PURIFY_ALLOC(atomExt)
+        @:PURIFY_ALLOC(atomElec)
+        @:PURIFY_ALLOC(atomDisp)
+        @:PURIFY_ALLOC(atomOnSite)
+        @:PURIFY_ALLOC(atomHalogenX)
+        @:PURIFY_ALLOC(atom3rd)
+        @:PURIFY_ALLOC(atomSolv)
+        @:PURIFY_ALLOC(atomTotal)
+      end if
+    else
       return
     end if
 
-    if (.not.this%isSpinPurify) then
-      return
-    end if
 
-    ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
-    energy%Etotal = 2.0_dp * energy%Emixed - energy%Etriplet
-    energy%EMermin = 2.0_dp * energy%EmixMermin - energy%EtripMermin
-    energy%Ezero = 2.0_dp * energy%EmixZero - energy%EtripZero
-    energy%EGibbs = 2.0_dp * energy%EmixGibbs - energy%EtripGibbs
-    energy%EForceRelated = 2.0_dp * energy%EmixForceRelated - energy%EtripForceRelated
-    ! dE_S1 = 2dE_mix - dE_triplet
     if (present(derivs)) then
-      derivs(:,:) = 2.0_dp * mixedDerivs - tripletDerivs
+      write(*,*)'GOT HERE'
+      write(*,*)mixedDerivs
+      write(*,*)tripletDerivs
+      if (this%isSpinPurify) then
+        ! dE_S1 = 2dE_mix - dE_triplet
+        derivs(:,:) = 2.0_dp * mixedDerivs - tripletDerivs
+      else
+        derivs(:,:) = mixedDerivs
+      end if
     endif
 
   end subroutine postProcessDets
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl)
+  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl, dftbEnergy)
 
     !> Instance
     type(TDftbDeterminants), intent(out) :: this
@@ -215,10 +259,52 @@ contains
     !> Number of electrons in each spin channel
     real(dp), intent(in) :: nEl(:)
 
+    !> Energy terms for each determinant (and total if post processing something other than ground
+    !> state)
+    type(TEnergies), allocatable, intent(out) :: dftbEnergy(:)
+
+    if (.not.isNonAufbau .and. (isGroundGuess .or. isSpinPurify) ) then
+      call error("Delta DFTB internal error - setting request without non-Aufbau fillings")
+    end if
+
     this%isNonAufbau = isNonAufbau
     this%isGroundGuess = isGroundGuess
     this%isSpinPurify = isSpinPurify
+
     this%nEl = nEl
+
+    this%iGround = 0
+    this%iTriplet = 0
+    this%iMixed = 0
+
+    ! assume first determinant
+    this%iDeterminant = 1
+
+    if (isNonAufbau) then
+      if (isGroundGuess) then
+        ! first determinant
+        this%iGround = 1
+      end if
+      if (isSpinPurify) then
+        ! if required, then its after the ground state (if that is requested)
+        this%iTriplet = this%iGround + 1
+      end if
+      ! last determinant
+      this%iMixed = max(this%iGround, this%iTriplet) + 1
+      if (isSpinPurify) then
+        ! need one extra element to store the resulting purified results
+        allocate(dftbEnergy(this%iMixed+1))
+      else
+        ! only storing the different determinant results
+        allocate(dftbEnergy(this%iMixed))
+      end if
+    else
+      this%iGround = 1
+      ! only the ground state is needed
+      allocate(dftbEnergy(1))
+    end if
+
+    this%iFinal = size(dftbEnergy)
 
     this%isFinished = .false.
 
@@ -263,7 +349,7 @@ contains
     integer, intent(in) :: iDistribFn
 
     real(dp), allocatable :: fillingsTmp(:,:,:,:), nElecFill(:)
-    integer :: nSpinHams, nKPoints, nLevels, iS, iK, iConfig
+    integer :: nSpinHams, nKPoints, nLevels, iS, iConfig
 
     nLevels = size(fillings, dim=1)
     nKPoints = size(fillings, dim=2)
@@ -271,8 +357,7 @@ contains
 
     nElecFill = nElec
 
-    if (this%iDeterminant == determinants%mixed) then
-
+    if (this%whichDeterminant(this%iDeterminant) == determinants%mixed) then
       allocate(fillingsTmp(nLevels,nKPoints,2,3))
       fillingsTmp(:,:,:,:) = 0.0_dp
 
@@ -294,8 +379,7 @@ contains
       fillings(:,:,:) = fillingsTmp(:,:,:,1) - fillingsTmp(:,:,:,2) + fillingsTmp(:,:,:,3)
 
     else
-
-      if (this%iDeterminant == determinants%triplet) then
+      if (this%whichDeterminant(this%iDeterminant) == determinants%triplet) then
         ! transfer an electron between spin channels
         nElecFill(1) = nElecFill(1) + 1.0_dp
         nElecFill(2) = nElecFill(2) - 1.0_dp

@@ -262,7 +262,7 @@ contains
     energy%pV = cellVol * extPressure
 
     ! Electronic entropy term
-    energy%TS = sum(TS)
+    energy%TS = TS
 
   end subroutine calcEnergies
 
@@ -333,13 +333,10 @@ contains
 
 
   !> Sums together components of final energies
-  subroutine sumEnergies(energy, deltaDftb)
+  subroutine sumEnergies(energy)
 
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
-
-    !> Delta DFTB control and data structure
-    type(TDftbDeterminants), intent(in), optional :: deltaDftb
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock
@@ -349,35 +346,14 @@ contains
         & + energy%atomSolv
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
-    energy%EMermin = energy%Etotal - energy%TS
+    energy%EMermin = energy%Etotal - sum(energy%TS)
     ! energy extrapolated to 0 K
-    energy%Ezero = energy%Etotal - 0.5_dp * energy%TS
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(energy%TS)
     energy%EGibbs = energy%EMermin + energy%pV
 
     ! Free energy of system, with contribution if attached to an electron reservoir
     ! negative sign due to electron charge
     energy%EForceRelated = energy%EGibbs  - energy%NEf
-
-    if (present(deltaDftb)) then
-      if (deltaDftb%isNonAufbau) then
-        select case(deltaDftb%iDeterminant)
-        case(determinants%ground)
-          energy%Egroundguess = energy%Etotal
-        case(determinants%triplet)
-          energy%Etriplet = energy%Etotal
-          energy%EtripMermin = energy%EMermin
-          energy%EtripZero = energy%Ezero
-          energy%EtripGibbs = energy%EGibbs
-          energy%EtripForceRelated = energy%EForceRelated
-        case(determinants%mixed)
-          energy%Emixed = energy%Etotal
-          energy%EmixMermin = energy%EMermin
-          energy%EmixZero = energy%Ezero
-          energy%EmixGibbs = energy%EGibbs
-          energy%EmixForceRelated = energy%EForceRelated
-        end select
-      end if
-    end if
 
   end subroutine sumEnergies
 

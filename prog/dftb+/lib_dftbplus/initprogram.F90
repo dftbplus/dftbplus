@@ -810,15 +810,6 @@ module dftbp_initprogram
   !> electronic filling
   real(dp), allocatable :: filling(:,:,:)
 
-  !> band structure energy
-  real(dp), allocatable :: Eband(:)
-
-  !> entropy of electrons at temperature T
-  real(dp), allocatable :: TS(:)
-
-  !> zero temperature electronic energy
-  real(dp), allocatable :: E0(:)
-
   !> Square dense hamiltonian storage for cases with k-points
   complex(dp), allocatable :: HSqrCplx(:,:)
 
@@ -843,8 +834,8 @@ module dftbp_initprogram
   !> density matrix
   real(dp), allocatable :: rhoSqrReal(:,:,:)
 
-  !> Total energy components
-  type(TEnergies) :: energy
+  !> Total energy components (potentially for multiple determinants)
+  type(TEnergies), allocatable :: dftbEnergy(:)
 
   !> Potentials for orbitals
   type(TPotentials) :: potential
@@ -1766,29 +1757,9 @@ contains
          & input%ctrl%customOccFillings, q0, qShell0)
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
-    ! TI-DFTB related variables
+    ! DFTB related variables if multiple determinants are used
     call TDftbDeterminants_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
-        & input%ctrl%isGroundGuess, nEl)
-    if (deltaDftb%isNonAufbau) then
-      if (nSpin /= 2) then
-        call error("Internal error, Delta DFTB requires two spin channels")
-      end if
-      if (nEl(1) /= nEl(2)) then
-        call error("Internal error, Delta DFTB requires a spin free reference")
-      end if
-      if (abs(nEl(1) - nint(nEl(1))) > epsilon(0.0)) then
-        call error("Delta DFTB requires an integer number of electrons in the reference state")
-      end if
-      if (mod(sum(nint(nEl)),2) /= 0) then
-        call error("Delta DFTB requires an even number of electrons in reference state")
-      end if
-      if (sum(nEl) > 2*nOrb) then
-        call error("Delta DFTB requires at least one empty orbital")
-      end if
-      if (sum(nEl) < 2) then
-        call error("Delta DFTB requires at least one full orbital")
-      end if
-    end if
+        & input%ctrl%isGroundGuess, nEl, dftbEnergy)
 
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
@@ -2560,8 +2531,8 @@ contains
         & tPrintExcitedEigvecs, tDipole, allocated(reks), input%ctrl%isNonAufbau, orb, nAtom,&
         & nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
         & iRhoPrim, excitedDerivs, ERhoPrim, derivs, tripletderivs, mixedderivs, chrgForces,&
-        & energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL,&
-        & HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
+        & dftbEnergy, potential, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx,&
+        & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
         & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
@@ -3236,6 +3207,26 @@ contains
       end do
     end if
 
+    if (deltaDftb%isNonAufbau) then
+      if (nSpin /= 2) then
+        call error("Internal error, Delta DFTB requires two spin channels")
+      end if
+      if (nEl(1) /= nEl(2)) then
+        call error("Internal error, Delta DFTB requires a spin free reference")
+      end if
+      if (abs(nEl(1) - nint(nEl(1))) > epsilon(0.0)) then
+        call error("Delta DFTB requires an integer number of electrons in the reference state")
+      end if
+      if (mod(sum(nint(nEl)),2) /= 0) then
+        call error("Delta DFTB requires an even number of electrons in reference state")
+      end if
+      if (sum(nEl) >= 2*nOrb) then
+        call error("Delta DFTB requires at least one empty orbita in the system")
+      end if
+      if (sum(nEl) < 2) then
+        call error("Delta DFTB requires at least one full orbital in the system")
+      end if
+    end if
     if (deltaDftb%isNonAufbau .and. .not.tSccCalc) then
       call error("Delta DFTB must use SCC = Yes")
     end if
@@ -4047,7 +4038,7 @@ contains
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
     @:SAFE_DEALLOC(dispersion, xlbomdIntegrator)
     @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
-    @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling, Eband, TS, E0)
+    @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling)
     @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
     @:SAFE_DEALLOC(tripletderivs, mixedderivs)
     @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
@@ -4312,10 +4303,10 @@ contains
       & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
       & tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom, nKPoint, nSpin,&
       & nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim,&
-      & derivs, tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen,&
-      & filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal,&
-      & SSqrReal, eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel,&
-      & movedMass, dipoleMoment)
+      & derivs, tripletderivs, mixedderivs, chrgForces, dftbEnergy, potential, eigen, filling,&
+      & coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal,&
+      & eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass,&
+      & dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4425,20 +4416,11 @@ contains
     !> Forces on (any) external charges
     real(dp), intent(out), allocatable :: chrgForces(:,:)
 
-    !> Energy terms
-    type(TEnergies), intent(out) :: energy
+    !> Energy terms for each determinant present
+    type(TEnergies), intent(out) :: dftbEnergy(:)
 
     !> Potentials acting on the system
     type(TPotentials), intent(out) :: potential
-
-    !> Electron entropy contribution at T
-    real(dp), intent(out), allocatable :: TS(:)
-
-    !> zero temperature extrapolated electronic energy
-    real(dp), intent(out), allocatable :: E0(:)
-
-    !> band  energy
-    real(dp), intent(out), allocatable :: Eband(:)
 
     !> single particle energies (band structure)
     real(dp), intent(out), allocatable :: eigen(:,:,:)
@@ -4494,8 +4476,7 @@ contains
     !> system dipole moment
     real(dp), intent(out), allocatable :: dipoleMoment(:)
 
-
-    integer :: nSpinHams, sqrHamSize
+    integer :: nSpinHams, sqrHamSize, iDet
 
     if (isREKS) then
       allocate(rhoPrim(0, 1))
@@ -4526,7 +4507,6 @@ contains
       end if
     end if
 
-    call TEnergies_init(energy, nAtom)
     call init(potential, orb, nAtom, nSpin)
 
     ! Nr. of independent spin Hamiltonians
@@ -4542,13 +4522,11 @@ contains
       nSpinHams = 1
     end if
 
+    do iDet = 1, size(dftbEnergy)
+      call TEnergies_init(dftbEnergy(iDet), nAtom, nSpinHams)
+    end do
+
     sqrHamSize = denseDesc%fullSize
-    allocate(TS(nSpinHams))
-    allocate(E0(nSpinHams))
-    allocate(Eband(nSpinHams))
-    TS = 0.0_dp
-    E0 = 0.0_dp
-    Eband = 0.0_dp
 
     if (electronicSolver%providesEigenvals) then
       allocate(eigen(sqrHamSize, nKPoint, nSpinHams))

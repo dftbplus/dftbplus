@@ -14,7 +14,7 @@ module dftbp_mainapi
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, energy, derivs
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, dftbEnergy, derivs
   use dftbp_initprogram, only : TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot
   use dftbp_initprogram, only : nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec
   use dftbp_initprogram, only : species0, mass, origin, tCoordsChanged, tLatticeChanged, tExtField
@@ -111,8 +111,11 @@ contains
     !> Resulting energy
     real(dp), intent(out) :: merminEnergy
 
+    integer :: iDet
+
     call recalcGeometry(env)
-    merminEnergy = energy%EMermin
+    iDet = size(dftbEnergy)
+    merminEnergy = dftbEnergy(iDet)%EMermin
 
   end subroutine getEnergy
 

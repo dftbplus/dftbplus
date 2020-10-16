@@ -2362,8 +2362,8 @@ contains
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
-      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
-      & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
+      & Ef, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+      & tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
       & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qNetAtom)
 
     !> File ID
@@ -2446,15 +2446,6 @@ contains
 
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
-
-    !> Band energy
-    real(dp), intent(in) :: EBand(:)
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
-
-    !> Zero temperature extrapolated electron energy
-    real(dp), intent(in) :: E0(:)
 
     !> External pressure
     real(dp), intent(in) :: pressure
@@ -2827,15 +2818,17 @@ contains
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
       end if
       if (electronicSolver%providesBandEnergy) then
-        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
+        write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
+            & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
+        write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
         if (electronicSolver%providesBandEnergy) then
-          write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-              & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+          write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
+              & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
         end if
-        write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+        write(fd, format2U) 'Extrapolated E(0K)', energy%E0(iSpin), "H",&
+            & Hartree__eV * (energy%E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
         if (nSpin == 2) then
@@ -2909,16 +2902,16 @@ contains
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
     if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
-      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
-          & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(energy%TS), 'H',&
+          & (energy%Etotal - sum(energy%TS)) * Hartree__eV, 'eV'
     end if
     if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
-          & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
+      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(energy%TS) + cellVol * pressure,&
+          & 'H', Hartree__eV * (energy%Etotal - sum(energy%TS) + cellVol * pressure), 'eV'
     end if
     write(fd, *)
 
@@ -3864,8 +3857,8 @@ contains
   !> Prints current total energies
   subroutine printEnergies(energy, electronicSolver, deltaDftb)
 
-    !> energy components
-    type(TEnergies), intent(in) :: energy
+    !> energy components, potentially from multiple determinants
+    type(TEnergies), intent(in) :: energy(:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
@@ -3874,42 +3867,112 @@ contains
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
     write(stdOut, *)
-    select case(deltaDftb%iDeterminant)
-    case (determinants%ground)
+
+    if (deltaDftb%iGround > 0) then
+
       if (deltaDftb%isNonAufbau) then
-        write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
-            & Hartree__eV * energy%Egroundguess, "eV"
-      else
+        write(stdOut, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(stdOut, format2U) "Ground State Extrapolated to 0K",&
+              & energy(deltaDftb%iGround)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+        end if
         if (electronicSolver%providesElectronEntropy) then
-          write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-              & Hartree__eV * energy%EMermin, "eV"
+          write(stdOut, format2U) "Total Ground State Mermin free energy",&
+              & energy(deltaDftb%iGround)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
-              & energy%EForceRelated * Hartree__eV, 'eV'
+          write(stdOut, format2U) 'Ground State Force related energy',&
+              & energy(deltaDftb%iGround)%EForceRelated, 'H',&
+              & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
+        end if
+      else
+        write(stdOut, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(stdOut, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
+              & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(stdOut, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
+              & "H", Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(stdOut, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
+              & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
         end if
       end if
 
-      write(stdOut, *)
-    case (determinants%triplet)
-      write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H",&
-          & Hartree__eV * energy%Etriplet, "eV"
-      write(stdOut, *)
-    case (determinants%mixed)
-      if (.not. deltaDftb%isFinished) then
-        write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H",&
-            & Hartree__eV * energy%Emixed, "eV"
-      end if
-    end select
+    end if
 
-    if (deltaDftb%isFinished) then
-      if (deltaDftb%isSpinPurify) then
-        write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H",&
-            & Hartree__eV * energy%Etotal, "eV"
-      else
-        write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H",&
-            & Hartree__eV * energy%Etotal, "eV"
+    if (deltaDftb%iTriplet > 0) then
+
+      write(stdOut, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
+          & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal,"eV"
+      if (electronicSolver%providesEigenvals) then
+        write(stdOut, format2U) "Triplet State Extrapolated to 0K",&
+            & energy(deltaDftb%iTriplet)%Ezero, "H",&
+            & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
       end if
+      if (electronicSolver%providesElectronEntropy) then
+        write(stdOut, format2U) "Total Triplet State Mermin free energy",&
+            & energy(deltaDftb%iTriplet)%EMermin, "H",&
+            & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
+      end if
+      if (electronicSolver%providesFreeEnergy) then
+        write(stdOut, format2U) 'Triplet State Force related energy',&
+            & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
+            & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
+      end if
+
+    end if
+
+    if (deltaDftb%iMixed > 0) then
+
+      if (deltaDftb%isSpinPurify) then
+
+        write(stdOut, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(stdOut, format2U) "Purified State Extrapolated to 0K",&
+              & energy(deltaDftb%iFinal)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(stdOut, format2U) "Total Purified State Mermin free energy",&
+              & energy(deltaDftb%iFinal)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(stdOut, format2U) 'Purified State Force related energy',&
+              & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
+              & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
+        end if
+
+      else
+
+        write(stdOut, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(stdOut, format2U) "Mixed State Extrapolated to 0K",&
+              & energy(deltaDftb%iMixed)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(stdOut, format2U) "Total Mixed State Mermin free energy",&
+              & energy(deltaDftb%iMixed)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(stdOut, format2U) 'Mixed State Force related energy',&
+              & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
+              & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
+        end if
+
+      end if
+
     end if
 
   end subroutine printEnergies

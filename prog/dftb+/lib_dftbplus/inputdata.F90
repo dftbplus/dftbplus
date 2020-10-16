@@ -515,7 +515,7 @@ module dftbp_inputdata
     logical :: isNonAufbau = .false.
 
     !> SpinPurify
-    logical :: isSpinPurify = .true.
+    logical :: isSpinPurify = .false.
 
     !> GroundGuess
     logical :: isGroundGuess = .false.
