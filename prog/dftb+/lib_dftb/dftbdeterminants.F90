@@ -13,6 +13,7 @@ module dftbp_dftbdeterminants
   use dftbp_energytypes, only : TEnergies
   use dftbp_message, only : error
   use dftbp_etemp, only : Efilling
+  use dftbp_assert
   implicit none
 
   private
