@@ -11,7 +11,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB { 
   SCC = Yes
-  SCCTolerance = 1E-6
+  SCCTolerance = 1E-8
   NonAufbau = {
     GroundGuess = No
     SpinPurify = Yes
@@ -42,5 +42,5 @@ Options {
 }
 
 ParserOptions {
-  ParserVersion = 7
+  ParserVersion = 8
 }

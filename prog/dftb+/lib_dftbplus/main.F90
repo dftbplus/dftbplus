@@ -165,12 +165,17 @@ contains
     !> Which state is being calculated in the determinant loop? Out of the total number
     integer :: iDet, nDets
 
-    real(dp), allocatable :: qDets(:,:,:,:)
+    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:), blockTmp(:,:,:,:)
 
     nDets = deltaDftb%nDeterminant()
     if (nDets > 1) then
-      allocate(qDets(size(qOutput,dim=1),size(qOutput,dim=2),size(qOutput,dim=3),nDets))
+      allocate(qDets(size(qOutput,dim=1), size(qOutput,dim=2), size(qOutput,dim=3),nDets))
       qDets(:,:,:,:) = 0.0_dp
+      if (tDftbU) then
+        allocate(qBlockDets(size(qBlockOut,dim=1), size(qBlockOut,dim=2), size(qBlockOut,dim=3),&
+            & size(qBlockOut,dim=4),nDets))
+        qBlockDets(:,:,:,:,:) = 0.0_dp
+      end if
     end if
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
@@ -197,6 +202,11 @@ contains
 
         if (iGeoStep > 0 .and. nDets > 1) then
           qInput(:,:,:) = qDets(:,:,:,iDet)
+          if (tDftbU) then
+            qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iDet)
+          end if
+          call reduceCharges(orb, nIneqOrb, iEqOrbitals, qInput, qInpRed, qBlockIn, iEqBlockDftbu,&
+              & qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
         end if
 
         deltaDftb%iDeterminant = iDet
@@ -204,13 +214,68 @@ contains
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
 
         if (nDets > 1) then
-          qDets(:,:,:,iDet) = qInput(:,:,:)
+          qDets(:,:,:,iDet) = qOutput(:,:,:)
+          if (tDftbU) then
+            qBlockDets(:,:,:,:,iDet) = qBlockOut(:,:,:,:)
+          end if
         end if
 
       end do lpDets
 
-      call deltaDftb%postProcessDets(dftbEnergy, totalStress, tripletStress, mixedStress, derivs,&
-          & tripletderivs, mixedderivs)
+      call deltaDftb%postProcessDets(dftbEnergy, qOutput, qDets, qBlockOut, qBlockDets,&
+          & dipoleMoment, totalStress, tripletStress, mixedStress, derivs, tripletderivs,&
+          & mixedderivs)
+
+      if (deltaDftb%nDeterminant() > 1) then
+
+        if (tWriteDetailedOut) then
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+          if (deltaDftb%iGround > 0) then
+            write(fdDetailedOut,*)'S0 state'
+            if (allocated(qBlockOut)) then
+              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
+            end if
+            call writeDetailedOut1b(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
+                & qDets(:,:,:,deltaDftb%iGround), orb, species, tDFTBU,&
+                & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
+                & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+          end if
+          if (deltaDftb%iTriplet > 0) then
+            write(fdDetailedOut,*)'T1 state'
+            if (allocated(qBlockOut)) then
+              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+            end if
+            call writeDetailedOut1b(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
+                & qDets(:,:,:,deltaDftb%iTriplet), orb, species, tDFTBU,&
+                & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
+                & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+          end if
+          if (deltaDftb%isSpinPurify) then
+            write(fdDetailedOut,*)'S1 state'
+            if (allocated(qBlockOut)) then
+              blockTmp = 2.0_dp*qBlockDets(:,:,:,:,deltaDftb%iMixed)&
+                  & - qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+            end if
+          else
+            write(fdDetailedOut,*)'Mixed state'
+            if (allocated(qBlockOut)) then
+              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
+            end if
+          end if
+          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
+              & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+          if (allocated(blockTmp)) then
+            deallocate(blockTmp)
+          end if
+          call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
+        end if
+
+      end if
+
+      if (.not.tRestartNoSC) then
+        call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
+      end if
 
       if (tStress) then
         intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
@@ -227,10 +292,6 @@ contains
 
       call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
           & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
-
-      if (.not.tRestartNoSC) then
-        call printEnergies(dftbEnergy, electronicSolver, deltaDftb)
-      end if
 
       if (tExitGeoOpt) then
         exit geoOpt
@@ -291,7 +352,7 @@ contains
     if (env%tGlobalLead) then
       if (tWriteDetailedOut) then
         call writeDetailedOut5(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-            & dipoleMoment)
+            & dipoleMoment, deltaDftb)
       end if
 
       call writeFinalDriverStatus(isGeoOpt, tGeomEnd, tMd, tDerivs)
@@ -442,6 +503,12 @@ contains
 
     ! loop index
     integer :: iSpin
+
+    real(dp), allocatable :: dipoleTmp(:)
+
+    if (tDipole) then
+      allocate(dipoleTmp(3))
+    end if
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
@@ -627,7 +694,7 @@ contains
 
           call getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
               & img2CentCell, coord, iAtInCentralRegion, eigvecsReal, electronicSolver, eigen,&
-              & qOutput, q0, tDipole, dipoleMoment, reks)
+              & qOutput, q0, tDipole, dipoleTmp, reks)
 
           call getReksEnProperties(eigvecsReal, coord0, reks)
 
@@ -733,7 +800,7 @@ contains
           end select
         end if
 
-        if (tWriteBandDat) then
+        if (tWriteBandDat .and. deltaDftb%nDeterminant() == 1) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
         end if
 
@@ -835,16 +902,21 @@ contains
 
         call sumEnergies(dftbEnergy(deltaDftb%iDeterminant))
 
-        if (tWriteDetailedOut) then
+        if (tWriteDetailedOut .and. deltaDftb%nDeterminant() == 1) then
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
-          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+          call writeDetailedOut1a(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
-              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb,&
-              & species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef,&
-              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont, qNetAtom)
+              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
+              & invLatVec, kPoint)
+          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
+              & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+          call writeDetailedOut1c(fdDetailedOut, dftbEnergy(deltaDftb%iDeterminant),&
+              & species, tDFTBU, tPrintMulliken, Ef, extPressure, cellVol, tAtomicEnergy,&
+              & dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit, tSccCalc,&
+              & allocated(onSiteElements), tNegf, iAtInCentralRegion, electronicSolver,&
+              & allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
+              & allocated(solvation))
         end if
 
         if (tConverged .or. tStopScc) then
@@ -865,7 +937,7 @@ contains
           & dftbEnergy(deltaDftb%iDeterminant)%Edisp, iAtInCentralRegion)
       call sumEnergies(dftbEnergy(deltaDftb%iDeterminant))
 
-      if (tWriteDetailedOut) then
+      if (tWriteDetailedOut .and. deltaDftb%nDeterminant() == 1) then
         close(fdDetailedOut)
         call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
         if (allocated(reks)) then
@@ -875,14 +947,18 @@ contains
               & dftbEnergy(1)%TS, tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec,&
               & kPoint, iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
         else
-          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+          call writeDetailedOut1a(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
-              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, orb,&
-              & species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef,&
-              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
-              & allocated(thirdOrd), allocated(solvation), cm5Cont, qNetAtom)
+              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
+              & invLatVec, kPoint)
+          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
+              & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+          call writeDetailedOut1c(fdDetailedOut, dftbEnergy(deltaDftb%iDeterminant), species,&
+              & tDFTBU, tPrintMulliken, Ef, extPressure, cellVol, tAtomicEnergy, dispersion,&
+              & tEField, tPeriodic, nSpin, tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements),&
+              & tNegf, iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection),&
+              & isRangeSep, allocated(thirdOrd), allocated(solvation))
         end if
       end if
 
@@ -933,7 +1009,8 @@ contains
     end if
 
     if (tDipole .and. .not.allocated(reks) .and. .not.tRestartNoSC) then
-      call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
+      call getDipoleMoment(qOutput, q0, coord, dipoleMoment(:,deltaDftb%iDeterminant),&
+          & iAtInCentralRegion)
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
           & nNeighbourSk, species, iSparseStart, img2CentCell)
@@ -967,15 +1044,13 @@ contains
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
       if (allocated(reks)) then
-        call getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
-            & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
-            & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
-            & species, q0, eigvecsReal, chrgForces, over, spinW, derivs, tWriteAutotest, &
-            & autotestTag, taggedWriter, reks)
-        call getReksGradProperties(env, denseDesc, neighbourList, nNeighbourSK, &
-            & iSparseStart, img2CentCell, eigvecsReal, orb, iAtInCentralRegion, &
-            & coord, coord0, over, rhoPrim, qOutput, q0, tDipole, dipoleMoment, &
-            & chrgForces, reks)
+        call getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, neighbourList,&
+            & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, nonSccDeriv, skHamCont,&
+            & skOverCont, pRepCont, coord, coord0,  species, q0, eigvecsReal, chrgForces, over,&
+            & spinW, derivs, tWriteAutotest,  autotestTag, taggedWriter, reks)
+        call getReksGradProperties(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
+            & img2CentCell, eigvecsReal, orb, iAtInCentralRegion, coord, coord0, over, rhoPrim,&
+            & qOutput, q0, tDipole, dipoleTmp, chrgForces, reks)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
@@ -1020,7 +1095,7 @@ contains
 
     end if
 
-    if (tWriteDetailedOut) then
+    if (tWriteDetailedOut  .and. deltaDftb%nDeterminant() == 1) then
       call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, isXlbomd, isLinResp, isGeoOpt,&
           & tMD, tPrintForces, tStress, tPeriodic, dftbEnergy(deltaDftb%iDeterminant), totalStress,&
           & totalLatDeriv, derivs, chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile,&
@@ -1204,13 +1279,14 @@ contains
         end if
         call writeMdOut2(fdMd, tStress, tBarostat, tPeriodic, isLinResp, tEField, tFixEf,&
             & tPrintMulliken, dftbEnergy(deltaDftb%iDeterminant), energiesCasida, latVec, cellVol,&
-            & intPressure, extPressure, tempIon, absEField, qOutput, q0, dipoleMoment)
+            & intPressure, extPressure, tempIon, absEField, qOutput, q0,&
+            & dipoleMoment)
         call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
             & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
             & iLatGeoStep, nSpin, qOutput, velocities)
       end if
       coord0(:,:) = newCoords
-      if (tWriteDetailedOut) then
+      if (tWriteDetailedOut  .and. deltaDftb%nDeterminant() == 1) then
         call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
             & totalStress, totalLatDeriv, dftbEnergy(deltaDftb%iDeterminant), tempElec,&
             & extPressure, intPressure, tempIon)
@@ -4269,7 +4345,7 @@ contains
   end subroutine getDipoleMoment
 
 
-  !> Prints dipole moment calcululated by the derivative of H with respect of the external field.
+  !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
       & nNeighbourSK, species, iSparseStart, img2CentCell)
 

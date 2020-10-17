@@ -865,8 +865,8 @@ module dftbp_initprogram
   !> excited state force addition
   real(dp), allocatable :: excitedDerivs(:,:)
 
-  !> dipole moments when available
-  real(dp), allocatable :: dipoleMoment(:)
+  !> dipole moments, when available, for whichever determinants are present
+  real(dp), allocatable :: dipoleMoment(:, :)
 
   !> Coordinates to print out
   real(dp), pointer :: pCoord0Out(:,:)
@@ -3261,6 +3261,9 @@ contains
     if (deltaDftb%isNonAufbau .and. isLinResp) then
       call error("Delta DFTB incompatible with linear response")
     end if
+    if (deltaDftb%isNonAufbau .and. allocated(ppRPA)) then
+      call error("Delta DFTB incompatible with ppRPA")
+    end if
     if (deltaDftb%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
       call error("Delta DFTB incompatible with electron dynamics")
     end if
@@ -3275,6 +3278,9 @@ contains
     end if
     if (deltaDftb%isNonAufbau .and. tNegf) then
       call error("Delta DFTB incompatible with transport")
+    end if
+    if (deltaDftb%isNonAufbau .and. tLocalise) then
+      call error("Delta DFTB incompatible with localisation")
     end if
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
@@ -4511,7 +4517,7 @@ contains
     real(dp), intent(out), allocatable :: movedMass(:,:)
 
     !> system dipole moment
-    real(dp), intent(out), allocatable :: dipoleMoment(:)
+    real(dp), intent(out), allocatable :: dipoleMoment(:,:)
 
     integer :: nSpinHams, sqrHamSize, iDet
 
@@ -4622,7 +4628,11 @@ contains
     end if
 
     if (tDipole) then
-      allocate(dipoleMoment(3))
+      if (deltaDftb%isSpinPurify) then
+        allocate(dipoleMoment(3, deltaDftb%nDeterminant()+1))
+      else
+        allocate(dipoleMoment(3, deltaDftb%nDeterminant()))
+      end if
     end if
 
   end subroutine initArrays

@@ -56,11 +56,16 @@ module dftbp_dftbdeterminants
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
 
+    !> which determinant holds the ground state
     integer :: iGround
+
+    !> which determinant holds the triplet state
     integer :: iTriplet
+
+    !> which determinant holds the (spin contaminated) S1 state
     integer :: iMixed
 
-    !> Resulting final energy
+    !> Resulting final determinant
     integer :: iFinal
 
   contains
@@ -162,14 +167,29 @@ contains
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces
-  subroutine postProcessDets(this, energies, stress, tripletStress, mixedStress, derivs,&
-      & tripletderivs, mixedderivs)
+  subroutine postProcessDets(this, energies, qOutput, qDets, qBlockOut, qBlockDets, dipoleMoment,&
+      & stress, tripletStress, mixedStress, derivs, tripletderivs, mixedderivs)
 
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
 
     !> energy components for whatever determinants are present
     type(TEnergies), intent(inout) :: energies(:)
+
+    !> Charges
+    real(dp), intent(inout), allocatable :: qOutput(:,:,:)
+
+    !> Block charges from determinants
+    real(dp), intent(in), allocatable :: qDets(:,:,:,:)
+
+    !> Block charges
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+
+    !> Charges from determinants
+    real(dp), intent(in), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> dipole moment
+    real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
     !> stress tensor
     real(dp), intent(inout) :: stress(:,:)
@@ -231,10 +251,41 @@ contains
         @:PURIFY_ALLOC(atomSolv)
         @:PURIFY_ALLOC(atomTotal)
       end if
-    else
-      return
     end if
 
+    if (allocated(qDets)) then
+      @:ASSERT(this%isNonAufbau)
+      if (this%isSpinPurify) then
+        ! S1 = 2 mix - triplet
+        qOutput(:,:,:) = 2.0_dp * qDets(:,:,:,this%iMixed) - qDets(:,:,:,this%iTriplet)
+      else
+        ! this is copying from the last calculated determinant at the moment, so is redundant
+        qOutput(:,:,:) = qDets(:,:,:,this%iMixed)
+      end if
+    end if
+
+    if (allocated(qBlockDets)) then
+      @:ASSERT(this%isNonAufbau)
+      if (this%isSpinPurify) then
+        ! S1 = 2 mix - triplet
+        qBlockOut(:,:,:,:) = 2.0_dp*qBlockDets(:,:,:,:,this%iMixed)&
+            & - qBlockDets(:,:,:,:,this%iTriplet)
+      else
+        ! this is copying from the last calculated determinant at the moment, so is redundant
+        qBlockOut(:,:,:,:) = qBlockDets(:,:,:,:,this%iMixed)
+      end if
+    end if
+
+    if (allocated(dipoleMoment)) then
+      if (this%isSpinPurify) then
+        dipoleMoment(:,this%iFinal) = 2.0_dp * dipoleMoment(:,this%iMixed)&
+            & - dipoleMoment(:,this%iTriplet)
+      end if
+    end if
+
+    if (.not.this%isNonAufbau) then
+      return
+    end if
 
     if (present(derivs)) then
       if (this%isSpinPurify) then
