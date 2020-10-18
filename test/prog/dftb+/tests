@@ -9,7 +9,7 @@ deltadftb/C2H4                         #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
-#deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
+#!deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
 
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
