@@ -165,16 +165,20 @@ contains
     !> Which state is being calculated in the determinant loop? Out of the total number
     integer :: iDet, nDets
 
-    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:)
+    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:), deltaRhoDets(:,:)
 
     nDets = deltaDftb%nDeterminant()
     if (nDets > 1) then
       allocate(qDets(size(qOutput,dim=1), size(qOutput,dim=2), size(qOutput,dim=3),nDets))
       qDets(:,:,:,:) = 0.0_dp
-      if (tDftbU) then
+      if (tDftbU .or. allocated(onSiteElements)) then
         allocate(qBlockDets(size(qBlockOut,dim=1), size(qBlockOut,dim=2), size(qBlockOut,dim=3),&
             & size(qBlockOut,dim=4),nDets))
         qBlockDets(:,:,:,:,:) = 0.0_dp
+      end if
+      if (isRangeSep) then
+        allocate(deltaRhoDets(nOrb * nOrb * nSpin, nDets))
+        deltaRhoDets(:,:) = 0.0_dp
       end if
     end if
 
@@ -202,11 +206,14 @@ contains
 
         if (iGeoStep > 0 .and. nDets > 1) then
           qInput(:,:,:) = qDets(:,:,:,iDet)
-          if (tDftbU) then
+          if (tDftbU .or. allocated(onSiteElements)) then
             qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iDet)
           end if
           call reduceCharges(orb, nIneqOrb, iEqOrbitals, qInput, qInpRed, qBlockIn, iEqBlockDftbu,&
               & qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+          if (isRangeSep) then
+            deltaRhoIn(:) = deltaRhoDets(:,iDet)
+          end if
         end if
 
         deltaDftb%iDeterminant = iDet
@@ -215,8 +222,11 @@ contains
 
         if (nDets > 1) then
           qDets(:,:,:,iDet) = qOutput(:,:,:)
-          if (tDftbU) then
-            qBlockDets(:,:,:,:,iDet) = qBlockOut(:,:,:,:)
+          if (tDftbU .or. allocated(onSiteElements)) then
+            qBlockDets(:,:,:,:,iDet) = qBlockOut
+          end if
+          if (isRangeSep) then
+            deltaRhoDets(:,iDet) = deltaRhoOut
           end if
         end if
 
@@ -228,8 +238,8 @@ contains
 
       if (tWriteDetailedOut .and. deltaDftb%nDeterminant() > 1) then
         call writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
-            & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, tDftbU,&
-            & allocated(OnSiteElements), iAtInCentralRegion, tPrintMulliken, cm5Cont)
+            & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, iAtInCentralRegion,&
+            & tPrintMulliken, cm5Cont)
       end if
 
       if (.not.tRestartNoSC) then
@@ -264,7 +274,7 @@ contains
       end if
     #:endif
       tWriteCharges =  allocated(qInput) .and. tWriteRestart .and. tMulliken .and. tSccCalc&
-          & .and. .not. tDerivs .and. maxSccIter > 1
+          & .and. .not. tDerivs .and. maxSccIter > 1 .and. deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
       end if

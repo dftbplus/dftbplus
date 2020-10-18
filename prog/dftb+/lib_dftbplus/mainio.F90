@@ -2786,8 +2786,8 @@ contains
   !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
   !> currently only for two spin channels
   subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
-      & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, tDftbU, tOnSite,&
-      & iAtInCentralRegion, tPrintMulliken, cm5Cont)
+      & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, iAtInCentralRegion,&
+      & tPrintMulliken, cm5Cont)
 
     !> File ID
     integer, intent(inout) :: fdDetailedOut
@@ -2822,14 +2822,8 @@ contains
     !> Chemical species of atoms
     integer, intent(in) :: species(:)
 
-    !> Are orbital potentials being used
-    logical, intent(in) :: tDFTBU
-
     !> Should Mulliken populations be printed
     logical, intent(in) :: tPrintMulliken
-
-    !> Are on-site corrections being used?
-    logical, intent(in) :: tOnSite
 
     !> atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
@@ -2849,8 +2843,8 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
       end if
       call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
-          & qDets(:,:,:,deltaDftb%iGround), orb, species, tDFTBU, .false., tPrintMulliken,&
-          & orbitalL, blockTmp, 2, tOnSite, iAtInCentralRegion, cm5Cont)
+          & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
+          & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%iTriplet > 0) then
       write(fdDetailedOut,*)'T1 state'
@@ -2858,9 +2852,9 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
       call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
-          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, tDFTBU,&
+          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
           & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
-          & tOnSite, iAtInCentralRegion, cm5Cont)
+          & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%isSpinPurify) then
       write(fdDetailedOut,*)'S1 state'
@@ -2875,9 +2869,9 @@ contains
       end if
     end if
     call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iFinal),&
-        & qDets(:,:,:,deltaDftb%iFinal), orb, species, tDFTBU,&
+        & qDets(:,:,:,deltaDftb%iFinal), orb, species, allocated(blockTmp),&
         & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
-        & tOnSite, iAtInCentralRegion, cm5Cont)
+        & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
 
     call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
 

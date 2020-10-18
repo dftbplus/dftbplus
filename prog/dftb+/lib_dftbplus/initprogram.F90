@@ -2396,6 +2396,9 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    if (tReadChrg .and. deltaDftb%isNonAufbau) then
+      call error("Charge restart not currently supported for Delta DFTB")
+    end if
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
