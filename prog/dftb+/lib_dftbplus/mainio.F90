@@ -2784,12 +2784,19 @@ contains
 
 
   !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1c(fd, energy, species, tDFTBU, tPrintMulliken, Ef, pressure, cellVol,&
-      & tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite,&
-      & tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv)
+  subroutine writeDetailedOut1c(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
+      & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
+      & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
+      & tSolv)
 
     !> File ID
     integer, intent(in) :: fd
+
+    !> Input atomic charges (if SCC)
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(in) :: qOutput(:,:,:)
 
     !> Energy terms in the system
     type(TEnergies), intent(in) :: energy
@@ -2860,7 +2867,7 @@ contains
     !> Is this a solvation model used?
     logical, intent(in) :: tSolv
 
-    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nSpinHams
@@ -2869,6 +2876,11 @@ contains
     character(lc) :: strTmp
 
     nSpinHams = size(Ef)
+
+    qInputUpDown = qInput
+    call qm2ud(qInputUpDown)
+    qOutputUpDown = qOutput
+    call qm2ud(qOutputUpDown)
 
     lpSpinPrint3: do iSpin = 1, nSpinHams
       if (nSpin == 2) then

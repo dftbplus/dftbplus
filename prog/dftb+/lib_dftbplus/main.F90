@@ -911,11 +911,11 @@ contains
           call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
               & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          call writeDetailedOut1c(fdDetailedOut, dftbEnergy(deltaDftb%iDeterminant),&
-              & species, tDFTBU, tPrintMulliken, Ef, extPressure, cellVol, tAtomicEnergy,&
-              & dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit, tSccCalc,&
-              & allocated(onSiteElements), tNegf, iAtInCentralRegion, electronicSolver,&
-              & allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
+          call writeDetailedOut1c(fdDetailedOut, qInput, qOutput,&
+              & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
+              & electronicSolver, allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
               & allocated(solvation))
         end if
 
@@ -954,11 +954,12 @@ contains
           call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
               & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          call writeDetailedOut1c(fdDetailedOut, dftbEnergy(deltaDftb%iDeterminant), species,&
-              & tDFTBU, tPrintMulliken, Ef, extPressure, cellVol, tAtomicEnergy, dispersion,&
-              & tEField, tPeriodic, nSpin, tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements),&
-              & tNegf, iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection),&
-              & isRangeSep, allocated(thirdOrd), allocated(solvation))
+          call writeDetailedOut1c(fdDetailedOut, qInput, qOutput,&
+              & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
+              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
+              & electronicSolver, allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
+              & allocated(solvation))
         end if
       end if
 
