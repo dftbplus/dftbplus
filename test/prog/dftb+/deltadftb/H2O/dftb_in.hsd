@@ -6,7 +6,9 @@ Geometry = GenFormat {
     3  2   -0.3185350269E-15   -0.8092442843E+00   -0.4548146461E+00
 }
 
-Driver = ConjugateGradient {}
+Driver = ConjugateGradient {
+  MaxSteps = 2
+}
 
 Hamiltonian = DFTB {
     SCC = Yes
