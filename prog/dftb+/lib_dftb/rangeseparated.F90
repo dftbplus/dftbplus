@@ -219,8 +219,8 @@ contains
 
       ! Check for current restrictions
       if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
-        call error("Spin-unrestricted calculation for thresholded range separation not yet"&
-            & \\" implemented!")
+        call error("Spin-unrestricted calculation for thresholded range separation not yet&
+            & implemented!")
       end if
 
       if (this%tREKS .and. this%rsAlg == rangeSepTypes%threshold) then
