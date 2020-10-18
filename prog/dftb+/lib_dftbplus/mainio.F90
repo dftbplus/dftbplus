@@ -2786,8 +2786,8 @@ contains
   !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
   !> currently only for two spin channels
   subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
-      & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, iAtInCentralRegion,&
-      & tPrintMulliken, cm5Cont)
+      & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
+      & iAtInCentralRegion, tPrintMulliken, cm5Cont)
 
     !> File ID
     integer, intent(inout) :: fdDetailedOut
@@ -2812,6 +2812,9 @@ contains
 
     !> Type containing atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Charges for final state
+    real(dp), intent(in), allocatable :: qOutput(:,:,:)
 
     !> Charges for each determinant this is present
     real(dp), intent(in), allocatable :: qDets(:,:,:,:)
@@ -2868,10 +2871,10 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
       end if
     end if
-    call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iFinal),&
-        & qDets(:,:,:,deltaDftb%iFinal), orb, species, allocated(blockTmp),&
-        & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
-        & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
+
+    call writeDetailedOut2(fdDetailedOut, q0, qOutput, qOutput, orb, species, allocated(blockTmp),&
+        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
+        & cm5Cont)
 
     call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
 

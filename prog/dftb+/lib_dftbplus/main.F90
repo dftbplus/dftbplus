@@ -238,8 +238,8 @@ contains
 
       if (tWriteDetailedOut .and. deltaDftb%nDeterminant() > 1) then
         call writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
-            & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, iAtInCentralRegion,&
-            & tPrintMulliken, cm5Cont)
+            & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
+            & iAtInCentralRegion, tPrintMulliken, cm5Cont)
       end if
 
       if (.not.tRestartNoSC) then
