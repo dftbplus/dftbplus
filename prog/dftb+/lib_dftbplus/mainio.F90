@@ -66,9 +66,9 @@ module dftbp_mainio
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
   public :: openDetailedOut
-  public :: writeDetailedOut1a, writeDetailedOut1b, writeDetailedOut1c
-  public :: writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
-  public :: writeDetailedOut5
+  public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
+  public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
+  public :: writeDetailedOut7
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -2360,7 +2360,7 @@ contains
 
 
   !> Optimization and geometry data to go to detailed.out
-  subroutine writeDetailedOut1a(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out,&
       & tPeriodic, tScc, tNegf,  invLatVec, kPoints)
 
@@ -2491,11 +2491,11 @@ contains
       write(fd, *)
     end if
 
-  end subroutine writeDetailedOut1a
+  end subroutine writeDetailedOut1
 
 
   !> Charge data to go to detailed.out
-  subroutine writeDetailedOut1b(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
+  subroutine writeDetailedOut2(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
       & tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion,&
       & cm5Cont, qNetAtom)
 
@@ -2780,11 +2780,112 @@ contains
       end do lpSpinPrint2
     end if
 
-  end subroutine writeDetailedOut1b
+  end subroutine writeDetailedOut2
+
+
+  !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
+  !> currently only for two spin channels
+  subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
+      & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, tDftbU, tOnSite,&
+      & iAtInCentralRegion, tPrintMulliken, cm5Cont)
+
+    !> File ID
+    integer, intent(inout) :: fdDetailedOut
+
+    !> File name for output
+    character(*), intent(in) :: userOut
+
+    !> Append to the end of the file or overwrite
+    logical, intent(in) :: tAppendDetailedOut
+
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: dftbEnergy(:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Charges for each determinant this is present
+    real(dp), intent(in), allocatable :: qDets(:,:,:,:)
+
+    !> block populations for each determinant present
+    real(dp), intent(in), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Are orbital potentials being used
+    logical, intent(in) :: tDFTBU
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> Are on-site corrections being used?
+    logical, intent(in) :: tOnSite
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Charge model 5 for correcting atomic gross charges
+    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
+    real(dp), allocatable :: blockTmp(:,:,:,:), orbitalL(:,:,:)
+
+    @:ASSERT(size(q0,dim=3) == 2)
+
+    call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+
+    if (deltaDftb%iGround > 0) then
+      write(fdDetailedOut,*)'S0 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
+      end if
+      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
+          & qDets(:,:,:,deltaDftb%iGround), orb, species, tDFTBU, .false., tPrintMulliken,&
+          & orbitalL, blockTmp, 2, tOnSite, iAtInCentralRegion, cm5Cont)
+    end if
+    if (deltaDftb%iTriplet > 0) then
+      write(fdDetailedOut,*)'T1 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+      end if
+      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
+          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, tDFTBU,&
+          & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & tOnSite, iAtInCentralRegion, cm5Cont)
+    end if
+    if (deltaDftb%isSpinPurify) then
+      write(fdDetailedOut,*)'S1 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = 2.0_dp*qBlockDets(:,:,:,:,deltaDftb%iMixed)&
+            & - qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+      end if
+    else
+      write(fdDetailedOut,*)'Mixed state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
+      end if
+    end if
+    call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iFinal),&
+        & qDets(:,:,:,deltaDftb%iFinal), orb, species, tDFTBU,&
+        & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+        & tOnSite, iAtInCentralRegion, cm5Cont)
+
+    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
+
+  end subroutine writeDetailedOut2Dets
 
 
   !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1c(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
+  subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
       & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
       & tSolv)
@@ -3012,11 +3113,11 @@ contains
       write(fd, *)
     end if
 
-  end subroutine writeDetailedOut1c
+  end subroutine writeDetailedOut3
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
+  subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
       & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
@@ -3155,11 +3256,11 @@ contains
       end if
     end if
 
-  end subroutine writeDetailedOut2
+  end subroutine writeDetailedOut4
 
 
   !> Third group of data for detailed.out
-  subroutine writeDetailedOut3(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
+  subroutine writeDetailedOut5(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
       & totalLatDeriv, energy, tempElec, pressure, cellPressure, tempIon)
 
     !> File ID
@@ -3228,11 +3329,11 @@ contains
     end if
     write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
 
-  end subroutine writeDetailedOut3
+  end subroutine writeDetailedOut5
 
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, energy, tempIon)
+  subroutine writeDetailedOut6(fd, energy, tempIon)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3249,11 +3350,11 @@ contains
     write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
     write(fd, *)
 
-  end subroutine writeDetailedOut4
+  end subroutine writeDetailedOut6
 
 
   !> Fifth group of data for detailed.out
-  subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
+  subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
       & dipoleMoment, deltaDftb)
 
     !> File ID
@@ -3347,7 +3448,7 @@ contains
     write(fd,*)
     close(fd)
 
-  end subroutine writeDetailedOut5
+  end subroutine writeDetailedOut7
 
 
   !> First group of output data during molecular dynamics

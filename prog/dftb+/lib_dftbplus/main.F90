@@ -165,7 +165,7 @@ contains
     !> Which state is being calculated in the determinant loop? Out of the total number
     integer :: iDet, nDets
 
-    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:), blockTmp(:,:,:,:)
+    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:)
 
     nDets = deltaDftb%nDeterminant()
     if (nDets > 1) then
@@ -226,51 +226,10 @@ contains
           & dipoleMoment, totalStress, tripletStress, mixedStress, derivs, tripletderivs,&
           & mixedderivs)
 
-      if (deltaDftb%nDeterminant() > 1) then
-
-        if (tWriteDetailedOut) then
-          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
-          if (deltaDftb%iGround > 0) then
-            write(fdDetailedOut,*)'S0 state'
-            if (allocated(qBlockOut)) then
-              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
-            end if
-            call writeDetailedOut1b(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
-                & qDets(:,:,:,deltaDftb%iGround), orb, species, tDFTBU,&
-                & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
-                & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          end if
-          if (deltaDftb%iTriplet > 0) then
-            write(fdDetailedOut,*)'T1 state'
-            if (allocated(qBlockOut)) then
-              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
-            end if
-            call writeDetailedOut1b(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
-                & qDets(:,:,:,deltaDftb%iTriplet), orb, species, tDFTBU,&
-                & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
-                & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          end if
-          if (deltaDftb%isSpinPurify) then
-            write(fdDetailedOut,*)'S1 state'
-            if (allocated(qBlockOut)) then
-              blockTmp = 2.0_dp*qBlockDets(:,:,:,:,deltaDftb%iMixed)&
-                  & - qBlockDets(:,:,:,:,deltaDftb%iTriplet)
-            end if
-          else
-            write(fdDetailedOut,*)'Mixed state'
-            if (allocated(qBlockOut)) then
-              blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
-            end if
-          end if
-          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
-              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, blockTmp, nSpin,&
-              & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          if (allocated(blockTmp)) then
-            deallocate(blockTmp)
-          end if
-          call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
-        end if
-
+      if (tWriteDetailedOut .and. deltaDftb%nDeterminant() > 1) then
+        call writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
+            & electronicSolver, deltaDftb, q0, orb, qDets, qBlockDets, species, tDftbU,&
+            & allocated(OnSiteElements), iAtInCentralRegion, tPrintMulliken, cm5Cont)
       end if
 
       if (.not.tRestartNoSC) then
@@ -319,7 +278,7 @@ contains
       end if
 
       if (tWriteDetailedOut .and. tMd) then
-        call writeDetailedOut4(fdDetailedOut, dftbEnergy(deltaDftb%iFinal), tempIon)
+        call writeDetailedOut6(fdDetailedOut, dftbEnergy(deltaDftb%iFinal), tempIon)
       end if
 
       if (tGeomEnd) then
@@ -351,7 +310,7 @@ contains
 
     if (env%tGlobalLead) then
       if (tWriteDetailedOut) then
-        call writeDetailedOut5(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
+        call writeDetailedOut7(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
             & dipoleMoment, deltaDftb)
       end if
 
@@ -904,14 +863,14 @@ contains
 
         if (tWriteDetailedOut .and. deltaDftb%nDeterminant() == 1) then
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
-          call writeDetailedOut1a(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
               & invLatVec, kPoint)
-          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+          call writeDetailedOut2(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
               & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          call writeDetailedOut1c(fdDetailedOut, qInput, qOutput,&
+          call writeDetailedOut3(fdDetailedOut, qInput, qOutput,&
               & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
               & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
@@ -947,14 +906,14 @@ contains
               & dftbEnergy(1)%TS, tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec,&
               & kPoint, iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
         else
-          call writeDetailedOut1a(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
               & invLatVec, kPoint)
-          call writeDetailedOut1b(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+          call writeDetailedOut2(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
               & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
               & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          call writeDetailedOut1c(fdDetailedOut, qInput, qOutput,&
+          call writeDetailedOut3(fdDetailedOut, qInput, qOutput,&
               & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
               & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
               & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
@@ -1062,9 +1021,9 @@ contains
         call getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
             & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-            & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
-            & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson,&
-            & halogenXCorrection, tHelical, coord0, deltaDftb)
+            & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
+            & chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
+            & tPoisson, halogenXCorrection, tHelical, coord0, deltaDftb)
 
         if (tCasidaForces) then
           derivs(:,:) = derivs + excitedDerivs
@@ -1097,7 +1056,7 @@ contains
     end if
 
     if (tWriteDetailedOut  .and. deltaDftb%nDeterminant() == 1) then
-      call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, isXlbomd, isLinResp, isGeoOpt,&
+      call writeDetailedOut4(fdDetailedOut, tSccCalc, tConverged, isXlbomd, isLinResp, isGeoOpt,&
           & tMD, tPrintForces, tStress, tPeriodic, dftbEnergy(deltaDftb%iDeterminant), totalStress,&
           & totalLatDeriv, derivs, chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile,&
           & iAtInCentralRegion)
@@ -1177,6 +1136,7 @@ contains
   end subroutine postprocessDerivs
 
 
+  !> Next geometry step from driver
   subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
       & tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
     use dftbp_initprogram
@@ -1236,7 +1196,7 @@ contains
     else if (isGeoOpt) then
       tCoordsChanged = .true.
       if (tCoordStep) then
-        call getNextCoordinateOptStep(pGeoCoordOpt, dftbEnergy(deltaDftb%iDeterminant), derivs,&
+        call getNextCoordinateOptStep(pGeoCoordOpt, dftbEnergy(deltaDftb%iFinal), derivs,&
             & indMovedAtom, coord0, diffGeo, tCoordEnd, .not. tCasidaForces)
         if (.not. tLatOpt) then
           tGeomEnd = tCoordEnd
@@ -1288,7 +1248,7 @@ contains
       end if
       coord0(:,:) = newCoords
       if (tWriteDetailedOut  .and. deltaDftb%nDeterminant() == 1) then
-        call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
+        call writeDetailedOut5(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
             & totalStress, totalLatDeriv, dftbEnergy(deltaDftb%iDeterminant), tempElec,&
             & extPressure, intPressure, tempIon)
       end if
@@ -5196,8 +5156,8 @@ contains
   subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
       & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-      & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
-      & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson,&
+      & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
+      & chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson,&
       & halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
@@ -5268,6 +5228,9 @@ contains
 
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(out) :: derivs(:,:)
+
+    !> derivatives of ground state energy wrt to atomic positions
+    real(dp), intent(inout), allocatable :: groundDerivs(:,:)
 
     !> derivatives of triplet energy wrt to atomic positions (TI-DFTB excited states)
     real(dp), intent(inout), allocatable :: tripletDerivs(:,:)
@@ -5457,6 +5420,8 @@ contains
 
     if(deltaDftb%isNonAufbau) then
       select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
+      case (determinants%ground)
+        groundDerivs(:,:) = derivs
       case (determinants%triplet)
         tripletDerivs(:,:) = derivs
       case (determinants%mixed)

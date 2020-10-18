@@ -853,6 +853,9 @@ module dftbp_initprogram
   !> Energy derivative with respect to atomic positions
   real(dp), allocatable :: derivs(:,:)
 
+  !> Energy derivative for ground state determinant
+  real(dp), allocatable :: groundDerivs(:,:)
+
   !> Energy derivative for triplet determinant (TI-DFTB excited states)
   real(dp), allocatable :: tripletDerivs(:,:)
 
@@ -2553,10 +2556,11 @@ contains
         & tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
         & tPrintExcitedEigvecs, tDipole, allocated(reks), deltaDftb%isNonAufbau, orb, nAtom,&
         & nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
-        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, tripletDerivs, mixedDerivs, tripletStress,&
-        & mixedStress, chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords,&
-        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, groundDerivs, tripletDerivs, mixedDerivs,&
+        & tripletStress, mixedStress, chrgForces, dftbEnergy, potential, eigen, filling,&
+        & coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal,&
+        & eigvecsReal, rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass,&
+        & dipoleMoment)
 
 
   #:if WITH_TRANSPORT
@@ -4074,7 +4078,7 @@ contains
     @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
     @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling)
     @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
-    @:SAFE_DEALLOC(tripletDerivs, mixedDerivs, tripletStress, mixedStress)
+    @:SAFE_DEALLOC(groundDerivs, tripletDerivs, mixedDerivs, tripletStress, mixedStress)
     @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
     @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, shiftPerLUp, chargeUp)
@@ -4337,10 +4341,10 @@ contains
       & tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component,&
       & tRealHS, tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom,&
       & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim,&
-      & excitedDerivs, ERhoPrim, derivs, tripletderivs, mixedderivs, tripletStress, mixedStress,&
-      & chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords, orbitalL,&
-      & HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, occNatural,&
-      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+      & excitedDerivs, ERhoPrim, derivs, groundDerivs, tripletderivs, mixedderivs, tripletStress,&
+      & mixedStress, chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords,&
+      & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+      & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4444,6 +4448,9 @@ contains
     !> Derivatives of total energy with respect to atomic coordinates
     real(dp), intent(out), allocatable :: derivs(:,:)
 
+    !> Energy derivative for ground state determinant
+    real(dp), intent(out), allocatable :: groundDerivs(:,:)
+
     !> Energy derivative for triplet determinant (TI-DFTB excited states)
     real(dp), intent(out), allocatable :: tripletDerivs(:,:)
 
@@ -4538,8 +4545,9 @@ contains
       end if
       allocate(derivs(3, nAtom))
       if (isNonAufbau) then
-        allocate(tripletderivs(3, nAtom))
-        allocate(mixedderivs(3, nAtom))
+        allocate(groundDerivs(3, nAtom))
+        allocate(tripletDerivs(3, nAtom))
+        allocate(mixedDerivs(3, nAtom))
         if (tStress) then
           allocate(mixedStress(3,3))
           allocate(tripletStress(3,3))
