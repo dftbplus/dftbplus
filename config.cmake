@@ -101,4 +101,6 @@ option(BUILD_MPIFX "Whether to build MpiFx as part of the build process" TRUE)
 
 option(BUILD_SCALAPACKFX "Whether to build ScalapackFx as part of the build process" TRUE)
 
-option(BUILD_MBD "Whether to build LibMbd as part of the build process" TRUE)
+option(BUILD_MBD "Whether to build Mbd as part of the build process" TRUE)
+
+option(BUILD_NEGF "Whether to build Negf as part of the build process" TRUE)

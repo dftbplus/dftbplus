@@ -461,3 +461,20 @@ macro(dftbp_setup_global_compiler_flags)
   unset(_buildtype)
   unset(_buildtype_upper)
 endmacro()
+
+
+# Builds a package or tries to find it
+#
+# Args:
+#     package [in]: Name of the package.
+#     buildpkg [in]: Whether package should be built (otherwise it will be searched for).
+#     sourcedir [in]: Directory with package source.
+#     exclude [in]: Exclude options when adding sub directory
+#
+function(dftbp_build_or_find_external package buildpkg sourcedir exclude)
+  if(${buildpkg})
+    add_subdirectory(${sourcedir} ${exclude})
+  else()
+    find_package(${package} REQUIRED)
+  endif()
+endfunction()

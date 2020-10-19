@@ -59,6 +59,10 @@ if(NOT TARGET DftbPlus::DftbPlus)
     find_dependency(Mbd)
   endif()
 
+  if(DftbPlus_WITH_TRANSPORT AND NOT TARGET Negf::Negf)
+    find_dependency(Negf)
+  endif()
+
   include("${CMAKE_CURRENT_LIST_DIR}/dftbplus-targets.cmake")
 
 endif()

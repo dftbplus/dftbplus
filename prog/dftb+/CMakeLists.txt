@@ -91,7 +91,7 @@ if(WITH_MBD)
 endif()
 
 if(WITH_TRANSPORT)
-  target_link_libraries(dftbplus PUBLIC negf)
+  target_link_libraries(dftbplus PUBLIC Negf::Negf)
 endif()
 target_link_libraries(dftbplus PUBLIC mudpack)
 

@@ -17,4 +17,4 @@ CMAKE_PREFIX_PATH="${INSTALL_DIR}:${CMAKE_PREFIX_PATH}" \
 
 # Integration test for PKG-CONFIG builds
 PKG_CONFIG_PATH="${INSTALL_DIR}/lib/pkgconfig:$PKG_CONFIG_PATH" \
-    ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}/pkgconfig
+    ${SOURCE_DIR}/test/integration/pkgconfig/runtest.sh ${BUILD_DIR}/pkgconfig

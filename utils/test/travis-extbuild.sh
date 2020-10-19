@@ -27,13 +27,22 @@ if [ "${WITH_MPI}" == "true" ]; then
         -DENABLE_SCALAPACK_MPI=True \
         -DSCALAPACK_LIBRARIES="${SCALAPACK_LIBRARY}" \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DBUILD_SHARED_LIBS=False \
         -DBUILD_TESTING=False \
         -B ${BUILD_DIR}/mbd ${SOURCE_DIR}/external/mbd/origin
   cmake --build ${BUILD_DIR}/mbd -- -j
   cmake --install ${BUILD_DIR}/mbd
 
-  cmake -DWITH_MBD=True -DWITH_MPI=True \
-        -DBUILD_MBD=False -DBUILD_MPIFX=False -DBUILD_SCALAPACKFX=False \
+  cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+        -DWITH_MPI=True \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DBUILD_TESTING=False \
+        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf
+  cmake --build ${BUILD_DIR}/negf -- -j
+  cmake --install ${BUILD_DIR}/negf
+
+  cmake -DWITH_MPI=True -DWITH_MBD=True -DWITH_TRANSPORT=True  \
+        -DBUILD_MBD=False -DBUILD_MPIFX=False -DBUILD_SCALAPACKFX=False -DBUILD_NEGF=False \
         -DSCALAPACK_LIBRARY="${SCALAPACK_LIBRARY}" \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
         -DCMAKE_BUILD_TYPE=Debug \
@@ -48,12 +57,19 @@ else
         -DBUILD_TESTING=False \
         -DBUILD_SHARED_LIBS=False \
         -B ${BUILD_DIR}/mbd ${SOURCE_DIR}/external/mbd/origin
-
   cmake --build ${BUILD_DIR}/mbd -- -j
   cmake --install ${BUILD_DIR}/mbd
   
+  cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+        -DWITH_MPI=False \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DBUILD_TESTING=False \
+        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf
+  cmake --build ${BUILD_DIR}/negf -- -j
+  cmake --install ${BUILD_DIR}/negf
+
   cmake -DWITH_MBD=True -DWITH_MPI=False \
-        -DBUILD_MBD=False \
+        -DBUILD_MBD=False -DBUILD_NEGF=False \
         -DBUILD_SHARED_LIBS=False \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
