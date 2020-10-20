@@ -36,12 +36,16 @@ cmake_options=(
   "-DSCALAPACK_LIBRARY='${SCALAPACK_LIBRARY}'"
   "-DWITH_API=true"
   "-DFYPP_FLAGS='-DTRAVIS'"
+  "-DMPIFX_CONFIG_METHODS='Use'"
+  "-DSCALAPACKFX_CONFIG_METHODS='Use'"
+  "-DMBD_CONFIG_METHODS='Use'"
+  "-DNEGF_CONFIG_METHODS='Use'"
   "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
 )
 
 cmake -B ${BUILD_DIR} "${cmake_options[@]}" ${SOURCE_DIR}
 cmake --build ${BUILD_DIR} -- -j
 pushd ${BUILD_DIR}
-#ctest -j
+ctest -j
 popd
 cmake --install ${BUILD_DIR}

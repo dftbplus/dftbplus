@@ -1,3 +1,5 @@
+include(FetchContent)
+
 # Replaces the extension of a given file
 #
 # Args:
@@ -374,7 +376,7 @@ macro (dftbp_load_build_settings)
   endif()
   message(STATUS "Reading global build config file: ${BUILD_CONFIG_FILE}")
   include(${BUILD_CONFIG_FILE})
-  
+
 endmacro()
 
 
@@ -412,16 +414,16 @@ function(dftbp_guess_toolchain toolchain)
   else()
     set(_toolchain "generic")
   endif()
-    
+
   set(${toolchain} "${_toolchain}" PARENT_SCOPE)
-  
+
 endfunction()
 
 
 # Loads toolchain settings.
 #
 macro(dftbp_load_toolchain_settings)
-  
+
   if(NOT DEFINED TOOLCHAIN_FILE AND NOT "$ENV{DFTBPLUS_TOOLCHAIN_FILE}" STREQUAL "")
     set(TOOLCHAIN_FILE "$ENV{DFTBPLUS_TOOLCHAIN_FILE}")
   endif()
@@ -478,3 +480,115 @@ function(dftbp_build_or_find_external package buildpkg sourcedir exclude)
     find_package(${package} REQUIRED)
   endif()
 endfunction()
+
+
+# Handles a hybrid dependency.
+#
+# Depending on the list items in the ${package}_CONFIG_METHODS variable, it will try to:
+#
+# - Use the source in the origin sub-folder ("Use")
+# - Find the package as external dependency ("Find")
+# - Fetch the source from a git repository ("Git")
+#
+# The methods are tried in the order of their appearance until success. Currently, the "fetch"
+# method is considered to be always successful, so it should be the last one.
+#
+# For the methods "Use" and "Fetch" the macro before_source_config() is called before the
+# configuration and the macro after_source_config() if the configuration was successful.  Those
+# macros must be defined in the CMakeFiles.txt in the subdirectory. Apart of defining those macros,
+# that CMakeFiles.txt should only call the macro dftbp_config_hybrid_source_dependency() and do
+# nothing else.
+#
+# The Git repository details must be defined in the variables ${package}_GIT_REPOSITORY and
+# ${package}_GIT_TAG.
+#
+# Args:
+#     package [in]: Name of the dependency to look for.
+#     findpkgopts [in]: Options to pass to find_package()
+#     target [in]: Name of the target, which must be exported after the configuration.
+#     subdir [in]: Subdirectory with CMakeFiles.txt for integrating package source.
+#     subdiropts [in]: Options to pass to the add_subdir() command.
+#
+macro(dftbp_config_hybrid_dependency package findpkgopts target subdir subdiropts)
+
+  string(TOUPPER "${package}" _package_upper)
+
+  foreach(_config_method IN LISTS ${_package_upper}_CONFIG_METHODS)
+
+    string(TOUPPER "${_config_method}" ${_package_upper}_CONFIG_METHOD)
+
+    if("${${_package_upper}_CONFIG_METHOD}" STREQUAL "FIND")
+
+      find_package(${package} ${findpkgopts})
+      if(${package}_FOUND)
+        message(STATUS "${package}: Found installed package")
+      else()
+        message(STATUS "${package}: Installed package could not be found")
+      endif()
+
+    elseif("${${_package_upper}_CONFIG_METHOD}" MATCHES "^(USE|FETCH)$")
+
+      add_subdirectory(${subdir}
+        ${CMAKE_CURRENT_BINARY_DIR}/${package}_${${_package_upper}_CONFIG_METHOD}
+        ${subdiropts})
+
+    else()
+
+      message(FATAL_ERROR "${package}: Unknown configuration method "
+        "'${${_package_upper}_CONFIG_METHOD}'")
+
+    endif()
+
+    if(TARGET ${target})
+      break()
+    endif()
+
+  endforeach()
+
+  if(NOT TARGET ${target})
+    message(FATAL_ERROR "Could not configure ${package} to export target '${target}'")
+  endif()
+
+  unset(_config_method)
+  unset(_package_upper)
+
+endmacro()
+
+
+# Helper macro for dftbp_config_hybrid_dependency().
+#
+# Args:
+#     package [in]: Name of the package to configure.
+#     varprefix [in]: Prefix of the configuration variables
+#
+macro(dftbp_config_hybrid_source_dependency package varprefix)
+
+  if("${${varprefix}_CONFIG_METHOD}" STREQUAL "USE")
+
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/origin/CMakeLists.txt)
+      message(STATUS "${package}: Using source in ${CMAKE_CURRENT_SOURCE_DIR}/origin")
+      before_source_config()
+      add_subdirectory(origin)
+      after_source_config()
+    else()
+      message(STATUS "${package}: No source was found in ${CMAKE_CURRENT_SOURCE_DIR}/origin")
+    endif()
+
+  elseif("${${varprefix}_CONFIG_METHOD}" STREQUAL "FETCH")
+
+    message(STATUS "${package}: Retrieving repository "
+      "${${varprefix}_GIT_REPOSITORY}@${${varprefix}_GIT_TAG}")
+    FetchContent_Declare(${package}
+      GIT_REPOSITORY ${${varprefix}_GIT_REPOSITORY}
+      GIT_TAG ${${varprefix}_GIT_TAG})
+    before_source_config()
+    FetchContent_MakeAvailable(${package})
+    after_source_config()
+
+  else()
+
+    message(FATAL_ERROR "Invalid config method '${${varprefix}_CONFIG_METHOD}'")
+
+  endif()
+
+endmacro()

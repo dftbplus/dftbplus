@@ -143,17 +143,21 @@ if(WITH_DFTD3)
 endif()
 
 if(WITH_MPI)
-  dftbp_build_or_find_external(MpiFx BUILD_MPIFX external/mpifx "${exclude}")
-  dftbp_build_or_find_external(ScalapackFx BUILD_SCALAPACKFX external/scalapackfx "${exclude}")
+  dftbp_config_hybrid_dependency(MpiFx "QUIET" MpiFx::MpiFx external/mpifx "${exclude}")
+  dftbp_config_hybrid_dependency(ScalapackFx "QUIET" ScalapackFx::ScalapackFx external/scalapackfx
+    "${exclude}")
+  list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
-  dftbp_build_or_find_external(Mbd BUILD_MBD external/mbd "${exclude}")
+  dftbp_config_hybrid_dependency(Mbd "QUIET" Mbd::Mbd external/mbd "${exclude}")
+  #list(APPEND PKG_CONFIG_REQUIRES mbd)
 endif()
 
 if(WITH_TRANSPORT)
-  dftbp_build_or_find_external(Negf BUILD_NEGF external/libnegf "${exclude}")
+  dftbp_config_hybrid_dependency(Negf "QUIET" Negf::Negf external/libnegf "${exclude}")
+  #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)
 

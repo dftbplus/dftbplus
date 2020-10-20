@@ -93,14 +93,28 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 
 
 #
-# Whether to build external dependencies instead of finding and using installed versions of those.
-# When enabled for a given dependency, its source code must be present in the corresponding
-# external/DEPENDENCY/orig/ folder.
+# Hybrid dependencies (external dependencies with optional compilation during build)
 #
-option(BUILD_MPIFX "Whether to build MpiFx as part of the build process" TRUE)
+# The *_CONFIG_METHODS lists can be used to specify an ordered list of the config methods for a
+# given package ("Use" - use the dependency source in the DFTB+ source tree, if present, "Find" -
+# try to find it as an already installed package, "Fetch" - fetch the source from a Git
+# reporitory). The Git repository details can be set in the *_GIT_REPOSITORY and *_GIT_TAG
+# variables.
+#
+set(MPIFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for MpiFx")
+set(MPIFX_GIT_REPOSITORY "https://github.com/aradi/mpifx.git" CACHE STRING "MpiFx Git repository")
+set(MPIFX_GIT_TAG "cmake" CACHE STRING "MpiFx Git tag")
 
-option(BUILD_SCALAPACKFX "Whether to build ScalapackFx as part of the build process" TRUE)
+set(SCALAPACKFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING
+  "Configuration methods for ScalapackFx")
+set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/aradi/scalapackfx.git" CACHE STRING
+  "ScalapackFx Git repository")
+set(SCALAPACKFX_GIT_TAG "cmake" CACHE STRING "MpiFx Gittag")
 
-option(BUILD_MBD "Whether to build Mbd as part of the build process" TRUE)
+set(NEGF_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Negf")
+set(NEGF_GIT_REPOSITORY "https://github.com/aradi/libnegf.git" CACHE STRING "Negf Git repository")
+set(NEGF_GIT_TAG "cmake" CACHE STRING "Negf git tag")
 
-option(BUILD_NEGF "Whether to build Negf as part of the build process" TRUE)
+set(MBD_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Mbd")
+set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git" CACHE STRING "Mbd Git repository")
+set(MBD_GIT_TAG "master" CACHE STRING "Mbd git tag")

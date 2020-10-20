@@ -37,12 +37,13 @@ if [ "${WITH_MPI}" == "true" ]; then
         -DWITH_MPI=True \
         -DCMAKE_BUILD_TYPE=Debug \
         -DBUILD_TESTING=False \
-        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf
+        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf/origin
   cmake --build ${BUILD_DIR}/negf -- -j
   cmake --install ${BUILD_DIR}/negf
 
   cmake -DWITH_MPI=True -DWITH_MBD=True -DWITH_TRANSPORT=True  \
-        -DBUILD_MBD=False -DBUILD_MPIFX=False -DBUILD_SCALAPACKFX=False -DBUILD_NEGF=False \
+        -DMPIFX_CONFIG_METHODS='Find' -DSCALAPACKFX_CONFIG_METHODS='Find' \
+        -DNEGF_CONFIG_METHODS='Find' -DMBD_CONFIG_METHODS='Find' \
         -DSCALAPACK_LIBRARY="${SCALAPACK_LIBRARY}" \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
         -DCMAKE_BUILD_TYPE=Debug \
@@ -64,12 +65,12 @@ else
         -DWITH_MPI=False \
         -DCMAKE_BUILD_TYPE=Debug \
         -DBUILD_TESTING=False \
-        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf
+        -B ${BUILD_DIR}/negf ${SOURCE_DIR}/external/libnegf/origin
   cmake --build ${BUILD_DIR}/negf -- -j
   cmake --install ${BUILD_DIR}/negf
 
-  cmake -DWITH_MBD=True -DWITH_MPI=False \
-        -DBUILD_MBD=False -DBUILD_NEGF=False \
+  cmake -DWITH_MPI=False -DWITH_MBD=True -DWITH_TRANSPORT=True  \
+        -DNEGF_CONFIG_METHODS='Find' -DMBD_CONFIG_METHODS='Find' \
         -DBUILD_SHARED_LIBS=False \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \

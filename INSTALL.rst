@@ -354,7 +354,9 @@ with C, depending on the value of the configuration option
 
 If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
 pkg-config can find the respective pkconfig files, as those libraries are
-declared as dependencies in the DFTB+ pkg-config file.
+declared as dependencies in the DFTB+ pkg-config file. For external dependencies
+without pkg-config files (e.g. mbd, negf) the options for linking those
+libraries can not be queried via pkg-config and must be added manually.
 
 
 Generating developer documentation
