@@ -102,14 +102,15 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 # variables.
 #
 set(MPIFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for MpiFx")
-set(MPIFX_GIT_REPOSITORY "https://github.com/aradi/mpifx.git" CACHE STRING "MpiFx Git repository")
-set(MPIFX_GIT_TAG "cmake" CACHE STRING "MpiFx Git tag")
+set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git" CACHE STRING
+  "MpiFx Git repository")
+set(MPIFX_GIT_TAG "1.0" CACHE STRING "MpiFx Git tag")
 
 set(SCALAPACKFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING
   "Configuration methods for ScalapackFx")
-set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/aradi/scalapackfx.git" CACHE STRING
+set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git" CACHE STRING
   "ScalapackFx Git repository")
-set(SCALAPACKFX_GIT_TAG "cmake" CACHE STRING "MpiFx Gittag")
+set(SCALAPACKFX_GIT_TAG "1.0" CACHE STRING "ScalapackFx Git tag")
 
 set(NEGF_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Negf")
 set(NEGF_GIT_REPOSITORY "https://github.com/aradi/libnegf.git" CACHE STRING "Negf Git repository")
