@@ -72,6 +72,9 @@ module dftbp_dftbdeterminants
     !> Resulting final determinant
     integer :: iFinal
 
+    !> List of determinants to be calculated
+    integer, allocatable :: determinants(:)
+
   contains
 
     procedure :: postProcessDets
@@ -92,18 +95,7 @@ contains
 
     integer :: nDet
 
-    nDet = 1
-    if (.not.this%isNonAufbau) then
-      return
-    end if
-
-    if (this%isSpinPurify) then
-      nDet = 2
-    end if
-
-    if (this%isGroundGuess) then
-      nDet = nDet + 1
-    end if
+    nDet = size(this%determinants)
 
   end function nDeterminant
 
@@ -119,53 +111,11 @@ contains
 
     integer :: det
 
-    if (.not.this%isNonAufbau) then
-      if (iDet /= 1) then
-        call error("Internal error, unspecified determinant")
-      end if
-      det = determinants%ground
-      return
-    end if
+    if (iDet > size(this%determinants)) then
+      call error("Internal error: invalid determinant")
+    endif
 
-    select case(iDet)
-    case(1)
-      if (this%isGroundGuess) then
-        det = determinants%ground
-        return
-      else if (this%isSpinPurify) then
-        det = determinants%triplet
-        return
-      else
-        det = determinants%mixed
-        return
-      end if
-    case(2)
-      if (this%isGroundGuess) then
-        if (this%isSpinPurify) then
-          det = determinants%triplet
-          return
-        else
-          det = determinants%mixed
-          return
-        end if
-      else
-        if (this%isSpinPurify) then
-          det = determinants%mixed
-          return
-        else
-          call error("Internal error, unspecified determinant combination in Delta DFTB 2nd det")
-        end if
-      end if
-    case(3)
-      if (this%isGroundGuess .and. this%isSpinPurify) then
-        det = determinants%mixed
-        return
-      else
-        call error("Internal error, unspecified determinant combination in Delta DFTB 3rd det")
-      end if
-    case default
-      call error("Internal error, unspecified determinant combination in Delta DFTB unknown det")
-    end select
+    det = this%determinants(iDet)
 
   end function whichDeterminant
 
@@ -339,28 +289,34 @@ contains
     ! assume first determinant
     this%iDeterminant = 1
 
+    this%determinants = [integer ::]
+
     if (isNonAufbau) then
       if (isGroundGuess) then
         ! first determinant
         this%iGround = 1
+        this%determinants = [determinants%ground]
       end if
       if (isSpinPurify) then
         ! if required, then its after the ground state (if that is requested)
-        this%iTriplet = this%iGround + 1
+        this%iTriplet = size(this%determinants) + 1
+        this%determinants = [this%determinants, determinants%triplet]
       end if
       ! last determinant
-      this%iMixed = max(this%iGround, this%iTriplet) + 1
+      this%iMixed = size(this%determinants) + 1
+      this%determinants = [this%determinants, determinants%mixed]
+
       if (isSpinPurify) then
         ! need one extra element to store the resulting purified results
-        allocate(dftbEnergy(this%iMixed+1))
+        allocate(dftbEnergy(size(this%determinants) + 1))
       else
         ! only storing the different determinant results
-        allocate(dftbEnergy(this%iMixed))
+        allocate(dftbEnergy(size(this%determinants)))
       end if
     else
       this%iGround = 1
-      ! only the ground state is needed
-      allocate(dftbEnergy(1))
+      this%determinants = [determinants%ground]
+      allocate(dftbEnergy(size(this%determinants)))
     end if
 
     this%iFinal = size(dftbEnergy)
@@ -417,11 +373,10 @@ contains
     nElecFill = nElec
 
     if (this%whichDeterminant(this%iDeterminant) == determinants%mixed) then
-      allocate(fillingsTmp(nLevels,nKPoints,2,3))
+      allocate(fillingsTmp(nLevels, nKPoints, 2, 3))
       fillingsTmp(:,:,:,:) = 0.0_dp
 
       do iConfig = 1, 3
-        nElecFill(:2) = nElec(:2)
         select case(iConfig)
         case(1)
           nElecFill(1) = nElecFill(1) + 1.0_dp
@@ -434,6 +389,7 @@ contains
               & fillingsTmp(:,:,iS:iS, iConfig), eigvals(:,:,iS:iS), nElecFill(iS), tempElec,&
               & kWeights, iDistribFn)
         end do
+        nElecFill(1) = nElec(1)
       end do
       fillings(:,:,:) = fillingsTmp(:,:,:,1) - fillingsTmp(:,:,:,2) + fillingsTmp(:,:,:,3)
 
