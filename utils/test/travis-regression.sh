@@ -46,6 +46,6 @@ cmake_options=(
 cmake -B ${BUILD_DIR} "${cmake_options[@]}" ${SOURCE_DIR}
 cmake --build ${BUILD_DIR} -- -j
 pushd ${BUILD_DIR}
-ctest -j
+ctest -j --output-on-failure
 popd
 cmake --install ${BUILD_DIR}
