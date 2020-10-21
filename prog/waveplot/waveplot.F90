@@ -384,11 +384,10 @@ contains
     !> How often the grid should be repeated along the direction of the grid vectors
     integer, intent(in), optional :: repeatBox(:)
 
-    integer, parameter :: bufferSize = 4
+    integer, parameter :: bufferSize = 6
     real(dp) :: buffer(bufferSize)
-    character(len=*), parameter :: formBuffer = "(6E13.5)"
+    character(len=*), parameter :: formBuffer = "(6E16.8)"
     integer :: rep(3)
-
     integer, save :: fd = -1
     integer :: ii, i1, i2, i3, ir1, ir2, ir3
 
@@ -442,11 +441,11 @@ contains
                 ii = mod(i3-1, bufferSize) + 1
                 buffer(ii) = gridVal(i1, i2, i3)
                 if (ii == bufferSize) then
-                  write (fd,formBuffer) buffer(:)
+                  write (fd,formBuffer) real(buffer)
                 end if
               end do
               if (ii /= bufferSize) then
-                write (fd, "(" // i2c(ii) // "E13.5)") buffer(:ii)
+                write (fd, "(" // i2c(ii) // "E16.8)") real(buffer(:ii))
               end if
             end do
           end do
