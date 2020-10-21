@@ -19,6 +19,7 @@ module dftbp_dftbdeterminants
   private
   public :: determinants, TDftbDeterminants_init, TDftbDeterminants
 
+
   !> Name space for determinants
   type :: TDeterminantsEnum
 
@@ -33,8 +34,10 @@ module dftbp_dftbdeterminants
 
   end type TDeterminantsEnum
 
+
   !> Actual values for elecSolverTypes.
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
+
 
   !> Control type for Delta DFTB / TI-DFTB
   type TDftbDeterminants
@@ -210,47 +213,35 @@ contains
     !> Spin contaminated derivatives
     real(dp), intent(inout), optional :: mixedDerivs(:,:)
 
-  #! Macro for Ziegler purification and copy to final output
-  #:def PURIFY(arg)
-    energies(this%iMixed+1)%${arg}$ = 2.0_dp * energies(this%iMixed)%${arg}$&
-        & - energies(this%iTriplet)%${arg}$
-  #:enddef
-
-  #! Macro for Ziegler purification and copy to final output
-  #:def PURIFY_ALLOC(arg)
-    if (allocated(energies(this%iMixed+1)%${arg}$)) then
-      energies(this%iMixed+1)%${arg}$(:) = 2.0_dp * energies(this%iMixed)%${arg}$&
-          & - energies(this%iTriplet)%${arg}$
-    end if
-  #:enddef
-
     this%isFinished = .true.
 
     if (this%isNonAufbau) then
       if (this%isSpinPurify) then
-        ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
-        @:PURIFY(Etotal)
-        @:PURIFY(Ezero)
-        @:PURIFY(EMermin)
-        @:PURIFY(EGibbs)
-        @:PURIFY(EForceRelated)
-        @:PURIFY_ALLOC(TS)
-        @:PURIFY_ALLOC(EBand)
-        @:PURIFY_ALLOC(E0)
-        @:PURIFY_ALLOC(atomRep)
-        @:PURIFY_ALLOC(atomNonSCC)
-        @:PURIFY_ALLOC(atomSCC)
-        @:PURIFY_ALLOC(atomSpin)
-        @:PURIFY_ALLOC(atomLS)
-        @:PURIFY_ALLOC(atomDftbu)
-        @:PURIFY_ALLOC(atomExt)
-        @:PURIFY_ALLOC(atomElec)
-        @:PURIFY_ALLOC(atomDisp)
-        @:PURIFY_ALLOC(atomOnSite)
-        @:PURIFY_ALLOC(atomHalogenX)
-        @:PURIFY_ALLOC(atom3rd)
-        @:PURIFY_ALLOC(atomSolv)
-        @:PURIFY_ALLOC(atomTotal)
+        associate(eM => energies(this%iMixed), eM1 => energies(this%iMixed + 1),&
+            & eT => energies(this%iTriplet))
+          call applyZiegler(eM%Etotal, eT%Etotal, eM1%Etotal)
+          call applyZiegler(eM%Ezero, eT%Ezero, eM1%Ezero)
+          call applyZiegler(eM%EMermin, eT%EMermin, eM1%EMermin)
+          call applyZiegler(eM%EGibbs, eT%EGibbs, eM1%EGibbs)
+          call applyZiegler(eM%EForceRelated, eT%EForceRelated, eM1%EForceRelated)
+          call applyZieglerAlloc(eM%TS, eT%TS, eM1%TS)
+          call applyZieglerAlloc(eM%EBand, eT%EBand, eM1%EBand)
+          call applyZieglerAlloc(eM%E0, eT%E0, eM1%E0)
+          call applyZieglerAlloc(eM%atomRep, eT%atomRep, eM1%atomRep)
+          call applyZieglerAlloc(eM%atomNonScc, eT%atomNonScc, eM1%atomNonScc)
+          call applyZieglerAlloc(eM%atomScc, eT%atomScc, eM1%atomScc)
+          call applyZieglerAlloc(eM%atomSpin, eT%atomSpin, eM1%atomSpin)
+          call applyZieglerAlloc(eM%atomLS, eT%atomLS, eM1%atomLS)
+          call applyZieglerAlloc(eM%atomDftbU, eT%atomDftbU, eM1%atomDftbU)
+          call applyZieglerAlloc(eM%atomExt, eT%atomExt, eM1%atomExt)
+          call applyZieglerAlloc(eM%atomElec, eT%atomElec, eM1%atomElec)
+          call applyZieglerAlloc(eM%atomDisp, eT%atomDisp, eM1%atomDisp)
+          call applyZieglerAlloc(eM%atomOnSite, eT%atomOnSite, eM1%atomOnSite)
+          call applyZieglerAlloc(eM%atomHalogenX, eT%atomHalogenX, eM1%atomHalogenX)
+          call applyZieglerAlloc(eM%atom3rd, eT%atom3rd, eM1%atom3rd)
+          call applyZieglerAlloc(eM%atomSolv, eT%atomSolv, eM1%atomSolv)
+          call applyZieglerAlloc(eM%atomTotal, eT%atomTotal, eM1%atomTotal)
+        end associate
       end if
     end if
 
@@ -462,5 +453,42 @@ contains
     end if
 
   end subroutine detFilling
+
+
+  !> Apply Zieglers rule.
+  elemental subroutine applyZiegler(eM, eT, eF)
+
+    !> Mixed energy value
+    real(dp), intent(in) :: eM
+
+    !> Triple energy value
+    real(dp), intent(in) :: eT
+
+    ! Final resulting energy value
+    real(dp), intent(out) :: eF
+
+    eF = 2.0_dp * eM - eT
+
+  end subroutine applyZiegler
+
+
+  !> Apply Zieglers rule for 1D arrays if they are allocated
+  pure subroutine applyZieglerAlloc(eM, eT, eF)
+
+    !> Mixed energy value
+    real(dp), intent(in), optional :: eM(:)
+
+    !> Triple energy value
+    real(dp), intent(in), optional :: eT(:)
+
+    !> Final resulting energy value
+    real(dp), intent(out), optional :: eF(:)
+
+    if (present(eF)) then
+      call applyZiegler(eM, eT, eF)
+    end if
+
+  end subroutine applyZieglerAlloc
+
 
 end module dftbp_dftbdeterminants
