@@ -8,6 +8,7 @@ macro(after_source_config)
 endmacro()
 
 set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-set(MPIFX_GIT_TAG "1.0")
+# Use utils/test/check_submodule_commits to update commit hash below
+set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")
 
 dftbp_config_hybrid_source_dependency(${MPIFX_GIT_REPOSITORY} ${MPIFX_GIT_TAG})

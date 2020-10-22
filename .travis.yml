@@ -24,6 +24,7 @@ install:
   - pip install fypp
 
 script:
+  - ./utils/test/check_submodule_commits
   - >
     SOURCE_DIR=${PWD} BUILD_DIR=${PWD}/_build INSTALL_DIR=${PWD}/_install
     ./utils/test/travis-regression.sh

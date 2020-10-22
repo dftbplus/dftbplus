@@ -8,6 +8,7 @@ macro(after_source_config)
 endmacro()
 
 set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-set(SCALAPACKFX_GIT_TAG "1.0")
+# Use utils/test/check_submodule_commits to update commit hash below
+set(SCALAPACKFX_GIT_TAG "cd758a283a89905c5a4fd3e4a42305c287559bae")
 
 dftbp_config_hybrid_source_dependency(${SCALAPACKFX_GIT_REPOSITORY} ${SCALAPACKFX_GIT_TAG})

@@ -42,8 +42,7 @@ if [ "${WITH_MPI}" == "true" ]; then
   cmake --install ${BUILD_DIR}/negf
 
   cmake -DWITH_MPI=True -DWITH_MBD=True -DWITH_TRANSPORT=True  \
-        -DMPIFX_CONFIG_METHODS='Find' -DSCALAPACKFX_CONFIG_METHODS='Find' \
-        -DNEGF_CONFIG_METHODS='Find' -DMBD_CONFIG_METHODS='Find' \
+        -DHYBRID_CONFIG_METHODS='Find' \
         -DSCALAPACK_LIBRARY="${SCALAPACK_LIBRARY}" \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
         -DCMAKE_BUILD_TYPE=Debug \
@@ -70,7 +69,7 @@ else
   cmake --install ${BUILD_DIR}/negf
 
   cmake -DWITH_MPI=False -DWITH_MBD=True -DWITH_TRANSPORT=True  \
-        -DNEGF_CONFIG_METHODS='Find' -DMBD_CONFIG_METHODS='Find' \
+        -DHYBRID_CONFIG_METHODS='Find' \
         -DBUILD_SHARED_LIBS=False \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
