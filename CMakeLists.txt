@@ -51,6 +51,14 @@ if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
 endif()
 
 #
+# Git repository check
+#
+find_package(Git)
+if(Git_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  set(GIT_WORKING_COPY True)
+endif()
+
+#
 # Check external libraries
 #
 set(PKG_CONFIG_REQUIRES)

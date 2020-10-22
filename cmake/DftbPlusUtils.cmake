@@ -564,7 +564,13 @@ endmacro()
 macro(dftbp_config_hybrid_source_dependency package varprefix)
 
   if("${${varprefix}_CONFIG_METHOD}" STREQUAL "USE")
-
+    
+    if(GIT_WORKING_COPY AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/origin/CMakeLists.txt)
+      message(STATUS "${package}: Trying to fetch via git submodule update")
+      execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init origin
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    endif()
+      
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/origin/CMakeLists.txt)
       message(STATUS "${package}: Using source in ${CMAKE_CURRENT_SOURCE_DIR}/origin")
       before_source_config()
