@@ -498,15 +498,17 @@ Specific properties for this method are:
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
-Calculates the second derivatives\index{Hessian} of the energy
-(currently only using a numerical differentiation of the forces). The
-derivatives matrix is written out for the $i$, $j$ and $k$ directions
-of atoms $1 \ldots n$ as $$\frac{\partial^2 E}{\partial x_{i1}
-\partial x_{i1}} \frac{\partial^2 E}{\partial x_{j1} \partial x_{i1}}
-\frac{\partial^2 E}{\partial x_{k1} \partial x_{i1}} \frac{\partial^2
-E}{\partial x_{i2} \partial x_{i1}} \frac{\partial^2 E}{\partial
-x_{j2} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k2} \partial
-x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn} \partial x_{kn}}$$
+Calculates the second derivatives\index{Hessian} of the energy (currently only
+using a numerical differentiation of the forces). The derivatives matrix is
+written out for the $i$, $j$ and $k$ directions of atoms $1 \ldots n$ as
+\begin{equation*}
+  \frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+    \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+  \frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial
+    x_{kn} \partial x_{kn}}
+\end{equation*}
 into {\it hessian.out}
 
 \textbf{Note}: for supercell calculations, the derivatives are obtained at the $\mathbf{q}=0$ point,
@@ -796,10 +798,12 @@ fluctuations). Options are provided for either isotropic or cell shape changing
 pressure control. This can also be used in tandem with a thermostat
 (p.~\pref{sec:dftbp.Thermostat}) for the NPT\index{NPT ensemble} ensemble. If the barostat
 is used, a partial Gibbs free energy is reported in code output, of the form
-$$G = E + PV - TS_\mathrm{electronic}.$$ This does not include structural
-entropy, only any electronic entropy. For barostated constant energy simulations
-(no thermostat in use), the conserved quantity is the sum of the kinetic and
-Gibbs partial energies.
+\begin{equation*}
+  G = E + PV - TS_\mathrm{electronic}.
+\end{equation*}
+This does not include structural entropy, only any electronic entropy. For
+barostated constant energy simulations (no thermostat in use), the conserved
+quantity is the sum of the kinetic and Gibbs partial energies.
 
 \begin{ptable}
   \kw{Pressure}   & r & & - & \\
@@ -2458,15 +2462,17 @@ The \kw{External} field keyword has the following options
   direction (see above).
 \item[\is{Frequency}]\modif{\modtype{Frequency}} If using molecular
   dynamics, the field can be time varying with this frequency.
-\item[\is{Phase}] Initial field phase in units of geometry steps, this
-  is needed if restarting an MD run in an external field to give the
-  offset in phase of the field after the specified number of steps
-  from the old calculation. The applied field is of the
-  form $$\mathbf{E}_0 \sin( \omega \Delta t (step + phase) ) $$ where
-  $\mathbf{E}_0$ is the field vector specified by \kw{Strength} and
-  \kw{Direction}, $\omega$ is the angular \kw{Frequency} and $step$ is
-  the current MD-step in the simulation, using the MD \kw{TimeStep} of
-  $\Delta t$ (see section \ref{sec:dftbp.VelocityVerlet}).
+\item[\is{Phase}] Initial field phase in units of geometry steps, this is needed
+  if restarting an MD run in an external field to give the offset in phase of
+  the field after the specified number of steps from the old calculation. The
+  applied field is of the form
+  \begin{equation*}
+    \mathbf{E}_0 \sin( \omega \Delta t (step + phase) )
+  \end{equation*}
+  where $\mathbf{E}_0$ is the field vector specified by \kw{Strength} and
+  \kw{Direction}, $\omega$ is the angular \kw{Frequency} and $step$ is the
+  current MD-step in the simulation, using the MD \kw{TimeStep} of $\Delta t$
+  (see section \ref{sec:dftbp.VelocityVerlet}).
 \end{description}
 
 \subsection{Dispersion}
@@ -4654,12 +4660,13 @@ $\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
 \paragraph{\kwcb{Sin2}}
 
 Applies a sin$^2$ envelope function:
-
-$$ f(t) =
- \begin{cases}
-    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
-    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
-  \end{cases} $$
+\begin{equation*}
+  f(t) =
+  \begin{cases}
+    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau \\ 0 & t < t_0 \text{ or
+    } t > t_0 + \tau.\\
+  \end{cases}
+\end{equation*}
 
 The properties of this method are the same as for the Gaussian
 (\kw{Time0}, \kw{Time1}) and have the same meaning.
@@ -5069,8 +5076,11 @@ Some of the common energy results printed in this file are:\\
 Where available the Fermi level $\mu$ (i.e. the chemical potential of the
 electrons in the system) is also printed. For systems with an externally fixed
 Fermi level (i.e. where the total charge can change), this contribution is
-included in the Force related energy: $$\Delta E = + q_\mathrm{total} \mu,$$ but
-for calculations with fixed numbers of electrons it is not included in this
+included in the Force related energy:
+\begin{equation*}
+  \Delta E = + q_\mathrm{total} \mu,
+\end{equation*}
+but for calculations with fixed numbers of electrons it is not included in this
 energy. \textbf{Note:} The total energy reference may not match your required
 case in some situations, for example a shift with respect to the average
 electrostatic potential (in periodic cases) or whether the chemical potential
@@ -5535,10 +5545,12 @@ calculating first the change of basis matrix $\Lambda$ from the
 coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then
 projecting the time-dependent density matrix of the system in the
 atomic orbital basis:
-$$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$ The
-diagonal elements of $\rho^{GSMO}$ are the sought populations. The
-first column is the time (in fs), and from the second one the
-populations starting from the lowest lying orbital.
+\begin{equation*}
+  \rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger}
+\end{equation*}
+The diagonal elements of $\rho^{GSMO}$ are the sought populations. The first
+column is the time (in fs), and from the second one the populations starting
+from the lowest lying orbital.
 
 \subsection{forcesvst.dat}
 
