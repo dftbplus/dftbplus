@@ -114,8 +114,8 @@ set(SCALAPACKFX_GIT_TAG "1.0" CACHE STRING "ScalapackFx Git tag")
 
 set(NEGF_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Negf")
 set(NEGF_GIT_REPOSITORY "https://github.com/aradi/libnegf.git" CACHE STRING "Negf Git repository")
-set(NEGF_GIT_TAG "cmake" CACHE STRING "Negf git tag")
+set(NEGF_GIT_TAG "3b9a7278" CACHE STRING "Negf git tag")
 
 set(MBD_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Mbd")
 set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git" CACHE STRING "Mbd Git repository")
-set(MBD_GIT_TAG "master" CACHE STRING "Mbd git tag")
+set(MBD_GIT_TAG "0.10.0" CACHE STRING "Mbd git tag")
