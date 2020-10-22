@@ -114,21 +114,22 @@ homepage <https://www.dftbplus.org/download/dftb-stable/>`_.
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
 stable releases, while the default branch contains the latest development
-version. As the project uses git-submodules, those must be additionally
-downloaded ::
+version. ::
 
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
-  git submodule update --init --recursive
+
+The project uses git-submodules for some external dependencies. They are
+automatically retrieved on demand, either into the corresponding folder within
+the git working copy or into the build folder.
 
 
 Optional extra components
 -------------------------
 
-Some optional software components are not distributed with the DFTB+ source
-code. If these are required, but are not already installed on your system, then
-we recommend you download these components by using the `get_opt_externals`
-utility, e.g.::
+Some optional software components are not distributed with the DFTB+ source code
+and are also not retrieved automatically. If these are required, you can
+download these components by using the `get_opt_externals` utility, e.g.::
 
   ./utils/get_opt_externals
 

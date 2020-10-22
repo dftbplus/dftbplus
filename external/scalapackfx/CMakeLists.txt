@@ -7,4 +7,7 @@ macro(after_source_config)
   target_link_libraries(ScalapackFx::ScalapackFx INTERFACE ScalapackFx)
 endmacro()
 
-dftbp_config_hybrid_source_dependency(ScalapackFx SCALAPACKFX)
+set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+set(SCALAPACKFX_GIT_TAG "1.0")
+
+dftbp_config_hybrid_source_dependency(${SCALAPACKFX_GIT_REPOSITORY} ${SCALAPACKFX_GIT_TAG})

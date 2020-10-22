@@ -7,4 +7,7 @@ macro(after_source_config)
   target_link_libraries(Negf::Negf INTERFACE Negf)
 endmacro()
 
-dftbp_config_hybrid_source_dependency(Negf NEGF)
+set(NEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
+set(NEGF_GIT_TAG "3b9a727868182002d7570d2676aaf9bccb299bcc")
+
+dftbp_config_hybrid_source_dependency(${NEGF_GIT_REPOSITORY} ${NEGF_GIT_TAG})

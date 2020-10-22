@@ -12,4 +12,7 @@ macro(after_source_config)
   target_link_libraries(Mbd::Mbd INTERFACE Mbd)
 endmacro()
 
-dftbp_config_hybrid_source_dependency(Mbd MBD)
+set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
+set(MBD_GIT_TAG "0.10.0")
+
+dftbp_config_hybrid_source_dependency(${MBD_GIT_REPOSITORY} ${MBD_GIT_TAG})

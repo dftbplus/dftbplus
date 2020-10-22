@@ -151,20 +151,23 @@ if(WITH_DFTD3)
 endif()
 
 if(WITH_MPI)
-  dftbp_config_hybrid_dependency(MpiFx "QUIET" MpiFx::MpiFx external/mpifx "${exclude}")
-  dftbp_config_hybrid_dependency(ScalapackFx "QUIET" ScalapackFx::ScalapackFx external/scalapackfx
-    "${exclude}")
+  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
+    external/mpifx "${exclude}")
+  dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
+    "QUIET" external/scalapackfx "${exclude}")
   list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
-  dftbp_config_hybrid_dependency(Mbd "QUIET" Mbd::Mbd external/mbd "${exclude}")
+  dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
+    "${exclude}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
 endif()
 
 if(WITH_TRANSPORT)
-  dftbp_config_hybrid_dependency(Negf "QUIET" Negf::Negf external/libnegf "${exclude}")
+  dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/libnegf "${exclude}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)

@@ -2,11 +2,10 @@
 # Global architecture independent build settings
 #
 
+#set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (Release|RelWithDebInfo|Debug|MinSizeRel)")
 # CMAKE_BUILD_TYPE is commented out in order to allow for multi-configuration builds. It will
 # automatically default to RelWithDebInfo if used in a single configuration build. Uncomment or
 # override it only if you want a non-default single configuration build.
-#
-#set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (Release|RelWithDebInfo|Debug|MinSizeRel)")
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
@@ -93,29 +92,18 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 
 
 #
-# Hybrid dependencies (external dependencies with optional compilation during build)
+# Advanced options (e.g. for developers and packagers)
 #
-# The *_CONFIG_METHODS lists can be used to specify an ordered list of the config methods for a
-# given package ("Use" - use the dependency source in the DFTB+ source tree, if present, "Find" -
-# try to find it as an already installed package, "Fetch" - fetch the source from a Git
-# reporitory). The Git repository details can be set in the *_GIT_REPOSITORY and *_GIT_TAG
-# variables.
+set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
+  "Configuration methods to try in order to satisfy hybrid dependencies")
 #
-set(MPIFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for MpiFx")
-set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git" CACHE STRING
-  "MpiFx Git repository")
-set(MPIFX_GIT_TAG "1.0" CACHE STRING "MpiFx Git tag")
-
-set(SCALAPACKFX_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING
-  "Configuration methods for ScalapackFx")
-set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git" CACHE STRING
-  "ScalapackFx Git repository")
-set(SCALAPACKFX_GIT_TAG "1.0" CACHE STRING "ScalapackFx Git tag")
-
-set(NEGF_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Negf")
-set(NEGF_GIT_REPOSITORY "https://github.com/aradi/libnegf.git" CACHE STRING "Negf Git repository")
-set(NEGF_GIT_TAG "3b9a7278" CACHE STRING "Negf git tag")
-
-set(MBD_CONFIG_METHODS "Use;Find;Fetch" CACHE STRING "Configuration methods for Mbd")
-set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git" CACHE STRING "Mbd Git repository")
-set(MBD_GIT_TAG "0.10.0" CACHE STRING "Mbd git tag")
+# This list can be used to control how hybrid dependencies (external dependencies which can be built
+# during the build process) are configured.  The methods are applied in the order of their
+# appearance. Possible methods are:
+#
+# Submodule - Retrieve the dependency via git-submodule into the DFTB+ source tree (works only
+#     if the DFTB+ source tree is Git repository)
+# Find - Find the dependency as an already installed package in the system
+# Fetch - Fetch the source (from the appropriate Git reporitory) into the build folder (works also
+#     in cases where the source tree is not a Git repository)
+#
