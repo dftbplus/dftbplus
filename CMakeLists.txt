@@ -62,6 +62,15 @@ set(EXPORTED_EXTERNAL_LIBRARY_DIRS)
 set(EXPORTED_EXTERNAL_PACKAGES)
 set(EXPORTED_EXPORTED_COMPILED_LIBRARIES)
 
+# Pull git submodules into the repository.
+find_package(Git)
+if (Git_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+  message(WARNING "External libraries could not be downloaded using Git submodule")
+endif()
+
 if(WITH_MPI)
   dftbp_create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${SCALAPACK_LIBRARIES})
