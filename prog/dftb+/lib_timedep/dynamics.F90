@@ -702,9 +702,11 @@ contains
 !    if (.not. allocated(sccCalc)) then
 !      call error("SCC calculations are currently required for dynamics")
     !    end if
-    if (this%tSCC) then
+    if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
+    print *, 'sccCalc?',this%tSCC
+
     this%speciesAll = speciesAll
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
