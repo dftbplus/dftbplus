@@ -421,7 +421,7 @@ contains
     real(dp), intent(inout) :: qInput(:,:,:)
 
     !> input charges from multiple determinants
-    real(dp), intent(inout) :: qDets(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qDets(:,:,:,:)
 
     !> block charge input (if needed for orbital potentials)
     real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
@@ -477,7 +477,7 @@ contains
     real(dp), intent(inout) :: qOutput(:,:,:)
 
     !> output charges from multiple determinants
-    real(dp), intent(inout) :: qDets(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qDets(:,:,:,:)
 
     !> block charge output (if needed for orbital potentials), from multiple determinants
     real(dp), intent(inout), allocatable :: qBlockDets(:,:,:,:,:)
