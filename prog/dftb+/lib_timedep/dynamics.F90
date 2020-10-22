@@ -705,7 +705,6 @@ contains
     if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
-    print *, 'sccCalc?',this%tSCC
 
     this%speciesAll = speciesAll
     this%nSpin = size(ham(:,:), dim=2)
@@ -970,6 +969,7 @@ contains
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock,&
         & qNetAtom,UJ, onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul,&
         & lastBondPopul, time)
+
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -3559,9 +3559,10 @@ contains
     call matinv(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
-    call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
-    this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
-
+    if (this%tSCC) then
+      call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
+      this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+    end if
     if (allocated(this%dispersion)) then
       call this%dispersion%updateLatVecs(this%latVec)
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
