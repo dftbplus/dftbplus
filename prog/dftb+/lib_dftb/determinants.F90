@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Routines for (time independent excited) TI-DFTB
-module dftbp_dftbdeterminants
+module dftbp_determinants
   use dftbp_accuracy, only : dp
   use dftbp_energytypes, only : TEnergies
   use dftbp_message, only : error
@@ -60,10 +60,10 @@ module dftbp_dftbdeterminants
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
 
-    !> which determinant holds the ground state
+    !> which determinant holds the ground state (0 if none)
     integer :: iGround
 
-    !> which determinant holds the triplet state
+    !> which determinant holds the triplet state (0 if none)
     integer :: iTriplet
 
     !> which determinant holds the (spin contaminated) S1 state
@@ -282,6 +282,7 @@ contains
 
     this%nEl = nEl
 
+    ! set to zero as initially unused.
     this%iGround = 0
     this%iTriplet = 0
     this%iMixed = 0
@@ -447,4 +448,4 @@ contains
   end subroutine applyZieglerAlloc
 
 
-end module dftbp_dftbdeterminants
+end module dftbp_determinants

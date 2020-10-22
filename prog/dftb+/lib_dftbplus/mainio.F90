@@ -50,7 +50,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
-  use dftbp_dftbdeterminants
+  use dftbp_determinants
   implicit none
   private
 

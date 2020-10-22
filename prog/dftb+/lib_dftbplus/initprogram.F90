@@ -115,7 +115,7 @@ module dftbp_initprogram
 #:endif
   use poisson_init
   use dftbp_transportio
-  use dftbp_dftbdeterminants
+  use dftbp_determinants
   implicit none
 
 
@@ -1021,6 +1021,18 @@ module dftbp_initprogram
 
   !> Type for determinant control in DFTB (Delta DFTB)
   type(TDftbDeterminants) :: deltaDftb
+
+  !> Number of determinants in use in the calculation
+  integer :: nDets
+
+  !> Final SCC charges if multiple determinants being used
+  real(dp), allocatable :: qDets(:,:,:,:)
+
+  !> Final SCC block charges if multiple determinants being used
+  real(dp), allocatable :: qBlockDets(:,:,:,:,:)
+
+  !> Final density matrices if multiple determinants being used
+  real(dp), allocatable :: deltaRhoDets(:,:)
 
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
@@ -2554,6 +2566,9 @@ contains
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
           & nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
+
+    call initDetArrays(nDets, deltaDftb, qDets, tDftbU .or. allocated(onSiteElements), qBlockDets,&
+        & isRangeSep, deltaRhoDets, orb, nAtom, nSpin)
 
     call initArrays(env, electronicSolver, tForces, tStress, tExtChrg, isLinResp, tLinRespZVect,&
         & tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
@@ -4647,6 +4662,59 @@ contains
     end if
 
   end subroutine initArrays
+
+
+  !> Initialize storage for multi-determinantal calculations
+  subroutine initDetArrays(nDets, deltaDftb, qDets, isBlockCharge, qBlockDets, isRangeSep,&
+      & deltaRhoDets, orb, nAtom, nSpin)
+
+    !> Number of determinants in use
+    integer, intent(out) :: nDets
+
+    !> Type for determinant control in DFTB (Delta DFTB)
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Final SCC charges if multiple determinants being used
+    real(dp), intent(out), allocatable :: qDets(:,:,:,:)
+
+    !> Whether block charges are needed
+    logical, intent(in) :: isBlockCharge
+
+    !> Final SCC block charges if multiple determinants being used
+    real(dp), intent(out), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: isRangeSep
+
+    !> Final density matrices if multiple determinants being used
+    real(dp), intent(out), allocatable :: deltaRhoDets(:,:)
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    nDets = deltaDftb%nDeterminant()
+    if (nDets > 1) then
+      ! must be SCC and also need storage for final charges
+      allocate(qDets(orb%mOrb, nAtom, nSpin, nDets))
+      qDets(:,:,:,:) = 0.0_dp
+      if (isBlockCharge) then
+        allocate(qBlockDets(orb%mOrb, orb%mOrb, nAtom, nSpin, nDets))
+        qBlockDets(:,:,:,:,:) = 0.0_dp
+      end if
+      if (isRangeSep) then
+        allocate(deltaRhoDets(nOrb * nOrb * nSpin, nDets))
+        deltaRhoDets(:,:) = 0.0_dp
+      end if
+    end if
+
+  end subroutine initDetArrays
+
 
 #:if WITH_TRANSPORT
 

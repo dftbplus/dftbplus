@@ -97,7 +97,7 @@ module dftbp_main
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_reks
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
-  use dftbp_dftbdeterminants
+  use dftbp_determinants
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -162,25 +162,9 @@ contains
     !> Should the geometry loop be stopped early
     logical :: tExitGeoOpt
 
-    !> Which state is being calculated in the determinant loop? Out of the total number
-    integer :: iDet, nDets
-
-    real(dp), allocatable :: qDets(:,:,:,:), qBlockDets(:,:,:,:,:), deltaRhoDets(:,:)
-
-    nDets = deltaDftb%nDeterminant()
-    if (nDets > 1) then
-      allocate(qDets(size(qOutput,dim=1), size(qOutput,dim=2), size(qOutput,dim=3),nDets))
-      qDets(:,:,:,:) = 0.0_dp
-      if (tDftbU .or. allocated(onSiteElements)) then
-        allocate(qBlockDets(size(qBlockOut,dim=1), size(qBlockOut,dim=2), size(qBlockOut,dim=3),&
-            & size(qBlockOut,dim=4),nDets))
-        qBlockDets(:,:,:,:,:) = 0.0_dp
-      end if
-      if (isRangeSep) then
-        allocate(deltaRhoDets(nOrb * nOrb * nSpin, nDets))
-        deltaRhoDets(:,:) = 0.0_dp
-      end if
-    end if
+    !> Which state is being calculated in the determinant loop?
+    integer :: iDet
+    logical :: isUnReduced
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
@@ -204,31 +188,19 @@ contains
       ! Will pass though loop once, unless specified in input to perform multiple determiants
       lpDets : do iDet = 1, nDets
 
-        if (iGeoStep > 0 .and. nDets > 1) then
-          qInput(:,:,:) = qDets(:,:,:,iDet)
-          if (tDftbU .or. allocated(onSiteElements)) then
-            qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iDet)
-          end if
+        deltaDftb%iDeterminant = iDet
+
+        call preDetCharges(isUnReduced, iDet, nDets, iGeoStep, deltaDftb, qInput, qDets, qBlockIn,&
+            & qBlockDets, deltaRhoIn, deltaRhoDets)
+        if (isUnReduced) then
           call reduceCharges(orb, nIneqOrb, iEqOrbitals, qInput, qInpRed, qBlockIn, iEqBlockDftbu,&
               & qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-          if (isRangeSep) then
-            deltaRhoIn(:) = deltaRhoDets(:,iDet)
-          end if
         end if
-
-        deltaDftb%iDeterminant = iDet
 
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
 
-        if (nDets > 1) then
-          qDets(:,:,:,iDet) = qOutput(:,:,:)
-          if (tDftbU .or. allocated(onSiteElements)) then
-            qBlockDets(:,:,:,:,iDet) = qBlockOut
-          end if
-          if (isRangeSep) then
-            deltaRhoDets(:,iDet) = deltaRhoOut
-          end if
-        end if
+        call postDetCharges(iDet, nDets, qOutput, qDets, qBlockDets, qBlockOut, deltaRhoDets,&
+            & deltaRhoOut)
 
       end do lpDets
 
@@ -424,6 +396,112 @@ contains
   #:endif
 
   end subroutine runDftbPlus
+
+
+  !> Set up charges before determinant calculations
+  subroutine preDetCharges(isUnReduced, iDet, nDets, iGeoStep, deltaDftb, qInput, qDets, qBlockIn,&
+      & qBlockDets, deltaRhoIn, deltaRhoDets)
+
+    !> Are charge reductions required after this routine
+    logical, intent(out) :: isUnReduced
+
+    !> The current determinant being processed
+    integer, intent(in) :: iDet
+
+    !> Total number of determinants
+    integer, intent(in) :: nDets
+
+    !> Geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> input charges
+    real(dp), intent(inout) :: qInput(:,:,:)
+
+    !> input charges from multiple determinants
+    real(dp), intent(inout) :: qDets(:,:,:,:)
+
+    !> block charge input (if needed for orbital potentials)
+    real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
+
+    !> block charge input (if needed for orbital potentials), from multiple determinants
+    real(dp), intent(inout), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> delta density matrix as input for next SCC cycle (if needed for range sep. potentials)
+    real(dp), intent(inout), allocatable :: deltaRhoIn(:)
+
+    !> delta density matrix (if needed for range sep. potentials), from multiple determinants
+    real(dp), intent(inout), allocatable :: deltaRhoDets(:,:)
+
+    isUnReduced = .false.
+    if (nDets > 1) then
+      if (iGeoStep == 0) then
+        if (deltaDftb%iGround > 0 .and. iDet /= deltaDftb%iGround) then
+          qInput(:,:,:) = qDets(:,:,:,deltaDftb%iGround)
+          if (allocated(qBlockIn)) then
+            qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,deltaDftb%iGround)
+          end if
+          if (allocated(deltaRhoIn)) then
+            deltaRhoIn(:) = deltaRhoDets(:,deltaDftb%iGround)
+          end if
+          isUnReduced = .true.
+        end if
+      else
+        qInput(:,:,:) = qDets(:,:,:,iDet)
+        if (allocated(qBlockIn)) then
+          qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iDet)
+        end if
+        if (allocated(deltaRhoIn)) then
+          deltaRhoIn(:) = deltaRhoDets(:,iDet)
+        end if
+        isUnReduced = .true.
+      end if
+    end if
+
+  end subroutine preDetCharges
+
+
+  !> Store (if necessary) charges after determinant calculations
+  subroutine postDetCharges(iDet, nDets, qOutput, qDets, qBlockDets, qBlockOut, deltaRhoDets,&
+      & deltaRhoOut)
+
+    !> The current determinant being processed
+    integer, intent(in) :: iDet
+
+    !> Total number of determinants
+    integer, intent(in) :: nDets
+
+    !> output charges
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> output charges from multiple determinants
+    real(dp), intent(inout) :: qDets(:,:,:,:)
+
+    !> block charge output (if needed for orbital potentials), from multiple determinants
+    real(dp), intent(inout), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> block charge output (if needed for orbital potentials)
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+
+    !> delta density matrix (if needed for range sep. potentials), from multiple determinants
+    real(dp), intent(inout), allocatable :: deltaRhoDets(:,:)
+
+    !> delta density matrix as input for next SCC cycle (if needed for range sep. potentials)
+    real(dp), intent(inout), allocatable :: deltaRhoOut(:)
+
+    if (nDets > 1) then
+      qDets(:,:,:,iDet) = qOutput(:,:,:)
+      if (allocated(qBlockOut)) then
+        qBlockDets(:,:,:,:,iDet) = qBlockOut
+      end if
+      if (allocated(deltaRhoDets)) then
+        deltaRhoDets(:,iDet) = deltaRhoOut
+      end if
+    end if
+
+  end subroutine postDetCharges
 
 
   !> Process current geometry
@@ -1798,6 +1876,7 @@ contains
 
   !> Replace charges with those from the stored contact values
   subroutine overrideContactCharges(qInput, chargeUp, transpar, qBlockInput, blockUp)
+
     !> input charges
     real(dp), intent(inout) :: qInput(:,:,:)
 
@@ -3527,7 +3606,7 @@ contains
     !> delta density matrix for rangeseparated calculations
     real(dp), intent(inout) :: deltaRhoOut(:)
 
-    !> delta density matrix as inpurt for next SCC cycle
+    !> delta density matrix as input for next SCC cycle
     real(dp), target, intent(inout) :: deltaRhoIn(:)
 
     !> difference of delta density matrix in and out

@@ -2072,7 +2072,7 @@ significant.
 
 \subsection{Time-independent DFTB (TI-DFTB) excited states}
 
-\subsubsection{$\Delta$DFTB}
+\subsubsection{$\boldsymbol\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
 singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
@@ -2084,17 +2084,21 @@ electronic filling to emulate a singlet excited state. By modifying the
 occupation pattern, the target excited state density ($\rho_e$) is can be
 constructed according to the standard formula for obtaining the electron density
 from the occupied colinear spin orbitals,
-$$\rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2$$
+\begin{equation*}
+  \rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2.
+\end{equation*}
 Because the constraint is placed on the spin orbitals rather than the MO's, this
 method introduces heavy spin contamination to the system by the arbitrary
 promotion of $\alpha$ spin electrons.  This issue is circumvented with spin
 purification, where the triplet state energy is subtracted from twice the mixed
 singlet state energy, in accordance with the Ziegler sum
 rule,\cite{baerends-TCA-43-261}
-$$E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t]$$
+\begin{equation*}
+  E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t].
+\end{equation*}
 A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
 $\Delta$DFTB calculations can be more challenging to converge than their
-ground-state analogs.  To aid convergence, one can first run a ground-state
+ground-state analogs. To aid convergence, one can first run a ground-state
 intial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
 alternative mixer for converging $\Delta$DFTB calculations in cases where the
 calculation fails to converge with the Broyden mixer.
@@ -2103,7 +2107,7 @@ calculation fails to converge with the Broyden mixer.
 
 This is a singlet excitation from a spin zero ground state system, so
 \is{SpinPolarisation} should not be set in the input for this type of
-calculation, but spin constants (p.~\pref{sec:dftbp.SpinConstants}) are
+calculation, but spin constants (p.~\pref{sec:dftbp.SpinConstants}) {\em are}
 required. The calculation can be modified by including the following properties
 in the \iscb{nonAufbau} block:
 \begin{ptable}
@@ -2120,6 +2124,36 @@ in the \iscb{nonAufbau} block:
   \is{SpinPurify}, and \is{GroundGuess} are set to \is{Yes}, but only twice if
   \is{SpinPurify = No}.
 \end{description}
+
+The default settings, if \kwcb{NonAufbau} is included in the input, is
+equivalent to:
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = No
+    SpinPurify = Yes
+  }
+\end{verbatim}
+This performs two self-consistent calculations at each geometry step, and then
+evaluates the energy, forces and charges in the $\Delta$DFTB first excited
+state. Note that this is a singlet state, hence only the {\em total} charge is
+relevant in Mulliken populations.
+
+If instead the ground state is also requested (\is{SpinPurify} = \is{Yes} by
+default):
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = Yes
+  }
+\end{verbatim}
+The \verb|detailed.out| will then contain energies of the ground, triplet and
+the spin purified singlet excitation, along with estimates for the excitation
+energies from the $S_o$ to the $T_1$ and $S_1$ states:
+\begin{verbatim}
+S0 -> T1:                            0.2104101411 H            5.7256 eV
+S0 -> S1:                            0.2615036445 H            7.1159 eV
+\end{verbatim}
 
 \subsection{SlaterKosterFiles}
 \label{sec:dftbp.SlaterKosterFiles}

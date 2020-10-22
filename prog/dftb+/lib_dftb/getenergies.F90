@@ -35,7 +35,7 @@ module dftbp_getenergies
   use dftbp_repcont
   use dftbp_repulsive
   use dftbp_reks, only : TReksCalc
-  use dftbp_dftbdeterminants, only : TDftbDeterminants, determinants
+  use dftbp_determinants, only : TDftbDeterminants, determinants
   implicit none
 
   private
