@@ -70,7 +70,7 @@ contains
     @:ASSERT(nxov == size(win))
     @:ASSERT(all(shape(transd) == [nxov,3]))
     @:ASSERT(size(getij,dim=1) >= nxov)
-    @:ASSERT(size(getij,dim=2) == 2)
+    @:ASSERT(size(getij,dim=2) == 3)
     @:ASSERT(threshold >= 0.0_dp)
 
     call indxov(win, 1, getij, iOcc, iVrt, iSpin)
@@ -246,7 +246,7 @@ contains
 
     integer :: ia
 
-    @:ASSERT(size(getij,dim=2) == 2)
+    @:ASSERT(size(getij,dim=2) == 3)
 
     ! Store reverse indices
 
