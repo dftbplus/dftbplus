@@ -74,7 +74,6 @@ contains
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    
     select case(electronicSolver%iSolver)
     case(electronicSolverTypes%QR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
@@ -84,7 +83,7 @@ contains
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%magma_gvd)
   #:if WITH_GPU
-      call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)      
+      call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)
   #:else
       call error("This binary is compiled without GPU support")
   #:endif
