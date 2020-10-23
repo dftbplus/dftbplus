@@ -13,7 +13,7 @@ In order to compile DFTB+, you need the following software components:
 * A C-compiler (required if building with the socket interface enabled or if C
   language API bindings are required)
 
-* CMake (version 3.5 or newer)
+* CMake (version 3.16 or newer)
 
 * GNU make
 
@@ -34,15 +34,24 @@ Additionally there are optional requirements for some DFTB+ features:
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
-  computation.
+  computation. (
 
 * The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for metadynamics
   simulations. If you build DFTB+ with MPI, the linked PLUMED library must be
   also MPI-aware (and must have been built with the same MPI-framework as
   DFTB+).
 
-For external libraries, make sure that they are compiled with the same precision
-models for the variables (same integer and floating point values).
+**Important notes** on external libraries:
+
+* Make sure that external libraries are compiled with the same precision models
+  for the variables (same integer and floating point values) as DFTB+. Also,
+  they should have been preferably built with the same compiler and with similar
+  compiler flags than DFTB+.
+
+* Several external libraries provide CMake or Pkg-Config export files
+  (e.g. ELSI, PLUMED, MAGMA). It is essential for their detection that your
+  environment variables ``CMAKE_PREFIX_PATH`` and ``PKG_CONFIG_PATH`` are set up
+  correctly and contain the corresponding paths to those external libraries.
 
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
@@ -105,21 +114,22 @@ homepage <https://www.dftbplus.org/download/dftb-stable/>`_.
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
 stable releases, while the default branch contains the latest development
-version. As the project uses git-submodules, those must be additionally
-downloaded ::
+version. ::
 
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
-  git submodule update --init --recursive
+
+The project uses git-submodules for some external dependencies. They are
+automatically retrieved on demand, either into the corresponding folder within
+the git working copy or into the build folder.
 
 
 Optional extra components
 -------------------------
 
-Some optional software components are not distributed with the DFTB+ source
-code. If these are required, but are not already installed on your system, then
-we recommend you download these components by using the `get_opt_externals`
-utility, e.g.::
+Some optional software components are not distributed with the DFTB+ source code
+and are also not retrieved automatically. If these are required, you can
+download these components by using the `get_opt_externals` utility, e.g.::
 
   ./utils/get_opt_externals
 
@@ -158,23 +168,13 @@ In order to build DFTB+ carry out the following steps:
 * Inspect the `config.cmake` file and customise the global build parameters. (If
   you are unsure, leave the defaults as they are.)
 
-* Create a build folder (e.g. `build`) either within the DFTB+ source tree or
-  somewhere else outside of it and change to that folder, e.g.::
+* Invoke CMake to configure the build. Specify the installation destination
+  (e.g. ``$HOME/opt/dftb+``) and pass an arbitrary folder (e.g. ``_build``) for
+  the build and the directory containing the source files (e.g. ``.``) as
+  arguments to CMake. Additionally define your Fortran and C compilers as
+  environment variables, e.g. (in a BASH compatible shell)::
 
-    mkdir build
-    cd build
-
-* From the build folder invoke CMake to configure the build. You have to pass
-  the source directory as argument to CMake. Additionally pass your Fortran and
-  C compilers as environment variables, e.g. (in a BASH compatible shell)::
-
-    FC=gfortran CC=gcc cmake ..
-
-  If you want to build the code with MPI-support (see ``WITH_MPI`` in
-  `config.cmake`), pass the name of the mpi compiler-wrapper as Fortran
-  compiler, e.g.::
-
-    FC=mpifort CC=gcc cmake ..
+    FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ -B _build .
 
   Based on the detected compilers, the build system will read further settings
   from a corresponding toolchain file in the `sys/` folder. Either from a
@@ -186,34 +186,35 @@ In order to build DFTB+ carry out the following steps:
   You may adjust any variables defined in `config.make` or in the toolchain file
   by either modifying the files directly or by overriding the definitions via
   the ``-D`` command line option. For example, in order to use the MKL-library
-  with the GNU-compiler, you would have to override the ``LAPACK_LIBRARIES``
-  variable::
+  with the GNU-compiler, you would have to override the ``LAPACK_LIBRARY``
+  variable with the CMake command line argument ``-D``::
 
-    FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES="mkl_gf_lp64;mkl_gnu_thread;mkl_core"  ..
+    -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
   When needed, you can also pass linker options in the library variables, e.g.::
 
-    -DLAPACK_LIBRARIES="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
+    -DLAPACK_LIBRARY="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
 
-  CMake automatically searches for the external libraries in the paths specified
+  CMake by default searches for the external libraries in the paths specified
   in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
   correctly in your build environment. Alternatively, you can use the respective
-  ``*_LIBRARY_DIRS`` variable for each external library to add path hints for
+  ``*_LIBRARY_DIR`` variable for each external library to add path hints for
   the library search, e.g.::
 
-    FC=gfortran CC=gcc cmake -DLAPACK_LIBRARY_DIRS=/opt/custom-lapack/lib ..
+    -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib
 
   Note: You can override the toolchain file selection by passing the
   ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
 
-    FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
+    -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake
 
   or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
   environment variable. If the customized toolchain file is within the `sys/`
-  folder, you may use the ``-DTOOLCHAIN`` option or the ``DFTBPLUS_TOOLCHAIN``
-  environment variable instead::
+  folder, you may also use the ``-DTOOLCHAIN`` option or the
+  ``DFTBPLUS_TOOLCHAIN`` environment variable with the plain name of the file
+  (without the full path) instead::
 
-    FC=ifort CC=gcc cmake -DTOOLCHAIN=gnu ..
+    -DTOOLCHAIN=gnu .
 
   Similarly, you can use an alternative build config file instead of
   `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
@@ -223,7 +224,7 @@ In order to build DFTB+ carry out the following steps:
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::
 
-    make -j
+    cmake --build _build -- -j
 
   This will compile the code using several threads and showing only the most
   relevant information.
@@ -231,7 +232,7 @@ In order to build DFTB+ carry out the following steps:
   If, for debugging purposes, you wish to see the exact compiling commands, you
   should execute a serial build with verbosity turned on instead::
 
-    make VERBOSE=1
+    cmake --build _build -- VERBOSE=1
 
 * Note: The code can be compiled with distributed memory parallelism (MPI), but
   for smaller shared memory machines, you may find that the performance is
@@ -242,9 +243,12 @@ In order to build DFTB+ carry out the following steps:
 Testing DFTB+
 =============
 
-* After successful compilation, execute the code tests with ::
+* After successful compilation, change to the build folder and execute the code
+  tests::
 
+    pushd _build
     ctest
+    popd
 
   You can also run the tests in parallel in order to speed this up.  If you use
   parallel testing, ensure that the number of OpenMP threads is reduced
@@ -273,8 +277,8 @@ Testing DFTB+
   or changed also after the compilation by invoking CMake with the appropriate
   ``-D`` options, e.g.::
 
-    cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ..
-    ctest
+    cmake -B _build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 .
+    pushd _build; ctest; popd
 
 
 Installing DFTB+
@@ -283,12 +287,11 @@ Installing DFTB+
 * The compiled executables, libraries, module files etc. can be copied into an
   installation directory by ::
 
-    make install
+    cmake --install _build
 
   where the destination directory can be configured by the variable
   ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
   the `install` subdirectory within the build directory.
-
 
 
 Using DFTB+ as a library
@@ -300,6 +303,35 @@ the ``WITH_API`` option to ``TRUE`` in the CMake config file
 `config.cmake`. When you install the program, it will also install the DFTB+
 library, the C-include file and the Fortran module files, which are necessary
 for linking DFTB+ with C and Fortran programs.
+
+
+Linking the library in CMake based builds
+-----------------------------------------
+
+This is the prefered way of invoking the DFTB+ library into your project.  In
+CMake based projects you can directly use the CMake export file of DFTB+, which
+is installed in the `lib/cmake/dftbplus/` folder in the installation folder. It
+exports the target ``DftbPlus::DftbPlus`` which you can use to obtain all
+necessary compiler, include and linking options. Your projects `CMakeLists.txt`,
+should like something like below::
+
+  project(DftbPlusTest LANGUAGES Fortran C)
+  find_package(DftbPlus REQUIRED)
+  add_executable(testprogram testprogram.f90)
+  target_link(testprogram DftbPlus::DftbPlus)
+
+Note, that this will link all libraries in the correct order, which where
+compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will
+additionally contain target dependencies on the external libraries needed to
+create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
+``Scalapack::Scalapack``, ``Arpack::Arpack``, ``Plumed::Plumed``,
+``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
+the DFTB+ source to find those libraries (and to define the corresponding
+targets) or create your own ones, provided they define the appropriate CMake
+targets. The ELSI library offers a CMake export file providing the
+``elsi::elsi`` target. Make sure, that CMake can find this export file if the
+DFTB+ library was compiled with ELSI support (e.g. by setting up the environment
+variable ``CMAKE_PREFIX_PATH`` correctly).
 
 
 Linking the library in non-CMake based builds
@@ -321,59 +353,11 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compile DFTB+ with ELSI-support, make sure that pkg-config can find
-ELSI's own pkgconfig file, as it is declared as dependency in the DFTB+
-pkg-config file.
-
-
-Linking the library in CMake based builds
------------------------------------------
-
-If you use CMake to build your project, you can directly use the CMake
-configuration file installed by DFTB+ into the `lib/cmake/DftbPlus/` folder in
-the installation root directory. It exports the target ``DftbPlus::dftbplus``
-which you can use to obtain compiler and linking options. For example, in your
-projects `CMakeLists.txt`, you could have something like::
-
-  project(dftbplus_libtest LANGUAGES Fortran C)
-  find_package(DftbPlus REQUIRED)
-  add_executable(testprogram testprogram.f90)
-  target_link(testprogram DftbPlus::dftbplus)
-
-Note, that this will link all libraries in the correct order, which where
-compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will also
-contain the link dependencies on the external libraries needed to create
-standalone applications with DFTB+ (e.g. lapack, scalapack). You must make sure,
-that CMake can find those libraries, when linking the
-application. Alternatively, you may use CMake to find them at the locations,
-where they were found during the DFTB+ build. The variables
-``DftbPlus_EXTERNAL_LIBRARIES`` and ``DftbPlus_EXTERNAL_LIBRARY_DIRS`` contain
-all external libraries and the directories, where they have been found. In order
-to make sure, CMake finds them, you could turn them into targets in your CMake::
-
-  project(dftbplus_libtest LANGUAGES Fortran)
-
-  find_package(DftbPlus REQUIRED)
-
-  foreach(lib IN LISTS DftbPlus_EXTERNAL_LIBRARIES)
-    find_library(LIBPATH ${lib} HINTS ${DftbPlus_EXTERNAL_LIBRARY_DIRS})
-    if(LIBPATH)
-      message(STATUS "Found library ${LIBPATH}")
-      add_library(${lib} IMPORTED UNKNOWN)
-      set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH})
-    else()
-      message(FATAL_ERROR
-        "Could not find library '${lib}' using library path hints '${libpaths}'")
-    endif()
-    unset(LIBPATH CACHE)
-  endforeach()
-
-  add_executable(testprogram testprogram.f90)
-  target_link_libraries(testprogram DftbPlus::dftbplus)
-
-If you compile DFTB+ with ELSI support, make sure that CMake can find ELSI's own
-CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
-config file.
+If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
+pkg-config can find the respective pkconfig files, as those libraries are
+declared as dependencies in the DFTB+ pkg-config file. For external dependencies
+without pkg-config files (e.g. mbd, negf) the options for linking those
+libraries can not be queried via pkg-config and must be added manually.
 
 
 Generating developer documentation
@@ -397,7 +381,7 @@ repository. Create a customized CMake config file instead, where you
 pre-populate the appropriate cache variables. Use the `-C` option to load that
 file::
 
-  cmake -C ../custom.cmake ..
+  FC=gfortran CC=gcc cmake -C custom.cmake -B _build .
 
 The customized config file is read by CMake before the compiler detection. If
 your config file contains toolchain dependent options, consider to define the

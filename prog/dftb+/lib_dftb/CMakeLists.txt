@@ -8,6 +8,7 @@ set(sources-fpp
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90
   ${curdir}/densitymatrix.F90
+  ${curdir}/determinants.F90
   ${curdir}/dftbplusu.F90
   ${curdir}/dftd3param.F90
   ${curdir}/dftd4param.F90
