@@ -1328,6 +1328,14 @@ contains
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
   #:endif
 
+  #:if WITH_MPI and WITH_TRANSPORT
+    ! Initialize libNEGF cartesian grid and overrides default mpi communicators 
+    ! NOTE: The decision about which grid to use should be based on actual solver invoked
+    
+    call env%initNegfMpi(input%ctrl%parallelOpts%nGroup)
+    call env%setMpiComm(env%mpinegf%negfMpiEnv)
+
+  #:endif
 
   #:if WITH_SCALAPACK
     call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&

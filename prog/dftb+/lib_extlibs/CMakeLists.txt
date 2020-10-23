@@ -23,10 +23,18 @@ if(WITH_SOCKETS)
 endif(WITH_SOCKETS)
 
 if(WITH_TRANSPORT)
-  list(APPEND sources-fpp
-    ${curdir}/libnegf_vars.F90
-    ${curdir}/matconv.F90
-    ${curdir}/negf_int.F90)
+  if(WITH_MPI)	
+    list(APPEND sources-fpp
+      ${curdir}/negfmpienv.F90
+      ${curdir}/libnegf_vars.F90
+      ${curdir}/matconv.F90
+      ${curdir}/negf_int.F90)
+  else() 
+    list(APPEND sources-fpp
+      ${curdir}/libnegf_vars.F90
+      ${curdir}/matconv.F90
+      ${curdir}/negf_int.F90)
+  endif()
 endif()
 
 if(WITH_GPU)
