@@ -2042,7 +2042,7 @@ contains
     end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
-    call TEnergies_init(energy, this%nAtom)
+    call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))

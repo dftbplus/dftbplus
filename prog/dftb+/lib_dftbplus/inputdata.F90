@@ -509,6 +509,17 @@ module dftbp_inputdata
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
 
+    ! TI-DFTB variables
+
+    !> Non-Aufbau filling
+    logical :: isNonAufbau = .false.
+
+    !> SpinPurify
+    logical :: isSpinPurify = .false.
+
+    !> GroundGuess
+    logical :: isGroundGuess = .false.
+
     !> REKS input
     type(TReksInp) :: reksInp
 

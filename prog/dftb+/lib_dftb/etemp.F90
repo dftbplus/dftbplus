@@ -284,13 +284,13 @@ contains
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x <= mExpArg) then
               electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
             end if
-#:else
+          #:else
             electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-#:endif
+          #:endif
           end do
         end do
       end do
@@ -340,15 +340,15 @@ contains
             if (x<10.0_dp) then
               ! Where the compiler does not handle inf gracefully, trap the exponential function for
               ! small input values
-#:if EXP_TRAP
+            #:if EXP_TRAP
               if (x <= mExpArg) then
                 derivElectronCount = derivElectronCount + &
                     & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
               end if
-#:else
+            #:else
               derivElectronCount = derivElectronCount + &
                   & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-#:endif
+            #:endif
             end if
           end do
         end do
@@ -465,15 +465,15 @@ contains
             x = (eigenvals(j, i, iSpin) - Ef) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x > mExpArg) then
               filling(j, i, iSpin) = 0.0_dp
             else
               filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
             endif
-#:else
+          #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-#:endif
+          #:endif
             if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if

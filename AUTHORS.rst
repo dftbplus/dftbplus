@@ -32,12 +32,18 @@ contributed to DFTB+ :
 
 * Caterina Cevallos-Brenes (University of Costa Rica)
 
+* Megan Deshaye (Western Washington University)
+
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
 * Jan Hermann (Free University of Berlin, Germany)
+
+* Tim Kowalczyk (Western Washington University)
+
+* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of
   Korea)
