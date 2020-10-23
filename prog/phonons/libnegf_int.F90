@@ -220,10 +220,10 @@ module libnegf_int
     ! That 2d structures are on x-z
     select case(selTypeModes)
     case(modeEnum%ALLMODES)
-      !allocate(indx(3*nAtoms))
-      !do i = 1, 3*nAtoms    
-      !  indx(i) = i
-      !end do    
+      allocate(indx(3*nAtoms))
+      do i = 1, 3*nAtoms    
+        indx(i) = i
+      end do    
     case(modeEnum%XX)
       allocate(indx(nAtoms))
       l = 1
