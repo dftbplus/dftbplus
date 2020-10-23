@@ -2,6 +2,9 @@
 Building and installing DFTB+
 *****************************
 
+If you have problems with the build, you find suggestions for some frequently
+occuring scenarios in the `Troubleshooting <#troubleshooting>`_ section.
+     
 
 Requirements
 ============
@@ -10,8 +13,7 @@ In order to compile DFTB+, you need the following software components:
 
 * A Fortran 2003 compliant compiler
 
-* A C-compiler (required if building with the socket interface enabled or if C
-  language API bindings are required)
+* A C-compiler
 
 * CMake (version 3.16 or newer)
 
@@ -29,7 +31,8 @@ Additionally there are optional requirements for some DFTB+ features:
 * In addition to ScaLAPACK, the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
   can optionally also be used (version 2.6.0 or 2.6.1 of the library, with
-  partial support of 2.5.0).
+  partial support of 2.5.0). If ELSI was built with PEXSI, you also need a C++
+  compiler.
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
@@ -48,10 +51,10 @@ Additionally there are optional requirements for some DFTB+ features:
   they should have been preferably built with the same compiler and with similar
   compiler flags than DFTB+.
 
-* Several external libraries provide CMake or Pkg-Config export files
-  (e.g. ELSI, PLUMED, MAGMA). It is essential for their detection that your
-  environment variables ``CMAKE_PREFIX_PATH`` and ``PKG_CONFIG_PATH`` are set up
-  correctly and contain the corresponding paths to those external libraries.
+* External libraries on non-standard locations (as typical on HPC-systems) can
+  only be reliable found by CMake if their library path occurs in the
+  ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
+  CMAKE_PREFIX_PATH environment variable contains all relevant paths!**
 
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
@@ -119,9 +122,8 @@ version. ::
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
 
-The project uses git-submodules for some external dependencies. They are
-automatically retrieved on demand, either into the corresponding folder within
-the git working copy or into the build folder.
+The project uses git-submodules for some external dependencies, which will be
+automatically retrieved during configuration.
 
 
 Optional extra components
@@ -160,9 +162,6 @@ Building
 the build folder. Delete this file before re-running CMake after having changed
 variables in some of the config files.
 
-**Note for developers:** Please see some further instructions at the end of the
-file.
-
 In order to build DFTB+ carry out the following steps:
 
 * Inspect the `config.cmake` file and customise the global build parameters. (If
@@ -178,16 +177,16 @@ In order to build DFTB+ carry out the following steps:
 
   Based on the detected compilers, the build system will read further settings
   from a corresponding toolchain file in the `sys/` folder. Either from a
-  specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or a generic one
+  specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or the generic one
   (`generic.cmake`) if the detected compiler combination does not correspond to
   any of the specific settings. (The name of the selected toolchain file is
   shown in the output.)
 
   You may adjust any variables defined in `config.make` or in the toolchain file
-  by either modifying the files directly or by overriding the definitions via
-  the ``-D`` command line option. For example, in order to use the MKL-library
-  with the GNU-compiler, you would have to override the ``LAPACK_LIBRARY``
-  variable with the CMake command line argument ``-D``::
+  by either modifying the files directly or by setting (overriding) the variable
+  via the ``-D`` command line option. For example, in order to use the
+  MKL-library with the GNU-compiler, you would have to override the
+  ``LAPACK_LIBRARY`` variable with the CMake command line argument ``-D``::
 
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
@@ -202,23 +201,6 @@ In order to build DFTB+ carry out the following steps:
   the library search, e.g.::
 
     -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib
-
-  Note: You can override the toolchain file selection by passing the
-  ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
-
-    -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake
-
-  or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
-  environment variable. If the customized toolchain file is within the `sys/`
-  folder, you may also use the ``-DTOOLCHAIN`` option or the
-  ``DFTBPLUS_TOOLCHAIN`` environment variable with the plain name of the file
-  (without the full path) instead::
-
-    -DTOOLCHAIN=gnu .
-
-  Similarly, you can use an alternative build config file instead of
-  `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
-  defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
 
 
 * If the configuration was successful, invoke (from within the build folder)
@@ -390,3 +372,93 @@ your config file contains toolchain dependent options, consider to define the
 See this `CMake customization file
 <https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7>`_ for a
 template.
+
+
+Advanced build configuration (e.g. for packagers)
+=================================================
+
+Controlling the toolchain file selection
+----------------------------------------
+
+You can override the toolchain file selection by passing the
+``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
+
+  -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake
+
+or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
+environment variable. If the customized toolchain file is within the `sys/`
+folder, you may also use the ``-DTOOLCHAIN`` option or the
+``DFTBPLUS_TOOLCHAIN`` environment variable with the plain name of the file
+(without the full path) instead::
+
+    -DTOOLCHAIN=gnu .
+
+Similarly, you can use an alternative build config file instead of
+`config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
+defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
+
+
+Preventing the download of external sources
+-------------------------------------------
+
+Depending on the value of the ``HYBRID_CONFIG_METHODS`` configuration variable,
+some dependencies (e.g. mbd, negf, mpifx, scalapackfx) are automatically
+downloaded during the configuration phase and built during the DFTB+ build
+process. If you want to ensure that nothing gets downloaded during the build,
+pass the variable definition ::
+
+  -DHYBRID_CONFIG_METHODS="Find"
+  
+to CMake during the configuration. In this case CMake will try to find those
+dependencies in the system only (by searching in the standard system paths and
+in the locations defined in the environment variable ``CMAKE_PREFIX_PATH``) and
+stop if any of components was not found.
+
+
+Troubleshooting
+===============
+
+* **CMake finds the wrong compiler**
+
+  CMake should be guided with the help of the environment variables ``FC``,
+  ``CC`` (and eventually ``CXX``) to make sure it uses the right compilers,
+  e.g. ::
+
+    FC=gfortran CC=gcc cmake [...]
+
+
+* **CMake fails to find a library / finds the wrong version of a library**
+
+  This is in most cases a problem due to a misconfigured ``CMAKE_PREFIX_PATH``
+  environment variable. It is essential, that the ``CMAKE_PREFIX_PATH``
+  environment variable contains all paths (besides the default system paths),
+  which CMake should search when trying to find a library. Extend the library
+  path if needed, e.g. ::
+
+    CMAKE_PREFIX_PATH="/opt/somelib:${CMAKE_PREFIX_PATH}" cmake [...]
+
+
+* **ScaLAPACK detection on Ubuntu 20.4 LTS fails**
+
+  The OpenMPI version of ScaLAPACK on Ubuntu 20.4 LTS exports an incorrect CMake
+  config file (as of October 2020), which refers to an non-existing
+  library. Setting the library name with the ``SCALAPACK_LIBRARY`` variable explicitely,
+  e.g. ::
+
+    cmake -DSCALAPACK_LIBRARY=scalapack-openmpi [...]
+
+  should fix the problem.
+
+
+* **My library settings in a "_LIBRARIES" variable are ignored**
+
+  In order to be consistent with the naming scheme suggeted by the CMake
+  documentation, all library related cache variables had been changed to
+  singular nouns, e.g. ::
+
+    cmake -DSCALAPACK_LIBRARY=scalapack-openmpi [...]
+
+  **instead** of the original ::
+
+    cmake -DSCALAPACK_LIBRARIES=scalapack-openmpi [...]
+

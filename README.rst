@@ -32,7 +32,8 @@ Building from source
 **Note:** This section describes the building with default settings (offering
 only a subset of all possible features in DFTB+) in a typical Linux
 environment. For more detailed information on the build customization and the
-build process, consult the `detailed building instructions <INSTALL.rst>`_.
+build process, consult the **detailed building instructions** in `INSTALL.rst
+<INSTALL.rst>`_.
 
 Download the source code from the `stable release page
 <http://www.dftbplus.org/download/dftb-stable/>`_.
