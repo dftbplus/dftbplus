@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
 
 """Checks the submodule commit IDs in integration CMake files."""
 
