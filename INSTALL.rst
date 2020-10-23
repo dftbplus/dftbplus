@@ -37,7 +37,7 @@ Additionally there are optional requirements for some DFTB+ features:
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
-  computation. (
+  computation.
 
 * The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for metadynamics
   simulations. If you build DFTB+ with MPI, the linked PLUMED library must be
@@ -190,18 +190,16 @@ In order to build DFTB+ carry out the following steps:
 
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
-  When needed, you can also pass linker options in the library variables, e.g.::
+  When needed, you can specify the complete path to a libray or pass linker
+  options in those variables, e.g.::
 
+    -DLAPACK_LIBRARY="/opt/openblas/libopenblas.a"
     -DLAPACK_LIBRARY="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
 
-  CMake by default searches for the external libraries in the paths specified
-  in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
-  correctly in your build environment. Alternatively, you can use the respective
-  ``*_LIBRARY_DIR`` variable for each external library to add path hints for
-  the library search, e.g.::
-
-    -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib
-
+  CMake searches in the systems standard library paths and in the paths
+  specified in the ``CMAKE_PREFIX_PATH`` environment variable for external
+  libraries . **Make sure that your ``CMAKE_PREFIX_PATH`` environment variable
+  is set up correctly and contains all the relevant paths.**
 
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::

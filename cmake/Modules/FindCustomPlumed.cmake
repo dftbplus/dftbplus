@@ -46,9 +46,6 @@ The following cache variables may be set to influence the library detection:
   ``PLUMED_DETECTION``) and the variable is overwritten to contain the libraries
   with their with full path.
 
-``PLUMED_LIBRARY_DIR``
-  Directories which should be looked up in order to find the customized libraries.
-
 
 #]=======================================================================]
 
@@ -74,7 +71,7 @@ else()
     # Overwrite PkgConfig values by user defined input if present.
     if(NOT "${PLUMED_LIBRARY}" STREQUAL "")
       set(_plumed_LIBRARIES ${PLUMED_LIBRARY})
-      set(_plumed_LIBRARY_DIRS ${PLUMED_LIBRARY_DIR})
+      set(_plumed_LIBRARY_DIRS)
     endif()
 
     find_custom_libraries("${_plumed_LIBRARIES}" "${_plumed_LIBRARY_DIRS}"

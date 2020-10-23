@@ -46,9 +46,6 @@ The following cache variables may be set to influence the library detection:
   ``MAGMA_DETECTION``) and the variable is overwritten to contain the libraries
   with their with full path.
 
-``MAGMA_LIBRARY_DIR``
-  Directories which should be looked up in order to find the customized libraries.
-
 ``MAGMA_INCLUDE_DIRECTORY``
   Customized MAGMA include directory.  
 
@@ -75,7 +72,7 @@ else()
     # Overwrite PkgConfig values by user defined input if present.
     if(NOT "${MAGMA_LIBRARY}" STREQUAL "")
       set(_magma_LIBRARIES ${MAGMA_LIBRARY})
-      set(_magma_LIBRARY_DIRS ${MAGMA_LIBRARY_DIR})
+      set(_magma_LIBRARY_DIRS)
     endif()
     if(NOT "${MAGMA_INCLUDE_DIR}" STREQUAL "")
       set(_magma_INCLUDE_DIRS ${MAGMA_INCLUDE_DIR})

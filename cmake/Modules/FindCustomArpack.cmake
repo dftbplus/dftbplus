@@ -45,9 +45,6 @@ The following cache variables may be set to influence the library detection:
   ``ARPACK_DETECTION``) and the variable is overwritten to contain the libraries
   with their with full path.
 
-``ARPACK_LIBRARY_DIR``
-  Directories which should be looked up in order to find the customized libraries.
-
 #]=======================================================================]
 
 include(FindPackageHandleStandardArgs)
@@ -68,13 +65,12 @@ else()
 
     if("${ARPACK_LIBRARY}" STREQUAL "")
       # Very simple ARPACK auto-detection
-      find_library(ARPACK_LIBRARY arpack HINTS ${ARPACK_LIBRARY_DIR})
+      find_library(ARPACK_LIBRARY arpack)
 
     else()
 
       # Library explicitely set by the user, search for those libraries
-      find_custom_libraries("${ARPACK_LIBRARY}" "${ARPACK_LIBRARY_DIR}"
-        "${CustomArpack_FIND_QUIETLY}" _libs)
+      find_custom_libraries("${ARPACK_LIBRARY}" "" "${CustomArpack_FIND_QUIETLY}" _libs)
       set(ARPACK_LIBRARY "${_libs}" CACHE STRING "List of ARPACK libraries to link" FORCE)
       unset(_libs)
 

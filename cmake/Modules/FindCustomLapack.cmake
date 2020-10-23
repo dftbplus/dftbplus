@@ -53,9 +53,6 @@ The following cache variables may be set to influence the library detection:
   the variable is overwritten to contain the libraries with their with full
   path.
 
-``LAPACK_LIBRARY_DIR``
-  Directories which should be looked up in order to find the customized libraries.
-
 ``LAPACK_LINKER_FLAG``
   Flags to use when linking LAPACK
 
@@ -95,8 +92,7 @@ else()
     elseif(NOT "${LAPACK_LIBRARY}" STREQUAL "NONE")
 
       # LAPACK explicitely set by the user, search for those libraries
-      find_custom_libraries("${LAPACK_LIBRARY}" "${LAPACK_LIBRARY_DIR}"
-        "${CustomLapack_FIND_QUIETLY}" _libs)
+      find_custom_libraries("${LAPACK_LIBRARY}" "" "${CustomLapack_FIND_QUIETLY}" _libs)
       set(LAPACK_LIBRARY "${_libs}" CACHE STRING "List of LAPACK libraries to link" FORCE)
       unset(_libs)
 
@@ -123,6 +119,6 @@ else()
     endif()
   endif()
 
-  mark_as_advanced(LAPACK_DETECTION LAPACK_LIBRARY LAPACK_LIBRARY_DIR LAPACK_LINKER_FLAG)
+  mark_as_advanced(LAPACK_DETECTION LAPACK_LIBRARY LAPACK_LINKER_FLAG)
 
 endif()
