@@ -533,11 +533,11 @@ module libnegf_int
     endif
 
     if (allocated(tunnMat)) then    
+      ntemp=nint((TempMax-TempMin)/TempStep)
       allocate(conductance(ntemp,size(tunnMat,2)+1)) 
       emin = negf%Emin*negf%eneconv
       emax = negf%Emax*negf%eneconv
       estep = negf%Estep*negf%eneconv
-      ntemp=nint((TempMax-TempMin)/TempStep)
       do ii = 1, size(tunnMat,2)
         do jj = 1, ntemp
           TT1 = TempMin + TempStep*(jj-1)
