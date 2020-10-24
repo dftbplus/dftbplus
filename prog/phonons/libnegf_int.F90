@@ -534,7 +534,6 @@ module libnegf_int
 
     if (allocated(tunnMat)) then    
       allocate(conductance(ntemp,size(tunnMat,2)+1)) 
-      print*,ntemp,size(conductance),allocated(conductance)
       emin = negf%Emin*negf%eneconv
       emax = negf%Emax*negf%eneconv
       estep = negf%Estep*negf%eneconv
@@ -735,7 +734,7 @@ module libnegf_int
   subroutine write_file(negf, pTot, pSKRes, filename, kpoints, kWeights)
     type(TNegf) :: negf
     real(dp), intent(in) :: pTot(:,:)
-    real(dp), intent(in) :: pSKRes(:,:,:)
+    real(dp), allocatable, intent(in) :: pSKRes(:,:,:)
     character(*), intent(in) :: filename
     real(dp), intent(in) :: kPoints(:,:)
     real(dp), intent(in) :: kWeights(:)
@@ -743,7 +742,6 @@ module libnegf_int
     integer :: ii, jj, iK, nK, fu
 
     nK = size(kPoints,2)
-
     open(newunit=fu,file=trim(filename)//'.dat')
     if (trim(filename).eq.'transmission') then
       write(fu,*)  '# Energy [H]', '  Transmission' 

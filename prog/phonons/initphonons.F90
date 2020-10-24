@@ -458,7 +458,7 @@ contains
     type(TTransPar), intent(inout) :: tp
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
-    type(string) :: buffer, modif
+    type(string) :: modif
     type(fnode), pointer :: pTmp, field
     type(fnodelist), pointer :: pNodeList
     !type(fnodeList), pointer :: pNodeList
@@ -481,7 +481,7 @@ contains
     end if
     allocate(tp%contacts(tp%ncont))
     !! Parse contact geometry
-    call readContacts(pNodeList, tp%contacts, geom, (buffer .eq. "uploadcontacts"))
+    call readContacts(pNodeList, tp%contacts, geom, .true.)
 
   end subroutine readTransportGeometry
 

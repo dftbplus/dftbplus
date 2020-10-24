@@ -68,6 +68,8 @@ program phonons
 
   call destructProgramVariables()
 
+  write(stdOut, "(A)") "Program completed successfully"
+
 contains
     
   subroutine printHeader()
