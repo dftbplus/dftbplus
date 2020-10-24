@@ -232,6 +232,7 @@ timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-T1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NH-Force-spinpol               #? WITH_ARPACK and MPI_PROCS <= 1
 
 dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2

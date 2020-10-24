@@ -41,6 +41,8 @@ module dftbp_transcharges
     procedure :: qTransIJ =>TTransCharges_qTransIJ
     procedure :: qMatVec => TTransCharges_qMatVec
     procedure :: qVecMat => TTransCharges_qVecMat
+    procedure :: qMatVecDs => TTransCharges_qMatVecDs
+    procedure :: qVecMatDs => TTransCharges_qVecMatDs
 
   end type TTransCharges
 
@@ -273,6 +275,120 @@ contains
     end if
 
   end subroutine TTransCharges_qVecMat
+
+
+  !> Transition charges left producted with a vector Q * v for spin up
+  !> minus Transition charges left producted with a vector Q * v for spin down
+  !> sum_ias q_ias V_ias delta_s,  where delta_s = 1 for spin up and delta_s = -1 for spin down
+  pure subroutine TTransCharges_qMatVecDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+      & win, vector, qProduct)
+
+    !> instance of the transition charge object
+    class(TTransCharges), intent(in) :: this
+
+    !> Starting position of each atom in the list of orbitals
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> index array for for single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> index array for single particle excitions that are included
+    integer, intent(in) :: win(:)
+
+    !> vector to product with the transition charges
+    real(dp), intent(in) :: vector(:)
+
+    !> Product on exit
+    real(dp), intent(inout) :: qProduct(:)
+
+    real(dp), allocatable :: qij(:)
+    integer :: ii, jj, ij, kk
+    logical :: updwn
+
+    allocate(qij(this%nAtom))
+
+    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
+    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
+    do ij = 1, this%nTransitions
+      kk = win(ij)
+      ii = getij(kk,1)
+      jj = getij(kk,2)
+      updwn = (kk <= this%nMatUp)
+      qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
+      if (updwn) then
+        qProduct(:) = qProduct + qij * vector(ij)
+      else
+        qProduct(:) = qProduct - qij * vector(ij)
+      end if
+    end do
+    !!$OMP  END PARALLEL DO
+
+    deallocate(qij)
+
+  end subroutine TTransCharges_qMatVecDs
+
+
+  !> Transition charges right producted with a vector v * Q for spin up
+  !> and negative transition charges right producted with a vector v * Q for spin down
+  !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
+  pure subroutine TTransCharges_qVecMatDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+      & win, vector, qProduct)
+
+    !> instance of the transition charge object
+    class(TTransCharges), intent(in) :: this
+
+    !> Starting position of each atom in the list of orbitals
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> index array for for single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> index array for single particle excitions that are included
+    integer, intent(in) :: win(:)
+
+    !> vector to product with the transition charges
+    real(dp), intent(in) :: vector(:)
+
+    !> Product on exit
+    real(dp), intent(inout) :: qProduct(:)
+
+    real(dp), allocatable :: qij(:)
+    integer :: ii, jj, ij, kk
+    logical :: updwn
+
+    allocate(qij(this%nAtom))
+
+    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
+    !!$OMP& SCHEDULE(RUNTIME)
+    do ij = 1, this%nTransitions
+      kk = win(ij)
+      ii = getij(kk,1)
+      jj = getij(kk,2)
+      updwn = (kk <= this%nMatUp)
+      qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
+      if (updwn) then
+        qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
+      else
+        qProduct(ij) = qProduct(ij) - dot_product(qij, vector)
+      end if
+    end do
+    !!$OMP  END PARALLEL DO
+
+    deallocate(qij)
+
+  end subroutine TTransCharges_qVecMatDs
 
 
   !> Calculates atomic transition charges for a specified excitation.
