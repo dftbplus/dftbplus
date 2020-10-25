@@ -30,6 +30,7 @@ program phonons
   logical :: twriteLDOS
   logical :: twriteTunn
   type (TTaggedWriter) :: taggedWriter
+  integer :: err
 
   call initGlobalEnv()
   call printHeader()
@@ -37,11 +38,21 @@ program phonons
   call initProgramVariables(env)
   call TTaggedWriter_init(taggedWriter)
 
+  print*,env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
+
   if (tCompModes) then
+    if (env%mpi%globalComm%size > 1) then
+      call error("Mode calculation is not parallel yet. Run just on 1 node")
+      call destructProgramVariables()
+    end if
     call ComputeModes()
   end if
 
   if (tPhonDispersion) then
+    if (env%mpi%globalComm%size > 1) then
+      call error("Phonon dispersion is not parallel yet. Run just on 1 node")
+      call destructProgramVariables()
+    end if
     call PhononDispersion(taggedWriter)
   end if
 
@@ -226,20 +237,22 @@ contains
     latVecs(3,:) = geo%latVecs(3,:)/real(nCells(3),dp) 
 
     call invert33(invLatt, latVecs) 
+    write(stdOut,*) 'reciprocal lattice vectors:'
+    write(stdOut,*) 'b1:',invLatt(:,1)
+    write(stdOut,*) 'b2:',invLatt(:,2)
+    write(stdOut,*) 'b3:',invLatt(:,3)
     invLatt = transpose(invLatt) * 2.0_dp * pi
-    write(stdOut,*) 'reciprocal lattice vectors (*2*pi):'
-    write(stdOut,*) 'b1:',invLatt(1,:)
-    write(stdOut,*) 'b2:',invLatt(2,:)
-    write(stdOut,*) 'b3:',invLatt(3,:)
 
     allocate(KdynMatrix(3*nAtomUnitCell,3*nAtomUnitCell))
     allocate(eigenValues(3*nAtomUnitCell))
 
     write(stdOut,*) 'Computing Phonon Dispersion (units '//trim(outputUnits)//')'
-    open(newunit=fu, file='phononDispersion.dat', action='write')
-    if (tWriteTagged) then
-      open(newunit=ftag, file=autotestTag) 
-    end if      
+    if (tIOProc) then
+      open(newunit=fu, file='phononDispersion.dat', action='write')
+      if (tWriteTagged) then
+        open(newunit=ftag, file=autotestTag) 
+      end if
+    end if   
 
     qold(1) = dot_product(invLatt(:,1), kPoint(:,1))
     qold(2) = dot_product(invLatt(:,2), kPoint(:,1))
@@ -273,15 +286,17 @@ contains
       ! take square root of modes (allowing for imaginary modes) and print
       eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
  
-      ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold)) 
-      qold = q 
-      do ii = 1, 3*nAtomUnitCell
-        write(fu,*) ModKPoint,  eigenValues(ii)*unitsConv
-      end do
+      if (tIOProc) then
+        ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold)) 
+        qold = q 
+        do ii = 1, 3*nAtomUnitCell
+          write(fu,*) ModKPoint,  eigenValues(ii)*unitsConv
+        end do
 
-      if (tWriteTagged) then
-        call tWriter%write(ftag, "kpoint", kPoint(:,iK))
-        call tWriter%write(ftag, "bands", eigenValues)
+        if (tWriteTagged) then
+          call tWriter%write(ftag, "kpoint", kPoint(:,iK))
+          call tWriter%write(ftag, "bands", eigenValues)
+        end if
       end if
 
     end do

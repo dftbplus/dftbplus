@@ -987,9 +987,12 @@ contains
 
     open(newunit=fu, file=trim(char(filename)), action='read')
     do ii = 1,  nDerivs
-        read(fu,'(4f16.10)') dynMatrix(ii,1:nDerivs)
+        read(fu,'(4f16.10)') dynMatrix(1:nDerivs,ii)
     end do
 
+    ! Note: we read the transpose matrix to avoid temporary arrays (ifort warnings).
+    ! It should be symmetric or could be symmetrized here
+    dynMatrix = transpose(dynMatrix)
     ! mass weight the Hessian matrix to get the dynamical matrix
     iCount = 0
     do ii = 1, nMovedAtom
