@@ -30,7 +30,7 @@ program phonons
   logical :: twriteLDOS
   logical :: twriteTunn
   type (TTaggedWriter) :: taggedWriter
-  integer :: err
+  integer :: err, nProcs
 
   call initGlobalEnv()
   call printHeader()
@@ -38,15 +38,17 @@ program phonons
   call initProgramVariables(env)
   call TTaggedWriter_init(taggedWriter)
 
+  nProcs = 1
   write(stdOut,*)'Computing environment'
 #:if WITH_MPI
   print*,env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
+  nProcs = env%mpi%globalComm%size
 #:else
   write(stdOut,*)'Not compiled with MPI enabled'
 #:endif
 
   if (tCompModes) then
-    if (env%mpi%globalComm%size > 1) then
+    if (nProcs > 1) then
       call error("Mode calculation is not parallel yet. Run just on 1 node")
       call destructProgramVariables()
     end if
@@ -54,7 +56,7 @@ program phonons
   end if
 
   if (tPhonDispersion) then
-    if (env%mpi%globalComm%size > 1) then
+    if (nProcs > 1) then
       call error("Phonon dispersion is not parallel yet. Run just on 1 node")
       call destructProgramVariables()
     end if
