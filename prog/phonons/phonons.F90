@@ -38,7 +38,12 @@ program phonons
   call initProgramVariables(env)
   call TTaggedWriter_init(taggedWriter)
 
+  write(stdOut,*)'Computing environment'
+#:if WITH_MPI
   print*,env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
+#:else
+  write(stdOut,*)'Not compiled with MPI enabled'
+#:endif
 
   if (tCompModes) then
     if (env%mpi%globalComm%size > 1) then
