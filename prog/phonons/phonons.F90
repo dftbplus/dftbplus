@@ -85,6 +85,7 @@ program phonons
   end if
 
   call destructProgramVariables()
+  call destructGlobalEnv()
 
   write(stdOut, "(A)") "Program completed successfully"
 

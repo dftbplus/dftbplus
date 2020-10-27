@@ -183,6 +183,9 @@ module libnegf_int
       parms%Emin =  tundos%Emin
       parms%Emax =  tundos%Emax
       parms%Estep = tundos%Estep
+      ! set SGF reload to compute
+      parms%readOldDM_SGFs = COMP_SGF
+      parms%readOldT_SGFs = COMP_SGF
     endif
     
     ! Energy conversion only affects output units. 
@@ -514,10 +517,10 @@ module libnegf_int
 
        ! MPI Reduce K dependent stuff
 #:if WITH_MPI
-    call mpifx_reduceip(env%mpi%groupCommm, currLead, MPI_SUM)
+    call mpifx_reduceip(env%mpi%groupComm, currLead, MPI_SUM)
     call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
-    call add_k_results(env%mpi%interGroupComm, tunnMat, MPI_SUM)
-    call add_k_results(env%mpi%interGroupComm, ldosMat, MPI_SUM)
+    call add_k_results(env%mpi%interGroupComm, tunnMat, tunnSKRes )
+    call add_k_results(env%mpi%interGroupComm, ldosMat, ldosSKRes )
 #:endif
 
     ! converts from internal atomic units into W
@@ -628,7 +631,6 @@ module libnegf_int
 
     call associate_ldos(pNEgf, ledos)
     call associate_transmission(pNegf, tunn)
-    !call associate_current(pNegf, curr)
 
     call associate_lead_currents(pNegf, currents)
     if (.not.associated(currents)) then
@@ -664,38 +666,115 @@ module libnegf_int
   end subroutine printH
 
   !----------------------------------------------------------------------------
-  subroutine add_partial_results(pMat, pTot, pSKRes, iK, nK)
-    real(dp), pointer :: pMat(:,:)
-    real(dp), allocatable :: pTot(:,:)
-    real(dp), allocatable :: pSKRes(:,:,:)
-    integer, intent(in) :: iK, nK
-      
-    integer :: err 
+  !> utility to allocate and sum partial results from different channels
+#:if WITH_MPI
+  subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
+
+    !> MPI communicator
+    type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine add_partial_results(pMat, matTot, matSKRes, iK, nK)
+#:endif
+
+    !> pointer to matrix of data
+    real(dp), intent(in), pointer :: pMat(:,:)
+
+    !> sum total
+    real(dp), allocatable, intent(inout) :: matTot(:,:)
+
+    !> k-resolved sum
+    real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
+
+    !> particular k-point
+    integer, intent(in) :: iK
+
+    !> number of k-points
+    integer, intent(in) :: nK
+
+    #:if WITH_MPI
+    real(dp), allocatable :: tmpMat(:,:)
+    #:endif
+
+    integer :: err
 
     if (associated(pMat)) then
-      if(.not.allocated(pTot)) then 
-        allocate(pTot(size(pMat,1), size(pMat,2)), stat=err)
-        if (err/=0) then
-          call error('Allocation error (tunnMat)')
-        end if
-        pTot = 0.0_dp
-      endif
-      pTot = pTot + pMat
-   
-      if (nK.gt.1) then
-        if(.not.allocated(pSKRes)) then 
-          allocate(pSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
-          if (err/=0) then
-            call error('Allocation error (SKMat)')
-          end if
-          pSKRes = 0.0_dp
-        endif
-        pSKRes(:,:,iK) = pMat(:,:)
+    #:if WITH_MPI
+      allocate(tmpMat(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
+
+      if (err /= 0) then
+        call error('Allocation error (tmpMat)')
       end if
+
+      tmpMat(:,:) = pMat
+      call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM)
+    #:endif
+      if(.not.allocated(matTot)) then
+        allocate(matTot(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
+
+        if (err /= 0) then
+          call error('Allocation error (tunnTot)')
+        end if
+
+        matTot(:,:) = 0.0_dp
+      end if
+    #:if WITH_MPI
+      matTot(:,:) = matTot + tmpMat
+    #:else
+      matTot(:,:) = matTot + pMat
+    #:endif
+
+      if (nK > 1) then
+        if (.not.allocated(matSKRes)) then
+          allocate(matSKRes(size(pMat,dim=1), size(pMat,dim=2), nK), stat=err)
+
+          if (err/=0) then
+            call error('Allocation error (tunnSKRes)')
+          end if
+
+          matSKRes(:,:,:) = 0.0_dp
+        endif
+#:if WITH_MPI
+        matSKRes(:,:,iK) = tmpMat
+#:else
+        matSKRes(:,:,iK) = pMat
+#:endif
+      end if
+
+#:if WITH_MPI
+      deallocate(tmpMat)
+#:endif
+
+    end if
+
+  end subroutine add_partial_results
+
+
+
+  !----------------------------------------------------------------------------
+
+#:if WITH_MPI
+  !> utility to sum up partial results over K communicator
+  subroutine add_k_results(kcomm, mat, matSKRes)
+
+    !> MPI communicator
+    type(mpifx_comm), intent(in) :: kcomm
+
+    !> sum total
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    !> k-resolved sum
+    real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
+
+    if (allocated(mat)) then
+      call mpifx_reduceip(kcomm, mat, MPI_SUM)
     endif
 
-  end subroutine add_partial_results 
-  !----------------------------------------------------------------------------
+    if (allocated(matSKRes)) then
+      call mpifx_reduceip(kcomm, matSKRes, MPI_SUM)
+    endif
+
+  end subroutine add_k_results
+#:endif
   
   !----------------------------------------------------------------------------
   ! init_csr: is needed only if H and S are stored in dftb+ format
