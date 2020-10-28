@@ -13,12 +13,16 @@ Added
 
 - Many body and Tkatchenko-Scheffler dispersion
 
+- Delta DFTB for lowest singlet excitated state
+
 Changed
 -------
 
 - MPI parallelisation for UFF, Slater-Kirkwood and DFT-D4 dispersion
+
 - OMP parallelisation for UFF and Slater-Kirkwood dispersion
 
+- Re-enabled (collinear) spin polarization in transport
 
 Fixed
 -----

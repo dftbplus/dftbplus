@@ -345,11 +345,13 @@ module negf_int
       params%nf(1:l) = tundos%nf(1:l)
 
       ! setting of intervals and indices for projected DOS
-      nldos = size(tundos%dosOrbitals)
-      call init_ldos(negf, nldos)
-      do i = 1, nldos
-         call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
-      end do
+      if (allocated(tundos%dosOrbitals)) then
+        nldos = size(tundos%dosOrbitals)
+        call init_ldos(negf, nldos)
+        do i = 1, nldos
+           call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
+        end do
+      end if
 
       params%Emin =  tundos%Emin
       params%Emax =  tundos%Emax

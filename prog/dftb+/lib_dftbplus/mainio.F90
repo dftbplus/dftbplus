@@ -50,6 +50,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
+  use dftbp_determinants
   implicit none
   private
 
@@ -65,8 +66,9 @@ module dftbp_mainio
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
   public :: openDetailedOut
-  public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
-  public :: writeDetailedOut5
+  public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
+  public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
+  public :: writeDetailedOut7
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -110,6 +112,11 @@ module dftbp_mainio
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
 
+
+  interface readEigenvecs
+    module procedure readRealEigenvecs
+    module procedure readCplxEigenvecs
+  end interface readEigenvecs
 
 contains
 
@@ -2216,6 +2223,8 @@ contains
     integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
+
+
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
     call xml_NewElement(xf, "detailedout")
@@ -2264,10 +2273,8 @@ contains
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
     end if
-
     call xml_EndElement(xf, "detailedout")
     call xml_Close(xf)
-
   end subroutine writeDetailedXml
 
 
@@ -2325,8 +2332,10 @@ contains
 
   end subroutine writeHessianOut
 
+
   !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+
     !> File  ID
     integer, intent(in) :: fd
 
@@ -2336,28 +2345,24 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    !> Current geometry step
-    integer, intent(in) :: iGeoStep
+    logical isOpen
 
-    !> Which scc step is occuring
-    integer, intent(in) :: iSccIter
-
-    if (iGeoStep == 0 .and. iSccIter == 1) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
+    inquire(unit=fd, opened=isOpen)
+    if (isOpen .and. .not. tAppendDetailedOut) then
       close(fd)
+      isOpen = .false.
+    end if
+    if (.not.isOpen) then
       open(fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
 
-  !> First group of data to go to detailed.out
+
+  !> Optimization and geometry data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
-      & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
-      & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
-      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
-      & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qNetAtom)
+      & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out,&
+      & tPeriodic, tScc, tNegf,  invLatVec, kPoints)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2404,83 +2409,11 @@ contains
     !> Output atomic coordinates
     real(dp), intent(in) :: coord0Out(:,:)
 
-    !> Reference atomic charges
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Input atomic charges (if SCC)
-    real(dp), intent(in) :: qInput(:,:,:)
-
-    !> Output atomic charges (if SCC)
-    real(dp), intent(in) :: qOutput(:,:,:)
-
-    !> Eigenvalues/single particle states (level, kpoint, spin)
-    real(dp), intent(in) :: eigen(:,:,:)
-
-    !> Type containing atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Chemical species of atoms
-    integer, intent(in) :: species(:)
-
-    !> Are orbital potentials being used
-    logical, intent(in) :: tDFTBU
-
-    !> Does the Hamiltonian have an imaginary component (spin-orbit, magnetic field, ...)
-    logical, intent(in) :: tImHam
-
-    !> Should Mulliken populations be printed
-    logical, intent(in) :: tPrintMulliken
-
-    !> Orbital angular momentum (if available)
-    real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
-
-    !> Output block (dual) Mulliken charges
-    real(dp), allocatable, intent(in) :: qBlockOut(:,:,:,:)
-
-    !> Fermi level
-    real(dp), intent(in) :: Ef(:)
-
-    !> Band energy
-    real(dp), intent(in) :: EBand(:)
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
-
-    !> Zero temperature extrapolated electron energy
-    real(dp), intent(in) :: E0(:)
-
-    !> External pressure
-    real(dp), intent(in) :: pressure
-
-    !> Unit cell volume
-    real(dp), intent(in) :: cellVol
-
-    !> Are atom resolved energies required
-    logical, intent(in) :: tAtomicEnergy
-
-    !> Dispersion interactions object
-    class(TDispersionIface), allocatable, intent(inout) :: dispersion
-
-    !> Is there an external electric field
-    logical, intent(in) :: tEfield
-
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
 
-    !> Number of spin channels
-    integer, intent(in) :: nSpin
-
-    !> is this a spin polarized calculation?
-    logical :: tSpin
-
-    !> Are spin orbit interactions present
-    logical, intent(in) :: tSpinOrbit
-
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
-
-    !> Are on-site corrections being used?
-    logical, intent(in) :: tOnSite
 
     !> whether we solve NEGF
     logical, intent(in) :: tNegf
@@ -2491,51 +2424,11 @@ contains
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    !> Electronic solver information
-    type(TElectronicSolver), intent(in) :: electronicSolver
-
-    !> Is there a halogen bond correction present?
-    logical, intent(in) :: tHalogenX
-
-    !> Is this a range separation calculation?
-    logical, intent(in) :: tRangeSep
-
-    !> Is this a 3rd order scc calculation?
-    logical, intent(in) :: t3rd
-
-    !> Is this a solvation model used?
-    logical, intent(in) :: tSolv
-
-    !> Charge model 5 for correcting atomic gross charges
-    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
-
-    !> Onsite mulliken population per atom
-    real(dp), intent(in), optional :: qNetAtom(:)
-
-    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
-    real(dp) :: angularMomentum(3)
-    integer :: ang
-    integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
-    character(sc), allocatable :: shellNamesTmp(:)
+    integer :: nKPoint, nMovedAtom, iAt, iK
     character(lc) :: strTmp
 
-    nAtom = size(q0, dim=2)
-    nKPoint = size(eigen, dim=2)
-    nSpinHams = size(eigen, dim=3)
+    nKPoint = size(kPoints, dim=2)
     nMovedAtom = size(indMovedAtom)
-
-    qInputUpDown = qInput
-    call qm2ud(qInputUpDown)
-    qOutputUpDown = qOutput
-    call qm2ud(qOutputUpDown)
-    if (allocated(qBlockOut)) then
-      qBlockOutUpDown = qBlockOut
-      call qm2ud(qBlockOutUpDown)
-    end if
 
     if (.not. tNegf) then
       ! depends on the contact calculations
@@ -2596,6 +2489,81 @@ contains
         write(fd, formatGeoOut) indMovedAtom(iAt), coord0Out(:, indMovedAtom(iAt))
       end do
       write(fd, *)
+    end if
+
+  end subroutine writeDetailedOut1
+
+
+  !> Charge data to go to detailed.out
+  subroutine writeDetailedOut2(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
+      & tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion,&
+      & cm5Cont, qNetAtom)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Input atomic charges (if SCC)
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Are orbital potentials being used
+    logical, intent(in) :: tDFTBU
+
+    !> Does the Hamiltonian have an imaginary component (spin-orbit, magnetic field, ...)
+    logical, intent(in) :: tImHam
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> Orbital angular momentum (if available)
+    real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
+
+    !> Output block (dual) Mulliken charges
+    real(dp), allocatable, intent(in) :: qBlockOut(:,:,:,:)
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Are on-site corrections being used?
+    logical, intent(in) :: tOnSite
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Charge model 5 for correcting atomic gross charges
+    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qNetAtom(:)
+
+    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp) :: angularMomentum(3)
+    integer :: ang
+    integer :: nAtom
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: strTmp
+
+    nAtom = size(q0, dim=2)
+
+    qInputUpDown = qInput
+    call qm2ud(qInputUpDown)
+    qOutputUpDown = qOutput
+    call qm2ud(qOutputUpDown)
+    if (allocated(qBlockOut)) then
+      qBlockOutUpDown = qBlockOut
+      call qm2ud(qBlockOutUpDown)
     end if
 
     ! Write out atomic charges
@@ -2812,6 +2780,206 @@ contains
       end do lpSpinPrint2
     end if
 
+  end subroutine writeDetailedOut2
+
+
+  !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
+  !> currently only for two spin channels
+  subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
+      & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
+      & iAtInCentralRegion, tPrintMulliken, cm5Cont)
+
+    !> File ID
+    integer, intent(inout) :: fdDetailedOut
+
+    !> File name for output
+    character(*), intent(in) :: userOut
+
+    !> Append to the end of the file or overwrite
+    logical, intent(in) :: tAppendDetailedOut
+
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: dftbEnergy(:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Charges for final state
+    real(dp), intent(in), allocatable :: qOutput(:,:,:)
+
+    !> Charges for each determinant this is present
+    real(dp), intent(in), allocatable :: qDets(:,:,:,:)
+
+    !> block populations for each determinant present
+    real(dp), intent(in), allocatable :: qBlockDets(:,:,:,:,:)
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Charge model 5 for correcting atomic gross charges
+    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
+    real(dp), allocatable :: blockTmp(:,:,:,:), orbitalL(:,:,:)
+
+    @:ASSERT(size(q0,dim=3) == 2)
+
+    call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+
+    if (deltaDftb%iGround > 0) then
+      write(fdDetailedOut,*)'S0 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
+      end if
+      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
+          & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
+          & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
+    end if
+    if (deltaDftb%iTriplet > 0) then
+      write(fdDetailedOut,*)'T1 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+      end if
+      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
+          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
+          & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
+    end if
+    if (deltaDftb%isSpinPurify) then
+      write(fdDetailedOut,*)'S1 state'
+      if (allocated(qBlockDets)) then
+        blockTmp = 2.0_dp*qBlockDets(:,:,:,:,deltaDftb%iMixed)&
+            & - qBlockDets(:,:,:,:,deltaDftb%iTriplet)
+      end if
+    else
+      write(fdDetailedOut,*)'Mixed state'
+      if (allocated(qBlockDets)) then
+        blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
+      end if
+    end if
+
+    call writeDetailedOut2(fdDetailedOut, q0, qOutput, qOutput, orb, species, allocated(blockTmp),&
+        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
+        & cm5Cont)
+
+    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
+
+  end subroutine writeDetailedOut2Dets
+
+
+  !> First group of data to go to detailed.out
+  subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
+      & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
+      & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
+      & tSolv)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Input atomic charges (if SCC)
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Energy terms in the system
+    type(TEnergies), intent(in) :: energy
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Are orbital potentials being used
+    logical, intent(in) :: tDFTBU
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Are atom resolved energies required
+    logical, intent(in) :: tAtomicEnergy
+
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Is there an external electric field
+    logical, intent(in) :: tEfield
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> is this a spin polarized calculation?
+    logical :: tSpin
+
+    !> Are spin orbit interactions present
+    logical, intent(in) :: tSpinOrbit
+
+    !> Is this a self consistent charge calculation
+    logical, intent(in) :: tScc
+
+    !> Are on-site corrections being used?
+    logical, intent(in) :: tOnSite
+
+    !> whether we solve NEGF
+    logical, intent(in) :: tNegf
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is there a halogen bond correction present?
+    logical, intent(in) :: tHalogenX
+
+    !> Is this a range separation calculation?
+    logical, intent(in) :: tRangeSep
+
+    !> Is this a 3rd order scc calculation?
+    logical, intent(in) :: t3rd
+
+    !> Is this a solvation model used?
+    logical, intent(in) :: tSolv
+
+    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:)
+    real(dp) :: angularMomentum(3)
+    integer :: ang
+    integer :: nSpinHams
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: strTmp
+
+    nSpinHams = size(Ef)
+
+    qInputUpDown = qInput
+    call qm2ud(qInputUpDown)
+    qOutputUpDown = qOutput
+    call qm2ud(qOutputUpDown)
+
     lpSpinPrint3: do iSpin = 1, nSpinHams
       if (nSpin == 2) then
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
@@ -2820,15 +2988,17 @@ contains
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
       end if
       if (electronicSolver%providesBandEnergy) then
-        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
+        write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
+            & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
+        write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
         if (electronicSolver%providesBandEnergy) then
-          write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-              & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+          write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
+              & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
         end if
-        write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+        write(fd, format2U) 'Extrapolated E(0K)', energy%E0(iSpin), "H",&
+            & Hartree__eV * (energy%E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
         if (nSpin == 2) then
@@ -2902,16 +3072,16 @@ contains
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
     if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
-      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
-          & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(energy%TS), 'H',&
+          & (energy%Etotal - sum(energy%TS)) * Hartree__eV, 'eV'
     end if
     if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
-          & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
+      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(energy%TS) + cellVol * pressure,&
+          & 'H', Hartree__eV * (energy%Etotal - sum(energy%TS) + cellVol * pressure), 'eV'
     end if
     write(fd, *)
 
@@ -2940,11 +3110,11 @@ contains
       write(fd, *)
     end if
 
-  end subroutine writeDetailedOut1
+  end subroutine writeDetailedOut3
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
+  subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
       & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
@@ -3083,11 +3253,11 @@ contains
       end if
     end if
 
-  end subroutine writeDetailedOut2
+  end subroutine writeDetailedOut4
 
 
   !> Third group of data for detailed.out
-  subroutine writeDetailedOut3(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
+  subroutine writeDetailedOut5(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
       & totalLatDeriv, energy, tempElec, pressure, cellPressure, tempIon)
 
     !> File ID
@@ -3156,10 +3326,11 @@ contains
     end if
     write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
 
-  end subroutine writeDetailedOut3
+  end subroutine writeDetailedOut5
+
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, energy, tempIon)
+  subroutine writeDetailedOut6(fd, energy, tempIon)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3176,12 +3347,12 @@ contains
     write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
     write(fd, *)
 
-  end subroutine writeDetailedOut4
+  end subroutine writeDetailedOut6
 
 
   !> Fifth group of data for detailed.out
-  subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment)
+  subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
+      & dipoleMoment, deltaDftb)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3204,17 +3375,52 @@ contains
     !> What is the external E field magnitude
     real(dp), intent(in) :: absEField
 
-    !> What is the dipole moment (if available)
-    real(dp), intent(in), allocatable :: dipoleMoment(:)
+    !> dipole moment
+    real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
+
+    !> type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    if (allocated(dipoleMoment)) then
+      if (deltaDftb%isNonAufbau) then
+        if (deltaDftb%iGround > 0) then
+          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
+          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
+              & * au__Debye, ' Debye'
+          write(fd, *)
+        end if
+        if (deltaDftb%iTriplet > 0) then
+          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:', dipoleMoment(:,deltaDftb%iTriplet), ' au'
+          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:', dipoleMoment(:,deltaDftb%iTriplet)&
+              & * au__Debye, ' Debye'
+          write(fd, *)
+        end if
+        if (deltaDftb%isSpinPurify) then
+          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:', dipoleMoment(:,deltaDftb%iFinal), ' au'
+          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:', dipoleMoment(:,deltaDftb%iFinal)&
+              & * au__Debye, ' Debye'
+          write(fd, *)
+          if (deltaDftb%isSpinPurify .and. deltaDftb%iGround > 0) then
+            write(fd, "(A, 3F14.8, A)")'S0 -> S1 transition dipole:',&
+                & dipoleMoment(:,deltaDftb%iFinal)-dipoleMoment(:,deltaDftb%iGround), ' au'
+          end if
+        else
+          write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:',&
+              & dipoleMoment(:,deltaDftb%iMixed), ' au'
+          write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:', dipoleMoment(:,deltaDftb%iMixed)&
+              & * au__Debye, ' Debye'
+          write(fd, *)
+        end if
+      else
+        write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
+        write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
+            & * au__Debye, ' Debye'
+        write(fd, *)
+      end if
+    end if
 
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
-    end if
-
-    if (allocated(dipoleMoment)) then
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
-      write(fd, *)
     end if
 
     if (tGeoOpt) then
@@ -3239,7 +3445,8 @@ contains
     write(fd,*)
     close(fd)
 
-  end subroutine writeDetailedOut5
+  end subroutine writeDetailedOut7
+
 
   !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
@@ -3324,7 +3531,7 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> dipole moment if available
-    real(dp), intent(inout), allocatable :: dipoleMoment(:)
+    real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
     integer :: ii
     character(lc) :: strTmp
@@ -3372,8 +3579,9 @@ contains
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
     if (allocated(dipoleMoment)) then
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment,  'au'
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye,  'Debye'
+      ii = size(dipoleMoment, dim=2)
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
     end if
 
   end subroutine writeMdOut2
@@ -3855,27 +4063,153 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, electronicSolver)
+  subroutine printEnergies(energy, electronicSolver, deltaDftb, outUnit)
 
-    !> energy components
-    type(TEnergies), intent(in) :: energy
+    !> energy components, potentially from multiple determinants
+    type(TEnergies), intent(in) :: energy(:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
-    write(stdOut, *)
-    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    if (electronicSolver%providesEigenvals) then
-      write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
-          & "eV"
+    !> type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Optional unit to print out the results
+    integer, intent(in), optional :: outUnit
+
+    integer :: iUnit
+
+    if (present(outUnit)) then
+      iUnit = outUnit
+    else
+      iUnit = stdOut
     end if
-    if (electronicSolver%providesElectronEntropy) then
-      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-          & Hartree__eV * energy%EMermin, "eV"
+
+    write(iUnit, *)
+
+    if (deltaDftb%iGround > 0) then
+
+      if (deltaDftb%isNonAufbau) then
+        write(iUnit, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(iUnit, format2U) "Ground State Extrapolated to 0K",&
+              & energy(deltaDftb%iGround)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(iUnit, format2U) "Total Ground State Mermin egy",&
+              & energy(deltaDftb%iGround)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(iUnit, format2U) 'Ground State Force related egy',&
+              & energy(deltaDftb%iGround)%EForceRelated, 'H',&
+              & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
+        end if
+      else
+        write(iUnit, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(iUnit, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
+              & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(iUnit, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
+              & "H", Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(iUnit, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
+              & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
+        end if
+      end if
+      write(iUnit,*)
     end if
-    if (electronicSolver%providesFreeEnergy) then
-      write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
-          & energy%EForceRelated * Hartree__eV, 'eV'
+
+    if (deltaDftb%iTriplet > 0) then
+
+      write(iUnit, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
+          & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal,"eV"
+      if (electronicSolver%providesEigenvals) then
+        write(iUnit, format2U) "Triplet State Extrapolated to 0K",&
+            & energy(deltaDftb%iTriplet)%Ezero, "H",&
+            & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
+      end if
+      if (electronicSolver%providesElectronEntropy) then
+        write(iUnit, format2U) "Triplet State Mermin free egy",&
+            & energy(deltaDftb%iTriplet)%EMermin, "H",&
+            & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
+      end if
+      if (electronicSolver%providesFreeEnergy) then
+        write(iUnit, format2U) 'Triplet State Force related egy',&
+            & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
+            & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
+      end if
+      write(iUnit,*)
+    end if
+
+    if (deltaDftb%iMixed > 0) then
+
+      if (deltaDftb%isSpinPurify) then
+
+        write(iUnit, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(iUnit, format2U) "Purified Extrapolated 0K",&
+              & energy(deltaDftb%iFinal)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(iUnit, format2U) "Purified State Mermin free egy",&
+              & energy(deltaDftb%iFinal)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(iUnit, format2U) 'Purified Force related egy',&
+              & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
+              & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
+        end if
+
+        if (deltaDftb%iGround > 0) then
+          if (electronicSolver%providesFreeEnergy) then
+            write(iUnit, *)
+            write(iUnit, format2U) 'S0 -> T1',&
+                & energy(deltaDftb%iTriplet)%EForceRelated&
+                & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
+                & (energy(deltaDftb%iTriplet)%EForceRelated&
+                & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
+            write(iUnit, format2U) 'S0 -> S1',&
+                & energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated,&
+                & 'H',&
+                & (energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated)&
+                & * Hartree__eV, 'eV'
+          end if
+        end if
+
+      else
+
+        write(iUnit, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
+        if (electronicSolver%providesEigenvals) then
+          write(iUnit, format2U) "Mixed Extrapolated to 0K",&
+              & energy(deltaDftb%iMixed)%Ezero, "H",&
+              & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
+        end if
+        if (electronicSolver%providesElectronEntropy) then
+          write(iUnit, format2U) "Mixed State Mermin free egy",&
+              & energy(deltaDftb%iMixed)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
+        end if
+        if (electronicSolver%providesFreeEnergy) then
+          write(iUnit, format2U) 'Mixed State Force related egy',&
+              & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
+              & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
+        end if
+
+      end if
+
+      write(iUnit,*)
+
     end if
 
   end subroutine printEnergies
@@ -4558,35 +4892,48 @@ contains
   end subroutine writeEsp
 
 
+#:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
+
   !> Read external eigenvector file (eigenvec.bin)
-  subroutine readEigenvecs(eigenvecs)
+  subroutine read${NAME}$Eigenvecs(eigenvecs, jobId)
 
-    real(dp), intent(out) :: eigenvecs(:,:)
+    !> Resulting eigenvectors read from file
+    ${DTYPE}$(dp), intent(out) :: eigenvecs(:,:)
 
-    character(len=16), parameter :: fname = "eigenvec.bin"
-    integer :: funit
+    !> ID of the calculation which produced the file
+    integer, intent(out), optional :: jobId
+
+  #:if WITH_SCALAPACK
+
+    call error("Eigenvector reading not currently supported for ScaLAPACK enabled builds")
+
+  #:else
+
+    integer :: funit, iMO, nOrb, dummy
     logical :: exst
-    integer :: iAO, iMO, nOrb
-    integer :: dummy
 
     nOrb = size(eigenvecs,dim=1)
 
-    inquire(file=fname,exist=exst)
+    inquire(file=eigvecBin, exist=exst)
     if (exst) then
-      open(newunit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
-      read(funit,rec=1) dummy
+      open(newunit=funit, file=eigvecBin, action="read", form="unformatted", position='rewind')
+      read(funit) dummy
+      if (present(jobId)) then
+        jobId = dummy
+      end if
       do iMO = 1, nOrb
-        read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
-        do iAO = 1, nOrb
-          read(funit,rec=2+iAO+(nOrb+1)*(iMO-1)) eigenvecs(iAO,iMO)
-        end do
+        read(funit) eigenvecs(:,iMO)
       end do
       close(funit)
     else
-      call error('no eigenvec.bin file!')
+      call error('no ' // eigvecBin // ' file!')
     end if
 
-  end subroutine readEigenvecs
+  #:endif
+
+  end subroutine read${NAME}$Eigenvecs
+
+#:endfor
 
 
   !> First group of data to go to detailed.out
@@ -4765,12 +5112,16 @@ contains
     ! Write out atomic charges
     if (tPrintMulliken) then
       if (reks%nstates > 1) then
-        write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
-        write(fd, "(A60)") " These charges do not mean the charges for individual states"
-        write(fd, "(A56)") " Similarly to this, the values in band.out file indicate"
-        write(fd, "(A57)") " the band energies and occupations for the averaged state"
-        write(fd, "(A44)") " If you want to compute the relaxed density,"
-        write(fd, "(A42)") " please, set 'RelaxedDensity = Yes' option"
+        write(fd, "(1X,A)") "SA-REKS optimizes the averaged state, not individual states."
+        write(fd, "(1X,A)") "These charges are not from individual states."
+        write(fd, "(1X,A)") "Similarly, the values in band.out file indicate"
+        write(fd, "(1X,A)") "the band energies and occupations for the averaged state."
+        if (.not.reks%tRD) then
+          write(fd, "(1X,A)") "If you want to compute the relaxed density,"
+          write(fd, "(1X,A)") "please, set 'RelaxedDensity = Yes' option"
+        else
+          write(fd, "(1X,A)") "Check the file relaxed_charge.dat for the relaxed density."
+        end if
         write(fd, *)
       end if
       write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&

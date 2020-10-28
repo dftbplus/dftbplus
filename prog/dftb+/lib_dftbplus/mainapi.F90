@@ -14,13 +14,13 @@ module dftbp_mainapi
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, energy, derivs
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, dftbEnergy, derivs
   use dftbp_initprogram, only : TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot
   use dftbp_initprogram, only : nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec
   use dftbp_initprogram, only : species0, mass, origin, tCoordsChanged, tLatticeChanged, tExtField
   use dftbp_initprogram, only : tExtChrg, tForces, tSccCalc, tDFTBU, tFracCoord, tMulliken, tSpin
   use dftbp_initprogram, only : tReadChrg, tMixBlockCharges, isRangeSep, t2Component, tRealHS
-  use dftbp_initprogram, only : q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0
+  use dftbp_initprogram, only : q0, qInput, qOutput, qDiff, qInpRed, qOutRed, qshell0, referenceN0
   use dftbp_initprogram, only : qDiffRed, nrChrg, nrSpinPol, setEquivalencyRelations, iEqOrbitals
   use dftbp_initprogram, only : nIneqOrb, nMixElements, onSiteElements, denseDesc, parallelKS
   use dftbp_initprogram, only : HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal
@@ -111,8 +111,11 @@ contains
     !> Resulting energy
     real(dp), intent(out) :: merminEnergy
 
+    integer :: iDet
+
     call recalcGeometry(env)
-    merminEnergy = energy%EMermin
+    iDet = size(dftbEnergy)
+    merminEnergy = dftbEnergy(iDet)%EMermin
 
   end subroutine getEnergy
 
@@ -373,7 +376,7 @@ contains
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
         & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
-        & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+        & qDiff, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
   end subroutine updateDataDependentOnSpeciesOrdering
 

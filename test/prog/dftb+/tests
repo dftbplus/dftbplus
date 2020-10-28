@@ -5,6 +5,12 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+deltadftb/C2H4                         #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
+deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
+
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
@@ -70,6 +76,7 @@ rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI and WITH_ARPACK
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
 reks/C2H4_nosave                       #? not WITH_MPI
+reks/C2H4_read_mo                      #? not WITH_MPI
 reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
@@ -141,6 +148,8 @@ dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
 dispersion/specieslist_dftd3_bj        #? WITH_DFTD3 and MPI_PROCS <= 1
+dispersion/GaAs_sdftd3                 #? MPI_PROCS <= 2
+dispersion/2H2O_sdftd3                 #? MPI_PROCS <= 1
 dispersion/2H2O_dftd4                  #? MPI_PROCS <= 1
 dispersion/specieslist_dftd4           #? MPI_PROCS <= 1
 dispersion/charged_dftd4               #? MPI_PROCS <= 1
@@ -223,6 +232,7 @@ timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-T1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NH-Force-spinpol               #? WITH_ARPACK and MPI_PROCS <= 1
 
 dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2
@@ -334,7 +344,7 @@ md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4 and LONG_TEST
 md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4 and LONG_TEST
 
 timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
+#!timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C60_EandOsc                    #? WITH_ARPACK and MPI_PROCS <= 1
 
 non-scc/Si_216                         #? MPI_PROCS <= 4 and LONG_TEST
@@ -356,6 +366,8 @@ transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2 and 
 transport/SiH-chain_bin                #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-chain_Ef                   #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-chain-spin                 #? WITH_TRANSPORT and MPI_PROCS <= 8
+transport/H-chain-fullspin             #? WITH_TRANSPORT and MPI_PROCS <= 8 and LONG_TEST
 transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet_grp2                 #? WITH_TRANSPORT and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0
 transport/H-sheet_grp4                 #? WITH_TRANSPORT and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0

@@ -1,9 +1,11 @@
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../" projectdir)
+
 set(targets
   integvalue
   polyvalue
   splvalue)
 
-set(fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
+set(fypp-opts -I${projectdir}/prog/dftb+/include)
 
 foreach(target IN LISTS targets)
 
@@ -15,6 +17,6 @@ foreach(target IN LISTS targets)
 
   target_link_libraries(${target} dftbplus)
 
-  install(TARGETS ${target} DESTINATION ${INSTALL_BIN_DIR})
+  install(TARGETS ${target} DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 endforeach()

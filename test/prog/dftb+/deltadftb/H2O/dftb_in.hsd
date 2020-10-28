@@ -1,0 +1,75 @@
+Geometry = GenFormat {
+ 3  C
+ O H
+    1  1   -0.2856010474E-26   -0.1366027290E-11    0.7140929218E-01
+    2  2    0.3185350269E-15    0.8092442843E+00   -0.4548146461E+00
+    3  2   -0.3185350269E-15   -0.8092442843E+00   -0.4548146461E+00
+}
+
+Driver = ConjugateGradient {
+  MaxSteps = 2
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    MaxSCCIterations = 500
+    MaxAngularMomentum = {
+        O = "p"
+        H = "s"
+    }
+    Mixer = DIIS {}
+    NonAufbau = {
+        GroundGuess = Yes
+    }
+    RangeSeparated = LC {
+        Screening = MatrixBased {}
+    }
+    SpinConstants = {
+        O = {
+            -0.04782
+            -0.03335
+            -0.03335
+            -0.03307
+        }
+        H = {
+            -0.07925
+        }
+        ShellResolvedSpin = Yes
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100
+    }
+    OnSiteCorrection= {
+        # ss' sp
+        # ps  pp'
+        Ouu = {0        0.08672
+               0.08672 -0.00523}
+        Oud = {0        0.14969
+               0.14969  0.03834}
+        Huu = {0}
+        Hud = {0}
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

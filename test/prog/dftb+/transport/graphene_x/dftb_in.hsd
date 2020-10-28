@@ -82,6 +82,7 @@ Analysis{
   TunnelingAndDOS{
     EnergyRange [eV] = -5.90  -4.00
     EnergyStep [eV] = 0.02
+    computeLDOS = No
   }
 }
 

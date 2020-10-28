@@ -7,9 +7,13 @@ set(sources-f77
   dmudcom.f)
 
 add_library(mudpack ${sources-f77})
-
-if(WITH_API OR BUILD_SHARED_LIBS)
-  install(TARGETS mudpack DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
+if(WITH_OMP)
+  target_link_libraries(mudpack PUBLIC OpenMP::OpenMP_Fortran)
 endif()
 
-set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} mudpack PARENT_SCOPE)
+if(WITH_API OR BUILD_SHARED_LIBS)
+  install(TARGETS mudpack DESTINATION "${CMAKE_INSTALL_LIBDIR}" EXPORT dftbplus-targets)
+endif()
+
+list(APPEND PKG_CONFIG_LIBS mudpack)
+set(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS}" PARENT_SCOPE)

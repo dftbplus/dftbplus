@@ -1032,7 +1032,10 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
 
-    write(stdOut, "(A)") 'Starting dynamics'
+    write(stdOut, "(A)")
+    write(stdOut, "(A)") 'Starting electronic dynamics...'
+    write(stdOut, "(A80)") repeat("-", 80)
+
 
     rho => trho
     rhoOld => trhoOld
@@ -2039,7 +2042,7 @@ contains
     end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
-    call TEnergies_init(energy, this%nAtom)
+    call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
