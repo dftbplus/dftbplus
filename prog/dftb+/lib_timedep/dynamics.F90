@@ -699,9 +699,6 @@ contains
     integer :: iPol, iCall
     logical :: tWriteAutotest
 
-!    if (.not. allocated(sccCalc)) then
-!      call error("SCC calculations are currently required for dynamics")
-    !    end if
     if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
@@ -2004,11 +2001,16 @@ contains
           call blockSymmetrizeHS(T3, iSquare)
           H1(:,:,iKS) = cmplx(T3, 0, dp)
         else if (this%tRealHS .and. (.not. this%tSCC)) then
-          call unpackHS(H1(:,:,iKS), ham0(:), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+          call unpackHS(T3, ham0(:), iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+              & img2CentCell)
+          call blockSymmetrizeHS(T3, iSquare)
+          H1(:,:,iKS) = cmplx(T3, 0, dp)
+        else if ((.not. this%tRealHS) .and. this%tSCC) then
+          call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(H1(:,:,iKS), iSquare)
         else
-          call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+          call unpackHS(H1(:,:,iKS), ham0(:), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(H1(:,:,iKS), iSquare)
         end if
