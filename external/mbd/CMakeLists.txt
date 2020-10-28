@@ -14,6 +14,6 @@ endmacro()
 
 set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
 # Use utils/test/check_submodule_commits to update commit hash below
-set(MBD_GIT_TAG "3e70b0cc64557b1bf06467bb2d2d50cee8e2e7ef")
+set(MBD_GIT_TAG "729c079e7745195f7ad4c14c36bff27f59469926")
 
 dftbp_config_hybrid_source_dependency(${MBD_GIT_REPOSITORY} ${MBD_GIT_TAG})
