@@ -14,7 +14,7 @@ program dftbplus
   use dftbp_inputdata, only : TInputData
   use dftbp_formatout, only : printDftbHeader
   use dftbp_hsdhelpers, only : parseHsdInput
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables
+  use dftbp_initprogram
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
@@ -22,16 +22,17 @@ program dftbplus
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
+  type(TGlobalData) :: globalData
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
   allocate(input)
   call parseHsdInput(input)
   call TEnvironment_init(env)
-  call initProgramVariables(input, env)
+  call globalData%initProgramVariables(input, env)
   deallocate(input)
-  call runDftbPlus(env)
-  call destructProgramVariables()
+  call runDftbPlus(env, globalData)
+  call globalData%destructProgramVariables()
 #:if WITH_GPU  
   call magmaf_finalize()
 #:endif
