@@ -118,933 +118,977 @@ module dftbp_initprogram
   use dftbp_determinants
   implicit none
 
+  private
 
-  !> Tagged output files (machine readable)
-  character(*), parameter :: autotestTag = "autotest.tag"
+  public :: TGlobalData
 
-  !> Detailed user output
-  character(*), parameter :: userOut = "detailed.out"
+  type TGlobalData
 
-  !> band structure and filling information
-  character(*), parameter :: bandOut = "band.out"
+    !> Tagged output files (machine readable)
+    character(*), parameter :: autotestTag = "autotest.tag"
 
-  !> File accumulating data during an MD run
-  character(*), parameter :: mdOut = "md.out"
+    !> Detailed user output
+    character(*), parameter :: userOut = "detailed.out"
 
-  !> Machine readable tagged output
-  character(*), parameter :: resultsTag = "results.tag"
+    !> band structure and filling information
+    character(*), parameter :: bandOut = "band.out"
 
-  !> Second derivative of the energy with respect to atomic positions
-  character(*), parameter :: hessianOut = "hessian.out"
+    !> File accumulating data during an MD run
+    character(*), parameter :: mdOut = "md.out"
 
-  !> file name prefix for charge data
-  character(*), parameter :: fCharges = "charges"
+    !> Machine readable tagged output
+    character(*), parameter :: resultsTag = "results.tag"
 
-  !> file to stop code during geometry driver
-  character(*), parameter :: fStopDriver = "stop_driver"
+    !> Second derivative of the energy with respect to atomic positions
+    character(*), parameter :: hessianOut = "hessian.out"
 
-  !> file to stop code during scc cycle
-  character(*), parameter :: fStopSCC = "stop_scc"
+    !> file name prefix for charge data
+    character(*), parameter :: fCharges = "charges"
 
-  !> file name for shift data
-  character(*), parameter :: fShifts = "shifts.dat"
+    !> file to stop code during geometry driver
+    character(*), parameter :: fStopDriver = "stop_driver"
 
-  !> Is this calculation using a restarted input that does not require self consistency before
-  !> moving to the post SCC loop part (i.e. Ehrenfest)
-  logical :: tRestartNoSC = .false.
+    !> file to stop code during scc cycle
+    character(*), parameter :: fStopSCC = "stop_scc"
 
-  !> Is the calculation SCC?
-  logical :: tSccCalc
+    !> file name for shift data
+    character(*), parameter :: fShifts = "shifts.dat"
 
-  !> SCC module internal variables
-  type(TScc), allocatable :: sccCalc
+    !> Is this calculation using a restarted input that does not require self consistency before
+    !> moving to the post SCC loop part (i.e. Ehrenfest)
+    logical :: tRestartNoSC = .false.
 
-  !> nr. of atoms
-  integer :: nAtom
+    !> Is the calculation SCC?
+    logical :: tSccCalc
 
-  !> nr. of all (boundary condition images and original) atoms
-  integer :: nAllAtom
+    !> SCC module internal variables
+    type(TScc), allocatable :: sccCalc
 
-  !> nr. of original atom in central cell
-  integer, allocatable :: Img2CentCell(:)
+    !> nr. of atoms
+    integer :: nAtom
 
-  !> nr of different types (nAtom)
-  integer :: nType
+    !> nr. of all (boundary condition images and original) atoms
+    integer :: nAllAtom
 
-  !> data type for atomic orbital information
-  type(TOrbitals), target :: orb
+    !> nr. of original atom in central cell
+    integer, allocatable :: Img2CentCell(:)
 
-  !> nr. of orbitals in the system
-  integer :: nOrb
+    !> nr of different types (nAtom)
+    integer :: nType
 
-  !> types of the atoms (nAllAtom)
-  integer, allocatable :: species(:)
+    !> data type for atomic orbital information
+    type(TOrbitals), target :: orb
 
-  !> type of the atoms (nAtom)
-  integer, allocatable, target :: species0(:)
+    !> nr. of orbitals in the system
+    integer :: nOrb
 
-  !> Coords of the atoms (3, nAllAtom)
-  real(dp), allocatable :: coord(:,:)
+    !> types of the atoms (nAllAtom)
+    integer, allocatable :: species(:)
 
-  !> Coords in central cell (3, nAtom)
-  real(dp), allocatable, target :: coord0(:,:)
+    !> type of the atoms (nAtom)
+    integer, allocatable, target :: species0(:)
 
-  !> if calculation is periodic
-  logical :: tPeriodic
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), allocatable :: coord(:,:)
 
-  !> If the calculation is helical geometry
-  logical :: tHelical
+    !> Coords in central cell (3, nAtom)
+    real(dp), allocatable, target :: coord0(:,:)
 
-  !> Should central cell coordinates be output?
-  logical :: tShowFoldedCoord
+    !> if calculation is periodic
+    logical :: tPeriodic
 
-  !> How to calculate forces
-  integer :: forceType
+    !> If the calculation is helical geometry
+    logical :: tHelical
 
-  !> are atomic coordinates fractional?
-  logical :: tFracCoord
+    !> Should central cell coordinates be output?
+    logical :: tShowFoldedCoord
 
-  !> Tolerance for SCC cycle
-  real(dp) :: sccTol
+    !> How to calculate forces
+    integer :: forceType
 
-  !> lattice vectors as columns
-  real(dp), allocatable, target :: latVec(:,:)
+    !> are atomic coordinates fractional?
+    logical :: tFracCoord
 
-  !> Origin of coordinate system for periodic systems
-  real(dp), allocatable :: origin(:)
+    !> Tolerance for SCC cycle
+    real(dp) :: sccTol
 
-  !> reciprocal lattice vectors as columns
-  real(dp), allocatable, target :: recVec(:,:)
+    !> lattice vectors as columns
+    real(dp), allocatable, target :: latVec(:,:)
 
-  !> original lattice vectors used for optimizing
-  real(dp) :: origLatVec(3,3)
+    !> Origin of coordinate system for periodic systems
+    real(dp), allocatable :: origin(:)
 
-  !> normalized vectors in those directions
-  real(dp) :: normOrigLatVec(3,3)
+    !> reciprocal lattice vectors as columns
+    real(dp), allocatable, target :: recVec(:,:)
 
+    !> original lattice vectors used for optimizing
+    real(dp) :: origLatVec(3,3)
 
-  !> reciprocal vectors in 2 pi units
-  real(dp), allocatable :: invLatVec(:,:)
-
-  !> cell volume
-  real(dp) :: CellVol
-
-  !> reciprocal cell volume
-  real(dp) :: recCellVol
-
-  !> translation vecs for interacting image cells (3, nImgCell + 1)
-  real(dp), allocatable :: cellVec(:,:)
-
-  !> cell vectors in absolute units
-  real(dp), allocatable :: rCellVec(:,:)
-
-  !> index in cellVec for each atom
-  integer, allocatable :: iCellVec(:)
+    !> normalized vectors in those directions
+    real(dp) :: normOrigLatVec(3,3)
 
 
-  !> ADT for neighbour parameters
-  type(TNeighbourList), allocatable :: neighbourList
+    !> reciprocal vectors in 2 pi units
+    real(dp), allocatable :: invLatVec(:,:)
 
-  !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
-  integer, allocatable :: nNeighbourSK(:)
+    !> cell volume
+    real(dp) :: CellVol
 
-  !> nr. of neighbours for atoms within Erep interaction distance (usually short)
-  integer, allocatable :: nNeighbourRep(:)
+    !> reciprocal cell volume
+    real(dp) :: recCellVol
 
-  !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-  !> functional
-  integer, allocatable :: nNeighbourLC(:)
+    !> translation vecs for interacting image cells (3, nImgCell + 1)
+    real(dp), allocatable :: cellVec(:,:)
 
-  !> H/S sparse matrices indexing array for atomic blocks
-  integer, allocatable :: iSparseStart(:,:)
+    !> cell vectors in absolute units
+    real(dp), allocatable :: rCellVec(:,:)
 
-  !> Hubbard Us (orbital, atom)
-  real(dp), allocatable, target :: hubbU(:,:)
+    !> index in cellVec for each atom
+    integer, allocatable :: iCellVec(:)
 
-  !> self energy (orbital, atom)
-  real(dp), allocatable :: atomEigVal(:,:)
 
-  !> reference n_0 charges for each atom
-  real(dp), allocatable :: referenceN0(:,:)
+    !> ADT for neighbour parameters
+    type(TNeighbourList), allocatable :: neighbourList
 
-  !> list of atomic masses
-  real(dp), allocatable :: mass(:)
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, allocatable :: nNeighbourSK(:)
 
-  !> list of atomic masses for each species
-  real(dp), allocatable :: speciesMass(:)
+    !> nr. of neighbours for atoms within Erep interaction distance (usually short)
+    integer, allocatable :: nNeighbourRep(:)
 
-  !> Hamiltonian type
-  integer :: hamiltonianType
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, allocatable :: nNeighbourLC(:)
 
-  !> Raw H^0 hamiltonian data
-  type(TSlakoCont) :: skHamCont
+    !> H/S sparse matrices indexing array for atomic blocks
+    integer, allocatable :: iSparseStart(:,:)
 
-  !> Raw overlap hamiltonian data
-  type(TSlakoCont) :: skOverCont
+    !> Hubbard Us (orbital, atom)
+    real(dp), allocatable, target :: hubbU(:,:)
 
-  !> Repulsive interaction raw data
-  type(TRepCont) :: pRepCont
+    !> self energy (orbital, atom)
+    real(dp), allocatable :: atomEigVal(:,:)
 
-  !> Interaction cutoff distances
-  type TCutoffs
-    real(dp) :: skCutOff
+    !> reference n_0 charges for each atom
+    real(dp), allocatable :: referenceN0(:,:)
+
+    !> list of atomic masses
+    real(dp), allocatable :: mass(:)
+
+    !> list of atomic masses for each species
+    real(dp), allocatable :: speciesMass(:)
+
+    !> Hamiltonian type
+    integer :: hamiltonianType
+
+    !> Raw H^0 hamiltonian data
+    type(TSlakoCont) :: skHamCont
+
+    !> Raw overlap hamiltonian data
+    type(TSlakoCont) :: skOverCont
+
+    !> Repulsive interaction raw data
+    type(TRepCont) :: pRepCont
+
+    !> Interaction cutoff distances
+    type TCutoffs
+      real(dp) :: skCutOff
+      real(dp) :: repCutOff
+      real(dp) :: lcCutOff
+      real(dp) :: mCutOff
+    end type TCutoffs
+
+    !> Cut off distances for various types of interaction
+    type(TCutoffs) :: cutOff
+
+    !> Cut off distance for repulsive interactions
     real(dp) :: repCutOff
-    real(dp) :: lcCutOff
-    real(dp) :: mCutOff
-  end type TCutoffs
 
-  !> Cut off distances for various types of interaction
-  type(TCutoffs) :: cutOff
+    !> Sparse hamiltonian matrix
+    real(dp), allocatable :: ham(:,:)
 
-  !> Cut off distance for repulsive interactions
-  real(dp) :: repCutOff
+    !> imaginary part of the Hamiltonian
+    real(dp), allocatable :: iHam(:,:)
 
-  !> Sparse hamiltonian matrix
-  real(dp), allocatable :: ham(:,:)
+    !> Charge per atomic shell (shell, atom, spin channel)
+    real(dp), allocatable :: chargePerShell(:,:,:)
 
-  !> imaginary part of the Hamiltonian
-  real(dp), allocatable :: iHam(:,:)
+    !> Charge par atom (atom, spin channel)
+    real(dp), allocatable :: chargePerAtom(:,:)
 
-  !> Charge per atomic shell (shell, atom, spin channel)
-  real(dp), allocatable :: chargePerShell(:,:,:)
+    !> sparse overlap
+    real(dp), allocatable :: over(:)
 
-  !> Charge par atom (atom, spin channel)
-  real(dp), allocatable :: chargePerAtom(:,:)
 
-  !> sparse overlap
-  real(dp), allocatable :: over(:)
+    !> nr. of K-points
+    integer :: nKPoint
 
+    !> K-points
+    real(dp), allocatable :: kPoint(:,:)
 
-  !> nr. of K-points
-  integer :: nKPoint
+    !> weight of the K-Points
+    real(dp), allocatable :: KWeight(:)
 
-  !> K-points
-  real(dp), allocatable :: kPoint(:,:)
 
-  !> weight of the K-Points
-  real(dp), allocatable :: KWeight(:)
+    !> external pressure if periodic
+    real(dp) :: extPressure
 
+    !> Barostat used if MD and periodic
+    logical :: tBarostat
 
-  !> external pressure if periodic
-  real(dp) :: extPressure
+    !> Barostat coupling strength
+    real(dp) :: BarostatStrength
 
-  !> Barostat used if MD and periodic
-  logical :: tBarostat
 
-  !> Barostat coupling strength
-  real(dp) :: BarostatStrength
+    !> H and S are real
+    logical :: tRealHS
 
 
-  !> H and S are real
-  logical :: tRealHS
+    !> nr. of electrons
+    real(dp), allocatable :: nEl(:)
 
+    !> Nr. of all electrons if neutral
+    real(dp) :: nEl0
 
-  !> nr. of electrons
-  real(dp), allocatable :: nEl(:)
 
-  !> Nr. of all electrons if neutral
-  real(dp) :: nEl0
+    !> Spin W values
+    real(dp), allocatable :: spinW(:,:,:)
 
+    !> Spin orbit constants
+    real(dp), allocatable :: xi(:,:)
 
-  !> Spin W values
-  real(dp), allocatable :: spinW(:,:,:)
 
-  !> Spin orbit constants
-  real(dp), allocatable :: xi(:,:)
+    !> is this a DFTB+U calculation?
+    logical :: tDFTBU
 
+    !> Choice of orbital functional
+    integer :: nDFTBUfunc
 
-  !> is this a DFTB+U calculation?
-  logical :: tDFTBU
+    !> list of U-J for species
+    real(dp), allocatable :: UJ(:,:)
 
-  !> Choice of orbital functional
-  integer :: nDFTBUfunc
+    !> How many U-J for each species
+    integer, allocatable :: nUJ(:)
 
-  !> list of U-J for species
-  real(dp), allocatable :: UJ(:,:)
+    !> number of l-values of U-J for each block
+    integer, allocatable :: niUJ(:,:)
 
-  !> How many U-J for each species
-  integer, allocatable :: nUJ(:)
+    !> l-values of U-J for each block
+    integer, allocatable :: iUJ(:,:,:)
 
-  !> number of l-values of U-J for each block
-  integer, allocatable :: niUJ(:,:)
+    !> electron temperature
+    real(dp) :: tempElec
 
-  !> l-values of U-J for each block
-  integer, allocatable :: iUJ(:,:,:)
+    !> If K points should filled separately
+    logical :: tFillKSep
 
-  !> electron temperature
-  real(dp) :: tempElec
+    !> Fix Fermi energy at specified value
+    logical :: tFixEf
 
-  !> If K points should filled separately
-  logical :: tFillKSep
+    !> Fermi energy per spin
+    real(dp), allocatable :: Ef(:)
 
-  !> Fix Fermi energy at specified value
-  logical :: tFixEf
+    !> Filling temp updated by MD.
+    logical :: tSetFillingTemp
 
-  !> Fermi energy per spin
-  real(dp), allocatable :: Ef(:)
+    !> Choice of electron distribution function, defaults to Fermi
+    integer :: iDistribFn = fillingTypes%Fermi
 
-  !> Filling temp updated by MD.
-  logical :: tSetFillingTemp
+    !> atomic kinetic temperature
+    real(dp) :: tempAtom
 
-  !> Choice of electron distribution function, defaults to Fermi
-  integer :: iDistribFn = fillingTypes%Fermi
+    !> MD stepsize
+    real(dp) :: deltaT
 
-  !> atomic kinetic temperature
-  real(dp) :: tempAtom
+    !> maximal number of SCC iterations
+    integer :: maxSccIter
 
-  !> MD stepsize
-  real(dp) :: deltaT
+    !> Minimal number of SCC iterations
+    integer :: minSccIter
 
-  !> maximal number of SCC iterations
-  integer :: maxSccIter
+    !> is this a spin polarized calculation?
+    logical :: tSpin
 
-  !> Minimal number of SCC iterations
-  integer :: minSccIter
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer :: nSpin
 
-  !> is this a spin polarized calculation?
-  logical :: tSpin
+    !> is there spin-orbit coupling
+    logical :: tSpinOrbit
 
-  !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
-  integer :: nSpin
+    !> Use block like dual representation for spin orbit
+    logical :: tDualSpinOrbit
 
-  !> is there spin-orbit coupling
-  logical :: tSpinOrbit
+    !> Is there a complex hamiltonian contribution in real space
+    logical :: tImHam
 
-  !> Use block like dual representation for spin orbit
-  logical :: tDualSpinOrbit
+    !> is this a two component calculation (spin orbit or non-collinear spin)
+    logical :: t2Component
 
-  !> Is there a complex hamiltonian contribution in real space
-  logical :: tImHam
+    !> Common Fermi level accross spin channels
+    logical :: tSpinSharedEf
 
-  !> is this a two component calculation (spin orbit or non-collinear spin)
-  logical :: t2Component
 
-  !> Common Fermi level accross spin channels
-  logical :: tSpinSharedEf
+    !> Geometry optimization needed?
+    logical :: isGeoOpt
 
+    !> optimize coordinates inside unit cell (periodic)?
+    logical :: tCoordOpt
 
-  !> Geometry optimization needed?
-  logical :: isGeoOpt
+    !> optimize lattice constants?
+    logical :: tLatOpt
 
-  !> optimize coordinates inside unit cell (periodic)?
-  logical :: tCoordOpt
+    !> Fix angles between lattice vectors when optimizing?
+    logical :: tLatOptFixAng
 
-  !> optimize lattice constants?
-  logical :: tLatOpt
+    !> Fix length of specified lattice vectors when optimizing?
+    logical :: tLatOptFixLen(3)
 
-  !> Fix angles between lattice vectors when optimizing?
-  logical :: tLatOptFixAng
+    !> Optimise lattice isotropically
+    logical :: tLatOptIsotropic
 
-  !> Fix length of specified lattice vectors when optimizing?
-  logical :: tLatOptFixLen(3)
+    !> Is this a MD calculation?
+    logical :: tMD
 
-  !> Optimise lattice isotropically
-  logical :: tLatOptIsotropic
+    !> Is this a derivatives calc?
+    logical :: tDerivs
 
-  !> Is this a MD calculation?
-  logical :: tMD
+    !> Do we need Mulliken charges?
+    logical :: tMulliken
 
-  !> Is this a derivatives calc?
-  logical :: tDerivs
+    !> Electrostatic potentials if requested
+    type(TElStatPotentials), allocatable :: esp
 
-  !> Do we need Mulliken charges?
-  logical :: tMulliken
+    !> Calculate localised orbitals?
+    logical :: tLocalise
 
-  !> Electrostatic potentials if requested
-  type(TElStatPotentials), allocatable :: esp
+    !> Do we need to show Mulliken charges?
+    logical :: tPrintMulliken
 
-  !> Calculate localised orbitals?
-  logical :: tLocalise
+    !> Do we need to show net atomic charges?
+    logical :: tNetAtomCharges
 
-  !> Do we need to show Mulliken charges?
-  logical :: tPrintMulliken
+    !> calculate an electric dipole?
+    logical :: tDipole
 
-  !> Do we need to show net atomic charges?
-  logical :: tNetAtomCharges
+    !> Do we need atom resolved E?
+    logical :: tAtomicEnergy
 
-  !> calculate an electric dipole?
-  logical :: tDipole
+    !> Print out eigenvectors?
+    logical :: tPrintEigVecs
 
-  !> Do we need atom resolved E?
-  logical :: tAtomicEnergy
+    !> Store eigenvectors as a text file
+    logical :: tPrintEigVecsTxt
 
-  !> Print out eigenvectors?
-  logical :: tPrintEigVecs
+    !> Print eigenvector projections?
+    logical :: tProjEigenvecs
 
-  !> Store eigenvectors as a text file
-  logical :: tPrintEigVecsTxt
+    !> Do we need forces?
+    logical :: tForces
 
-  !> Print eigenvector projections?
-  logical :: tProjEigenvecs
+    !> Is the contribution from an excited state needed for the forces
+    logical :: tCasidaForces
 
-  !> Do we need forces?
-  logical :: tForces
+    !> are forces being returned
+    logical :: tPrintForces
 
-  !> Is the contribution from an excited state needed for the forces
-  logical :: tCasidaForces
+    !> Number of moved atoms
+    integer :: nMovedAtom
 
-  !> are forces being returned
-  logical :: tPrintForces
+    !> Index of the moved atoms
+    integer, allocatable :: indMovedAtom(:)
 
-  !> Number of moved atoms
-  integer :: nMovedAtom
+    !> Nr. of moved coordinates
+    integer :: nMovedCoord
 
-  !> Index of the moved atoms
-  integer, allocatable :: indMovedAtom(:)
+    !> Nr. of geo movements to do
+    integer :: nGeoSteps
 
-  !> Nr. of moved coordinates
-  integer :: nMovedCoord
+    !> Index of constrained atoms
+    integer, allocatable :: conAtom(:)
 
-  !> Nr. of geo movements to do
-  integer :: nGeoSteps
+    !> Constraint vectors
+    real(dp), allocatable :: conVec(:,:)
 
-  !> Index of constrained atoms
-  integer, allocatable :: conAtom(:)
+    !> Pipek-Mezey localisation calculator
+    type(TPipekMezey), allocatable :: pipekMezey
 
-  !> Constraint vectors
-  real(dp), allocatable :: conVec(:,:)
+    !> use commands from socket communication to control the run
+    logical :: tSocket
 
-  !> Pipek-Mezey localisation calculator
-  type(TPipekMezey), allocatable :: pipekMezey
-
-  !> use commands from socket communication to control the run
-  logical :: tSocket
-
-  !> socket details
+    !> socket details
 #:if WITH_SOCKETS
-  type(ipiSocketComm), allocatable :: socket
+    type(ipiSocketComm), allocatable :: socket
 #:endif
 
-  !> File containing output geometry
-  character(lc) :: geoOutFile
+    !> File containing output geometry
+    character(lc) :: geoOutFile
 
-  !> Append geometries in the output?
-  logical :: tAppendGeo
+    !> Append geometries in the output?
+    logical :: tAppendGeo
 
-  !> Use converged SCC charges for properties like forces or charge dependent dispersion
-  logical :: isSccConvRequired
+    !> Use converged SCC charges for properties like forces or charge dependent dispersion
+    logical :: isSccConvRequired
 
-  !> labels of atomic species
-  character(mc), allocatable :: speciesName(:)
+    !> labels of atomic species
+    character(mc), allocatable :: speciesName(:)
 
-  !> General geometry optimizer
-  type(TGeoOpt), allocatable :: pGeoCoordOpt
+    !> General geometry optimizer
+    type(TGeoOpt), allocatable :: pGeoCoordOpt
 
-  !> Geometry optimizer for lattice consts
-  type(TGeoOpt), allocatable :: pGeoLatOpt
+    !> Geometry optimizer for lattice consts
+    type(TGeoOpt), allocatable :: pGeoLatOpt
 
-  !> Charge mixer
-  type(TMixer), allocatable :: pChrgMixer
+    !> Charge mixer
+    type(TMixer), allocatable :: pChrgMixer
 
-  !> MD Framework
-  type(TMDCommon), allocatable :: pMDFrame
+    !> MD Framework
+    type(TMDCommon), allocatable :: pMDFrame
 
-  !> MD integrator
-  type(TMDIntegrator), allocatable :: pMDIntegrator
+    !> MD integrator
+    type(TMDIntegrator), allocatable :: pMDIntegrator
 
-  !> Temperature profile driver in MD
-  type(TTempProfile), allocatable, target :: temperatureProfile
+    !> Temperature profile driver in MD
+    type(TTempProfile), allocatable, target :: temperatureProfile
 
-  !> geometry optimiser
-  type(TNumDerivs), allocatable, target :: derivDriver
+    !> geometry optimiser
+    type(TNumDerivs), allocatable, target :: derivDriver
 
-  !> Total charge
-  real(dp) :: nrChrg
+    !> Total charge
+    real(dp) :: nrChrg
 
-  !> Spin polarisation
-  real(dp) :: nrSpinPol
+    !> Spin polarisation
+    real(dp) :: nrSpinPol
 
-  !> Is the check-sum for charges read externally to be used?
-  logical :: tSkipChrgChecksum
+    !> Is the check-sum for charges read externally to be used?
+    logical :: tSkipChrgChecksum
 
-  !> reference neutral atomic occupations
-  real(dp), allocatable :: q0(:, :, :)
+    !> reference neutral atomic occupations
+    real(dp), allocatable :: q0(:, :, :)
 
-  !> shell resolved neutral reference
-  real(dp), allocatable :: qShell0(:,:)
+    !> shell resolved neutral reference
+    real(dp), allocatable :: qShell0(:,:)
 
-  !> input charges (for potentials)
-  real(dp), allocatable :: qInput(:, :, :)
+    !> input charges (for potentials)
+    real(dp), allocatable :: qInput(:, :, :)
 
-  !> output charges
-  real(dp), allocatable :: qOutput(:, :, :)
+    !> output charges
+    real(dp), allocatable :: qOutput(:, :, :)
 
-  !> charge differences between input and output charges
-  real(dp), allocatable :: qDiff(:, :, :)
+    !> charge differences between input and output charges
+    real(dp), allocatable :: qDiff(:, :, :)
 
-  !> net (on-site only contributions) charge per atom
-  real(dp), allocatable :: qNetAtom(:)
+    !> net (on-site only contributions) charge per atom
+    real(dp), allocatable :: qNetAtom(:)
 
-  !> input Mulliken block charges (diagonal part == Mulliken charges)
-  real(dp), allocatable :: qBlockIn(:, :, :, :)
+    !> input Mulliken block charges (diagonal part == Mulliken charges)
+    real(dp), allocatable :: qBlockIn(:, :, :, :)
 
-  !> Output Mulliken block charges
-  real(dp), allocatable :: qBlockOut(:, :, :, :)
+    !> Output Mulliken block charges
+    real(dp), allocatable :: qBlockOut(:, :, :, :)
 
-  !> Imaginary part of input Mulliken block charges
-  real(dp), allocatable :: qiBlockIn(:, :, :, :)
+    !> Imaginary part of input Mulliken block charges
+    real(dp), allocatable :: qiBlockIn(:, :, :, :)
 
-  !> Imaginary part of output Mulliken block charges
-  real(dp), allocatable :: qiBlockOut(:, :, :, :)
+    !> Imaginary part of output Mulliken block charges
+    real(dp), allocatable :: qiBlockOut(:, :, :, :)
 
-  !> input charges packed into unique equivalence elements
-  real(dp), allocatable :: qInpRed(:)
+    !> input charges packed into unique equivalence elements
+    real(dp), allocatable :: qInpRed(:)
 
-  !> output charges packed into unique equivalence elements
-  real(dp), allocatable :: qOutRed(:)
+    !> output charges packed into unique equivalence elements
+    real(dp), allocatable :: qOutRed(:)
 
-  !> charge differences packed into unique equivalence elements
-  real(dp), allocatable :: qDiffRed(:)
+    !> charge differences packed into unique equivalence elements
+    real(dp), allocatable :: qDiffRed(:)
 
-  !> Orbital equivalence relations
-  integer, allocatable :: iEqOrbitals(:,:,:)
+    !> Orbital equivalence relations
+    integer, allocatable :: iEqOrbitals(:,:,:)
 
-  !> nr. of inequivalent orbitals
-  integer :: nIneqOrb
+    !> nr. of inequivalent orbitals
+    integer :: nIneqOrb
 
-  !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
-  !> (if tDFTBU or onsite corrections)
-  integer :: nMixElements
+    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
+    !> (if tDFTBU or onsite corrections)
+    integer :: nMixElements
 
-  !> Orbital equivalency for orbital blocks
-  integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
+    !> Orbital equivalency for orbital blocks
+    integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
 
-  !> Equivalences for onsite block corrections if needed
-  integer, allocatable :: iEqBlockOnSite(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed
+    integer, allocatable :: iEqBlockOnSite(:,:,:,:)
 
-  !> Orbital equivalency for orbital blocks with spin-orbit
-  integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
+    !> Orbital equivalency for orbital blocks with spin-orbit
+    integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
 
-  !> Equivalences for onsite block corrections if needed with spin orbit
-  integer, allocatable :: iEqBlockOnSiteLS(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed with spin orbit
+    integer, allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
 
-  ! External charges
+    ! External charges
 
-  !> If external charges must be considered
-  logical :: tExtChrg
+    !> If external charges must be considered
+    logical :: tExtChrg
 
-  !> Nr. of external charges
-  integer :: nExtChrg
+    !> Nr. of external charges
+    integer :: nExtChrg
 
-  !> external electric field
-  logical :: tEField
+    !> external electric field
+    logical :: tEField
 
-  !> Arbitrary external field (including electric)
-  logical :: tExtField
+    !> Arbitrary external field (including electric)
+    logical :: tExtField
 
-  !> field strength
-  real(dp) :: EFieldStrength
+    !> field strength
+    real(dp) :: EFieldStrength
 
-  !> field direction
-  real(dp) :: EfieldVector(3)
+    !> field direction
+    real(dp) :: EfieldVector(3)
 
-  !> time dependent
-  logical :: tTDEfield
+    !> time dependent
+    logical :: tTDEfield
 
-  !> angular frequency
-  real(dp) :: EfieldOmega
+    !> angular frequency
+    real(dp) :: EfieldOmega
 
-  !> phase of field at step 0
-  integer :: EfieldPhase
+    !> phase of field at step 0
+    integer :: EfieldPhase
 
 
-  !> Partial density of states (PDOS) projection regions
-  type(TListIntR1) :: iOrbRegion
+    !> Partial density of states (PDOS) projection regions
+    type(TListIntR1) :: iOrbRegion
 
-  !> PDOS region labels
-  type(TListCharLc) :: regionLabels
+    !> PDOS region labels
+    type(TListCharLc) :: regionLabels
 
-  !> Third order DFTB
-  logical :: t3rd
+    !> Third order DFTB
+    logical :: t3rd
 
-  !> Full 3rd order or only atomic site
-  logical :: t3rdFull
+    !> Full 3rd order or only atomic site
+    logical :: t3rdFull
 
-  !> data structure for 3rd order
-  type(TThirdOrder), allocatable :: thirdOrd
+    !> data structure for 3rd order
+    type(TThirdOrder), allocatable :: thirdOrd
 
-  !> Correction to energy from on-site matrix elements
-  real(dp), allocatable :: onSiteElements(:,:,:,:)
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable :: onSiteElements(:,:,:,:)
 
-  !> Correction to dipole momements on-site matrix elements
-  real(dp), allocatable :: onSiteDipole(:,:)
+    !> Correction to dipole momements on-site matrix elements
+    real(dp), allocatable :: onSiteDipole(:,:)
 
-  !> Should block charges be mixed as well as charges
-  logical :: tMixBlockCharges
+    !> Should block charges be mixed as well as charges
+    logical :: tMixBlockCharges
 
-  !> Calculate Casida linear response excitations
-  logical :: isLinResp
+    !> Calculate Casida linear response excitations
+    logical :: isLinResp
 
-  !> calculate Z vector for excited properties
-  logical :: tLinRespZVect
+    !> calculate Z vector for excited properties
+    logical :: tLinRespZVect
 
-  !> data type for pp-RPA
-  type(TppRPAcal), allocatable :: ppRPA
+    !> data type for pp-RPA
+    type(TppRPAcal), allocatable :: ppRPA
 
-  !> Print eigenvectors
-  logical :: tPrintExcitedEigVecs
+    !> Print eigenvectors
+    logical :: tPrintExcitedEigVecs
 
-  !> data type for linear response
-  type(TLinResp), allocatable :: linearResponse
+    !> data type for linear response
+    type(TLinResp), allocatable :: linearResponse
 
-  !> Whether to run a range separated calculation
-  logical :: isRangeSep
+    !> Whether to run a range separated calculation
+    logical :: isRangeSep
 
-  !> Range Separation data
-  type(TRangeSepFunc), allocatable :: rangeSep
+    !> Range Separation data
+    type(TRangeSepFunc), allocatable :: rangeSep
 
-  !> DeltaRho input for calculation of range separated Hamiltonian
-  real(dp), allocatable, target :: deltaRhoIn(:)
+    !> DeltaRho input for calculation of range separated Hamiltonian
+    real(dp), allocatable, target :: deltaRhoIn(:)
 
-  !> DeltaRho output from calculation of range separated Hamiltonian
-  real(dp), allocatable, target :: deltaRhoOut(:)
+    !> DeltaRho output from calculation of range separated Hamiltonian
+    real(dp), allocatable, target :: deltaRhoOut(:)
 
-  !> Holds change in deltaRho between SCC steps for range separation
-  real(dp), allocatable :: deltaRhoDiff(:)
+    !> Holds change in deltaRho between SCC steps for range separation
+    real(dp), allocatable :: deltaRhoDiff(:)
 
-  !> DeltaRho input for range separation in matrix form
-  real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
+    !> DeltaRho input for range separation in matrix form
+    real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
 
-  !> DeltaRho output from range separation in matrix form
-  real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
+    !> DeltaRho output from range separation in matrix form
+    real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
-  !> Linear response calculation with range-separated functional
-  logical :: isRS_LinResp
+    !> Linear response calculation with range-separated functional
+    logical :: isRS_LinResp
 
-  !> If initial charges/dens mtx. from external file.
-  logical :: tReadChrg
+    !> If initial charges/dens mtx. from external file.
+    logical :: tReadChrg
 
-  !> Whether potential shifts are read from file
-  logical :: tReadShifts
+    !> Whether potential shifts are read from file
+    logical :: tReadShifts
 
-  !> Should charges be read in ascii format?
-  logical :: tReadChrgAscii
+    !> Should charges be read in ascii format?
+    logical :: tReadChrgAscii
 
-  !> Whether potential shifts are read from file
-  logical :: tWriteShifts
+    !> Whether potential shifts are read from file
+    logical :: tWriteShifts
 
-  !> should charges written to disc be in ascii or binary format?
-  logical :: tWriteChrgAscii
+    !> should charges written to disc be in ascii or binary format?
+    logical :: tWriteChrgAscii
 
-  !> produce tagged output?
-  logical :: tWriteAutotest
+    !> produce tagged output?
+    logical :: tWriteAutotest
 
-  !> Produce detailed.xml
-  logical :: tWriteDetailedXML
+    !> Produce detailed.xml
+    logical :: tWriteDetailedXML
 
-  !> Produce detailed.tag
-  logical :: tWriteResultsTag
+    !> Produce detailed.tag
+    logical :: tWriteResultsTag
 
-  !> Produce detailed.out
-  logical :: tWriteDetailedOut
+    !> Produce detailed.out
+    logical :: tWriteDetailedOut
 
-  !> Produce band.dat
-  logical :: tWriteBandDat
+    !> Produce band.dat
+    logical :: tWriteBandDat
 
-  !> Should HS (square) be printed?
-  logical :: tWriteHS
+    !> Should HS (square) be printed?
+    logical :: tWriteHS
 
-  !> Should HS (sparse) be printed?
-  logical :: tWriteRealHS
+    !> Should HS (sparse) be printed?
+    logical :: tWriteRealHS
 
-  !> Program run id
-  integer :: runId
+    !> Program run id
+    integer :: runId
 
-  !> Frequency for saving restart info
-  integer :: restartFreq
+    !> Frequency for saving restart info
+    integer :: restartFreq
 
-  !> dispersion data and calculations
-  class(TDispersionIface), allocatable :: dispersion
+    !> dispersion data and calculations
+    class(TDispersionIface), allocatable :: dispersion
 
-  !> Solvation data and calculations
-  class(TSolvation), allocatable :: solvation
+    !> Solvation data and calculations
+    class(TSolvation), allocatable :: solvation
 
-  !> Charge Model 5 for printout
-  type(TChargeModel5), allocatable :: cm5Cont
+    !> Charge Model 5 for printout
+    type(TChargeModel5), allocatable :: cm5Cont
 
-  !> Can stress be calculated?
-  logical :: tStress
+    !> Can stress be calculated?
+    logical :: tStress
 
-  !> should XLBOMD be used in MD
-  logical :: isXlbomd
+    !> should XLBOMD be used in MD
+    logical :: isXlbomd
 
-  !> XLBOMD related parameters
-  type(TXLBOMD), allocatable :: xlbomdIntegrator
+    !> XLBOMD related parameters
+    type(TXLBOMD), allocatable :: xlbomdIntegrator
 
-  !> Differentiation method for (H^0,S)
-  type(TNonSccDiff) :: nonSccDeriv
+    !> Differentiation method for (H^0,S)
+    type(TNonSccDiff) :: nonSccDeriv
 
-  !> Whether lattice has changed since last geometry iteration
-  logical :: tLatticeChanged
+    !> Whether lattice has changed since last geometry iteration
+    logical :: tLatticeChanged
 
-  !> Whether atomic coordindates have changed since last geometry iteration
-  logical :: tCoordsChanged
+    !> Whether atomic coordindates have changed since last geometry iteration
+    logical :: tCoordsChanged
 
-  !> Plumed calculator
-  type(TPlumedCalc), allocatable :: plumedCalc
+    !> Plumed calculator
+    type(TPlumedCalc), allocatable :: plumedCalc
 
-  !> Dense matrix descriptor for H and S
-  type(TDenseDescr) :: denseDesc
+    !> Dense matrix descriptor for H and S
+    type(TDenseDescr) :: denseDesc
 
-  !> MD velocities
-  real(dp), allocatable :: velocities(:,:)
+    !> MD velocities
+    real(dp), allocatable :: velocities(:,:)
 
-  !> MD velocities for moved atoms
-  real(dp), allocatable :: movedVelo(:,:)
+    !> MD velocities for moved atoms
+    real(dp), allocatable :: movedVelo(:,:)
 
-  !> MD acceleration for moved atoms
-  real(dp), allocatable :: movedAccel(:,:)
+    !> MD acceleration for moved atoms
+    real(dp), allocatable :: movedAccel(:,:)
 
-  !> Mass of the moved atoms
-  real(dp), allocatable :: movedMass(:,:)
+    !> Mass of the moved atoms
+    real(dp), allocatable :: movedMass(:,:)
 
-  !> Sparse storage of density matrix
-  real(dp), allocatable :: rhoPrim(:,:)
+    !> Sparse storage of density matrix
+    real(dp), allocatable :: rhoPrim(:,:)
 
-  !> Imaginary part of density matrix in sparse storage
-  real(dp), allocatable :: iRhoPrim(:,:)
+    !> Imaginary part of density matrix in sparse storage
+    real(dp), allocatable :: iRhoPrim(:,:)
 
-  !> Energy weighted density matrix
-  real(dp), allocatable :: ERhoPrim(:)
+    !> Energy weighted density matrix
+    real(dp), allocatable :: ERhoPrim(:)
 
-  !> Non-SCC part of the hamiltonian in sparse storage
-  real(dp), allocatable :: h0(:)
+    !> Non-SCC part of the hamiltonian in sparse storage
+    real(dp), allocatable :: h0(:)
 
-  !> electronic filling
-  real(dp), allocatable :: filling(:,:,:)
+    !> electronic filling
+    real(dp), allocatable :: filling(:,:,:)
 
-  !> Square dense hamiltonian storage for cases with k-points
-  complex(dp), allocatable :: HSqrCplx(:,:)
+    !> Square dense hamiltonian storage for cases with k-points
+    complex(dp), allocatable :: HSqrCplx(:,:)
 
-  !> Square dense overlap storage for cases with k-points
-  complex(dp), allocatable :: SSqrCplx(:,:)
+    !> Square dense overlap storage for cases with k-points
+    complex(dp), allocatable :: SSqrCplx(:,:)
 
-  !> Complex eigenvectors
-  complex(dp), allocatable :: eigvecsCplx(:,:,:)
+    !> Complex eigenvectors
+    complex(dp), allocatable :: eigvecsCplx(:,:,:)
 
-  !> Square dense hamiltonian storage
-  real(dp), allocatable :: HSqrReal(:,:)
+    !> Square dense hamiltonian storage
+    real(dp), allocatable :: HSqrReal(:,:)
 
-  !> Square dense overlap storage
-  real(dp), allocatable :: SSqrReal(:,:)
+    !> Square dense overlap storage
+    real(dp), allocatable :: SSqrReal(:,:)
 
-  !> Real eigenvectors
-  real(dp), allocatable :: eigvecsReal(:,:,:)
+    !> Real eigenvectors
+    real(dp), allocatable :: eigvecsReal(:,:,:)
 
-  !> Eigenvalues
-  real(dp), allocatable :: eigen(:,:,:)
+    !> Eigenvalues
+    real(dp), allocatable :: eigen(:,:,:)
 
-  !> density matrix
-  real(dp), allocatable :: rhoSqrReal(:,:,:)
+    !> density matrix
+    real(dp), allocatable :: rhoSqrReal(:,:,:)
 
-  !> Total energy components (potentially for multiple determinants)
-  type(TEnergies), allocatable :: dftbEnergy(:)
+    !> Total energy components (potentially for multiple determinants)
+    type(TEnergies), allocatable :: dftbEnergy(:)
 
-  !> Potentials for orbitals
-  type(TPotentials) :: potential
+    !> Potentials for orbitals
+    type(TPotentials) :: potential
 
-  !> Reference external potential (usual provided via API)
-  type(TRefExtPot) :: refExtPot
+    !> Reference external potential (usual provided via API)
+    type(TRefExtPot) :: refExtPot
 
-  !> Proxy for querying population dependant external potenials
-  type(TQDepExtPotProxy), allocatable :: qDepExtPot
+    !> Proxy for querying population dependant external potenials
+    type(TQDepExtPotProxy), allocatable :: qDepExtPot
 
-  !> Energy derivative with respect to atomic positions
-  real(dp), allocatable :: derivs(:,:)
+    !> Energy derivative with respect to atomic positions
+    real(dp), allocatable :: derivs(:,:)
 
-  !> Energy derivative for ground state determinant
-  real(dp), allocatable :: groundDerivs(:,:)
+    !> Energy derivative for ground state determinant
+    real(dp), allocatable :: groundDerivs(:,:)
 
-  !> Energy derivative for triplet determinant (TI-DFTB excited states)
-  real(dp), allocatable :: tripletDerivs(:,:)
+    !> Energy derivative for triplet determinant (TI-DFTB excited states)
+    real(dp), allocatable :: tripletDerivs(:,:)
 
-  !> Energy derivative for mixed determinant (TI-DFTB excited states)
-  real(dp), allocatable :: mixedDerivs(:,:)
+    !> Energy derivative for mixed determinant (TI-DFTB excited states)
+    real(dp), allocatable :: mixedDerivs(:,:)
 
-  !> Forces on any external charges
-  real(dp), allocatable :: chrgForces(:,:)
+    !> Forces on any external charges
+    real(dp), allocatable :: chrgForces(:,:)
 
-  !> excited state force addition
-  real(dp), allocatable :: excitedDerivs(:,:)
+    !> excited state force addition
+    real(dp), allocatable :: excitedDerivs(:,:)
 
-  !> dipole moments, when available, for whichever determinants are present
-  real(dp), allocatable :: dipoleMoment(:, :)
+    !> dipole moments, when available, for whichever determinants are present
+    real(dp), allocatable :: dipoleMoment(:, :)
 
-  !> Coordinates to print out
-  real(dp), pointer :: pCoord0Out(:,:)
+    !> Coordinates to print out
+    real(dp), pointer :: pCoord0Out(:,:)
 
-  !> Folded coords (3, nAtom)
-  real(dp), allocatable, target :: coord0Fold(:,:)
+    !> Folded coords (3, nAtom)
+    real(dp), allocatable, target :: coord0Fold(:,:)
 
-  !> New coordinates returned by the MD routines
-  real(dp), allocatable :: newCoords(:,:)
+    !> New coordinates returned by the MD routines
+    real(dp), allocatable :: newCoords(:,:)
 
-  !> Orbital angular momentum
-  real(dp), allocatable :: orbitalL(:,:,:)
+    !> Orbital angular momentum
+    real(dp), allocatable :: orbitalL(:,:,:)
 
-  !> Natural orbitals for excited state density matrix, if requested
-  real(dp), allocatable, target :: occNatural(:)
+    !> Natural orbitals for excited state density matrix, if requested
+    real(dp), allocatable, target :: occNatural(:)
 
-  !> Dynamical (Hessian) matrix
-  real(dp), pointer :: pDynMatrix(:,:)
+    !> Dynamical (Hessian) matrix
+    real(dp), pointer :: pDynMatrix(:,:)
 
-  !> File descriptor for the human readable output
-  integer :: fdDetailedOut
+    !> File descriptor for the human readable output
+    integer :: fdDetailedOut
 
-  !> File descriptor for extra MD output
-  integer :: fdMD
+    !> File descriptor for extra MD output
+    integer :: fdMD
 
-  !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
-  type(TParallelKS) :: parallelKS
+    !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
+    type(TParallelKS) :: parallelKS
 
-  !> Electron dynamics
-  type(TElecDynamics), allocatable :: electronDynamics
+    !> Electron dynamics
+    type(TElecDynamics), allocatable :: electronDynamics
 
-  !> external electric field
-  real(dp) :: Efield(3), absEfield
+    !> external electric field
+    real(dp) :: Efield(3), absEfield
 
-  !> Electronic structure solver
-  type(TElectronicSolver) :: electronicSolver
+    !> Electronic structure solver
+    type(TElectronicSolver) :: electronicSolver
 
-  !> Are large dense matrices required?
-  logical :: tLargeDenseMatrices
+    !> Are large dense matrices required?
+    logical :: tLargeDenseMatrices
 
-  !> derivative of cell volume wrt to lattice vectors, needed for pV term
-  real(dp) :: extLatDerivs(3,3)
+    !> derivative of cell volume wrt to lattice vectors, needed for pV term
+    real(dp) :: extLatDerivs(3,3)
 
-  !> internal pressure within the cell
-  real(dp) :: intPressure
+    !> internal pressure within the cell
+    real(dp) :: intPressure
 
-  !> Derivative of total energy with respect to lattice vectors
-  !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
-  !> pertaining to a separate lattice vector), i.e. opposite to the force.
-  !>
-  !> The component of a derivative vector that is orthogonal to the plane containing the other two
-  !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
-  !> side of the plane as its associated lattice vector.
-  !>
-  !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
-  !> elements expand the supercell.
-  real(dp) :: totalLatDeriv(3,3)
+    !> Derivative of total energy with respect to lattice vectors
+    !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
+    !> pertaining to a separate lattice vector), i.e. opposite to the force.
+    !>
+    !> The component of a derivative vector that is orthogonal to the plane containing the other two
+    !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
+    !> side of the plane as its associated lattice vector.
+    !>
+    !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
+    !> elements expand the supercell.
+    real(dp) :: totalLatDeriv(3,3)
 
-  !> Stress tensors for various contribution in periodic calculations
-  !> Sign convention: Positive diagonal elements expand the supercell
-  real(dp) :: totalStress(3,3)
+    !> Stress tensors for various contribution in periodic calculations
+    !> Sign convention: Positive diagonal elements expand the supercell
+    real(dp) :: totalStress(3,3)
 
-  !> Stress tensors for determinants if using TI-DFTB
-  real(dp), allocatable :: mixedStress(:,:), tripletStress(:,:)
+    !> Stress tensors for determinants if using TI-DFTB
+    real(dp), allocatable :: mixedStress(:,:), tripletStress(:,:)
 
-  ! Tagged writer
-  type(TTaggedWriter) :: taggedWriter
+    ! Tagged writer
+    type(TTaggedWriter) :: taggedWriter
 
-  private :: createRandomGenerators
+    private :: createRandomGenerators
 
-  !> Container for the atomistic structure for poisson
-  type(TPoissonStructure) :: poissStr
+    !> Container for the atomistic structure for poisson
+    type(TPoissonStructure) :: poissStr
 
 #:if WITH_TRANSPORT
-  !> Transport variables
-  type(TTransPar) :: transpar
-  type(TNEGFInfo) :: ginfo
+    !> Transport variables
+    type(TTransPar) :: transpar
+    type(TNEGFInfo) :: ginfo
 
 #:endif
 
-  !> Whether contact Hamiltonians are uploaded
-  !> Synonym for G.F. calculation of density
-  logical :: tUpload
+    !> Whether contact Hamiltonians are uploaded
+    !> Synonym for G.F. calculation of density
+    logical :: tUpload
 
-  !> Whether contact Hamiltonians are computed
-  logical :: tContCalc
+    !> Whether contact Hamiltonians are computed
+    logical :: tContCalc
 
-  !> Whether Poisson solver is invoked
-  logical :: tPoisson
+    !> Whether Poisson solver is invoked
+    logical :: tPoisson
 
-  !> Whether recompute Poisson after every SCC
-  logical :: tPoissonTwice
+    !> Whether recompute Poisson after every SCC
+    logical :: tPoissonTwice
 
-  !> Calculate terminal tunneling and current
-  logical :: tTunn
+    !> Calculate terminal tunneling and current
+    logical :: tTunn
 
-  !> True if we use any part of Negf (green solver, landauer etc.)
-  logical :: tNegf
+    !> True if we use any part of Negf (green solver, landauer etc.)
+    logical :: tNegf
 
-  !> Whether local currents are computed
-  logical :: tLocalCurrents
+    !> Whether local currents are computed
+    logical :: tLocalCurrents
 
-  !> True if LDOS is stored on separate files for k-points
-  logical :: tWriteLDOS
+    !> True if LDOS is stored on separate files for k-points
+    logical :: tWriteLDOS
 
-  !> Labels for LDOS regions, if needed
-  character(lc), allocatable :: regionLabelLDOS(:)
+    !> Labels for LDOS regions, if needed
+    character(lc), allocatable :: regionLabelLDOS(:)
 
-  !> True if Tunneling is stored on separate files
-  logical :: writeTunn
+    !> True if Tunneling is stored on separate files
+    logical :: writeTunn
 
-  !> Holds spin-dependent electrochemical potentials of contacts
-  !> This is because libNEGF is not spin-aware
-  real(dp), allocatable :: mu(:,:)
+    !> Holds spin-dependent electrochemical potentials of contacts
+    !> This is because libNEGF is not spin-aware
+    real(dp), allocatable :: mu(:,:)
 
-  !> Variables for Transport NEGF/Poisson solver
-  !> Tunneling, local DOS and current
-  real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
-  real(dp), allocatable :: leadCurrents(:)
-  !> Array storing local (bond) currents
-  real(dp), allocatable :: lCurrArray(:,:)
+    !> Variables for Transport NEGF/Poisson solver
+    !> Tunneling, local DOS and current
+    real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
+    real(dp), allocatable :: leadCurrents(:)
+    !> Array storing local (bond) currents
+    real(dp), allocatable :: lCurrArray(:,:)
 
-  !> Shell-resolved Potential shifts uploaded from contacts
-  real(dp), allocatable :: shiftPerLUp(:,:)
+    !> Shell-resolved Potential shifts uploaded from contacts
+    real(dp), allocatable :: shiftPerLUp(:,:)
 
-  !> Orbital-resolved charges uploaded from contacts
-  real(dp), allocatable :: chargeUp(:,:,:)
+    !> Orbital-resolved charges uploaded from contacts
+    real(dp), allocatable :: chargeUp(:,:,:)
 
-  !> Shell-resolved block potential shifts uploaded from contacts
-  real(dp), allocatable :: shiftBlockUp(:,:,:,:)
+    !> Shell-resolved block potential shifts uploaded from contacts
+    real(dp), allocatable :: shiftBlockUp(:,:,:,:)
 
-  !> Block populations uploaded from contacts
-  real(dp), allocatable :: blockUp(:,:,:,:)
+    !> Block populations uploaded from contacts
+    real(dp), allocatable :: blockUp(:,:,:,:)
 
-  !> Details of energy interval for tunneling used in output
-  real(dp) :: Emin, Emax, Estep
+    !> Details of energy interval for tunneling used in output
+    real(dp) :: Emin, Emax, Estep
 
-  !> Electrostatics type (either gammafunctional or poisson)
-  integer :: electrostatics
+    !> Electrostatics type (either gammafunctional or poisson)
+    integer :: electrostatics
 
-  !> list of atoms in the central cell (or device region if transport)
-  integer, allocatable :: iAtInCentralRegion(:)
+    !> list of atoms in the central cell (or device region if transport)
+    integer, allocatable :: iAtInCentralRegion(:)
 
-  !> Correction for {O,N}-X bonds
-  type(THalogenX), allocatable :: halogenXCorrection
+    !> Correction for {O,N}-X bonds
+    type(THalogenX), allocatable :: halogenXCorrection
 
-  !> All of the excited energies actuall solved by Casida routines (if used)
-  real(dp), allocatable :: energiesCasida(:)
+    !> All of the excited energies actuall solved by Casida routines (if used)
+    real(dp), allocatable :: energiesCasida(:)
 
-  !> Type for determinant control in DFTB (Delta DFTB)
-  type(TDftbDeterminants) :: deltaDftb
+    !> Type for determinant control in DFTB (Delta DFTB)
+    type(TDftbDeterminants) :: deltaDftb
 
-  !> Number of determinants in use in the calculation
-  integer :: nDets
+    !> Number of determinants in use in the calculation
+    integer :: nDets
 
-  !> Final SCC charges if multiple determinants being used
-  real(dp), allocatable :: qDets(:,:,:,:)
+    !> Final SCC charges if multiple determinants being used
+    real(dp), allocatable :: qDets(:,:,:,:)
 
-  !> Final SCC block charges if multiple determinants being used
-  real(dp), allocatable :: qBlockDets(:,:,:,:,:)
+    !> Final SCC block charges if multiple determinants being used
+    real(dp), allocatable :: qBlockDets(:,:,:,:,:)
 
-  !> Final density matrices if multiple determinants being used
-  real(dp), allocatable :: deltaRhoDets(:,:)
+    !> Final density matrices if multiple determinants being used
+    real(dp), allocatable :: deltaRhoDets(:,:)
 
-  !> data type for REKS
-  type(TReksCalc), allocatable :: reks
+    !> data type for REKS
+    type(TReksCalc), allocatable :: reks
 
-  !> atomic charge contribution in excited state
-  real(dp), allocatable :: dQAtomEx(:)
+    !> atomic charge contribution in excited state
+    real(dp), allocatable :: dQAtomEx(:)
+
+  contains
+
+    procedure :: initProgramVariables
+    procedure :: inputCoherenceCheck
+    procedure :: setEquivalencyRelations
+    procedure :: initializeCharges
+    procedure :: initializeReferenceCharges
+    procedure :: setNElectrons
+    procedure :: checkTransportRanges
+    procedure :: destructProgramVariables
+    procedure :: createRandomGenerators
+    procedure :: initSocket
+    procedure :: initTransport
+    procedure :: initOutputFiles
+    procedure :: initArrays
+    procedure :: initDetArrays
+    procedure :: initTransportArrays
+    procedure :: allocateDenseMatrices
+    procedure :: initScalapack
+    procedure :: getDenseDescBlacs
+    procedure :: getDenseDescCommon
+    procedure :: writeMbdInfo
+    procedure :: ensureSolverCompatibility
+    procedure :: applyCustomReferenceOccupations
+    procedure :: printCustomReferenceOccupations
+    procedure :: ensureRangeSeparatedReqs
+    procedure :: ensureLinRespConditions
+    procedure :: getRangeSeparatedCutOff
+    procedure :: initRangeSeparated
+    procedure :: initPlumed
+    procedure :: checkReksConsistency
+    procedure :: TReksCalc_init
+    procedure :: printReksInitInfo
+
+  end type TGlobalData
 
 contains
 
 
   !> Initializes the variables in the module based on the parsed input
-  subroutine initProgramVariables(input, env)
+  subroutine initProgramVariables(this, input, env)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Holds the parsed input data.
     type(TInputData), intent(inout), target :: input
@@ -1187,7 +1231,8 @@ contains
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
-    hamiltonianType = input%ctrl%hamiltonian
+    ! old command: hamiltonianType = input%ctrl%hamiltonian
+    this%hamiltonianType = input%ctrl%hamiltonian
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
@@ -3404,8 +3449,11 @@ contains
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
   !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+  subroutine inputCoherenceCheck(this, env, hamiltonianType, nSpin, nAtom, coord0, species0, &
        & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3470,8 +3518,11 @@ contains
   !> Create equivalency relations
   ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals
   ! Note, this routine should not be called
-  subroutine setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+  subroutine setEquivalencyRelations(this, species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
        & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Type of the atoms (nAtom)
     integer,  intent(in) :: species0(:)
@@ -3596,9 +3647,12 @@ contains
   !>  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
   !>  iEqBlockDFTBULS, reks, and all logicals present
   !>
-  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
+  subroutine initializeCharges(this, species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
       & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qDiff,&
       & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3890,8 +3944,11 @@ contains
   !> Assign reference charge arrays, q0 and qShell0
   !
   !  Data available in module: nAtom, nSpin, isLinResp
-  subroutine initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
+  subroutine initializeReferenceCharges(this, species0, referenceN0, orb, customOccAtoms, &
        & customOccFillings, q0, qShell0)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3949,7 +4006,10 @@ contains
   !> Set number of electrons
   !
   !  Data available via module: elecTolMax, nSpin, nOrb
-  subroutine setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
+  subroutine setNElectrons(this, q0, nrChrg, nrSpinPol, nEl, nEl0)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(in) :: q0(:, :, :)
@@ -3992,7 +4052,10 @@ contains
 
 #:if WITH_TRANSPORT
   !> Check for inconsistencies in transport atom region definitions
-  subroutine checkTransportRanges(nAtom, transpar)
+  subroutine checkTransportRanges(this, nAtom, transpar)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Count of all atoms in the system
     integer :: nAtom
@@ -4061,7 +4124,10 @@ contains
 
 
   !> Clean up things that did not automatically get removed by going out of scope
-  subroutine destructProgramVariables()
+  subroutine destructProgramVariables(this)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     if (electronicSolver%isElsiSolver) then
       call TElsiSolver_final(electronicSolver%elsi)
@@ -4105,7 +4171,10 @@ contains
 
   !> Creates all random generators needed in the code.
   !!
-  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
+  subroutine createRandomGenerators(this, env, seed, randomInit, randomThermostat)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4135,8 +4204,11 @@ contains
 
 #:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
-  subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
+  subroutine initSocket(this, env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
       & tLatticeChanged)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Environment settings.
     type(TEnvironment), intent(in) :: env
@@ -4176,7 +4248,10 @@ contains
 #:endif
 
 #:if WITH_TRANSPORT
-  subroutine initTransport(env, input, electronicSolver)
+  subroutine initTransport(this, env, input, electronicSolver)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -4278,8 +4353,11 @@ contains
 #:endif
 
   !> Initialises (clears) output files.
-  subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+  subroutine initOutputFiles(this, env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, isGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -4351,7 +4429,7 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(env, electronicSolver, tForces, tStress, tExtChrg, isLinResp,&
+  subroutine initArrays(this, env, electronicSolver, tForces, tStress, tExtChrg, isLinResp,&
       & tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component,&
       & tRealHS, tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, orb, nAtom, nMovedAtom,&
       & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim,&
@@ -4359,6 +4437,9 @@ contains
       & mixedStress, chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold, newCoords,&
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
       & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4661,8 +4742,11 @@ contains
 
 
   !> Initialize storage for multi-determinantal calculations
-  subroutine initDetArrays(nDets, deltaDftb, qDets, isBlockCharge, qBlockDets, isRangeSep,&
+  subroutine initDetArrays(this, nDets, deltaDftb, qDets, isBlockCharge, qBlockDets, isRangeSep,&
       & deltaRhoDets, orb, nAtom, nSpin)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Number of determinants in use
     integer, intent(out) :: nDets
@@ -4715,8 +4799,11 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(tUpload, transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
+  subroutine initTransportArrays(this, tUpload, transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
       & chargeUp, tBlockUp, blockUp, shiftBlockUp)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Are contacts being uploaded
     logical, intent(in) :: tUpload
@@ -4772,8 +4859,11 @@ contains
 
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
-  subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
+  subroutine allocateDenseMatrices(this, env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Computing environment
     type(TEnvironment), intent(in) :: env
@@ -4838,7 +4928,10 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(blacsOpts, nAtom, nOrb, t2Component, env)
+  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
@@ -4871,7 +4964,10 @@ contains
   !>
   !> Note: It must be called after getDenseDescCommon() has been called.
   !>
-  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc)
+  subroutine getDenseDescBlacs(this, env, rowBlock, colBlock, denseDesc)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> parallel environment
     type(TEnvironment), intent(in) :: env
@@ -4899,7 +4995,10 @@ contains
   !> Generate description of the total large square matrices, on the basis of atomic orbital
   !> orderings
   !>
-  subroutine getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+  subroutine getDenseDescCommon(this, orb, nAtom, t2Component, denseDesc)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Orbital information for species
     type(TOrbitals), intent(in) :: orb
@@ -4931,7 +5030,10 @@ contains
 
 #:if WITH_MBD
   !> Writes MBD-related info
-  subroutine writeMbdInfo(input)
+  subroutine writeMbdInfo(this, input)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
@@ -4974,7 +5076,10 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(this, iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5026,8 +5131,11 @@ contains
 
 
   !> Modify the reference atomic shell charges for the neutral atom
-  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species, orb,&
+  subroutine applyCustomReferenceOccupations(this, customOccAtoms,  customOccFillings, species, orb,&
       & referenceN0, q0)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
@@ -5078,7 +5186,10 @@ contains
 
 
   !> Print out the reference occupations for atoms
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+  subroutine printCustomReferenceOccupations(this, orb, species, customOccAtoms, customOccFillings)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5160,8 +5271,11 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
+  subroutine ensureRangeSeparatedReqs(this, tPeriodic, tHelical, tReadChrg, tShellResolved,&
       & tAtomicEnergy, rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -5261,8 +5375,11 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
-  subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
+  subroutine ensureLinRespConditions(this, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5381,7 +5498,10 @@ contains
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+  subroutine getRangeSeparatedCutOff(this, cutoffRed, cutOff)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Reduction in cut-off
     real(dp), intent(in) :: cutoffRed
@@ -5403,8 +5523,11 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
+  subroutine initRangeSeparated(this, nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
       & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -5460,7 +5583,10 @@ contains
 
 
   !> Initializes PLUMED calculator.
-  subroutine initPlumed(env, tPlumed, tMD, plumedCalc)
+  subroutine initPlumed(this, env, tPlumed, tMD, plumedCalc)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5515,9 +5641,12 @@ contains
   end subroutine initPlumed
 
 
-  subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
+  subroutine checkReksConsistency(this, reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -5625,9 +5754,12 @@ contains
   end subroutine checkReksConsistency
 
 
-  subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl,&
+  subroutine TReksCalc_init(this, reks, reksInp, electronicSolver, orb, spinW, nEl,&
       & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep,&
       & tForces, tPeriodic, tStress, tDipole)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks
@@ -5710,7 +5842,10 @@ contains
   end subroutine TReksCalc_init
 
 
-  subroutine printReksInitInfo(reks, orb, speciesName, nType)
+  subroutine printReksInitInfo(this, reks, orb, speciesName, nType)
+    
+    !> Instance
+    class(TGlobalData), intent(inout) :: this
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks

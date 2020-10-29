@@ -121,11 +121,14 @@ module dftbp_main
 contains
 
   !> The main DFTB program itself
-  subroutine runDftbPlus(env)
+  subroutine runDftbPlus(env, globalData)
     use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TGlobalData) :: globalData
 
     !> Geometry steps so far
     integer :: iGeoStep
@@ -197,7 +200,7 @@ contains
               & qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
         end if
 
-        call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
+        call processGeometry(env, globalData, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
 
         call postDetCharges(iDet, nDets, qOutput, qDets, qBlockDets, qBlockOut, deltaRhoDets,&
             & deltaRhoOut)
@@ -252,8 +255,8 @@ contains
       end if
 
       if (tForces) then
-        call getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-            & tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
+        call getNextGeometry(env, globalData, iGeoStep, tWriteRestart, constrLatDerivs,&
+            & tCoordStep, tGeomEnd, tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
         if (tExitGeoOpt) then
           exit geoOpt
         end if
@@ -505,12 +508,15 @@ contains
 
 
   !> Process current geometry
-  subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt,&
-      & stat)
+  subroutine processGeometry(env, globalData, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
+      & tExitGeoOpt, stat)
     use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TGlobalData) :: globalData
 
     !> Current geometry step
     integer, intent(in) :: iGeoStep
@@ -577,8 +583,8 @@ contains
     end if
 
     if (tCoordsChanged) then
-      call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-          & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
+      call handleCoordinateChange(env, globalData, coord0, latVec, invLatVec, species0, cutOff,&
+          & orb, tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
           & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
           & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
           & ERhoPrim, iSparseStart, tPoisson, cm5Cont, stat)
@@ -1225,12 +1231,15 @@ contains
 
 
   !> Next geometry step from driver
-  subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-      & tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
+  subroutine getNextGeometry(env, globalData, iGeoStep, tWriteRestart, constrLatDerivs,&
+      & tCoordStep, tGeomEnd, tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
     use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TGlobalData) :: globalData
 
     !> Current geometry step
     integer, intent(in) :: iGeoStep
@@ -1475,8 +1484,8 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-      & tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
+  subroutine handleCoordinateChange(env, globalData, coord0, latVec, invLatVec, species0, cutOff,&
+      & orb, tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
       & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
       & ERhoPrim, iSparseStart, tPoisson, cm5Cont, stat)
@@ -1485,6 +1494,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Global variables
+    type(TGlobalData) :: globalData
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
