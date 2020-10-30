@@ -411,218 +411,38 @@ contains
     case ("none")
       continue
     case ("steepestdescent")
+
       ! Steepest downhill optimisation
-
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
-      ctrl%tForces = .true.
-      ctrl%restartFreq = 1
-
-      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
-      if (ctrl%tLatOpt) then
-        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), pressureUnits, child, &
-            & ctrl%pressure)
-        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
-        if (ctrl%tLatOptFixAng) then
-          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-              & (/.false.,.false.,.false./))
-        else
-          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
-        end if
-        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
-
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      if (ctrl%tCoordOpt) then
-        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
-      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-      call getChildValue(node, "StepSize", ctrl%deltaT, 100.0_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
-      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
-      ctrl%outFile = unquote(char(buffer2))
-      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
-      call readGeoConstraints(node, ctrl, geom%nAtom)
-      if (ctrl%tLatOpt) then
-        if (ctrl%nrConstr/=0) then
-          call error("Lattice optimisation and constraints currently&
-              & incompatible.")
-        end if
-        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-          call error("Subset of optimising atoms not currently possible with&
-              & lattice optimisation.")
-        end if
-      end if
-      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      call commonGeoOptions(node, ctrl, geom)
 
     case ("conjugategradient")
+
       ! Conjugate gradient location optimisation
-
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
-      ctrl%tForces = .true.
-      ctrl%restartFreq = 1
-      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
-      if (ctrl%tLatOpt) then
-        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), pressureUnits, child, &
-            & ctrl%pressure)
-        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
-        if (ctrl%tLatOptFixAng) then
-          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-              & (/.false.,.false.,.false./))
-        else
-          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
-        end if
-        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
-
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      if (ctrl%tCoordOpt) then
-        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
-      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
-      ctrl%outFile = unquote(char(buffer2))
-      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
-      call readGeoConstraints(node, ctrl, geom%nAtom)
-      if (ctrl%tLatOpt) then
-        if (ctrl%nrConstr/=0) then
-          call error("Lattice optimisation and constraints currently&
-              & incompatible.")
-        end if
-        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-          call error("Subset of optimising atoms not currently possible with&
-              & lattice optimisation.")
-        end if
-      end if
-      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      call commonGeoOptions(node, ctrl, geom)
 
     case("gdiis")
-      ! Gradient DIIS optimisation, only stable in the quadratic region
 
+      ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
-      ctrl%tForces = .true.
-      ctrl%restartFreq = 1
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
       call getChildValue(node, "Generations", ctrl%iGenGeoOpt, 8)
-      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
-      if (ctrl%tLatOpt) then
-        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), pressureUnits, child, &
-            & ctrl%pressure)
-        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
-        if (ctrl%tLatOptFixAng) then
-          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-              & (/.false.,.false.,.false./))
-        else
-          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
-        end if
-        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
-
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
-      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
-      ctrl%outFile = unquote(char(buffer2))
-      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
-      call readGeoConstraints(node, ctrl, geom%nAtom)
-      if (ctrl%tLatOpt) then
-        if (ctrl%nrConstr/=0) then
-          call error("Lattice optimisation and constraints currently&
-              & incompatible.")
-        end if
-        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-          call error("Subset of optimising atoms not currently possible with&
-              & lattice optimisation.")
-        end if
-      end if
-      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      call commonGeoOptions(node, ctrl, geom)
 
     case ("lbfgs")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
-
-      ctrl%tForces = .true.
-      ctrl%restartFreq = 1
-      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
-      if (ctrl%tLatOpt) then
-        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), pressureUnits, child, &
-            & ctrl%pressure)
-        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
-        if (ctrl%tLatOptFixAng) then
-          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-              & (/.false.,.false.,.false./))
-        else
-          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
-        end if
-        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
-
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      if (ctrl%tCoordOpt) then
-        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
-      end if
-      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
-      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
-      ctrl%outFile = unquote(char(buffer2))
-      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
-      call readGeoConstraints(node, ctrl, geom%nAtom)
-      if (ctrl%tLatOpt) then
-        if (ctrl%nrConstr/=0) then
-          call error("Lattice optimisation and constraints currently&
-              & incompatible.")
-        end if
-        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-          call error("Subset of optimising atoms not currently possible with&
-              & lattice optimisation.")
-        end if
-      end if
-      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
-
+      call commonGeoOptions(node, ctrl, geom)
       allocate(ctrl%lbfgsInp)
       call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
+
+    case ("fire")
+
+      ctrl%iGeoOpt = geoOptTypes%fire
+      call commonGeoOptions(node, ctrl, geom)
+      call getChildValue(node, "TimeStep", ctrl%deltaT, modifier=modifier, child=field)
+      call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
@@ -900,12 +720,93 @@ contains
     #:endif
 
     case default
+
       call getNodeHSDName(node, buffer)
       call detailedError(parent, "Invalid driver '" // char(buffer) // "'")
 
     end select driver
 
   end subroutine readDriver
+
+
+  !> Common geometry optimisation settings for various drivers
+  subroutine commonGeoOptions(node, ctrl, geom)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geom
+
+    type(fnode), pointer :: child, child2, child3, value1, value2, field
+    type(string) :: buffer, buffer2, modifier
+    ! range of default atoms to move
+    character(mc) :: atomsRange
+
+    atomsRange = "1:-1"
+  #:if WITH_TRANSPORT
+    if (transpar%defined) then
+      ! only those atoms in the device region
+      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
+    end if
+  #:endif
+
+    ctrl%tForces = .true.
+    ctrl%restartFreq = 1
+
+    call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
+    if (ctrl%tLatOpt) then
+      call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
+          & modifier=modifier, child=child)
+      call convertByMul(char(modifier), pressureUnits, child, &
+          & ctrl%pressure)
+      call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
+      if (ctrl%tLatOptFixAng) then
+        call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
+            & (/.false.,.false.,.false./))
+      else
+        call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
+      end if
+      call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
+    end if
+    call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
+        &multiple=.true.)
+    call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
+        & ctrl%indMovedAtom)
+
+    ctrl%nrMoved = size(ctrl%indMovedAtom)
+    ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
+    if (ctrl%tCoordOpt) then
+      call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
+    end if
+    call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
+        &modifier=modifier, child=field)
+    call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
+    call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
+    call getChildValue(node, "StepSize", ctrl%deltaT, 100.0_dp, &
+        &modifier=modifier, child=field)
+    call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
+    call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
+    ctrl%outFile = unquote(char(buffer2))
+    call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
+    call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
+    call readGeoConstraints(node, ctrl, geom%nAtom)
+    if (ctrl%tLatOpt) then
+      if (ctrl%nrConstr/=0) then
+        call error("Lattice optimisation and constraints currently&
+            & incompatible.")
+      end if
+      if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+        call error("Subset of optimising atoms not currently possible with&
+            & lattice optimisation.")
+      end if
+    end if
+    ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+  end subroutine commonGeoOptions
 
 
   !> Extended lagrangian options for XLBOMD
