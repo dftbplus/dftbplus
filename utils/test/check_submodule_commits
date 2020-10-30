@@ -23,11 +23,10 @@ _PAT_SUBMOD_COMMIT = re.compile(
 def main():
     """Main script"""
     args = _parse_arguments()
-    result = subprocess.run(["git", "submodule", "status"], capture_output=True,
-                            check=True)
-    output = result.stdout.decode('ascii')
+    result = subprocess.run(["git", "submodule", "status"], encoding='ascii',
+                            stdout=subprocess.PIPE, check=True)
     allsync = True
-    for match in _PAT_SUBMOD_COMMIT.finditer(output):
+    for match in _PAT_SUBMOD_COMMIT.finditer(result.stdout):
         commit, submodule = match.groups()
         cmakefile = os.path.join("external", submodule, "CMakeLists.txt")
         with open(cmakefile, "r") as fp:

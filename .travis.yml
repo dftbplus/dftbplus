@@ -1,12 +1,22 @@
-os: linux
-dist: focal
+# Note: As homebrew installs a lot of insane dependencies (making setup time extremly long) and
+# maniacly upgrades packages to latest versions (e.g. causing collisions of Python versions), it
+# should not be invoked when setting up the environment. The OSX tests should rely only on libraries
+# which are part of the standard Travis image.
 
-language: python
-python: 3.7
-
-env:
-  - WITH_MPI=false FC=gfortran CC=gcc
-  - WITH_MPI=true FC=mpifort CC=gcc SCALAPACK_LIBRARY="scalapack-openmpi"
+jobs:
+  include:
+    - os: linux
+      dist: focal
+      language: python
+      env: FC=gfortran CC=gcc WITH_MPI=false WITH_ARPACK=true
+    - os: linux
+      dist: focal
+      language: python
+      env: FC=gfortran CC=gcc WITH_MPI=true WITH_ARPACK=false SCALAPACK_LIBRARY="scalapack-openmpi"
+    - os: osx
+      osx_image: xcode11.6
+      language: generic
+      env: FC=gfortran-10 CC=gcc-10 WITH_MPI=false WITH_ARPACK=false
 
 addons:
   apt:
@@ -18,20 +28,28 @@ addons:
       - libscalapack-openmpi-dev
       - libarpack2-dev
       - pkg-config
+  #homebrew:
+  #  packages:
+  #    - gcc@10
+  #    - python@3.8
+
+#before_install: |
+#  if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+#    pip3 install numpy
+#  fi
 
 install:
   - echo "y" | ./utils/get_opt_externals ALL
-  - pip install fypp
+  - pip3 install fypp
 
 script:
   - ./utils/test/check_submodule_commits
   - >
     SOURCE_DIR=${PWD} BUILD_DIR=${PWD}/_build INSTALL_DIR=${PWD}/_install
     ./utils/test/travis-regression.sh
-    && 
-    SOURCE_DIR=${PWD} INSTALL_DIR=${PWD}/_install BUILD_DIR=${PWD}/_build_integ 
+    &&
+    SOURCE_DIR=${PWD} INSTALL_DIR=${PWD}/_install BUILD_DIR=${PWD}/_build_integ
     ./utils/test/travis-integration.sh
-
   - >
     SOURCE_DIR=${PWD} BUILD_DIR=${PWD}/_build_extbuild INSTALL_DIR=${PWD}/_install_extbuild
     ./utils/test/travis-extbuild.sh

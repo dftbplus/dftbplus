@@ -7,12 +7,6 @@
 #
 set -ex
 
-if [ "${WITH_MPI}" == "false" ]; then
-  WITH_ARPACK=true
-else
-  WITH_ARPACK=false
-fi
-
 if [ "${WITH_ELSI}" == "false" ]; then
   ELSI_VERSION=0
 else
