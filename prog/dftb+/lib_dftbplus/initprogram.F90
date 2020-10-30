@@ -3432,7 +3432,7 @@ contains
       allocate(electronDynamics)
 
       call TElecDynamics_init(electronDynamics, input%ctrl%elecDynInp, species0, speciesName,&
-          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
+          & tWriteAutotest, this%autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
           & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
           & tRealHS, kPoint, kWeight, isRangeSep)
 
@@ -4398,7 +4398,7 @@ contains
     call TTaggedWriter_init(taggedWriter)
 
     if (tWriteAutotest) then
-      call initOutputFile(autotestTag)
+      call initOutputFile(this%autotestTag)
     end if
     if (tWriteResultsTag) then
       call initOutputFile(resultsTag)
