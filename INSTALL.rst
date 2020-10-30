@@ -207,6 +207,15 @@ In order to build DFTB+ carry out the following steps:
 
     CMAKE_PREFIX_PATH=/opt/elsi:/opt/custom-openblas cmake [...] -B _build .
 
+  Some of the external library finders also offer special ``_LIBRARY_DIR`` CMake
+  variables for setting search paths, e.g. ::
+
+    -DLAPACK_LIBRARY_DIR=/opt/custom-openblas
+
+  Setting those variables is not necessary, though, if the right search path is
+  already present in the ``CMAKE_PREFIX_PATH`` environment variable.
+  
+
 * If the configuration was successful, start the build by ::
 
     cmake --build _build -- -j
