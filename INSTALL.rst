@@ -37,7 +37,7 @@ Additionally there are optional requirements for some DFTB+ features:
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
-  computation. (
+  computation.
 
 * The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for metadynamics
   simulations. If you build DFTB+ with MPI, the linked PLUMED library must be
@@ -49,10 +49,10 @@ Additionally there are optional requirements for some DFTB+ features:
 * Make sure that external libraries are compiled with the same precision models
   for the variables (same integer and floating point values) as DFTB+. Also,
   they should have been preferably built with the same compiler and with similar
-  compiler flags than DFTB+. (See the Troubleshooting section for further
+  compiler flags than DFTB+. (See the **Troubleshooting section** for further
   information.)
 
-* External libraries on non-standard locations (as typical on HPC-systems) can
+* External libraries in non-standard locations (as typical on HPC-systems) can
   only be reliable found by CMake if their library path occurs in the
   ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
   CMAKE_PREFIX_PATH environment variable contains all relevant paths!**
@@ -160,10 +160,10 @@ Building
 ========
 
 **Important note:** CMake caches its variables in the `CMakeCache.txt` file in
-the build folder (e.g. ``build_/CMakeCache.txt``). Delete this file before
-re-running CMake if you have changed variables in some of the config
-files. (Deleting the `CMakeCache.txt` file is not necessary if you change the
-variable via the ``-D`` command line option.)
+the build folder (e.g. ``_build/CMakeCache.txt``). Make sure to delete this file
+before re-running CMake if you have changed variables in `config.cmake` or in
+the toolchain files in the `sys/` folder. (Deleting the `CMakeCache.txt` file is
+not necessary if you change a variable via the ``-D`` command line option.)
 
 In order to build DFTB+ carry out the following steps:
 
@@ -180,33 +180,34 @@ In order to build DFTB+ carry out the following steps:
 
   Based on the detected compilers, the build system will read further settings
   from a corresponding toolchain file in the `sys/` folder. Either from a
-  specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or the generic one
-  (`generic.cmake`) if the detected compiler combination does not correspond to
-  any of the specific settings. (The name of the selected toolchain file is
-  shown in the output.)
+  compiler specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or the generic
+  one (`generic.cmake`) if the detected compiler combination does not correspond
+  to any of the specific settings. The selected toolchain is indicated in the
+  CMake output. (The toolchain file selection can be manually overriden by
+  setting the ``TOOLCHAIN`` CMake variable.)
 
-  You may adjust any variables defined in `config.make` or in the toolchain file
-  by either modifying the files directly or by setting (overriding) the variable
-  via the ``-D`` command line option. For example, in order to use the
-  MKL-library with the GNU-compiler, you would have to override the
-  ``LAPACK_LIBRARY`` variable with the CMake command line argument ``-D``::
+  You may adjust any CMake variable defined in `config.make` or in the
+  toolchain files by either modifying the files directly or by setting
+  (overriding) the variable via the ``-D`` command line option. For example, in
+  order to use the MKL-library with the GNU-compiler, you would have to override
+  the ``LAPACK_LIBRARY`` variable with the CMake command line argument ``-D``::
 
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
-  When needed, you can also pass linker options in the library variables, e.g.::
+  When needed, you can specify the complete path to a libray or pass linker
+  options in those variables, e.g.::
 
+    -DLAPACK_LIBRARY="/opt/openblas/libopenblas.a"
     -DLAPACK_LIBRARY="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
 
-  CMake by default searches for the external libraries in the paths specified
-  in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
-  correctly in your build environment. Alternatively, you can use the respective
-  ``*_LIBRARY_DIR`` variable for each external library to add path hints
-  exclusively for that library search, e.g.::
+  CMake by default searches for the external libraries in the paths specified in
+  the ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
+  CMAKE_PREFIX_PATH environment variable is set up correctly and contains
+  all the relevant paths** when configuring the project, e.g. ::
 
-    -DLAPACK_LIBRARY_DIR=/opt/custom-lapack/lib
+    CMAKE_PREFIX_PATH=/opt/elsi:/opt/custom-openblas cmake [...] -B _build .
 
-* If the configuration was successful, invoke (from within the build folder)
-  `make` to compile the code::
+* If the configuration was successful, start the build by ::
 
     cmake --build _build -- -j
 
@@ -275,7 +276,7 @@ Installing DFTB+
 
   where the destination directory can be configured by the variable
   ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
-  the `install` subdirectory within the build directory.
+  the `_install` subdirectory within the build directory.
 
 
 Using DFTB+ as a library
@@ -382,20 +383,20 @@ Advanced build configuration (e.g. for packagers)
 Controlling the toolchain file selection
 ----------------------------------------
 
-You can override the toolchain file selection by passing the
-``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
+You can override the toolchain file selection by passing the ``-DTOOLCHAIN``
+option with the name of the toolchain, e.g.::
 
-  -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake
+  -DTOOLCHAIN=gnu
 
-or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
-environment variable. If the customized toolchain file is within the `sys/`
-folder, you may also use the ``-DTOOLCHAIN`` option or the
-``DFTBPLUS_TOOLCHAIN`` environment variable with the plain name of the file
-(without the full path) instead::
+or by setting the toolchain name in the ``DFTBPLUS_TOOLCHAIN`` environment
+variable. If you want to load an external toolchain file instead of the bundled
+ones, you can specify the file path with the ``-DTOOLCHAIN_FILE`` option ::
 
-    -DTOOLCHAIN=gnu .
+  -DTOOLCHAIN_FILE=/some/path/myintel.cmake
+  
+or with the ``DFTBPLUS_TOOLCHAIN_FILE`` environment variable.
 
-Similarly, you can use an alternative build config file instead of
+Similarly, you can also use an alternative build config file instead of
 `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
 defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
 
@@ -414,7 +415,7 @@ pass the variable definition ::
 to CMake during the configuration. In this case CMake will try to find those
 dependencies in the system only (by searching in the standard system paths and
 in the locations defined in the environment variable ``CMAKE_PREFIX_PATH``) and
-stop if any of components was not found.
+stop if some components were not found.
 
 
 Troubleshooting
@@ -454,7 +455,7 @@ Troubleshooting
 
 * **My library settings in a "_LIBRARIES" variable are ignored**
 
-  In order to be consistent with the naming scheme suggeted by the CMake
+  In order to be consistent with the naming scheme suggested by the CMake
   documentation, all library related cache variables had been changed to
   singular nouns, e.g. ::
 

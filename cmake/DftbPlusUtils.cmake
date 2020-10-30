@@ -488,17 +488,12 @@ endfunction()
 #
 # - checkout the source as a submodule within the origin sub-folder ("Submodule")
 # - find the package as external dependency ("Find")
-# - fetch the source from a git repository ("Git") into the build folder
+# - fetch the source from a git repository ("Fetch") into the build folder
 #
-# The methods are tried in the order of their appearance until success. Currently, the "fetch"
-# method is considered to be always successful, so it should be the last one.
+# The methods are tried in the order of their appearance until success the first eligible one.
 #
-# The methods "Submodule" and "Fetch" would add the passed sub-directory with add_subdirectory().
-# "Submodule" assumes, the git-submodule is within the "origin" folder of the sub-directory.  In
-# both cases, the CMakeLists.txt in the subdirectory must declare the macros before_source_config()
-# and after_source_config(), which are called before and after the configuration, respectively, if
-# the configuration was successful. Apart of defining those macros, that CMakeFiles.txt in the
-# sub-directory should only call the macro dftbp_config_hybrid_source_dependency().
+# The methods "Submodule" and "Fetch" would call the passed sub-directory with add_subdirectory()
+# passing two variables with the source and binary directory.
 #
 # Args:
 #     package [in]: Name of the dependency to look for.
@@ -507,40 +502,65 @@ endfunction()
 #     findpkgopts [in]: Options to pass to find_package()
 #     subdir [in]: Subdirectory with CMakeFiles.txt for integrating package source.
 #     subdiropts [in]: Options to pass to the add_subdir() command.
+#     git_repository [in]: Git repository to fetch the package from.
+#     git_tag [in]: Git tag to use when fetching the source.
 #
 # Variables:
-#     _HYBRID_PACKAGE, _HYBRID_CONFIG_METHOD: Set by the macro, so that they can control the
-#         dftbp_config_hybrid_source_dependency() macro, when called.
+#     <UPPER_PACKAGE_NAME>_SOURCE_DIR, <UPPER_PACKAGE_NAME>_BINARY_DIR:
+#         Source and binary directories for the build (to pass to add_subdirectory())
 # 
-macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts subdir subdiropts)
+macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts subdir subdiropts
+    git_repository git_tag)
 
-  set(_HYBRID_PACKAGE "${package}")
+  set(_allowed_methods "submodule;find;fetch")
+  string(TOLOWER "${package}" _package_lower)
+  string(TOUPPER "${package}" _package_upper)
+  
   foreach(_config_method IN ITEMS ${config_methods})
 
-    string(TOUPPER "${_config_method}" _HYBRID_CONFIG_METHOD)
+    string(TOLOWER "${_config_method}" _config_lower)
+    if(NOT ${_config_lower} IN_LIST _allowed_methods)
+      message(FATAL_ERROR "${package}: Unknown configuration method '${_config_method}'")
+    endif()
 
-    if("${_HYBRID_CONFIG_METHOD}" STREQUAL "FIND")
+    if("${_config_lower}" STREQUAL "find")
 
+      message(STATUS "${package}: Trying to find installed package")
       find_package(${package} ${findpkgopts})
       if(${package}_FOUND)
-        message(STATUS "${package}: Found installed package")
+        message(STATUS "${package}: Installed package found")
+        break()
       else()
         message(STATUS "${package}: Installed package could not be found")
       endif()
 
-    elseif("${_HYBRID_CONFIG_METHOD}" MATCHES "^(SUBMODULE|FETCH)$")
+    elseif("${_config_lower}" STREQUAL "submodule" AND GIT_WORKING_COPY)
+      
+      if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/.git)
+        message(STATUS "${package}: Downloading via git submodule update")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${subdir}/origin
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      endif()
 
-      add_subdirectory(${subdir} ${CMAKE_CURRENT_BINARY_DIR}/${package}_${_HYBRID_CONFIG_METHOD}
-        ${subdiropts})
-
-    else()
-
-      message(FATAL_ERROR "${package}: Unknown configuration method '${_HYBRID_CONFIG_METHOD}'")
-
-    endif()
-
-    if(TARGET ${target})
+      message(STATUS "${package}: Using submodule in ${subdir}/origin")
+      set(${_package_upper}_SOURCE_DIR "origin")
+      set(${_package_upper}_BINARY_DIR)
+      add_subdirectory(${subdir} ${subdiropts})
       break()
+
+    elseif("${_config_lower}" STREQUAL "fetch")
+
+      message(STATUS "${package}: Fechting from repository ${git_repository}@${git_tag}")
+      FetchContent_Declare(${_package_lower} GIT_REPOSITORY ${git_repository} GIT_TAG ${git_tag})
+      FetchContent_GetProperties(${_package_lower})
+      if(NOT ${_package_lower}_POPULATED)
+        FetchContent_Populate(${_package_lower})
+      endif()
+      set(${_package_upper}_SOURCE_DIR "${${_package_lower}_SOURCE_DIR}")
+      set(${_package_upper}_BINARY_DIR "${${_package_lower}_BINARY_DIR}")
+      add_subdirectory(${subdir} ${subdiropts})
+      break()
+
     endif()
 
   endforeach()
@@ -549,58 +569,10 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
     message(FATAL_ERROR "Could not configure ${package} to export target '${target}'")
   endif()
 
+  unset(_allowed_methods)
+  unset(_package_lower)
+  unset(_package_upper)
   unset(_config_method)
-  unset(_HYBRID_CONFIG_METHOD)
-  unset(_HYBRID_PACKAGE)
-
-endmacro()
-
-
-# Helper macro for dftbp_config_hybrid_dependency().
-#
-# This macro should be called from subprojects parent directory, after the macros
-# before_source_config() and after_source_config() had been defined.
-#
-# Args:
-#     git_repository [in]: Name of the Git-repository to retrieve the package from.
-#     git_tag [in]: Commit/Tag to retrieve.
-#
-# Variables:
-#     _HYBRID_CONFIG_METHOD: Must be set to control which method should be tried.
-#     _HYBRID_PACKAGE: Name of the package to deal with
-#
-macro(dftbp_config_hybrid_source_dependency git_repository git_tag)
-
-  if("${_HYBRID_CONFIG_METHOD}" STREQUAL "SUBMODULE")
-    
-    if(GIT_WORKING_COPY AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/origin/.git)
-      message(STATUS "${_HYBRID_PACKAGE}: Trying to fetch via git submodule update")
-      execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init origin
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
-      
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/origin/.git)
-      message(STATUS "${_HYBRID_PACKAGE}: Using source in ${CMAKE_CURRENT_SOURCE_DIR}/origin")
-      before_source_config()
-      add_subdirectory(origin)
-      after_source_config()
-    else()
-      message(STATUS "${_HYBRID_PACKAGE}: No source was found in "
-        "${CMAKE_CURRENT_SOURCE_DIR}/origin")
-    endif()
-
-  elseif("${_HYBRID_CONFIG_METHOD}" STREQUAL "FETCH")
-
-    message(STATUS "${_HYBRID_PACKAGE}: Retrieving repository ${git_repository}@${git_tag}")
-    FetchContent_Declare(${_HYBRID_PACKAGE} GIT_REPOSITORY ${git_repository} GIT_TAG ${git_tag})
-    before_source_config()
-    FetchContent_MakeAvailable(${_HYBRID_PACKAGE})
-    after_source_config()
-
-  else()
-
-    message(FATAL_ERROR "Invalid config method '_HYBRID_CONFIG_METHOD}'")
-
-  endif()
+  unset(_config_lower)
 
 endmacro()
