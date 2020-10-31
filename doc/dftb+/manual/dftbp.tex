@@ -271,6 +271,8 @@ methods are available:
   method. See p.~\pref{sec:dftbp.gDIIS}.
 \item[\iscb{LBFGS}] Geometry optimisation using the LBFGS
   algorithm. See p.~\pref{sec:dftbp.LBFGS}.
+\item[\iscb{FIRE}] Geometry optimisation using the FIRE
+  algorithm. See p.~\pref{sec:dftbp.FIRE}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
   energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
@@ -493,6 +495,24 @@ Specific properties for this method are:
 \item[\is{Memory}] Number of last steps which are saved and used to calculate
   the next step via the LBFGS algorithm. The literature recommends that
   \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
+\end{description}
+
+\htcbsubsection{FIRE}
+\label{sec:dftbp.FIRE}
+
+The {\it fast inertial relaxation engine} of Bitzek {\it et
+  al.}~\cite{Bitzek-PRL-97-170201}, using the default values from their paper
+and a Leap-frog integrator. This can be faster than conjugate gradient and
+competitive with LBFGS in some cases.
+
+\begin{ptable}
+  \kw{TimeStep} & r & & 1.0 & \\
+\end{ptable}
+
+Specific properties for this method are:
+\begin{description}
+\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step size used
+  in the dynamics integrator..
 \end{description}
 
 \subsection{SecondDerivatives\cb}

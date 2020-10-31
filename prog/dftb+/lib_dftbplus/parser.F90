@@ -441,7 +441,7 @@ contains
 
       ctrl%iGeoOpt = geoOptTypes%fire
       call commonGeoOptions(node, ctrl, geom)
-      call getChildValue(node, "TimeStep", ctrl%deltaT, modifier=modifier, child=field)
+      call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
 
     case("secondderivatives")

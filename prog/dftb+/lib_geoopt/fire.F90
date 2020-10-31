@@ -158,6 +158,8 @@ contains
 
     xNew(:) = this%x
 
+    this%iter = this%iter + 1
+
   end subroutine next
 
 
@@ -171,8 +173,6 @@ contains
     real(dp), intent(in) :: dx(:)
 
     real(dp) :: p
-
-    this%iter = this%iter + 1
 
     p = -1.0_dp * dot_product(this%velocity,dx)
     this%velocity(:) = (1.0_dp-this%a)*this%velocity - this%a*dx*mag(this%velocity)/mag(dx)
