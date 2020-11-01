@@ -627,7 +627,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   be stored in the file \verb|plumed.dat| in the current directory. The file
   must be formatted according to Plumed's own format. (Note: This option
   requires a {\dftbp} binary built with Plumed support.)
-  
+
 \end{description}
 
 
@@ -1076,6 +1076,7 @@ following properties:
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
+  \kwcb{NonAufbau} & m & & - & \pref{sec:dftbp.NonAufbau} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
@@ -2073,6 +2074,91 @@ different fillings, band entropies, and Mermin free energies may result, dependi
 been found by the Fermi-level search algorithm. The differences, however, are usually not physically
 significant.
 
+\subsection{Time-independent DFTB (TI-DFTB) excited states}
+
+\subsubsection{$\boldsymbol\Delta$DFTB}
+The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
+variational relaxation of the lowest singlet excited state of closed-shell
+singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
+optimized under non-Aufbau orbital occupation constraints via promotion of an
+electron from the highest occupied molecular orbital (HOMO) of the ground state
+to lowest unoccupied molecular orbital (LUMO) at each SCC
+iteration. Specifically, the \kwcb{NonAufbau} block in \dftbp manipulates the
+electronic filling to emulate a singlet excited state. By modifying the
+occupation pattern, the target excited state density ($\rho_e$) is can be
+constructed according to the standard formula for obtaining the electron density
+from the occupied colinear spin orbitals,
+\begin{equation*}
+  \rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2.
+\end{equation*}
+Because the constraint is placed on the spin orbitals rather than the MO's, this
+method introduces heavy spin contamination to the system by the arbitrary
+promotion of $\alpha$ spin electrons.  This issue is circumvented with spin
+purification, where the triplet state energy is subtracted from twice the mixed
+singlet state energy, in accordance with the Ziegler sum
+rule,\cite{baerends-TCA-43-261}
+\begin{equation*}
+  E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t].
+\end{equation*}
+A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
+$\Delta$DFTB calculations can be more challenging to converge than their
+ground-state analogs. To aid convergence, one can first run a ground-state
+intial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
+alternative mixer for converging $\Delta$DFTB calculations in cases where the
+calculation fails to converge with the Broyden mixer.
+
+\label{sec:dftbp.NonAufbau}
+
+This is a singlet excitation from a spin zero ground state system, so
+\is{SpinPolarisation} should not be set in the input for this type of
+calculation, but spin constants (p.~\pref{sec:dftbp.SpinConstants}) {\em are}
+required. The calculation can be modified by including the following properties
+in the \iscb{nonAufbau} block:
+\begin{ptable}
+  \kw{SpinPurify} & l & & Yes & \\
+  \kw{GroundGuess} & l & & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{SpinPurify}] Calculates both a triplet and mixed state for
+  spin-purification. If set to \is{No}, only the mixed state is calculated. The
+  mixed state is formed by promoting an $\alpha$ electron from the HOMO to the
+  LUMO.
+\item[\is{GroundGuess}] Calculates the ground state energy prior to a non-Aufbau
+  calculation.  The SCC loop will run three times if \is{NonAubau},
+  \is{SpinPurify}, and \is{GroundGuess} are set to \is{Yes}, but only twice if
+  \is{SpinPurify = No}.
+\end{description}
+
+The default settings, if \kwcb{NonAufbau} is included in the input, is
+equivalent to:
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = No
+    SpinPurify = Yes
+  }
+\end{verbatim}
+This performs two self-consistent calculations at each geometry step, and then
+evaluates the energy, forces and charges in the $\Delta$DFTB first excited
+state. Note that this is a singlet state, hence only the {\em total} charge is
+relevant in Mulliken populations.
+
+If instead the ground state is also requested (\is{SpinPurify} = \is{Yes} by
+default):
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = Yes
+  }
+\end{verbatim}
+The \verb|detailed.out| will then contain energies of the ground, triplet and
+the spin purified singlet excitation, along with estimates for the excitation
+energies from the $S_o$ to the $T_1$ and $S_1$ states:
+\begin{verbatim}
+S0 -> T1:                            0.2104101411 H            5.7256 eV
+S0 -> S1:                            0.2615036445 H            7.1159 eV
+\end{verbatim}
+
 \subsection{SlaterKosterFiles}
 \label{sec:dftbp.SlaterKosterFiles}
 
@@ -2862,7 +2948,7 @@ can be adjusted in the input.
 \begin{description}
 \item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
   parameters, see equations above.
-  
+
 \item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
   interaction, should always be set to 1.0.
 
@@ -3408,9 +3494,9 @@ This model is currently only available for finite systems.
 \begin{ptable}
   \kw{ProbeRadius} & r & & & \\
   \kw{Smoothing} & r & & 0.3 AA & \\
-  \kw{Offset} & r & & 2.0 AA & \\ 
-  \kw{Tolerance} & r & & 1.0e-6 & \\ 
-  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Offset} & r & & 2.0 AA & \\
+  \kw{Tolerance} & r & & 1.0e-6 & \\
+  \kw{AngularGrid} & i & & 230 & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
   \kw{SurfaceTension} & m & & & \\
 \end{ptable}
@@ -3645,7 +3731,7 @@ has the following option:
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
   possible:
-  
+
   \begin{description}
   \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
     terms. This is faster than the \is{NeighbourBased} method below, but does
@@ -3681,7 +3767,7 @@ has the following option:
 
   \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
     can be faster than other two algorithms.
-    
+
   \end{description}
 \end{description}
 
@@ -4160,8 +4246,8 @@ the SCC-DFTB level of theory and molecular systems.\footnote{Excitation energies
   can also be calculated for gamma point periodic systems, but will be incorrect
   for delocalised excitations or for charge transfer-type excited states.}
 Excitations can be calculated for fractional occupations and collinear
-spin-polarisation, but forces (and hence geometry optimisation or MD) are only
-available for spin-unpolarised systems with no fractional occupations. The
+spin-polarisation. Forces (and hence geometry optimisation or MD) are
+available for collinear spin-polarised systems but not for fractional occupations. The
 specifications for this block have the following properties:
 
 \textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
@@ -4290,7 +4376,7 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     decrease memory use substantially, if you are short on memory.
 
   \end{description}
-  
+
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}
 
@@ -4344,13 +4430,13 @@ The specifications for this block have the following properties:
 
 \item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
   be employed. This will speed up the calculation.
-    
+
 \item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
   the Hartree kernel. Values of some of these parameters are given in
   appendix~\ref{app:hhubbard}.
 
 \end{description}
-  
+
 The output of the pp-RPA calculation are described in
 section~\ref{sec:ppRPAout}.
 
@@ -4564,7 +4650,7 @@ Apply time-dependent sinusoidal perturbation to the system.
 \begin{description}
  \item[\is{PolarizationDirection}] Vector along which the electric
    field is polarized.
-  
+
  \item[\is{ImagPolarizationDirection}] Imaginary part of the
    polarization vector. Useful for circularly polarized fields.
 
@@ -4584,7 +4670,7 @@ Apply time-dependent sinusoidal perturbation to the system.
   polarization direction must be orthogonal to the periodic
   directions} of the system. Therefore, the code does not work with 3D
 periodic systems with laser perturbations.
- 
+
 \paragraph{\kwcb{KickAndLaser}}
 Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing
 the excited state on the system while being driven by a laser. The
@@ -4843,10 +4929,10 @@ The specifications for this block have the following properties:
 
 \item[\is{Gradient}] Choice of gradient solver used in CP-REKS equations. This \is{Gradient} block has the following choices:
 
-  \begin{description} 
+  \begin{description}
   \item[\is{ConjugateGradient}] Uses a congugate-gradient based algorithm. This
     algorithm is usually recommended since it is considerably faster than other algorithms.
-    
+
     \begin{ptable}
       \kw{CGmaxIter} & i & & 20 & \\
       \kw{Tolerance} & r & & 1e-8 & \\
@@ -5604,12 +5690,12 @@ for furan:
 \begin{verbatim}
      w [eV]        Transitions                         Weight            KS [eV]              Symm.
 
- =================================================  
+ =================================================
 
       6.411        HOMO -> LUMO + 0            0.998            5.162                     S
       6.904        HOMO -> LUMO + 1            0.973            6.755                     S
      11.339        HOMO -> LUMO + 0, 0        0.959            5.162,  5.162            S
-\end{verbatim}  
+\end{verbatim}
 
 The first two excitations are single, whereas the third one is a
 double transition with predominant HOMO-to-LUMO character.

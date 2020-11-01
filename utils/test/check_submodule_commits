@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+
+"""Checks the submodule commit IDs in integration CMake files."""
+
+import os
+import subprocess
+import re
+import argparse
+import sys
+
+_DESCRIPTION = """
+Checks (and optionally updates) the submodule commit IDs in the integration
+CMake files. It loops over all git submodules, reads their commit hashes and
+checks, whether it matches the commit ID in the CMakeLists.txt in the parent
+folder. The script must be run from the projects root folder and the git command
+should work.
+"""
+
+_PAT_SUBMOD_COMMIT = re.compile(
+    r"[-+ ]*(?P<commit>[0-9a-f]+)\s+external/(?P<submodule>\w+).*")
+
+
+def main():
+    """Main script"""
+    args = _parse_arguments()
+    result = subprocess.run(["git", "submodule", "status"],
+                            stdout=subprocess.PIPE, check=True)
+    output = result.stdout.decode('ascii')
+    allsync = True
+    with open("CMakeLists.txt", "r") as fp:
+        origcontent = fp.read()
+    content = origcontent
+    for match in _PAT_SUBMOD_COMMIT.finditer(output):
+        commit, submodule = match.groups()
+        newcontent, nn = _replace_submodule_commit(content, submodule, commit)
+        if nn < 1:
+            print("! Commit for submodule {} was NOT FOUND".format(submodule))
+            allsync = False
+            continue
+        sync = (newcontent == content)
+        if sync:
+            print("+ Commit for submodule {} matches.".format(submodule))
+        elif args.update:
+            content = newcontent
+            print("* Commit for submodule {} had been updated."\
+                  .format(submodule))
+        else:
+            print("! Commit for submodule {} DOES NOT MATCH!".format(submodule))
+            allsync = False
+    if content != origcontent:
+        with open("CMakeLists.txt", "w") as fp:
+            fp.write(content)
+    if not allsync:
+        sys.exit(1)
+
+
+def _parse_arguments():
+    """Returns command line arguments"""
+    parser = argparse.ArgumentParser(description=_DESCRIPTION)
+    msg = "Whether the commits should be updated in the CMakeLists.txt files"
+    parser.add_argument("-u", "--update", action='store_true', help=msg)
+    return parser.parse_args()
+
+
+def _replace_submodule_commit(content, submodule, commit):
+    """Replaces the commit id in the CMakeLists.txt file content"""
+    submodule_upper = submodule.upper()
+    newcontent, nsubs = re.subn(
+        r"set\({}_GIT_TAG (['\"]).+\1\)".format(submodule_upper),
+        'set({}_GIT_TAG "{}")'.format(submodule_upper, commit),
+        content)
+    return newcontent, nsubs
+
+
+if __name__ == '__main__':
+    main()

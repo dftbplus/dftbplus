@@ -21,4 +21,4 @@ jobs:
     - name: Compile project from source
       run: ninja -C _build
     - name: Run testsuite
-      run: cd _build && OMP_NUM_THREADS=2 ctest -j 2
+      run: cd _build && OMP_NUM_THREADS=2 ctest -j 2 --output-on-failure

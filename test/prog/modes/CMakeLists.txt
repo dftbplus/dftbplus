@@ -1,23 +1,21 @@
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../" projectdir)
 
 # execute_process is verbatim, therefore ";" must be replaced with " "
 string(REGEX REPLACE ";" " " releasename "${RELEASE}")
 
-# required to pick up common.fypp
-list(APPEND FYPP_FLAGS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${releasename}'")
-
 execute_process(
-  COMMAND ${CMAKE_SOURCE_DIR}/utils/test/testlist_to_fypp
+  COMMAND ${projectdir}/utils/test/testlist_to_fypp
   INPUT_FILE ${srcdir}/tests
   OUTPUT_FILE ${builddir}/_modes_tests.fypp)
 
 # Make sure, the line-marker option is not set in fypp
-set(fyppflags ${FYPP_FLAGS})
-list(REMOVE_ITEM fyppflags "-n")
+set(fypp_flags ${FYPP_CONFIG_FLAGS})
+list(APPEND fypp_flags -I${projectdir}/prog/dftb+/include -DRELEASE="'${releasename}'")
 
 execute_process(
-  COMMAND ${FYPP} ${fyppflags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
+  COMMAND ${FYPP} ${fypp_flags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
   INPUT_FILE ${builddir}/_modes_tests.fypp
   OUTPUT_FILE ${builddir}/_modes_tests)
 

@@ -35,7 +35,7 @@ module dftbp_getenergies
   use dftbp_repcont
   use dftbp_repulsive
   use dftbp_reks, only : TReksCalc
-
+  use dftbp_determinants, only : TDftbDeterminants, determinants
   implicit none
 
   private
@@ -44,7 +44,7 @@ module dftbp_getenergies
 contains
 
 
-    !> Calculates various energy contribution that can potentially update for the same geometry
+  !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
@@ -237,7 +237,7 @@ contains
       energy%ELS = sum(energy%atomLS(iAtInCentralRegion))
     end if
 
-    ! Add exchange conribution for range separated calculations
+    ! Add exchange contribution for range separated calculations
     if (allocated(rangeSep) .and. .not. allocated(reks)) then
       energy%Efock = 0.0_dp
       call rangeSep%addLREnergy(energy%Efock)
@@ -262,7 +262,7 @@ contains
     energy%pV = cellVol * extPressure
 
     ! Electronic entropy term
-    energy%TS = sum(TS)
+    energy%TS = TS
 
   end subroutine calcEnergies
 
@@ -346,9 +346,9 @@ contains
         & + energy%atomSolv
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
-    energy%EMermin = energy%Etotal - energy%TS
+    energy%EMermin = energy%Etotal - sum(energy%TS)
     ! energy extrapolated to 0 K
-    energy%Ezero = energy%Etotal - 0.5_dp * energy%TS
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(energy%TS)
     energy%EGibbs = energy%EMermin + energy%pV
 
     ! Free energy of system, with contribution if attached to an electron reservoir
