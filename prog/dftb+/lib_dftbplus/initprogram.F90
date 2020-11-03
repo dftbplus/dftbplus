@@ -1235,31 +1235,31 @@ contains
     this%hamiltonianType = input%ctrl%hamiltonian
     this%tSccCalc = input%ctrl%tScc
     this%tDFTBU = input%ctrl%tDFTBU
-    tSpin = input%ctrl%tSpin
-    nSpin = 1
+    this%tSpin = input%ctrl%tSpin
+    this%nSpin = 1
     if (input%ctrl%reksInp%reksAlg /= reksTypes%noReks) then
       ! REKS follows spin-restricted open-shell scheme so nSpin should be two in the main code, but
       ! some variables such as qOutput should be treated in a restricted scheme. Here nSpin is set
       ! to one and changes to two later in the initialization.
       allocate(reks)
-    else if (tSpin) then
+    else if (this%tSpin) then
       ! unrestricted spin polarisation
-      nSpin = 2
+      this%nSpin = 2
     end if
-    nIndepHam = nSpin
+    nIndepHam = this%nSpin
 
-    tSpinSharedEf = input%ctrl%tSpinSharedEf
-    tSpinOrbit = input%ctrl%tSpinOrbit
-    tDualSpinOrbit = input%ctrl%tDualSpinOrbit
-    t2Component = input%ctrl%t2Component
+    this%tSpinSharedEf = input%ctrl%tSpinSharedEf
+    this%tSpinOrbit = input%ctrl%tSpinOrbit
+    this%tDualSpinOrbit = input%ctrl%tDualSpinOrbit
+    this%t2Component = input%ctrl%t2Component
     isRangeSep = allocated(input%ctrl%rangeSepInp)
 
-    if (t2Component) then
-      nSpin = 4
+    if (this%t2Component) then
+      this%nSpin = 4
       nIndepHam = 1
     end if
 
-    if (nSpin /= 2 .and. tSpinSharedEf) then
+    if (this%nSpin /= 2 .and. this%tSpinSharedEf) then
       call error("Colinear spin polarization required for shared Ef over spin channels")
     end if
 
@@ -1323,7 +1323,7 @@ contains
 
 
   #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb, t2Component, env)
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb, this%t2Component, env)
   #:endif
     call TParallelKS_init(parallelKS, env, this%nKPoint, nIndepHam)
 
@@ -1338,17 +1338,17 @@ contains
     isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc) ! no point if not SCC
 
     if (this%tSccCalc) then
-      maxSccIter = input%ctrl%maxIter
+      this%maxSccIter = input%ctrl%maxIter
     else
-      maxSccIter = 1
+      this%maxSccIter = 1
     end if
-    if (maxSccIter < 1) then
+    if (this%maxSccIter < 1) then
       call error("SCC iterations must be larger than 0")
     end if
     if (this%tSccCalc) then
       if (allocated(input%ctrl%elecDynInp)) then
         if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
-          maxSccIter = 0
+          this%maxSccIter = 0
           isSccConvRequired = .false.
           this%tRestartNoSC = .true.
         end if
@@ -1425,7 +1425,7 @@ contains
       end do
     end if
 
-    if (tSpinOrbit) then
+    if (this%tSpinOrbit) then
       allocate(this%xi(this%orb%mShell,this%nType))
       this%xi(:,:) = 0.0_dp
       do iSp=1,this%nType
@@ -1445,29 +1445,29 @@ contains
 
     ! DFTB+U parameters
     if (this%tDFTBU) then
-      nDFTBUfunc = input%ctrl%DFTBUfunc
-      allocate(UJ(size(input%ctrl%UJ,dim=1),size(input%ctrl%UJ,dim=2)))
-      allocate(nUJ(size(input%ctrl%nUJ)))
-      allocate(niUJ(size(input%ctrl%niUJ,dim=1),size(input%ctrl%niUJ,dim=2)))
-      allocate(iUJ(size(input%ctrl%iUJ,dim=1), size(input%ctrl%iUJ,dim=2),&
+      this%nDFTBUfunc = input%ctrl%DFTBUfunc
+      allocate(this%UJ(size(input%ctrl%UJ,dim=1),size(input%ctrl%UJ,dim=2)))
+      allocate(this%nUJ(size(input%ctrl%nUJ)))
+      allocate(this%niUJ(size(input%ctrl%niUJ,dim=1),size(input%ctrl%niUJ,dim=2)))
+      allocate(this%iUJ(size(input%ctrl%iUJ,dim=1), size(input%ctrl%iUJ,dim=2),&
           & size(input%ctrl%iUJ,dim=3)))
 
-      UJ(:,:) = input%ctrl%UJ(:,:)
-      nUJ(:) = input%ctrl%nUJ(:)
-      niUJ(:,:) = input%ctrl%niUJ(:,:)
-      iUJ(:,:,:) = input%ctrl%iUJ(:,:,:)
+      this%UJ(:,:) = input%ctrl%UJ(:,:)
+      this%nUJ(:) = input%ctrl%nUJ(:)
+      this%niUJ(:,:) = input%ctrl%niUJ(:,:)
+      this%iUJ(:,:,:) = input%ctrl%iUJ(:,:,:)
       do iSp = 1, this%nType
-        do jj = 1, nUJ(iSp)
-          if (niUJ(jj,iSp)>1) then
-            call heap_sort(iUJ(1:niUJ(jj,iSp),jj,iSp))
+        do jj = 1, this%nUJ(iSp)
+          if (this%niUJ(jj,iSp)>1) then
+            call heap_sort(this%iUJ(1:this%niUJ(jj,iSp),jj,iSp))
           end if
         end do
       end do
     else
-      allocate(UJ(0,0))
-      allocate(nUJ(0))
-      allocate(niUJ(0,0))
-      allocate(iUJ(0,0,0))
+      allocate(this%UJ(0,0))
+      allocate(this%nUJ(0))
+      allocate(this%niUJ(0,0))
+      allocate(this%iUJ(0,0,0))
     end if
 
     select case(this%hamiltonianType)
@@ -1633,8 +1633,9 @@ contains
     this%species0(:) = input%geom%species(:)
 
   #:block DEBUG_CODE
-    call inputCoherenceCheck(env, this%hamiltonianType, nSpin, this%nAtom, this%coord0, &
-       & this%species0, speciesName, this%tSccCalc, this%tPeriodic, this%tFracCoord, this%latVec, this%origin)
+    call inputCoherenceCheck(env, this%hamiltonianType, this%nSpin, this%nAtom, this%coord0, &
+       & this%species0, speciesName, this%tSccCalc, this%tPeriodic, this%tFracCoord, this%latVec,&
+       & this%origin)
   #:endblock DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
@@ -1676,42 +1677,42 @@ contains
     allocate(this%iCellVec(this%nAllAtom))
 
     ! Intialize Hamilton and overlap
-    tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. this%tDFTBU) ! .or. tBField
+    this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. this%tDFTBU) ! .or. tBField
     if (this%tSccCalc .and. .not.allocated(reks)) then
-      allocate(this%chargePerShell(this%orb%mShell,this%nAtom,nSpin))
+      allocate(this%chargePerShell(this%orb%mShell,this%nAtom,this%nSpin))
     else
       allocate(this%chargePerShell(0,0,0))
     end if
     if (.not.allocated(reks)) then
-      allocate(this%ham(0, nSpin))
+      allocate(this%ham(0, this%nSpin))
     end if
-    if (tImHam) then
-      allocate(this%iHam(0, nSpin))
+    if (this%tImHam) then
+      allocate(this%iHam(0, this%nSpin))
     end if
     allocate(this%over(0))
     allocate(this%iSparseStart(0, this%nAtom))
 
-    if (nSpin == 4) then
+    if (this%nSpin == 4) then
       allocate(this%nEl(1))
-      allocate(Ef(1))
+      allocate(this%Ef(1))
     else
-      allocate(this%nEl(nSpin))
-      allocate(Ef(nSpin))
+      allocate(this%nEl(this%nSpin))
+      allocate(this%Ef(this%nSpin))
     end if
 
-    iDistribFn = input%ctrl%iDistribFn
-    tempElec = input%ctrl%tempElec
+    this%iDistribFn = input%ctrl%iDistribFn
+    this%tempElec = input%ctrl%tempElec
 
-    tFixEf = input%ctrl%tFixEf
+    this%tFixEf = input%ctrl%tFixEf
     if (allocated(input%ctrl%Ef)) then
-      Ef(:) = input%ctrl%Ef
+      this%Ef(:) = input%ctrl%Ef
     else
-      Ef(:) = 0.0_dp
+      this%Ef(:) = 0.0_dp
     end if
-    tSetFillingTemp = input%ctrl%tSetFillingTemp
-    tFillKSep = input%ctrl%tFillKSep
-    tempAtom = input%ctrl%tempAtom
-    deltaT = input%ctrl%deltaT
+    this%tSetFillingTemp = input%ctrl%tSetFillingTemp
+    this%tFillKSep = input%ctrl%tFillKSep
+    this%tempAtom = input%ctrl%tempAtom
+    this%deltaT = input%ctrl%deltaT
 
     ! Orbital equivalency relations
     call setEquivalencyRelations(this%species0, this%sccCalc, this%orb, onSiteElements, iEqOrbitals, &
@@ -1742,7 +1743,7 @@ contains
         call init(pChrgMixer, pAndersonMixer)
       case (mixerTypes%broyden)
         allocate(pBroydenMixer)
-        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
+        call init(pBroydenMixer, this%maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
       case(mixerTypes%diis)
@@ -1755,21 +1756,21 @@ contains
     end if
 
     ! initialise in cases where atoms move
-    isGeoOpt = input%ctrl%isGeoOpt
-    tCoordOpt = input%ctrl%tCoordOpt
-    tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
-    if (tLatOpt) then
+    this%isGeoOpt = input%ctrl%isGeoOpt
+    this%tCoordOpt = input%ctrl%tCoordOpt
+    this%tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
+    if (this%tLatOpt) then
       if (tExtChrg) then
         ! Stop as not sure, what to do with the coordinates of the
         ! external charges, when the lattice changes.
         call error("External charges and lattice optimisation can not be used together.")
       end if
     end if
-    if (tLatOpt) then
-      tLatOptFixAng = input%ctrl%tLatOptFixAng
-      tLatOptFixLen = input%ctrl%tLatOptFixLen
-      tLatOptIsotropic = input%ctrl%tLatOptIsotropic
-      if (tLatOptFixAng .or. any(tLatOptFixLen) .or. tLatOptIsotropic) then
+    if (this%tLatOpt) then
+      this%tLatOptFixAng = input%ctrl%tLatOptFixAng
+      this%tLatOptFixLen = input%ctrl%tLatOptFixLen
+      this%tLatOptIsotropic = input%ctrl%tLatOptIsotropic
+      if (this%tLatOptFixAng .or. any(this%tLatOptFixLen) .or. this%tLatOptIsotropic) then
         this%origLatVec(:,:) = this%latVec(:,:)
         do ii = 1, 3
            this%normOrigLatVec(:,ii) = this%origLatVec(:,ii) / sqrt(sum(this%origLatVec(:,ii)**2))
@@ -1781,33 +1782,33 @@ contains
     this%BarostatStrength = input%ctrl%BarostatStrength
 
   #:if WITH_SOCKETS
-    tSocket = allocated(input%ctrl%socketInput)
-    if (tSocket) then
+    this%tSocket = allocated(input%ctrl%socketInput)
+    if (this%tSocket) then
       input%ctrl%socketInput%nAtom = this%nAtom
-      call initSocket(env, input%ctrl%socketInput, this%tPeriodic, this%coord0, this%latVec, socket,&
+      call initSocket(env, input%ctrl%socketInput, this%tPeriodic, this%coord0, this%latVec, this%socket,&
           & tCoordsChanged, tLatticeChanged)
-      tForces = .true.
-      isGeoOpt = .false.
-      tMD = .false.
+      this%tForces = .true.
+      this%isGeoOpt = .false.
+      this%tMD = .false.
     end if
   #:else
-    tSocket = .false.
+    this%tSocket = .false.
   #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
     isSccConvRequired = input%ctrl%isSccConvRequired
-    tMD = input%ctrl%tMD
-    tDerivs = input%ctrl%tDerivs
-    tPrintMulliken = input%ctrl%tPrintMulliken
+    this%tMD = input%ctrl%tMD
+    this%tDerivs = input%ctrl%tDerivs
+    this%tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
     tExtField = tEField
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. isRangeSep
-    tAtomicEnergy = input%ctrl%tAtomicEnergy
-    tPrintEigVecs = input%ctrl%tPrintEigVecs
-    tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
+    this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. tExtField .or. this%tFixEf .or. isRangeSep
+    this%tAtomicEnergy = input%ctrl%tAtomicEnergy
+    this%tPrintEigVecs = input%ctrl%tPrintEigVecs
+    this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
-    tPrintForces = input%ctrl%tPrintForces
-    tForces = input%ctrl%tForces .or. tPrintForces
+    this%tPrintForces = input%ctrl%tPrintForces
+    this%tForces = input%ctrl%tForces .or. this%tPrintForces
     isLinResp = input%ctrl%lrespini%tInit
     if (isLinResp) then
       allocate(linearResponse)
@@ -1839,10 +1840,10 @@ contains
     call TDftbDeterminants_init(deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
         & input%ctrl%isGroundGuess, this%nEl, dftbEnergy)
 
-    if (tForces) then
-      tCasidaForces = input%ctrl%tCasidaForces
+    if (this%tForces) then
+      this%tCasidaForces = input%ctrl%tCasidaForces
     else
-      tCasidaForces = .false.
+      this%tCasidaForces = .false.
     end if
     if (this%tSccCalc) then
       this%forceType = input%ctrl%forceType
@@ -1851,11 +1852,11 @@ contains
         call error("Invalid force evaluation method for non-SCC calculations.")
       end if
     end if
-    if (this%forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
+    if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
      end if
 
-     tRequireDerivator = tForces
+     tRequireDerivator = this%tForces
      if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
        tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
@@ -1874,10 +1875,10 @@ contains
       end select
     end if
 
-    call getDenseDescCommon(this%orb, this%nAtom, t2Component, denseDesc)
+    call getDenseDescCommon(this%orb, this%nAtom, this%t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, this%kPoint,&
-        & input%ctrl%parallelOpts, nIndepHam, tempElec)
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%tSpin, this%kPoint,&
+        & input%ctrl%parallelOpts, nIndepHam, this%tempElec)
 
     if (this%tRealHS) then
       nBufferedCholesky = 1
@@ -1890,7 +1891,7 @@ contains
       @:ASSERT(parallelKS%nLocalKS == 1)
 
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * this%nKPoint) then
-        if (nSpin == 2) then
+        if (this%nSpin == 2) then
           write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
               & combinations. There are ", nIndepHam * this%nKPoint, " spin times k-point combinations&
               & and ", input%ctrl%parallelOpts%nGroup, " groups"
@@ -1913,8 +1914,8 @@ contains
         tWriteHS = .false.
 
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
-          & this%nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
-          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
+          & this%nEl, this%iDistribFn, this%nSpin, parallelKS%localKS(2, 1), nKpoint,&
+          & parallelKS%localKS(1, 1), kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
           & electronicSolver%providesElectronEntropy)
 
     end if
@@ -1950,7 +1951,7 @@ contains
 
     ! temporary disables for various issues with NEGF
     if (tNegf) then
-      if (nSpin > 2) then
+      if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
       end if
@@ -1968,35 +1969,35 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = (this%tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
+    tStress = (this%tPeriodic .and. this%tForces .and. .not.tNegf .and. tStress)
 
-    nMovedAtom = input%ctrl%nrMoved
-    nMovedCoord = 3 * nMovedAtom
+    this%nMovedAtom = input%ctrl%nrMoved
+    htis%nMovedCoord = 3 * this%nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      nGeoSteps = huge(1) - 1
+      this%nGeoSteps = huge(1) - 1
       ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
-      ! nGeoSteps = huge(1)
+      ! this%nGeoSteps = huge(1)
     else
-      nGeoSteps = input%ctrl%maxRun
+      this%nGeoSteps = input%ctrl%maxRun
     end if
 
-    if (nMovedAtom > 0) then
-      allocate(indMovedAtom(size(input%ctrl%indMovedAtom)))
-      indMovedAtom(:) = input%ctrl%indMovedAtom(:)
+    if (this%nMovedAtom > 0) then
+      allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
+      this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
     else
-      allocate(indMovedAtom(0))
+      allocate(this%indMovedAtom(0))
     end if
 
     allocate(pGeoCoordOpt)
-    if (tCoordOpt) then
-      allocate(tmpCoords(nMovedCoord))
-      tmpCoords(1:nMovedCoord) = reshape(this%coord0(:, indMovedAtom), (/ nMovedCoord /))
+    if (this%tCoordOpt) then
+      allocate(tmpCoords(this%nMovedCoord))
+      tmpCoords(1:this%nMovedCoord) = reshape(this%coord0(:, this%indMovedAtom), (/ this%nMovedCoord /))
       select case (input%ctrl%iGeoOpt)
       case(geoOptTypes%steepestDesc)
-        allocate(tmpWeight(nMovedCoord))
-        tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 / reshape(spread(this%mass(indMovedAtom), 1, 3),&
-            & (/nMovedCoord/))
+        allocate(tmpWeight(this%nMovedCoord))
+        tmpWeight(1:this%nMovedCoord) = 0.5_dp * this%deltaT**2 / reshape(spread(this%mass(this%indMovedAtom), 1, 3),&
+            & (/this%nMovedCoord/))
         allocate(pSteepDesc)
         call init(pSteepDesc, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
             & tmpWeight )
@@ -2021,7 +2022,7 @@ contains
     end if
 
     allocate(pGeoLatOpt)
-    if (tLatOpt) then
+    if (this%tLatOpt) then
       select case (input%ctrl%iGeoOpt)
       case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(9))
@@ -2040,10 +2041,10 @@ contains
             & input%ctrl%lbfgsInp%memory)
         call init(pGeoLatOpt, pLbfgsLat)
       end select
-      if (tLatOptIsotropic ) then
+      if (this%tLatOptIsotropic ) then
         ! optimization uses scaling factor of unit cell
         call reset(pGeoLatOpt, (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
-      else if (tLatOptFixAng) then
+      else if (this%tLatOptFixAng) then
         ! optimization uses scaling factor of lattice vectors
         call reset( pGeoLatOpt, (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else
@@ -2051,22 +2052,22 @@ contains
       end if
     end if
 
-    if (.not.(isGeoOpt.or.tMD.or.tSocket)) then
-      nGeoSteps = 0
+    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket)) then
+      this%nGeoSteps = 0
     end if
 
-    if (tSocket .and. this%tHelical) then
+    if (this%tSocket .and. this%tHelical) then
       call error("The socket protocol does not understand helical geometries")
     end if
 
     ! Initialize constraints
     if (input%ctrl%nrConstr > 0) then
-      allocate(conAtom(input%ctrl%nrConstr))
-      allocate(conVec(3, input%ctrl%nrConstr))
-      conAtom(:) = input%ctrl%conAtom
-      conVec(:,:) = input%ctrl%conVec
+      allocate(this%conAtom(input%ctrl%nrConstr))
+      allocate(this%conVec(3, input%ctrl%nrConstr))
+      this%conAtom(:) = input%ctrl%conAtom
+      this%conVec(:,:) = input%ctrl%conVec
       do ii = 1, input%ctrl%nrConstr
-        conVec(:,ii) = conVec(:,ii) / sqrt(sum(conVec(:,ii)**2))
+        this%conVec(:,ii) = this%conVec(:,ii) / sqrt(sum(this%conVec(:,ii)**2))
       end do
     end if
 
@@ -2133,7 +2134,7 @@ contains
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
-            inp%calculate_forces = tForces
+            inp%calculate_forces = this%tForces
             inp%atom_types = speciesName(this%species0)
             inp%coords = this%coord0
             if (this%tPeriodic) then
@@ -2176,14 +2177,14 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and. tMulliken) then
-      tDipole = .true.
+    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and. this%tMulliken) then
+      this%tDipole = .true.
     else
-      tDipole = .false.
+      this%tDipole = .false.
     end if
 
-    if (tMulliken) then
-      tNetAtomCharges = input%ctrl%tNetAtomCharges
+    if (this%tMulliken) then
+      this%tNetAtomCharges = input%ctrl%tNetAtomCharges
       if (allocated(input%ctrl%cm5Input)) then
         allocate(cm5Cont)
         if (this%tPeriodic) then
@@ -2196,23 +2197,23 @@ contains
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, cm5Cont%getRCutOff())
       end if
     else
-      tNetAtomCharges = .false.
+      this%tNetAtomCharges = .false.
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
       if (.not.this%tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
-      allocate(esp)
-      call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
+      allocate(this%esp)
+      call TElStatPotentials_init(this%esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
-      allocate(pipekMezey)
-      call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
+      allocate(this%pipekMezey)
+      call initialise(this%pipekMezey, input%ctrl%pipekMezeyInp)
     end if
-    tLocalise = allocated(pipekMezey)
-    if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
+    this%tLocalise = allocated(this%pipekMezey)
+    if (this%tLocalise .and. (this%nSpin > 2 .or. this%t2Component)) then
       call error("Localisation of electronic states currently unsupported for non-collinear and&
           & spin orbit calculations")
     end if
@@ -2224,8 +2225,9 @@ contains
         call error("This binary has been compiled without support for linear response&
             & calculations.")
       end if
-      call ensureLinRespConditions(this%tSccCalc, t3rd .or. t3rdFull, this%tRealHS, this%tPeriodic, tCasidaForces,&
-          & solvation, isRS_LinResp, nSpin, tSpin, this%tHelical, tSpinOrbit, this%tDFTBU, tempElec, input)
+      call ensureLinRespConditions(this%tSccCalc, t3rd .or. t3rdFull, this%tRealHS, this%tPeriodic,&
+          & this%tCasidaForces, solvation, isRS_LinResp, this%nSpin, this%tSpin, this%tHelical,&
+          & this%tSpinOrbit, this%tDFTBU, this%tempElec, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(this%nType))
@@ -2258,7 +2260,7 @@ contains
       end select
 
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
-      tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
+      tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs .or.&
           & input%ctrl%lrespini%tWriteDensityMatrix)
 
@@ -2307,7 +2309,7 @@ contains
       end if
     #:endif
 
-      if (isGeoOpt .or. tMD .or. tSocket) then
+      if (this%isGeoOpt .or. this%tMD .or. this%tSocket) then
         call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
             & the (N-2) electron ground state system do not match the targeted system for the&
             & excited states")
@@ -2328,10 +2330,10 @@ contains
 
 
     ! MD stuff
-    if (tMD) then
+    if (this%tMD) then
       ! Create MD framework.
       allocate(pMDFrame)
-      call init(pMDFrame, nMovedAtom, this%nAtom, input%ctrl%tMDstill)
+      call init(pMDFrame, this%nMovedAtom, this%nAtom, input%ctrl%tMDstill)
 
       ! Create temperature profile, if thermostat is not the dummy one
       if (input%ctrl%iThermostat /= 0) then
@@ -2348,27 +2350,27 @@ contains
       select case (input%ctrl%iThermostat)
       case (0) ! No thermostat
         allocate(pDummyTherm)
-        call init(pDummyTherm, tempAtom, this%mass(indMovedAtom), randomThermostat, pMDFrame)
+        call init(pDummyTherm, this%tempAtom, this%mass(this%indMovedAtom), randomThermostat, pMDFrame)
         call init(pThermostat, pDummyTherm)
       case (1) ! Andersen thermostat
         allocate(pAndersenTherm)
-        call init(pAndersenTherm, randomThermostat, this%mass(indMovedAtom), pTempProfile,&
+        call init(pAndersenTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
             & input%ctrl%tRescale, input%ctrl%wvScale, pMDFrame)
         call init(pThermostat, pAndersenTherm)
       case (2) ! Berendsen thermostat
         allocate(pBerendsenTherm)
-        call init(pBerendsenTherm, randomThermostat, this%mass(indMovedAtom), pTempProfile,&
+        call init(pBerendsenTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
             & input%ctrl%wvScale, pMDFrame)
         call init(pThermostat, pBerendsenTherm)
       case (3) ! Nose-Hoover-Chain thermostat
         allocate(pNHCTherm)
         if (input%ctrl%tInitNHC) then
-          call init(pNHCTherm, randomThermostat, this%mass(indMovedAtom), pTempProfile,&
+          call init(pNHCTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
               & input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, input%ctrl%nh_npart,&
               & input%ctrl%nh_nys, input%ctrl%nh_nc, input%ctrl%xnose, input%ctrl%vnose,&
               & input%ctrl%gnose)
         else
-          call init(pNHCTherm, randomThermostat, this%mass(indMovedAtom), pTempProfile,&
+          call init(pNHCTherm, randomThermostat, this%mass(this%indMovedAtom), pTempProfile,&
               & input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, input%ctrl%nh_npart,&
               & input%ctrl%nh_nys, input%ctrl%nh_nc)
         end if
@@ -2379,19 +2381,19 @@ contains
       allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
         if (this%tBarostat) then
-          call init(pVelocityVerlet, deltaT, this%coord0(:,indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
               & input%ctrl%initialVelocities, this%BarostatStrength, this%extPressure,&
               & input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, deltaT, this%coord0(:,indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
               & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
         if (this%tBarostat) then
-          call init(pVelocityVerlet, deltaT, this%coord0(:,indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
               & this%BarostatStrength, this%extPressure, input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, deltaT, this%coord0(:,indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
               & input%ctrl%initialVelocities, .false., .false.)
         end if
       end if
@@ -2399,7 +2401,7 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
-    call initPlumed(env, input%ctrl%tPlumed, tMD, plumedCalc)
+    call initPlumed(env, input%ctrl%tPlumed, this%tMD, plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     isXlbomd = allocated(input%ctrl%xlbomd)
@@ -2408,30 +2410,30 @@ contains
         call error("XLBOMD does not work with thermostats yet")
       elseif (this%tBarostat) then
         call error("XLBOMD does not work with barostats yet")
-      elseif (nSpin /= 1 .or. this%tDFTBU .or. allocated(onSiteElements)) then
+      elseif (this%nSpin /= 1 .or. this%tDFTBU .or. allocated(onSiteElements)) then
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (this%forceType /= forceTypes%dynamicT0 .and. this%forceType /= forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
-      elseif (iDistribFn /= fillingTypes%Fermi) then
+      elseif (this%iDistribFn /= fillingTypes%Fermi) then
         call error("Filling function incompatible with XLBOMD")
       end if
       allocate(xlbomdIntegrator)
       call Xlbomd_init(xlbomdIntegrator, input%ctrl%xlbomd, nIneqOrb)
     end if
 
-    minSccIter = getMinSccIters(this%tSccCalc, tDftbU, nSpin)
-    minSccIter = min(minSccIter, maxSccIter)
+    this%minSccIter = getMinSccIters(this%tSccCalc, tDftbU, this%nSpin)
+    this%minSccIter = min(this%minSccIter, this%maxSccIter)
     if (isXlbomd) then
-      call xlbomdIntegrator%setDefaultSCCParameters(minSccIter, maxSccIter, this%sccTol)
+      call xlbomdIntegrator%setDefaultSCCParameters(this%minSccIter, this%maxSccIter, this%sccTol)
     end if
 
-    if (tDerivs) then
-      allocate(tmp3Coords(3,nMovedAtom))
-      tmp3Coords = this%coord0(:,indMovedAtom)
+    if (this%tDerivs) then
+      allocate(tmp3Coords(3,this%nMovedAtom))
+      tmp3Coords = this%coord0(:,this%indMovedAtom)
       call create(derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
-      this%coord0(:,indMovedAtom) = tmp3Coords
+      this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
-      nGeoSteps = 2 * 3 * nMovedAtom - 1
+      this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
     end if
 
     if (tEField) then
@@ -2440,11 +2442,11 @@ contains
       tTDEfield = input%ctrl%tTDEfield
       EfieldOmega = input%ctrl%EfieldOmega
       EfieldPhase = input%ctrl%EfieldPhase
-      if (tTDEfield .and. .not. tMD) then
+      if (tTDEfield .and. .not. this%tMD) then
         call error ("Time dependent electric fields only possible for MD!")
       end if
       ! parser should catch all of these:
-      @:ASSERT(.not.tTDEfield .or. tMD)
+      @:ASSERT(.not.tTDEfield .or. this%tMD)
     else
       EFieldStrength = 0.0_dp
       EfieldVector(:) = 0.0_dp
@@ -2460,11 +2462,11 @@ contains
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(this%tPeriodic, this%tHelical, tReadChrg,&
-          & input%ctrl%tShellResolved, tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp,&
+          & input%ctrl%tShellResolved, this%tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp,&
           & linearResponse, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff)
       call initRangeSeparated(this%nAtom, this%species0, this%hubbU, input%ctrl%rangeSepInp,&
-          & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+          & this%tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
           & deltaRhoOutSqr, nMixElements)
     end if
 
@@ -2525,7 +2527,7 @@ contains
     restartFreq = input%ctrl%restartFreq
 
   #:if WITH_TRANSPORT
-    if (tLatOpt .and. tNegf) then
+    if (this%tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
 
@@ -2537,8 +2539,8 @@ contains
       tUpload = .false.
     end if
 
-    call initTransportArrays(tUpload, input%transpar, this%species0, this%orb, this%nAtom, nSpin, shiftPerLUp,&
-        & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
+    call initTransportArrays(tUpload, input%transpar, this%species0, this%orb, this%nAtom,&
+        & this%nSpin, shiftPerLUp, chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
     call initTransport(env, input, electronicSolver)
 
@@ -2558,7 +2560,7 @@ contains
       else
         poissStr%latVecs(:,:) = 0.0_dp
       end if
-      poissStr%tempElec = tempElec
+      poissStr%tempElec = this%tempElec
 
       call poiss_init(env, poissStr, this%orb, this%hubbU, input%poisson,&
         #:if WITH_TRANSPORT
@@ -2580,7 +2582,7 @@ contains
       if (isLinResp) then
         call error("Linear response is not compatible with transport calculations")
       end if
-      if (nSpin > 2) then
+      if (this%nSpin > 2) then
         call error("Non-colinear spin not currently compatible with transport calculations")
       end if
       if (allocated(solvation)) then
@@ -2589,8 +2591,8 @@ contains
     end if
 
     if (env%tGlobalLead) then
-      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, isGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
+      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, this%tDerivs,&
+          & tWriteDetailedOut, tMd, this%isGeoOpt, geoOutFile, fdDetailedOut, fdMd, this%esp)
     end if
 
     if (tPoisson) then
@@ -2607,22 +2609,22 @@ contains
 
     if (allocated(reks)) then
       call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, this%kPoint,&
-          & this%nEl, this%nKPoint, this%tSccCalc, tSpin, tSpinOrbit, this%tDFTBU, tEField,&
-          & isLinResp, this%tPeriodic, tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
-      ! here, nSpin changes to 2 for REKS
+          & this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit, this%tDFTBU, tEField,&
+          & isLinResp, this%tPeriodic, this%tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
+      ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, this%orb, this%spinW,&
           & this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, this%hamiltonianType,&
-          & nSpin, nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, this%tPeriodic, tStress,&
-          & tDipole)
+          & this%nSpin, nExtChrg, t3rd.or.t3rdFull, isRangeSep, this%tForces, this%tPeriodic, tStress,&
+          & this%tDipole)
     end if
 
     call initDetArrays(nDets, deltaDftb, qDets, tDftbU .or. allocated(onSiteElements), qBlockDets,&
-        & isRangeSep, deltaRhoDets, this%orb, this%nAtom, nSpin)
+        & isRangeSep, deltaRhoDets, this%orb, this%nAtom, this%nSpin)
 
-    call initArrays(env, electronicSolver, tForces, tStress, tExtChrg, isLinResp, tLinRespZVect,&
-        & tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, this%tRealHS,&
-        & tPrintExcitedEigvecs, tDipole, allocated(reks), deltaDftb%isNonAufbau, this%orb, this%nAtom,&
-        & nMovedAtom, this%nKPoint, nSpin, nExtChrg, indMovedAtom, this%mass, denseDesc, rhoPrim, h0,&
+    call initArrays(env, electronicSolver, this%tForces, tStress, tExtChrg, isLinResp, tLinRespZVect,&
+        & tMd, this%tMulliken, this%tSpinOrbit, this%tImHam, tWriteRealHS, tWriteHS, this%t2Component, this%tRealHS,&
+        & tPrintExcitedEigvecs, this%tDipole, allocated(reks), deltaDftb%isNonAufbau, this%orb, this%nAtom,&
+        & this%nMovedAtom, this%nKPoint, this%nSpin, nExtChrg, this%indMovedAtom, this%mass, denseDesc, rhoPrim, h0,&
         & iRhoPrim, excitedDerivs, ERhoPrim, derivs, groundDerivs, tripletDerivs, mixedDerivs,&
         & tripletStress, mixedStress, chrgForces, dftbEnergy, potential, eigen, filling,&
         & coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal,&
@@ -2682,8 +2684,8 @@ contains
 
 
     ! Projection of eigenstates onto specific regions of the system
-    tProjEigenvecs = input%ctrl%tProjEigenvecs
-    if (tProjEigenvecs) then
+    this%tProjEigenvecs = input%ctrl%tProjEigenvecs
+    if (this%tProjEigenvecs) then
       call init(iOrbRegion)
       call init(regionLabels)
       do iReg = 1, size(input%ctrl%tShellResInRegion)
@@ -2842,8 +2844,8 @@ contains
       case default
         call error("Unknown thermostat mode")
       end select
-    elseif (isGeoOpt) then
-      if (allocated(conAtom)) then
+    elseif (this%isGeoOpt) then
+      if (allocated(this%conAtom)) then
         strTmp = "with constraints"
       else
         strTmp = ""
@@ -2860,11 +2862,11 @@ contains
       case default
         call error("Unknown optimisation mode")
       end select
-    elseif (tDerivs) then
+    elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) indMovedAtom
-    elseif (tSocket) then
+      write(stdOut, *) this%indMovedAtom
+    elseif (this%tSocket) then
       write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else
       write(stdOut, "('Mode:',T30,A)") "Static calculation"
@@ -2874,7 +2876,7 @@ contains
       if (.not.this%tRestartNoSC) then
         write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
         write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", this%sccTol
-        write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+        write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", this%maxSccIter
       end if
       if (this%tPeriodic) then
         write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%sccCalc%getEwaldPar()
@@ -2886,7 +2888,8 @@ contains
       end if
       if (this%tDFTBU) then
         write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
-        write(stdOut, "(A,':',T30,A)")"Orbital functional", trim(plusUFunctionals%names(nDFTBUfunc))
+        write(stdOut, "(A,':',T30,A)")"Orbital functional",&
+            & trim(plusUFunctionals%names(this%nDFTBUfunc))
       end if
       if (allocated(onSiteElements)) then
         write(stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
@@ -2900,7 +2903,7 @@ contains
       write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
           & 0.5_dp*this%nEl(1), "Nr. of down electrons", 0.5_dp*this%nEl(1)
     else
-      select case (nSpin)
+      select case (this%nSpin)
       case(1)
         write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
         write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", 0.5_dp*this%nEl(1),&
@@ -2917,13 +2920,13 @@ contains
 
     if (this%tPeriodic) then
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
-      if (tLatOpt) then
+      if (this%tLatOpt) then
         write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
         write(stdOut, "(A,':',T30,f12.6)") "Pressure", this%extPressure
       end if
     else if (this%tHelical) then
       write (stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
-      if (tLatOpt) then
+      if (this%tLatOpt) then
         write (stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
       end if
     else
@@ -2952,7 +2955,7 @@ contains
         end select
         write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
         write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
+        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
         select case (iMixer)
         case(mixerTypes%anderson)
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
@@ -2962,33 +2965,33 @@ contains
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
         end select
       else
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
+        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
       end if
     end if
 
-    if (tCoordOpt) then
-      write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", nMovedAtom
+    if (this%tCoordOpt) then
+      write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
-    if (isGeoOpt) then
-      write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
+    if (this%isGeoOpt) then
+      write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
-        write(stdOut, "(A,':',T30,E14.6)") "Step size", deltaT
+        write(stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
       end if
     end if
 
     tFirst = .true.
-    if (allocated(conAtom)) then
+    if (allocated(this%conAtom)) then
       do ii = 1, this%nAtom
-        do jj = 1, size(conAtom)
-          if (conAtom(jj) == ii) then
+        do jj = 1, size(this%conAtom)
+          if (this%conAtom(jj) == ii) then
             if (tFirst) then
               write(strTmp, "(A,':')") "Geometry constraints"
               tFirst = .false.
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdOut, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), ii, (conVec(kk,jj), kk=1,3)
+            write(stdOut, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), ii, (this%conVec(kk,jj), kk=1,3)
           end if
         end do
       end do
@@ -2996,14 +2999,14 @@ contains
 
     if (.not. allocated(reks) .and. .not.this%tRestartNoSC) then
       if (.not.input%ctrl%tSetFillingTemp) then
-        write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec,&
-            & 'eV'
+        write(stdOut, format2Ue) "Electronic temperature", this%tempElec, 'H',&
+            & Hartree__eV * this%tempElec, 'eV'
       end if
     end if
-    if (tMD) then
-      write(stdOut, "(A,':',T30,E14.6)") "Time step", deltaT
+    if (this%tMD) then
+      write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
       if (input%ctrl%iThermostat == 0 .and. .not.input%ctrl%tReadMDVelocities) then
-        write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
+        write(stdOut, "(A,':',T30,E14.6)") "Temperature", this%tempAtom
       end if
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", input%ctrl%wvScale
@@ -3037,7 +3040,7 @@ contains
       deallocate(shellNamesTmp)
     end do
 
-    if (tMulliken) then
+    if (this%tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
         call printCustomReferenceOccupations(this%orb, input%geom%species, &
             & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
@@ -3128,7 +3131,7 @@ contains
     end if
 
     tFirst = .true.
-    if (tSpin .or. allocated(reks)) then
+    if (this%tSpin .or. allocated(reks)) then
       do iSp = 1, this%nType
         do jj = 1, this%orb%nShell(iSp)
           do kk = 1, this%orb%nShell(iSp)
@@ -3153,8 +3156,8 @@ contains
     end if
 
     tFirst = .true.
-    if (tSpinOrbit) then
-      if (tDualSpinOrbit) then
+    if (this%tSpinOrbit) then
+      if (this%tDualSpinOrbit) then
         write(stdOut, "(A)")"Dual representation spin orbit"
       end if
       do iSp = 1, this%nType
@@ -3227,13 +3230,13 @@ contains
 
 
     write(stdOut, "(A,':')") "Extra options"
-    if (tPrintMulliken) then
+    if (this%tPrintMulliken) then
       write(stdOut, "(T30,A)") "Mulliken analysis"
     end if
-    if (tPrintForces .and. .not. (tMD .or. isGeoOpt .or. tDerivs)) then
+    if (this%tPrintForces .and. .not. (this%tMD .or. this%isGeoOpt .or. this%tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
-    if (tForces) then
+    if (this%tForces) then
       select case (this%forceType)
       case(forceTypes%orig)
         write(stdOut, "(A,T30,A)") "Force type", "original"
@@ -3244,7 +3247,7 @@ contains
         write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
       end select
     end if
-    if (tPrintEigVecs) then
+    if (this%tPrintEigVecs) then
       write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
     if (tExtChrg) then
@@ -3268,12 +3271,12 @@ contains
 
     if (this%tDFTBU) then
       do iSp = 1, this%nType
-        if (nUJ(iSp)>0) then
+        if (this%nUJ(iSp)>0) then
           write(strTmp, "(A,':')") "U-J coupling constants"
           write(stdOut, "(A,T25,A2)")trim(strTmp), speciesName(iSp)
-          do jj = 1, nUJ(iSp)
-            write(strTmp, "(A,I1,A)")'(A,',niUJ(jj,iSp),'I2,T25,A,F6.4)'
-            write(stdOut, trim(strTmp))'Shells:',iUJ(1:niUJ(jj,iSp),jj,iSp),'UJ:', UJ(jj,iSp)
+          do jj = 1, this%nUJ(iSp)
+            write(strTmp, "(A,I1,A)")'(A,',this%niUJ(jj,iSp),'I2,T25,A,F6.4)'
+            write(stdOut, trim(strTmp))'Shells:',this%iUJ(1:this%niUJ(jj,iSp),jj,iSp),'UJ:', this%UJ(jj,iSp)
           end do
         end if
       end do
@@ -3307,7 +3310,7 @@ contains
     end if
 
     if (deltaDftb%isNonAufbau) then
-      if (nSpin /= 2) then
+      if (this%nSpin /= 2) then
         call error("Internal error, Delta DFTB requires two spin channels")
       end if
       if (this%nEl(1) /= this%nEl(2)) then
@@ -3338,10 +3341,10 @@ contains
     if (deltaDftb%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
       call error("Delta DFTB incompatible with electron dynamics")
     end if
-    if (deltaDftb%isNonAufbau .and. tFixEf) then
+    if (deltaDftb%isNonAufbau .and. this%tFixEf) then
       call error("Delta DFTB incompatible with fixed Fermi energy")
     end if
-    if (deltaDftb%isNonAufbau .and. tSpinSharedEf) then
+    if (deltaDftb%isNonAufbau .and. this%tSpinSharedEf) then
       call error("Delta DFTB incompatible with shared Fermi energy")
     end if
     if (deltaDftb%isNonAufbau .and. allocated(reks)) then
@@ -3350,19 +3353,19 @@ contains
     if (deltaDftb%isNonAufbau .and. tNegf) then
       call error("Delta DFTB incompatible with transport")
     end if
-    if (deltaDftb%isNonAufbau .and. tLocalise) then
+    if (deltaDftb%isNonAufbau .and. this%tLocalise) then
       call error("Delta DFTB incompatible with localisation")
     end if
 
-    if (tSpinOrbit .and. this%tDFTBU .and. .not. tDualSpinOrbit)  then
+    if (this%tSpinOrbit .and. this%tDFTBU .and. .not. this%tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
     end if
 
-    if (this%tHelical .and. tSpinOrbit) then
+    if (this%tHelical .and. this%tSpinOrbit) then
       call error("L.S coupling not yet supported for helical boundary conditions.")
     end if
 
-    if (this%tHelical .and. nSpin > 2) then
+    if (this%tHelical .and. this%nSpin > 2) then
       call error("Non-collinear not yet supported for helical boundary conditions.")
     end if
 
@@ -3370,12 +3373,12 @@ contains
       if (this%tBarostat) then
         call error("Sorry, MD with a barostat requires stress evaluation")
       end if
-      if (tLatOpt) then
+      if (this%tLatOpt) then
         call error("Sorry, lattice optimization requires stress tensor evaluation")
       end if
     end if
 
-    if (tSpinOrbit .and. (tWriteHS .or.(tWriteRealHS.and..not.tDualSpinOrbit))) then
+    if (this%tSpinOrbit .and. (tWriteHS .or.(tWriteRealHS.and..not.this%tDualSpinOrbit))) then
       call error("Writing of Hamiltonian currently not possible with spin orbit coupling enabled.")
     end if
 
@@ -3384,7 +3387,7 @@ contains
         call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
 
-      if (t2Component) then
+      if (this%t2Component) then
         call error("Linear response is not compatibile with this spinor Hamiltonian")
       end if
 
@@ -3405,7 +3408,7 @@ contains
     ! Electron dynamics stuff
     if (allocated(input%ctrl%elecDynInp)) then
 
-      if (t2Component) then
+      if (this%t2Component) then
         call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
       end if
 
@@ -3413,15 +3416,15 @@ contains
         call error("Electron dynamics does not work with MPI yet")
       end if
 
-      if (tFixEf) then
+      if (this%tFixEf) then
         call error("Electron dynamics does not work with fixed Fermi levels yet")
       end if
 
-      if (tSpinSharedEf) then
+      if (this%tSpinSharedEf) then
         call error("Electron dynamics does not work with spin shared Fermi levels yet")
       end if
 
-      if (tMD) then
+      if (this%tMD) then
         call error("Electron dynamics does not work with MD")
       end if
 
@@ -3453,8 +3456,9 @@ contains
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
   !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(this, env, this%hamiltonianType, nSpin, this%nAtom, this%coord0, this%species0, &
-       & speciesName, this%tSccCalc, this%tPeriodic, this%tFracCoord, this%latVec, this%origin)
+  subroutine inputCoherenceCheck(this, env, this%hamiltonianType, this%nSpin, this%nAtom,&
+       & this%coord0, this%species0, speciesName, this%tSccCalc, this%tPeriodic, this%tFracCoord,&
+       & this%latVec, this%origin)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -3466,7 +3470,7 @@ contains
     integer, intent(in) :: this%hamiltonianType
 
     !> Number of spin components
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     !> Atoms in the system
     integer, intent(in) :: this%nAtom
@@ -3498,7 +3502,7 @@ contains
     integer :: iSp
 
     call checkExactCoherence(env, this%hamiltonianType, "hamiltonianType in initProgramVariables")
-    call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
+    call checkExactCoherence(env, this%nSpin, "spin integer in initProgramVariables")
     call checkExactCoherence(env, this%nAtom, "the number of atoms in initProgramVariables")
     call checkToleranceCoherence(env, this%coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
     call checkExactCoherence(env, this%species0, "atomic species in initProgramVariables")
@@ -3520,7 +3524,7 @@ contains
 
 
   !> Create equivalency relations
-  ! Data available from module: nUJ, niUJ, iUJ, this%nAtom, nSpin, this%nOrb and logicals
+  ! Data available from module: this%nUJ, this%niUJ, this%iUJ, this%nAtom, this%nSpin, this%nOrb and logicals
   ! Note, this routine should not be called
   subroutine setEquivalencyRelations(this, this%species0, this%sccCalc, this%orb, onSiteElements, iEqOrbitals, &
        & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
@@ -3561,15 +3565,15 @@ contains
 
     if (this%tSccCalc) then
        if(.not. allocated(iEqOrbitals)) then
-          allocate(iEqOrbitals(this%orb%mOrb, this%nAtom, nSpin))
+          allocate(iEqOrbitals(this%orb%mOrb, this%nAtom, this%nSpin))
        endif
-       allocate(iEqOrbSCC(this%orb%mOrb, this%nAtom, nSpin))
+       allocate(iEqOrbSCC(this%orb%mOrb, this%nAtom, this%nSpin))
        @:ASSERT(allocated(this%sccCalc))
        call this%sccCalc%getOrbitalEquiv(this%orb, this%species0, iEqOrbSCC)
-       if (nSpin == 1) then
+       if (this%nSpin == 1) then
           iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
        else
-          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, nSpin))
+          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
           call Spin_getOrbitalEquiv(this%orb, this%species0, iEqOrbSpin)
           call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, this%orb, iEqOrbitals)
           deallocate(iEqOrbSpin)
@@ -3579,9 +3583,9 @@ contains
        nMixElements = nIneqOrb
 
        if (this%tDFTBU) then
-          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, nSpin))
-          allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, nSpin))
-          call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,this%orb, this%species0, nUJ, niUJ, iUJ)
+          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
+          allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
+          call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,this%orb, this%species0, this%nUJ, this%niUJ, this%iUJ)
           call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
           iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
           nIneqOrb = maxval(iEqOrbitals)
@@ -3590,9 +3594,9 @@ contains
        end if
 
        if (allocated(onSiteElements)) then
-          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, nSpin))
+          allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
           iEqOrbSpin(:,:,:) = 0.0_dp
-          allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, nSpin))
+          allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
           iEqOrbDFTBU(:,:,:) = 0.0_dp
           call Ons_getOrbitalEquiv(iEqOrbDFTBU,this%orb, this%species0)
           call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
@@ -3605,11 +3609,11 @@ contains
        if (allocated(onSiteElements)) then
           ! all onsite blocks are full of unique elements
           if(.not. allocated(iEqBlockOnSite)) then
-             allocate(iEqBlockOnSite(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+             allocate(iEqBlockOnSite(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
           endif
-          if (tImHam) then
+          if (this%tImHam) then
              if(.not. allocated(iEqBlockOnSiteLS))then
-                allocate(iEqBlockOnSiteLS(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+                allocate(iEqBlockOnSiteLS(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
              endif
           end if
           call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, this%orb)
@@ -3620,18 +3624,18 @@ contains
        else if (this%tDFTBU) then
           ! only a sub-set of onsite blocks are reduced/expanded
           if(.not. allocated(iEqBlockDFTBU))then
-             allocate(iEqBlockDFTBU(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+             allocate(iEqBlockDFTBU(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
           endif
-          call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, this%orb, this%species0, nUJ, niUJ, iUJ)
+          call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, this%orb, this%species0, this%nUJ, this%niUJ, this%iUJ)
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
           !  iEqBlockDFTBU does not include diagonal elements, so in the case of
           !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
           !  return 0
-          if (tImHam) then
+          if (this%tImHam) then
              if(.not. allocated(iEqBlockDFTBULS))then
-                allocate(iEqBlockDFTBULS(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+                allocate(iEqBlockDFTBULS(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
              endif
-             call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, this%orb, this%species0, nUJ, niUJ, iUJ)
+             call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, this%orb, this%species0, this%nUJ, this%niUJ, this%iUJ)
              nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
           end if
        end if
@@ -3648,7 +3652,7 @@ contains
   !> Initialise partial charges
   !>
   !>  Data used from module:
-  !>  this%nAtom, nSpin, this%fCharges, deltaRhoIn, this%referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
+  !>  this%nAtom, this%nSpin, this%fCharges, deltaRhoIn, this%referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
   !>  iEqBlockDFTBULS, reks, and all logicals present
   !>
   subroutine initializeCharges(this, this%species0, speciesName, this%orb, this%nEl, iEqOrbitals, nIneqOrb,&
@@ -3735,18 +3739,18 @@ contains
     @:ASSERT(size(this%species0) == this%nAtom)
 
     if (.not. allocated(qInput)) then
-       allocate(qInput(this%orb%mOrb, this%nAtom, nSpin))
+       allocate(qInput(this%orb%mOrb, this%nAtom, this%nSpin))
     endif
     qInput(:,:,:) = 0.0_dp
 
     if (.not. allocated(qOutput)) then
-       allocate(qOutput(this%orb%mOrb, this%nAtom, nSpin))
+       allocate(qOutput(this%orb%mOrb, this%nAtom, this%nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
 
     if (allocated(reks)) then
        if (.not. allocated(qDiff)) then
-          allocate(qDiff(this%orb%mOrb, this%nAtom, nSpin))
+          allocate(qDiff(this%orb%mOrb, this%nAtom, this%nSpin))
        endif
        qDiff(:,:,:) = 0.0_dp
     endif
@@ -3760,7 +3764,7 @@ contains
       end select
     end if
   #:endif
-    tAllocate = tAllocate .or. tNetAtomCharges
+    tAllocate = tAllocate .or. this%tNetAtomCharges
     if (tAllocate) then
       if (.not. allocated(qNetAtom)) then
         allocate(qNetAtom(this%nAtom))
@@ -3771,25 +3775,25 @@ contains
     if (tMixBlockCharges) then
        if (.not. allocated(reks)) then
           if (.not. allocated(qBlockIn)) then
-             allocate(qBlockIn(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+             allocate(qBlockIn(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
           endif
           qBlockIn(:,:,:,:) = 0.0_dp
        endif
        if (.not. allocated(qBlockOut)) then
-          allocate(qBlockOut(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+          allocate(qBlockOut(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
        endif
        qBlockOut(:,:,:,:) = 0.0_dp
-       if (tImHam) then
+       if (this%tImHam) then
           if(.not. allocated(qiBlockIn)) then
-             allocate(qiBlockIn(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+             allocate(qiBlockIn(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
           endif
           qiBlockIn(:,:,:,:) = 0.0_dp
        end if
     end if
 
-    if (tImHam) then
+    if (this%tImHam) then
        if(.not. allocated(qiBlockOut))then
-          allocate(qiBlockOut(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+          allocate(qiBlockOut(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
        endif
        qiBlockOut(:,:,:,:) = 0.0_dp
     end if
@@ -3798,13 +3802,13 @@ contains
 
     ! Charges read from file
     if (tReadChrg) then
-       if (tFixEf .or. tSkipChrgChecksum) then
+       if (this%tFixEf .or. tSkipChrgChecksum) then
           ! do not check charge or magnetisation from file
           call initQFromFile(qInput, this%fCharges, tReadChrgAscii, this%orb, qBlockIn, qiBlockIn,&
                & deltaRhoIn)
        else
           ! check number of electrons in file
-          if (nSpin /= 2) then
+          if (this%nSpin /= 2) then
              call initQFromFile(qInput, this%fCharges,tReadChrgAscii, this%orb, qBlockIn,&
                   & qiBlockIn, deltaRhoIn,this%nEl = sum(this%nEl))
           else
@@ -3851,7 +3855,7 @@ contains
       end if
 
 
-      select case (nSpin)
+      select case (this%nSpin)
       case (1)
         continue
       case (2)
@@ -3872,7 +3876,7 @@ contains
           end if
         end if
       case (4)
-        if (tSpin) then
+        if (this%tSpin) then
           if (.not. allocated(initialSpins)) then
             call error("Missing initial spins!")
           end if
@@ -3893,7 +3897,7 @@ contains
 
       if (tMixBlockCharges) then
         qBlockIn = 0.0_dp
-        do iS = 1, nSpin
+        do iS = 1, this%nSpin
           do iAt = 1, this%nAtom
             iSp = this%species0(iAt)
             do iSh = 1, this%orb%nShell(iSp)
@@ -3907,7 +3911,7 @@ contains
             end do
           end do
         end do
-        if (tImHam) then
+        if (this%tImHam) then
           qiBlockIn = 0.0_dp
         end if
       end if
@@ -3915,7 +3919,7 @@ contains
     endif notChrgRead
 
     !Swap from charge/magnetisation to up/down
-    if (nSpin == 2) then
+    if (this%nSpin == 2) then
       call qm2ud(qInput)
       if (tMixBlockCharges) then
         call qm2ud(qBlockIn)
@@ -3926,18 +3930,18 @@ contains
 
     if (allocated(onSiteElements)) then
       call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, this%orb, qInpRed )
-      if (tImHam) then
+      if (this%tImHam) then
         call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, this%orb, qInpRed, skew=.true. )
       end if
     else if (this%tDFTBU) then
       call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, this%orb, qInpRed )
-      if (tImHam) then
+      if (this%tImHam) then
         call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, this%orb, qInpRed, skew=.true. )
       end if
     end if
 
     !Convert up/down set back to charge/magnetization
-    if (nSpin == 2) then
+    if (this%nSpin == 2) then
       call ud2qm(qInput)
       if (tMixBlockCharges) call ud2qm(qBlockIn)
     end if
@@ -3947,7 +3951,7 @@ contains
 
   !> Assign reference charge arrays, q0 and qShell0
   !
-  !  Data available in module: this%nAtom, nSpin, isLinResp
+  !  Data available in module: this%nAtom, this%nSpin, isLinResp
   subroutine initializeReferenceCharges(this, this%species0, this%referenceN0, this%orb, customOccAtoms, &
        & customOccFillings, q0, qShell0)
     
@@ -3979,7 +3983,7 @@ contains
     integer :: iAt, iSp, iSh
 
     if(.not. allocated(q0))then
-       allocate(q0(this%orb%mOrb, this%nAtom, nSpin))
+       allocate(q0(this%orb%mOrb, this%nAtom, this%nSpin))
     endif
     q0(:,:,:) = 0.0_dp
 
@@ -4009,7 +4013,7 @@ contains
 
   !> Set number of electrons
   !
-  !  Data available via module: elecTolMax, nSpin, this%nOrb
+  !  Data available via module: elecTolMax, this%nSpin, this%nOrb
   subroutine setNElectrons(this, q0, nrChrg, nrSpinPol, this%nEl, this%nEl0)
     
     !> Instance
@@ -4034,7 +4038,7 @@ contains
       this%nEl0 = nint(this%nEl0)
     end if
     this%nEl(:) = 0.0_dp
-    if (nSpin == 1 .or. nSpin == 4) then
+    if (this%nSpin == 1 .or. this%nSpin == 4) then
       this%nEl(1) = this%nEl0 - nrChrg
       if(ceiling(this%nEl(1)) > 2.0_dp*this%nOrb) then
         call error("More electrons than basis functions!")
@@ -4137,7 +4141,7 @@ contains
       call TElsiSolver_final(electronicSolver%elsi)
     end if
 
-    if (tProjEigenvecs) then
+    if (this%tProjEigenvecs) then
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
@@ -4147,10 +4151,10 @@ contains
     @:SAFE_DEALLOC(this%neighbourList, nNeighbourSk, this%nNeighbourRep, this%iSparseStart)
     @:SAFE_DEALLOC(this%hubbU, this%atomEigVal, this%referenceN0, this%mass, this%speciesMass)
     @:SAFE_DEALLOC(this%ham, this%iHam, this%chargePerShell, this%chargePerAtom, this%over, this%kPoint, kWeight)
-    @:SAFE_DEALLOC(this%nEl, this%spinW, this%xi, UJ, nUJ, niUJ, iUJ, Ef, esp)
-    @:SAFE_DEALLOC(indMovedAtom, conAtom, conVec, pipekMezey)
+    @:SAFE_DEALLOC(this%nEl, this%spinW, this%xi, this%UJ, this%nUJ, this%niUJ, this%iUJ, this%Ef, this%esp)
+    @:SAFE_DEALLOC(this%indMovedAtom, this%conAtom, this%conVec, this%pipekMezey)
     #:if WITH_SOCKETS
-      @:SAFE_DEALLOC(socket)
+      @:SAFE_DEALLOC(this%socket)
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
@@ -4208,7 +4212,7 @@ contains
 
 #:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
-  subroutine initSocket(this, env, socketInput, this%tPeriodic, this%coord0, this%latVec, socket, tCoordsChanged,&
+  subroutine initSocket(this, env, socketInput, this%tPeriodic, this%coord0, this%latVec, this%socket, tCoordsChanged,&
       & tLatticeChanged)
     
     !> Instance
@@ -4230,7 +4234,7 @@ contains
     real(dp), intent(inout) :: this%latVec(:,:)
 
     !> Initialised socket.
-    type(ipiSocketComm), allocatable, intent(out) :: socket
+    type(ipiSocketComm), allocatable, intent(out) :: this%socket
 
     !> Whether coordinates has been changed
     logical, intent(out) :: tCoordsChanged
@@ -4243,9 +4247,9 @@ contains
     if (env%tGlobalLead) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
-      socket = IpiSocketComm(socketInput)
+      this%socket = IpiSocketComm(socketInput)
     end if
-    call receiveGeometryFromSocket(env, socket, this%tPeriodic, this%coord0, this%latVec, tCoordsChanged,&
+    call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec, tCoordsChanged,&
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
@@ -4274,8 +4278,8 @@ contains
     ! contact calculation in case some contact is computed
     tContCalc = (input%transpar%taskContInd /= 0)
 
-    if (nSpin <=2) then
-      nSpinChannels = nSpin
+    if (this%nSpin <=2) then
+      nSpinChannels = this%nSpin
     else
       nSpinChannels = 1
     endif
@@ -4323,8 +4327,8 @@ contains
       end if
 
       ! Some checks and initialization of GDFTB/NEGF
-      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos, tempElec,&
-          & electronicSolver%iSolver)
+      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos,&
+          & this%tempElec, electronicSolver%iSolver)
 
       ginfo = input%ginfo
 
@@ -4357,8 +4361,8 @@ contains
 #:endif
 
   !> Initialises (clears) output files.
-  subroutine initOutputFiles(this, env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, isGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
+  subroutine initOutputFiles(this, env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, this%tDerivs,&
+      & tWriteDetailedOut, tMd, this%isGeoOpt, geoOutFile, fdDetailedOut, fdMd, this%esp)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -4376,7 +4380,7 @@ contains
     logical, intent(in) :: tWriteBandDat
 
     !> Finite different second derivatives
-    logical, intent(in) :: tDerivs
+    logical, intent(in) :: this%tDerivs
 
     !> Write detail on the calculation to file
     logical, intent(in) :: tWriteDetailedOut
@@ -4385,7 +4389,7 @@ contains
     logical, intent(in) :: tMd
 
     !> Are atomic coodinates being optimised
-    logical, intent(in) :: isGeoOpt
+    logical, intent(in) :: this%isGeoOpt
 
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4397,7 +4401,7 @@ contains
     integer, intent(out) :: fdMd
 
     !> Electrostatic potentials if requested
-    type(TElStatPotentials), allocatable, intent(inout) :: esp
+    type(TElStatPotentials), allocatable, intent(inout) :: this%esp
 
     call TTaggedWriter_init(taggedWriter)
 
@@ -4410,33 +4414,33 @@ contains
     if (tWriteBandDat) then
       call initOutputFile(this%bandOut)
     end if
-    if (tDerivs) then
+    if (this%tDerivs) then
       call initOutputFile(this%hessianOut)
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(this%userOut, fdDetailedOut)
       call env%fileFinalizer%register(fdDetailedOut)
     end if
-    if (tMD) then
+    if (this%tMD) then
       call initOutputFile(this%mdOut, fdMD)
       call env%fileFinalizer%register(fdMd)
     end if
-    if (isGeoOpt .or. tMD) then
+    if (this%isGeoOpt .or. this%tMD) then
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
-    if (allocated(esp)) then
-      call initOutputFile(esp%espOutFile)
+    if (allocated(this%esp)) then
+      call initOutputFile(this%esp%espOutFile)
     end if
 
   end subroutine initOutputFiles
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(this, env, electronicSolver, tForces, tStress, tExtChrg, isLinResp,&
-      & tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component,&
-      & this%tRealHS, tPrintExcitedEigvecs, tDipole, isREKS, isNonAufbau, this%orb, this%nAtom,&
-      & nMovedAtom, this%nKPoint, nSpin, nExtChrg, indMovedAtom, this%mass, denseDesc, rhoPrim, h0,&
+  subroutine initArrays(this, env, electronicSolver, this%tForces, tStress, tExtChrg, isLinResp,&
+      & tLinRespZVect, tMd, this%tMulliken, this%tSpinOrbit, this%tImHam, tWriteRealHS, tWriteHS, this%t2Component,&
+      & this%tRealHS, tPrintExcitedEigvecs, this%tDipole, isREKS, isNonAufbau, this%orb, this%nAtom,&
+      & this%nMovedAtom, this%nKPoint, this%nSpin, nExtChrg, this%indMovedAtom, this%mass, denseDesc, rhoPrim, h0,&
       & iRhoPrim, excitedDerivs, ERhoPrim, derivs, groundDerivs, tripletderivs, mixedderivs,&
       & tripletStress, mixedStress, chrgForces, dftbEnergy, potential, eigen, filling, coord0Fold,&
       & newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal,&
@@ -4452,7 +4456,7 @@ contains
     type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> Are forces required
-    logical, intent(in) :: tForces
+    logical, intent(in) :: this%tForces
 
     !> Can stress be calculated?
     logical :: tStress
@@ -4470,13 +4474,13 @@ contains
     logical, intent(in) :: tMd
 
     !> Is Mulliken analysis being performed
-    logical, intent(in) :: tMulliken
+    logical, intent(in) :: this%tMulliken
 
     !> Are there spin orbit interactions
-    logical, intent(in) :: tSpinOrbit
+    logical, intent(in) :: this%tSpinOrbit
 
     !> Are there imaginary parts to the hamiltonian
-    logical, intent(in) :: tImHam
+    logical, intent(in) :: this%tImHam
 
     !> Should the sparse hamiltonian and overlap be writen to disc?
     logical, intent(in) :: tWriteRealHS
@@ -4485,7 +4489,7 @@ contains
     logical, intent(in) :: tWriteHS
 
     !> Is the hamiltonian for a two component (Pauli) system
-    logical, intent(in) :: t2Component
+    logical, intent(in) :: this%t2Component
 
     !> Is the hamiltonian real?
     logical, intent(in) :: this%tRealHS
@@ -4494,7 +4498,7 @@ contains
     logical, intent(in) :: tPrintExcitedEigvecs
 
     !> Print the dipole moment
-    logical, intent(in) :: tDipole
+    logical, intent(in) :: this%tDipole
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
@@ -4509,19 +4513,19 @@ contains
     integer, intent(in) :: this%nAtom
 
     !> Number of atoms moved about during the calculation
-    integer, intent(in) :: nMovedAtom
+    integer, intent(in) :: this%nMovedAtom
 
     !> Number of k-points
     integer, intent(in) :: this%nKPoint
 
     !> Number of spin channels
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     !> Number of external charges
     integer, intent(in) :: nExtChrg
 
     !> Indices for any moving atoms
-    integer, intent(in) :: indMovedAtom(:)
+    integer, intent(in) :: this%indMovedAtom(:)
 
     !> Masses of each this%species of atom
     real(dp), intent(in) :: this%mass(:)
@@ -4630,15 +4634,15 @@ contains
     if (isREKS) then
       allocate(rhoPrim(0, 1))
     else
-      allocate(rhoPrim(0, nSpin))
+      allocate(rhoPrim(0, this%nSpin))
     end if
     allocate(h0(0))
-    if (tImHam) then
-      allocate(iRhoPrim(0, nSpin))
+    if (this%tImHam) then
+      allocate(iRhoPrim(0, this%nSpin))
     end if
 
     allocate(excitedDerivs(0,0))
-    if (tForces) then
+    if (this%tForces) then
       if (.not.isREKS) then
         allocate(ERhoPrim(0))
       end if
@@ -4661,10 +4665,10 @@ contains
       end if
     end if
 
-    call init(potential, this%orb, this%nAtom, nSpin)
+    call init(potential, this%orb, this%nAtom, this%nSpin)
 
     ! Nr. of independent spin Hamiltonians
-    select case (nSpin)
+    select case (this%nSpin)
     case (1)
       nSpinHams = 1
     case (2)
@@ -4695,11 +4699,11 @@ contains
 
     allocate(coord0Fold(3, this%nAtom))
 
-    if (tMD) then
+    if (this%tMD) then
       allocate(newCoords(3, this%nAtom))
     end if
 
-    if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
+    if ((this%tMulliken .and. this%tSpinOrbit) .or. this%tImHam) then
       allocate(orbitalL(3, this%orb%mShell, this%nAtom))
     end if
 
@@ -4709,7 +4713,7 @@ contains
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
     end if
     if (tLargeDenseMatrices) then
-      call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, this%tRealHS,&
+      call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, this%t2Component, this%tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
@@ -4718,7 +4722,7 @@ contains
         call error("Linear response calc. does not work with MPI yet")
       end if
       if (tLinRespZVect) then
-        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
+        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
       end if
     end if
 
@@ -4726,15 +4730,15 @@ contains
       allocate(occNatural(this%orb%nOrb))
     end if
 
-    if (tMD) then
+    if (this%tMD) then
       allocate(velocities(3, this%nAtom))
-      allocate(movedVelo(3, nMovedAtom))
-      allocate(movedAccel(3, nMovedAtom))
-      allocate(movedMass(3, nMovedAtom))
-      movedMass(:,:) = spread(this%mass(indMovedAtom),1,3)
+      allocate(movedVelo(3, this%nMovedAtom))
+      allocate(movedAccel(3, this%nMovedAtom))
+      allocate(movedMass(3, this%nMovedAtom))
+      movedMass(:,:) = spread(this%mass(this%indMovedAtom),1,3)
     end if
 
-    if (tDipole) then
+    if (this%tDipole) then
       if (deltaDftb%isSpinPurify) then
         allocate(dipoleMoment(3, deltaDftb%nDeterminant()+1))
       else
@@ -4747,7 +4751,7 @@ contains
 
   !> Initialize storage for multi-determinantal calculations
   subroutine initDetArrays(this, nDets, deltaDftb, qDets, isBlockCharge, qBlockDets, isRangeSep,&
-      & deltaRhoDets, this%orb, this%nAtom, nSpin)
+      & deltaRhoDets, this%orb, this%nAtom, this%nSpin)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -4780,19 +4784,19 @@ contains
     integer, intent(in) :: this%nAtom
 
     !> Number of spin channels
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     nDets = deltaDftb%nDeterminant()
     if (nDets > 1) then
       ! must be SCC and also need storage for final charges
-      allocate(qDets(this%orb%mOrb, this%nAtom, nSpin, nDets))
+      allocate(qDets(this%orb%mOrb, this%nAtom, this%nSpin, nDets))
       qDets(:,:,:,:) = 0.0_dp
       if (isBlockCharge) then
-        allocate(qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin, nDets))
+        allocate(qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, nDets))
         qBlockDets(:,:,:,:,:) = 0.0_dp
       end if
       if (isRangeSep) then
-        allocate(deltaRhoDets(this%nOrb * this%nOrb * nSpin, nDets))
+        allocate(deltaRhoDets(this%nOrb * this%nOrb * this%nSpin, nDets))
         deltaRhoDets(:,:) = 0.0_dp
       end if
     end if
@@ -4803,8 +4807,8 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(this, tUpload, transpar, this%species0, this%orb, this%nAtom, nSpin, shiftPerLUp,&
-      & chargeUp, tBlockUp, blockUp, shiftBlockUp)
+  subroutine initTransportArrays(this, tUpload, transpar, this%species0, this%orb, this%nAtom,&
+      & this%nSpin, shiftPerLUp, chargeUp, tBlockUp, blockUp, shiftBlockUp)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -4825,7 +4829,7 @@ contains
     integer, intent(in) :: this%nAtom
 
     !> Number of spin channels
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     !> uploded potential per shell per atom
     real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
@@ -4848,10 +4852,10 @@ contains
 
     if (tUpload) then
       allocate(shiftPerLUp(this%orb%mShell, this%nAtom))
-      allocate(chargeUp(this%orb%mOrb, this%nAtom, nSpin))
+      allocate(chargeUp(this%orb%mOrb, this%nAtom, this%nSpin))
       if (tBlockUp) then
-        allocate(shiftBlockUp(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
-        allocate(blockUp(this%orb%mOrb, this%orb%mOrb, this%nAtom, nSpin))
+        allocate(shiftBlockUp(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
+        allocate(blockUp(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
       end if
       call readContactShifts(shiftPerLUp, chargeUp, transpar, this%orb, shiftBlockUp, blockUp)
     end if
@@ -4863,7 +4867,7 @@ contains
 
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
-  subroutine allocateDenseMatrices(this, env, denseDesc, localKS, t2Component, this%tRealHS,&
+  subroutine allocateDenseMatrices(this, env, denseDesc, localKS, this%t2Component, this%tRealHS,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     
     !> Instance
@@ -4879,7 +4883,7 @@ contains
     integer, intent(in) :: localKS(:,:)
 
     !> Is this a two component calculation
-    logical, intent(in) :: t2Component
+    logical, intent(in) :: this%t2Component
 
     !> Is this a real hamiltonian
     logical, intent(in) :: this%tRealHS
@@ -4913,7 +4917,7 @@ contains
     nLocalCols = denseDesc%fullSize
   #:endif
 
-    if (t2Component .or. .not. this%tRealHS) then
+    if (this%t2Component .or. .not. this%tRealHS) then
       allocate(HSqrCplx(nLocalRows, nLocalCols))
       allocate(SSqrCplx(nLocalRows, nLocalCols))
       allocate(eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
@@ -4932,7 +4936,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, this%nAtom, this%nOrb, t2Component, env)
+  subroutine initScalapack(this, blacsOpts, this%nAtom, this%nOrb, this%t2Component, env)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -4947,14 +4951,14 @@ contains
     integer, intent(in) :: this%nOrb
 
     !> Is this a two component calculation
-    logical, intent(in) :: t2Component
+    logical, intent(in) :: this%t2Component
 
     !> Computing enviroment data
     type(TEnvironment), intent(inout) :: env
 
     integer :: sizeHS
 
-    if (t2Component) then
+    if (this%t2Component) then
       sizeHS = 2 * this%nOrb
     else
       sizeHS = this%nOrb
@@ -4999,7 +5003,7 @@ contains
   !> Generate description of the total large square matrices, on the basis of atomic orbital
   !> orderings
   !>
-  subroutine getDenseDescCommon(this, this%orb, this%nAtom, t2Component, denseDesc)
+  subroutine getDenseDescCommon(this, this%orb, this%nAtom, this%t2Component, denseDesc)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5011,7 +5015,7 @@ contains
     integer, intent(in) :: this%nAtom
 
     !> Is this a two component calculation
-    logical, intent(in) :: t2Component
+    logical, intent(in) :: this%t2Component
 
     !> Resulting descriptor
     type(TDenseDescr), intent(out) :: denseDesc
@@ -5021,9 +5025,9 @@ contains
     allocate(denseDesc%iAtomStart(this%nAtom + 1))
     call buildSquaredAtomIndex(denseDesc%iAtomStart, this%orb)
     this%nOrb = denseDesc%iAtomStart(this%nAtom + 1) - 1
-    denseDesc%t2Component = t2Component
+    denseDesc%t2Component = this%t2Component
     denseDesc%nOrb = this%nOrb
-    if (t2Component) then
+    if (this%t2Component) then
       denseDesc%fullSize = 2 * this%nOrb
     else
       denseDesc%fullSize = this%nOrb
@@ -5080,7 +5084,7 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(this, iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(this, iSolver, this%tSpin, kPoints, parallelOpts, nIndepHam, this%tempElec)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5089,7 +5093,7 @@ contains
     integer, intent(in) :: iSolver
 
     !> Is this a spin polarised calculation
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: this%tSpin
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
@@ -5101,7 +5105,7 @@ contains
     integer, intent(in) :: nIndepHam
 
     !> Temperature of the electrons
-    real(dp), intent(in) :: tempElec
+    real(dp), intent(in) :: this%tempElec
 
     logical :: tElsiSolver
     integer :: this%nKPoint
@@ -5127,7 +5131,7 @@ contains
       end if
     end if
 
-    if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
+    if (iSolver == electronicSolverTypes%pexsi .and. this%tempElec < epsilon(0.0)) then
       call error("This solver requires a finite electron broadening")
     end if
 
@@ -5243,7 +5247,7 @@ contains
 
 
   !> Initialises SCC related parameters before geometry loop starts
-  function getMinSccIters(this%tSccCalc, tDftbU, nSpin) result(minSccIter)
+  function getMinSccIters(this%tSccCalc, tDftbU, this%nSpin) result(this%minSccIter)
 
     !> Is this a self consistent calculation
     logical, intent(in) :: this%tSccCalc
@@ -5252,23 +5256,23 @@ contains
     logical, intent(in) :: tDftbU
 
     !> Number of spin channels
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     !> Minimum possible number of self consistent iterations
-    integer :: minSccIter
+    integer :: this%minSccIter
 
     if (this%tSccCalc) then
       if (tDftbU) then
-        minSccIter = 2
+        this%minSccIter = 2
       else
-        if (nSpin == 1) then
-          minSccIter = 1
+        if (this%nSpin == 1) then
+          this%minSccIter = 1
         else
-          minSccIter = 2
+          this%minSccIter = 2
         end if
       end if
     else
-      minSccIter = 1
+      this%minSccIter = 1
     end if
 
   end function getMinSccIters
@@ -5276,7 +5280,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(this, this%tPeriodic, this%tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
+      & this%tAtomicEnergy, rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5294,7 +5298,7 @@ contains
     logical, intent(in) :: tShellResolved
 
     !> Do we need atom resolved E?
-    logical, intent(inout) :: tAtomicEnergy
+    logical, intent(inout) :: this%tAtomicEnergy
 
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
@@ -5330,16 +5334,16 @@ contains
       call error("Range separated functionality currently does not yet support shell-resolved scc")
     end if
 
-    if (tAtomicEnergy) then
+    if (this%tAtomicEnergy) then
       call error("Atomic resolved energies cannot be calculated with the range-separated&
           & hybrid functional at the moment")
     end if
 
-    if (nSpin > 2) then
+    if (this%nSpin > 2) then
       call error("Range separated calculations not implemented for non-colinear calculations")
     end if
 
-    if (tSpinOrbit) then
+    if (this%tSpinOrbit) then
       call error("Range separated calculations not currently implemented for spin orbit")
     end if
 
@@ -5362,7 +5366,7 @@ contains
             & corrections")
       end if
 
-      if (nSpin > 1) then
+      if (this%nSpin > 1) then
         call error("Excited state range separated calculations not implemented for spin polarized&
             & calculations")
       end if
@@ -5380,8 +5384,8 @@ contains
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(this, this%tSccCalc, t3rd, this%tRealHS, this%tPeriodic,&
-      & tCasidaForces, solvation, isRS_LinResp, nSpin, tSpin, this%tHelical, tSpinOrbit,&
-      & this%tDFTBU, tempElec, input)
+      & this%tCasidaForces, solvation, isRS_LinResp, this%nSpin, this%tSpin, this%tHelical,&
+      & this%tSpinOrbit, this%tDFTBU, this%tempElec, input)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5399,7 +5403,7 @@ contains
     logical, intent(in) :: this%tPeriodic
 
     !> forces being evaluated in the excited state
-    logical, intent(in) :: tCasidaForces
+    logical, intent(in) :: this%tCasidaForces
 
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
@@ -5408,22 +5412,22 @@ contains
     logical, intent(in) :: isRS_LinResp
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
-    integer, intent(in) :: nSpin
+    integer, intent(in) :: this%nSpin
 
     !> Is this a spin polarised calculation
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: this%tSpin
 
     !> If the calculation is helical geometry
     logical :: this%tHelical
 
     !> Is there spin-orbit coupling
-    logical, intent(in) :: tSpinOrbit
+    logical, intent(in) :: this%tSpinOrbit
 
     !> Is this a DFTB+U calculation?
     logical, intent(in) :: this%tDFTBU
 
     !> Temperature of the electrons
-    real(dp), intent(in) :: tempElec
+    real(dp), intent(in) :: this%tempElec
 
     !> Holds the parsed input data.
     type(TInputData), intent(in), target :: input
@@ -5447,7 +5451,7 @@ contains
     if ((this%tPeriodic .or. this%tHelical) .and. .not.this%tRealHS) then
       call error("Linear response only works with non-periodic or gamma-point molecular crystals")
     end if
-    if (this%tPeriodic .and. tCasidaForces) then
+    if (this%tPeriodic .and. this%tCasidaForces) then
       call error("Forces in the excited state for periodic geometries are currently unavailable")
     end if
 
@@ -5459,7 +5463,7 @@ contains
       call error("Linear reponse does not work with non-colinear spin polarization yet")
     end if
 
-    if (tSpinOrbit) then
+    if (this%tSpinOrbit) then
       call error("Linear response does not support spin orbit coupling at the moment.")
     end if
     if (this%tDFTBU) then
@@ -5469,14 +5473,14 @@ contains
       call error("Linear response does not support shell resolved scc yet")
     end if
 
-    if (tempElec > minTemp .and. tCasidaForces) then
+    if (this%tempElec > minTemp .and. this%tCasidaForces) then
       write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
-          & occupations, kT=", tempElec/Boltzmann,"K"
+          & occupations, kT=", this%tempElec/Boltzmann,"K"
       call warning(tmpStr)
     end if
 
     if (input%ctrl%lrespini%nstat == 0) then
-      if (tCasidaForces) then
+      if (this%tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
       if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
@@ -5489,7 +5493,7 @@ contains
         call error("Range separated excited states for periodic geometries are currently&
             & unavailable")
       end if
-      if (nSpin > 1) then
+      if (this%nSpin > 1) then
         call error("Range separated excited states for spin polarized calculations are currently&
             & unavailable")
       end if
@@ -5528,8 +5532,9 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(this, this%nAtom, this%species0, this%hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
-      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+  subroutine initRangeSeparated(this, this%nAtom, this%species0, this%hubbU, rangeSepInp,&
+      & this%tSpin, isREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+      & deltaRhoOutSqr, nMixElements)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5547,7 +5552,7 @@ contains
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
     !> Is this spin restricted (F) or unrestricted (T)
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: this%tSpin
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
@@ -5575,20 +5580,20 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, this%nAtom, this%species0, this%hubbU(1,:), rangeSepInp%screeningThreshold,&
-        & rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
-    allocate(deltaRhoIn(this%nOrb * this%nOrb * nSpin))
-    allocate(deltaRhoOut(this%nOrb * this%nOrb * nSpin))
-    allocate(deltaRhoDiff(this%nOrb * this%nOrb * nSpin))
-    deltaRhoInSqr(1:this%nOrb, 1:this%nOrb, 1:nSpin) => deltaRhoIn(1 : this%nOrb * this%nOrb * nSpin)
-    deltaRhoOutSqr(1:this%nOrb, 1:this%nOrb, 1:nSpin) => deltaRhoOut(1 : this%nOrb * this%nOrb * nSpin)
-    nMixElements = this%nOrb * this%nOrb * nSpin
+        & rangeSepInp%omega, this%tSpin, isREKS, rangeSepInp%rangeSepAlg)
+    allocate(deltaRhoIn(this%nOrb * this%nOrb * this%nSpin))
+    allocate(deltaRhoOut(this%nOrb * this%nOrb * this%nSpin))
+    allocate(deltaRhoDiff(this%nOrb * this%nOrb * this%nSpin))
+    deltaRhoInSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) => deltaRhoIn(1 : this%nOrb * this%nOrb * this%nSpin)
+    deltaRhoOutSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) => deltaRhoOut(1 : this%nOrb * this%nOrb * this%nSpin)
+    nMixElements = this%nOrb * this%nOrb * this%nSpin
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
 
 
   !> Initializes PLUMED calculator.
-  subroutine initPlumed(this, env, tPlumed, tMD, plumedCalc)
+  subroutine initPlumed(this, env, tPlumed, this%tMD, plumedCalc)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5600,7 +5605,7 @@ contains
     logical, intent(in) :: tPlumed
 
     !> Whether this is an MD-run
-    logical, intent(in) :: tMD
+    logical, intent(in) :: this%tMD
 
     !> Plumed calculator (allocated only on demand)
     type(TPlumedCalc), allocatable, intent(out) :: plumedCalc
@@ -5619,7 +5624,7 @@ contains
     if (.not. withPlumed) then
       call error("Code was compiled without PLUMED support")
     end if
-    if (.not. tMD) then
+    if (.not. this%tMD) then
       call error("Metadynamics via PLUMED is only possible in MD-simulations")
     end if
     allocate(plumedCalc)
@@ -5634,7 +5639,7 @@ contains
     call plumedCalc%sendCmdVal("setNatoms", this%nAtom)
     call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
     call plumedCalc%sendCmdVal("setNoVirial", 0)
-    call plumedCalc%sendCmdVal("setTimestep", deltaT)
+    call plumedCalc%sendCmdVal("setTimestep", this%deltaT)
     call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
     call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
     call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
@@ -5647,8 +5652,8 @@ contains
 
 
   subroutine checkReksConsistency(this, reksInp, solvation, onSiteElements, this%kPoint, this%nEl,&
-      & this%nKPoint, this%tSccCalc, tSpin, tSpinOrbit, this%tDFTBU, tEField, isLinResp,&
-      & this%tPeriodic, tLatOpt, tReadChrg, tPoisson, isShellResolved)
+      & this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit, this%tDFTBU, tEField, isLinResp,&
+      & this%tPeriodic, this%tLatOpt, tReadChrg, tPoisson, isShellResolved)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5675,10 +5680,10 @@ contains
     logical, intent(in) :: this%tSccCalc
 
     !> is this a spin polarized calculation?
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: this%tSpin
 
     !> is there spin-orbit coupling
-    logical, intent(in) :: tSpinOrbit
+    logical, intent(in) :: this%tSpinOrbit
 
     !> is this a DFTB+U calculation?
     logical, intent(in) :: this%tDFTBU
@@ -5693,7 +5698,7 @@ contains
     logical, intent(in) :: this%tPeriodic
 
     !> optimize lattice constants?
-    logical, intent(in) :: tLatOpt
+    logical, intent(in) :: this%tLatOpt
 
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
@@ -5707,12 +5712,12 @@ contains
     if (.not. this%tSccCalc) then
       call error("REKS requires SCC=Yes")
     end if
-    if (tSpin) then
+    if (this%tSpin) then
       call error("REKS is not compatible with standard DFTB spin polarization, only the&
           & SpinConstants block is required")
     end if
 
-    if (tSpinOrbit) then
+    if (this%tSpinOrbit) then
       call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
     else if (this%tDFTBU) then
       call error("REKS is not compatible with DFTB+U calculation")
@@ -5739,7 +5744,7 @@ contains
       end if
     end if
 
-    if (reksInp%Efunction /= 1 .and. tLatOpt) then
+    if (reksInp%Efunction /= 1 .and. this%tLatOpt) then
       call error("Lattice optimization is only possible&
           & with single-state REKS, not SA-REKS or SI-SA-REKS")
     end if
@@ -5760,8 +5765,8 @@ contains
 
 
   subroutine TReksCalc_init(this, reks, reksInp, electronicSolver, this%orb, this%spinW, this%nEl,&
-      & extChrg, blurWidths, this%hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep,&
-      & tForces, this%tPeriodic, tStress, tDipole)
+      & extChrg, blurWidths, this%hamiltonianType, this%nSpin, nExtChrg, is3rd, isRangeSep,&
+      & this%tForces, this%tPeriodic, tStress, this%tDipole)
     
     !> Instance
     class(TGlobalData), intent(inout) :: this
@@ -5794,7 +5799,7 @@ contains
     integer, intent(in) :: this%hamiltonianType
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
-    integer, intent(inout) :: nSpin
+    integer, intent(inout) :: this%nSpin
 
     !> Nr. of external charges
     integer, intent(in) :: nExtChrg
@@ -5806,7 +5811,7 @@ contains
     logical, intent(in) :: isRangeSep
 
     !> Do we need forces?
-    logical, intent(in) :: tForces
+    logical, intent(in) :: this%tForces
 
     !> if calculation is periodic
     logical, intent(in) :: this%tPeriodic
@@ -5815,7 +5820,7 @@ contains
     logical, intent(in) :: tStress
 
     !> calculate an electric dipole?
-    logical, intent(inout) :: tDipole
+    logical, intent(inout) :: this%tDipole
 
     ! Condition for Hamiltonian types
     select case(this%hamiltonianType)
@@ -5831,8 +5836,8 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
-        call REKS_init(reks, reksInp, this%orb, this%spinW, nSpin, this%nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tForces, this%tPeriodic, tStress, tDipole)
+        call REKS_init(reks, reksInp, this%orb, this%spinW, this%nSpin, this%nEl(1), nExtChrg, extChrg,&
+            & blurWidths, is3rd, isRangeSep, this%tForces, this%tPeriodic, tStress, this%tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
