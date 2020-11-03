@@ -24,6 +24,7 @@ module dftbp_mmapi
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   use dftbp_charmanip, only : newline
+  use dftbp_initprogram
   implicit none
   private
 
@@ -35,8 +36,8 @@ module dftbp_mmapi
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
 
-  !> Number of DFTB+ calculation instances
-  integer :: nDftbPlusCalc = 0
+! !> Number of DFTB+ calculation instances
+! integer :: nDftbPlusCalc = 0
 
 
   !> list of QM atoms and species for DFTB+ calculation
@@ -69,6 +70,7 @@ module dftbp_mmapi
   type :: TDftbPlus
     private
     type(TEnvironment) :: env
+    type(TGlobalData) :: globalData
     logical :: tInit = .false.
   contains
     !> read input from a file
@@ -252,11 +254,11 @@ contains
       stdOut = output_unit
     end if
 
-    if (nDftbPlusCalc /= 0) then
-      write(stdOut, "(A)") "Error: only one DFTB+ instance is currently allowed"
-      stop
-    end if
-    nDftbPlusCalc = 1
+!   if (nDftbPlusCalc /= 0) then
+!     write(stdOut, "(A)") "Error: only one DFTB+ instance is currently allowed"
+!     stop
+!   end if
+!   nDftbPlusCalc = 1
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
     call TEnvironment_init(this%env)
@@ -277,10 +279,10 @@ contains
     call destructProgramVariables()
     call this%env%destruct()
     call destructGlobalEnv()
-    nDftbPlusCalc = 0
-    this%tInit = .false.
+!   nDftbPlusCalc = 0
+!   this%tInit = .false.
 
-  end subroutine TDftbPlus_destruct
+! end subroutine TDftbPlus_destruct
 
 
   !> Fills up the input by parsing an HSD file
@@ -344,7 +346,7 @@ contains
     end if
     call parseHsdTree(input%hsdTree, inpData, parserFlags)
     call doPostParseJobs(input%hsdTree, parserFlags)
-    call initProgramVariables(inpData, this%env)
+    call this%globalData%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator
 
@@ -366,7 +368,7 @@ contains
 
     call this%checkInit()
 
-    call setGeometry(this%env, coords, latVecs, origin)
+    call setGeometry(this%env, this%globalData, coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
 
@@ -385,7 +387,7 @@ contains
 
     call this%checkInit()
 
-    call setExternalPotential(atomPot=atomPot, potGrad=potGrad)
+    call setExternalPotential(this%globalData, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
 
@@ -407,7 +409,7 @@ contains
 
     call this%checkInit()
 
-    call setExternalCharges(chargeCoords, chargeQs, blurWidths)
+    call setExternalCharges(this%globalData, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
 
@@ -428,7 +430,7 @@ contains
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
-    call setQDepExtPotProxy(extPotProxy)
+    call setQDepExtPotProxy(this%globalData, extPotProxy)
 
   end subroutine TDftbPlus_setQDepExtPotGen
 
@@ -444,7 +446,7 @@ contains
 
     call this%checkInit()
 
-    call getEnergy(this%env, merminEnergy)
+    call getEnergy(this%env, this%globalData, merminEnergy)
 
   end subroutine TDftbPlus_getEnergy
 
@@ -460,7 +462,7 @@ contains
 
     call this%checkInit()
 
-    call getGradients(this%env, gradients)
+    call getGradients(this%env, this%globalData, gradients)
 
   end subroutine TDftbPlus_getGradients
 
@@ -476,7 +478,7 @@ contains
 
     call this%checkInit()
 
-    call getStressTensor(this%env, stresstensor)
+    call getStressTensor(this%env, this%globalData, stresstensor)
 
   end subroutine TDftbPlus_getStressTensor
 
@@ -494,7 +496,7 @@ contains
 
     call this%checkInit()
 
-    call getExtChargeGradients(gradients)
+    call getExtChargeGradients(this%globalData, gradients)
 
   end subroutine TDftbPlus_getExtChargeGradients
 
@@ -510,7 +512,7 @@ contains
 
     call this%checkInit()
 
-    call getGrossCharges(this%env, atomCharges)
+    call getGrossCharges(this%env, this%globalData, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 
@@ -628,7 +630,7 @@ contains
 
     call this%checkInit()
 
-    tSpeciesNameChanged = checkSpeciesNames(this%env, inputSpeciesNames)
+    tSpeciesNameChanged = checkSpeciesNames(this%env, this%globalData, inputSpeciesNames)
 
     if(tSpeciesNameChanged)then
       call error('speciesNames has changed between calls to DFTB+. This will cause erroneous&
@@ -653,7 +655,7 @@ contains
 
     call this%checkInit()
     call this%checkSpeciesNames(inputSpeciesNames)
-    call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)
+    call updateDataDependentOnSpeciesOrdering(this%env, this%globalData, inputSpecies)
 
   end subroutine TDftbPlus_setSpeciesAndDependents
 
