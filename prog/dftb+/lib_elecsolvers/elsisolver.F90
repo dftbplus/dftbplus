@@ -31,6 +31,7 @@ module dftbp_elsisolver
   use dftbp_angmomentum, only : getLOnsite
   use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_potentials, only : TPotentials
+  use dftbp_versioncheck, only : version_greater_equal, version_equal
   implicit none
   private
 
@@ -515,47 +516,18 @@ contains
 
     logical :: isSupported, isPartSupported
 
-    isSupported = .true.
-    if (this%major < 2) then
-      isSupported = .false.
-    elseif (this%major == 2 .and. this%minor < 6) then
-      isSupported = .false.
-    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1,2])) then
-      ! library must be 2.6.{0..2}
-      isSupported = .false.
-    end if
+    isSupported = version_greater_equal([this%major, this%minor], [2, 6])
+    isPartSupported = isSupported .or. version_equal([this%major, this%minor], [2, 5])
 
-    isPartSupported = isSupported
-    if (.not.isPartSupported) then
-      if (all([this%major, this%minor, this%patch] == [2,5,0])) then
-        isPartSupported = .true.
-      end if
-    end if
-
-    if (.not. (isSupported .or. isPartSupported)) then
-      call error("Unsuported ELSI version for DFTB+, requires release >= 2.5.0")
-    end if
-
-    if (.not.isSupported .and. isPartSupported) then
-      call warning("ELSI version 2.5.0 is only partially supported due to changes in default solver&
+    if (.not. isPartSupported) then
+      call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
+    else if (.not. isSupported) then
+      call warning("ELSI version 2.5 is only partially supported due to changes in default solver&
           & behaviour for PEXSI at 2.6.0")
     end if
 
     write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', this%major, this%minor,&
         & this%patch
-
-    if (all([this%major,this%minor,this%patch] == [2,5,0]) .and. dateStamp /= 20200204) then
-      call warning("ELSI 2.5.0 library version is between releases")
-    end if
-    if (all([this%major,this%minor,this%patch] == [2,6,0]) .and. dateStamp /= 20200617) then
-      call warning("ELSI 2.6.0 library version is between releases")
-    end if
-    if (all([this%major,this%minor,this%patch] == [2,6,1]) .and. dateStamp /= 20200625) then
-      call warning("ELSI 2.6.1 library version is between releases")
-    elseif (all([this%major,this%minor,this%patch] == [2,6,2]) .and. dateStamp /= 20200718) then
-      call warning("ELSI 2.6.2 library version is between releases")
-    end if
-
 
   end subroutine supportedVersionNumber
 
