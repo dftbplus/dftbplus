@@ -45,15 +45,16 @@ module dftbp_version
   end type TVersion
 
 
+  ! Constructor for TVersion
   interface TVersion
-    module procedure TVersion_create
+    module procedure TVersion_construct
   end interface TVersion
 
 
 contains
 
-  !> Creates a version instance.
-  function TVersion_create(major, minor, patch) result(this)
+  !> Constructs a version instance.
+  function TVersion_construct(major, minor, patch) result(this)
 
     !> Major version number
     integer, intent(in) :: major
@@ -76,11 +77,11 @@ contains
       this%numbers(3) = patch
     end if
 
-  end function TVersion_create
+  end function TVersion_construct
 
 
   !> Checks whether two versions are greater.
-  pure function greater(version, refVersion) result(compResult)
+  elemental function greater(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -105,7 +106,7 @@ contains
 
 
   !> Checks whether two versions are less
-  pure function less(version, refVersion) result(compResult)
+  elemental function less(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -122,7 +123,7 @@ contains
 
 
   !> Checks whether two versions are equal.
-  pure function equal(version, refVersion) result(compResult)
+  elemental function equal(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -142,7 +143,7 @@ contains
 
 
   !> Checks whether two versions are greater equal.
-  pure function greater_equal(version, refVersion) result(compResult)
+  elemental function greater_equal(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -159,7 +160,7 @@ contains
 
 
   !> Checks whether two version are less equal.
-  pure function less_equal(version, refVersion) result(compResult)
+  elemental function less_equal(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -176,7 +177,7 @@ contains
 
 
   !> Checks whether two versions are unequal.
-  pure function unequal(version, refVersion) result(compResult)
+  elemental function unequal(version, refVersion) result(compResult)
 
     !> Version (LHS of the comparison)
     class(TVersion), intent(in) :: version
@@ -189,7 +190,7 @@ contains
 
     compResult = version > refVersion
     if (.not. compResult) then
-      compResult = version < refVersion
+      compResult = refVersion > version
     end if
 
   end function unequal
