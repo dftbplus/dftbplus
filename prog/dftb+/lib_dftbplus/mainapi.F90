@@ -14,11 +14,7 @@ module dftbp_mainapi
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram
-! use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, TRefExtPot, 
-!#:if WITH_SCALAPACK
-!  use dftbp_initprogram, only : getDenseDescBlacs
-!#:endif
+  use dftbp_initprogram, only : TGlobalData
   use dftbp_main, only : processGeometry
   use dftbp_message, only : error
   use dftbp_orbitals, only : TOrbitals
@@ -100,7 +96,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TGlobalData), intent(inout) :: globalData
 
     !> Resulting energy
     real(dp), intent(out) :: merminEnergy
@@ -217,7 +213,7 @@ contains
         allocate(globalData%refExtPot%shellPot(globalData%orb%mShell, globalData%nAtom,&
             & globalData%nSpin))
       end if
-      @:ASSERT(all(shape(shellPot) == [orb%mShell, globalData%nAtom]))
+      @:ASSERT(all(shape(shellPot) == [globalData%orb%mShell, globalData%nAtom]))
       globalData%refExtPot%shellPot(:,:,1) = shellPot
     end if
     if (present(potGrad)) then
@@ -379,36 +375,25 @@ contains
     endif
 
     globalData%species0 = inputSpecies
-    globalData%mass =  updateAtomicMasses(globalData%species0)
-    globalData%orb%nOrbAtom = updateAtomicOrbitals(globalData%species0)
+    globalData%mass = updateAtomicMasses(globalData)
+    globalData%orb%nOrbAtom = updateAtomicOrbitals(globalData)
 
     ! if atom species change, dense matrix indexing needs updating
-    call globalData%getDenseDescCommon(globalData%orb, globalData%nAtom, globalData%t2Component,&
-        & globalData%denseDesc)
+    call globalData%getDenseDescCommon()
 
     ! Used in partial charge initialisation
-    call globalData%setEquivalencyRelations(globalData%species0, globalData%sccCalc,&
-        & globalData%orb, globalData%onSiteElements, globalData%iEqOrbitals,&
-        & globalData%iEqBlockDFTBU, globalData%iEqBlockOnSite, globalData%iEqBlockDFTBULS,&
-        & globalData%iEqBlockOnSiteLS, globalData%nIneqOrb, globalData%nMixElements)
+    call globalData%setEquivalencyRelations()
   #:if WITH_SCALAPACK
-    call updateBLACSDecomposition(env, globalData, globalData%denseDesc)
+    call updateBLACSDecomposition(env, globalData)
     call reallocateHSArrays(env, globalData%denseDesc, globalData%HSqrCplx, globalData%SSqrCplx,&
         & globalData%eigVecsCplx, globalData%HSqrReal, globalData%SSqrReal, globalData%eigVecsReal)
   #:endif
 
     ! If atomic order changes, partial charges need to be initialised, else wrong charge will be
     ! associated with each atom
-    call globalData%initializeReferenceCharges(globalData%species0, globalData%referenceN0,&
-        & globalData%orb, customOccAtoms, customOccFillings, globalData%q0, globalData%qshell0)
-    call globalData%setNElectrons(globalData%q0, globalData%nrChrg, globalData%nrSpinPol,&
-        & globalData%nEl, globalData%nEl0)
-    call globalData%initializeCharges(globalData%species0, globalData%speciesName, globalData%orb,&
-        & globalData%nEl, globalData%iEqOrbitals, globalData%nIneqOrb, globalData%nMixElements,&
-        & initialSpins, initialCharges, globalData%nrChrg, globalData%q0, globalData%qInput,&
-        & globalData%qOutput, globalData%qDiff, globalData%qInpRed, globalData%qOutRed,&
-        & globalData%qDiffRed, globalData%qBlockIn, globalData%qBlockOut, globalData%qiBlockIn,&
-        & globalData%qiBlockOut)
+    call globalData%initializeReferenceCharges(customOccAtoms, customOccFillings)
+    call globalData%setNElectrons()
+    call globalData%initializeCharges(initialSpins, initialCharges)
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -418,46 +403,40 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Update order of nr. atomic orbitals for each atom, orb%nOrbAtom
-  function updateAtomicOrbitals(globalData, species0) result(nOrbAtomReordered)
+  function updateAtomicOrbitals(globalData) result(nOrbAtomReordered)
 
     !> Instance
     type(TGlobalData), intent(in) :: globalData
 
-    !> Type of the atoms (nAtom)
-    integer, intent(in)  :: species0(:)
-
     !> Nr. of orbitals for each atom (nAtom)
     integer, allocatable :: nOrbAtomReordered(:)
 
-    @:ASSERT(globalData%nAtom == size(species0))
+    @:ASSERT(globalData%nAtom == size(globalData%species0))
     allocate(nOrbAtomReordered(globalData%nAtom))
-    nOrbAtomReordered(:) = globalData%orb%nOrbSpecies(species0(:))
+    nOrbAtomReordered(:) = globalData%orb%nOrbSpecies(globalData%species0(:))
 
   end function updateAtomicOrbitals
 
 
   !> Update atomic masses
-  function updateAtomicMasses(globalData, species0) result(massReordered)
+  function updateAtomicMasses(globalData) result(massReordered)
 
     !> Instance
     type(TGlobalData), intent(in) :: globalData
 
-    !> Type of the atoms (nAtom)
-    integer, intent(in)  :: species0(:)
-
     !> List of atomic masses (nAtom)
     real(dp), allocatable :: massReordered(:)
 
-    @:ASSERT(size(globalData%speciesMass) == maxval(species0))
+    @:ASSERT(size(globalData%speciesMass) == maxval(globalData%species0))
     allocate(massReordered(globalData%nAtom))
-    massReordered = globalData%speciesMass(species0)
+    massReordered = globalData%speciesMass(globalData%species0)
 
   end function updateAtomicMasses
 
 #:if WITH_SCALAPACK
 
   !> Update dense matrix descriptor for H and S in BLACS decomposition
-  subroutine updateBLACSDecomposition(env, globalData, denseDesc)
+  subroutine updateBLACSDecomposition(env, globalData)
 
     !> Environment settings
     type(TEnvironment), intent(in)    :: env
@@ -465,15 +444,11 @@ contains
     !> Instance
     type(TGlobalData), intent(inout) :: globalData
 
-    !> Dense matrix descriptor for H and S
-    type(TDenseDescr), intent(inout) :: denseDesc
-
 
     ! Specificaly, denseDesc uses orb%nOrbAtom
-    call globalData%getDenseDescCommon(globalData%orb, globalData%nAtom, globalData%t2Component,&
-        & denseDesc)
+    call globalData%getDenseDescCommon()
     call globalData%getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
-        & denseDesc)
+        & globalData%denseDesc)
 
   end subroutine updateBLACSDecomposition
 
