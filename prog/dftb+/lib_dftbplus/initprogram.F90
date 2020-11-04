@@ -1073,7 +1073,7 @@ module dftbp_initprogram
 #:endif
     procedure :: getDenseDescCommon
 #:if WITH_MBD
-    procedure :: writeMbdInfo
+!   procedure :: writeMbdInfo
 #:endif
 !   procedure :: ensureSolverCompatibility
 !   procedure :: applyCustomReferenceOccupations
@@ -4605,10 +4605,8 @@ contains
 
 #:if WITH_MBD
   !> Writes MBD-related info
-  subroutine writeMbdInfo(this, input)
+  subroutine writeMbdInfo(input)
     
-    !> Instance
-    class(TGlobalData), intent(inout) :: this
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
