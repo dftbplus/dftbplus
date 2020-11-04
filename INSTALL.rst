@@ -2,9 +2,10 @@
 Building and installing DFTB+
 *****************************
 
-If you have problems with the build, you find suggestions for some frequently
-occuring scenarios in the `Troubleshooting <#troubleshooting>`_ section.
-     
+If you have problems with the build, you can find suggestions for some
+frequently occuring scenarios in the `Troubleshooting <#troubleshooting>`_
+section.
+
 
 Requirements
 ============
@@ -23,6 +24,9 @@ In order to compile DFTB+, you need the following software components:
 
 * Python (version >= 3.2) for the source preprocessor
 
+Optional extra dependencies
+---------------------------
+
 Additionally there are optional requirements for some DFTB+ features:
 
 * ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
@@ -30,11 +34,12 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * In addition to ScaLAPACK, the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
-  can optionally also be used (version 2.6.0 or 2.6.1 of the library, with
-  partial support of 2.5.0). If ELSI was built with PEXSI, you also need a C++
-  compiler.
+  can optionally also be used (version 2.6.x of the library, with partial
+  support of 2.5.0). If ELSI was compiled with PEXSI included, you will also
+  need a C++ compiler.
 
-* The ARPACK or the ARPACK-ng library for excited state DFTB functionality
+* The ARPACK or the ARPACK-ng library if using the excited state DFTB
+  functionality
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
@@ -44,18 +49,22 @@ Additionally there are optional requirements for some DFTB+ features:
   also MPI-aware (and must have been built with the same MPI-framework as
   DFTB+).
 
-**Important notes on external libraries**:
+External library requirements
+-----------------------------
 
-* Make sure that external libraries are compiled with the same precision models
-  for the variables (same integer and floating point values) as DFTB+. Also,
-  they should have been preferably built with the same compiler and with similar
-  compiler flags than DFTB+. (See the **Troubleshooting section** for further
-  information.)
+* **Make sure that external libraries are compiled with the same precision
+  models for the variables** (same integer and floating point values) as
+  DFTB+. Also, they should preferably have been built with the same compiler and
+  with similar compiler flags to DFTB+. (See the Troubleshooting section for
+  further information.)
 
-* External libraries in non-standard locations (as typical on HPC-systems) can
-  only be reliable found by CMake if their library path occurs in the
-  ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
+* External libraries in non-standard locations (as is typical on many
+  HPC-systems) can only be reliable found by CMake if their library path occurs
+  in the ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
   CMAKE_PREFIX_PATH environment variable contains all relevant paths!**
+
+Requirements for testing DFTB+
+------------------------------
 
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
@@ -65,8 +74,8 @@ results, you will additionally need:
 * The Slater-Koster data used in the tests (see below)
 
 
-Tested builds
--------------
+Tested build environments
+-------------------------
 
 DFTB+ is regularly built and tested for both serial and MPI environments on the
 following architectures:
@@ -102,9 +111,9 @@ PLUMED 2.5 libraries.
 
 Notes:
 
-[1] The timedep/C60_OscWindow test fails with recent versions (>= 0.3.8) of the
-OpenBlas library. If possible, use an older version or link against either MKL
-or an another BLAS/LAPACK library instead.
+[1] The timedep/C60_OscWindow test can fail with recent versions (>= 0.3.8) of
+the OpenBlas library. If possible, use an older version or link against either
+MKL or an another BLAS/LAPACK library instead.
 
 [2] Only serial version tested.
 
@@ -195,12 +204,12 @@ In order to build DFTB+ carry out the following steps:
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
   When needed, you can specify the complete path to a libray or pass linker
-  options in those variables, e.g.::
+  options as defined variables, e.g.::
 
     -DLAPACK_LIBRARY="/opt/openblas/libopenblas.a"
     -DLAPACK_LIBRARY="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
 
-  CMake by default searches for the external libraries in the paths specified in
+  By default CMake searches for the external libraries in the paths specified in
   the ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
   CMAKE_PREFIX_PATH environment variable is set up correctly and contains
   all the relevant paths** when configuring the project, e.g. ::
@@ -212,9 +221,9 @@ In order to build DFTB+ carry out the following steps:
 
     -DLAPACK_LIBRARY_DIR=/opt/custom-openblas
 
-  Setting those variables is not necessary, though, if the right search path is
+  Setting those variables is not normally necessary, if the right search path is
   already present in the ``CMAKE_PREFIX_PATH`` environment variable.
-  
+
 
 * If the configuration was successful, start the build by ::
 
@@ -231,7 +240,7 @@ In order to build DFTB+ carry out the following steps:
 * Note: The code can be compiled with distributed memory parallelism (MPI), but
   for smaller shared memory machines, you may find that the performance is
   better when using OpenMP parallelism only and an optimised thread aware BLAS
-  library.
+  library is used.
 
 
 Testing DFTB+
@@ -291,8 +300,8 @@ Installing DFTB+
 Using DFTB+ as a library
 ========================
 
-DFTB+ can be also used as a library and linked with other simulation software
-packages. In order to compile the library with the public API, make sure to set
+DFTB+ can be also be used as a library and linked into other simulation software
+packages. In order to compile the library with its public API, make sure to set
 the ``WITH_API`` option to ``TRUE`` in the CMake config file
 `config.cmake`. When you install the program, it will also install the DFTB+
 library, the C-include file and the Fortran module files, which are necessary
@@ -348,7 +357,7 @@ with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
 If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
-pkg-config can find the respective pkconfig files, as those libraries are
+pkg-config can also find their respective pkconfig files, as those libraries are
 declared as dependencies in the DFTB+ pkg-config file. For external dependencies
 without pkg-config files (e.g. mbd, negf) the options for linking those
 libraries can not be queried via pkg-config and must be added manually.
@@ -369,17 +378,18 @@ in the main source directory. The documentation will be created in the
 Developer build instructions
 ============================
 
-You should avoid to customize the build by changing the variables in the CMake
-config files directly as your changes may accidently be checked in into the
-repository. Create a customized CMake config file instead, where you
-pre-populate the appropriate cache variables. Use the `-C` option to load that
-file::
+You should avoid customizing the build by directly changing variables in the
+CMake config files, as your changes may accidently be checked in into the
+repository. Instead, create a customized CMake config file, where you
+pre-populate the appropriate cache variables. Then use the `-C` option to load
+that file::
 
   FC=gfortran CC=gcc cmake -C custom.cmake -B _build .
 
-The customized config file is read by CMake before the compiler detection. If
-your config file contains toolchain dependent options, consider to define the
-``DFTBPPLUS_TOOLCHAIN`` environment variable and query it in your config file.
+The customized config file is read by CMake before the compiler detection
+stage. If your config file contains toolchain dependent options, consider
+defining the ``DFTBPPLUS_TOOLCHAIN`` environment variable and query it in your
+config file.
 
 See this `CMake customization file
 <https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7>`_ for a
@@ -392,17 +402,18 @@ Advanced build configuration (e.g. for packagers)
 Controlling the toolchain file selection
 ----------------------------------------
 
-You can override the toolchain file selection by passing the ``-DTOOLCHAIN``
-option with the name of the toolchain, e.g.::
+You can override the toolchain file, and select a different provided case,
+passing the ``-DTOOLCHAIN`` option with the relevant name, e.g.::
 
   -DTOOLCHAIN=gnu
 
 or by setting the toolchain name in the ``DFTBPLUS_TOOLCHAIN`` environment
-variable. If you want to load an external toolchain file instead of the bundled
-ones, you can specify the file path with the ``-DTOOLCHAIN_FILE`` option ::
+variable selects it. If you want to load an external toolchain file instead of
+the bundled ones, you can specify the file path with the ``-DTOOLCHAIN_FILE``
+option ::
 
   -DTOOLCHAIN_FILE=/some/path/myintel.cmake
-  
+
 or with the ``DFTBPLUS_TOOLCHAIN_FILE`` environment variable.
 
 Similarly, you can also use an alternative build config file instead of
@@ -420,9 +431,9 @@ process. If you want to ensure that nothing gets downloaded during the build,
 pass the variable definition ::
 
   -DHYBRID_CONFIG_METHODS="Find"
-  
-to CMake during the configuration. In this case CMake will try to find those
-dependencies in the system only (by searching in the standard system paths and
+
+to CMake during the configuration. In this case, CMake will only try to find
+those dependencies on the system (by searching in the standard system paths and
 in the locations defined in the environment variable ``CMAKE_PREFIX_PATH``) and
 stop if some components were not found.
 
@@ -441,11 +452,10 @@ Troubleshooting
 
 * **CMake fails to find a library / finds the wrong version of a library**
 
-  This is in most cases a problem due to a misconfigured ``CMAKE_PREFIX_PATH``
-  environment variable. It is essential, that the ``CMAKE_PREFIX_PATH``
-  environment variable contains all paths (besides the default system paths),
-  which CMake should search when trying to find a library. Extend the library
-  path if needed, e.g. ::
+  In most cases this is due to a misconfigured ``CMAKE_PREFIX_PATH`` environment
+  variable. It is essential, that ``CMAKE_PREFIX_PATH`` contains all paths
+  (besides default system paths), which CMake should search when trying to find
+  a library. Extend the library path if needed, e.g. ::
 
     CMAKE_PREFIX_PATH="/opt/somelib:${CMAKE_PREFIX_PATH}" cmake [...]
 
@@ -453,31 +463,31 @@ Troubleshooting
 * **ScaLAPACK detection on Ubuntu 20.4 LTS fails**
 
   The OpenMPI version of ScaLAPACK on Ubuntu 20.4 LTS exports an incorrect CMake
-  config file (as of October 2020), which refers to an non-existing
-  library. Setting the library name with the ``SCALAPACK_LIBRARY`` variable explicitely,
-  e.g. ::
+  config file (as of October 2020), which refers to an non-existent
+  library. Instead, set the library name with the ``SCALAPACK_LIBRARY`` variable
+  explicitely, e.g. ::
 
     cmake -DSCALAPACK_LIBRARY=scalapack-openmpi [...]
 
-  should fix the problem.
+  which should fix the problem.
 
 
 * **My library settings in a "_LIBRARIES" variable are ignored**
 
   In order to be consistent with the naming scheme suggested by the CMake
-  documentation, all library related cache variables had been changed to
+  documentation, all library related cache variables have been changed to
   singular nouns, e.g. ::
 
     cmake -DSCALAPACK_LIBRARY=scalapack-openmpi [...]
 
-  **instead** of the original ::
+  **instead** of the previous ::
 
     cmake -DSCALAPACK_LIBRARIES=scalapack-openmpi [...]
 
 
 * **Fortran libraries compiled with the Intel compiler can not be linked**
 
-  In order to enforce the compliance to the Fortran 2003 standard (e.g. allowing
+  In order to enforce compliance with the Fortran 2003 standard (e.g. allowing
   the automatic allocation of arrays in expressions), DFTB+ passes the
   ``-standard-semantics`` option to the Intel compiler. All external modern
   Fortran dependencies (e.g. ELSI) must also be compiled by using this compiler
