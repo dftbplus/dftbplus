@@ -24,7 +24,7 @@ module dftbp_mmapi
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   use dftbp_charmanip, only : newline
-  use dftbp_initprogram
+  use dftbp_initprogram, only: TGlobalData
   implicit none
   private
 
@@ -276,13 +276,13 @@ contains
 
     call this%checkInit()
 
-    call destructProgramVariables()
+    call this%globalData%destructProgramVariables()
     call this%env%destruct()
     call destructGlobalEnv()
 !   nDftbPlusCalc = 0
-!   this%tInit = .false.
+    this%tInit = .false.
 
-! end subroutine TDftbPlus_destruct
+  end subroutine TDftbPlus_destruct
 
 
   !> Fills up the input by parsing an HSD file
@@ -467,7 +467,7 @@ contains
   end subroutine TDftbPlus_getGradients
 
 
-     !> Returns the stress tensor of the periodic system.
+  !> Returns the stress tensor of the periodic system.
   subroutine TDftbPlus_getStressTensor(this, stresstensor)
 
     !> Instance.
@@ -528,7 +528,7 @@ contains
 
     call this%checkInit()
 
-    nAtom = nrOfAtoms()
+    nAtom = nrOfAtoms(this%globalData)
 
   end function TDftbPlus_nrOfAtoms
 

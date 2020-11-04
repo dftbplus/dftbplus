@@ -219,8 +219,8 @@ contains
           & globalData%mixedderivs)
 
       if (globalData%tWriteDetailedOut .and. globalData%deltaDftb%nDeterminant() > 1) then
-        call writeDetailedOut2Dets(globalData%fdDetailedOut, globalData%userOut,&
-            & globalData%tAppendDetailedOut, globalData%dftbEnergy, globalData%electronicSolver,&
+        call writeDetailedOut2Dets(globalData%fdDetailedOut, userOut,&
+            & tAppendDetailedOut, globalData%dftbEnergy, globalData%electronicSolver,&
             & globalData%deltaDftb, globalData%q0, globalData%orb, globalData%qOutput,&
             & globalData%qDets, globalData%qBlockDets, globalData%species,&
             & globalData%iAtInCentralRegion, globalData%tPrintMulliken, globalData%cm5Cont)
@@ -249,13 +249,14 @@ contains
       call postprocessDerivs(globalData%derivs, globalData%conAtom, globalData%conVec,&
           & globalData%tLatOpt, globalData%totalLatDeriv, globalData%extLatDerivs,&
           & globalData%normOrigLatVec, globalData%tLatOptFixAng, globalData%tLatOptFixLen,&
-          & globalData%tLatOptIsotropic, globalData%constrLatDerivs)
+          & globalData%tLatOptIsotropic, constrLatDerivs)
 
       if (tExitGeoOpt) then
         exit geoOpt
       end if
 
-      call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
+      call printMaxForces(globalData%derivs, constrLatDerivs, globalData%tCoordOpt,&
+          & globalData%tLatOpt, globalData%indMovedAtom)
     #:if WITH_SOCKETS
       if (globalData%tSocket) then
         call sendEnergyAndForces(env, globalData%socket,&
@@ -267,7 +268,7 @@ contains
           & .and. globalData%tSccCalc .and. .not. globalData%tDerivs .and.&
           & globalData%maxSccIter > 1 .and. globalData%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
-        call writeCharges(globalData%fCharges, globalData%tWriteChrgAscii, globalData%orb,&
+        call writeCharges(fCharges, globalData%tWriteChrgAscii, globalData%orb,&
             & globalData%qInput, globalData%qBlockIn, globalData%qiBlockIn, globalData%deltaRhoIn)
       end if
 
@@ -289,7 +290,7 @@ contains
         exit geoOpt
       end if
 
-      tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(globalData%fStopDriver)
+      tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(fStopDriver)
       if (tStopDriver) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         exit geoOpt
@@ -322,19 +323,19 @@ contains
           & globalData%tDerivs)
 
       if (globalData%tMD) then
-        call writeMdOut3(globalData%fdMd, globalData%mdOut)
+        call writeMdOut3(globalData%fdMd, mdOut)
       end if
     end if
 
     if (env%tGlobalLead .and. globalData%tDerivs) then
       call getHessianMatrix(globalData%derivDriver, globalData%pDynMatrix)
-      call writeHessianOut(globalData%hessianOut, globalData%pDynMatrix)
+      call writeHessianOut(hessianOut, globalData%pDynMatrix)
     else
       nullify(globalData%pDynMatrix)
     end if
 
     if (globalData%tWriteShifts) then
-      call writeShifts(globalData%fShifts, globalData%orb, globalData%potential%intShell)
+      call writeShifts(fShifts, globalData%orb, globalData%potential%intShell)
     endif
 
     ! Here time propagation is called
@@ -410,7 +411,7 @@ contains
             & globalData%dftbEnergy(globalData%deltaDftb%iFinal)%EMermin +&
             & globalData%extPressure * globalData%cellVol
       end if
-      call writeAutotestTag(globalData%autotestTag, globalData%electronicSolver,&
+      call writeAutotestTag(autotestTag, globalData%electronicSolver,&
           & globalData%tPeriodic, globalData%cellVol, globalData%tMulliken, globalData%qOutput,&
           & globalData%derivs, globalData%chrgForces, globalData%excitedDerivs,&
           & globalData%tStress, globalData%totalStress, globalData%pDynMatrix,&
@@ -419,7 +420,7 @@ contains
           & globalData%taggedWriter, globalData%tunneling, globalData%ldos, globalData%lCurrArray)
     end if
     if (globalData%tWriteResultsTag) then
-      call writeResultsTag(globalData%resultsTag,&
+      call writeResultsTag(resultsTag,&
           & globalData%dftbEnergy(globalData%deltaDftb%iFinal), globalData%derivs,&
           & globalData%chrgForces, globalData%nEl, globalData%Ef, globalData%eigen,&
           & globalData%filling, globalData%electronicSolver, globalData%tStress,&
@@ -621,7 +622,7 @@ contains
     tExitGeoOpt = .false.
 
     if (globalData%tMD .and. tWriteRestart) then
-      call writeMdOut1(globalData%fdMd, globalData%mdOut, iGeoStep, globalData%pMDIntegrator)
+      call writeMdOut1(globalData%fdMd, mdOut, iGeoStep, globalData%pMDIntegrator)
     end if
 
     if (globalData%tLatticeChanged) then
@@ -706,7 +707,7 @@ contains
     call resetExternalPotentials(globalData%refExtPot, globalData%potential)
 
     if (globalData%tReadShifts) then
-      call readShifts(globalData%fShifts, globalData%orb, globalData%nAtom, globalData%nSpin,&
+      call readShifts(fShifts, globalData%orb, globalData%nAtom, globalData%nSpin,&
           & globalData%potential%extShell)
     end if
 
@@ -722,8 +723,8 @@ contains
     ! For non-scc calculations with transport only, jump out of geometry loop
     if (globalData%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
       if (globalData%tWriteDetailedOut) then
-        call openDetailedOut(globalData%fdDetailedOut, globalData%userOut,&
-            & globalData%tAppendDetailedOut)
+        call openDetailedOut(globalData%fdDetailedOut, userOut,&
+            & tAppendDetailedOut)
       end if
       ! We need to define hamltonian by adding the potential
       call getSccHamiltonian(globalData%H0, globalData%over, globalData%nNeighbourSK,&
@@ -815,7 +816,7 @@ contains
             & qNetAtom=globalData%qNetAtom)
 
         ! Check charge convergece and guess new eigenvectors
-        tStopScc = hasStopFile(globalData%fStopScc)
+        tStopScc = hasStopFile(fStopScc)
         if (globalData%isRangeSep) then
           call getReksNextInputDensity(sccErrorQ, globalData%sccTol, tConverged, iSccIter,&
               & globalData%minSccIter, globalData%maxSccIter, iGeoStep, tStopScc,&
@@ -855,8 +856,8 @@ contains
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
-            call openDetailedOut(globalData%fdDetailedOut, globalData%userOut,&
-                & globalData%tAppendDetailedOut)
+            call openDetailedOut(globalData%fdDetailedOut, userOut,&
+                & tAppendDetailedOut)
             call writeReksDetailedOut1(globalData%fdDetailedOut, globalData%nGeoSteps, iGeoStep,&
                 & globalData%tMD, globalData%tDerivs, globalData%tCoordOpt, globalData%tLatOpt,&
                 & iLatGeoStep, iSccIter, globalData%dftbEnergy(1), diffElec, sccErrorQ,&
@@ -869,7 +870,7 @@ contains
                 & globalData%reks, allocated(globalData%thirdOrd), globalData%isRangeSep)
           end if
           if (globalData%tWriteBandDat) then
-            call writeBandOut(globalData%bandOut, globalData%eigen, globalData%filling,&
+            call writeBandOut(bandOut, globalData%eigen, globalData%filling,&
                 & globalData%kWeight)
           end if
 
@@ -926,7 +927,7 @@ contains
 
         if (allocated(globalData%qDepExtPot)) then
           call getChargePerShell(globalData%qInput, globalData%orb, globalData%species,&
-              & globalData%dQ, qRef=globalData%q0)
+              & dQ, qRef=globalData%q0)
           call globalData%qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), globalData%orb,&
               & globalData%species, globalData%potential%intBlock)
         end if
@@ -988,7 +989,7 @@ contains
         end if
 
         if (globalData%tWriteBandDat .and. globalData%deltaDftb%nDeterminant() == 1) then
-          call writeBandOut(globalData%bandOut, globalData%eigen, globalData%filling,&
+          call writeBandOut(bandOut, globalData%eigen, globalData%filling,&
               & globalData%kWeight)
         end if
 
@@ -1046,7 +1047,7 @@ contains
 
         if (allocated(globalData%qDepExtPot)) then
           call getChargePerShell(globalData%qOutput, globalData%orb, globalData%species,&
-              & globalData%dQ, qRef=globalData%q0)
+              & dQ, qRef=globalData%q0)
           call globalData%qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), globalData%orb,&
               & globalData%species, globalData%potential%intBlock)
         end if
@@ -1065,7 +1066,7 @@ contains
             & globalData%iAtInCentralRegion, globalData%tFixEf, globalData%Ef,&
             & globalData%onSiteElements)
 
-        tStopScc = hasStopFile(globalData%fStopScc)
+        tStopScc = hasStopFile(fStopScc)
 
         ! Mix charges Input/Output
         if (globalData%tSccCalc) then
@@ -1108,7 +1109,7 @@ contains
               & iGeoStep, iSccIter, globalData%minSccIter, globalData%maxSccIter, globalData%tMd,&
               & globalData%isGeoOpt, globalData%tDerivs, tConverged, globalData%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeCharges(globalData%fCharges, globalData%tWriteChrgAscii, globalData%orb,&
+            call writeCharges(fCharges, globalData%tWriteChrgAscii, globalData%orb,&
                 & globalData%qInput, globalData%qBlockIn, globalData%qiBlockIn,&
                 & globalData%deltaRhoIn)
           end if
@@ -1126,8 +1127,8 @@ contains
         call sumEnergies(globalData%dftbEnergy(globalData%deltaDftb%iDeterminant))
 
         if (globalData%tWriteDetailedOut .and. globalData%deltaDftb%nDeterminant() == 1) then
-          call openDetailedOut(globalData%fdDetailedOut, globalData%userOut,&
-              & globalData%tAppendDetailedOut)
+          call openDetailedOut(globalData%fdDetailedOut, userOut,&
+              & tAppendDetailedOut)
           call writeDetailedOut1(globalData%fdDetailedOut, globalData%iDistribFn,&
               & globalData%nGeoSteps, iGeoStep, globalData%tMD, globalData%tDerivs,&
               & globalData%tCoordOpt, globalData%tLatOpt, iLatGeoStep, iSccIter,&
@@ -1175,8 +1176,8 @@ contains
 
       if (globalData%tWriteDetailedOut .and. globalData%deltaDftb%nDeterminant() == 1) then
         close(globalData%fdDetailedOut)
-        call openDetailedOut(globalData%fdDetailedOut, globalData%userOut,&
-            & globalData%tAppendDetailedOut)
+        call openDetailedOut(globalData%fdDetailedOut, userOut,&
+            & tAppendDetailedOut)
         if (allocated(globalData%reks)) then
           call writeReksDetailedOut1(globalData%fdDetailedOut, globalData%nGeoSteps, iGeoStep,&
               & globalData%tMD, globalData%tDerivs, globalData%tCoordOpt, globalData%tLatOpt ,&
@@ -1230,7 +1231,7 @@ contains
             & globalData%sccCalc, globalData%qOutput, globalData%q0, globalData%over,&
             & globalData%eigvecsReal, globalData%eigen(:,1,:), globalData%filling(:,1,:),&
             & globalData%coord, globalData%species, globalData%speciesName, globalData%orb,&
-            & globalData%skHamCont, globalData%skOverCont, globalData%autotestTag,&
+            & globalData%skHamCont, globalData%skOverCont, autotestTag,&
             & globalData%taggedWriter, globalData%runId, globalData%neighbourList,&
             & globalData%nNeighbourSK, globalData%denseDesc, globalData%iSparseStart,&
             & globalData%img2CentCell, globalData%tWriteAutotest, globalData%tCasidaForces,&
@@ -1243,7 +1244,7 @@ contains
             & globalData%sccCalc, globalData%qOutput, globalData%q0, globalData%over,&
             & globalData%eigvecsReal, globalData%eigen(:,1,:), globalData%filling(:,1,:),&
             & globalData%coord0, globalData%species, globalData%speciesName, globalData%orb,&
-            & globalData%skHamCont, globalData%skOverCont, globalData%autotestTag,&
+            & globalData%skHamCont, globalData%skOverCont, autotestTag,&
             & globalData%taggedWriter, globalData%runId, globalData%neighbourList,&
             & globalData%nNeighbourSK, globalData%denseDesc, globalData%iSparseStart,&
             & globalData%img2CentCell, globalData%tWriteAutotest, globalData%tCasidaForces,&
@@ -1266,7 +1267,7 @@ contains
       call ppRPAenergies(globalData%ppRPA, globalData%denseDesc, globalData%eigvecsReal,&
           & globalData%eigen(:,1,:), globalData%sccCalc, globalData%SSqrReal, globalData%species0,&
           & globalData%nEl(1), globalData%neighbourList%iNeighbour, globalData%img2CentCell,&
-          & globalData%orb, globalData%tWriteAutotest, globalData%autotestTag,&
+          & globalData%orb, globalData%tWriteAutotest, autotestTag,&
           & globalData%taggedWriter)
     end if
 
@@ -1313,13 +1314,13 @@ contains
     call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
-    if (globalData%isGeoOpt .and. globalData%tWriteRestart) then
+    if (globalData%isGeoOpt .and. tWriteRestart) then
       if (.not. (globalData%deltaDftb%isSpinPurify .and.&
           & globalData%deltaDftb%iDeterminant == determinants%triplet)) then
         call writeCurrentGeometry(globalData%geoOutFile, globalData%pCoord0Out, globalData%tLatOpt,&
             & globalData%tMd, globalData%tAppendGeo, globalData%tFracCoord, globalData%tPeriodic,&
             & globalData%tHelical, globalData%tPrintMulliken, globalData%species0,&
-            & globalData%speciesName, globalData%latVec, globalData%origin, GeoStep, iLatGeoStep,&
+            & globalData%speciesName, globalData%latVec, globalData%origin, iGeoStep, iLatGeoStep,&
             & globalData%nSpin, globalData%qOutput, globalData%velocities)
       endif
     end if
@@ -1334,7 +1335,7 @@ contains
             & globalData%pRepCont, globalData%coord, globalData%coord0, globalData%species,&
             & globalData%q0, globalData%eigvecsReal, globalData%chrgForces, globalData%over,&
             & globalData%spinW, globalData%derivs, globalData%tWriteAutotest,&
-            & globalData%autotestTag, globalData%taggedWriter, globalData%reks)
+            & autotestTag, globalData%taggedWriter, globalData%reks)
         call getReksGradProperties(env, globalData%denseDesc, globalData%neighbourList,&
             & globalData%nNeighbourSK, globalData%iSparseStart, globalData%img2CentCell,&
             & globalData%eigvecsReal, globalData%orb, globalData%iAtInCentralRegion,&
@@ -1345,7 +1346,7 @@ contains
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, globalData%electronicSolver, globalData%denseDesc,&
             & globalData%forceType, globalData%filling, globalData%eigen, globalData%kPoint,&
-            & globalData%kWeight, globalData%neighbourList, globalData%nNeighbourSk, orb,&
+            & globalData%kWeight, globalData%neighbourList, globalData%nNeighbourSK, globalData%orb,&
             & globalData%iSparseStart, globalData%img2CentCell, globalData%iCellVec,&
             & globalData%cellVec, globalData%tRealHS, globalData%ham, globalData%over,&
             & globalData%parallelKS, globalData%tHelical, globalData%species, globalData%coord,&
@@ -1561,7 +1562,7 @@ contains
         if (.not. globalData%tLatOpt) then
           tGeomEnd = tCoordEnd
         end if
-        if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < globalData%tolSameDist) then
+        if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < tolSameDist) then
           tCoordStep = .false.
         end if
       else
@@ -1577,7 +1578,7 @@ contains
               & :, globalData%indMovedAtom), [globalData%nMovedCoord]))
         end if
       end if
-      if (tGeomEnd .and. diffGeo < globalData%tolSameDist) then
+      if (tGeomEnd .and. diffGeo < tolSameDist) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         tExitGeoOpt = .true.
         return
@@ -1594,13 +1595,13 @@ contains
           & globalData%latVec, globalData%intPressure, globalData%totalStress,&
           & globalData%totalLatDeriv, globalData%velocities, tempIon)
       globalData%tCoordsChanged = .true.
-      globalData%tLatticeChanged = tBarostat
+      globalData%tLatticeChanged = globalData%tBarostat
       call printMdInfo(globalData%tSetFillingTemp, globalData%tEField, globalData%tPeriodic,&
           & globalData%tempElec, globalData%absEField, tempIon, globalData%intPressure,&
           & globalData%extPressure, globalData%dftbEnergy(globalData%deltaDftb%iDeterminant))
       if (tWriteRestart) then
         if (globalData%tPeriodic) then
-          globalData%cellVol = abs(globalData%determinant33(globalData%latVec))
+          globalData%cellVol = abs(determinant33(globalData%latVec))
           globalData%dftbEnergy(globalData%deltaDftb%iDeterminant)%EGibbs =&
               & globalData%dftbEnergy(globalData%deltaDftb%iDeterminant)%EMermin +&
               & globalData%extPressure * globalData%cellVol
