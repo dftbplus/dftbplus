@@ -28,7 +28,7 @@ module dftbp_periodic
 
   public :: getCellTranslations, getLatticePoints, foldCoordToUnitCell
   public :: reallocateHS, buildSquaredAtomIndex
-  public :: TNeighbourList, init_TNeighbourList
+  public :: TNeighbourList, TNeighbourlist_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
   public :: getSuperSampling
@@ -90,7 +90,7 @@ contains
 
 
   !> Initializes a neighbourlist instance.
-  subroutine init_TNeighbourList(neighbourList, nAtom, nInitNeighbour)
+  subroutine TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
 
     !> Neighbourlist data.
     type(TNeighbourList), intent(out) :: neighbourList
@@ -112,7 +112,7 @@ contains
     neighbourList%cutoff = -1.0_dp
     neighbourList%initialized = .true.
 
-  end subroutine init_TNeighbourList
+  end subroutine TNeighbourlist_init
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of

@@ -28,7 +28,7 @@ module dftbp_initprogram
   use dftbp_elsiiface
   use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
-  use dftbp_periodic, only : TNeighbourList, init_TNeighbourList, buildSquaredAtomIndex
+  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
   use dftbp_periodic, only : getCellTranslations
   use dftbp_accuracy
   use dftbp_intrinsicpr
@@ -2391,7 +2391,7 @@ contains
 
     ! Initialize neighbourlist.
     allocate(neighbourList)
-    call init_TNeighbourList(neighbourList, nAtom, nInitNeighbour)
+    call TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
     if (isRangeSep) then
