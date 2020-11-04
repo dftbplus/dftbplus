@@ -31,7 +31,7 @@ module dftbp_elsisolver
   use dftbp_angmomentum, only : getLOnsite
   use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_potentials, only : TPotentials
-  use dftbp_versioncheck, only : version_greater_equal, version_equal
+  use dftbp_version, only : TVersion
   implicit none
   private
 
@@ -192,9 +192,6 @@ module dftbp_elsisolver
     type(TElsiCsc), allocatable :: elsiCsc
 
 
-    !> Version number for ELSI
-    integer, public :: major, minor, patch
-
     !! ELPA settings
 
     !> ELPA solver choice
@@ -317,16 +314,13 @@ contains
     !> Whether the solver provides the TS term for electrons
     logical, intent(inout) :: providesElectronEntropy
 
-    integer :: dateStamp
-
   #:if WITH_ELSI
 
     character(lc) :: buffer
+    integer :: version(3)
 
-    call elsi_get_version(this%major, this%minor, this%patch)
-    call elsi_get_datestamp(dateStamp)
-
-    call supportedVersionNumber(this, dateStamp)
+    call elsi_get_version(version(1), version(2), version(3))
+    call supportedVersionNumber(TVersion(version(1), version(2), version(3)))
 
     this%iSolver = inp%iSolver
 
@@ -506,18 +500,15 @@ contains
 
 
   !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
-  subroutine supportedVersionNumber(this, dateStamp)
+  subroutine supportedVersionNumber(version)
 
     !> Version value components inside the structure
-    class(TElsiSolver), intent(in) :: this
-
-    !> git commit date for the library
-    integer, intent(in) :: dateStamp
+    type(TVersion), intent(in) :: version
 
     logical :: isSupported, isPartSupported
 
-    isSupported = version_greater_equal([this%major, this%minor], [2, 6])
-    isPartSupported = isSupported .or. version_equal([this%major, this%minor], [2, 5])
+    isSupported = version >= TVersion(2, 6)
+    isPartSupported = version == TVersion(2, 5)
 
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
@@ -526,8 +517,7 @@ contains
           & behaviour for PEXSI at 2.6.0")
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', this%major, this%minor,&
-        & this%patch
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
 
   end subroutine supportedVersionNumber
 

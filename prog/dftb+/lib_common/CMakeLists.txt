@@ -16,7 +16,7 @@ set(sources-fpp
   ${curdir}/timer.F90
   ${curdir}/timerarray.F90
   ${curdir}/unitconversion.F90
-  ${curdir}/versioncheck.F90)
+  ${curdir}/version.F90)
 
 if(WITH_MPI)
   list(APPEND sources-fpp
