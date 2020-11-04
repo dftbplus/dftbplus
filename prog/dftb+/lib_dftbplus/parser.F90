@@ -144,7 +144,7 @@ contains
       call getChildValue(child, "", versionString)
       call getParserVersion(child, unquote(char(versionString)), inputVersion)
       if (inputVersion /= parserVersion) then
-        call removeChildNodes(child)
+        dummy => removeChild(root, child)
         call destroyNode(child)
       end if
     end if
