@@ -473,7 +473,8 @@ properties.\footnote{This approach is distinct from
 \label{sec:dftbp.LBFGS}
 
 \begin{ptable}
-  \kw{Memory} &i & & 20 & \\
+  \kw{Memory}            & i & & 20 & \\
+  \kw{LineSearch}        & l & & No & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
   \kw{MaxSteps}          & i & & 200 & \\
@@ -484,15 +485,18 @@ properties.\footnote{This approach is distinct from
   \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
-  \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
+  \kw{MaxLatticeStep}    & r & LatticeOpt = Yes, LineSearch = Yes & 0.2 & \\
+  \kw{MaxAtomStep}       & r & LineSearch = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 Specific properties for this method are:
 \begin{description}
 \item[\is{Memory}] Number of last steps which are saved and used to calculate
-  the next step via the LBFGS algorithm. The literature recommends that
+  the next step via the lBFGS algorithm. The literature recommends that
   \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
+\item[\is{LineSearch}] Should a line search be performed, instead of a
+  quasi-Newton step along the lBFGS direction.
 \end{description}
 
 \subsection{SecondDerivatives\cb}

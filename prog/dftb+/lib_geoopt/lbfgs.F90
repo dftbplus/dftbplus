@@ -63,7 +63,7 @@ module dftbp_lbfgs
     !> line search position on the high side
     real(dp) :: alphaHi
 
-    !>> line search position on the low side of the gradient
+    !> line search position on the low side of the gradient
     real(dp) :: alphaLo
 
     !> phi(alpha) = f(x + alpha*d0)
@@ -136,6 +136,9 @@ module dftbp_lbfgs
   type :: TLbfgs
     private
 
+    !> Is a line search used
+    logical :: isLineSearch
+
     !> line minimizer
     type(TLineSearch) :: lineSearch
 
@@ -202,7 +205,7 @@ module dftbp_lbfgs
 contains
 
   !> Initialize lbfgs instance
-  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem)
+  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch)
 
     !> lbfgs instance on exit
     type(TLbfgs), intent(out) :: this
@@ -222,6 +225,9 @@ contains
     !> Number of past iterations which will be saved
     integer, intent(in) :: mem
 
+    !> Is a line search used along the quasi-Newton direction
+    logical, intent(in) :: isLineSearch
+
     @:ASSERT(nElem > 0)
     @:ASSERT(tol > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
@@ -238,7 +244,9 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
-    call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+    if (this%isLineSearch) then
+      call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+    end if
 
   end subroutine TLbfgs_init
 
@@ -277,23 +285,29 @@ contains
     end if
     dxTemp(:) = dx
 
-    ! Line Search
-    if (this%iter > 0) then
-      call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
-      if (tLineConverged) then
-        call this%lineSearch%getMinGrad(dxTemp)
-      else
-        xNew(:) = this%xx
-        return
+    if (this%isLineSearch) then
+      if (this%iter > 0) then
+        call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+        if (tLineConverged) then
+          call this%lineSearch%getMinGrad(dxTemp)
+        else
+          xNew(:) = this%xx
+          return
+        end if
       end if
     end if
 
     ! Calculate new search direction
     call TLbfgs_calcDirection(this, this%xx, dxTemp)
-    this%alpha = 1.0_dp
 
-    call this%lineSearch%reset(this%xx, this%dir, this%alpha)
-    call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+    if (this%isLineSearch) then
+      this%alpha = 1.0_dp
+      call this%lineSearch%reset(this%xx, this%dir, this%alpha)
+      call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+    else
+      this%xx(:) = this%xx + this%dir
+    end if
+
     xNew(:) = this%xx
 
   end subroutine TLbfgs_next
@@ -362,12 +376,12 @@ contains
 
     ! Checks whether new x is different to last iteration
     if (maxval(abs(xx - this%xOld)) < epsilon(1.0_dp)) then
-      call error("Error: x need to be different in each iteration. (LBFGS Minimizer)")
+      call warning("Error: x need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Checks whether new gradient is different to last iteration
     if (maxval(abs(gg - this%gg)) < epsilon(1.0_dp)) then
-      call error("Error: g need to be different in each iteration. (LBFGS Minimizer)")
+      call warning("Error: g need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Save new ss, yy and rho
@@ -393,7 +407,7 @@ contains
         diag(:) = 1.0_dp
       else
         diag(:) = dot_product(this%ss(:, newElem), this%yy(:, newElem))&
-            & / dot_product(this%yy(:, newElem), this%yy(:, newElem))
+            & / max(dot_product(this%yy(:, newElem), this%yy(:, newElem)), epsilon(1.0_dp))
       end if
 
     else if (any(diagIn < 0.0_dp)) then
@@ -477,6 +491,7 @@ contains
     !> New direction
     real(dp), intent(in) :: d0(:)
 
+    !> First step size to take
     real(dp), intent(in) :: firstStep
 
     @:ASSERT(size(x0) == this%nElem)

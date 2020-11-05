@@ -1970,7 +1970,7 @@ contains
       case (geoOptTypes%lbfgs)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
-            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
+            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch)
         call init(pGeoCoordOpt, pLbfgs)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
@@ -1993,7 +1993,7 @@ contains
       case (geoOptTypes%LBFGS)
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
-            & input%ctrl%lbfgsInp%memory)
+            & input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch)
         call init(pGeoLatOpt, pLbfgsLat)
       end select
       if (tLatOptIsotropic ) then

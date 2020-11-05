@@ -81,6 +81,9 @@ module dftbp_inputdata
   type TLbfgsInput
     !> Number of stored steps
     integer :: memory
+
+    !> Is a line search followed along quasi-Newton directions
+    logical :: isLineSearch
   end type TLbfgsInput
 
 
