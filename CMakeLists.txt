@@ -67,7 +67,7 @@ set(PKG_CONFIG_LIBS_PRIVATE)
 
 if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
-  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED PATHS ${ELSI_ROOT})
+  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED)
   list(APPEND PKG_CONFIG_REQUIRES elsi)
 
   if(TARGET elsi::pexsi)
@@ -150,24 +150,36 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+# Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+
 if(WITH_MPI)
+  set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
+  set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
-    external/mpifx "${exclude}")
+    external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
+  
+  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+  set(SCALAPACKFX_GIT_TAG "cd758a283a89905c5a4fd3e4a42305c287559bae")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
-    "QUIET" external/scalapackfx "${exclude}")
+    "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
+    "${SCALAPACKFX_GIT_TAG}")
   list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
+  set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
+  set(MBD_GIT_TAG "3e70b0cc64557b1bf06467bb2d2d50cee8e2e7ef")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
-    "${exclude}")
+    "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
 endif()
 
 if(WITH_TRANSPORT)
+  set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
+  set(LIBNEGF_GIT_TAG "3b9a727868182002d7570d2676aaf9bccb299bcc")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
-    external/libnegf "${exclude}")
+    external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)

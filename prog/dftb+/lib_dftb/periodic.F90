@@ -28,7 +28,7 @@ module dftbp_periodic
 
   public :: getCellTranslations, getLatticePoints, foldCoordToUnitCell
   public :: reallocateHS, buildSquaredAtomIndex
-  public :: TNeighbourList, init
+  public :: TNeighbourList, TNeighbourlist_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
   public :: getSuperSampling
@@ -42,12 +42,6 @@ module dftbp_periodic
     module procedure reallocateHS_2
     module procedure reallocateHS_Single
   end interface reallocateHS
-
-
-  !> Initializes ADTs defined in this module
-  interface init
-    module procedure init_TNeighbourList
-  end interface init
 
 
   !> convert fractional coordinates to cartesian
@@ -96,7 +90,7 @@ contains
 
 
   !> Initializes a neighbourlist instance.
-  subroutine init_TNeighbourList(neighbourList, nAtom, nInitNeighbour)
+  subroutine TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
 
     !> Neighbourlist data.
     type(TNeighbourList), intent(out) :: neighbourList
@@ -118,7 +112,7 @@ contains
     neighbourList%cutoff = -1.0_dp
     neighbourList%initialized = .true.
 
-  end subroutine init_TNeighbourList
+  end subroutine TNeighbourlist_init
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
@@ -567,6 +561,17 @@ contains
     end do
 
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
+
+    ! check for atoms on top of each other
+    do iAtom1 = 1, nAtom
+      do nn1 = 1, neigh%nNeighbour(iAtom1)
+        if (neigh%neighDist2(nn1, iAtom1) < minNeighDist) then
+          iAtom2 = img2CentCell(neigh%iNeighbour(nn1, iAtom1))
+          write (strError, "(A,I0,A,I0,A)") "Atoms ",iAtom1, " and ", iAtom2, " too close together"
+          call error(strError)
+        end if
+      end do
+    end do
 
   end subroutine updateNeighbourList
 
