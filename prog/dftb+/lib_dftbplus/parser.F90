@@ -278,7 +278,7 @@ contains
       call getChildValue(child, "", versionString)
       implicitParserVersion = parserVersionFromInputVersion(unquote(char(versionString)), child)
       dummy => removeChild(root, child)
-      call destroyNode(child)
+      call destroyNode(dummy)
     end if
 
   end subroutine handleInputVersion
