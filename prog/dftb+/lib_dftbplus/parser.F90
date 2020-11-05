@@ -414,13 +414,21 @@ contains
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
+      #:if WITH_TRANSPORT
+      call commonGeoOptions(node, ctrl, geom, transpar)
+      #:else
       call commonGeoOptions(node, ctrl, geom)
+      #:endif
 
     case ("conjugategradient")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
+      #:if WITH_TRANSPORT
+      call commonGeoOptions(node, ctrl, geom, transpar)
+      #:else
       call commonGeoOptions(node, ctrl, geom)
+      #:endif
 
     case("gdiis")
 
@@ -428,19 +436,31 @@ contains
       ctrl%iGeoOpt = geoOptTypes%diis
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
       call getChildValue(node, "Generations", ctrl%iGenGeoOpt, 8)
+      #:if WITH_TRANSPORT
+      call commonGeoOptions(node, ctrl, geom, transpar)
+      #:else
       call commonGeoOptions(node, ctrl, geom)
+      #:endif
 
     case ("lbfgs")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
+      #:if WITH_TRANSPORT
+      call commonGeoOptions(node, ctrl, geom, transpar)
+      #:else
       call commonGeoOptions(node, ctrl, geom)
+      #:endif
       allocate(ctrl%lbfgsInp)
       call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
     case ("fire")
 
       ctrl%iGeoOpt = geoOptTypes%fire
+      #:if WITH_TRANSPORT
+      call commonGeoOptions(node, ctrl, geom, transpar)
+      #:else
       call commonGeoOptions(node, ctrl, geom)
+      #:endif
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
 
@@ -730,7 +750,11 @@ contains
 
 
   !> Common geometry optimisation settings for various drivers
+#:if WITH_TRANSPORT
+  subroutine commonGeoOptions(node, ctrl, geom, transpar)
+#:else
   subroutine commonGeoOptions(node, ctrl, geom)
+#:endif
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -740,6 +764,11 @@ contains
 
     !> geometry of the system
     type(TGeometry), intent(in) :: geom
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+  #:endif
 
     type(fnode), pointer :: child, child2, child3, value1, value2, field
     type(string) :: buffer, buffer2, modifier
