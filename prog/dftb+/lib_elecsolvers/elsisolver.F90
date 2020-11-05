@@ -508,7 +508,7 @@ contains
     logical :: isSupported, isPartSupported
 
     isSupported = version >= TVersion(2, 6)
-    isPartSupported = version == TVersion(2, 5)
+    isPartSupported = version >= TVersion(2, 5)
 
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
