@@ -15,8 +15,8 @@ dftbp_setup_build_type()
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
 
-# Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
-if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+# CMake has difficulties linking C-executables against NAG-compiled Fortran libraries
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
   set(WITH_C_EXECUTABLES FALSE)
 else()
   set(WITH_C_EXECUTABLES TRUE)
@@ -159,7 +159,7 @@ if(WITH_MPI)
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
   
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "cd758a283a89905c5a4fd3e4a42305c287559bae")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -169,7 +169,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
-  set(MBD_GIT_TAG "3e70b0cc64557b1bf06467bb2d2d50cee8e2e7ef")  # do not change manually!
+  set(MBD_GIT_TAG "4862bbd9b181956d3280acd9a04ea18799783cfb")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
