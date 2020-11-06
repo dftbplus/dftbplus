@@ -175,6 +175,9 @@ module dftbp_lbfgs
     !> Search direction
     real(dp), allocatable :: dir(:)
 
+    !> Maximum step size to take for the variables
+    real(dp) :: maxDisp
+
     !> tolerance for gradient
     real(dp) :: tol
 
@@ -205,7 +208,7 @@ module dftbp_lbfgs
 contains
 
   !> Initialize lbfgs instance
-  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch)
+  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch, isQNDisp)
 
     !> lbfgs instance on exit
     type(TLbfgs), intent(out) :: this
@@ -228,6 +231,9 @@ contains
     !> Is a line search used along the quasi-Newton direction
     logical, intent(in) :: isLineSearch
 
+    !> Is the maximum step size considered for the QN
+    logical, intent(in) :: isQNDisp
+
     @:ASSERT(nElem > 0)
     @:ASSERT(tol > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
@@ -244,8 +250,12 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
+    this%maxDisp = -1.0_dp
     if (this%isLineSearch) then
       call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+      if (isQNDisp) then
+        this%maxDisp = maxDisp
+      end if
     end if
 
   end subroutine TLbfgs_init
@@ -270,7 +280,7 @@ contains
     !> True, if gradient got below the specified tolerance.
     logical,  intent(out) :: tConverged
 
-    real(dp) :: dxTemp(this%nElem)
+    real(dp) :: dxTemp(this%nElem), dxMax
     logical :: tLineConverged
 
     @:ASSERT(size(xNew) == this%nElem)
@@ -305,6 +315,12 @@ contains
       call this%lineSearch%reset(this%xx, this%dir, this%alpha)
       call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
     else
+      if (this%maxDisp > 0.0_dp) then
+        dxMax = maxval(abs(this%dir))
+        if (dxMax > this%maxDisp) then
+          this%dir(:) = this%dir * this%maxDisp / dxMax
+        end if
+      end if
       this%xx(:) = this%xx + this%dir
     end if
 

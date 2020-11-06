@@ -387,6 +387,8 @@ contains
     ! range of default atoms to move
     character(mc) :: atomsRange
 
+    logical :: isMaxStepNeeded
+
     atomsRange = "1:-1"
   #:if WITH_TRANSPORT
     if (transpar%defined) then
@@ -582,6 +584,12 @@ contains
 
       call getChildValue(node, "LineSearch", ctrl%lbfgsInp%isLineSearch, .false.)
 
+      isMaxStepNeeded = .not. ctrl%lbfgsInp%isLineSearch
+      if (.not.ctrl%lbfgsInp%isLineSearch) then
+        call getChildValue(node, "setMaxStep", ctrl%lbfgsInp%isLineSearch, isMaxStepNeeded)
+        ctrl%lbfgsInp%MaxQNStep = isMaxStepNeeded
+      end if
+
       call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
       if (ctrl%tLatOpt) then
         call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
@@ -592,7 +600,7 @@ contains
         else
           call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
         end if
-        if (ctrl%lbfgsInp%isLineSearch) then
+        if (isMaxStepNeeded) then
           call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
         end if
       end if
@@ -603,7 +611,7 @@ contains
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      if (ctrl%tCoordOpt.and.ctrl%lbfgsInp%isLineSearch) then
+      if (ctrl%tCoordOpt.and.isMaxStepNeeded) then
         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
       call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, modifier=modifier,&
