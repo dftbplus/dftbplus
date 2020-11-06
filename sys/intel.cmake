@@ -53,6 +53,11 @@ set(C_FLAGS_DEBUG "-g -Wall"
 # External libraries
 #
 
+# NOTE: Libraries with CMake export files (e.g. ELSI and if the HYBRID_CONFIG_METHODS variable
+# contains the "Find" method also libNEGF, libMBD, ScalapackFx and MpiFx) are included by searching
+# for the export file in the paths defined in the CMAKE_PREFIX_PATH **environment** variable. Make
+# sure your CMAKE_PREFIX_PATH variable is set up accordingly.
+
 # LAPACK and BLAS
 if(WITH_OMP)
   set(LAPACK_LIBRARY "mkl_intel_lp64;mkl_intel_thread;mkl_core" CACHE STRING
@@ -75,13 +80,9 @@ set(SCALAPACK_LIBRARY "mkl_scalapack_lp64;mkl_blacs_intelmpi_lp64" CACHE STRING
 set(SCALAPACK_LIBRARY_DIR "$ENV{MKLROOT}/lib/intel64" CACHE STRING
   "Directories where Scalapack libraries can be found")
 
-# Note: The libraries below provide CMake and/or Pkg-Conf export files.
-# If your CMAKE_PREFIX_PATH and PKG_CONFIG_PATH environment variables are set up correctly
-# (containing the paths to these libraries), no adjustment should be necessary below.
-
-# ELSI -- only needed when compiled with ELSI support
-# 
-#set(ELSI_ROOT "" CACHE STRING "Root directory of the ELSI installation")
+# NOTE: The libraries below provide Pkg-Conf export files.  If your PKG_CONFIG_PATH environment
+# variable has been set up correctly (containing the paths to these libraries), no adjustment should
+# be necessary below.
 
 # PLUMED -- only needed when compiled with PLUMED support
 #set(PLUMED_LIBRARY "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")

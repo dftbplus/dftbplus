@@ -26,7 +26,8 @@ module dftbp_parser
   use dftbp_oldcompat
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling
+  use dftbp_periodic, only : getCellTranslations, updateNeighbourList
   use dftbp_coordnumber
   use dftbp_dispersions
   use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -99,6 +100,18 @@ module dftbp_parser
   end type TParserFlags
 
 
+  !> Mapping between input version and parser version
+  type :: TVersionMap
+    character(10) :: inputVersion
+    integer :: parserVersion
+  end type TVersionMap
+
+  !> Actual input version - parser version maps (must be updated at every public release)
+  type(TVersionMap), parameter :: versionMaps(5) = [&
+      & TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
+      & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+
 contains
 
   !> Reads the HSD input from a file
@@ -128,33 +141,18 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
-    logical :: hasInputVersion, tReadAnalysis
-    integer :: inputVersion
-    type(string) :: versionString
+    logical :: tReadAnalysis
+    integer, allocatable :: implicitParserVersion
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") repeat("-", 80)
 
     call getChild(hsdTree, rootTag, root)
 
-    call getChild(root, "InputVersion", child, requested=.false.)
-    hasInputVersion = associated(child)
-    if (hasInputVersion) then
-      call getChildValue(child, "", versionString)
-      call getParserVersion(child, unquote(char(versionString)), inputVersion)
-      if (inputVersion /= parserVersion) then
-        call removeChildNodes(child)
-        call destroyNode(child)
-      end if
-    end if
-    ! Handle parser options
+    call handleInputVersion(root, implicitParserVersion)
     call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
-    if (hasInputVersion) then
-      call readParserOptions(child, root, parserFlags, inputVersion)
-    else
-      call readParserOptions(child, root, parserFlags)
-    end if
+    call readParserOptions(child, root, parserFlags, implicitParserVersion)
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
@@ -263,6 +261,29 @@ contains
   end subroutine parseHsdTree
 
 
+  !> Converts input version to parser version and removes InputVersion node if present.
+  subroutine handleInputVersion(root, implicitParserVersion)
+
+    !> Root eventually containing InputVersion
+    type(fnode), pointer, intent(in) :: root
+
+    !> Parser version corresponding to input version, or unallocated if none has been found
+    integer, allocatable, intent(out) :: implicitParserVersion
+
+    type(fnode), pointer :: child, dummy
+    type(string) :: versionString
+
+    call getChild(root, "InputVersion", child, requested=.false.)
+    if (associated(child)) then
+      call getChildValue(child, "", versionString)
+      implicitParserVersion = parserVersionFromInputVersion(unquote(char(versionString)), child)
+      dummy => removeChild(root, child)
+      call destroyNode(dummy)
+    end if
+
+  end subroutine handleInputVersion
+
+
   !> Read in parser options (options not passed to the main code)
   subroutine readParserOptions(node, root, flags, implicitVersion)
 
@@ -301,8 +322,8 @@ contains
           &"Sorry, no compatibility mode for parser version " &
           &// i2c(inputVersion) // " (too old)")
     elseif (inputVersion /= parserVersion) then
-      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
-          &inputVersion, " to version ", parserVersion, " ..."
+      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from parser version ", &
+          &inputVersion, " to parser version ", parserVersion, " ..."
       call convertOldHSD(root, inputVersion, parserVersion)
       write(stdout, "(A,/)") "***  Done."
     end if
@@ -3853,7 +3874,7 @@ contains
         cellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
         rCellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
       end if
-      call init(neighs, geo%nAtom, 10)
+      call TNeighbourlist_init(neighs, geo%nAtom, 10)
       if (geo%tPeriodic) then
         ! Make some guess for the nr. of all interacting atoms
         nAllAtom = int((real(geo%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
@@ -4369,18 +4390,18 @@ contains
     type(fnode), pointer :: child
 
     input%method = 'ts'
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
-        & child=child)
+    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, default=(input%ts_ene_acc),&
+        & modifier=buffer, child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer,&
-        & child=child)
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, default=(input%ts_f_acc),&
+        & modifier=buffer, child=child)
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
-    call getChildValue(node, "Damping", input%ts_d, input%ts_d)
-    call getChildValue(node, "RangeSeparation", input%ts_sr, input%ts_sr)
+    call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
+    call getChildValue(node, "RangeSeparation", input%ts_sr, default=(input%ts_sr))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
-    call getChildValue(node, "LogLevel", input%log_level, input%log_level)
+    call getChildValue(node, "LogLevel", input%log_level, default=(input%log_level))
   end subroutine readDispTs
 
 
@@ -4398,13 +4419,14 @@ contains
 
     input%method = 'mbd-rsscs'
     call getChildValue(node, "Beta", input%mbd_beta, input%mbd_beta)
-    call getChildValue(node, "NOmegaGrid", input%n_omega_grid, input%n_omega_grid)
+    call getChildValue(node, "NOmegaGrid", input%n_omega_grid, default=(input%n_omega_grid))
     call getChildValue(node, "KGrid", input%k_grid)
-    call getChildValue(node, "KGridShift", input%k_grid_shift, input%k_grid_shift)
+    call getChildValue(node, "KGridShift", input%k_grid_shift, default=(input%k_grid_shift))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
-    call getChildValue(node, "LogLevel", input%log_level, input%log_level)
+    call getChildValue(node, "LogLevel", input%log_level, default=(input%log_level))
+
   end subroutine readDispMbd
 
 
@@ -6510,12 +6532,12 @@ contains
 
       call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
           & tShellResInRegion, regionLabelPrefixes)
-    
+
       if (allocated(iAtInRegion)) then
         call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
             & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
             & tundos%dosLabels)
-      end if   
+      end if
 
   end subroutine readTunAndDos
 
@@ -6782,7 +6804,7 @@ contains
         nReg = getLength(children)
       else
         return
-      end if    
+      end if
     end if
 
     allocate(tShellResInRegion(nReg))
@@ -7456,28 +7478,29 @@ contains
   end subroutine readSpinTuning
 
 
-  subroutine getParserVersion(node, versionString, parserVersion)
-    type(fnode), pointer :: node
+  !> Returns parser version for a given input version or throws an error if not possible.
+  function parserVersionFromInputVersion(versionString, node) result(parserVersion)
+
+    !> Input version string
     character(len=*), intent(in) :: versionString
-    integer, intent(out) :: parserVersion
 
-    select case(trim(versionString))
-    ! upcoming release
-    !case("20.2")
-      !parserVersion = 9
-    case("20.1")
-      parserVersion = 8
-    case("19.1")
-      parserVersion = 7
-    case("18.2")
-      parserVersion = 6
-    case("17.1", "18.1")
-      parserVersion = 5
-    case default
-      call detailedError(node, "Program version '"//trim(versionString)// &
-        & "' is not recognized")
-    end select
+    !> Input version node (needed for error messagess)
+    type(fnode), pointer :: node
 
-  end subroutine getParserVersion
+    !> Corresponding parser version.
+    integer :: parserVersion
+
+    integer :: ii
+
+    do ii = 1, size(versionMaps)
+      if (versionMaps(ii)%inputVersion == versionString) then
+        parserVersion = versionMaps(ii)%parserVersion
+        return
+      end if
+    end do
+
+    call detailedError(node, "Program version '"// trim(versionString) // "' is not recognized")
+
+  end function parserVersionFromInputVersion
 
 end module dftbp_parser

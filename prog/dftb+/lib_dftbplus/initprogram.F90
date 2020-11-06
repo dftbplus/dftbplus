@@ -28,7 +28,8 @@ module dftbp_initprogram
   use dftbp_elsiiface
   use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
+  use dftbp_periodic, only : getCellTranslations
   use dftbp_accuracy
   use dftbp_intrinsicpr
   use dftbp_shortgamma
@@ -2449,7 +2450,7 @@ contains
 
     ! Initialize neighbourlist.
     allocate(neighbourList)
-    call init(neighbourList, nAtom, nInitNeighbour)
+    call TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
     if (isRangeSep) then
@@ -3333,10 +3334,6 @@ contains
     if (isLinResp) then
       if (tDFTBU) then
         call error("Linear response is not compatible with Orbitally dependant functionals yet")
-      end if
-
-      if (tForces .and. nSpin > 1) then
-        call error("Linear response is not available for spin polarised forces yet")
       end if
 
       if (t2Component) then
@@ -5341,10 +5338,6 @@ contains
       call error("Linear reponse does not work with non-colinear spin polarization yet")
     end if
 
-    if (tSpin .and. tCasidaForces) then
-      call error("excited state forces are not implemented yet for spin-polarized systems")
-    end if
-
     if (tSpinOrbit) then
       call error("Linear response does not support spin orbit coupling at the moment.")
     end if
@@ -5355,7 +5348,7 @@ contains
       call error("Linear response does not support shell resolved scc yet")
     end if
 
-    if (tempElec > 0.0_dp .and. tCasidaForces) then
+    if (tempElec > minTemp .and. tCasidaForces) then
       write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
           & occupations, kT=", tempElec/Boltzmann,"K"
       call warning(tmpStr)

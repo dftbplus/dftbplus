@@ -15,8 +15,8 @@ dftbp_setup_build_type()
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
 
-# Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
-if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+# CMake has difficulties linking C-executables against NAG-compiled Fortran libraries
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
   set(WITH_C_EXECUTABLES FALSE)
 else()
   set(WITH_C_EXECUTABLES TRUE)
@@ -67,7 +67,7 @@ set(PKG_CONFIG_LIBS_PRIVATE)
 
 if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
-  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED PATHS ${ELSI_ROOT})
+  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED)
   list(APPEND PKG_CONFIG_REQUIRES elsi)
 
   if(TARGET elsi::pexsi)
@@ -150,24 +150,36 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+# Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+
 if(WITH_MPI)
+  set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
+  set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
-    external/mpifx "${exclude}")
+    external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
+  
+  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+  set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
-    "QUIET" external/scalapackfx "${exclude}")
+    "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
+    "${SCALAPACKFX_GIT_TAG}")
   list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
+  set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
+  set(MBD_GIT_TAG "4862bbd9b181956d3280acd9a04ea18799783cfb")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
-    "${exclude}")
+    "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
 endif()
 
 if(WITH_TRANSPORT)
+  set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
+  set(LIBNEGF_GIT_TAG "3b9a727868182002d7570d2676aaf9bccb299bcc")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
-    external/libnegf "${exclude}")
+    external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)
