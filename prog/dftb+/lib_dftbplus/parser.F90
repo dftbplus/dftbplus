@@ -585,7 +585,7 @@ contains
       call getChildValue(node, "LineSearch", ctrl%lbfgsInp%isLineSearch, .false.)
 
       isMaxStepNeeded = .not. ctrl%lbfgsInp%isLineSearch
-      if (.not.ctrl%lbfgsInp%isLineSearch) then
+      if (isMaxStepNeeded) then
         call getChildValue(node, "setMaxStep", ctrl%lbfgsInp%isLineSearch, isMaxStepNeeded)
         ctrl%lbfgsInp%MaxQNStep = isMaxStepNeeded
       end if

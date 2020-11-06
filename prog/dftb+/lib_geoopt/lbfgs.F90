@@ -250,9 +250,12 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
+    this%isLineSearch = isLineSearch
+
     this%maxDisp = -1.0_dp
     if (this%isLineSearch) then
       call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+    else
       if (isQNDisp) then
         this%maxDisp = maxDisp
       end if
