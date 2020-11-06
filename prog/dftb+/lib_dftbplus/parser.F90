@@ -577,6 +577,9 @@ contains
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
 
+      allocate(ctrl%lbfgsInp)
+      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
+
       call getChildValue(node, "LineSearch", ctrl%lbfgsInp%isLineSearch, .false.)
 
       call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
@@ -622,8 +625,6 @@ contains
       end if
       ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
-      allocate(ctrl%lbfgsInp)
-      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
