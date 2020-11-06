@@ -15,7 +15,7 @@ dftbp_setup_build_type()
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
 
-# CMake has difficulties to link C-executables with NAG-compiled Fortran libraries
+# CMake has difficulties linking C-executables against NAG-compiled Fortran libraries
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
   set(WITH_C_EXECUTABLES FALSE)
 else()
