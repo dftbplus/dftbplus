@@ -407,6 +407,8 @@ contains
     ! range of default atoms to move
     character(mc) :: atomsRange
 
+    logical :: isMaxStepNeeded
+
     atomsRange = "1:-1"
   #:if WITH_TRANSPORT
     if (transpar%defined) then
@@ -596,33 +598,44 @@ contains
 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
+
+      allocate(ctrl%lbfgsInp)
+      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
+
+      call getChildValue(node, "LineSearch", ctrl%lbfgsInp%isLineSearch, .false.)
+
+      isMaxStepNeeded = .not. ctrl%lbfgsInp%isLineSearch
+      if (isMaxStepNeeded) then
+        call getChildValue(node, "setMaxStep", ctrl%lbfgsInp%isLineSearch, isMaxStepNeeded)
+        ctrl%lbfgsInp%MaxQNStep = isMaxStepNeeded
+      end if
+
       call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
       if (ctrl%tLatOpt) then
-        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), pressureUnits, child, &
-            & ctrl%pressure)
+        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
+        call convertByMul(char(modifier), pressureUnits, child, ctrl%pressure)
         call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
         if (ctrl%tLatOptFixAng) then
-          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-              & (/.false.,.false.,.false./))
+          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, [.false.,.false.,.false.])
         else
           call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
         end if
-        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
+        if (isMaxStepNeeded) then
+          call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
+        end if
       end if
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child,&
+          & multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
           & ctrl%indMovedAtom)
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
-      if (ctrl%tCoordOpt) then
+      if (ctrl%tCoordOpt.and.isMaxStepNeeded) then
         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
-      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-          &modifier=modifier, child=field)
+      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, modifier=modifier,&
+          & child=field)
       call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
       call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
@@ -632,18 +645,14 @@ contains
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
-          call error("Lattice optimisation and constraints currently&
-              & incompatible.")
+          call error("Lattice optimisation and constraints currently incompatible.")
         end if
         if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-          call error("Subset of optimising atoms not currently possible with&
-              & lattice optimisation.")
+          call error("Subset of optimising atoms not currently possible with lattice optimisation.")
         end if
       end if
       ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
-      allocate(ctrl%lbfgsInp)
-      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented

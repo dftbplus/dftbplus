@@ -7,30 +7,17 @@ Geometry = GenFormat {
 }
 
 Driver = Lbfgs {
-  MovedAtoms = 1:3
-  MaxForceComponent = 1.000000000000000E-008  # Extremely small!
-  MaxSteps = 100
-  OutputPrefix = "geom.out"
-  LineSearch = Yes
+  MaxForceComponent = 1.0E-8 # Extremely small!
+  SetMaxStep = Yes
+  MaxAtomStep = 0.1
 }
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.0E-010  # Extremely small!
-  MaxSCCIterations = 1000
-  Mixer = Anderson {
-    MixingParameter = 5.000000000000000E-002
-    Generations = 8
-  }
+  SCCTolerance = 1.0E-10 # Extremely small!
   MaxAngularMomentum = {
     O = "p"
     H = "s"
-  }
-  Charge = 0.000000000000000E+000
-  SpinPolarisation = {}
-  Eigensolver = Standard {}
-  Filling = Fermi {
-    Temperature [Kelvin] = 1.000000000000000E-008
   }
   SlaterKosterFiles = {
     O-O = "O-O.skf"
@@ -38,7 +25,6 @@ Hamiltonian = DFTB {
     H-O = "O-H.skf"
     H-H = "H-H.skf"
   }
-  ReadInitialCharges = No
 }
 
 Options = {
@@ -46,7 +32,7 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 4
+  ParserVersion = 8
 }
 
 Parallel {
@@ -54,4 +40,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-
