@@ -6,60 +6,15 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Converts DFTB+ gen format to CIF.'''
+
+'''Command line wrapper for gen2cif'''
 
 import sys
-import optparse
-import numpy as np
-from dptools.gen import Gen
-from dptools.cif import Cif
+from dptools.scripts.common import ScriptError
+import dptools.scripts.gen2cif as gen2cif
 
-USAGE = """usage: %prog [options] INPUT
-
-Converts the given INPUT file in DFTB+ GEN format to CIF. Per default, if the
-filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.cif,
-otherwise in INPUT.cif. Since the GEN format does not contain any symmetry
-information, the symmetry is set to P1 in the CIF file. If the GEN format
-contains a non-periodic geometry, the lattice in the CIF format is set to
-simple cubic.
-"""
-
-def main():
-    '''Main driver for gencif.'''
-
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-o", "--output", action="store", dest="output",
-                      help="override the name of the output file (use '-' for "
-                      "standard out")
-    parser.add_option("-c", "--cellsize", action="store", dest="cellsize",
-                      type=float, default=100.0, help="lattice constant "
-                      "for the simple cubic cell created for non-periodic "
-                      " geometries (default: 100)")
-
-    (options, args) = parser.parse_args()
-
-    if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
-    infile = args[0]
-
-    gen = Gen.fromfile(infile)
-    geometry = gen.geometry
-    if not geometry.periodic:
-        geometry.setlattice(options.cellsize * np.eye(3))
-    cif = Cif(gen.geometry)
-
-    if options.output:
-        if options.output == "-":
-            outfile = sys.stdout
-        else:
-            outfile = options.output
-    else:
-        if infile.endswith(".gen"):
-            outfile = infile[:-4] + ".cif"
-        else:
-            outfile = infile + ".cif"
-    cif.tofile(outfile)
-
-
-if __name__ == "__main__":
-    main()
+try:
+    gen2cif.main()
+except ScriptError as exc:
+    sys.stderr.write('ScriptError: ' + str(exc) + '\n')
+    sys.exit(1)

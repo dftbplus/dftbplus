@@ -384,11 +384,10 @@ contains
     !> How often the grid should be repeated along the direction of the grid vectors
     integer, intent(in), optional :: repeatBox(:)
 
-    integer, parameter :: bufferSize = 4
+    integer, parameter :: bufferSize = 6
     real(dp) :: buffer(bufferSize)
-    character(len=*), parameter :: formBuffer = "(4E18.10)"
+    character(len=*), parameter :: formBuffer = "(6E16.8)"
     integer :: rep(3)
-
     integer, save :: fd = -1
     integer :: ii, i1, i2, i3, ir1, ir2, ir3
 
@@ -424,12 +423,12 @@ contains
       write (fd, "(A)") "Made by waveplot"
       write (fd, *)
     end if
-    write (fd,"(I10,3E18.10)") geo%nAtom, origin(:)
-    write (fd,"(I10,3E18.10)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
-    write (fd,"(I10,3E18.10)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
-    write (fd,"(I10,3E18.10)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
+    write (fd,"(I5,3F12.6)") geo%nAtom, origin(:)
+    write (fd,"(I5,3F12.6)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
+    write (fd,"(I5,3F12.6)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
+    write (fd,"(I5,3F12.6)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
     do ii = 1, geo%nAtom
-      write (fd, "(I4,4E18.10)") atomicNumbers(geo%species(ii)), 0.0_dp, &
+      write (fd, "(I5,4F12.6)") atomicNumbers(geo%species(ii)), 0.0_dp, &
           &geo%coords(:, ii)
     end do
 
@@ -442,11 +441,11 @@ contains
                 ii = mod(i3-1, bufferSize) + 1
                 buffer(ii) = gridVal(i1, i2, i3)
                 if (ii == bufferSize) then
-                  write (fd,formBuffer) buffer(:)
+                  write (fd,formBuffer) real(buffer)
                 end if
               end do
               if (ii /= bufferSize) then
-                write (fd, "(" // i2c(ii) // "E18.10)") buffer(:ii)
+                write (fd, "(" // i2c(ii) // "E16.8)") real(buffer(:ii))
               end if
             end do
           end do
