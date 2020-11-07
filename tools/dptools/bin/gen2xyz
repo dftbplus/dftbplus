@@ -1,64 +1,20 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Convert DFTB+ gen format to XYZ.'''
+
+'''Command line wrapper for gen2xyz'''
 
 import sys
-import optparse
-from dptools.gen import Gen
-from dptools.xyz import Xyz
+from dptools.scripts.common import ScriptError
+import dptools.scripts.gen2xyz as gen2xyz
 
-USAGE = """usage: %prog [options] INPUT
-
-Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default, if the
-filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.xyz,
-otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
-file in a separate file"""
-
-def main():
-    '''Main driver routine for gen2xyz.'''
-
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
-                      help="store lattice vectors in an external file")
-    parser.add_option("-o", "--output", action="store", dest="output",
-                      help="override the name of the output file (use '-' for "
-                      "standard output)")
-    parser.add_option("-c", "--comment", action="store", dest="comment",
-                      default="", help="comment for the second line of the "
-                      "xyz-file")
-    (options, args) = parser.parse_args()
-
-
-    if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
-    infile = args[0]
-
-    gen = Gen.fromfile(infile)
-    xyz = Xyz(gen.geometry, options.comment)
-    if options.output:
-        if options.output == "-":
-            outfile = sys.stdout
-        else:
-            outfile = options.output
-    else:
-        if infile.endswith(".gen"):
-            outfile = infile[:-4] + ".xyz"
-        else:
-            outfile = infile + ".xyz"
-    xyz.tofile(outfile)
-
-    if gen.geometry.periodic and options.lattfile:
-        fp = open(options.lattfile, "w")
-        for vec in gen.geometry.latvecs:
-            fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
-        fp.close()
-
-
-if __name__ == "__main__":
-    main()
+try:
+    gen2xyz.main()
+except ScriptError as exc:
+    sys.stderr.write('ScriptError: ' + str(exc) + '\n')
+    sys.exit(1)

@@ -81,6 +81,13 @@ module dftbp_inputdata
   type TLbfgsInput
     !> Number of stored steps
     integer :: memory
+
+    !> Is a line search followed along quasi-Newton directions
+    logical :: isLineSearch
+
+    !> Should the quasi-Newton step be limited?
+    logical :: MaxQNStep
+
   end type TLbfgsInput
 
 
@@ -508,6 +515,17 @@ module dftbp_inputdata
     ! Custom occupations
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
+
+    ! TI-DFTB variables
+
+    !> Non-Aufbau filling
+    logical :: isNonAufbau = .false.
+
+    !> SpinPurify
+    logical :: isSpinPurify = .false.
+
+    !> GroundGuess
+    logical :: isGroundGuess = .false.
 
     !> REKS input
     type(TReksInp) :: reksInp

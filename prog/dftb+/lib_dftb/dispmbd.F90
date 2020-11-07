@@ -21,7 +21,6 @@ module dftbp_dispmbd
   use dftbp_simplealgebra, only: determinant33
   use dftbp_typegeometry, only: TGeometry
   use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
-  use mbd_vdw_param, only: species_index
 
   implicit none
 

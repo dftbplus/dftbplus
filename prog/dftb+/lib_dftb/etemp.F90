@@ -115,9 +115,17 @@ contains
     if (nElectrons < epsilon(1.0_dp)) then
       filling(:,:,:) = 0.0_dp
       Ebs(:) = 0.0_dp
-      Ef = 0.0_dp
+      ! place the Fermi energy well below the lowest eigenvalue
+      Ef = minval(eigenvals) - 1000.0_dp * (kT + epsilon(1.0_rsp))
       TS(:) = 0.0_dp
       E0(:) = 0.0_dp
+      return
+    end if
+
+    if (size(filling,dim=1)*size(filling,dim=3) <= nElectrons) then
+      ! place the Fermi energy well above the highest eigenvalue, as nOrbs * spin <= nElec
+      Ef = maxval(eigenvals) + 1000.0_dp * (kT + epsilon(1.0_rsp))
+      call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
       return
     end if
 
@@ -276,13 +284,13 @@ contains
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x <= mExpArg) then
               electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
             end if
-#:else
+          #:else
             electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-#:endif
+          #:endif
           end do
         end do
       end do
@@ -332,15 +340,15 @@ contains
             if (x<10.0_dp) then
               ! Where the compiler does not handle inf gracefully, trap the exponential function for
               ! small input values
-#:if EXP_TRAP
+            #:if EXP_TRAP
               if (x <= mExpArg) then
                 derivElectronCount = derivElectronCount + &
                     & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
               end if
-#:else
+            #:else
               derivElectronCount = derivElectronCount + &
                   & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-#:endif
+            #:endif
             end if
           end do
         end do
@@ -457,15 +465,15 @@ contains
             x = (eigenvals(j, i, iSpin) - Ef) / kT
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small values
-#:if EXP_TRAP
+          #:if EXP_TRAP
             if (x > mExpArg) then
               filling(j, i, iSpin) = 0.0_dp
             else
               filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
             endif
-#:else
+          #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-#:endif
+          #:endif
             if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if

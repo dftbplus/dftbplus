@@ -1,66 +1,20 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Converts XYZ to DFTB+ gen format'''
+
+'''Command line wrapper for xyz2gen'''
 
 import sys
-import optparse
-import numpy as np
-from dptools.gen import Gen
-from dptools.xyz import Xyz
+from dptools.scripts.common import ScriptError
+import dptools.scripts.xyz2gen as xyz2gen
 
-USAGE = """usage: %prog [options] INPUT
-
-Converts the given INPUT file in XYZ format to DFTB+ GEN format. Per default, if
-the filename INPUT is of the form PREFIX.xyz the result is stored in PREFIX.gen,
-otherwise in INPUT.gen. You can additionally specify a file with lattice
-vectors to create a periodic structure in the GEN file."""
-
-def main():
-    '''Main driver routine of xyz2gen.'''
-
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
-                      help="read lattice vectors from an external file")
-    parser.add_option("-o", "--output", action="store", dest="output",
-                      help="override the name of the output file (use '-' for "
-                      "standard out")
-    parser.add_option("-f", "--fractional", action="store_true",
-                      dest="fractional", default=False,
-                      help="store coordinate in fractional format instead of "
-                      "absolute coordinates")
-    (options, args) = parser.parse_args()
-
-    if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
-    infile = args[0]
-
-    xyz = Xyz.fromfile(infile)
-    geo = xyz.geometry
-    if options.lattfile:
-        fp = open(options.lattfile, "r")
-        tmp = np.fromfile(fp, count=9, dtype=float, sep=" ")
-        latvecs = tmp.reshape((3, 3))
-        fp.close()
-        geo.setlattice(latvecs)
-    gen = Gen(geo, fractional=options.fractional)
-
-    if options.output:
-        if options.output == "-":
-            outfile = sys.stdout
-        else:
-            outfile = options.output
-    else:
-        if infile.endswith(".xyz"):
-            outfile = infile[:-4] + ".gen"
-        else:
-            outfile = infile + ".gen"
-    gen.tofile(outfile)
-
-if __name__ == "__main__":
-    main()
+try:
+    xyz2gen.main()
+except ScriptError as exc:
+    sys.stderr.write('ScriptError: ' + str(exc) + '\n')
+    sys.exit(1)

@@ -1,0 +1,68 @@
+@PACKAGE_INIT@
+
+# Global DFTB+ config options
+set(DftbPlus_WITH_OMP @WITH_OMP@)
+set(DftbPlus_WITH_MPI @WITH_MPI@)
+set(DftbPlus_WITH_ELSI @WITH_ELSI@)
+set(DftbPlus_ELSI_WITH_PEXSI @ELSI_WITH_PEXSI@)
+set(DftbPlus_WITH_GPU @WITH_GPU@)
+set(DftbPlus_WITH_TRANSPORT @WITH_TRANSPORT@)
+set(DftbPlus_WITH_SOCKETS @WITH_SOCKETS@)
+set(DftbPlus_WITH_ARPACK @WITH_ARPACK@)
+set(DftbPlus_WITH_DFTD3 @WITH_DFTD3@)
+set(DftbPlus_WITH_MBD @WITH_MBD@)
+set(DftbPlus_WITH_PLUMED @WITH_PLUMED@)
+
+set(DftbPlus_EXTERNAL_LIBRARIES @EXPORTED_EXTERNAL_LIBRARIES@)
+set(DftbPlus_EXTERNAL_LIBRARY_DIRS @EXPORTED_EXTERNAL_LIBRARY_DIRS@)
+
+include(CMakeFindDependencyMacro)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules)
+
+if(NOT TARGET DftbPlus::DftbPlus)
+
+  if(DftbPlus_WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
+    find_dependency(OpenMP)
+  endif()
+  
+  if(NOT TARGET LAPACK::LAPACK)
+    find_dependency(CustomLapack)
+  endif()
+
+  if(DftbPlus_WITH_MPI)
+    if(NOT TARGET ScalapackFx::ScalapackFx)
+      find_dependency(ScalapackFx)
+    endif()
+    if(NOT TARGET MpiFx::MpiFx)
+      find_dependency(MpiFx)
+    endif()
+  endif()
+  
+  if(DftbPlus_WITH_ELSI AND NOT TARGET elsi::elsi)
+    find_dependency(elsi)
+  endif()
+  
+  if(DftbPlus_WITH_GPU AND NOT TARGET Magma::Magma)
+    find_dependency(CustomMagma)
+  endif()
+  
+  if(DftbPlus_WITH_ARPACK AND NOT TARGET Arpack::Arpack)
+    find_dependency(CustomArpack)
+  endif()
+  
+  if(DftbPlus_WITH_PLUMED AND NOT TARGET Plumed::Plumed)
+    find_dependency(CustomPlumed)
+  endif()
+
+  if(DftbPlus_WITH_MBD AND NOT TARGET Mbd::Mbd)
+    find_dependency(Mbd)
+  endif()
+
+  if(DftbPlus_WITH_TRANSPORT AND NOT TARGET Negf::Negf)
+    find_dependency(Negf)
+  endif()
+
+  include("${CMAKE_CURRENT_LIST_DIR}/dftbplus-targets.cmake")
+
+endif()

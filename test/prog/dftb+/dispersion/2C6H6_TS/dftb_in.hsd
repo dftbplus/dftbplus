@@ -45,3 +45,7 @@ Options {
 ParserOptions {
   ParserVersion = 5
 }
+
+Parallel {
+  UseOmpThreads = Yes
+}

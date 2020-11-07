@@ -1,10 +1,13 @@
+# This CMakeLists.txt should be invoked via dftbp_config_hybrid_dependency()!
+
 set(ENABLE_SCALAPACK_MPI ${WITH_MPI})
 set(ENABLE_ELSI ${WITH_ELSI})
 set(ENABLE_C_API OFF)
-set(SCALAPACK_LIBRARIES "")
+set(SCALAPACK_LIBRARIES "${SCALAPACK_LIBRARY}")
 set(MKL_LIBRARIES "")
-set(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_PREFIX}/lib")
-set(CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
-set(INSTALL_EXPORT_NAME dftbplus-targets)
-add_subdirectory(origin/src)
-set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} mbd PARENT_SCOPE)
+set(BUILD_TESTING FALSE)
+
+add_subdirectory(${MBD_SOURCE_DIR} ${MBD_BINARY_DIR})
+
+add_library(Mbd::Mbd INTERFACE IMPORTED GLOBAL)
+target_link_libraries(Mbd::Mbd INTERFACE Mbd)
