@@ -503,7 +503,8 @@ Specific properties for this method are:
 The {\it fast inertial relaxation engine} of Bitzek {\it et
   al.}~\cite{Bitzek-PRL-97-170201}, using the default values from their paper
 and a Leap-frog integrator. This can be faster than conjugate gradient and
-competitive with LBFGS in some cases.
+competitive with LBFGS in some cases, but you should verify if FIRE is stable
+and efficient for your system before using it over other optimisers.
 
 \begin{ptable}
   \kw{TimeStep} & r & & 1.0 & \\
@@ -512,7 +513,7 @@ competitive with LBFGS in some cases.
 Specific properties for this method are:
 \begin{description}
 \item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step size used
-  in the dynamics integrator..
+  in the dynamics integrator.
 \end{description}
 
 \subsection{SecondDerivatives\cb}
