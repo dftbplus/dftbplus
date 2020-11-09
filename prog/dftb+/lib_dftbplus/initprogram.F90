@@ -45,6 +45,7 @@ module dftbp_initprogram
   use dftbp_steepdesc
   use dftbp_gdiis
   use dftbp_lbfgs
+  use dftbp_fire
 
   use dftbp_hamiltoniantypes
 
@@ -1089,11 +1090,17 @@ contains
     !> gradient DIIS driver
     type(TDIIS), allocatable :: pDIIS
 
-    !> lBFGS driver for geometry  optimisation
+    !> lBFGS driver for geometry optimisation
     type(TLbfgs), allocatable :: pLbfgs
 
     !> lBFGS driver for lattice optimisation
     type(TLbfgs), allocatable :: pLbfgsLat
+
+    !> FIRE driver for geometry optimisation
+    type(TFire), allocatable :: pFire
+
+    !> FIRE driver for lattice optimisation
+    type(TFire), allocatable :: pFireLat
 
     ! MD related local variables
     type(TThermostat), allocatable :: pThermostat
@@ -1973,6 +1980,10 @@ contains
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
             & input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoCoordOpt, pLbfgs)
+      case (geoOptTypes%fire)
+        allocate(pFire)
+        call TFire_init(pFire, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaT)
+        call init(pGeoCoordOpt, pFire)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
@@ -1997,6 +2008,10 @@ contains
             & input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
             & input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoLatOpt, pLbfgsLat)
+      case (geoOptTypes%FIRE)
+        allocate(pFireLat)
+        call TFire_init(pFireLat, 9, input%ctrl%maxForce, input%ctrl%deltaT)
+        call init(pGeoLatOpt, pFireLat)
       end select
       if (tLatOptIsotropic ) then
         ! optimization uses scaling factor of unit cell
@@ -2811,6 +2826,8 @@ contains
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
       case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
+      case (geoOptTypes%fire)
+        write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select
