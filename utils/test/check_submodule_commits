@@ -23,27 +23,33 @@ _PAT_SUBMOD_COMMIT = re.compile(
 def main():
     """Main script"""
     args = _parse_arguments()
-    result = subprocess.run(["git", "submodule", "status"], capture_output=True,
-                            check=True)
+    result = subprocess.run(["git", "submodule", "status"],
+                            stdout=subprocess.PIPE, check=True)
     output = result.stdout.decode('ascii')
     allsync = True
+    with open("CMakeLists.txt", "r") as fp:
+        origcontent = fp.read()
+    content = origcontent
     for match in _PAT_SUBMOD_COMMIT.finditer(output):
         commit, submodule = match.groups()
-        cmakefile = os.path.join("external", submodule, "CMakeLists.txt")
-        with open(cmakefile, "r") as fp:
-            content = fp.read()
-        newcontent = _replace_submodule_commit(content, submodule, commit)
+        newcontent, nn = _replace_submodule_commit(content, submodule, commit)
+        if nn < 1:
+            print("! Commit for submodule {} was NOT FOUND".format(submodule))
+            allsync = False
+            continue
         sync = (newcontent == content)
         if sync:
-            print("+ Commit in {} matches submodule commit.".format(cmakefile))
+            print("+ Commit for submodule {} matches.".format(submodule))
         elif args.update:
-            with open(cmakefile, "w") as fp:
-                fp.write(newcontent)
-            print("* Commit in {} had been updated.".format(cmakefile))
+            content = newcontent
+            print("* Commit for submodule {} had been updated."\
+                  .format(submodule))
         else:
-            print("! Commit in {} DOES NOT match submodule commit!"\
-                  .format(cmakefile))
+            print("! Commit for submodule {} DOES NOT MATCH!".format(submodule))
             allsync = False
+    if content != origcontent:
+        with open("CMakeLists.txt", "w") as fp:
+            fp.write(content)
     if not allsync:
         sys.exit(1)
 
@@ -59,11 +65,11 @@ def _parse_arguments():
 def _replace_submodule_commit(content, submodule, commit):
     """Replaces the commit id in the CMakeLists.txt file content"""
     submodule_upper = submodule.upper()
-    newcontent = re.sub(
+    newcontent, nsubs = re.subn(
         r"set\({}_GIT_TAG (['\"]).+\1\)".format(submodule_upper),
         'set({}_GIT_TAG "{}")'.format(submodule_upper, commit),
         content)
-    return newcontent
+    return newcontent, nsubs
 
 
 if __name__ == '__main__':

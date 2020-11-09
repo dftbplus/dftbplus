@@ -13,15 +13,18 @@ import unittest
 import tempfile
 import shutil
 import os.path
+from dptools.gen import Gen
+from dptools.xyz import Xyz
+from dptools.cif import Cif
+from dptools.nxy import Nxy
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:
     from cStringIO import StringIO
-from dptools.gen import Gen
 
 
 def gen_file_equals(current, reference):
-    '''Checks whether a gen file equals to an other one.
+    '''Checks whether contents of a gen file equals another one.
 
     Args:
         current (str): Name of gen file to check.
@@ -31,10 +34,55 @@ def gen_file_equals(current, reference):
     refgen = Gen.fromfile(reference)
     return curgen.equals(refgen)
 
+def xyz_file_equals(current, reference, check_comment=False):
+    '''Checks whether contents of an xyz file equals another one.
+
+    Args:
+        current (str): Name of xyz file to check.
+        reference (str): Name of reference xyz file.
+    '''
+    curxyz = Xyz.fromfile(current)
+    refxyz = Xyz.fromfile(reference)
+    return curxyz.equals(refxyz, check_comment=check_comment)
+
+def cif_file_equals(current, reference):
+    '''Checks whether contents of a cif file equals another one.
+
+    Args:
+        current (str): Name of cif file to check.
+        reference (str): Name of reference cif file.
+    '''
+    curcif = Cif.fromfile(current)
+    refcif = Cif.fromfile(reference)
+    return curcif.equals(refcif)
+
+
+def nxy_file_equals(current, reference):
+    '''Checks whether contents of an nxy file equals another one.
+
+    Args:
+        current (str): Name of nxy file to check.
+        reference (str): Name of reference nxy file.
+    '''
+    curnxy = Nxy.fromfile(current)
+    refnxy = Nxy.fromfile(reference)
+    return curnxy.equals(refnxy)
+
+def get_temporary_filename(directory):
+    '''Creates a temporary file and reads its name
+
+    Args:
+        directory: Path where the temporary file is created
+    '''
+    temp_file = tempfile.NamedTemporaryFile(dir=directory)
+    tempname = temp_file.name
+    temp_file.close()
+    return tempname
+
 
 class TestWithWorkDir(unittest.TestCase):
     '''Base class for tests which need work directory for file output.
-    
+
     You should create test cases which need a work directory (as they write
     during tests) by deriving this class. In the respective setUp() method you
     have to set self.workroot and self.inputdir to the appropriate values and

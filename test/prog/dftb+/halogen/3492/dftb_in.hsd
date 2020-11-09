@@ -2,7 +2,9 @@ Geometry = GenFormat {
     <<< 3492_14bromomethaneformaldehyde.gen
 }
 
-Driver = LBFGS {}
+Driver = LBFGS {
+    LineSearch = Yes
+}
 
 Hamiltonian = DFTB {
     SCC = Yes

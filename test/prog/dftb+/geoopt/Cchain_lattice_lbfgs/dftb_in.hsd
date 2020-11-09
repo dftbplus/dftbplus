@@ -14,6 +14,7 @@ Driver = Lbfgs {
  LatticeOpt = Yes
  FixAngles = Yes
  FixLengths = {No Yes Yes}
+ LineSearch = Yes
 }
 
 Hamiltonian = DFTB {

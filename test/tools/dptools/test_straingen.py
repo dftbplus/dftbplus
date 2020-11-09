@@ -41,12 +41,13 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '--', infile, '-10']
+        cmdargs = ['-o', outfile, infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
     def test_clusterStrainOpt(self):
-        '''Cluster with positive isotropic strain (using default explicit component)'''
+        '''Cluster with positive isotropic strain
+           (using default explicit component)'''
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.isostrain.gen')
         outfile = self.get_output('h2o.isostrain.gen')
@@ -59,7 +60,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '-c', 'I', '--', infile, '-10']
+        cmdargs = ['-o', outfile, '-c', 'I', infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -111,22 +112,6 @@ class StraingenTest(common.TestWithWorkDir):
         outfile = output.get_as_stringio()
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
-    def test_fail_missing_one_argument(self):
-        '''Failing due to missing argument.'''
-        infile = self.get_input('h2o.gen')
-        outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, infile]
-        with self.assertRaises(ScriptError):
-            straingen.main(cmdargs)
-
-    def test_fail_missing_two_arguments(self):
-        '''Failing due to missing argument.'''
-        infile = self.get_input('h2o.gen')
-        outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile]
-        with self.assertRaises(ScriptError):
-            straingen.main(cmdargs)
-
     def test_fail_invalid_option(self):
         '''Failing due to invalid option argument'''
         infile = self.get_input('h2o.gen')
@@ -135,11 +120,12 @@ class StraingenTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 
-    def test_fail_superfluous_arguments(self):
-        '''Failing due to superfluous arguments.'''
-        infile = self.get_input('h2o.gen')
-        outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, infile, '10', 'something']
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
+        tempname = common.get_temporary_filename(self.workroot)
+        nonexisting_infile = os.path.join(self.workdir, tempname)
+        outfile = self.get_output('h2o.noinfile.gen')
+        cmdargs = ['-o', outfile, nonexisting_infile, '10']
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 

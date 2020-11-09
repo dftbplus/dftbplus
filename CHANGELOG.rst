@@ -26,6 +26,8 @@ Changed
 
 - Re-enabled (collinear) spin polarization in transport
 
+- Option to take quasi-Newton steps in lBFGS (set as default)
+  
 Fixed
 -----
 

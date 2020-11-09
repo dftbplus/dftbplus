@@ -94,16 +94,21 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 #
 # Advanced options (e.g. for developers and packagers)
 #
+
+#set(TOOLCHAIN "gnu" CACHE STRING "Prefix of the toolchain file to be read from the sys/ folder")
+# Uncomment and set it if you want to override the automatic, compiler based toolchain file
+# selection.
+
+
 set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
   "Configuration methods to try in order to satisfy hybrid dependencies")
 #
-# This list can be used to control how hybrid dependencies (external dependencies which can be built
-# during the build process) are configured.  The methods are applied in the order of their
-# appearance. Possible methods are:
+# This list can be used to control how hybrid dependencies (external dependencies which can
+# optionally be built during the build process) are configured. The listed methods are applied in
+# the following order:
 #
-# Submodule - Retrieve the dependency via git-submodule into the DFTB+ source tree (works only
-#     if the DFTB+ source tree is Git repository)
-# Find - Find the dependency as an already installed package in the system
-# Fetch - Fetch the source (from the appropriate Git reporitory) into the build folder (works also
-#     in cases where the source tree is not a Git repository)
-#
+# Submodule: Retrieve the dependency via git-submodule into the DFTB+ source tree (works only if the
+#     DFTB+ source tree is Git repository)
+# Find: Find the dependency as an already installed package in the system
+# Fetch: Fetch the source into the build folder (works also in cases where the source tree is not a
+#     Git repository)

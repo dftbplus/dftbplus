@@ -59,6 +59,11 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 # External libraries
 #
 
+# NOTE: Libraries with CMake export files (e.g. ELSI and if the HYBRID_CONFIG_METHODS variable
+# contains the "Find" method also libNEGF, libMBD, ScalapackFx and MpiFx) are included by searching
+# for the export file in the paths defined in the CMAKE_PREFIX_PATH **environment** variable. Make
+# sure your CMAKE_PREFIX_PATH variable is set up accordingly.
+
 # LAPACK and BLAS
 #set(LAPACK_LIBRARY "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING
@@ -72,13 +77,9 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 #set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
 #set(SCALAPACK_LIBRARY_DIR "" CACHE STRING "Directories where Scalapack libraries can be found")
 
-# Note: The libraries below provide CMake and/or Pkg-Conf export files.
-# If your CMAKE_PREFIX_PATH and PKG_CONFIG_PATH environment variables are set up correctly
-# (containing the paths to these libraries), no adjustment should be necessary below.
-
-# ELSI -- only needed when compiled with ELSI support
-# 
-#set(ELSI_ROOT "" CACHE STRING "Root directory of the ELSI installation")
+# NOTE: The libraries below provide Pkg-Conf export files.  If your PKG_CONFIG_PATH environment
+# variable has been set up correctly (containing the paths to these libraries), no adjustment should
+# be necessary below.
 
 # PLUMED -- only needed when compiled with PLUMED support
 #set(PLUMED_LIBRARY "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")

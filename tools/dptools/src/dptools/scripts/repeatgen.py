@@ -9,17 +9,17 @@
 '''Repeats a geometry along supercell vectors'''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from dptools.gen import Gen
 from dptools.geometry import Geometry
 from dptools.scripts.common import ScriptError
 
-USAGE = '''usage: %prog [options] INPUT N1 N2 N3
-
-Repeats the geometry found in INPUT along each supercell vector N1, N2
-and N3 times, respectively and writes the resulting geometry to
-standard output'''
+USAGE = '''
+Repeats the geometry found in INPUT along each supercell vector N1,
+N2 and N3 times, respectively and writes the resulting geometry to standard
+output
+'''
 
 
 def main(cmdlineargs=None):
@@ -29,8 +29,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, repeats, options = parse_cmdline_args(cmdlineargs)
-    repeatgen(infile, repeats, options)
+    args = parse_cmdline_args(cmdlineargs)
+    repeatgen(args)
 
 
 def parse_cmdline_args(cmdlineargs=None):
@@ -40,50 +40,51 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = optparse.OptionParser(usage=USAGE)
+    parser = argparse.ArgumentParser(description=USAGE)
     msg = 'file containing lattice vectors (overrides lattice vectors'\
           ' in the geometry file)'
-    parser.add_option(
+    parser.add_argument(
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
-    parser.add_option('-o', '--output', action='store', default='-', help=msg)
-    options, args = parser.parse_args(cmdlineargs)
+    parser.add_argument('-o', '--output', action='store', default='-', help=msg)
+    msg = 'input file name'
+    parser.add_argument("infile", metavar="INPUT", help=msg)
+    msg = 'repetition along the first lattice vector'
+    parser.add_argument('n1', type=int, metavar="N1", help=msg)
+    msg = 'repetition along the second lattice vector'
+    parser.add_argument('n2', type=int, metavar="N2", help=msg)
+    msg = 'repetition along the third lattice vector'
+    parser.add_argument('n3', type=int, metavar="N3", help=msg)
 
-    if len(args) != 4:
-        raise ScriptError('Incorrect number of arguments')
-    infile = args[0]
-    reps = []
-    for repstr in args[1:4]:
-        try:
-            reps.append(int(repstr))
-        except ValueError:
-            msg = "Invalid repetition number '" + repstr + "'."
-            raise ScriptError(msg)
-    if not (reps[0] > 0 and reps[1] > 0 and reps[2] > 0):
+    args = parser.parse_args(cmdlineargs)
+
+    if not (args.n1 > 0 and args.n2 > 0 and args.n3 > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
 
-    return infile, (reps[0], reps[1], reps[2]), options
+    return args
 
 
-def repeatgen(infile, repeats, options):
+def repeatgen(args):
     '''Repeats geometry from gen files.
 
     Args:
-        infile: File containing the gen-formatted geometry.
-        repeats: (n1, n2, n3) integer tuple containing the repetitions along
-            each lattice vector.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.infile
+    repeats = [args.n1, args.n2, args.n3]
 
-    gen = Gen.fromfile(infile)
+    try:
+        gen = Gen.fromfile(infile)
+    except OSError:
+        raise ScriptError('You must enter a valid path to the input file.')
     geo = gen.geometry
 
     latvecs = geo.latvecs
-    if options.latticefile:
-        latvecs = np.fromfile(options.latticefile, sep=' ')
+    if args.latticefile:
+        latvecs = np.fromfile(args.latticefile, sep=' ')
         if len(latvecs) != 9:
             msg = ('Invalid number of lattice vector components in '
-                   + options.latticefile)
+                   + args.latticefile)
             raise ScriptError(msg)
         latvecs.shape = (3, 3)
 
@@ -93,7 +94,7 @@ def repeatgen(infile, repeats, options):
 
     newgeo = _repeatgeo(geo, latvecs, repeats)
     newgen = Gen(newgeo, gen.fractional)
-    outfile = options.output
+    outfile = args.output
     if outfile == '-':
         outfile = sys.stdout
     newgen.tofile(outfile)

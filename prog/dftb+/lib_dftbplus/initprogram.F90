@@ -28,7 +28,8 @@ module dftbp_initprogram
   use dftbp_elsiiface
   use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
+  use dftbp_periodic, only : getCellTranslations
   use dftbp_accuracy
   use dftbp_intrinsicpr
   use dftbp_shortgamma
@@ -1976,7 +1977,8 @@ contains
       case (geoOptTypes%lbfgs)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
-            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
+            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
+            & input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoCoordOpt, pLbfgs)
       case (geoOptTypes%fire)
         allocate(pFire)
@@ -2003,7 +2005,8 @@ contains
       case (geoOptTypes%LBFGS)
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
-            & input%ctrl%lbfgsInp%memory)
+            & input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
+            & input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoLatOpt, pLbfgsLat)
       case (geoOptTypes%FIRE)
         allocate(pFireLat)
@@ -2464,7 +2467,7 @@ contains
 
     ! Initialize neighbourlist.
     allocate(neighbourList)
-    call init(neighbourList, nAtom, nInitNeighbour)
+    call TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
     if (isRangeSep) then
