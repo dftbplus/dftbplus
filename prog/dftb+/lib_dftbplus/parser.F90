@@ -485,8 +485,6 @@ contains
       #:else
       call commonGeoOptions(node, ctrl, geom, ctrl%lbfgsInp%isLineSearch)
       #:endif
-      allocate(ctrl%lbfgsInp)
-      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
     case ("fire")
 
