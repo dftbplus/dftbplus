@@ -20,13 +20,14 @@ module dftbp_lbfgs
   use dftbp_accuracy
   use dftbp_assert
   use dftbp_message
+  use dftbp_linemin, only : TLineMin, TLineMin_init
   implicit none
   private
 
   public :: TLbfgs, TLbfgs_init
 
 
-  !> Holds data for the line minimalizer used by this implementation
+  !> Holds data for the original line minimalizer used in this implementation
   type TLineSearch
     private
 
@@ -63,7 +64,7 @@ module dftbp_lbfgs
     !> line search position on the high side
     real(dp) :: alphaHi
 
-    !> line search position on the low side of the gradient
+    !>> line search position on the low side of the gradient
     real(dp) :: alphaLo
 
     !> phi(alpha) = f(x + alpha*d0)
@@ -139,7 +140,13 @@ module dftbp_lbfgs
     !> Is a line search used
     logical :: isLineSearch
 
+    !> Is the original line search used
+    logical :: isOldLSUsed
+
     !> line minimizer
+    type(TLineMin) :: lineMin
+
+    !> original internal line search
     type(TLineSearch) :: lineSearch
 
     !> Number of elements
@@ -192,12 +199,6 @@ module dftbp_lbfgs
   end type TLbfgs
 
 
-  !> Check for cubic interpolation
-  real(dp), parameter :: delta1 = 0.2_dp
-
-  !> Check for quadratic interpolation
-  real(dp), parameter :: delta2 = 0.1_dp
-
   !> Lower Wolfe condition parameter of LBFGS
   real(dp), parameter :: wolfe1 = 1e-4_dp
 
@@ -208,7 +209,8 @@ module dftbp_lbfgs
 contains
 
   !> Initialize lbfgs instance
-  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch, isQNDisp)
+  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch, isOldLSUsed,&
+      & isQNDisp)
 
     !> lbfgs instance on exit
     type(TLbfgs), intent(out) :: this
@@ -230,6 +232,9 @@ contains
 
     !> Is a line search used along the quasi-Newton direction
     logical, intent(in) :: isLineSearch
+
+    !> Is the old line search routine used, instead of the line minimizer
+    logical, intent(in) :: isOldLSUsed
 
     !> Is the maximum step size considered for the QN
     logical, intent(in) :: isQNDisp
@@ -254,7 +259,12 @@ contains
 
     this%maxDisp = -1.0_dp
     if (this%isLineSearch) then
-      call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+      this%isOldLSUsed = isOldLSUsed
+      if (this%isOldLSUsed) then
+        call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+      else
+        call TLineMin_init(this%lineMin, nElem, 10, tol, maxDisp)
+      end if
     else
       if (isQNDisp) then
         this%maxDisp = maxDisp
@@ -300,9 +310,17 @@ contains
 
     if (this%isLineSearch) then
       if (this%iter > 0) then
-        call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+        if (this%isOldLSUsed) then
+          call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+        else
+          call this%lineMin%next(fx, dx, this%xx, tLineConverged)
+        end if
         if (tLineConverged) then
-          call this%lineSearch%getMinGrad(dxTemp)
+          if (this%isOldLSUsed) then
+            call this%lineSearch%getMinGrad(dxTemp)
+          else
+            call this%lineMin%getMinGrad(dxTemp)
+          end if
         else
           xNew(:) = this%xx
           return
@@ -315,8 +333,13 @@ contains
 
     if (this%isLineSearch) then
       this%alpha = 1.0_dp
-      call this%lineSearch%reset(this%xx, this%dir, this%alpha)
-      call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+      if (this%isOldLSUsed) then
+        call this%lineSearch%reset(this%xx, this%dir, this%alpha)
+        call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+      else
+        call this%lineMin%reset(this%xx, this%dir, this%alpha)
+        call this%lineMin%next(fx, dx, this%xx, tLineConverged)
+      end if
     else
       if (this%maxDisp > 0.0_dp) then
         dxMax = maxval(abs(this%dir))
@@ -460,6 +483,8 @@ contains
 
   end subroutine TLbfgs_calcDirection
 
+
+! Internal linesearch routines
 
   !> Creates a new line minimizer
   subroutine TLineSearch_init(this, nElem, mIter, minDisp, maxDisp)
@@ -782,6 +807,12 @@ contains
 
     !> Whether line minimisation converged
     logical, intent(out) :: tConverged
+
+    !> Check for cubic interpolation
+    real(dp), parameter :: delta1 = 0.2_dp
+
+    !> Check for quadratic interpolation
+    real(dp), parameter :: delta2 = 0.1_dp
 
     real(dp) :: cCheck, qCheck, dAlpha
 

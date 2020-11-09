@@ -18,7 +18,6 @@ Geometry = GenFormat {
 Driver = Lbfgs {
  LatticeOpt = Yes
  MovedAtoms = {}
- LineSearch = Yes
 }
 
 Hamiltonian = DFTB {

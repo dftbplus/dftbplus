@@ -129,7 +129,7 @@ contains
     !! Line minimizer is created with an extrem big tolerance: it just brackets
     !! the minimum and returns an approximative minimum between them. Seems
     !! to give in most cases better results as making many line min. steps.
-    call init(this%pLinMin, nElem, 10, 10000.0_dp, this%maxDisp)
+    call TLineMin_init(this%pLinMin, nElem, 10, 10000.0_dp, this%maxDisp)
     this%tInitialized = .false.
 
   end subroutine conjGrad_init
@@ -235,16 +235,16 @@ contains
       end if
       !! First step x = F/k, where F is the acting force and
       !! k is a spring constant in the magnitude of a C-C vibration mode
-      call reset(pLinMin, uu, hh, 5.0_dp * sqrt(sum(gg**2)))
+      call pLinMin%reset(uu, hh, 5.0_dp * sqrt(sum(gg**2)))
       state = st_2
     end if
 
     tConvLine = .true.
     do while ((.not. tConverged) .and. tConvLine)
-      call next(pLinMin, fu, du, uu, tConvLine)
+      call pLinMin%next(fu, du, uu, tConvLine)
       if (tConvLine) then
         allocate(xi(size(gg)))
-        call getMinGrad(pLinMin, xi)
+        call pLinMin%getMinGrad(xi)
         if (maxval(abs(xi)) < tolerance) then
           tConverged = .true.
         else
@@ -255,9 +255,9 @@ contains
           else
             gg(:) = -xi(:)
             hh(:) = gg(:) + (dgAbs / ggAbs) * hh(:)
-            call getMinX(pLinMin, uu)
-            call getMinLambda(pLinMin, rTmp)
-            call reset(pLinMin, uu, hh, rTmp)
+            call pLinMin%getMinX(uu)
+            call pLinMin%getMinLambda(rTmp)
+            call pLinMin%reset(uu, hh, rTmp)
           end if
         end if
       end if
@@ -265,9 +265,9 @@ contains
 
     !! If converged, reuse internal variables to store the result
     if (tConverged .and. state /= st_1) then
-      call getMinX(pLinMin, uu)
-      call getMinGrad(pLinMin, gg)
-      call getMinY(pLinMin, hh(1))
+      call pLinMin%getMinX(uu)
+      call pLinMin%getMinGrad(gg)
+      call pLinMin%getMinY(hh(1))
     end if
 
   end subroutine next_local
@@ -286,7 +286,7 @@ contains
 
     @:ASSERT(this%tInitialized .and. this%tConverged)
     @:ASSERT(size(minX) == this%nElem)
-    call getMinX(this%pLinMin, minX)
+    call this%pLinMin%getMinX(minX)
 
   end subroutine conjGrad_getMinX
 
@@ -303,7 +303,7 @@ contains
     real(dp), intent(out) :: minY
 
     @:ASSERT(this%tInitialized .and. this%tConverged)
-    call getMinY(this%pLinMin, minY)
+    call this%pLinMin%getMinY(minY)
 
   end subroutine conjGrad_getMinY
 
@@ -321,7 +321,7 @@ contains
 
     @:ASSERT(this%tInitialized .and. this%tConverged)
     @:ASSERT(size(minGrad) == this%nElem)
-    call getMinGrad(this%pLinMin, minGrad)
+    call this%pLinMin%getMinGrad(minGrad)
 
   end subroutine conjGrad_getMinGrad
 
