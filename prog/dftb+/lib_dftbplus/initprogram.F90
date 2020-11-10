@@ -1978,7 +1978,7 @@ contains
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
-            & input%ctrl%lbfgsInp%MaxQNStep)
+            & input%ctrl%lbfgsInp%isOldLS, input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoCoordOpt, pLbfgs)
       case (geoOptTypes%fire)
         allocate(pFire)
@@ -2006,7 +2006,7 @@ contains
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
-            & input%ctrl%lbfgsInp%MaxQNStep)
+            & input%ctrl%lbfgsInp%isOldLS, input%ctrl%lbfgsInp%MaxQNStep)
         call init(pGeoLatOpt, pLbfgsLat)
       case (geoOptTypes%FIRE)
         allocate(pFireLat)

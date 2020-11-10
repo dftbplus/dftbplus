@@ -510,6 +510,16 @@ contains
       end if
     end if
 
+    call getDescendant(root, "Driver/lBFGS", ch1)
+    if (associated(ch1)) then
+      call setChildValue(ch1, "LineSearch", .true., child=ch2)
+      call setUnprocessed(ch2)
+      call detailedWarning(ch2, "Set 'LineSearch = Yes'")
+      call setChildValue(ch1, "oldLineSearch", .true., child=ch2)
+      call setUnprocessed(ch2)
+      call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
+    end if
+
   end subroutine convert_8_9
 
 

@@ -478,6 +478,8 @@ contains
       if (isMaxStepNeeded) then
         call getChildValue(node, "setMaxStep", ctrl%lbfgsInp%isLineSearch, isMaxStepNeeded)
         ctrl%lbfgsInp%MaxQNStep = isMaxStepNeeded
+      else
+        call getChildValue(node, "oldLineSearch", ctrl%lbfgsInp%isOldLS, .false.)
       end if
 
       #:if WITH_TRANSPORT
