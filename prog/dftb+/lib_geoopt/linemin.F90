@@ -89,54 +89,18 @@ module dftbp_linemin
     !> If converged
     logical :: tConverged
 
+  contains
+
+    procedure :: reset
+    procedure :: next
+    procedure :: getMinX
+    procedure :: getMinY
+    procedure :: getMinGrad
+    procedure :: getMinLambda
+
   end type TLineMin
 
-
-  !> Creates a line minimizer
-  interface init
-    module procedure LineMin_init
-  end interface
-
-
-  !> Resets a line minimizer
-  interface reset
-    module procedure LineMin_reset
-  end interface
-
-
-  !> Gets the next point for the line minimization
-  interface next
-    module procedure LineMin_next
-  end interface
-
-
-  !> Returns the coordinate of the minimum
-  interface getMinX
-    module procedure LineMin_getMinX
-  end interface
-
-
-  !> Returns function value in the minimum
-  interface getMinY
-    module procedure LineMin_getMinY
-  end interface
-
-
-  !> Returns gradient in the minimum
-  interface getMinGrad
-    module procedure LineMin_getMinGrad
-  end interface
-
-
-  !> Returns one dimensional coordinate of the minimum
-  interface getMinLambda
-    module procedure LineMin_getMinLambda
-  end interface
-
-  public :: TLineMin
-  public :: init, reset, next, getMinX, getMinY, getMinGrad
-  public :: getMinLambda
-
+  public :: TLineMin, TLineMin_init
 
   !> Internal state of the line minimiser algorithm
   integer, parameter :: st_1 = 1, st_2 = 2, st_3 = 3
@@ -145,7 +109,7 @@ contains
 
 
   !> Creates a new line minimizer
-  subroutine LineMin_init(this, nElem, mIter, tolerance, maxDisp)
+  subroutine TLineMin_init(this, nElem, mIter, tolerance, maxDisp)
 
     !> Valid line minimizer instance on exit
     type(TLineMin), intent(out) :: this
@@ -174,14 +138,14 @@ contains
     this%tolerance = tolerance
     this%maxDisp = maxDisp
     this%tInitialized = .false.
-  end subroutine LineMin_init
+  end subroutine TLineMin_init
 
 
   !> Resets the line minimizer
-  subroutine LineMin_reset(this, x0, d0, firstStep)
+  subroutine reset(this, x0, d0, firstStep)
 
     !> Line minimizer instance
-    type(TLineMin), intent(inout) :: this
+    class(TLineMin), intent(inout) :: this
 
     !> New starting point
     real(dp), intent(in) :: x0(:)
@@ -210,7 +174,7 @@ contains
     this%tConverged = .false.
     this%tInitialized = .true.
 
-  end subroutine LineMin_reset
+  end subroutine reset
 
 
   !> Passes the function value and the derivative of the last point to line minimizer and gives a
@@ -219,10 +183,10 @@ contains
   !> the maximal nr. of steps.
   !> When calling this subroutine the first time, function value and gradient for the starting point
   !> of the minimization should be passed.
-  subroutine LineMin_next(this, fx, dx, xNew, tConverged)
+  subroutine next(this, fx, dx, xNew, tConverged)
 
     !> Line minimizer instance
-    type(TLineMin), intent(inout) :: this
+    class(TLineMin), intent(inout) :: this
 
     !> Function value for the last returned point
     real(dp), intent(in) :: fx
@@ -250,10 +214,10 @@ contains
     end if
     tConverged = this%tConverged
 
-  end subroutine LineMin_next
+  end subroutine next
 
 
-  !> Invisible workhorse for LineMin_next.
+  !> Invisible workhorse for next.
   subroutine next_local(state, mIter, iIter, xCur, x0, d0, xx, dx, &
       &tConverged, tolerance, maxX, firstStep, fu, du, uu)
 
@@ -430,64 +394,64 @@ contains
   !> Gives the coordinate of the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinX(this, minX)
+  subroutine getMinX(this, minX)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: this
+    class(TLineMin), intent(in) :: this
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
 
     minX(:) = this%x0(:)
 
-  end subroutine LineMin_getMinX
+  end subroutine getMinX
 
 
   !> Returns the function at the minimal point
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinY(this, minY)
+  subroutine getMinY(this, minY)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: this
+    class(TLineMin), intent(in) :: this
 
     !> Function value in the minimal point
     real(dp), intent(out) :: minY
 
     minY = this%xx(1)
 
-  end subroutine LineMin_getMinY
+  end subroutine getMinY
 
 
   !> Gives the gradient in the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinGrad(this, minGrad)
+  subroutine getMinGrad(this, minGrad)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: this
+    class(TLineMin), intent(in) :: this
 
     !> Gradient in the minimal point
     real(dp), intent(out) :: minGrad(:)
 
     minGrad(:) = this%d0(:)
 
-  end subroutine LineMin_getMinGrad
+  end subroutine getMinGrad
 
 
   !> Returns the displacement to the minimum along the line
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinLambda(this, minLambda)
+  subroutine getMinLambda(this, minLambda)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: this
+    class(TLineMin), intent(in) :: this
 
     !> Displacement along the line to the minimum
     real(dp), intent(out) :: minLambda
 
     minLambda = this%xx(2)
 
-  end subroutine LineMin_getMinLambda
+  end subroutine getMinLambda
 
 end module dftbp_linemin
