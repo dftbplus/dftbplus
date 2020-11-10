@@ -98,7 +98,7 @@ def repeatgen(args):
         msg = 'No lattice vectors found (neither in gen nor in external file)'
         raise ScriptError(msg)
 
-    if options.phonons:
+    if args.phonons:
         newgeo = _repeatgeo2(geo, latvecs, repeats)
     else:
         newgeo = _repeatgeo(geo, latvecs, repeats)
