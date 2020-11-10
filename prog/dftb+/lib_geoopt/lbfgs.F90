@@ -144,10 +144,10 @@ module dftbp_lbfgs
     logical :: isOldLSUsed
 
     !> line minimizer
-    type(TLineMin) :: lineMin
+    type(TLineMin), allocatable :: lineMin
 
     !> original internal line search
-    type(TLineSearch) :: lineSearch
+    type(TLineSearch), allocatable :: lineSearch
 
     !> Number of elements
     integer :: nElem
@@ -261,8 +261,10 @@ contains
     if (this%isLineSearch) then
       this%isOldLSUsed = isOldLSUsed
       if (this%isOldLSUsed) then
+        allocate(this%lineSearch)
         call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
       else
+        allocate(this%lineMin)
         call TLineMin_init(this%lineMin, nElem, 10, tol, maxDisp)
       end if
     else
