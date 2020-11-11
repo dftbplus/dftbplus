@@ -1360,8 +1360,8 @@ module negf_int
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
     integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
-    type(units) :: unitOfEnergy        ! Set the units of H
-    type(units) :: unitOfCurrent       ! Set desired units for Jel
+    type(units) :: unitsOfEnergy        ! Set the units of H
+    type(units) :: unitsOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
     integer :: NumStates

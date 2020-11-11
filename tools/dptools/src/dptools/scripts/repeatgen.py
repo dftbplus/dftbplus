@@ -47,8 +47,9 @@ def parse_cmdline_args(cmdlineargs=None):
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
     parser.add_argument('-o', '--output', action='store', default='-', help=msg)
-    msg = 'flag to create a repeat geometry for phonon bandstructure'
-    parser.add_argument('-p', '--phonons', action='store', default='-', help=msg)
+    msg = 'create a repeat geometry for phonon bandstructure'
+    parser.add_argument('-p', '--phonons', action='store_true', default=False,
+                        help=msg)
     msg = 'input file name'
     parser.add_argument("infile", metavar="INPUT", help=msg)
     msg = 'repetition along the first lattice vector'
@@ -62,8 +63,8 @@ def parse_cmdline_args(cmdlineargs=None):
 
     if not (args.n1 > 0 and args.n2 > 0 and args.n3 > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
-    if options.phonons:
-        if (reps[0] % 2 ==0 or reps[1] % 2 == 0 or reps[2] % 2 == 0):
+    if args.phonons:
+        if (args.n1 % 2 ==0 or args.n2 % 2 == 0 or args.n3 % 2 == 0):
             raise ScriptError('Repetition numbers must be odd numbers')
 
 
@@ -98,7 +99,7 @@ def repeatgen(args):
         msg = 'No lattice vectors found (neither in gen nor in external file)'
         raise ScriptError(msg)
 
-    if options.phonons:
+    if args.phonons:
         newgeo = _repeatgeo2(geo, latvecs, repeats)
     else:
         newgeo = _repeatgeo(geo, latvecs, repeats)

@@ -1461,7 +1461,7 @@ contains
     real(dp), allocatable :: coords(:,:), cellVec(:,:), rCellVec(:,:)
     integer, allocatable :: iCellVec(:)
     
-    call init(neighbourList, geo%nAtom, nInitNeighbours)
+    call TNeighbourlist_init(neighbourList, geo%nAtom, nInitNeighbours)
 
     mCutoff = 1.0_dp * cutoff
 

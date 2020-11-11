@@ -303,7 +303,7 @@ module libnegf_int
     !> mapping from image atoms to central cell
     Integer, intent(in) :: img2CentCell(:)
     
-    Integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
+    Integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:), ind(:)
     Integer, allocatable :: atomst(:), plcont(:)   
     integer, allocatable :: minv(:,:)
     Integer :: ncont, nbl, iatm1, iatm2, iatc1, iatc2
@@ -323,6 +323,7 @@ module libnegf_int
     allocate(plcont(nbl))
     allocate(cblk(ncont))
     allocate(cont_end(ncont))
+    allocate(surf_start(ncont))
     allocate(surf_end(ncont))
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
@@ -333,6 +334,7 @@ module libnegf_int
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
+       surf_start(i) = ind(transpar%contacts(i)%idxrange(1)) + 1
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
     enddo
      
@@ -393,7 +395,7 @@ module libnegf_int
 
     end if     
     
-    call init_structure(negf, ncont, cont_end, surf_end, nbl, PL_end, cblk)
+    call init_structure(negf, ncont, surf_start, surf_end, cont_end, nbl, PL_end, cblk)
 
     deallocate(PL_end)
     deallocate(plcont)
