@@ -26,8 +26,12 @@ gen2xyz
 xyz2gen
   Converts an xyz file to gen file.
 
-straingen applies uniaxial, isotropic or shear strains to geometries,
+straingen 
+  Applies uniaxial, isotropic or shear strains to geometries,
   with principle axes aligned with the cartesian directions.
+
+repeatgen 
+  Can be used to build supercell structures for phonon bandstructures
 
 Each script can be invoked with the option ``-h`` to obtain a short
 summary about its usage and possible options.
