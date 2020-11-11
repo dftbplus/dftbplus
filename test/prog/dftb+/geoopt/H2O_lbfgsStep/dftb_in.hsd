@@ -32,7 +32,7 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 8
+  ParserVersion = 9
 }
 
 Parallel {
