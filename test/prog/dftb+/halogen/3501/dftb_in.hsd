@@ -2,9 +2,7 @@ Geometry = GenFormat {
     <<< 3501_23bromobenzenezenetrimethylamine.gen
 }
 
-Driver = LBFGS {
-    LineSearch = Yes
-}
+Driver = LBFGS {}
 
 Hamiltonian = DFTB {
     SCC = Yes

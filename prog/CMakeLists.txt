@@ -6,6 +6,7 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY)
 
   if(WITH_TRANSPORT)
     add_subdirectory(transporttools)
+    add_subdirectory(phonons)
   endif()
 endif()
 

@@ -79,6 +79,7 @@ module dftbp_inputdata
 
   !> LBFGS input settings
   type TLbfgsInput
+
     !> Number of stored steps
     integer :: memory
 
@@ -87,6 +88,9 @@ module dftbp_inputdata
 
     !> Should the quasi-Newton step be limited?
     logical :: MaxQNStep
+
+    !> If performing line search, should the original implementation be used
+    logical :: isOldLS
 
   end type TLbfgsInput
 

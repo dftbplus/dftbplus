@@ -15,6 +15,8 @@ Added
 
 - Delta DFTB for lowest singlet excitated state
 
+- FIRE geometry optimizer
+
 Changed
 -------
 

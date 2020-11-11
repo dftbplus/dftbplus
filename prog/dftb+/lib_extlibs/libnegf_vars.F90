@@ -111,6 +111,12 @@ module libnegf_vars
     !> Delta for Green's function
     real(dp) :: delta
 
+    !> Delta model for phonon Green's function (0, 1, 2)
+    integer :: deltaModel
+
+    !> wmax in Mingo deltaModel
+    real(dp) :: wmax
+
     !> An additional broadening delta for DOS and tunneling
     real(dp) :: broadeningDelta
 
@@ -242,6 +248,8 @@ module libnegf_vars
     !> Not from input file
     logical :: tPeriodic1D = .false.
 
+    !> type of phonon modes (Longitudinal, transverse)
+    integer :: typeModes
 
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
