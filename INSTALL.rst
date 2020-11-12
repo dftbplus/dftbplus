@@ -4,7 +4,7 @@ Building and installing DFTB+
 
 If you have problems with the build, you can find suggestions for some
 frequently occuring scenarios in the `Troubleshooting <#troubleshooting>`_
-section.
+section at the bottom.
 
 
 Requirements
@@ -24,22 +24,21 @@ In order to compile DFTB+, you need the following software components:
 
 * Python (version >= 3.2) for the source preprocessor
 
+
 Optional extra dependencies
 ---------------------------
 
 Additionally there are optional requirements for some DFTB+ features:
 
-* ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
-  want to build the MPI-parallelised version of the code
+* ScaLAPACK (version 2.0 or later) and a Fortran aware MPI framework, if you
+  want to build the MPI-parallelised version of the code.
 
-* In addition to ScaLAPACK, the `ELSI
+* In addition to ScaLAPACK, it is recommended to use the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
-  can optionally also be used (version 2.6.x of the library, with partial
-  support of 2.5.0). If ELSI was compiled with PEXSI included, you will also
-  need a C++ compiler.
+  (version 2.6.x of the library, with partial support of 2.5.0). If ELSI was
+  compiled with PEXSI included, you will also need a C++ compiler.
 
-* The ARPACK or the ARPACK-ng library if using the excited state DFTB
-  functionality
+* The ARPACK-ng library if using the excited state DFTB functionality.
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
@@ -49,19 +48,22 @@ Additionally there are optional requirements for some DFTB+ features:
   also MPI-aware (and must have been built with the same MPI-framework as
   DFTB+).
 
+
 External library requirements
 -----------------------------
 
-* **Make sure that external libraries are compiled with the same precision
-  models for the variables** (same integer and floating point values) as
-  DFTB+. Also, they should preferably have been built with the same compiler and
-  with similar compiler flags to DFTB+. (See the Troubleshooting section for
+* **Make sure that all external libraries are compiled with the same kind models
+  for the numeric variables** (same integer size and floating point precision)
+  as DFTB+. Also, they should preferably have been built with the same compiler
+  and with similar compiler flags to DFTB+. (See the Troubleshooting section for
   further information.)
 
 * External libraries in non-standard locations (as is typical on many
-  HPC-systems) can only be reliable found by CMake if their library path occurs
-  in the ``CMAKE_PREFIX_PATH`` environment variable. **Make sure that your
-  CMAKE_PREFIX_PATH environment variable contains all relevant paths!**
+  HPC-systems using environment modules) can only be reliable found by CMake if
+  their library path occurs in the ``CMAKE_PREFIX_PATH`` environment
+  variable. **Make sure that your CMAKE_PREFIX_PATH environment variable
+  contains all relevant library paths!**
+
 
 Requirements for testing DFTB+
 ------------------------------
@@ -85,37 +87,32 @@ following architectures:
 +===============+======================+=============+==================+=====+
 | x86_64 /      | GNU Fortran/C 7.5    | OpenMPI 2.1 | OpenBlas 0.3.7,  |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
+|               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, | [1] |
+| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
+|               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C 18.0 | MPICH 3.2   | MKL 18.0         |     |
-| Linux         |                      |             |                  |     |
-+---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C 18.0 | MPICH 3.2   | MKL 18.0         |     |
-| Linux         |                      |             |                  |     |
+| Linux         |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C 19.0 | MPICH 3.3   | MKL 19.0         |     |
-| Linux         |                      |             |                  |     |
+| Linux         |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   |     |
 | Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
+|               |                      |             | ELSI 2.5.0       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [2] |
+| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [1] |
 | OS X          |                      |             |                  |     |
-|               |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
-All builds are also tested with the optional ARPACK-NG 3.7, ELSI 2.6.1 and
-PLUMED 2.5 libraries.
+All builds are also tested with the optional ARPACK-NG 3.7 and PLUMED 2.5
+libraries.
 
 Notes:
 
-[1] The timedep/C60_OscWindow test can fail with recent versions (>= 0.3.8) of
-the OpenBlas library. If possible, use an older version or link against either
-MKL or an another BLAS/LAPACK library instead.
-
-[2] Only serial version tested.
+[1] Only partial testing of the serial version.
 
 
 Obtaining the source
@@ -391,10 +388,6 @@ stage. If your config file contains toolchain dependent options, consider
 defining the ``DFTBPPLUS_TOOLCHAIN`` environment variable and query it in your
 config file.
 
-See this `CMake customization file
-<https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7>`_ for a
-template.
-
 
 Advanced build configuration (e.g. for packagers)
 =================================================
@@ -408,17 +401,18 @@ passing the ``-DTOOLCHAIN`` option with the relevant name, e.g.::
   -DTOOLCHAIN=gnu
 
 or by setting the toolchain name in the ``DFTBPLUS_TOOLCHAIN`` environment
-variable selects it. If you want to load an external toolchain file instead of
-the bundled ones, you can specify the file path with the ``-DTOOLCHAIN_FILE``
-option ::
+variable. If you want to load an external toolchain file instead of ones in the
+source tree, you can specify the file path with the ``-DTOOLCHAIN_FILE`` option
+::
 
   -DTOOLCHAIN_FILE=/some/path/myintel.cmake
 
 or with the ``DFTBPLUS_TOOLCHAIN_FILE`` environment variable.
 
 Similarly, you can also use an alternative build config file instead of
-`config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
-defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
+`config.cmake` in the source tree by specifying it with the
+``-DBUILD_CONFIG_FILE`` option or by defining the ``DFTBPLUS_BUILD_CONFIG_FILE``
+environment variable.
 
 
 Preventing the download of external sources
@@ -490,5 +484,6 @@ Troubleshooting
   In order to enforce compliance with the Fortran 2003 standard (e.g. allowing
   the automatic allocation of arrays in expressions), DFTB+ passes the
   ``-standard-semantics`` option to the Intel compiler. All external modern
-  Fortran dependencies (e.g. ELSI) must also be compiled by using this compiler
-  option to ensure correct linking.
+  Fortran dependencies (e.g. ELSI) must also be compiled by using the
+  ``-standard-semantics`` or the ``-assume realloc_lhs`` option to ensure
+  correct linking.

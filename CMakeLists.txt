@@ -157,6 +157,9 @@ if(WITH_MPI)
   set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
+
+  # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
+  find_package(CustomScalapack REQUIRED)
   
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
   set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
