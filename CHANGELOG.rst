@@ -15,7 +15,16 @@ Added
 
 - Delta DFTB for lowest singlet excitated state
 
+- Electron transport for system with colinear spin polarisation
+
+- Phonon transport calculation
+
+- Linear response gradients for spin polarisation
+
 - FIRE geometry optimizer
+
+- Simple D3-dispersion implementation (elevates need for external D3-library)
+
 
 Changed
 -------
@@ -27,11 +36,16 @@ Changed
 - Re-enabled (collinear) spin polarization in transport
 
 - Option to take quasi-Newton steps in lBFGS (set as default)
-  
+
+- CMake cache variable names in accordance with CMake devel documentation
+
+
 Fixed
 -----
 
 - Stress tensor is now calculated with Slater-Kirkwood dispersion
+
+- Cube format closer to the format expected by several tools
 
 
 20.1 (2020-07-22)
