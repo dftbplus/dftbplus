@@ -4638,8 +4638,15 @@ contains
       allocate(orbitalL(3, orb%mShell, nAtom))
     end if
 
-    ! If only H/S should be printed, no allocation for square HS is needed
-    tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
+    ! Decides whether large dense matricese should be allocated
+    ! Currently needed by dense eigensolvers, hence not needed if
+    ! 1. only H/S should be printed
+    ! 2. Solver == GreensFunctions
+    ! 3. Solver == TransportOnly
+    ! 4. Solver == ELSI using a sparse solver
+    tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS .or. &
+          &   (electronicSolver%iSolver == electronicSolverTypes%GF) .or. &
+          &   (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) )
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
     end if
