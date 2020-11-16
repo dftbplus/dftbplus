@@ -401,7 +401,7 @@ passing the ``-DTOOLCHAIN`` option with the relevant name, e.g.::
   -DTOOLCHAIN=gnu
 
 or by setting the toolchain name in the ``DFTBPLUS_TOOLCHAIN`` environment
-variable. If you want to load an external toolchain file instead of ones in the
+variable. If you want to load an external toolchain file instead of one from the
 source tree, you can specify the file path with the ``-DTOOLCHAIN_FILE`` option
 ::
 
