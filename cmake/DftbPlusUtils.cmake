@@ -261,12 +261,12 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   if(PKGCONFIG_LANGUAGE STREQUAL "C")
 
     set(implibdirs "${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
-    list(REMOVE_ITEM implibdirs ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES})
+    list(REMOVE_ITEM implibdirs "${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}")
     dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
     list(APPEND _pkgconfig_libs_private "${implibdirs}")
 
     set(implibs "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
-    list(REMOVE_ITEM implibs ${CMAKE_C_IMPLICIT_LINK_LIBRARIES})
+    list(REMOVE_ITEM implibs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
@@ -276,12 +276,12 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   else()
 
     set(implibdirs "${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}")
-    list(REMOVE_ITEM implibdirs ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
+    list(REMOVE_ITEM implibdirs "${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
     dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
     list(APPEND _pkgconfig_libs_private "${implibdirs}")
 
     set(implibs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
-    list(REMOVE_ITEM implibs ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    list(REMOVE_ITEM implibs "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
