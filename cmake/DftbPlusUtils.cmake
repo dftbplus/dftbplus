@@ -534,19 +534,21 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
         message(STATUS "${package}: Installed package could not be found")
       endif()
 
-    elseif("${_config_lower}" STREQUAL "submodule" AND GIT_WORKING_COPY)
+    elseif("${_config_lower}" STREQUAL "submodule")
       
-      if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/.git)
+      if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/.git AND GIT_WORKING_COPY)
         message(STATUS "${package}: Downloading via git submodule update")
         execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${subdir}/origin
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
       endif()
 
-      message(STATUS "${package}: Using submodule in ${subdir}/origin")
-      set(${_package_upper}_SOURCE_DIR "origin")
-      set(${_package_upper}_BINARY_DIR)
-      add_subdirectory(${subdir} ${subdiropts})
-      break()
+      if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/.git)
+        message(STATUS "${package}: Using submodule in ${subdir}/origin")
+        set(${_package_upper}_SOURCE_DIR "origin")
+        set(${_package_upper}_BINARY_DIR)
+        add_subdirectory(${subdir} ${subdiropts})
+        break()
+      endif()
 
     elseif("${_config_lower}" STREQUAL "fetch")
 
