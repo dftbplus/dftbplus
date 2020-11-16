@@ -990,13 +990,11 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    if (this%tSCC) then
-      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
-          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
-          & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-          & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
-          & trho)
-    end if
+    call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
+        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
+        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
+        & trho)
 
     if (this%tForces) then
       totalForce(:,:) = 0.0_dp
@@ -1099,13 +1097,11 @@ contains
             & this%speciesAll(:this%nAtom), .true.)
       end if
 
-      if (this%tSCC) then
-        call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
-            & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-            & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-            & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
-            & this%dispersion,rho)
-      end if
+      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
+          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ,&
+          & nUJ, iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
+          & this%dispersion,rho)
 
       if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1339,19 +1335,18 @@ contains
       call ud2qm(q0)
     end if
 
-    tDFTBU = .false.
-    if (size(UJ) > 0) then
-      tDFTBU = .true.
-    end if
+    tDFTBU = size(UJ) > 0
     tImHam = .false. ! for the moment
 
     call resetExternalPotentials(refExtPot, potential)
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & elstatTypes%gammaFunc, .false., .false., dummy, dispersion)
+    if (this%tScc) then
+      call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
+          & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
+          & elstatTypes%gammaFunc, .false., .false., dummy, dispersion)
+    end if
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       ! convert to qm representation
