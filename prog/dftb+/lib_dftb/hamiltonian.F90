@@ -30,7 +30,7 @@ module dftbp_hamiltonian
   implicit none
 
   private
-  public :: resetExternalPotentials, getSccHamiltonian, mergeExternalPotentials
+  public :: resetExternalPotentials, getShiftHamiltonian, mergeExternalPotentials
   public :: setUpExternalElectricField, resetInternalPotentials, addChargePotentials
   public :: addBlockChargePotentials, TRefExtPot
 
@@ -434,8 +434,8 @@ contains
   end subroutine addBlockChargePotentials
 
 
-  !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+  !> Returns the Hamiltonian due to a potential shift, in the form 0.5 Sab (V_a + V_b)
+  subroutine getShiftHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
       & img2CentCell, potential, isREKS, ham, iHam)
 
     !> non-SCC hamiltonian (sparse)
@@ -492,7 +492,7 @@ contains
           & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
     end if
 
-  end subroutine getSccHamiltonian
+  end subroutine getShiftHamiltonian
 
 
 end module dftbp_hamiltonian

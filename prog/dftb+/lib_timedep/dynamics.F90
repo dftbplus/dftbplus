@@ -1375,7 +1375,7 @@ contains
     potential%intBlock = potential%intBlock + potential%extBlock
     potential%intShell = potential%intShell + potential%extShell
 
-    call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
+    call getShiftHamiltonian(H0, over, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
         & img2CentCell, potential, .false., ham, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine

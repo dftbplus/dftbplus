@@ -478,7 +478,7 @@ contains
         call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1)
       end if
       ! We need to define hamltonian by adding the potential
-      call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+      call getShiftHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
           & img2CentCell, potential, allocated(reks), ham, iHam)
       tExitGeoOpt = .true.
       return
@@ -629,7 +629,7 @@ contains
           call electronicSolver%elsi%updatePexsiDeltaVRanges(potential)
         end if
 
-        call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+        call getShiftHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, allocated(reks), ham, iHam)
 
         if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
@@ -6717,8 +6717,8 @@ contains
       end if
 
       ! tmpHamSp has (my_qm) component
-      call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb,&
-          & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, iHam)
+      call getShiftHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+          & img2CentCell, potential, allocated(reks), tmpHamSp, iHam)
       tmpHamSp(:,1) = 2.0_dp * tmpHamSp(:,1)
 
       if (reks%isRangeSep) then
