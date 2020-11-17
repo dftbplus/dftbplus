@@ -261,12 +261,12 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   if(PKGCONFIG_LANGUAGE STREQUAL "C")
 
     set(implibdirs "${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
-    list(REMOVE_ITEM implibdirs ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES})
+    list(REMOVE_ITEM implibdirs "${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}")
     dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
     list(APPEND _pkgconfig_libs_private "${implibdirs}")
 
     set(implibs "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
-    list(REMOVE_ITEM implibs ${CMAKE_C_IMPLICIT_LINK_LIBRARIES})
+    list(REMOVE_ITEM implibs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
@@ -276,12 +276,12 @@ function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_
   else()
 
     set(implibdirs "${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}")
-    list(REMOVE_ITEM implibdirs ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
+    list(REMOVE_ITEM implibdirs "${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
     dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
     list(APPEND _pkgconfig_libs_private "${implibdirs}")
 
     set(implibs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
-    list(REMOVE_ITEM implibs ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    list(REMOVE_ITEM implibs "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
     dftbp_library_linking_flags("${implibs}" implibs)
     list(APPEND _pkgconfig_libs_private "${implibs}")
 
@@ -534,23 +534,26 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
         message(STATUS "${package}: Installed package could not be found")
       endif()
 
-    elseif("${_config_lower}" STREQUAL "submodule" AND GIT_WORKING_COPY)
+    elseif("${_config_lower}" STREQUAL "submodule")
       
-      if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/.git)
+      if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/CMakeLists.txt
+          AND GIT_WORKING_COPY)
         message(STATUS "${package}: Downloading via git submodule update")
         execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${subdir}/origin
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
       endif()
 
-      message(STATUS "${package}: Using submodule in ${subdir}/origin")
-      set(${_package_upper}_SOURCE_DIR "origin")
-      set(${_package_upper}_BINARY_DIR)
-      add_subdirectory(${subdir} ${subdiropts})
-      break()
+      if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/CMakeLists.txt)
+        message(STATUS "${package}: Using source in ${subdir}/origin")
+        set(${_package_upper}_SOURCE_DIR "origin")
+        set(${_package_upper}_BINARY_DIR)
+        add_subdirectory(${subdir} ${subdiropts})
+        break()
+      endif()
 
     elseif("${_config_lower}" STREQUAL "fetch")
 
-      message(STATUS "${package}: Fechting from repository ${git_repository}@${git_tag}")
+      message(STATUS "${package}: Fetching from repository ${git_repository}@${git_tag}")
       FetchContent_Declare(${_package_lower} GIT_REPOSITORY ${git_repository} GIT_TAG ${git_tag})
       FetchContent_GetProperties(${_package_lower})
       if(NOT ${_package_lower}_POPULATED)
