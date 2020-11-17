@@ -1,0 +1,66 @@
+Geometry = GenFormat {
+    <<< "30h.gen"
+}
+
+Transport {
+    Device {
+        AtomRange = 1 11
+        FirstLayerAtoms = {
+            1 6
+        }
+    }
+    Contact {
+        <<+ "Contact.source"
+    }
+    Contact {
+        <<+ "Contact.drain"
+    }
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1E-8
+    MaxAngularMomentum = {
+        H = s
+    }
+    SpinPolarisation = Colinear {}
+    SpinConstants = {
+        H = {
+            -6.4E-002
+        }
+    }
+    SlaterKosterFiles = Type2Filenames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    OldSKInterpolation = Yes # using test SK files without full interactions
+    Electrostatics = Poisson {
+        Poissonbox [Angstrom] = 20.0 20.0 20.0
+        MinimalGrid [Angstrom] = 0.3 0.3 0.3
+        SavePotential = Yes
+        PoissonAccuracy = 1E-5
+        BuildBulkPotential = Yes
+    }
+    Solver = GreensFunction{
+        Verbosity = 51
+        RealAxisPoints = 100
+        EnclosedPoles = 4
+	SaveSurfaceGFs = No
+    }
+}
+
+Parallel{
+    # Reduce block size to allow multiple processors testing
+    Blacs{BlockSize=2}
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}

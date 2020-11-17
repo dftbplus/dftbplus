@@ -79,8 +79,19 @@ module dftbp_inputdata
 
   !> LBFGS input settings
   type TLbfgsInput
+
     !> Number of stored steps
     integer :: memory
+
+    !> Is a line search followed along quasi-Newton directions
+    logical :: isLineSearch
+
+    !> Should the quasi-Newton step be limited?
+    logical :: MaxQNStep
+
+    !> If performing line search, should the original implementation be used
+    logical :: isOldLS
+
   end type TLbfgsInput
 
 
@@ -161,8 +172,8 @@ module dftbp_inputdata
     !> add new geometries at the end of files
     logical :: tAppendGeo  = .false.
 
-    !> use converged SCC forces only
-    logical :: tConvrgForces = .true.
+    !> use converged SCC charges for properties like forces or charge dependent dispersion
+    logical :: isSccConvRequired = .true.
 
     !> geometry step
     integer :: iGeoOpt     = 0
@@ -174,10 +185,13 @@ module dftbp_inputdata
     integer :: iGenGeoOpt = 0
 
     !> internal variable for requirement of Mulliken analysis
-    logical :: tMulliken   = .false.
+    logical :: tMulliken = .false.
 
     !> printout of Mulliken
-    logical :: tPrintMulliken   = .false.
+    logical :: tPrintMulliken = .false.
+
+    !> Net atomic charges (i.e. on-site only part of Mulliken charges)
+    logical :: tNetAtomCharges = .false.
 
     !> Input for CM5 corrected Mulliken charges
     type(TCM5Input), allocatable :: cm5Input
@@ -506,6 +520,17 @@ module dftbp_inputdata
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
 
+    ! TI-DFTB variables
+
+    !> Non-Aufbau filling
+    logical :: isNonAufbau = .false.
+
+    !> SpinPurify
+    logical :: isSpinPurify = .false.
+
+    !> GroundGuess
+    logical :: isGroundGuess = .false.
+
     !> REKS input
     type(TReksInp) :: reksInp
 
@@ -564,35 +589,35 @@ contains
 
 
   !> Mark data structure as initialised
-  subroutine InputData_init(self)
+  subroutine InputData_init(this)
 
     !> Instance
-    type(TInputData), intent(out) :: self
+    type(TInputData), intent(out) :: this
 
-    self%tInitialized = .true.
+    this%tInitialized = .true.
 
   end subroutine InputData_init
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine InputData_destruct(self)
+  subroutine InputData_destruct(this)
 
     !> Instance
-    type(TInputData), intent(inout) :: self
+    type(TInputData), intent(inout) :: this
 
-    call Control_destruct(self%ctrl)
+    call Control_destruct(this%ctrl)
 
   end subroutine InputData_destruct
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine Control_destruct(self)
+  subroutine Control_destruct(this)
 
     !> Instance
-    type(TControl), intent(inout) :: self
+    type(TControl), intent(inout) :: this
 
-    if (allocated(self%tShellResInRegion)) then
-      call destruct(self%iAtInRegion)
+    if (allocated(this%tShellResInRegion)) then
+      call destruct(this%iAtInRegion)
     end if
 
   end subroutine Control_destruct

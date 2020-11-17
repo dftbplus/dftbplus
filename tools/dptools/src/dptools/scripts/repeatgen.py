@@ -9,17 +9,17 @@
 '''Repeats a geometry along supercell vectors'''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from dptools.gen import Gen
 from dptools.geometry import Geometry
 from dptools.scripts.common import ScriptError
 
-USAGE = '''usage: %prog [options] INPUT N1 N2 N3
-
-Repeats the geometry found in INPUT along each supercell vector N1, N2
-and N3 times, respectively and writes the resulting geometry to
-standard output'''
+USAGE = '''
+Repeats the geometry found in INPUT along each supercell vector N1,
+N2 and N3 times, respectively and writes the resulting geometry to standard
+output
+'''
 
 
 def main(cmdlineargs=None):
@@ -29,8 +29,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, repeats, options = parse_cmdline_args(cmdlineargs)
-    repeatgen(infile, repeats, options)
+    args = parse_cmdline_args(cmdlineargs)
+    repeatgen(args)
 
 
 def parse_cmdline_args(cmdlineargs=None):
@@ -40,50 +40,58 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = optparse.OptionParser(usage=USAGE)
+    parser = argparse.ArgumentParser(description=USAGE)
     msg = 'file containing lattice vectors (overrides lattice vectors'\
           ' in the geometry file)'
-    parser.add_option(
+    parser.add_argument(
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
-    parser.add_option('-o', '--output', action='store', default='-', help=msg)
-    options, args = parser.parse_args(cmdlineargs)
+    parser.add_argument('-o', '--output', action='store', default='-', help=msg)
+    msg = 'create a repeat geometry for phonon bandstructure'
+    parser.add_argument('-p', '--phonons', action='store_true', default=False,
+                        help=msg)
+    msg = 'input file name'
+    parser.add_argument("infile", metavar="INPUT", help=msg)
+    msg = 'repetition along the first lattice vector'
+    parser.add_argument('n1', type=int, metavar="N1", help=msg)
+    msg = 'repetition along the second lattice vector'
+    parser.add_argument('n2', type=int, metavar="N2", help=msg)
+    msg = 'repetition along the third lattice vector'
+    parser.add_argument('n3', type=int, metavar="N3", help=msg)
 
-    if len(args) != 4:
-        raise ScriptError('Incorrect number of arguments')
-    infile = args[0]
-    reps = []
-    for repstr in args[1:4]:
-        try:
-            reps.append(int(repstr))
-        except ValueError:
-            msg = "Invalid repetition number '" + repstr + "'."
-            raise ScriptError(msg)
-    if not (reps[0] > 0 and reps[1] > 0 and reps[2] > 0):
+    args = parser.parse_args(cmdlineargs)
+
+    if not (args.n1 > 0 and args.n2 > 0 and args.n3 > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
+    if args.phonons:
+        if (args.n1 % 2 ==0 or args.n2 % 2 == 0 or args.n3 % 2 == 0):
+            raise ScriptError('Repetition numbers must be odd numbers')
 
-    return infile, (reps[0], reps[1], reps[2]), options
+
+    return args
 
 
-def repeatgen(infile, repeats, options):
+def repeatgen(args):
     '''Repeats geometry from gen files.
 
     Args:
-        infile: File containing the gen-formatted geometry.
-        repeats: (n1, n2, n3) integer tuple containing the repetitions along
-            each lattice vector.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.infile
+    repeats = [args.n1, args.n2, args.n3]
 
-    gen = Gen.fromfile(infile)
+    try:
+        gen = Gen.fromfile(infile)
+    except OSError:
+        raise ScriptError('You must enter a valid path to the input file.')
     geo = gen.geometry
 
     latvecs = geo.latvecs
-    if options.latticefile:
-        latvecs = np.fromfile(options.latticefile, sep=' ')
+    if args.latticefile:
+        latvecs = np.fromfile(args.latticefile, sep=' ')
         if len(latvecs) != 9:
             msg = ('Invalid number of lattice vector components in '
-                   + options.latticefile)
+                   + args.latticefile)
             raise ScriptError(msg)
         latvecs.shape = (3, 3)
 
@@ -91,9 +99,13 @@ def repeatgen(infile, repeats, options):
         msg = 'No lattice vectors found (neither in gen nor in external file)'
         raise ScriptError(msg)
 
-    newgeo = _repeatgeo(geo, latvecs, repeats)
+    if args.phonons:
+        newgeo = _repeatgeo2(geo, latvecs, repeats)
+    else:
+        newgeo = _repeatgeo(geo, latvecs, repeats)
+
     newgen = Gen(newgeo, gen.fractional)
-    outfile = options.output
+    outfile = args.output
     if outfile == '-':
         outfile = sys.stdout
     newgen.tofile(outfile)
@@ -125,3 +137,34 @@ def _repeatgeo(geo, latvecs, repeats):
     newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
                       origin=geo.origin)
     return newgeo
+
+def _repeatgeo2(geo, latvecs, repeats):
+    '''Repeats geometry along given lattice vectors for phonon calculations'''
+    natoms = geo.natom
+    coords = geo.coords
+    inds = geo.indexes
+    rep = np.array([(repeats[0]-1)/2, (repeats[1]-1)/2, (repeats[2]-1)/2])
+    images = (repeats[0] * repeats[1] * repeats[2])
+    allcoords = np.empty((images * natoms, 3), dtype=float)
+    allcoords[0:natoms, :] = coords    
+    ind = 1
+    currepeats = np.zeros(3, dtype=int)
+    for currepeats[2] in range(-rep[2],rep[2]+1):
+        for currepeats[1] in range(-rep[1],rep[1]+1):
+            for currepeats[0] in range(-rep[0],rep[0]+1):
+                if (currepeats[0]==0 and currepeats[1]==0 and currepeats[2]==0):
+                    continue
+                shift = np.sum(latvecs * currepeats[:, np.newaxis], axis=0)
+                shiftedcoords = coords + shift
+                allcoords[ind * natoms : (ind + 1) * natoms, :] = shiftedcoords
+                ind += 1
+    allinds = np.tile(inds, images)
+    repeats = np.array(repeats)
+    if geo.periodic:
+        newlatvecs = latvecs * repeats[:, np.newaxis]
+    else:
+        newlatvecs = None
+    newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
+                      origin=geo.origin)
+    return newgeo
+

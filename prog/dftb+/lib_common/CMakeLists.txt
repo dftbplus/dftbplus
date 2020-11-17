@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/accuracy.F90
   ${curdir}/assert.F90
   ${curdir}/atomicrad.F90
+  ${curdir}/atomicmass.F90
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90
@@ -15,7 +16,8 @@ set(sources-fpp
   ${curdir}/schedule.F90
   ${curdir}/timer.F90
   ${curdir}/timerarray.F90
-  ${curdir}/unitconversion.F90)
+  ${curdir}/unitconversion.F90
+  ${curdir}/version.F90)
 
 if(WITH_MPI)
   list(APPEND sources-fpp

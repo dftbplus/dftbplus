@@ -1,4 +1,5 @@
 \chapter{\modes{}}
+\label{app:modes}
 
 The \modes{} program calculates vibrational modes using data created by
 \dftbp{}.
@@ -62,12 +63,15 @@ Contains the second derivatives\index{Hessian} of the energy supplied by
 {\dftbp}, see p.~\pref{sec:dftbp.SecondDerivatives} for details of the options
 to generate this data. The derivatives matrix must be stored as the following
 order: For the $i$, $j$ and $k$ directions of atoms $1 \ldots n$
-as $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
-  E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
-  \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
-\frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
-  E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn}
-  \partial x_{kn}}$$
+as
+\begin{equation*}
+  \frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+    \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+  \frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial
+    x_{kn} \partial x_{kn}}
+\end{equation*}
 
 {\em Note}: for supercell calculations, the modes are currently
 obtained at the $\mathbf{q}=0$ point, irrespective of the k-point

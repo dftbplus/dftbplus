@@ -20,13 +20,14 @@ module dftbp_lbfgs
   use dftbp_accuracy
   use dftbp_assert
   use dftbp_message
+  use dftbp_linemin, only : TLineMin, TLineMin_init
   implicit none
   private
 
   public :: TLbfgs, TLbfgs_init
 
 
-  !> Holds data for the line minimalizer used by this implementation
+  !> Holds data for the original line minimalizer used in this implementation
   type TLineSearch
     private
 
@@ -136,8 +137,17 @@ module dftbp_lbfgs
   type :: TLbfgs
     private
 
+    !> Is a line search used
+    logical :: isLineSearch
+
+    !> Is the original line search used
+    logical :: isOldLSUsed
+
     !> line minimizer
-    type(TLineSearch) :: lineSearch
+    type(TLineMin), allocatable :: lineMin
+
+    !> original internal line search
+    type(TLineSearch), allocatable :: lineSearch
 
     !> Number of elements
     integer :: nElem
@@ -172,6 +182,9 @@ module dftbp_lbfgs
     !> Search direction
     real(dp), allocatable :: dir(:)
 
+    !> Maximum step size to take for the variables
+    real(dp) :: maxDisp
+
     !> tolerance for gradient
     real(dp) :: tol
 
@@ -186,12 +199,6 @@ module dftbp_lbfgs
   end type TLbfgs
 
 
-  !> Check for cubic interpolation
-  real(dp), parameter :: delta1 = 0.2_dp
-
-  !> Check for quadratic interpolation
-  real(dp), parameter :: delta2 = 0.1_dp
-
   !> Lower Wolfe condition parameter of LBFGS
   real(dp), parameter :: wolfe1 = 1e-4_dp
 
@@ -202,7 +209,8 @@ module dftbp_lbfgs
 contains
 
   !> Initialize lbfgs instance
-  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem)
+  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem, isLineSearch, isOldLSUsed,&
+      & isQNDisp)
 
     !> lbfgs instance on exit
     type(TLbfgs), intent(out) :: this
@@ -222,6 +230,15 @@ contains
     !> Number of past iterations which will be saved
     integer, intent(in) :: mem
 
+    !> Is a line search used along the quasi-Newton direction
+    logical, intent(in) :: isLineSearch
+
+    !> Is the old line search routine used, instead of the line minimizer
+    logical, intent(in) :: isOldLSUsed
+
+    !> Is the maximum step size considered for the QN
+    logical, intent(in) :: isQNDisp
+
     @:ASSERT(nElem > 0)
     @:ASSERT(tol > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
@@ -238,7 +255,23 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
-    call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+    this%isLineSearch = isLineSearch
+
+    this%maxDisp = -1.0_dp
+    if (this%isLineSearch) then
+      this%isOldLSUsed = isOldLSUsed
+      if (this%isOldLSUsed) then
+        allocate(this%lineSearch)
+        call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
+      else
+        allocate(this%lineMin)
+        call TLineMin_init(this%lineMin, nElem, 10, tol, maxDisp)
+      end if
+    else
+      if (isQNDisp) then
+        this%maxDisp = maxDisp
+      end if
+    end if
 
   end subroutine TLbfgs_init
 
@@ -262,7 +295,7 @@ contains
     !> True, if gradient got below the specified tolerance.
     logical,  intent(out) :: tConverged
 
-    real(dp) :: dxTemp(this%nElem)
+    real(dp) :: dxTemp(this%nElem), dxMax
     logical :: tLineConverged
 
     @:ASSERT(size(xNew) == this%nElem)
@@ -277,23 +310,48 @@ contains
     end if
     dxTemp(:) = dx
 
-    ! Line Search
-    if (this%iter > 0) then
-      call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
-      if (tLineConverged) then
-        call this%lineSearch%getMinGrad(dxTemp)
-      else
-        xNew(:) = this%xx
-        return
+    if (this%isLineSearch) then
+      if (this%iter > 0) then
+        if (this%isOldLSUsed) then
+          call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+        else
+          call this%lineMin%next(fx, dx, this%xx, tLineConverged)
+        end if
+        if (tLineConverged) then
+          if (this%isOldLSUsed) then
+            call this%lineSearch%getMinGrad(dxTemp)
+          else
+            call this%lineMin%getMinGrad(dxTemp)
+          end if
+        else
+          xNew(:) = this%xx
+          return
+        end if
       end if
     end if
 
     ! Calculate new search direction
     call TLbfgs_calcDirection(this, this%xx, dxTemp)
-    this%alpha = 1.0_dp
 
-    call this%lineSearch%reset(this%xx, this%dir, this%alpha)
-    call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+    if (this%isLineSearch) then
+      this%alpha = 1.0_dp
+      if (this%isOldLSUsed) then
+        call this%lineSearch%reset(this%xx, this%dir, this%alpha)
+        call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+      else
+        call this%lineMin%reset(this%xx, this%dir, this%alpha)
+        call this%lineMin%next(fx, dx, this%xx, tLineConverged)
+      end if
+    else
+      if (this%maxDisp > 0.0_dp) then
+        dxMax = maxval(abs(this%dir))
+        if (dxMax > this%maxDisp) then
+          this%dir(:) = this%dir * this%maxDisp / dxMax
+        end if
+      end if
+      this%xx(:) = this%xx + this%dir
+    end if
+
     xNew(:) = this%xx
 
   end subroutine TLbfgs_next
@@ -362,12 +420,12 @@ contains
 
     ! Checks whether new x is different to last iteration
     if (maxval(abs(xx - this%xOld)) < epsilon(1.0_dp)) then
-      call error("Error: x need to be different in each iteration. (LBFGS Minimizer)")
+      call warning("Error: x need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Checks whether new gradient is different to last iteration
     if (maxval(abs(gg - this%gg)) < epsilon(1.0_dp)) then
-      call error("Error: g need to be different in each iteration. (LBFGS Minimizer)")
+      call warning("Error: g need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Save new ss, yy and rho
@@ -393,7 +451,7 @@ contains
         diag(:) = 1.0_dp
       else
         diag(:) = dot_product(this%ss(:, newElem), this%yy(:, newElem))&
-            & / dot_product(this%yy(:, newElem), this%yy(:, newElem))
+            & / max(dot_product(this%yy(:, newElem), this%yy(:, newElem)), epsilon(1.0_dp))
       end if
 
     else if (any(diagIn < 0.0_dp)) then
@@ -427,6 +485,8 @@ contains
 
   end subroutine TLbfgs_calcDirection
 
+
+! Internal linesearch routines
 
   !> Creates a new line minimizer
   subroutine TLineSearch_init(this, nElem, mIter, minDisp, maxDisp)
@@ -477,6 +537,7 @@ contains
     !> New direction
     real(dp), intent(in) :: d0(:)
 
+    !> First step size to take
     real(dp), intent(in) :: firstStep
 
     @:ASSERT(size(x0) == this%nElem)
@@ -748,6 +809,12 @@ contains
 
     !> Whether line minimisation converged
     logical, intent(out) :: tConverged
+
+    !> Check for cubic interpolation
+    real(dp), parameter :: delta1 = 0.2_dp
+
+    !> Check for quadratic interpolation
+    real(dp), parameter :: delta2 = 0.1_dp
 
     real(dp) :: cCheck, qCheck, dAlpha
 

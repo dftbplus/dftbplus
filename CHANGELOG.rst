@@ -5,6 +5,48 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+20.2 (2020-11-17)
+=================
+
+Added
+-----
+
+- Many body and Tkatchenko-Scheffler dispersion
+
+- Delta DFTB for lowest singlet excitated state
+
+- Electron transport for system with colinear spin polarisation
+
+- Phonon transport calculations with new code
+
+- Linear response gradients for spin polarisation
+
+- FIRE geometry optimizer
+
+- Simple D3-dispersion implementation (can be used without needing the external
+  D3-library)
+
+
+Changed
+-------
+
+- MPI parallelisation for UFF, Slater-Kirkwood and DFT-D4 dispersion
+
+- OMP parallelisation for UFF and Slater-Kirkwood dispersion
+
+- Option to take quasi-Newton steps in lBFGS (set as default)
+
+- CMake cache variable names in accordance with CMake devel documentation
+
+
+Fixed
+-----
+
+- Stress tensor is now calculated with Slater-Kirkwood dispersion
+
+- Cube format closer to the files expected by several external tools
+
+
 20.1 (2020-07-22)
 =================
 

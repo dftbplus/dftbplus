@@ -128,8 +128,7 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, omega,&
-      & tSpin, tREKS, rsAlg)
+  subroutine RangeSepFunc_init(this, nAtom, species, hubbu, screen, omega, tSpin, tREKS, rsAlg)
 
     !> class instance
     type(TRangeSepFunc), intent(out) :: this
@@ -139,9 +138,6 @@ contains
 
     !> list of all atomic species
     integer, intent(in) :: species(:)
-
-    !> list of all atomic species names
-    character(mc), intent(in) :: speciesNames(:)
 
     !> atomic hubbards
     real(dp), intent(in) :: hubbu(:)
@@ -223,16 +219,17 @@ contains
 
       ! Check for current restrictions
       if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
-        call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
+        call error("Spin-unrestricted calculation for thresholded range separation not yet&
+            & implemented!")
       end if
 
       if (this%tREKS .and. this%rsAlg == rangeSepTypes%threshold) then
-        call error("REKS calculation with thresholding algorithm not yet implemented!")
+        call error("REKS calculation with thresholded range separation not yet implemented!")
       end if
 
       if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
             & rangeSepTypes%matrixBased] == this%rsAlg)) then
-        call error("Unknown algorithm for screening the exchange")
+        call error("Unknown algorithm for screening the exchange in range separation")
       end if
 
     end subroutine checkRequirements
@@ -249,7 +246,7 @@ contains
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: nAtom, iAtom1, iAtom2, ii, iSp1, iSp2
+    integer :: nAtom, iAtom1, iAtom2, iSp1, iSp2
     real(dp) :: dist
 
     this%coords(:,:) = coords
@@ -423,7 +420,7 @@ contains
 
       integer :: nAtom
       real(dp) :: pbound, prb
-      real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb), tmpvec3(orb%mOrb)
+      real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb)
       real(dp) :: tmp, tstbound, gammabatch, gammabatchtmp
       integer :: iAtMu, iAtNu, iAt1, iAt2, iSp1, iSp2, nOrb1, nOrb2
       integer :: kk, ll, jj, ii, mu, nu
@@ -543,16 +540,14 @@ contains
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
     real(dp), dimension(orb%mOrb**2), target :: Sma, Sam, Snb, Sbn
     real(dp), dimension(orb%mOrb**2), target :: Pab, Pmb, Pan, Pmn
-    real(dp), dimension(:,:), pointer :: pSma, pSam, pSnb, pSbn, pHH
+    real(dp), dimension(:,:), pointer :: pSma, pSam, pSnb, pSbn
     real(dp), dimension(:,:), pointer :: pPab, pPmb, pPan, pPmn
     real(dp) :: gamma1, gamma2, gammaTot
-    integer :: nAtom, ii, jj
+    integer :: nAtom
     integer :: iAtM, iAtN, iAtA, iAtB, iNeighN, iNeighA
     integer, dimension(descLen) :: descA, descB, descM, descN
     real(dp), dimension(:,:), allocatable, target :: tmpDRho
     real(dp), dimension(:,:), allocatable, target :: tmpHH
-    real(dp) :: tmp
-    integer :: mu, nu
 
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
@@ -772,7 +767,7 @@ contains
 
     HH(:,:) = HH + Hlr
 
-    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+    this%lrenergy = this%lrenergy + 0.5_dp * real(sum(Dmat * Hlr), dp)
 
   contains
 
@@ -1109,7 +1104,6 @@ contains
     !> resulting gamma
     real(dp) :: getAnalyticalGammaValue
 
-    integer :: ii
     real(dp) :: tauA, tauB, omega
     real(dp) :: prefac, tmp, tmp2, tau
 
@@ -1204,9 +1198,8 @@ contains
     !> resulting d gamma / d dist
     real(dp) :: getdAnalyticalGammaDeriv
 
-    integer :: ii
     real(dp) :: tauA, tauB, omega
-    real(dp) :: prefac, tmp, tmp2, tau, dTmp, dTmp2
+    real(dp) :: prefac, tmp, tmp2, dTmp, dTmp2
 
     tauA = 3.2_dp * this%hubbu(Sp1)
     tauB = 3.2_dp * this%hubbu(Sp2)
@@ -1311,9 +1304,8 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    integer :: sp1, sp2, jj, ii
-    real(dp) :: vect(3), tmp(3),tmp2(3), dist
-    real(dp) :: tauA, tauB, omega
+    integer :: sp1, sp2
+    real(dp) :: vect(3), dist
 
     sp1 = species(iAtom1)
     sp2 = species(iAtom2)
@@ -1328,8 +1320,8 @@ contains
 
 
   !> Adds gradients due to long-range HF-contribution
-  subroutine addLrGradients(this, gradients, derivator, deltaRho, skHamCont, skOverCont, coords,&
-      & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
+  subroutine addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
+      & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -1339,9 +1331,6 @@ contains
 
     !> density matrix difference from reference q0
     real(dp), intent(in) :: deltaRho(:,:,:)
-
-    !> sparse hamiltonian (non-scc)
-    type(TSlakoCont), intent(in) :: skHamCont
 
     !> sparse overlap part
     type(TSlakoCont), intent(in) :: skOverCont
@@ -1373,8 +1362,8 @@ contains
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
-    integer :: nSpin, iSpin, mu, nu, alpha, beta, ccc, kkk
-    real(dp) :: dummy(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: nSpin, iSpin, mu, alpha, beta, ccc, kkk
+    real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpOvr(:,:), tmpRho(:,:,:), tmpderiv(:,:)
 
@@ -1568,44 +1557,44 @@ contains
 
 
   !> obtain the array of atomic species
-  subroutine getSpecies(self, targetArray)
+  subroutine getSpecies(this, targetArray)
 
     !> 1D array for output, will be allocated
     integer, allocatable, intent(out) :: targetArray(:)
 
     !> instance
-    class(TRangeSepFunc), intent(in) :: self
+    class(TRangeSepFunc), intent(in) :: this
 
     !> dimension of the species array
     integer :: dim1
 
-    dim1 = size(self%species)
+    dim1 = size(this%species)
     allocate(targetArray(dim1))
 
-    targetArray(:) = self%species
+    targetArray(:) = this%species
 
   end subroutine getSpecies
 
 
   !> Get long-range gamma integrals
-  subroutine getLrGamma(self, LrGamma)
+  subroutine getLrGamma(this, LrGamma)
 
     !> class instance
-    class(TRangeSepFunc), intent(inout) :: self
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> long-range gamma integrals in AO basis
     real(dp), intent(out) :: LrGamma(:,:)
 
-    LrGamma(:,:) = self%lrGammaEval
+    LrGamma(:,:) = this%lrGammaEval
 
   end subroutine getLrGamma
 
 
   !> Calculate long-range gamma derivative integrals
-  subroutine getLrGammaDeriv(self, coords, species, LrGammaDeriv)
+  subroutine getLrGammaDeriv(this, coords, species, LrGammaDeriv)
 
     !> class instance
-    class(TRangeSepFunc), intent(inout) :: self
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -1624,7 +1613,7 @@ contains
     do iAt1 = 1, nAtom
       do iAt2 = 1, nAtom
         if (iAt1 /= iAt2) then
-          call getGammaPrimeValue(self, tmp, iAt1, iAt2, coords, species)
+          call getGammaPrimeValue(this, tmp, iAt1, iAt2, coords, species)
           LrGammaDeriv(iAt2,iAt1,:) = tmp
         end if
       end do

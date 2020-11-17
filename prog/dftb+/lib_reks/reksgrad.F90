@@ -544,15 +544,8 @@ module dftbp_reksgrad
 
 
   !> Interface routine to calculate H-XC kernel in REKS
-  subroutine getHxcKernel(iSquare, getAtomIndex, getDenseAO, over, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem, isRangeSep, HxcSpS, &
-      & HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> get atom index from AO index
-    integer, intent(in) :: getAtomIndex(:)
+  subroutine getHxcKernel(getDenseAO, over, overSqr, GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem,&
+      & isRangeSep, HxcSpS, HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
 
     !> get dense AO index from sparse AO array
     integer, intent(in) :: getDenseAO(:,:)
@@ -607,8 +600,8 @@ module dftbp_reksgrad
 
           ! get Hxc kernel for DFTB with respect to AO basis
           ! for LC case, we use half dense form.
-          call HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-              & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
+          call HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep,&
+              & HxcHalfS, HxcHalfD)
 
         else
 
@@ -623,8 +616,7 @@ module dftbp_reksgrad
     else if (Glevel == 3) then
 
       ! get Hxc kernel for DFTB with respect to AO basis
-      call HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-          & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
+      call HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     end if
 
@@ -2413,7 +2405,7 @@ module dftbp_reksgrad
         real(dp), intent(inout) :: RmatSpL(:,:)
 
         real(dp), allocatable :: tmpMat(:,:)
-        integer :: iAt1, iAt2, nOrb, LmaxR, mu, nu, iL
+        integer :: nOrb, LmaxR, mu, iL
 
         nOrb = size(RmatL,dim=1)
         LmaxR = size(RmatL,dim=3)
@@ -2700,14 +2692,7 @@ module dftbp_reksgrad
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Calculate H-XC kernel for DFTB in AO basis with dense form
-  subroutine HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-      & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> get atom index from AO index
-    integer, intent(in) :: getAtomIndex(:)
+  subroutine HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
@@ -2794,14 +2779,8 @@ module dftbp_reksgrad
 
 
   !> Calculate H-XC kernel for DFTB in AO basis with half dense form
-  subroutine HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> get atom index from AO index
-    integer, intent(in) :: getAtomIndex(:)
+  subroutine HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS,&
+      & HxcHalfD)
 
     !> get dense AO index from sparse AO array
     integer, intent(in) :: getDenseAO(:,:)

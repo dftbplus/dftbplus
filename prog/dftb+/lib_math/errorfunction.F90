@@ -14,14 +14,12 @@
 !> a) no special definitions: the intrinsic error function is used (officially first available in
 !>    the Fortran 2008 standard, but most F95/2003 compilers already implements this).
 !>
-!> b) EXTERNALERFC is defined: single precision and double precision external routines are expected
-!>    (erf(x), erfc(x), derf(x), derfc(x)).
+!> b) INTERNAL_ERFC is defined: erf(x) and erfc(x) are internally calculated by the code.
 !>
-!> c) INTERNALERFC is defined: erf(x) and erfc(x) are internally calculated by the code.
 module dftbp_errorfunction
   use dftbp_accuracy
 #:if INTERNAL_ERFC
-  use dftbp_erfcalc, only: erf, erfc
+  use dftbp_erfcalc, only : erf, erfc
 #:endif
   implicit none
   private
@@ -32,7 +30,7 @@ contains
 
 
   !> Calculates the value of the error function.
-  function erfwrap(xx) result(res)
+  elemental function erfwrap(xx) result(res)
 
     !> Function argument.
     real(dp), intent(in) :: xx
@@ -46,7 +44,7 @@ contains
 
 
   !> Calculates the value of the complementary error function.
-  function erfcwrap(xx) result(res)
+  elemental function erfcwrap(xx) result(res)
 
     !> Function argument.
     real(dp), intent(in) :: xx

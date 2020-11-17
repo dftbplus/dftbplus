@@ -1,0 +1,15 @@
+data_global
+_cell_length_a 3.8375335553
+_cell_length_b 3.8375335553
+_cell_length_c 3.8375335553
+_cell_angle_alpha 60.0000000000
+_cell_angle_beta 60.0000000000
+_cell_angle_gamma 60.0000000000
+_symmetry_space_group_name_H-M 'P 1'
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Ga  0.0000000000 0.0000000000 0.0000000000
+As  0.2500000000 0.2500000000 0.2500000000

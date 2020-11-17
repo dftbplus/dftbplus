@@ -1,0 +1,64 @@
+Geometry = GenFormat {
+    <<< "30h.gen"
+}
+
+Transport {
+    Device {
+        AtomRange = 1 11
+    }
+    Contact {
+	<<+ "Contact.source"
+    }
+    Contact {
+        <<+ "Contact.drain"
+    }
+    Task = ContactHamiltonian {
+        ContactId = "drain"
+    }
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1E-10
+    MaxAngularMomentum = {
+        H = s
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 300
+    }
+    SlaterKosterFiles = Type2Filenames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 10.0
+    }
+    SpinConstants = {
+        H = {
+            -6.4E-002
+        }
+    }
+    KPointsAndWeights = SupercellFolding {
+        1000 0 0
+        0 1 0
+        0 0 1
+        0.5 0.0 0.0
+    }
+    OldSKInterpolation = Yes # using test SK files without full interactions
+}
+
+Parallel{
+    # Reduce block size to allow multiple processors testing
+    Blacs{BlockSize=2}
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = No
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}

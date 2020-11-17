@@ -1,0 +1,97 @@
+# Trivial H atom chain, one contact (Drain) slightly spin polarised
+Geometry = GenFormat {
+    <<< "30h.gen"
+}
+
+Transport {
+    Device {
+        AtomRange = 1 11
+    }
+    Contact {
+        Id = "Source"
+        Atomrange = 12 21
+        Potential [eV] = 0.0
+    }
+    Contact {
+        Id = "Drain"
+        AtomRange = 22 31
+        Potential [eV] = 0.5
+    }
+    #Task = ContactHamiltonian{
+    #    ContactId = "Drain"
+    #}
+    ReadBinaryContact = No
+}
+
+Hamiltonian = Dftb {
+    Scc = Yes
+    SccTolerance = 1E-6
+    MaxAngularMomentum = {
+        H = s
+    }
+
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 0.0
+    }
+    SpinConstants = {
+        H = {
+            -6.4E-002
+        }
+    }
+
+    Filling = Fermi {
+        Temperature [K] = 100
+    }
+
+    #KPointsAndWeights = SupercellFolding {
+    # 512 0 0
+    # 0 1 0
+    # 0 0 1
+    # 0.0 0.0 0.0
+    #}
+
+    Electrostatics = Poisson {
+        Poissonbox [Angstrom] = 20.0 20.0 20.0
+        MinimalGrid [Angstrom] = 0.4 0.4 0.4
+        AtomDensityCutoff [Angstrom] = 7.05
+        CutoffCheck = No
+        SavePotential = Yes
+        PoissonAccuracy = 1e-5
+        BuildBulkPotential = Yes
+    }
+
+    SlaterKosterfiles = {
+        H-H = "H-H.skf"
+    }
+
+    Solver = GreensFunction{
+        Verbosity = 51
+        RealAxisPoints = 100
+        EnclosedPoles = 3
+        SaveSurfaceGFs = No
+    }
+}
+
+Analysis{
+    TunnelingAndDOS{
+        EnergyRange [eV] = -5.0  5.0
+        EnergyStep [eV] = 0.05
+    }
+}
+
+Parallel = {
+    Blacs{
+        BlockSize = 4
+    }
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}

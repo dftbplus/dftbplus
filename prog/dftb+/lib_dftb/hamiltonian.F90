@@ -25,6 +25,7 @@ module dftbp_hamiltonian
   use dftbp_scc, only : TScc
   use dftbp_elstattypes
   use poisson_init
+  use dftbp_dispersions, only : TDispersionIface
 
   implicit none
 
@@ -234,10 +235,10 @@ contains
   end subroutine resetInternalPotentials
 
 
-  !> Add potentials comming from point charges.
+  !> Add potentials coming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
       & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-      & tPoisson, tUpload, shiftPerLUp)
+      & tPoisson, tUpload, shiftPerLUp, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -289,6 +290,9 @@ contains
 
     !> uploded potential per shell per atom
     real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
+
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(in) :: dispersion
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
@@ -342,6 +346,10 @@ contains
       call sccCalc%setShiftPerL(shellPot(:,:,1))
 
     end select
+
+    if (allocated(dispersion)) then
+      call dispersion%addPotential(atomPot(:,1))
+    end if
 
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)

@@ -1,0 +1,307 @@
+\chapter{PHONONS}
+\label{app:phonons}
+
+The tool PHONONS allows to perform quantum thermal transport calculations \cite{phonontool}. 
+The quantities that can be computed are phonon transmission function and, hence, 
+the thermal conductance. The non-equilibrium Green's function formalism for phonon transport is used.
+Currently only coherent transport is possible based on a dynamical matrix. 
+Support for Dynamical Matrices other than \dftbp are possible.
+Phonon dispersion of materials can also be computed using this tool, based on a supercell geometry.
+
+The input file must be named \verb|phonons_in.hsd| and should be a 
+Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd}).
+
+\section{Phonon transport calculation}
+
+The input file has a similar structure to that defined for electron transport calculations and for the
+calculation of phonon modes (see Chapters \ref{app:transp} and \ref{app:modes}). 
+
+The table below contains the relevant blocks in the input file, 
+
+\begin{ptableh}
+  \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
+  \kw{Transport} & p|m &  & - & \pref{sec:phonon.Transport} \\
+  \kw{Masses} & p|m &  & - &  \\
+  \kw{Hessian} & p & & \cb & \pref{sec:phonon.Hessian} \\
+  \kw{Analysis} &p|m&  & - & \pref{sec:phonon.Analysis} \\
+\end{ptableh}
+
+
+\begin{description}
+\item[\is{Geometry}] Specifies the geometry for the system to be calculated. 
+	Follow the steps described in Section \ref{sec:transport.geometry} for a proper generation 
+	of the geometry file to compute transport properties. Also use the tool SETUPGEOM to help
+	building a valid structure for transport (See Chapter \ref{app:setupgeom}).
+\item[\is{Transport}] Contains the description of the partitioning of the system into a 
+	{\em device} and {\em contact} regions and additional information needed to calculate the 
+	required self-energies associated with the contacts. 
+	See Section 4.2 and p.~\pref{sec:phonon.Transport}.
+\item[\is{Masses}]  Specifies the mass of atoms in the geometry file. 
+	Default values are the standard atomic weights of the chemical elements. Alternatively
+	it is possible to insert them manually or read thenm from the Slater-Koster files.
+\item[\is{Hessian}] Contains information about the second derivatives matrix of the system energy 
+	with respect to atomic positions. See  p.~\pref{sec:phonon.Hessian}.
+\item[\is{Analysis}] This block is used to introduce the parameters for the calculation of 
+	phonon transport properties: phonon transmission, (total and projected) density of states, 
+	and thermal conductance. See  p.~\pref{sec:phonon.Analysis}.
+\end{description}
+
+\subsection{Transport\{\}}
+\label{sec:phonon.Transport}
+
+The block \is{Transport} is used to specify the partitioning of the structure into contacts and 
+extended central region. 
+The temperature of the contacts is added in the contact sections. An example of the transport 
+geometry specification looks like:
+
+\begin{verbatim}
+transport {
+    device {
+      AtomRange = 1 50
+    }
+    contact {
+      Id = "Drain"
+      atomrange = 51 100
+      temperature [K] = 300.0
+    }
+    contact {
+      Id = "Source"
+      atomrange = 101 150
+      temperature [K] = 300.0
+    }
+}
+\end{verbatim}
+
+\htcbsubsubsection{Device}
+
+The device block contains the following properties 
+
+\begin{ptable}
+  \kw{AtomRange} &2i& & - & \pref{pAtomRange} \\
+\end{ptable}
+
+\begin{description}
+\item[\is{AtomRange}] \label{pAtomRange} defines the first and last atom of the device region.
+\end{description}
+
+\htcbsubsubsection{Contact}
+
+The contact block contains the following properties:
+
+\begin{ptable}
+  \kw{Id} & s &  & &  \\
+  \kw{AtomRange} &2i& &  &  \\
+  \kw{PLShiftTolerance} & r & & 1E-5 & \\
+  \kw{Temperature} & r & & 0.0 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Id}] Assign a text label to the contact (must be 50 or fewer characters).
+\item[\is{AtomRange}]  Defines the first and last atom of the
+  device region.  {\bf Note} the contacts should be defined such that the atoms
+  included in the range are in continuous increasing order in the structure.
+\item[\is{PLShiftTolerance}]\modif{\modtype{length}} Used to set the absolute
+  accuracy used to check principal layer (PL) consistency (see above). The
+  default is $10^{-5}$ atomic units. Please be aware that using a large values
+  may hide errors due to an inconsistent definition of the contacts, therefore
+  it should not be modified.
+\item[\is{Temperature}]\modif{\modtype{temperature}} Specifies the temperature of the contact. 
+	For two contact calculations, if temperature of the contacts are different then a heat flux 
+	will be computed.
+\end{description}
+
+\subsection{Hessian\{\}}
+\label{sec:phonon.Hessian}
+
+The Hessian matrix is at the core of the calculation. 
+It contains the second derivatives of the energy \index{Hessian},
+	
+$$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+  \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+\frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn}
+  \partial x_{kn}}$$
+
+The Hessian matrix can be supplied by {\dftbp}, see p.~\pref{sec:dftbp.SecondDerivatives} 
+The derivatives matrix must be stored as the following order: For the $i$, $j$ and $k$
+directions of atoms $1 \ldots n$.
+The tool PHONONS can also read other formats of Hessians computed with other codes. 
+Currently Gaussian and CP2K are implemented.
+
+The table below contains the list of properties which may be present in this block:
+
+\begin{ptable}
+  \kw{Cutoff} & r &  & 0.0 &  \\
+  \kw{Matrix} & p & & \cb & \\
+\end{ptable}
+
+An example of the Hessian specification looks like:
+
+\begin{verbatim}
+Hessian {
+   Cutoff = 50.0 
+   Matrix = dftb{}
+}
+\end{verbatim}
+
+\begin{description}
+
+\item[\is{Cutoff}] Specifies the range of interacting atoms in atomic units.
+\item[\iscb{Matrix}] Contains the second derivatives\index{Hessian} of the energy.
+     Setting \kw{dftb} Matrix type reads the file 'hessian.out'.
+     Currently the code can also support CP2K file format.
+    
+{\em Note}: for supercell calculations, the phonon transmission is obtained at the $\mathbf{q}=0$ 
+point, irrespective of the k-point sampling used to compute the Hessian.
+ 
+\end{description} 
+
+
+\subsection{Analysis\{\}}
+\label{sec:phonon.Analysis}
+
+The analysis block looks like:
+
+\begin{verbatim}
+Analysis {
+  TunnelingAndDOS{
+    FreqRange = 1e-6 1e-2
+    FreqStep = 4e-5
+    DeltaModel = deltaOmega{
+      Delta = 1e-4
+    }
+    Region = {
+      Atoms = 1:50
+    }
+  }
+  ModeType = longitudinal
+  Conductance{
+    TempRange [K] = 1.0 802.0
+    TempStep [K] = 1.0
+  }
+}
+\end{verbatim}  
+
+\htcbsubsubsection{TunnelingAndDOS}
+
+This method block is used to calculate the transmission by means of the Caroli formula
+in terms of the phonon Green's functions of the device and the self-energies of the contacts.
+The density of states is also computed from the spectral function. This block can only be 
+specified if an open boundary conditions system has been defined in \is{Transport} 
+(see p.\pref{Transport}).
+
+\begin{ptable}
+  \kw{FreqRange} & 2r &  & &  \\
+  \kw{FreqStep} & r & &  &  \\
+  \kw{DeltaModel} & r & & & \\
+  \kw{Region} & p & & \cb & \pref{pRegion} \\
+\end{ptable}
+
+\begin{description}
+\item[\is{FreqRange}]\modif{\modtype{energy}} Contains the frequency range over
+  which the transmission function and local density of states are computed.
+\item[\is{FreqStep}]\modif{\modtype{energy}} Is the frequency sampling step for
+  evaluating properties.
+\item[\is{DeltaModel}] Defines the frequency dependent model for $\delta$ in the
+	Green's function. Possible values are 'deltaSquared', 'deltaOmega' and 
+	'Mingo' model. 
+    The case 'deltaSquared' sets a constant value equal to \kw{Delta}*\kw{Delta}
+    for dimensional reasons.
+    The case 'deltaOmega' sets $\delta= \kw{Delta}* \omega$.
+    The Mingo model sets $\delta=f(\omega)*\omega^2$, where 
+    $f(\omega)=\kw{Delta}(1-\omega/\omega_{max})$. In principles this model, as
+    suggested in \cite{Mingo}, should be good in the limit $\omega \rightarrow 0$, however
+    in some case it produces an extremly low value of $\delta$ that result in 
+    numerical problems. The 'deltaOmega' model is recommended.
+\item[\is{Delta}]\modif{\modtype{energy}} Defines the imaginary frequency value 
+	for the phonon Green's function. Note that in the Mingo model \kw{Delta} 
+	is just a dimensionless scaling factor.
+\item[\is{Wmax}]\modif{\modtype{energy}} Defines the cutoff frequency typically 
+	set as the maximal phonon frequency of the problem.
+\item[\iscb{Region}] \label{pRegion} This block defines atomic ranges on to which the  
+	density of states is projected. 
+	The definition in the block follow the same syntax as a \dftbp{} calculation without 
+	transport (see section~\ref{sec:dftbp.ProjectStates}).
+\item[\iscb{ModeType}] Defines the type of modes for which the transmission is restricted to.
+	It is basic implementation that allows to project on mode components along 
+	cartesian axes. Currently available options are\\
+	\begin{itemize}
+	  \item{x-axis} Projects on x-axis 
+        \item{y-axis} Projects on y-axis 
+        \item{z-axis} Projects on z-axis
+        \item{longitudinal} Projects on z, assuming transport direction is along z.
+        \item{transverse} Projects on x-y.
+        \item{inplane} Projects on x-z, assuming a 2D planar structure on this plane.
+        \item{outofplane} Projects on y, assuming a 2D planar structure on the xz plane.
+        \item{all} Computes transmission for all modes.
+      \end{itemize}
+\end{description}
+
+\htcbsubsubsection{Conductance}
+
+This method block is used to calculate the thermal conductance by means of the Landauer formula.
+
+\begin{ptable}
+  \kw{TempRange} & 2r &  & &  \\
+  \kw{TempStep} & r & &  &  \\
+\end{ptable}
+
+\begin{description}
+\item[\is{TempRange}]\modif{\modtype{temperature}} Contains the temperature range over
+  which the thermal conductance is computed.
+\item[\is{TempStep}]\modif{\modtype{temperature}} Is the temperature sampling step for
+  evaluating the thermal conductance.
+\end{description}
+
+
+\section{Phonon dispersion}
+
+In order to compute phonon dispersions the following steps must be followed. 
+1. Start from a bulk cell and accurately relax setting a large number of k-points and
+tight \kw{MaximalForceComponent}=$1e-5$. Allow \kw{LatticeOpt}=Yes.
+2. Generate a suitable supercell using \kw{repeatgen} in dptools. This supercell must 
+have the central cell at the beginning and then the repeated cells must follow. 
+Only odd repetitions are possible such as 3x3x3 or 5x5x5.
+4. Check the forces of this supercell are still very small. 
+5. Compute the Hessian for all atoms of this supercell.
+6. Run PHONONS for bandstructure calculations using the settings below.
+
+The relevant sections in the input file are:
+\begin{ptableh}
+  \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
+  \kw{PhononDispersion} & p|m &  & - & \pref{sec:phonon.Transport} \\
+  \kw{Masses} & p|m &  & - &  \\
+  \kw{Hessian} & p & & \cb & \pref{sec:phonon.Hessian} \\
+\end{ptableh}
+
+\subsection{PhononDispersion\{\}}
+\label{sec:dispersion.PhDisp}
+
+The PhononDispersion block looks like:
+
+\begin{verbatim}
+PhononDispersion{
+  SuperCell = 3 3 3
+  OutputUnits = cm
+  KPointsAndWeights= Klines{
+    1 0.5 0.5 0.5   # L
+   10 0.0 0.0 0.0  # Gamma 
+   10 0.5 0.0 0.5  # X
+  }
+ }
+\end{verbatim}
+
+\begin{description}
+\item[\is{Supercell}] Specifies the number of repetitions of the unit cell along
+	the lattice vectors.
+	This must be the same as those set in repeatgen to generate the supercell
+	used for phonon calculations. Usually 3x3x3 supercells or in case of 
+	low-dimensional structures can be for instance 3x3x1 (2-dimension). 
+\item[\iscb{KPointsAndWeights}] Defines the k-point path for the phonon dispersion. 
+	The syntax is the same as that defined in the \dftbp{} input. 
+\item[\is{OutputUnits}] Specifies the output units of the phonon bandstructure. 
+	These can be one of 'H', 'eV', 'meV', 'cm' or 'THz'. 
+\end{description} 
+
+

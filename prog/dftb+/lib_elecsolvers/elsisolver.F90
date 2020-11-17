@@ -23,7 +23,7 @@ module dftbp_elsisolver
   use dftbp_orbitals
   use dftbp_message, only : error, warning, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
-  use dftbp_energies, only : TEnergies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_etemp, only : fillingTypes
   use dftbp_sparse2dense
   use dftbp_assert
@@ -31,6 +31,7 @@ module dftbp_elsisolver
   use dftbp_angmomentum, only : getLOnsite
   use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_potentials, only : TPotentials
+  use dftbp_version, only : TVersion
   implicit none
   private
 
@@ -191,9 +192,6 @@ module dftbp_elsisolver
     type(TElsiCsc), allocatable :: elsiCsc
 
 
-    !> Version number for ELSI
-    integer, public :: major, minor, patch
-
     !! ELPA settings
 
     !> ELPA solver choice
@@ -316,16 +314,13 @@ contains
     !> Whether the solver provides the TS term for electrons
     logical, intent(inout) :: providesElectronEntropy
 
-    integer :: dateStamp
-
   #:if WITH_ELSI
 
     character(lc) :: buffer
+    integer :: version(3)
 
-    call elsi_get_version(this%major, this%minor, this%patch)
-    call elsi_get_datestamp(dateStamp)
-
-    call supportedVersionNumber(this, dateStamp)
+    call elsi_get_version(version(1), version(2), version(3))
+    call supportedVersionNumber(TVersion(version(1), version(2), version(3)))
 
     this%iSolver = inp%iSolver
 
@@ -504,58 +499,25 @@ contains
   end subroutine TElsiSolver_init
 
 
-  !> Checks for supported ELSI api version, ideally 2.6.0 or 2.6.1 (correct electronic entropy
-  !> return and # PEXSI poles change between 2.5.0 and 2.6.0), but 2.5.0 can also be used with
-  !> warnings.
-  subroutine supportedVersionNumber(this, dateStamp)
+  !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
+  subroutine supportedVersionNumber(version)
 
     !> Version value components inside the structure
-    class(TElsiSolver), intent(in) :: this
-
-    !> git commit date for the library
-    integer, intent(in) :: dateStamp
+    type(TVersion), intent(in) :: version
 
     logical :: isSupported, isPartSupported
 
-    isSupported = .true.
-    if (this%major < 2) then
-      isSupported = .false.
-    elseif (this%major == 2 .and. this%minor < 6) then
-      isSupported = .false.
-    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1])) then
-      ! library must be 2.6.{0,1}
-      isSupported = .false.
-    end if
+    isSupported = version >= TVersion(2, 6)
+    isPartSupported = version >= TVersion(2, 5)
 
-    isPartSupported = isSupported
-    if (.not.isPartSupported) then
-      if (all([this%major, this%minor, this%patch] == [2,5,0])) then
-        isPartSupported = .true.
-      end if
-    end if
-
-    if (.not. (isSupported .or. isPartSupported)) then
-      call error("Unsuported ELSI version for DFTB+, requires release >= 2.5.0")
-    end if
-
-    if (.not.isSupported .and. isPartSupported) then
-      call warning("ELSI version 2.5.0 is only partially supported due to changes in default solver&
+    if (.not. isPartSupported) then
+      call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
+    else if (.not. isSupported) then
+      call warning("ELSI version 2.5 is only partially supported due to changes in default solver&
           & behaviour for PEXSI at 2.6.0")
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', this%major, this%minor,&
-        & this%patch
-
-    if (all([this%major,this%minor,this%patch] == [2,5,0]) .and. dateStamp /= 20200204) then
-      call warning("ELSI 2.5.0 library version is between releases")
-    end if
-    if (all([this%major,this%minor,this%patch] == [2,6,0]) .and. dateStamp /= 20200617) then
-      call warning("ELSI 2.6.0 library version is between releases")
-    end if
-    if (all([this%major,this%minor,this%patch] == [2,6,1]) .and. dateStamp /= 20200625) then
-      call warning("ELSI 2.6.1 library version is between releases")
-    end if
-
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
 
   end subroutine supportedVersionNumber
 
