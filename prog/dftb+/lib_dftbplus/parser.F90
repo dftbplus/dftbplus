@@ -108,7 +108,7 @@ module dftbp_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
+      & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
 
 
