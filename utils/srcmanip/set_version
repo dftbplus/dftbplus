@@ -165,13 +165,11 @@ def _warn_about_parser_version(shortversion):
 
     txt = """
 
-Make sure to update getParserVersion() in prog/dftb+/lib_dftbplus/parser.F90
-manually by adding the block
+Make sure to update parserVersion and type(TVersionMap) in
+prog/dftb+/lib_dftbplus/parser.F90
 
-    case("{shortversion}")
-      parserVersion = N
-
-with N being the current parser version.""".format(shortversion=shortversion)
+Also check the table in doc/dftb+/manual/releases.tex has been
+updated.""".format(shortversion=shortversion)
     print(txt)
 
 
