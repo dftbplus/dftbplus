@@ -18,6 +18,9 @@ module dftbp_environment
 #:if WITH_SCALAPACK
   use dftbp_blacsenv
 #:endif
+#:if WITH_MPI and WITH_TRANSPORT
+  use dftbp_negfmpienv
+#:endif
   implicit none
   private
 
@@ -52,7 +55,10 @@ module dftbp_environment
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
   #:endif
-
+  #:if WITH_MPI and WITH_TRANSPORT
+    !> Global libnegf settings
+    type(TNegfEnv), public :: mpinegf
+  #:endif
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
 
@@ -65,6 +71,9 @@ module dftbp_environment
   #:endif
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
+  #:endif
+  #:if WITH_MPI and WITH_TRANSPORT
+    procedure :: initNegfMpi => TEnvironment_initNegfMpi
   #:endif
 
   end type TEnvironment
@@ -240,6 +249,20 @@ contains
     call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
 
   end subroutine TEnvironment_initBlacs
+
+  !> Initializes parallel libNEGF environment
+  subroutine TEnvironment_initNegfMpi(this, nKpoints)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    !> Number of k-points
+    integer, intent(in) :: nKpoints
+
+    call TNegfEnv_init(this%mpinegf, this%mpi, nKpoints)
+
+  end subroutine TEnvironment_initNegfMpi
+
 
 #:endif
 
