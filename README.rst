@@ -25,6 +25,10 @@ Downloading the binary distribution
 Binary (threaded) distribution of the latest stable release can be found on the
 `stable release page <http://www.dftbplus.org/download/dftb-stable/>`_.
 
+Alternatively, you can also install DFTB+ via the `Anaconda package management
+<https://www.anaconda.com/products/individual>`_ framework. (This feature is
+currently experimental.)
+
 
 Building from source
 --------------------
@@ -39,8 +43,8 @@ Download the source code from the `stable release page
 <http://www.dftbplus.org/download/dftb-stable/>`_.
 
 You need CMake (>= 3.16) to build DFTB+. If your environment offers no CMake or
-an only an older one, you can easily install the latest CMake via Python's
-``pip`` command::
+only an older one, you can easily install the latest CMake via Python's ``pip``
+command::
 
   pip install cmake
 
