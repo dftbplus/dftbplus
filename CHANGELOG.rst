@@ -11,19 +11,35 @@ Unreleased
 Added
 -----
 
+
+Changed
+-------
+
+
+Fixed
+-----
+
+
+20.2 (2020-11-17)
+=================
+
+Added
+-----
+
 - Many body and Tkatchenko-Scheffler dispersion
 
 - Delta DFTB for lowest singlet excitated state
 
 - Electron transport for system with colinear spin polarisation
 
-- Phonon transport calculation
+- Phonon transport calculations with new code
 
 - Linear response gradients for spin polarisation
 
 - FIRE geometry optimizer
 
-- Simple D3-dispersion implementation (elevates need for external D3-library)
+- Simple D3-dispersion implementation (can be used without needing the external
+  D3-library)
 
 
 Changed
@@ -32,8 +48,6 @@ Changed
 - MPI parallelisation for UFF, Slater-Kirkwood and DFT-D4 dispersion
 
 - OMP parallelisation for UFF and Slater-Kirkwood dispersion
-
-- Re-enabled (collinear) spin polarization in transport
 
 - Option to take quasi-Newton steps in lBFGS (set as default)
 
@@ -45,7 +59,7 @@ Fixed
 
 - Stress tensor is now calculated with Slater-Kirkwood dispersion
 
-- Cube format closer to the format expected by several tools
+- Cube format closer to the files expected by several external tools
 
 
 20.1 (2020-07-22)

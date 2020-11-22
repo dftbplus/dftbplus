@@ -52,8 +52,9 @@ The following cache variables may be set to influence the library detection:
   ``SCALAPACK_DETECTION``) and the variable is overwritten to contain the
   libraries with their with full path.
 
-  Note: On Ubuntu Focal (20.4 LTS) system, the installed CMake export file is broken.
-  You should not realy on the CMake-autodetection on those systems.
+  Note: On Ubuntu (20.4 LTS and probably also previous Ubuntu versions), the
+  installed CMake export file is broken.  You should not realy on the
+  CMake-autodetection on those systems.
 
 ``SCALAPACK_LIBRARY_DIR``
   Directories which should be looked up in order to find the customized libraries.
