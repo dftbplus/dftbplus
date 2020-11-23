@@ -68,6 +68,7 @@ module dftbp_environment
     procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
   #:if WITH_MPI
     procedure :: initMpi => TEnvironment_initMpi
+    procedure :: setMpiComm => TEnvironment_setMpiComm
   #:endif
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
@@ -164,8 +165,8 @@ contains
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-    
-  
+
+
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -223,6 +224,23 @@ contains
 
   end subroutine TEnvironment_initMpi
 
+  !> This is used to set the mpiEnv as defined by a solver Env
+  subroutine TEnvironment_setMpiComm(this, newMpiEnv)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    !>  mpi environemnt
+    type(TMpiEnv), intent(in) :: newMpiEnv
+
+
+    ! It is not possible to check if communicators are valid
+    ! mpifx should set some defaults like e.g. 0, size 0, etc.
+    ! So we copy the communicator as is:
+    this%mpi = newMpiEnv
+
+  end subroutine TEnvironment_setMpiComm
+
 #:endif
 
 
@@ -250,6 +268,9 @@ contains
 
   end subroutine TEnvironment_initBlacs
 
+#:endif
+
+#:if WITH_MPI and WITH_TRANSPORT
   !> Initializes parallel libNEGF environment
   subroutine TEnvironment_initNegfMpi(this, nKpoints)
 
@@ -263,8 +284,6 @@ contains
 
   end subroutine TEnvironment_initNegfMpi
 
-
 #:endif
-
 
 end module dftbp_environment
