@@ -2062,7 +2062,7 @@ contains
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory, input%ctrl%lbfgsInp%isLineSearch,&
             & input%ctrl%lbfgsInp%isOldLS, input%ctrl%lbfgsInp%MaxQNStep)
-        call init(pGeoLatOpt, pLbfgsLat)
+        call init(this%pGeoLatOpt, pLbfgsLat)
       case (geoOptTypes%FIRE)
         allocate(pFireLat)
         call TFire_init(pFireLat, 9, input%ctrl%maxForce, input%ctrl%deltaT)
@@ -2074,10 +2074,10 @@ contains
             & (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else if (this%tLatOptFixAng) then
         ! optimization uses scaling factor of lattice vectors
-        call reset( this%pGeoLatOpt,&
+        call reset(this%pGeoLatOpt,&
             & (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else
-        call reset( this%pGeoLatOpt, reshape(this%latVec, (/ 9 /)) )
+        call reset(this%pGeoLatOpt, reshape(this%latVec, (/ 9 /)) )
       end if
     end if
 
@@ -2532,7 +2532,7 @@ contains
 
     ! Initialize neighbourlist.
     allocate(this%neighbourList)
-    call TNeighbourlist_init(this%neighbourList, nAtom, nInitNeighbour)
+    call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
     allocate(this%nNeighbourRep(this%nAtom))
     if (this%isRangeSep) then
@@ -4149,7 +4149,7 @@ contains
           & trim(socketInput%host)
       this%socket = IpiSocketComm(socketInput)
     end if
-    call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,^
+    call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
         & this%tCoordsChanged, this%tLatticeChanged, tDummy)
 
   end subroutine initSocket
@@ -4403,11 +4403,12 @@ contains
     ! 2. Solver == GreensFunctions
     ! 3. Solver == TransportOnly
     ! 4. Solver == ELSI using a sparse solver
-    this%tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS .or. &
+    this%tLargeDenseMatrices = .not. (this%tWriteRealHS .or. this%tWriteHS .or. &
           &   (this%electronicSolver%iSolver == electronicSolverTypes%GF) .or. &
           &   (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) )
     if (this%electronicSolver%isElsiSolver) then
-      this%tLargeDenseMatrices = this%tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
+      this%tLargeDenseMatrices = this%tLargeDenseMatrices&
+          & .and. .not. this%electronicSolver%elsi%isSparse
     end if
     if (this%tLargeDenseMatrices) then
       call this%allocateDenseMatrices(env)
