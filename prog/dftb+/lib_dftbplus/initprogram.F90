@@ -4129,7 +4129,7 @@ contains
           & trim(socketInput%host)
       this%socket = IpiSocketComm(socketInput)
     end if
-    call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,^
+    call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
         & this%tCoordsChanged, this%tLatticeChanged, tDummy)
 
   end subroutine initSocket

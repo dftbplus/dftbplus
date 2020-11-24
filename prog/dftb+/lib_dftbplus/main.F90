@@ -1630,8 +1630,8 @@ contains
       ! Only receive geometry from socket, if there are still geometry iterations left
     #:if WITH_SOCKETS
       call receiveGeometryFromSocket(env, globalData%socket, globalData%tPeriodic,&
-          & globalData%coord0, globalData%latVec, globalData%tCoordsChanged, tLatticeChanged,&
-          & tStopDriver)
+          & globalData%coord0, globalData%latVec, globalData%tCoordsChanged,&
+          & globalData%tLatticeChanged, tStopDriver)
     #:else
       call error("Internal error: code compiled without socket support")
     #:endif
