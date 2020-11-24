@@ -304,7 +304,7 @@ contains
 
 
   !> Adds blocks onto end of a 1D vector
-  subroutine onsBlock_reduce(input, equiv, orb, output, skew)
+  subroutine onsBlock_reduce(input, equiv, orb, output, isSkew)
 
     !> unpacked data
     real(dp), intent(in) :: input(:,:,:,:)
@@ -319,7 +319,7 @@ contains
     real(dp), intent(inout) :: output(:)
 
     !> is skew symmetry required
-    logical, optional, intent(in) :: skew
+    logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin
     integer :: iS, iOrb1, iOrb2, iAt
@@ -331,8 +331,8 @@ contains
     @:ASSERT(size(input, dim=2) == orb%mOrb)
     @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
 
-    if (present(skew)) then
-      iSkew = skew
+    if (present(isSkew)) then
+      iSkew = isSkew
     else
       iSkew = .false.
     end if
@@ -364,7 +364,7 @@ contains
 
 
   !> Extract orbital blocks from the end of a 1D vector
-  subroutine onsblock_expand(input, blockEquiv, orb, output, orbEquiv, skew)
+  subroutine onsblock_expand(input, blockEquiv, orb, output, orbEquiv, isSkew)
 
     !> 1D array of packed data
     real(dp), intent(in) :: input(:)
@@ -382,7 +382,7 @@ contains
     integer, intent(in),optional :: orbEquiv(:,:,:)
 
     !> is skew symmetry required
-    logical, optional, intent(in) :: skew
+    logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin
     integer :: iAt, iSp
@@ -392,8 +392,8 @@ contains
     nAtom = size(output, dim=3)
     nSpin = size(output, dim=4)
 
-    if (present(skew)) then
-      iSkew = skew
+    if (present(isSkew)) then
+      iSkew = isSkew
     else
       iSkew = .false.
     end if

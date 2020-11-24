@@ -17,7 +17,7 @@ module dftbp_hamiltonian
   use dftbp_shift, only : add_shift, total_shift
   use dftbp_spin, only : getSpinShift
   use dftbp_spinorbit, only : getDualSpinOrbitShift
-  use dftbp_dftbplusu, only : getDftbUShift
+  use dftbp_dftbplusu, only : TDftbU
   use dftbp_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
@@ -380,8 +380,7 @@ contains
 
 
   !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
-      &, UJ, nUJ, iUJ, niUJ, potential)
+  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam, species, orb, potential)
 
     !> block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
@@ -390,7 +389,7 @@ contains
     real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
 
     !> is this a +U calculation
-    logical, intent(in) :: tDftbU
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> does the hamiltonian have an imaginary part in real space?
     logical, intent(in) :: tImHam
@@ -401,32 +400,15 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> choice of +U functional
-    integer, intent(in) :: nDftbUFunc
-
-    !> prefactor for +U potential
-    real(dp), allocatable, intent(in) :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
-
-    if (tDFTBU) then
+    if (allocated(dftbU)) then
       if (tImHam) then
-        call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
-            & species,orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+        call dftbU%getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn,&
+            & qiBlockIn, species,orb)
       else
-        call getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb, nDFTBUfunc, UJ, nUJ,&
-            & niUJ, iUJ)
+        call dftbU%getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb)
       end if
       potential%intBlock = potential%intBlock + potential%orbitalBlock
     end if
