@@ -366,17 +366,17 @@ contains
     end if
 
     if (globalData%tLocalCurrents) then
-      call local_currents(env, globalData%parallelKS%localKS, globalData%ham, globalData%over,&
-          & globalData%neighbourList, globalData%nNeighbourSK, globalData%cutOff%skCutoff,&
-          & globalData%denseDesc%iAtomStart, globalData%iSparseStart, globalData%img2CentCell,&
-          & globalData%iCellVec, globalData%cellVec, globalData%rCellVec, globalData%orb,&
-          & globalData%kPoint, globalData%kWeight, globalData%coord0Fold, globalData%species0,&
-          & globalData%speciesName, globalData%mu, globalData%lCurrArray)
+      call globalData%negfInt%local_currents(env, globalData%parallelKS%localKS, globalData%ham,&
+          & globalData%over, globalData%neighbourList, globalData%nNeighbourSK,&
+          & globalData%cutOff%skCutoff, globalData%denseDesc%iAtomStart, globalData%iSparseStart,&
+          & globalData%img2CentCell, globalData%iCellVec, globalData%cellVec, globalData%rCellVec,&
+          & globalData%orb, globalData%kPoint, globalData%kWeight, globalData%coord0Fold,&
+          & globalData%species0, globalData%speciesName, globalData%mu, globalData%lCurrArray)
     end if
 
     if (globalData%tTunn) then
-      call calc_current(env, globalData%parallelKS%localKS, globalData%ham, globalData%over,&
-          & globalData%neighbourList%iNeighbour, globalData%nNeighbourSK,&
+      call globalData%negfInt%calc_current(env, globalData%parallelKS%localKS, globalData%ham,&
+          & globalData%over, globalData%neighbourList%iNeighbour, globalData%nNeighbourSK,&
           & globalData%densedesc%iAtomStart, globalData%iSparseStart, globalData%img2CentCell,&
           & globalData%iCellVec, globalData%cellVec, globalData%orb, globalData%kPoint,&
           & globalData%kWeight, globalData%tunneling, globalData%current, globalData%ldos,&
@@ -444,7 +444,7 @@ contains
   #:if WITH_TRANSPORT
     if (globalData%electronicSolver%iSolver == electronicSolverTypes%GF .or. &
       & globalData%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
-      call negf_destroy()
+      call TNegfInt_final(globalData%negfInt)
     end if
   #:endif
 
@@ -649,9 +649,9 @@ contains
 
     #:if WITH_TRANSPORT
       if (globalData%tNegf) then
-        call initNegfStuff(globalData%denseDesc, globalData%transpar, globalData%ginfo,&
-            & globalData%neighbourList, globalData%nNeighbourSK, globalData%img2CentCell,&
-            & globalData%orb)
+        call setupNegfStuff(globalData%negfInt, globalData%denseDesc, globalData%transpar,&
+            & globalData%ginfo, globalData%neighbourList, globalData%nNeighbourSK,&
+            & globalData%img2CentCell, globalData%orb)
       end if
     #:endif
 
@@ -955,22 +955,22 @@ contains
 
         call convertToUpDownRepr(globalData%ham, globalData%iHam)
 
-        call getDensity(env, iSccIter, globalData%denseDesc, globalData%ham, globalData%over,&
-            & globalData%neighbourList, globalData%nNeighbourSk, globalData%iSparseStart,&
-            & globalData%img2CentCell, globalData%iCellVec, globalData%cellVec, globalData%kPoint,&
-            & globalData%kWeight, globalData%orb, globalData%tHelical, globalData%coord,&
-            & globalData%species, globalData%electronicSolver, globalData%tRealHS,&
-            & globalData%tSpinSharedEf, globalData%tSpinOrbit, globalData%tDualSpinOrbit,&
-            & globalData%tFillKSep, globalData%tFixEf, globalData%tMulliken, globalData%iDistribFn,&
-            & globalData%tempElec, globalData%nEl, globalData%parallelKS, globalData%Ef,&
-            & globalData%mu, globalData%dftbEnergy(globalData%deltaDftb%iDeterminant),&
-            & globalData%rangeSep, globalData%eigen, globalData%filling, globalData%rhoPrim,&
-            & globalData%iHam, globalData%xi, globalData%orbitalL, globalData%HSqrReal,&
-            & globalData%SSqrReal, globalData%eigvecsReal, globalData%iRhoPrim,&
-            & globalData%HSqrCplx, globalData%SSqrCplx, globalData%eigvecsCplx,&
-            & globalData%rhoSqrReal, globalData%deltaRhoInSqr, globalData%deltaRhoOutSqr,&
-            & globalData%qOutput, globalData%nNeighbourLC, globalData%tLargeDenseMatrices,&
-            & globalData%deltaDftb)
+        call getDensity(env, globalData%negfInt, iSccIter, globalData%denseDesc, globalData%ham,&
+            & globalData%over, globalData%neighbourList, globalData%nNeighbourSk,&
+            & globalData%iSparseStart, globalData%img2CentCell, globalData%iCellVec,&
+            & globalData%cellVec, globalData%kPoint, globalData%kWeight, globalData%orb,&
+            & globalData%tHelical, globalData%coord, globalData%species,&
+            & globalData%electronicSolver, globalData%tRealHS, globalData%tSpinSharedEf,&
+            & globalData%tSpinOrbit, globalData%tDualSpinOrbit, globalData%tFillKSep,&
+            & globalData%tFixEf, globalData%tMulliken, globalData%iDistribFn, globalData%tempElec,&
+            & globalData%nEl, globalData%parallelKS, globalData%Ef, globalData%mu,&
+            & globalData%dftbEnergy(globalData%deltaDftb%iDeterminant), globalData%rangeSep,&
+            & globalData%eigen, globalData%filling, globalData%rhoPrim, globalData%iHam,&
+            & globalData%xi, globalData%orbitalL, globalData%HSqrReal, globalData%SSqrReal,&
+            & globalData%eigvecsReal, globalData%iRhoPrim, globalData%HSqrCplx,&
+            & globalData%SSqrCplx, globalData%eigvecsCplx, globalData%rhoSqrReal,&
+            & globalData%deltaRhoInSqr, globalData%deltaRhoOutSqr, globalData%qOutput,&
+            & globalData%nNeighbourLC, globalData%tLargeDenseMatrices, globalData%deltaDftb)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (globalData%isRangeSep) then
@@ -1344,14 +1344,15 @@ contains
             & globalData%chrgForces, globalData%reks)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
-        call getEnergyWeightedDensity(env, globalData%electronicSolver, globalData%denseDesc,&
-            & globalData%forceType, globalData%filling, globalData%eigen, globalData%kPoint,&
-            & globalData%kWeight, globalData%neighbourList, globalData%nNeighbourSK, globalData%orb,&
-            & globalData%iSparseStart, globalData%img2CentCell, globalData%iCellVec,&
-            & globalData%cellVec, globalData%tRealHS, globalData%ham, globalData%over,&
-            & globalData%parallelKS, globalData%tHelical, globalData%species, globalData%coord,&
-            & iSccIter, globalData%mu, globalData%ERhoPrim, globalData%eigvecsReal,&
-            & globalData%SSqrReal, globalData%eigvecsCplx, globalData%SSqrCplx)
+        call getEnergyWeightedDensity(env, globalData%negfInt, globalData%electronicSolver,&
+            & globalData%denseDesc, globalData%forceType, globalData%filling, globalData%eigen,&
+            & globalData%kPoint, globalData%kWeight, globalData%neighbourList,&
+            & globalData%nNeighbourSK, globalData%orb, globalData%iSparseStart,&
+            & globalData%img2CentCell, globalData%iCellVec, globalData%cellVec,&
+            & globalData%tRealHS, globalData%ham, globalData%over, globalData%parallelKS,&
+            & globalData%tHelical, globalData%species, globalData%coord, iSccIter, globalData%mu,&
+            & globalData%ERhoPrim, globalData%eigvecsReal, globalData%SSqrReal,&
+            & globalData%eigvecsCplx, globalData%SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, globalData%sccCalc, globalData%tExtField, globalData%isXlbomd,&
             & globalData%nonSccDeriv, globalData%EField, globalData%rhoPrim, globalData%ERhoPrim,&
@@ -1948,8 +1949,11 @@ contains
 #:if WITH_TRANSPORT
 
   !> Initialise transport
-  subroutine initNegfStuff(denseDescr, transpar, ginfo, neighbourList, nNeighbourSK, img2CentCell,&
-      & orb)
+  subroutine setupNegfStuff(negfInt, denseDescr, transpar, ginfo, neighbourList, nNeighbourSK,&
+      & img2CentCell, orb)
+
+    !> NEGF interface
+    type(TNegfInt), intent(inout) :: negfInt
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDescr
@@ -1973,15 +1977,15 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     ! known issue about the PLs: We need an automatic partitioning
-    call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-        & orb)
+    call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
+        & img2CentCell, orb)
 
-    call negf_init_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
+    call negfInt%setup_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
         & nNeighbourSK, img2CentCell)
 
-    call negf_init_dephasing(ginfo%tundos)  !? why tundos
+    call negfInt%setup_dephasing(ginfo%tundos)  !? why tundos
 
-  end subroutine initNegfStuff
+  end subroutine setupNegfStuff
 
 #:endif
 
@@ -2236,16 +2240,19 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(env, iScc, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
-      & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
-      & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf,&
-      & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling,&
-      & rhoPrim, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
+  subroutine getDensity(env, negfInt, iScc, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord,&
+      & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
+      & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
+      & filling, rhoPrim, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
       & tLargeDenseMatrices, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> NEGF interface
+    type(TNegfInt), intent(inout) :: negfInt
 
     !> SCC iteration counter (needed by GF)
     integer, intent(in) :: iSCC
@@ -2417,9 +2424,10 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
     #:if WITH_TRANSPORT
-      call calcdensity_green(iSCC, env, parallelKS%localKS, ham, over, neighbourlist%iNeighbour,&
-          & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
-          & kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef, energy%E0, energy%TS)
+      call negfInt%calcdensity_green(iSCC, env, parallelKS%localKS, ham, over,&
+          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef,&
+          & energy%E0, energy%TS)
     #:else
       call error("Internal error: getDensity : GF-solver although code compiled without transport")
     #:endif
@@ -4754,13 +4762,16 @@ contains
   !>
   !> NOTE: Dense eigenvector and overlap matrices are overwritten.
   !>
-  subroutine getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling,&
-      & eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
-      & iCellVEc, cellVec, tRealHS, ham, over, parallelKS, tHelical, species, coord, iSCC, mu,&
-      & ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+  subroutine getEnergyWeightedDensity(env, negfInt, electronicSolver, denseDesc, forceType,&
+      & filling, eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart,&
+      & img2CentCell, iCellVEc, cellVec, tRealHS, ham, over, parallelKS, tHelical, species, coord,&
+      & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> NEGF interface
+    type(TNegfInt), intent(inout) :: negfInt
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -4863,9 +4874,9 @@ contains
 
     #:if WITH_TRANSPORT
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
-        call calcEdensity_green(iSCC, env, parallelKS%localKS, ham, over, neighbourlist%iNeighbour,&
-            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec,&
-            & orb, kPoint, kWeight, mu, ERhoPrim)
+        call negfInt%calcEdensity_green(iSCC, env, parallelKS%localKS, ham, over,&
+            & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       end if
     #:endif
 
