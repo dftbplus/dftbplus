@@ -20,7 +20,7 @@ module dftbp_dftbplusu
   implicit none
   private
 
-  public :: TDftbU_inp, TDftbU, TDftbU_init, plusUFunctionals
+  public :: TDftbU_inp, TDftbU, TDftbU_init, plusUFunctionals, AppendBlock_reduce
 
   !> Input for DFTB+U calculation
   type TDftbU_inp
@@ -70,9 +70,6 @@ module dftbp_dftbplusu
 
     !> Shift from +U potentials
     generic :: getDftbUShift => shift_U, shift_iU
-
-    !> Append block charges to reduced vector
-    procedure :: AppendBlock_reduce
 
     !> Expand charges from reduced vector
     procedure :: Block_expand
@@ -546,10 +543,7 @@ contains
 
 
   !> Adds DFTB+U blocks onto end of a 1D vector of reduced charges
-  subroutine AppendBlock_reduce(this, input, equiv, orb, output, isSkew)
-
-    !> Instance
-    class(TDftbU), intent(in) :: this
+  subroutine AppendBlock_reduce(input, equiv, orb, output, isSkew)
 
     !> unpacked data
     real(dp), intent(in) :: input(:,:,:,:)

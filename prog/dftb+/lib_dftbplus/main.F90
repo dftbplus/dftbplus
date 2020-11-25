@@ -3725,9 +3725,9 @@ contains
         end if
       else
         ! only a subset of blocks are covered in +U type operations
-        call dftbU%appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
+        call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
         if (allocated(qiBlock)) then
-          call dftbU%appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, isSkew=.true.)
+          call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, isSkew=.true.)
         end if
       end if
     end if

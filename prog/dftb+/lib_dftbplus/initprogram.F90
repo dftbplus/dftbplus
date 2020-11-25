@@ -74,7 +74,7 @@ module dftbp_initprogram
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftbplusu
+  use dftbp_dftbplusu, only : TDftbU_inp, TDftbU, TDftbU_init, AppendBlock_reduce
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
@@ -117,7 +117,6 @@ module dftbp_initprogram
   use poisson_init
   use dftbp_transportio
   use dftbp_determinants
-  use dftbp_dftbplusu, only : TDftbU_inp, TDftbU, TDftbU_init
   implicit none
 
 
@@ -3852,14 +3851,14 @@ contains
     call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
 
     if (allocated(onSiteElements)) then
-      call dftbU%AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed)
+      call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed)
       if (tImHam) then
-        call dftbU%AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, isSkew=.true.)
+        call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, isSkew=.true.)
       end if
     else if (allocated(dftbU)) then
-      call dftbU%AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed)
+      call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed)
       if (tImHam) then
-        call dftbU%AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, isSkew=.true.)
+        call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, isSkew=.true.)
       end if
     end if
 
