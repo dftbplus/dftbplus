@@ -35,7 +35,7 @@ module dftbp_dispuffdata
   !>
   !> (Data is awfully compressed, as F95 only allows 32 continuation lines and 132 characters per
   !> one line!)
-  type(TUFF) :: database(103) = (/&
+  type(TUFF), parameter :: database(103) = (/&
 TUFF("h ", 2.886_dp, 0.044_dp), TUFF("he", 2.362_dp, 0.056_dp), TUFF("li", 2.451_dp, 0.025_dp), TUFF("be", 2.745_dp, 0.085_dp), &
 TUFF("b ", 4.083_dp, 0.180_dp), TUFF("c ", 3.851_dp, 0.105_dp), TUFF("n ", 3.660_dp, 0.069_dp), TUFF("o ", 3.500_dp, 0.060_dp), &
 TUFF("f ", 3.364_dp, 0.050_dp), TUFF("ne", 3.243_dp, 0.042_dp), TUFF("na", 2.983_dp, 0.030_dp), TUFF("mg", 3.021_dp, 0.111_dp), &

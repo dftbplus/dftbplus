@@ -150,9 +150,6 @@ module dftbp_hsdparser
   type(fnode), pointer :: myDoc
 
 
-  !> Format of the input line
-  character(len=lc) :: lineFormat = ""
-
   public :: parseHSD, dumpHSD, newline
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
@@ -199,6 +196,9 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
+    !> Format of the input line
+    character(len=lc) :: lineFormat
+
     type(fnode), pointer :: rootNode, dummy
     logical :: tFinished
     integer :: curLine
@@ -210,9 +210,7 @@ contains
       curFile = "???"
     end if
 
-    if (len_trim(lineFormat) == 0) then
-      lineFormat = "(A" // i2c(lc) // ")"
-    end if
+    lineFormat = "(A" // i2c(lc) // ")"
     rootName = tolower(initRootName(:min(lc, len(initRootName))))
     myDoc => createDocumentNode()
     rootNode => createElement(trim(rootName))
@@ -221,7 +219,7 @@ contains
     residual = ""
     tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
         &0, curLine, &
-        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
+        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false., lineFormat)
     xmlDoc => myDoc
     myDoc => null()
 
@@ -230,7 +228,7 @@ contains
 
   !> Recursive parsing function for the HSD parser making the actual work
   recursive function parse_recursive(curNode, depth, residual, tRightValue, fd, curFile, fileDepth,&
-      & curLine, parsedTypes, tNew) result (tFinished)
+      & curLine, parsedTypes, tNew, lineFormat) result (tFinished)
 
     !> Node which should contain parsed input
     type(fnode), pointer :: curNode
@@ -261,6 +259,9 @@ contains
 
     !> True, if parsing is done
     logical, intent(in) :: tNew
+
+    !> Format of the input line
+    character(len=lc), intent(in) :: lineFormat
 
     logical :: tFinished
 
@@ -422,7 +423,7 @@ contains
                 &.false., .false. /)
           end if
           tFinished = parse_recursive(curNode, 0, strLine, .false., newFile, &
-              &word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
+              &word, fileDepth + 1, newCurLine, newParsedTypes, .false., lineFormat)
           close(newFile, iostat=iostat)
         end if
 
@@ -454,7 +455,7 @@ contains
         newParsedTypes = (/ .false., .false., .false., .false., .true., &
             &.true., .true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .true., fd, &
-            &curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+            &curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated, lineFormat)
         residual = strLine
         nodetype = 1
 
@@ -488,7 +489,7 @@ contains
         newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
             &.true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
-            &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+            &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated, lineFormat)
         residual = strLine
         nodetype = 1
 
