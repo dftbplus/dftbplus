@@ -1,4 +1,4 @@
-file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../" projectdir)
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../" projectdir)
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 

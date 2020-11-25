@@ -794,7 +794,7 @@ module dftbp_initprogram
     type(TPlumedCalc), allocatable :: plumedCalc
 
     !> Dense matrix descriptor for H and S
-    type(TDenseDescr) :: denseDesc
+    type(TDenseDescr), allocatable :: denseDesc
 
     !> MD velocities
     real(dp), allocatable :: velocities(:,:)
@@ -1071,7 +1071,7 @@ module dftbp_initprogram
     procedure :: allocateDenseMatrices
 #:if WITH_SCALAPACK
     procedure :: initScalapack
-!   procedure :: getDenseDescBlacs
+!    procedure :: getDenseDescBlacs
 #:endif
     procedure :: getDenseDescCommon
 #:if WITH_MBD
@@ -1096,7 +1096,7 @@ contains
 
   !> Initializes the variables in the module based on the parsed input
   subroutine initProgramVariables(this, input, env)
-    
+
     !> Instance
     class(TGlobalData), intent(inout), target :: this
 
@@ -1338,8 +1338,8 @@ contains
 
 
   #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb, this%t2Component,&
-        & env)
+    call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
+        & this%t2Component, env)
   #:endif
     call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
 
@@ -1351,7 +1351,8 @@ contains
     end if
     this%tFracCoord = input%geom%tFracCoord
 
-    this%isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc) ! no point if not SCC
+    ! no point if not SCC
+    this%isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc)
 
     if (this%tSccCalc) then
       this%maxSccIter = input%ctrl%maxIter
@@ -2574,7 +2575,7 @@ contains
       this%tUpload = .false.
     end if
 
-    call this%initTransportArrays(input%transpar) 
+    call this%initTransportArrays(input%transpar)
     call this%initTransport(env, input)
 
   #:else
@@ -2624,7 +2625,7 @@ contains
     end if
 
     if (env%tGlobalLead) then
-      call this%initOutputFiles(env) 
+      call this%initOutputFiles(env)
     end if
 
     if (this%tPoisson) then
@@ -3494,7 +3495,7 @@ contains
   !> particularly for external driving via API)
   subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, speciesName,&
        & tSccCalc, tPeriodic, tFracCoord, latVec, origin)
-    
+
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
@@ -3558,7 +3559,7 @@ contains
   !> Create equivalency relations
   ! Note, this routine should not be called
   subroutine setEquivalencyRelations(this)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -3659,7 +3660,7 @@ contains
   !> Initialise partial charges
   !>
   subroutine initializeCharges(this, initialSpins, initialCharges)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -3898,7 +3899,7 @@ contains
   !> Assign reference charge arrays, q0 and qShell0
   !
   subroutine initializeReferenceCharges(this, customOccAtoms, customOccFillings)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -3944,7 +3945,7 @@ contains
   !> Set number of electrons
   !
   subroutine setNElectrons(this)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -3979,7 +3980,7 @@ contains
 #:if WITH_TRANSPORT
   !> Check for inconsistencies in transport atom region definitions
   subroutine checkTransportRanges(nAtom, transpar)
-    
+
     !> Count of all atoms in the system
     integer :: nAtom
 
@@ -4048,7 +4049,7 @@ contains
 
   !> Clean up things that did not automatically get removed by going out of scope
   subroutine destructProgramVariables(this)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4101,7 +4102,7 @@ contains
   !> Creates all random generators needed in the code.
   !!
   subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
-    
+
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
@@ -4131,7 +4132,7 @@ contains
 #:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
   subroutine initSocket(this, env, socketInput)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4157,7 +4158,7 @@ contains
 
 #:if WITH_TRANSPORT
   subroutine initTransport(this, env, input)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4265,7 +4266,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(this, env)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4308,7 +4309,7 @@ contains
 
   !> Allocates most of the large arrays needed during the DFTB run.
   subroutine initArrays(this, env)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4476,7 +4477,7 @@ contains
 
   !> initialize arrays for tranpsport
   subroutine initTransportArrays(this, transpar)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4507,7 +4508,7 @@ contains
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
   subroutine allocateDenseMatrices(this, env)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4546,7 +4547,7 @@ contains
 
   !> Initialise parallel large matrix decomposition methods
   subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4582,7 +4583,7 @@ contains
   !> Note: It must be called after getDenseDescCommon() has been called.
   !>
   subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc)
-    
+
     !> parallel environment
     type(TEnvironment), intent(in) :: env
 
@@ -4610,12 +4611,16 @@ contains
   !> orderings
   !>
   subroutine getDenseDescCommon(this)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
     integer :: nOrb
 
+    if (allocated(this%denseDesc)) then
+      deallocate(this%denseDesc)
+    end if
+    allocate(this%denseDesc)
     allocate(this%denseDesc%iAtomStart(this%nAtom + 1))
     call buildSquaredAtomIndex(this%denseDesc%iAtomStart, this%orb)
     nOrb = this%denseDesc%iAtomStart(this%nAtom + 1) - 1
@@ -4633,7 +4638,7 @@ contains
 #:if WITH_MBD
   !> Writes MBD-related info
   subroutine writeMbdInfo(input)
-    
+
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
@@ -4677,7 +4682,7 @@ contains
 
   !> Check for compatibility between requested electronic solver and features of the calculation
   subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
-    
+
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
 
@@ -4730,7 +4735,7 @@ contains
   !> Modify the reference atomic shell charges for the neutral atom
   subroutine applyCustomReferenceOccupations(customOccAtoms, customOccFillings, species, orb,&
       & referenceN0, q0)
-    
+
     !> Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
 
@@ -4781,7 +4786,7 @@ contains
 
   !> Print out the reference occupations for atoms
   subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
-    
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
@@ -4863,7 +4868,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(this, tShellResolved, rangeSepInp)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -4946,7 +4951,7 @@ contains
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
-    
+
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
 
@@ -5065,7 +5070,7 @@ contains
 
   !> Determine range separated cut-off and also update maximal cutoff
   subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
-    
+
     !> Reduction in cut-off
     real(dp), intent(in) :: cutoffRed
 
@@ -5088,7 +5093,7 @@ contains
   !> Initialise range separated extension.
   subroutine initRangeSeparated(this, nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
       & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -5149,7 +5154,7 @@ contains
 
   !> Initializes PLUMED calculator.
   subroutine initPlumed(this, env, tPlumed, tMD, plumedCalc)
-    
+
     !> Instance
     class(TGlobalData), intent(inout) :: this
 
@@ -5209,7 +5214,7 @@ contains
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
-    
+
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
 
@@ -5318,7 +5323,7 @@ contains
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
       & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
-    
+
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks
 
@@ -5401,7 +5406,7 @@ contains
 
 
   subroutine printReksInitInfo(reks, orb, speciesName, nType)
-    
+
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 

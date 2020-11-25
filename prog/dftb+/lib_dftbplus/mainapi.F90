@@ -15,6 +15,9 @@ module dftbp_mainapi
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : TGlobalData
+#:if WITH_SCALAPACK
+  use dftbp_initprogram, only : getDenseDescBlacs
+#:endif
   use dftbp_main, only : processGeometry
   use dftbp_message, only : error
   use dftbp_orbitals, only : TOrbitals
@@ -385,8 +388,9 @@ contains
     call globalData%setEquivalencyRelations()
   #:if WITH_SCALAPACK
     call updateBLACSDecomposition(env, globalData)
-    call reallocateHSArrays(env, globalData%denseDesc, globalData%HSqrCplx, globalData%SSqrCplx,&
-        & globalData%eigVecsCplx, globalData%HSqrReal, globalData%SSqrReal, globalData%eigVecsReal)
+    call reallocateHSArrays(env, globalData, globalData%denseDesc, globalData%HSqrCplx,&
+        & globalData%SSqrCplx, globalData%eigVecsCplx, globalData%HSqrReal, globalData%SSqrReal,&
+        & globalData%eigVecsReal)
   #:endif
 
     ! If atomic order changes, partial charges need to be initialised, else wrong charge will be
@@ -447,7 +451,7 @@ contains
 
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call globalData%getDenseDescCommon()
-    call globalData%getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
+    call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
         & globalData%denseDesc)
 
   end subroutine updateBLACSDecomposition
@@ -459,7 +463,7 @@ contains
   ! hence preprocessed out
   ! May require extending if ((nAtom not constant) and (not BLACS))
   subroutine reallocateHSArrays(env, globalData, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
-      & HSqrReal, SSqrReal ,eigVecsReal)
+      & HSqrReal, SSqrReal, eigVecsReal)
 
     !> Environment instance
     type(TEnvironment), intent(in) :: env
