@@ -34,7 +34,7 @@ contains
 
 
   !> Initializes NEGF mpi 
-  subroutine TNegfEnv_init(this, mpiEnv, nKpoints)
+  subroutine TNegfEnv_init(this, mpiEnv, nGroups)
 
     !> Initialized instance at exit.
     type(TNegfEnv), intent(out) :: this
@@ -42,21 +42,28 @@ contains
     !> Initialised MPI environment
     type(TMpiEnv), intent(in) :: mpiEnv
 
-    !> number of k-points
-    integer, intent(in) :: nKpoints
+    !> number of processors handling k-points and spin
+    integer, intent(in) :: nGroups
 
     associate(myEnv=>this%negfMpiEnv)
 
     ! Invokes cartesian creation within libNEGF
     ! Caveat: we use the globalComm to store the cartesian grid communicator
-    call negf_cart_init(mpiEnv%globalComm, nKpoints, myEnv%globalComm, myEnv%groupComm, &
+    call negf_cart_init(mpiEnv%globalComm, nGroups, myEnv%globalComm, myEnv%groupComm, &
         &  myEnv%intergroupComm)
 
     !Now initialize TMpiEnv container (reimplementation of TMpiEnv_init)
     myEnv%groupSize = myEnv%groupComm%size
     myEnv%nGroup = myEnv%interGroupComm%size
     myEnv%myGroup = myEnv%interGroupComm%rank
-    if (mpiEnv%globalComm%lead .eqv. myEnv%globalComm%lead) then
+print*,"Group Size:",myEnv%groupSize
+print*,"nGroup:",myEnv%nGroup
+print*,"myGlobalRank:", myEnv%globalComm%rank
+print*,"myGroupRank:", myEnv%groupComm%rank
+print*,"myGroup:", myEnv%myGroup
+print*,"Check:", mpiEnv%globalComm%lead, myEnv%globalComm%lead
+
+    if (mpiEnv%globalComm%lead .neqv. myEnv%globalComm%lead) then
       call error("Internal error: Global lead process mismatch")
     end if
     myEnv%tGlobalLead = myEnv%globalComm%lead

@@ -233,10 +233,6 @@ contains
     !>  mpi environemnt
     type(TMpiEnv), intent(in) :: newMpiEnv
 
-
-    ! It is not possible to check if communicators are valid
-    ! mpifx should set some defaults like e.g. 0, size 0, etc.
-    ! So we copy the communicator as is:
     this%mpi = newMpiEnv
 
   end subroutine TEnvironment_setMpiComm
@@ -272,15 +268,15 @@ contains
 
 #:if WITH_MPI and WITH_TRANSPORT
   !> Initializes parallel libNEGF environment
-  subroutine TEnvironment_initNegfMpi(this, nKpoints)
+  subroutine TEnvironment_initNegfMpi(this, nGroups)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    !> Number of k-points
-    integer, intent(in) :: nKpoints
+    !> Number of processors dealing with k-points and spin
+    integer, intent(in) :: nGroups
 
-    call TNegfEnv_init(this%mpinegf, this%mpi, nKpoints)
+    call TNegfEnv_init(this%mpinegf, this%mpi, nGroups)
 
   end subroutine TEnvironment_initNegfMpi
 
