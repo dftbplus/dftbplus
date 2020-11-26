@@ -952,6 +952,7 @@ module dftbp_initprogram
 
 #:if WITH_TRANSPORT
     !> Transport variables
+    type(TNegfInt) :: negfInt
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
 
@@ -4231,8 +4232,8 @@ contains
       end if
 
       ! Some checks and initialization of GDFTB/NEGF
-      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos,&
-          & this%tempElec, electronicSolver%iSolver)
+      call TNegfInt_init(this%negfInt, input%transpar, env, input%ginfo%greendens,&
+          & input%ginfo%tundos, this%tempElec, electronicSolver%iSolver)
 
       this%ginfo = input%ginfo
 
