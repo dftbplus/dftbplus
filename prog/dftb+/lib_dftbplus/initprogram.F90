@@ -2100,23 +2100,27 @@ contains
         end if
         call move_alloc(dftd4, dispersion)
     #:if WITH_MBD
-      elseif (allocated(input%ctrl%dispInp%mbd)) then
+      else if (allocated(input%ctrl%dispInp%mbd)) then
         if (isLinResp) then
           call error("MBD model not currently supported for Casida linear response")
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
-            inp%calculate_forces = tForces
-            inp%atom_types = speciesName(species0)
-            inp%coords = coord0
-            if (tPeriodic) then
-              inp%lattice_vectors = latVec
-            end if
-            call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
+          inp%calculate_forces = tForces
+          inp%atom_types = speciesName(species0)
+          inp%coords = coord0
+          if (tPeriodic) then
+            inp%lattice_vectors = latVec
+          end if
+          call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
         end associate
         call mbd%checkError()
         call move_alloc(mbd, dispersion)
-     #:endif
+        if (input%ctrl%dispInp%mbd%method == 'ts' .and. tForces) then
+          call warning("Forces for the TS-dispersion model are calculated by finite differences&
+              & which may result in long gradient calculation times for large systems")
+        end if
+    #:endif
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     end if
