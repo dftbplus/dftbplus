@@ -219,8 +219,6 @@ contains
       end if
 
       if (tStress) then
-        intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
-        totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
 
         call printVolume(cellVol)
 
@@ -1190,7 +1188,7 @@ contains
     logical, intent(in) :: tLatOpt
 
     !> Derivative of total energy with respect to lattice vectors
-    real(dp) :: totalLatDerivs(:,:)
+    real(dp), intent(in) :: totalLatDerivs(:,:)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp), intent(in) :: extLatDerivs(:,:)
@@ -5784,6 +5782,9 @@ contains
       end select
     end if
 
+    intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    
   end subroutine getStress
 
 
