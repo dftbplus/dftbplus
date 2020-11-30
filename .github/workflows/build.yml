@@ -1,0 +1,117 @@
+name: CI
+on: [push, pull_request]
+
+env:
+  CI: "ON"
+  HOMEBREW_NO_ANALYTICS: "ON"
+  HOMEBREW_NO_AUTO_UPDATE: "ON"
+  HOMEBREW_NO_BOTTLE_SOURCE_FALLBACK: "ON"
+  HOMEBREW_NO_GITHUB_API: "ON"
+  HOMEBREW_NO_INSTALL_CLEANUP: "ON"
+  BUILD_DIR: _build
+  CMAKE_OPTIONS: >-
+    -DCMAKE_BUILD_TYPE=Debug
+    -DWITH_API=true
+    -DWITH_ARPACK=false
+    -DWITH_DFTD3=true
+    -DWITH_MBD=true
+    -DWITH_TRANSPORT=true
+    -DFYPP_FLAGS='-DTRAVIS'
+
+jobs:
+  gcc-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mpi: [nompi, openmpi]
+        exclude:
+          - os: macos-latest
+            mpi: openmpi
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+
+    - name: Enable MPI build
+      if: contains(matrix.mpi, 'openmpi') || contains(matrix.mpi, 'mpich')
+      run: echo "WITH_MPI=true" >> $GITHUB_ENV
+
+    - name: Disable MPI build
+      if: contains(matrix.mpi, 'nompi')
+      run: echo "WITH_MPI=false" >> $GITHUB_ENV
+
+    - name: Set Compiler (Linux)
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        echo "FC=gfortran" >> $GITHUB_ENV
+        echo "CC=gcc" >> $GITHUB_ENV
+
+    - name: Set Compiler (OSX)
+      if: contains(matrix.os, 'macos')
+      run: |
+        echo "FC=gfortran-9" >> $GITHUB_ENV
+        echo "CC=gcc-9" >> $GITHUB_ENV
+
+    - name: Check submodule commits
+      run: ./utils/test/check_submodule_commits
+
+    - name: Install ARPACK (Linux)
+      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'nompi')
+      run: |
+        sudo apt-get install libarpack2-dev
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DWITH_ARPACK=true" >> $GITHUB_ENV
+
+    - name: Install OpenMPI (OSX)
+      if: contains(matrix.os, 'macos') && contains(matrix.mpi, 'openmpi')
+      run: |
+        brew install open-mpi scalapack
+
+    - name: Install OpenMPI (Linux)
+      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'openmpi')
+      run: |
+        sudo apt-get install libopenmpi-dev libscalapack-openmpi-dev
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
+        echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
+
+    - name: Install cmake
+      run: pip3 install cmake ninja fypp numpy
+
+    - name: Get external dependencies
+      run: echo "y" | ./utils/get_opt_externals ALL
+
+    - name: Configure build
+      run: >-
+        cmake -B _build -G Ninja
+        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        ${CMAKE_OPTIONS}
+        -DWITH_MPI=${WITH_MPI}
+
+    - name: Build project
+      run: cmake --build ${BUILD_DIR}
+
+    - name: Run regression tests
+      run: |
+        pushd ${BUILD_DIR}
+        ctest -j 2 --output-on-failure
+        popd
+
+    - name: Install project
+      run: |
+        cmake --install ${BUILD_DIR}
+
+    - name: Run integration CMake test
+      run: >-
+        CMAKE_PREFIX_PATH="${PWD}/_install:${CMAKE_PREFIX_PATH}"
+        ./test/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
+        ${CMAKE_DEP_OPTIONS}
+
+    - name: Run integration pkg-config test
+      run: >-
+        PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
+        ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
