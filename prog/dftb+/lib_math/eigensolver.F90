@@ -18,7 +18,7 @@ module dftbp_eigensolver
   use dftbp_blas
   use dftbp_lapack
 #:if WITH_GPU
-  use magma
+  use dftbp_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
   private

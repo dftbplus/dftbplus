@@ -2807,7 +2807,7 @@ contains
             & orb, HSqrReal, SSqrReal)
       end if
 
-      call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
     end do
@@ -2932,7 +2932,7 @@ contains
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -3052,7 +3052,7 @@ contains
       call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK), eigvecsCplx(:,:,iKS))
     #:else
-      call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -6766,7 +6766,7 @@ contains
 
         eigen(:,:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%diagonalization)
-        call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
+        call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
         call env%globalTimer%stopTimer(globalTimers%diagonalization)
         eigvecsReal(:,:,1) = HSqrReal
 

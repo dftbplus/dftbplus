@@ -24,10 +24,8 @@ module dftbp_initprogram
   use dftbp_constants
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
-  use dftbp_gpuinfo, only : gpuInfo
   use dftbp_elsiiface
   use dftbp_arpack, only : withArpack
-  use dftbp_gpuinfo, only : gpuInfo
   use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
   use dftbp_periodic, only : getCellTranslations
   use dftbp_accuracy
@@ -106,7 +104,6 @@ module dftbp_initprogram
   use dftbp_elstattypes, only : elstatTypes
   use dftbp_reks
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
-  use dftbp_magmahelper
   use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
@@ -2967,7 +2964,11 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      call gpuInfo()
+      #:if WITH_GPU
+        call env%initGpu()
+      #:else
+        call error("Magma-solver selected, but program was compiled without MAGMA")
+      #:endif
     endif
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then

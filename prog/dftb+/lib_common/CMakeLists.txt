@@ -25,5 +25,10 @@ if(WITH_MPI)
     ${curdir}/mpienv.F90)
 endif()
 
+if(WITH_GPU)
+  list(APPEND sources-fpp
+    ${curdir}/gpuenv.F90)
+endif()
+
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
