@@ -23,18 +23,10 @@ if(WITH_SOCKETS)
 endif(WITH_SOCKETS)
 
 if(WITH_TRANSPORT)
-  if(WITH_MPI)	
-    list(APPEND sources-fpp
-      ${curdir}/negfmpienv.F90
-      ${curdir}/libnegf_vars.F90
-      ${curdir}/matconv.F90
-      ${curdir}/negf_int.F90)
-  else() 
-    list(APPEND sources-fpp
-      ${curdir}/libnegf_vars.F90
-      ${curdir}/matconv.F90
-      ${curdir}/negf_int.F90)
-  endif()
+  list(APPEND sources-fpp
+    ${curdir}/libnegf_vars.F90
+    ${curdir}/matconv.F90
+    ${curdir}/negf_int.F90)
 endif()
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

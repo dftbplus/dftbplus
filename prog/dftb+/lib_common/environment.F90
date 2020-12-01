@@ -18,9 +18,6 @@ module dftbp_environment
 #:if WITH_SCALAPACK
   use dftbp_blacsenv
 #:endif
-#:if WITH_MPI and WITH_TRANSPORT
-  use dftbp_negfmpienv
-#:endif
   implicit none
   private
 
@@ -55,10 +52,7 @@ module dftbp_environment
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
   #:endif
-  #:if WITH_MPI and WITH_TRANSPORT
-    !> Global libnegf settings
-    type(TNegfEnv), public :: mpinegf
-  #:endif
+
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
 
@@ -68,13 +62,9 @@ module dftbp_environment
     procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
   #:if WITH_MPI
     procedure :: initMpi => TEnvironment_initMpi
-    procedure :: setMpiComm => TEnvironment_setMpiComm
   #:endif
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
-  #:endif
-  #:if WITH_MPI and WITH_TRANSPORT
-    procedure :: initNegfMpi => TEnvironment_initNegfMpi
   #:endif
 
   end type TEnvironment
@@ -165,8 +155,8 @@ contains
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-
-
+    
+  
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -224,19 +214,6 @@ contains
 
   end subroutine TEnvironment_initMpi
 
-  !> This is used to set the mpiEnv as defined by a solver Env
-  subroutine TEnvironment_setMpiComm(this, newMpiEnv)
-
-    !> Instance
-    class(TEnvironment), intent(inout) :: this
-
-    !>  mpi environemnt
-    type(TMpiEnv), intent(in) :: newMpiEnv
-
-    this%mpi = newMpiEnv
-
-  end subroutine TEnvironment_setMpiComm
-
 #:endif
 
 
@@ -266,20 +243,5 @@ contains
 
 #:endif
 
-#:if WITH_MPI and WITH_TRANSPORT
-  !> Initializes parallel libNEGF environment
-  subroutine TEnvironment_initNegfMpi(this, nGroups)
-
-    !> Instance
-    class(TEnvironment), intent(inout) :: this
-
-    !> Number of processors dealing with k-points and spin
-    integer, intent(in) :: nGroups
-
-    call TNegfEnv_init(this%mpinegf, this%mpi, nGroups)
-
-  end subroutine TEnvironment_initNegfMpi
-
-#:endif
 
 end module dftbp_environment

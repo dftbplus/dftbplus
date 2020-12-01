@@ -11,7 +11,7 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
-  use libnegf, only : negf_mpi_init
+  use libnegf, only : negf_mpi_init, negf_cart_init
 #:endif
   use libnegf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
@@ -78,6 +78,13 @@ module negf_int
   !> interface csr matrices. The pattering must be predefined using negf_init_csr
   public :: negf_init_csr
 
+#:if WITH_MPI
+
+  !> Initialize MPI groups according to libNEGF needs
+  public :: negf_setup_mpi_communicators
+
+#:endif
+
   !> compressed sparse row hamiltonian
   type(z_CSR), target :: csrHam
   type(Z_CSR), pointer :: pCsrHam => null()
@@ -92,7 +99,7 @@ module negf_int
   !> Format for two values with units
   character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
 
-  contains
+contains
 
   !> Init gDFTB environment and variables
   subroutine negf_init(transpar, env, greendens, tundos, tempElec, solver)
@@ -279,9 +286,9 @@ module negf_int
            params%Np_real = greendens%nP(3)  ! real axis points
         end if
       end if
-     
-      ! Setting for Read/Write Surface GFs. 
-      ! NOTE: for the moment in tunneling and dos SGF are always   
+
+      ! Setting for Read/Write Surface GFs.
+      ! NOTE: for the moment in tunneling and dos SGF are always
       ! recomputed because bias may change points and errors are easy
 
       ! Read G.F. from very first iteration
@@ -316,7 +323,7 @@ module negf_int
       write(stdOut,*) 'Real-axis points: ', params%Np_real(1)
       if (params%readOldDM_SGFs==0) then
         write(stdOut,*) 'Read Existing SGFs: Yes '
-      else 
+      else
         write(stdOut,*) 'Read Existing SGFs: No, option ', params%readOldDM_SGFs
       end if
       write(stdOut,*)
@@ -356,8 +363,8 @@ module negf_int
       params%Emin =  tundos%Emin
       params%Emax =  tundos%Emax
       params%Estep = tundos%Estep
-      
-      ! For the moment tunneling and ldos SGFs are always recomputed 
+
+      ! For the moment tunneling and ldos SGFs are always recomputed
       params%readOldT_SGFs = COMP_SGF
 
     endif
@@ -847,7 +854,7 @@ module negf_int
     !> kpoint index
     integer, intent(in) :: kpoint
 
-    !> kpoint weight                
+    !> kpoint weight
     real(dp), intent(in) :: wght
 
     !> local DOS
@@ -1139,7 +1146,7 @@ module negf_int
     call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
 #:endif
 
-    ! Now SGFs can be read unless not stored 
+    ! Now SGFs can be read unless not stored
     if (negf%readOldDM_SGFs.ne.COMP_SGF) then
       call set_readOldDMsgf(negf, READ_SGF)  ! read from files
     end if
@@ -1268,7 +1275,7 @@ module negf_int
     call mpifx_allreduceip(env%mpi%interGroupComm, rhoE, MPI_SUM)
 #:endif
 
-    ! Now SGFs can be read unless not stored 
+    ! Now SGFs can be read unless not stored
     if (negf%readOldDM_SGFs.ne.COMP_SGF) then
       call set_readOldDMsgf(negf, READ_SGF)  ! read from files
     end if
@@ -1527,7 +1534,7 @@ module negf_int
     if (allocated(ldosSKRes)) then
       deallocate(ldosSKRes)
     end if
-    
+
   end subroutine calc_current
 
 
@@ -1654,7 +1661,7 @@ module negf_int
     !> file to print out to
     character(*), intent(in) :: filename
 
-    !> number of spins 
+    !> number of spins
     integer, intent(in) :: nS
 
     !> k-points
@@ -1690,14 +1697,14 @@ module negf_int
 
       ! iKS = 1 2 3 4 5 6 7 8 9 10
       ! iK=groupKS(1,iKS), iS=groupKS(2,iKS)
-      ! iK  = 1 2 3 4 5 1 2 3 4 5  
-      ! iS  = 1 1 1 1 1 2 2 2 2 2 
+      ! iK  = 1 2 3 4 5 1 2 3 4 5
+      ! iS  = 1 1 1 1 1 2 2 2 2 2
       do iS = 1, nS
         do iK = 1, nK
           write(fdUnit,'(i5.2)', ADVANCE='NO') iS
           write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
         end do
-      end do  
+      end do
       write(fdUnit,*)
 
       if (allocated(matSKRes)) then
@@ -1806,7 +1813,7 @@ module negf_int
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
 
-    !> Hamiltonian and Overlap matrices 
+    !> Hamiltonian and Overlap matrices
     real(dp), intent(in) :: ham(:,:), over(:)
 
     !> Neighbor list container
@@ -1818,7 +1825,7 @@ module negf_int
     !> SK interaction cutoff
     real(dp), intent(in) :: skCutoff
 
-    !> Indices of staring atom block and Pairs 
+    !> Indices of staring atom block and Pairs
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
 
     !> map of atoms to central cell
@@ -1830,13 +1837,13 @@ module negf_int
     !> Vectors to unit cells in absolute units
     real(dp), allocatable, intent(in) :: rCellVec(:,:)
 
-    !> Orbital descriptor 
+    !> Orbital descriptor
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points and weights 
+    !> k-points and weights
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
 
-    !> central cell coordinates (folded to central cell) 
+    !> central cell coordinates (folded to central cell)
     real(dp), intent(in) :: coord0(:,:)
 
     !> Species indices for atoms in central cell
@@ -1859,11 +1866,11 @@ module negf_int
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow
     integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
-    real(dp), dimension(:,:,:), allocatable :: lcurr 
+    real(dp), dimension(:,:,:), allocatable :: lcurr
     real(dp) :: Im
     type(TNeighbourList) :: lc_neigh
     integer, dimension(:), allocatable :: lc_img2CentCell, lc_iCellVec, lc_species
-    real(dp), dimension(:,:), allocatable :: lc_coord 
+    real(dp), dimension(:,:), allocatable :: lc_coord
     integer :: lc_nAllAtom
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
@@ -1906,7 +1913,7 @@ module negf_int
     nAtom = size(orb%nOrbAtom)
     call get_fmtstring(nK, skp, fmtstring)
 
-    ! Create a symmetrized neighbour list extended to periodic cell in lc_coord 
+    ! Create a symmetrized neighbour list extended to periodic cell in lc_coord
     if (any(iCellVec.ne.1)) then
       lc_nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
     else
@@ -1940,8 +1947,8 @@ module negf_int
 
       ! Unless SGFs are not stored, read them from file
       if (negf%readOldDM_SGFs.ne.COMP_SGF) then
-         call set_readOldDMsgf(negf, READ_SGF) 
-      end if   
+         call set_readOldDMsgf(negf, READ_SGF)
+      end if
 
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
@@ -1961,11 +1968,11 @@ module negf_int
 
       if (tPrint) then
         ! print local currents
-        iKgl = (iS-1) * nK + iK    
+        iKgl = (iS-1) * nK + iK
         write(skp, fmtstring) iKgl
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
-        ! loop on central cell atoms and write local currents to all other 
+        ! loop on central cell atoms and write local currents to all other
         ! interacting atoms within the cell and neighbour cells
         do mm = 1, nAtom
 
@@ -1975,7 +1982,7 @@ module negf_int
           write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
 
           do inn = 1, lc_neigh%nNeighbour(mm)
-            nn = lc_neigh%iNeighbour(inn, mm) 
+            nn = lc_neigh%iNeighbour(inn, mm)
             n0 = lc_img2CentCell(nn)
             startn = iAtomStart(n0)
             endn = startn + orb%nOrbAtom(n0) - 1
@@ -1991,7 +1998,7 @@ module negf_int
             end do
             ! pi-factor  comes from  Gn = rho * pi
             Im = Im * 2.0_dp*params%g_spin*pi*eovh*kWeights(iK)
-            write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im 
+            write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im
             lcurr(inn, mm, iS) = lcurr(inn, mm, iS) + Im
           end do
 
@@ -2013,14 +2020,14 @@ module negf_int
     if (tIoProc) then
       allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
       testArray(:,:) = 0.0_dp
-      ! Write the total current per spin channel  
+      ! Write the total current per spin channel
       do iS = 1, nSpin
         open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
         do mm = 1, nAtom
           write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
           do inn = 1, lc_neigh%nNeighbour(mm)
             write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
-            testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS) 
+            testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS)
           end do
           write(fdUnit,*)
         end do
@@ -2030,7 +2037,7 @@ module negf_int
     deallocate(lcurr)
 
     if (tIoProc) then
-      write(stdOut,*) 
+      write(stdOut,*)
       call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
       write(stdOut,*) " <<< supercell.xyz written on file"
     end if
@@ -2051,18 +2058,18 @@ module negf_int
       ch = labels(iS)
 
     end function spin2ch
-    
+
     subroutine get_fmtstring(nK, skp, fmtstring)
       integer, intent(in) :: nK
       character(:), allocatable :: skp
       character(6) :: fmtstring
       integer :: nchars
-          
+
       nchars = 3
       do while (nK/(10**nchars) > 1 )
         nchars = nchars + 1
-      end do 
-      allocate(character(len=nchars)::skp)    
+      end do
+      allocate(character(len=nchars)::skp)
       ! create fmtstring = '(In.n)'
       write(fmtstring, '( "(I",I1,".",I1,")" )') nchars, nchars
 
@@ -2363,5 +2370,32 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
+
+
+#:if WITH_MPI
+
+  !> Sets up communicators according the libNEGFs needs (creating Cartesian grid)
+  subroutine negf_setup_mpi_communicators(globalComm, nGroups, cartComm, groupComm, interGroupComm)
+
+    !> Global communicator from which the other communicators should be derived from
+    type(mpifx_comm), intent(in) :: globalComm
+
+    !> Number of processor groups (should be equal to the nr. of k-points)
+    integer, intent(in) :: nGroups
+
+    !> Global Cartesian communciator
+    type(mpifx_comm), intent(out) :: cartComm
+
+    !> Group communicator (connecting processes working on the same k-point)
+    type(mpifx_comm), intent(out) :: groupComm
+
+    !> Inter group communicator (connecting processes working on different k-points)
+    type(mpifx_comm), intent(out) :: interGroupComm
+
+    call negf_cart_init(globalComm, nGroups, cartComm, groupComm, interGroupComm)
+
+  end subroutine negf_setup_mpi_communicators
+
+#:endif
 
 end module negf_int
