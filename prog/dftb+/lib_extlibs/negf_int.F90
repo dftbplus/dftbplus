@@ -11,7 +11,7 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
-  use libnegf, only : negf_mpi_init
+  use libnegf, only : negf_mpi_init, negf_cart_init
 #:endif
   use libnegf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
@@ -56,6 +56,7 @@ module negf_int
 
     !> compressed sparse row hamiltonian
     type(z_CSR) :: csrHam
+    type(Z_CSR), pointer :: pCsrHam => null()
 
     !> compressed sparse row overlap
     type(z_CSR) :: csrOver
@@ -72,10 +73,13 @@ module negf_int
 
   end type TNegfInt
 
+  #:if WITH_MPI
+    !> Initialize MPI groups according to libNEGF needs
+    public :: negf_setup_mpi_communicators
+  #:endif
 
   !> Format for two values with units
   character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
 
 contains
 
@@ -2415,5 +2419,32 @@ contains
     !close(12)
 
   end subroutine orthogonalization_dev
+
+
+#:if WITH_MPI
+
+  !> Sets up communicators according the libNEGFs needs (creating Cartesian grid)
+  subroutine negf_setup_mpi_communicators(globalComm, nGroups, cartComm, groupComm, interGroupComm)
+
+    !> Global communicator from which the other communicators should be derived from
+    type(mpifx_comm), intent(in) :: globalComm
+
+    !> Number of processor groups (should be equal to the nr. of k-points)
+    integer, intent(in) :: nGroups
+
+    !> Global Cartesian communciator
+    type(mpifx_comm), intent(out) :: cartComm
+
+    !> Group communicator (connecting processes working on the same k-point)
+    type(mpifx_comm), intent(out) :: groupComm
+
+    !> Inter group communicator (connecting processes working on different k-points)
+    type(mpifx_comm), intent(out) :: interGroupComm
+
+    call negf_cart_init(globalComm, nGroups, cartComm, groupComm, interGroupComm)
+
+  end subroutine negf_setup_mpi_communicators
+
+#:endif
 
 end module negf_int
