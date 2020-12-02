@@ -117,6 +117,14 @@ module dftbp_initprogram
   use dftbp_determinants
   implicit none
 
+#:if not WITH_TRANSPORT
+
+  !> Dummy type for negf interface
+  type :: TNegfInt
+  end type TNegfInt
+
+#:endif  
+
 ! private
 
   !> Tagged output files (machine readable)
@@ -949,11 +957,12 @@ module dftbp_initprogram
 
 #:if WITH_TRANSPORT
     !> Transport variables
-    type(TNegfInt) :: negfInt
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-
 #:endif
+
+    !> Transport interface (may be dummy placeholder, if built without transport)
+    type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
     !> Synonym for G.F. calculation of density
