@@ -5,6 +5,18 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+20.2.1 (2020-12-07)
+===================
+
+Fixed
+-----
+
+- Lattice derivatives are now correctly written into detailed.out
+
+- Upgraded to libNEGF version 1.0.1 fixing usage of uninitialized variables
+
+
+
 20.2 (2020-11-17)
 =================
 
