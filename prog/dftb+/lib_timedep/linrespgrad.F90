@@ -34,8 +34,6 @@ module dftbp_linrespgrad
 
   public :: LinRespGrad_old
 
-  character(lc) :: tmpStr
-
   !> Output files for results
   character(*), parameter :: transitionsOut = "TRA.DAT"
   character(*), parameter :: XplusYOut = "XplusY.DAT"
@@ -180,6 +178,7 @@ contains
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nSpin
     character :: sym
+    character(lc) :: tmpStr
 
     real(dp) :: energyThreshold
 
@@ -714,6 +713,7 @@ contains
 
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
+    character(lc) :: tmpStr
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)

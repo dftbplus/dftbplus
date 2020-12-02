@@ -22,10 +22,6 @@ module dftbp_lapackroutines
   private
 
 
-  !> Used to return runtime diagnostics
-  character(len=100) :: error_string
-
-
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
   !> matrix and X and B are N-by-NRHS matrices
   interface gesv
@@ -155,6 +151,8 @@ contains
     integer :: info
     integer :: nn, nrhs, lda, ldb
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
+
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
@@ -220,6 +218,7 @@ contains
     integer :: info
     integer :: nn, nrhs, lda, ldb
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
@@ -285,6 +284,7 @@ contains
     integer :: info
     integer :: nn, nrhs, lda, ldb
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
@@ -348,6 +348,7 @@ contains
     integer, optional, intent(out) :: iError
 
     integer :: mm, nn, lda, info
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
@@ -406,6 +407,7 @@ contains
     integer, optional, intent(out) :: iError
 
     integer :: mm, nn, lda, info
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
@@ -464,6 +466,7 @@ contains
     integer, optional, intent(out) :: iError
 
     integer :: mm, nn, lda, info
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
@@ -522,6 +525,7 @@ contains
     integer, optional, intent(out) :: iError
 
     integer :: mm, nn, lda, info
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
@@ -578,6 +582,7 @@ contains
     integer :: nn, lda, info, lwork
     real(rsp), allocatable :: work(:)
     real(rsp) :: work2(1)
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     if (present(nRow)) then
@@ -635,6 +640,7 @@ contains
     integer :: nn, lda, info, lwork
     real(rdp), allocatable :: work(:)
     real(rdp) :: work2(1)
+    character(len=100) :: error_string
 
     lda = size(aa, dim=1)
     if (present(nRow)) then
@@ -687,6 +693,7 @@ contains
 
     integer :: nn, info
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
 
     nn = size(aa, dim=1)
     if (present(nRow)) then
@@ -727,6 +734,7 @@ contains
 
     integer :: nn, info0
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
@@ -774,6 +782,7 @@ contains
 
     integer :: nn, info0
     integer, allocatable :: ipiv(:)
+    character(len=100) :: error_string
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
@@ -827,6 +836,7 @@ contains
     real(rsp), allocatable :: work(:)
     real(rsp) :: tmpwork(1)
     character :: uplo0
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
@@ -866,6 +876,7 @@ contains
     real(rdp), allocatable :: work(:)
     real(rdp) :: tmpwork(1)
     character :: uplo0
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
@@ -905,6 +916,7 @@ contains
     complex(rsp), allocatable :: work(:)
     complex(rsp) :: tmpwork(1)
     character :: uplo0
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
@@ -944,6 +956,7 @@ contains
     complex(rdp), allocatable :: work(:)
     complex(rdp) :: tmpwork(1)
     character :: uplo0
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
@@ -982,6 +995,7 @@ contains
     integer :: info0, nn
     character :: uplo0
     real(rsp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
@@ -1015,6 +1029,7 @@ contains
     integer :: info0, nn
     character :: uplo0
     real(rdp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
@@ -1048,6 +1063,7 @@ contains
     integer :: info0, nn
     character :: uplo0
     complex(rsp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
@@ -1081,6 +1097,7 @@ contains
     integer :: info0, nn
     character :: uplo0
     complex(rdp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
@@ -1126,6 +1143,7 @@ contains
     integer :: nn, lda, ldb, info, lwork, nrhs
     real(rsp), allocatable :: work(:)
     real(rsp) :: work2(1)
+    character(len=100) :: error_string
 
     lda = size(A, dim=1)
     if (present(nRow)) then
@@ -1204,6 +1222,7 @@ contains
     integer :: nn, lda, ldb, info, lwork, nrhs
     real(rdp), allocatable :: work(:)
     real(rdp) :: work2(1)
+    character(len=100) :: error_string
 
     lda = size(A, dim=1)
     if (present(nRow)) then
@@ -1379,6 +1398,7 @@ contains
 
     integer :: n, m, mn, lda, lwork, ldu, ldvt, info
     real(rsp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     m = size(A,dim=1)
     n = size(A,dim=2)
@@ -1426,6 +1446,7 @@ contains
 
     integer :: n, m, mn, lda, lwork, ldu, ldvt, info
     real(rdp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     m = size(A,dim=1)
     n = size(A,dim=2)
@@ -1473,6 +1494,7 @@ contains
     integer :: n, m, mn, lda, lwork, ldu, ldvt, info
     real(rsp), allocatable :: rwork(:)
     complex(rsp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     m = size(A,dim=1)
     n = size(A,dim=2)
@@ -1523,6 +1545,7 @@ contains
     integer :: n, m, mn, lda, lwork, ldu, ldvt, info
     real(rdp), allocatable :: rwork(:)
     complex(rdp), allocatable :: work(:)
+    character(len=100) :: error_string
 
     m = size(A,dim=1)
     n = size(A,dim=2)
@@ -1569,6 +1592,7 @@ contains
 
     integer :: info0, n, ldb
     character :: uplo0
+    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     n = size(b, dim=2)

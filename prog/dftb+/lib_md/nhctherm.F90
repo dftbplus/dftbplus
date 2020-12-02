@@ -18,10 +18,6 @@ module dftbp_nhctherm
   use dftbp_message
   implicit none
 
-
-  !> Short string for error returns
-  character(lc) :: lcTmp
-
   private
 
   public :: TNHCThermostat
@@ -127,6 +123,10 @@ contains
 
     !> MD time step
     real(dp), intent(in) :: deltaT
+
+    !> Short string for error returns
+    character(lc) :: lcTmp
+
     integer, intent(in) :: npart
     integer, intent(in) :: nys
     integer, intent(in) :: nc

@@ -17,10 +17,6 @@ module dftbp_shortgamma
   public :: expGamma, expGammaDamped, expGammaPrime, expGammaDampedPrime
   public :: expGammaCutoff
 
-
-  !> Used to return runtime diagnostics
-  character(len=100) :: error_string
-
 contains
 
 
@@ -43,6 +39,7 @@ contains
     real(dp) :: cutValue
     real(dp) :: rab, MaxGamma, MinGamma, lowerGamma, gamma
     real(dp) :: cut, MaxCutOff, MinCutOff
+    character(len=100) :: error_string
 
     expGammaCutoff = 0.0_dp
 
@@ -113,6 +110,7 @@ contains
     real(dp) :: expGamma
 
     real(dp) :: tauA, tauB, tauMean
+    character(len=100) :: error_string
 
     if (rab < 0.0_dp) then
 99030 format ('Failure in short-range gamma, r_ab negative :',f12.6)
@@ -174,6 +172,7 @@ contains
     real(dp) :: expGammaPrime
 
     real(dp) :: tauA, tauB, tauMean
+    character(len=100) :: error_string
 
     if (rab < 0.0_dp) then
 99060 format ('Failure in short-range gamma, r_ab negative :',f12.6)
@@ -288,6 +287,8 @@ contains
     !> contribution
     real(dp) :: OhnoKlopman
 
+    character(len=100) :: error_string
+
     if (Ua < MinHubTol) then
 99090 format ('Failure in short-range gamma, U too small : ',f12.6)
       write(error_string, 99090) Ua
@@ -318,6 +319,8 @@ contains
 
     !> contribution
     real(dp) :: OhnoKlopmanPrime
+
+    character(len=100) :: error_string
 
     if (Ua < MinHubTol) then
 99110 format ('Failure in short-range gamma, U too small : ',f12.6)
@@ -351,6 +354,8 @@ contains
     !> contribution
     real(dp) :: gammaSubExprn
 
+    character(len=100) :: error_string
+
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
 99130 format ('Failure in gammaSubExprn, both tau degenerate ',f12.6,f12.6)
       write(error_string, 99130) tau1,tau2
@@ -383,6 +388,8 @@ contains
 
     !> contribution
     real(dp) :: gammaSubExprnPrime
+
+    character(len=100) :: error_string
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
 99150 format ('Failure in gammaSubExprn, both tau degenerate ',f12.6,f12.6)

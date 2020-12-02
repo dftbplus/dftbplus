@@ -293,9 +293,6 @@ module dftbp_timeprop
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
 
-  !> Used to return runtime diagnostics
-  character(len=120) :: error_string
-
 contains
 
   !> Initialisation of input variables
@@ -2505,6 +2502,8 @@ contains
     logical, intent(in) :: tAsciiFile
 
     integer :: fd, ii, jj, kk, iErr
+    character(len=120) :: error_string
+
 
     if (tAsciiFile) then
       open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
@@ -2594,6 +2593,7 @@ contains
     integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
     real(dp) :: deltaT
     logical :: tExist
+    character(len=120) :: error_string
 
     if (tAsciiFile) then
       inquire(file=trim(fileName)//'.dat', exist=tExist)
