@@ -192,7 +192,7 @@ add_subdirectory(external/mudpack)
 # Add internal components
 #
 add_subdirectory(prog)
-#add_subdirectory(tools)
+add_subdirectory(tools)
 
 
 #
