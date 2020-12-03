@@ -941,7 +941,7 @@ contains
           end if
         end if
 
-        if (allocated(dispersion)) then
+        if (allocated(dispersion) .and. .not. tConverged) then
           call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, dftbEnergy(deltaDftb%iDeterminant)%atomDisp,&
               & dftbEnergy(deltaDftb%iDeterminant)%Edisp, iAtInCentralRegion)
