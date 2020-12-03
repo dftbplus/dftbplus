@@ -1000,7 +1000,7 @@ contains
           end if
         end if
 
-        if (allocated(this%dispersion)) then
+        if (allocated(this%dispersion) .and. .not. tConverged) then
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
               & this%species0, tConverged)
           call calcDispersionEnergy(this%dispersion,&
