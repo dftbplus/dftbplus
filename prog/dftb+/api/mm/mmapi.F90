@@ -24,7 +24,7 @@ module dftbp_mmapi
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   use dftbp_charmanip, only : newline
-  use dftbp_initprogram, only: TGlobalData
+  use dftbp_initprogram, only: TDftbPlusMain
   implicit none
   private
 
@@ -70,7 +70,7 @@ module dftbp_mmapi
   type :: TDftbPlus
     private
     type(TEnvironment) :: env
-    type(TGlobalData) :: globalData
+    type(TDftbPlusMain) :: main
     logical :: tInit = .false.
   contains
     !> read input from a file
@@ -276,7 +276,7 @@ contains
 
     call this%checkInit()
 
-    call this%globalData%destructProgramVariables()
+    call this%main%destructProgramVariables()
     call this%env%destruct()
     call destructGlobalEnv()
 !   nDftbPlusCalc = 0
@@ -346,7 +346,7 @@ contains
     end if
     call parseHsdTree(input%hsdTree, inpData, parserFlags)
     call doPostParseJobs(input%hsdTree, parserFlags)
-    call this%globalData%initProgramVariables(inpData, this%env)
+    call this%main%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator
 
@@ -368,7 +368,7 @@ contains
 
     call this%checkInit()
 
-    call setGeometry(this%env, this%globalData, coords, latVecs, origin)
+    call setGeometry(this%env, this%main, coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
 
@@ -387,7 +387,7 @@ contains
 
     call this%checkInit()
 
-    call setExternalPotential(this%globalData, atomPot=atomPot, potGrad=potGrad)
+    call setExternalPotential(this%main, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
 
@@ -409,7 +409,7 @@ contains
 
     call this%checkInit()
 
-    call setExternalCharges(this%globalData, chargeCoords, chargeQs, blurWidths)
+    call setExternalCharges(this%main, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
 
@@ -430,7 +430,7 @@ contains
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
-    call setQDepExtPotProxy(this%globalData, extPotProxy)
+    call setQDepExtPotProxy(this%main, extPotProxy)
 
   end subroutine TDftbPlus_setQDepExtPotGen
 
@@ -446,7 +446,7 @@ contains
 
     call this%checkInit()
 
-    call getEnergy(this%env, this%globalData, merminEnergy)
+    call getEnergy(this%env, this%main, merminEnergy)
 
   end subroutine TDftbPlus_getEnergy
 
@@ -462,7 +462,7 @@ contains
 
     call this%checkInit()
 
-    call getGradients(this%env, this%globalData, gradients)
+    call getGradients(this%env, this%main, gradients)
 
   end subroutine TDftbPlus_getGradients
 
@@ -478,7 +478,7 @@ contains
 
     call this%checkInit()
 
-    call getStressTensor(this%env, this%globalData, stresstensor)
+    call getStressTensor(this%env, this%main, stresstensor)
 
   end subroutine TDftbPlus_getStressTensor
 
@@ -496,7 +496,7 @@ contains
 
     call this%checkInit()
 
-    call getExtChargeGradients(this%globalData, gradients)
+    call getExtChargeGradients(this%main, gradients)
 
   end subroutine TDftbPlus_getExtChargeGradients
 
@@ -512,7 +512,7 @@ contains
 
     call this%checkInit()
 
-    call getGrossCharges(this%env, this%globalData, atomCharges)
+    call getGrossCharges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 
@@ -528,7 +528,7 @@ contains
 
     call this%checkInit()
 
-    nAtom = nrOfAtoms(this%globalData)
+    nAtom = nrOfAtoms(this%main)
 
   end function TDftbPlus_nrOfAtoms
 
@@ -630,7 +630,7 @@ contains
 
     call this%checkInit()
 
-    tSpeciesNameChanged = checkSpeciesNames(this%env, this%globalData, inputSpeciesNames)
+    tSpeciesNameChanged = checkSpeciesNames(this%env, this%main, inputSpeciesNames)
 
     if(tSpeciesNameChanged)then
       call error('speciesNames has changed between calls to DFTB+. This will cause erroneous&
@@ -655,7 +655,7 @@ contains
 
     call this%checkInit()
     call this%checkSpeciesNames(inputSpeciesNames)
-    call updateDataDependentOnSpeciesOrdering(this%env, this%globalData, inputSpecies)
+    call updateDataDependentOnSpeciesOrdering(this%env, this%main, inputSpecies)
 
   end subroutine TDftbPlus_setSpeciesAndDependents
 

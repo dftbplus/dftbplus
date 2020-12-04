@@ -169,7 +169,7 @@ module dftbp_initprogram
   end type TCutoffs
 
 
-  type, public :: TGlobalData
+  type, public :: TDftbPlusMain
 
     !> Is this calculation using a restarted input that does not require self consistency before
     !> moving to the post SCC loop part (i.e. Ehrenfest)
@@ -1096,7 +1096,7 @@ module dftbp_initprogram
 !   procedure :: TReksCalc_init
 !   procedure :: printReksInitInfo
 
-  end type TGlobalData
+  end type TDftbPlusMain
 
 contains
 
@@ -1105,7 +1105,7 @@ contains
   subroutine initProgramVariables(this, input, env)
 
     !> Instance
-    class(TGlobalData), intent(inout), target :: this
+    class(TDftbPlusMain), intent(inout), target :: this
 
     !> Holds the parsed input data.
     type(TInputData), intent(inout), target :: input
@@ -3572,7 +3572,7 @@ contains
   subroutine setEquivalencyRelations(this)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Orbital equivalency for SCC and Spin
     integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
@@ -3673,7 +3673,7 @@ contains
   subroutine initializeCharges(this, initialSpins, initialCharges)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Initial spins
     real(dp), allocatable, intent(in) :: initialSpins(:,:)
@@ -3912,7 +3912,7 @@ contains
   subroutine initializeReferenceCharges(this, customOccAtoms, customOccFillings)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Atom indices corresponding to user defined reference atomic charges
     !  Array of occupation arrays, one for each atom
@@ -3958,7 +3958,7 @@ contains
   subroutine setNElectrons(this)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     @:ASSERT(allocated(this%q0))
     @:ASSERT(allocated(this%nEl))
@@ -4062,7 +4062,7 @@ contains
   subroutine destructProgramVariables(this)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     if (this%electronicSolver%isElsiSolver) then
       call TElsiSolver_final(this%electronicSolver%elsi)
@@ -4145,7 +4145,7 @@ contains
   subroutine initSocket(this, env, socketInput)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Environment settings.
     type(TEnvironment), intent(in) :: env
@@ -4171,7 +4171,7 @@ contains
   subroutine initTransport(this, env, input)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -4279,7 +4279,7 @@ contains
   subroutine initOutputFiles(this, env)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -4322,7 +4322,7 @@ contains
   subroutine initArrays(this, env)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -4462,7 +4462,7 @@ contains
   subroutine initDetArrays(this)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
 
     this%nDets = this%deltaDftb%nDeterminant()
@@ -4490,7 +4490,7 @@ contains
   subroutine initTransportArrays(this, transpar)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Transport parameters
     type(TTransPar), intent(inout) :: transpar
@@ -4521,7 +4521,7 @@ contains
   subroutine allocateDenseMatrices(this, env)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Computing environment
     type(TEnvironment), intent(in) :: env
@@ -4560,7 +4560,7 @@ contains
   subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
@@ -4624,7 +4624,7 @@ contains
   subroutine getDenseDescCommon(this)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     integer :: nOrb
 
@@ -4881,7 +4881,7 @@ contains
   subroutine ensureRangeSeparatedReqs(this, tShellResolved, rangeSepInp)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Is this a shell resolved calculation
     logical, intent(in) :: tShellResolved
@@ -5106,7 +5106,7 @@ contains
       & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -5167,7 +5167,7 @@ contains
   subroutine initPlumed(this, env, tPlumed, tMD, plumedCalc)
 
     !> Instance
-    class(TGlobalData), intent(inout) :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env

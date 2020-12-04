@@ -9,12 +9,12 @@
 
 !> main module for the DFTB+ API
 module dftbp_mainapi
-  use dftbp_accuracy, only : dp, mc
   use dftbp_assert
+  use dftbp_accuracy, only : dp, mc
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : TGlobalData
+  use dftbp_initprogram, only : TDftbPlusMain
 #:if WITH_SCALAPACK
   use dftbp_initprogram, only : getDenseDescBlacs
 #:endif
@@ -25,27 +25,27 @@ module dftbp_mainapi
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx, only : scalafx_getlocalshape
 #:endif
-  use dftbp_wrappedintr
+  use dftbp_wrappedintr, only : TWrappedInt1
   use dftbp_charmanip, only : newline
   implicit none
   private
 
-! public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
 
+
 contains
 
   !> Sets up the atomic geometry
-  subroutine setGeometry(env, globalData, coords, latVecs, coordOrigin)
+  subroutine setGeometry(env, main, coords, latVecs, coordOrigin)
 
     !> Instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> atom coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -64,7 +64,7 @@ contains
     call checkToleranceCoherence(env, coords, "coords in "//routine, tol=1.e-10_dp)
     if (present(latVecs)) then
       call checkToleranceCoherence(env, latVecs, "latVecs in "//routine, tol=1.e-10_dp)
-      call checkExactCoherence(env, globalData%tFracCoord, "tFracCoord in "//routine)
+      call checkExactCoherence(env, main%tFracCoord, "tFracCoord in "//routine)
     endif
     if (present(coordOrigin)) then
       call checkToleranceCoherence(env, coordOrigin, "coordOrigin in "//routine, tol=1.e-10_dp)
@@ -74,18 +74,18 @@ contains
 
     @:ASSERT(size(coords,1) == 3)
 
-    globalData%coord0(:,:) = coords
-    globalData%tCoordsChanged = .true.
+    main%coord0(:,:) = coords
+    main%tCoordsChanged = .true.
     if (present(latVecs)) then
-      globalData%latVec(:,:) = latVecs
-      globalData%tLatticeChanged = .true.
+      main%latVec(:,:) = latVecs
+      main%tLatticeChanged = .true.
       if (present(coordOrigin)) then
-        globalData%origin = coordOrigin
+        main%origin = coordOrigin
       else
-        globalData%origin = [0.0_dp,0.0_dp,0.0_dp]
+        main%origin = [0.0_dp,0.0_dp,0.0_dp]
       end if
     else
-      globalData%tLatticeChanged = .false.
+      main%tLatticeChanged = .false.
       @:ASSERT(.not.present(coordOrigin))
     end if
 
@@ -93,92 +93,92 @@ contains
 
 
   !> Returns the free energy of the system at finite temperature
-  subroutine getEnergy(env, globalData, merminEnergy)
+  subroutine getEnergy(env, main, merminEnergy)
 
     !> Instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting energy
     real(dp), intent(out) :: merminEnergy
 
     integer :: iDet
 
-    call recalcGeometry(env, globalData)
-    iDet = size(globalData%dftbEnergy)
-    merminEnergy = globalData%dftbEnergy(iDet)%EMermin
+    call recalcGeometry(env, main)
+    iDet = size(main%dftbEnergy)
+    merminEnergy = main%dftbEnergy(iDet)%EMermin
 
   end subroutine getEnergy
 
 
   !> get forces on atoms
-  subroutine getGradients(env, globalData, gradients)
+  subroutine getGradients(env, main, gradients)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
 
-    if (.not. globalData%tForces) then
+    if (.not. main%tForces) then
       call error("Forces not available, you must initialise your calculator&
           & with forces enabled.")
     end if
 
     @:ASSERT(size(gradients,1) == 3)
 
-    call recalcGeometry(env, globalData)
-    gradients(:,:) = globalData%derivs
+    call recalcGeometry(env, main)
+    gradients(:,:) = main%derivs
 
   end subroutine getGradients
 
 
   !> get stress tensor for unit cell
-  subroutine getStressTensor(env, globalData, stress)
+  subroutine getStressTensor(env, main, stress)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: stress(:,:)
 
-    if (.not. globalData%tStress) then
+    if (.not. main%tStress) then
       call error("Stress tensor not available, you must initialise your calculator with&
           & this property enabled.")
     end if
 
-    call recalcGeometry(env, globalData)
-    stress(:,:) = globalData%totalStress
+    call recalcGeometry(env, main)
+    stress(:,:) = main%totalStress
 
   end subroutine getStressTensor
 
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms
-  subroutine getGrossCharges(env, globalData, atomCharges)
+  subroutine getGrossCharges(env, main, atomCharges)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
 
-    call recalcGeometry(env, globalData)
-    atomCharges(:) = sum(globalData%q0(:, :, 1) - globalData%qOutput(:, :, 1), dim=1)
+    call recalcGeometry(env, main)
+    atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1)
 
     !> Pass to the charges of the excited state if relevant
-    if (globalData%isLinResp) then
-      atomCharges(:) = atomCharges(:) + globalData%dQAtomEx(:)
+    if (main%isLinResp) then
+      atomCharges(:) = atomCharges(:) + main%dQAtomEx(:)
     end if
 
   end subroutine getGrossCharges
@@ -188,10 +188,10 @@ contains
   !>
   !> Sign convention: charge of electron is considered to be positive.
   !>
-  subroutine setExternalPotential(globalData, atomPot, shellPot, potGrad)
+  subroutine setExternalPotential(main, atomPot, shellPot, potGrad)
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Atomic external potential
     real(dp), intent(in), optional :: atomPot(:)
@@ -205,51 +205,51 @@ contains
     ! Using explicit allocation instead of F2003 automatic ones in order to stop eventual
     ! shape mismatches already at this point rather than later deep in the main code
     if (present(atomPot)) then
-      if (.not. allocated(globalData%refExtPot%atomPot)) then
-        allocate(globalData%refExtPot%atomPot(globalData%nAtom, globalData%nSpin))
+      if (.not. allocated(main%refExtPot%atomPot)) then
+        allocate(main%refExtPot%atomPot(main%nAtom, main%nSpin))
       end if
-      @:ASSERT(all(shape(atomPot) == [globalData%nAtom]))
-      globalData%refExtPot%atomPot(:,1) = atomPot
+      @:ASSERT(all(shape(atomPot) == [main%nAtom]))
+      main%refExtPot%atomPot(:,1) = atomPot
     end if
     if (present(shellPot)) then
-      if (.not. allocated(globalData%refExtPot%shellPot)) then
-        allocate(globalData%refExtPot%shellPot(globalData%orb%mShell, globalData%nAtom,&
-            & globalData%nSpin))
+      if (.not. allocated(main%refExtPot%shellPot)) then
+        allocate(main%refExtPot%shellPot(main%orb%mShell, main%nAtom,&
+            & main%nSpin))
       end if
-      @:ASSERT(all(shape(shellPot) == [globalData%orb%mShell, globalData%nAtom]))
-      globalData%refExtPot%shellPot(:,:,1) = shellPot
+      @:ASSERT(all(shape(shellPot) == [main%orb%mShell, main%nAtom]))
+      main%refExtPot%shellPot(:,:,1) = shellPot
     end if
     if (present(potGrad)) then
-      if (.not. allocated(globalData%refExtPot%potGrad)) then
-        allocate(globalData%refExtPot%potGrad(3, globalData%nAtom))
+      if (.not. allocated(main%refExtPot%potGrad)) then
+        allocate(main%refExtPot%potGrad(3, main%nAtom))
       end if
-      @:ASSERT(all(shape(potGrad) == [3, globalData%nAtom]))
-      globalData%refExtPot%potGrad(:,:) = potGrad
+      @:ASSERT(all(shape(potGrad) == [3, main%nAtom]))
+      main%refExtPot%potGrad(:,:) = potGrad
     end if
-    globalData%tExtField = .true.
+    main%tExtField = .true.
 
   end subroutine setExternalPotential
 
 
   !> Sets up a generator for external population dependant potentials
-  subroutine setQDepExtPotProxy(globalData, extPotProxy)
+  subroutine setQDepExtPotProxy(main, extPotProxy)
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Generator for the external population dependant potential
     type(TQDepExtPotProxy), intent(in) :: extPotProxy
 
-    globalData%qDepExtPot = extPotProxy
+    main%qDepExtPot = extPotProxy
 
   end subroutine setQDepExtPotProxy
 
 
   !> Sets up external point charges
-  subroutine setExternalCharges(globalData, chargeCoords, chargeQs, blurWidths)
+  subroutine setExternalCharges(main, chargeCoords, chargeQs, blurWidths)
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Coordinates of the external charges
     real(dp), intent(in) :: chargeCoords(:,:)
@@ -260,42 +260,42 @@ contains
     !> Widths of the Gaussian for each charge used for blurring (0.0 = no blurring)
     real(dp), intent(in), optional :: blurWidths(:)
 
-    globalData%tExtChrg = .true.
-    if (globalData%tForces) then
-      if (.not. allocated(globalData%chrgForces)) then
-        allocate(globalData%chrgForces(3, size(chargeQs)))
+    main%tExtChrg = .true.
+    if (main%tForces) then
+      if (.not. allocated(main%chrgForces)) then
+        allocate(main%chrgForces(3, size(chargeQs)))
       end if
     end if
-    call globalData%sccCalc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    call main%sccCalc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
 
   end subroutine setExternalCharges
 
 
   !> Returns the gradient acting on the external point charges
-  subroutine getExtChargeGradients(globalData, chargeGradients)
+  subroutine getExtChargeGradients(main, chargeGradients)
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TDftbPlusMain), intent(in) :: main
 
     !> Gradients
     real(dp), intent(out) :: chargeGradients(:,:)
 
-    @:ASSERT(globalData%tForces .and. allocated(globalData%chrgForces))
+    @:ASSERT(main%tForces .and. allocated(main%chrgForces))
 
-    chargeGradients(:,:) = globalData%chrgForces
+    chargeGradients(:,:) = main%chrgForces
 
   end subroutine getExtChargeGradients
 
 
   !> Obtains number of atoms in the system
-  function nrOfAtoms(globalData)
+  function nrOfAtoms(main)
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TDftbPlusMain), intent(in) :: main
 
     integer :: nrOfAtoms
 
-    nrOfAtoms = globalData%nAtom
+    nrOfAtoms = main%nAtom
 
   end function nrOfAtoms
 
@@ -305,13 +305,13 @@ contains
   !>
   !> Even if nAtom is not conserved, it should be possible to know the total number of species
   !> types, nTypes, in a simulation and hence always keep speciesName constant
-  function checkSpeciesNames(env, globalData, inputSpeciesName) result(tSpeciesNameChanged)
+  function checkSpeciesNames(env, main, inputSpeciesName) result(tSpeciesNameChanged)
 
     !> dftb+ environment
     type(TEnvironment), intent(in) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Labels of atomic species from external program
     character(len=*), intent(in) :: inputSpeciesName(:)
@@ -335,7 +335,7 @@ contains
 
   #:endblock DEBUG_CODE
 
-    tSpeciesNameChanged = any(globalData%speciesName /= inputSpeciesName)
+    tSpeciesNameChanged = any(main%speciesName /= inputSpeciesName)
 
   end function checkSpeciesNames
 
@@ -343,13 +343,13 @@ contains
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies.
   !  Updated data returned via module use statements
-  subroutine updateDataDependentOnSpeciesOrdering(env, globalData, inputSpecies)
+  subroutine updateDataDependentOnSpeciesOrdering(env, main, inputSpecies)
 
     !> dftb+ environment
     type(TEnvironment), intent(in) :: env
  
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
@@ -364,40 +364,40 @@ contains
 
     character(*), parameter :: routine = 'updateDataDependentOnSpeciesOrdering'
 
-    call checkExactCoherence(env, globalData%nAtom, "nAtom in "//routine)
+    call checkExactCoherence(env, main%nAtom, "nAtom in "//routine)
     call checkExactCoherence(env, inputSpecies, "inputSpecies in "//routine)
-    call checkExactCoherence(env, globalData%tSccCalc, "tSccCalc in" //routine)
-    call checkExactCoherence(env, globalData%nSpin, "nSpin in "//routine)
-    call checkExactCoherence(env, globalData%hamiltonianType, "hamiltonianType in "//routine)
+    call checkExactCoherence(env, main%tSccCalc, "tSccCalc in" //routine)
+    call checkExactCoherence(env, main%nSpin, "nSpin in "//routine)
+    call checkExactCoherence(env, main%hamiltonianType, "hamiltonianType in "//routine)
 
   #:endblock DEBUG_CODE
 
-    if(size(inputSpecies) /= globalData%nAtom)then
+    if(size(inputSpecies) /= main%nAtom)then
       call error("Number of atoms must be kept constant in simulation." // newline //&
           & "Instead call destruct and then fully re-initialize DFTB+.")
     endif
 
-    globalData%species0 = inputSpecies
-    globalData%mass = updateAtomicMasses(globalData)
-    globalData%orb%nOrbAtom = updateAtomicOrbitals(globalData)
+    main%species0 = inputSpecies
+    main%mass = updateAtomicMasses(main)
+    main%orb%nOrbAtom = updateAtomicOrbitals(main)
 
     ! if atom species change, dense matrix indexing needs updating
-    call globalData%getDenseDescCommon()
+    call main%getDenseDescCommon()
 
     ! Used in partial charge initialisation
-    call globalData%setEquivalencyRelations()
+    call main%setEquivalencyRelations()
   #:if WITH_SCALAPACK
-    call updateBLACSDecomposition(env, globalData)
-    call reallocateHSArrays(env, globalData, globalData%denseDesc, globalData%HSqrCplx,&
-        & globalData%SSqrCplx, globalData%eigVecsCplx, globalData%HSqrReal, globalData%SSqrReal,&
-        & globalData%eigVecsReal)
+    call updateBLACSDecomposition(env, main)
+    call reallocateHSArrays(env, main, main%denseDesc, main%HSqrCplx,&
+        & main%SSqrCplx, main%eigVecsCplx, main%HSqrReal, main%SSqrReal,&
+        & main%eigVecsReal)
   #:endif
 
     ! If atomic order changes, partial charges need to be initialised, else wrong charge will be
     ! associated with each atom
-    call globalData%initializeReferenceCharges(customOccAtoms, customOccFillings)
-    call globalData%setNElectrons()
-    call globalData%initializeCharges(initialSpins, initialCharges)
+    call main%initializeReferenceCharges(customOccAtoms, customOccFillings)
+    call main%setNElectrons()
+    call main%initializeCharges(initialSpins, initialCharges)
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -407,52 +407,52 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Update order of nr. atomic orbitals for each atom, orb%nOrbAtom
-  function updateAtomicOrbitals(globalData) result(nOrbAtomReordered)
+  function updateAtomicOrbitals(main) result(nOrbAtomReordered)
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TDftbPlusMain), intent(in) :: main
 
     !> Nr. of orbitals for each atom (nAtom)
     integer, allocatable :: nOrbAtomReordered(:)
 
-    @:ASSERT(globalData%nAtom == size(globalData%species0))
-    allocate(nOrbAtomReordered(globalData%nAtom))
-    nOrbAtomReordered(:) = globalData%orb%nOrbSpecies(globalData%species0(:))
+    @:ASSERT(main%nAtom == size(main%species0))
+    allocate(nOrbAtomReordered(main%nAtom))
+    nOrbAtomReordered(:) = main%orb%nOrbSpecies(main%species0(:))
 
   end function updateAtomicOrbitals
 
 
   !> Update atomic masses
-  function updateAtomicMasses(globalData) result(massReordered)
+  function updateAtomicMasses(main) result(massReordered)
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TDftbPlusMain), intent(in) :: main
 
     !> List of atomic masses (nAtom)
     real(dp), allocatable :: massReordered(:)
 
-    @:ASSERT(size(globalData%speciesMass) == maxval(globalData%species0))
-    allocate(massReordered(globalData%nAtom))
-    massReordered = globalData%speciesMass(globalData%species0)
+    @:ASSERT(size(main%speciesMass) == maxval(main%species0))
+    allocate(massReordered(main%nAtom))
+    massReordered = main%speciesMass(main%species0)
 
   end function updateAtomicMasses
 
 #:if WITH_SCALAPACK
 
   !> Update dense matrix descriptor for H and S in BLACS decomposition
-  subroutine updateBLACSDecomposition(env, globalData)
+  subroutine updateBLACSDecomposition(env, main)
 
     !> Environment settings
     type(TEnvironment), intent(in)    :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
 
     ! Specificaly, denseDesc uses orb%nOrbAtom
-    call globalData%getDenseDescCommon()
+    call main%getDenseDescCommon()
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
-        & globalData%denseDesc)
+        & main%denseDesc)
 
   end subroutine updateBLACSDecomposition
 
@@ -462,14 +462,14 @@ contains
   ! If nAtom is constant and one is running without BLACS, this should not be required
   ! hence preprocessed out
   ! May require extending if ((nAtom not constant) and (not BLACS))
-  subroutine reallocateHSArrays(env, globalData, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
+  subroutine reallocateHSArrays(env, main, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
       & HSqrReal, SSqrReal, eigVecsReal)
 
     !> Environment instance
     type(TEnvironment), intent(in) :: env
 
     !> Instance
-    type(TGlobalData), intent(in) :: globalData
+    type(TDftbPlusMain), intent(in) :: main
 
     !> Dense matrix descriptor for H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -496,12 +496,12 @@ contains
     integer :: nLocalRows, nLocalCols, nLocalKS
 
     !Retrieved from index array for spin and k-point index
-    nLocalKS = size(globalData%parallelKS%localKS, dim=2)
+    nLocalKS = size(main%parallelKS%localKS, dim=2)
 
     !Get nLocalRows and nLocalCols
     call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
 
-    if (globalData%t2Component .or. .not. globalData%tRealHS) then
+    if (main%t2Component .or. .not. main%tRealHS) then
       ! Complex
       if( (size(HSqrCplx,1) /= nLocalRows) .or. (size(HSqrCplx,2) /= nLocalCols) )then
         deallocate(HSqrCplx)
@@ -529,20 +529,20 @@ contains
 #:endif
 
   !> re-evaluate the energy/forces if the geometry changes
-  subroutine recalcGeometry(env, globalData)
+  subroutine recalcGeometry(env, main)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
-    type(TGlobalData), intent(inout) :: globalData
+    type(TDftbPlusMain), intent(inout) :: main
 
     logical :: tStopScc, tExitGeoOpt
 
-    if (globalData%tLatticeChanged .or. globalData%tCoordsChanged) then
-      call processGeometry(env, globalData, 1, 1, .false., tStopScc, tExitGeoOpt)
-      globalData%tLatticeChanged = .false.
-      globalData%tCoordsChanged = .false.
+    if (main%tLatticeChanged .or. main%tCoordsChanged) then
+      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt)
+      main%tLatticeChanged = .false.
+      main%tCoordsChanged = .false.
     end if
 
   end subroutine recalcGeometry
