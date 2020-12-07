@@ -32,7 +32,7 @@ module dftbp_mainapi
 
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
-  public :: nrOfAtoms
+  public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
 
 
@@ -400,6 +400,20 @@ contains
     call main%initializeCharges(initialSpins, initialCharges)
 
   end subroutine updateDataDependentOnSpeciesOrdering
+
+
+  !> Obtains mass for each atom in the system
+  subroutine getAtomicMasses(main, outMass)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    real(dp) :: outMass(main%nAtom)
+
+    outMass = main%mass
+
+  end subroutine getAtomicMasses
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
