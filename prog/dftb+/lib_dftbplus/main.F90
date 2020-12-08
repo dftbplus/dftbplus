@@ -219,8 +219,6 @@ contains
       end if
 
       if (tStress) then
-        intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
-        totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
 
         call printVolume(cellVol)
 
@@ -983,33 +981,32 @@ contains
       call calcDispersionEnergy(dispersion, dftbEnergy(deltaDftb%iDeterminant)%atomDisp,&
           & dftbEnergy(deltaDftb%iDeterminant)%Edisp, iAtInCentralRegion)
       call sumEnergies(dftbEnergy(deltaDftb%iDeterminant))
+    end if
 
-      if (tWriteDetailedOut .and. deltaDftb%nDeterminant() == 1) then
-        close(fdDetailedOut)
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
-        if (allocated(reks)) then
-          call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
-              & tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(1), diffElec, sccErrorQ, indMovedAtom,&
-              & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
-              & dftbEnergy(1)%TS, tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec,&
-              & kPoint, iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
-        else
-          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
-              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
-              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
-              & invLatVec, kPoint)
-          call writeDetailedOut2(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
-              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
-              & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
-          call writeDetailedOut3(fdDetailedOut, qInput, qOutput,&
-              & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
-              & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
-              & electronicSolver, allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
-              & allocated(solvation))
-        end if
+    if (tWriteDetailedOut .and. deltaDftb%nDeterminant() == 1) then
+      close(fdDetailedOut)
+      call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+      if (allocated(reks)) then
+        call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+            & tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(1), diffElec, sccErrorQ, indMovedAtom,&
+            & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
+            & dftbEnergy(1)%TS, tAtomicEnergy, dispersion, tPeriodic, tSccCalc, invLatVec,&
+            & kPoint, iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
+      else
+        call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+            & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, dftbEnergy(deltaDftb%iDeterminant),&
+            & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, tPeriodic, tSccCalc, tNegf,&
+            & invLatVec, kPoint)
+        call writeDetailedOut2(fdDetailedOut, q0, qInput, qOutput, orb, species, tDFTBU,&
+            & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, nSpin,&
+            & allocated(onSiteElements), iAtInCentralRegion, cm5Cont, qNetAtom)
+        call writeDetailedOut3(fdDetailedOut, qInput, qOutput,&
+            & dftbEnergy(deltaDftb%iDeterminant), species, tDFTBU, tPrintMulliken, Ef,&
+            & extPressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+            & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, iAtInCentralRegion,&
+            & electronicSolver, allocated(halogenXCorrection), isRangeSep, allocated(thirdOrd),&
+            & allocated(solvation))
       end if
-
     end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
@@ -1190,7 +1187,7 @@ contains
     logical, intent(in) :: tLatOpt
 
     !> Derivative of total energy with respect to lattice vectors
-    real(dp) :: totalLatDerivs(:,:)
+    real(dp), intent(in) :: totalLatDerivs(:,:)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp), intent(in) :: extLatDerivs(:,:)
@@ -5784,6 +5781,9 @@ contains
       end select
     end if
 
+    intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    
   end subroutine getStress
 
 
