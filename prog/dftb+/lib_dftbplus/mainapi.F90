@@ -408,7 +408,7 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
-    real(dp) :: outMass(main%nAtom)
+    real(dp), intent(out) :: outMass(main%nAtom)
 
     outMass = main%mass
 
