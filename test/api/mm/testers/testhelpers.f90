@@ -20,7 +20,7 @@ contains
 
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients)
+      & grossCharges, extChargeGradients, atomMasses)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -36,6 +36,9 @@ contains
 
     !> Gradients on external charges.
     real(dp), optional, intent(in) :: extChargeGradients(:,:)
+
+    !> Atomic masses
+    real(dp), optional, intent(in) :: atomMasses(:)
 
     type(TTaggedWriter) :: taggedWriter
     integer :: autotestTag
@@ -57,6 +60,9 @@ contains
     end if
     if(present(stressTensor)) then
       call taggedWriter%write(autotestTag, tagLabels%stressTot, stressTensor)
+    end if
+    if(present(atomMasses)) then
+      call taggedWriter%write(autotestTag, tagLabels%atomMass, atomMasses)
     end if
     close(autotestTag)
 
