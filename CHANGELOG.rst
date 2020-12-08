@@ -15,6 +15,9 @@ Fixed
 
 - Upgraded to libNEGF version 1.0.1 fixing usage of uninitialized variables
 
+- Removed '-heap-arrays' option from ifort compiler options to work around Intel
+  compiler bug causing steadily increasing memory consumption during long runs
+
 
 
 20.2 (2020-11-17)
