@@ -1,12 +1,13 @@
-set(INSTALL_EXPORT_NAME dftbplus-targets)
-set(MPIFX_INCLUDE_DIR "${CMAKE_BINARY_DIR}/external/mpifx/origin/lib/include" CACHE STRING
-  "Where to find the MPIFX include directory")
-# prevent libNEGF testers being built if inside DFTB+ build (name
-# collisions and processed files end in wrong places for them to
-# build):
-set(BUILD_TESTING CACHE "Whether the tests should be built" FALSE)
-add_subdirectory(origin)
-set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} negf PARENT_SCOPE)
-if(WITH_MPI)
-  add_dependencies(negf mpifx)
-endif()
+# This CMakeLists.txt should be invoked via dftbp_config_hybrid_dependency()!
+
+set(BUILD_TESTING FALSE)
+
+get_target_property(LAPACK_LIBRARIES LAPACK::LAPACK INTERFACE_LINK_LIBRARIES)
+
+# This setting is required by libNEGF but never really used.
+set(LAPACK_LIBRARY_DIRS "dummy")
+
+add_subdirectory(${NEGF_SOURCE_DIR} ${NEGF_BINARY_DIR})
+
+add_library(Negf::Negf INTERFACE IMPORTED GLOBAL)
+target_link_libraries(Negf::Negf INTERFACE Negf)

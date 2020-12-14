@@ -193,7 +193,7 @@ contains
   end subroutine incSizeMatSwapped
 
 
-  !>increase size of a sizeInxsizeIn array 
+  !>increase size of a sizeInxsizeIn array
   pure subroutine incSizeMatBoth(sizeIn, vec)
 
     integer, intent(inout) :: sizeIn
@@ -275,12 +275,12 @@ contains
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: spinW(:)
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:)
     real(dp), intent(out) :: vOut(:)
     real(dp), intent(out) :: gqvTmp(:,:)   !for faster, more memory intensive routine
 
     integer :: izpAlpha, nMat, nAtom
-    integer :: ia, ib, ja, jb, alpha, ii, jj, ij, aa, bb, ab
+    integer :: ia, ib, ja, jb, alpha, ii, jj, ij, aa, bb, ab, ss
     real(dp) :: tmp2
     real(dp) :: oTmp(size(gamma, dim=1)), gTmp(size(gamma, dim=1))
     real(dp) :: wnIJ(size(wIJ))
@@ -368,7 +368,7 @@ contains
 
     gqvTmp(:,:) = 0.0_dp
     do jb = 1, nMat
-      call indXov(win, jb, getIJ, jj, bb)
+      call indXov(win, jb, getIJ, jj, bb, ss)
       !lUpDwn = (win(jb) <= nMatUp)
       do aa = homo + 1, homo + nVir
         !lUpDwn = .true.
@@ -393,7 +393,7 @@ contains
     do jj = 1, nOcc
       do ia = 1, nMat
         !would prefer to swap loops, but want to avoid calculation ia as unsure how implemented
-        call indXov(win, ia, getIJ, ii, aa)
+        call indXov(win, ia, getIJ, ii, aa, ss)
         !lUpDwn = (win(ia) <= nMatUp)
         !lUpDwn = .true.
         !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
@@ -411,10 +411,10 @@ contains
 
     gqvTmp(:,:) = 0.0_dp
     do jb = 1, nMat
-      call indXov(win, jb, getIJ, jj, bb)
+      call indXov(win, jb, getIJ, jj, bb, ss)
       do aa = homo + 1, homo + nVir
         ab = (bb - nOcc - 1) * nVir + aa - nOcc
-        ja = iaTrans(jj, aa)
+        ja = iaTrans(jj, aa, ss)
         gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
       end do
     end do
@@ -426,8 +426,8 @@ contains
 
     do bb = homo + 1, homo + nVir
       do ia = 1, nMat
-        call indXov(win, ia, getIJ, ii, aa)
-        ib = iaTrans(ii,bb)
+        call indXov(win, ia, getIJ, ii, aa, ss)
+        ib = iaTrans(ii,bb,ss)
         ab = (bb - nOcc - 1) * nVir + aa - nOcc
         vOut(ia) = vOut(ia) - dot_product(tQov(:,ib), gqvTmp(:,ab))
       end do
@@ -458,12 +458,12 @@ contains
     !integer, intent(in) :: species0(:)
     !type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:)
     real(dp), intent(out) :: vOut(:)
 
     real(dp) :: gqvTmp(:,:)   !for faster, more memory intensive routine
     integer :: nMat, nAtom
-    integer :: ia, ib, ja, jb, ii, jj, ij, aa, bb, ab
+    integer :: ia, ib, ja, jb, ii, jj, ij, aa, bb, ab, ss
     !real(dp) :: oTmp(size(gamma, dim=1))
     real(dp) :: gTmp(size(gamma, dim=1))
     !real(dp) :: qIJ(size(gamma, dim=1))
@@ -512,7 +512,7 @@ contains
 
     gqvTmp(:,:) = 0.0_dp
     do jb = 1, nMat
-      call indXov(win, jb, getIJ, jj, bb)
+      call indXov(win, jb, getIJ, jj, bb, ss)
       !lUpDwn = (win(jb) <= nMatUp)
       do aa = homo + 1, homo + nVir
         !lUpDwn = .true.
@@ -536,7 +536,7 @@ contains
     do jj = 1, nOcc
       do ia = 1, nMat
         ! would prefer to swap loops, but want to avoid calculation ia as unsure how implemted
-        call indXov(win, ia, getIJ, ii, aa)
+        call indXov(win, ia, getIJ, ii, aa, ss)
         !lUpDwn = (win(ia) <= nMatUp)
         !lUpDwn = .true.
         !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
@@ -554,10 +554,10 @@ contains
 
     gqvTmp(:,:) = 0.0_dp
     do jb = 1, nMat
-      call indXov(win, jb, getIJ, jj, bb)
+      call indXov(win, jb, getIJ, jj, bb, ss)
       do aa = homo + 1, homo + nVir
         ab = (bb - nOcc - 1) * nVir + aa - nOcc
-        ja = iaTrans(jj, aa)
+        ja = iaTrans(jj, aa, ss)
         gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
       end do
     end do
@@ -569,8 +569,8 @@ contains
 
     do bb = homo + 1, homo + nVir
       do ia = 1, nMat
-        call indXov(win, ia, getIJ, ii, aa)
-        ib = iaTrans(ii,bb)
+        call indXov(win, ia, getIJ, ii, aa, ss)
+        ib = iaTrans(ii,bb,ss)
         ab = (bb - nOcc - 1) * nVir + aa - nOcc
         vOut(ia) = vOut(ia) + dot_product(tQov(:,ib), gqvTmp(:,ab))
       end do
@@ -599,7 +599,7 @@ contains
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
     integer,  intent(in) :: getIJ(:,:)
-    integer, intent(in) :: iaTrans(1:, homo+1:)
+    integer, intent(in) :: iaTrans(1:, homo+1:, :)
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: spinW(:)
     !type(TOrbitals), intent(in) :: orb
@@ -608,7 +608,7 @@ contains
     real(dp), intent(out) :: mP(:,:), mM(:,:)
 
     integer :: izpAlpha, nMat, nAtom, nw
-    integer :: ia, jb, alpha, ii, jj, aa, bb, aaOld, bbOld, jjOld, ij, ab
+    integer :: ia, jb, alpha, ii, jj, aa, bb, aaOld, bbOld, jjOld, ij, ab, ss
     real(dp) :: tmp2
     real(dp), allocatable :: oTmp(:), oTmp2(:), qIJ(:), wnIJ(:)
     real(dp) :: dtmp, dtmp2
@@ -663,9 +663,9 @@ contains
 
     ! long range coupling matrix contribution
     do jb = 1, initDim
-      call indXov(win, jb, getIJ, jj, bb)
+      call indXov(win, jb, getIJ, jj, bb, ss)
       do ia = 1, nMat
-        call indXov(win, ia, getIJ, ii, aa)
+        call indXov(win, ia, getIJ, ii, aa, ss)
         if ((aaOld .ne. aa) .or. (bbOld .ne. bb)) then
           if (bb < aa) then
             call rIndXvv(homo, aa, bb, ab)
@@ -687,10 +687,10 @@ contains
         vM(ia,jb) = vM(ia,jb) - dtmp
 
         if ((jjOld .ne. jj) .or. (aaOld .ne. aa)) then
-          call hemv(oTmp2, lrGamma, tQov(:,iaTrans(jj,aa)))
+          call hemv(oTmp2, lrGamma, tQov(:,iaTrans(jj,aa,1)))
         end if
 
-        dtmp2 = dot_product(tQov(:,iaTrans(ii,bb)), oTmp2)
+        dtmp2 = dot_product(tQov(:,iaTrans(ii,bb,1)), oTmp2)
 
         vP(ia,jb) = vP(ia,jb) - dtmp2
         vM(ia,jb) = vM(ia,jb) + dtmp2
@@ -801,7 +801,7 @@ contains
     real(dp), allocatable :: atomicTransQ(:)
     !to hold precalculated transition charges, alloc and calc in rs calc
     real(dp), allocatable :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, allocatable :: win(:), iaTrans(:,:), getIJ(:,:)
+    integer, allocatable :: win(:), iaTrans(:,:,:), getIJ(:,:)
     character, allocatable :: symmetries(:)
 
     integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR
@@ -953,7 +953,7 @@ contains
     allocate(wIJ(nXov))
     allocate(win(nXov))
     allocate(eval(nExc))
-    allocate(getIJ(nXov, 2))
+    allocate(getIJ(nXov, 3))
     allocate(transitionDipoles(nXov, 3))
     allocate(snglPartOscStrength(nXov))
 
@@ -994,7 +994,7 @@ contains
       ! use a stable sort so that degenerate transitions from the same single particle state are
       ! grouped together in the results, allowing these to be selected together (since how intensity
       ! is shared out over degenerate transitions is arbitrary between eigensolvers/platforms).
-      call merge_sort(win, wIJ, 1.0E-4_dp*epsilon(1.0))
+      call merge_sort(win, wIJ, 1.0E-3_dp*epsilon(0.0_rsp))
     else
       ! do not require stability, use the usual routine to sort, saving an O(N) workspace
       call index_heap_sort(win, wIJ)
@@ -1122,8 +1122,8 @@ contains
     end if
 
     ! for fast init. mat calc. need combined index
-    allocate(iaTrans(1:nOcc, nOcc+1:nOrb))
-    call rIndXov_array(win, nOcc, nXov, getIJ, iaTrans)
+    allocate(iaTrans(1:nOcc, nOcc+1:nOrb, nSpin))
+    call rIndXov_array(win, nOcc+1, nXov, getIJ, iaTrans)
 
     ! run lin. resp. calculation:
     do isym = 1, size(symmetries)
@@ -1226,7 +1226,7 @@ contains
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
     integer, intent(in) :: getIJ(:,:), species0(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:) ! needed in fast setup of init mat
+    integer, intent(in) :: iaTrans(1:,homo+1:,:) ! needed in fast setup of init mat
     real(dp), intent(in) :: spinW(:)
     integer, intent(in) :: nStat
     ! lin. resp. eigenvalues and eigenvectors (F_I and X_I+Y_I)
@@ -1235,7 +1235,7 @@ contains
     ! pre-calculated transition charges
     real(dp), allocatable, intent(out) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
 
-    integer :: ii, jj, ia, ij, aa, bb, ab, nXovAct
+    integer :: ii, jj, ia, ij, aa, bb, ab, nXovAct, ss
     ! cur. size of subspace and memory for subspace vectors and matrices
     integer :: subSpaceDim, prevSubSpaceDim, memDim, workDim
     real(dp), allocatable :: vecB(:,:) ! basis of subspace
@@ -1291,7 +1291,7 @@ contains
 
     ! Precalculate transition charges
     do ia = 1, nVir * nOcc
-      call indXov(win, ia, getIJ, ii, aa)
+      call indXov(win, ia, getIJ, ii, aa, ss)
       lUpdwn = (win(ia) <= nMatUp)
       qIJ = transQ(ii, aa, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
       tQov(:,ia) = qIJ
@@ -1573,7 +1573,7 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nMat
-    integer :: i, j, iWeight, indO, m, n
+    integer :: i, j, iWeight, indO, m, n, s
     integer :: iDeg
     real(dp), allocatable :: vecW(:)
     real(dp), allocatable :: eDeg(:)
@@ -1615,7 +1615,7 @@ contains
         weight = vecW(1)
         iWeight = vecWi(1)
 
-        call indXov(win, iWeight, getIJ, m, n)
+        call indXov(win, iWeight, getIJ, m, n, s)
         cSign = cSym
         if (tSpin) then
           cSign = " "
@@ -1648,7 +1648,7 @@ contains
           cSign = " "
           do j = 1, nMat
             indO = vecWi(j)
-            call indXov(win, indO, getIJ, m, n)
+            call indXov(win, indO, getIJ, m, n, s)
             if (tSpin) then
               lUpdwn = (win(indO) <= nMatUp)
               cSign = "D"
@@ -1673,7 +1673,7 @@ contains
 
         weight = vecW(1)
         iWeight = vecWi(1)
-        call indXov(win, iWeight, getIJ, m, n)
+        call indXov(win, iWeight, getIJ, m, n, s)
         cSign = cSym
 
         if (tSpin) then
@@ -1843,11 +1843,11 @@ contains
     integer, intent(in) :: win(:), getIJ(:,:)
     real(dp), intent(out) :: pc(:,:)
 
-    integer :: ia, i, a
+    integer :: ia, i, a, s
 
     pc(:,:) = t(:,:)
     do ia = 1, size(rhs)
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       ! shouldn't be pc = pc + 1/2 rhs?
       pc(i,a) = 0.5_dp * rhs(ia)
       pc(a,i) = 0.5_dp * rhs(ia)
@@ -1904,7 +1904,7 @@ contains
       & spinW, omega, cSym, rhs, t, vWov, vWoo, vWvv)
     real(dp), intent(in) :: vecXpY(:), vecXmY(:)
     integer, intent(in) :: win(:), iAtomStart(:)
-    integer, intent(in) :: homo, nOcc, nMatUp, getIJ(:,:), iaTrans(1:,homo+1:), nAtom, species0(:)
+    integer, intent(in) :: homo, nOcc, nMatUp, getIJ(:,:), iaTrans(1:,homo+1:,:), nAtom, species0(:)
     real(dp), intent(in) :: ev(:), sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), spinW(:), omega
     character, intent(in) :: cSym
@@ -1914,7 +1914,7 @@ contains
     real(dp), allocatable :: vecXpYQ(:), qIJ(:), gamXpYQ(:), qGamXPyQ(:), gamQt(:)
     real(dp), allocatable :: vecHvvX(:), vecHvvY(:), vecHooX(:), vecHooY(:), vecHovT(:), vecHooT(:)
     integer :: nVirt, nOrb, nXov, nXoo, nXvv
-    integer :: i, j, a, b, ia, ib, ij, ab, ja
+    integer :: i, j, a, b, ia, ib, ij, ab, ja, s
     real(dp) :: tmp1, tmp2
     logical :: lUpDwn
 
@@ -1948,11 +1948,11 @@ contains
     ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
     ! factor 1 / (1 + delta_ab) follows later
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       ! BA: Is T_aa = 0?
       do b = homo + 1, a
-        ib = iaTrans(i, b)
+        ib = iaTrans(i, b, s)
         ab = (b - homo) + (((a - homo) - 1) * (a - homo)) / 2
         tmp1 = vecXpY(ia) * vecXpY(ib) + vecXmY(ia) * vecXmY(ib)
         tmp2 = omega * (vecXpY(ia) * vecXmY(ib)+ vecXmY(ia) * vecXpY(ib))
@@ -1968,7 +1968,7 @@ contains
       ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja
       ! and 1 / (1 + delta_ij) Q_ij with Q_ij as in eq. (B9) (1st part of w_ij)
       do j = i, homo
-        ja = iaTrans(j,a)
+        ja = iaTrans(j,a,s)
         ij = i - homo + nOcc + ((j - homo + nOcc - 1) * (j - homo + nOcc)) / 2
         tmp1 = vecXpY(ia) * vecXpY(ja) + vecXmY(ia) * vecXmY(ja)
         tmp2 = omega * (vecXpY(ia) * vecXmY(ja) + vecXmY(ia) * vecXpY(ja))
@@ -1985,7 +1985,7 @@ contains
 
     ! Build xpyq = sum_ia (X+Y)_ia
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       vecXpYQ(:) = vecXpYQ + vecXpY(ia) * qIJ
@@ -2007,7 +2007,7 @@ contains
 
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, a
         if (b < a) then
@@ -2015,7 +2015,7 @@ contains
         else
           call rIndXvv(homo, b, a, ab)
         end if
-        ib = iaTrans(i,b)
+        ib = iaTrans(i,b,s)
         rhs(ia) = rhs(ia) - 2.0_dp * vecXpY(ib) * qGamXpYQ(ab)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
@@ -2041,9 +2041,9 @@ contains
     ! rhs(ia) += Qai = sum_j (X+Y)_ja qgamxpyq(ij)
     ! add Qai to Wia as well.
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       do j = i, homo
-        ja = iaTrans(j, a)
+        ja = iaTrans(j, a, s)
         ij = i - homo + nOcc + ((j - homo + nOcc - 1) * (j - homo + nOcc)) / 2
         tmp1 = 2.0_dp * vecXpY(ja) * qGamXpYQ(ij)
         rhs(ia) = rhs(ia) + tmp1
@@ -2088,7 +2088,7 @@ contains
 
     ! rhs -= sum_q^ia(alpha) gamxpyq(alpha)
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       rhs(ia) = rhs(ia) - 4.0_dp * sum(qIJ * gamQt)
@@ -2121,10 +2121,10 @@ contains
         & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHovT)
 
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, nOrb
-        ib = iaTrans(i, b)
+        ib = iaTrans(i, b, s)
         if (ib <= nXov) then
           if (b < a) then
             call rIndXvv(homo, a, b, ab)
@@ -2141,7 +2141,7 @@ contains
       end do
 
       do j = 1, homo
-        ja = iaTrans(j, a)
+        ja = iaTrans(j, a, s)
         if (ja <= nXov) then
           if (j < i) then
             call rIndXoo(homo, nOcc, i, j, ij)
@@ -2194,10 +2194,10 @@ contains
     real(dp), intent(in) :: spinW(:)
     integer, intent(in) :: homo, nOcc, nVir
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:)
 
     integer :: nXov
-    integer :: ia, i, a, k, ii, aa
+    integer :: ia, i, a, k, ii, aa, s
     real(dp), allocatable :: qIJ(:), gXqIJ(:), rhs2(:), rkm1(:), pkm1(:), apk(:)
     real(dp) :: rs, tmp1, tmp2
     logical :: lUpDwn
@@ -2226,7 +2226,7 @@ contains
     ! Choosing a start value
     ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       ! qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       rs = 4.0_dp * dot_product(tQov(:,ia), matmul(gamma, tQov(:,ia))) + wIJ(ia)
@@ -2295,10 +2295,10 @@ contains
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:), lrGamma(:,:)
     real(dp), intent(in) :: ev(:)
     real(dp), intent(inout) :: vWov(:), vWoo(:), vWvv(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:)
 
     integer :: nXov, nXoo, nXvv, nAtom
-    integer :: ij, ia, ab, i, j, a, b, alpha
+    integer :: ij, ia, ab, i, j, a, b, alpha, s
     real(dp), allocatable :: qIJ(:), gamXpYQ(:), zQ(:), vecHooZ(:)
     logical :: lUpDwn
 
@@ -2314,7 +2314,7 @@ contains
 
     ! Adding missing epsilon_i * Z_ia term to W_ia
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       vWov(ia) = vWov(ia) + zz(ia) * ev(i)
     end do
@@ -2324,7 +2324,7 @@ contains
     do alpha = 1, nAtom
       zQ(alpha) = 0.0_dp
       do ia = 1, nXov
-        call indXov(win, ia, getIJ, i, a)
+        call indXov(win, ia, getIJ, i, a, s)
         lUpDwn = (win(ia) <= nMatUp)
         qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
         zQ(alpha) = zQ(alpha) + zz(ia) * qIJ(alpha)
@@ -2395,7 +2395,7 @@ contains
     real(dp), allocatable :: shEx(:), vecXpYq(:), shXpYQ(:), vecXpYcc(:,:), vecXmYcc(:,:), wcc(:,:)
     real(dp), allocatable :: temp(:), qIJ(:), vecXpYas(:,:), vecXmYas(:,:)
     real(dp), allocatable :: dmn(:,:)
-    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, alpha, beta
+    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, alpha, beta, s
     integer :: indAlpha, indAlpha1, indBeta, indBeta1, izpAlpha, izpBeta
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmprs, tmprs2, rab
     real(dp) :: diffvec(3), dgab(3), tmp3a(3), tmp3b(3)
@@ -2504,7 +2504,7 @@ contains
     ! xpycc(mu,nu) = sum_ia (X+Y)_ia c(mu,i) c(nu,a)
     ! xpycc(mu, nu) += sum_ia (X+Y)_ia c(mu,a) c(nu,i)
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do nu = 1, nOrb
         do mu = 1, nOrb
@@ -2542,7 +2542,7 @@ contains
 
     ! calculate the occ-virt part : the same way as for xpycc
     do ia = 1, nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do nu = 1, nOrb
         do mu = 1, nOrb
@@ -2880,9 +2880,9 @@ contains
     real(dp), intent(out) :: vecHvv(:)
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer, intent(in) :: ipm, nXov, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIJ(:,:)
 
-    integer :: i, a, b, ia, ib, ab, nXovAct, nOcc, nVirt
+    integer :: i, a, b, ia, ib, ab, nXovAct, nOcc, nVirt, s
     logical :: lUpDwn
 
     nVirt = 0
@@ -2900,10 +2900,10 @@ contains
 
     qX(:,:) = 0.0_dp
     do ia = 1, nXovAct ! size(XorY) ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, nOrb
-        ib = iaTrans(i, b)
+        ib = iaTrans(i, b, s)
         if (ib <= nXov) then
           lUpDwn = .true.
           qIJ = transQ(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
@@ -2914,7 +2914,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ia = 1, nXovAct ! size(XorY)
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
@@ -2925,8 +2925,8 @@ contains
     do ab = 1, nXvv
       call indXvv(homo, ab, a, b)
       do i = 1, homo
-        ia = iaTrans(i, a)
-        ib = iaTrans(i, b)
+        ia = iaTrans(i, a, 1)
+        ib = iaTrans(i, b, 1)
         vecHvv(ab) = vecHvv(ab) - ipm * (dot_product(qX(:,ia), Gq(:,ib))&
             & + ipm * dot_product(Gq(:,ia), qX(:,ib)))
       end do
@@ -2943,11 +2943,11 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, vecHoo)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
     integer, intent(in) :: ipm, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIJ(:,:)
     real(dp), intent(out) :: vecHoo(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
-    integer :: i, a, j, ia, ja, ij, nXovAct, nOcc, nVirt
+    integer :: i, a, j, ia, ja, ij, nXovAct, nOcc, nVirt, s
     logical :: lUpDwn
 
     nOcc = 0
@@ -2965,10 +2965,10 @@ contains
 
     qX(:,:) = 0.0_dp
     do ia = 1, nXovAct ! size(XorY) ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do j = 1, homo
-        ja = iaTrans(j, a)
+        ja = iaTrans(j, a, s)
         if (ja <= nXov) then
           lUpDwn = .true.
           qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
@@ -2979,7 +2979,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ia = 1, nXovAct ! size(XorY) ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
@@ -2990,8 +2990,8 @@ contains
     do ij = 1, nXoo
       call indXoo(ij, i, j)
       do a = homo + 1, nOrb
-        ia = iaTrans(i, a)
-        ja = iaTrans(j, a)
+        ia = iaTrans(i, a, 1)
+        ja = iaTrans(j, a, 1)
         vecHoo(ij) = vecHoo(ij) - ipm * (dot_product(qX(:,ia), Gq(:,ja))&
             & + ipm * dot_product(Gq(:,ia), qX(:,ja)))
       end do
@@ -3008,11 +3008,11 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHov)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
     integer, intent(in) :: nOcc, nXov, nXoo, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIJ(:,:)
     real(dp), intent(out) :: vecHov(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
-    integer :: i, a, b, j, ia, ib, ab, ja, ij
+    integer :: i, a, b, j, ia, ib, ab, ja, ij, s
     logical :: lUpDwn
 
     allocate(qIJ(nAtom))
@@ -3022,10 +3022,10 @@ contains
 
     qX(:,:) = 0.0_dp
     do ia = 1, nOcc*(nOrb-nOcc)
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, nOrb
-        lUpDwn = (win(iaTrans(i, b)) <= nMatUp) ! UNTESTED
+        lUpDwn = (win(iaTrans(i, b, s)) <= nMatUp) ! UNTESTED
         qIJ = transQ(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
         qX(:,ia) = qX(:,ia) + qIJ(:)*t(a,b)
       end do
@@ -3042,10 +3042,10 @@ contains
 
     vecHov(:) = 0.0_dp
     do ia = 1, nXov ! nOcc*(nOrb-nOcc)
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, nOrb
-        ib = iaTrans(i, b)
+        ib = iaTrans(i, b, s)
         if (b < a) then
           call rIndXvv(homo, a, b, ab)
         else
@@ -3057,10 +3057,10 @@ contains
 
     qX(:,:) = 0.0_dp
     do ia = 1, nOcc*(nOrb-nOcc) ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do j = 1, homo
-        lUpDwn = (win(iaTrans(j, a)) <= nMatUp) ! UNTESTED
+        lUpDwn = (win(iaTrans(j, a, s)) <= nMatUp) ! UNTESTED
         qIJ = transQ(j, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
         qX(:,ia) = qX(:,ia) + qIJ(:)*t(i,j)
       end do
@@ -3076,10 +3076,10 @@ contains
     end do
 
     do ia = 1, nXov ! nOcc*(nOrb-nOcc)
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do j = 1, homo
-        ja = iaTrans(j, a)
+        ja = iaTrans(j, a, s)
         if (j < i) then
           call rIndXoo(homo, nOcc, i, j, ij)
         else
@@ -3100,11 +3100,11 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHoo)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
     integer, intent(in) :: nOcc, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIJ(:,:)
     real(dp), intent(out) :: vecHoo(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), qXa(:,:,:), Gq(:,:)
-    integer :: i, a, b, j, k, ia, ja, ij, jk, nXovAct
+    integer :: i, a, b, j, k, ia, ja, ij, jk, nXovAct, s
     logical :: lUpDwn
 
     nXovAct = nOcc*(nOrb-nOcc)
@@ -3116,10 +3116,10 @@ contains
 
     qX(:,:) = 0.0_dp
     do ia = 1, nXovAct ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, nOrb
-        lUpDwn = (win(iaTrans(i, b)) <= nMatUp) ! UNTESTED
+        lUpDwn = (win(iaTrans(i, b, s)) <= nMatUp) ! UNTESTED
         qIJ = transQ(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
         qX(:,ia) = qX(:,ia) + qIJ(:)*t(a,b)
       end do
@@ -3127,7 +3127,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ia = 1, nXovAct ! nXov
-      call indXov(win, ia, getIJ, i, a)
+      call indXov(win, ia, getIJ, i, a, s)
       lUpDwn = (win(ia) <= nMatUp)
       qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
@@ -3138,8 +3138,8 @@ contains
     do ij = 1, nXoo
       call indXoo(ij, i, j)
       do a = homo + 1, nOrb
-        ia = iaTrans(i, a)
-        ja = iaTrans(j, a)
+        ia = iaTrans(i, a, 1)
+        ja = iaTrans(j, a, 1)
         vecHoo(ij) = vecHoo(ij) - 2.0_dp * dot_product(qX(:,ia), Gq(:,ja))
       end do
     end do

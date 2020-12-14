@@ -12,6 +12,7 @@ module dftbp_geoopt
   use dftbp_steepdesc
   use dftbp_gdiis
   use dftbp_lbfgs
+  use dftbp_fire
   implicit none
   private
 
@@ -28,6 +29,7 @@ module dftbp_geoopt
     type(TSteepDesc), allocatable :: pSteepDesc
     type(TDIIS), allocatable :: pDiis
     type(TLbfgs), allocatable :: pLbfgs
+    type(TFire), allocatable :: pFire
   end type Tgeoopt
 
 
@@ -37,6 +39,7 @@ module dftbp_geoopt
     module procedure GeoOpt_iniTSteepDesc
     module procedure GeoOpt_iniTDIIS
     module procedure GeoOpt_initLbfgs
+    module procedure GeoOpt_initFire
   end interface
 
 
@@ -58,6 +61,7 @@ module dftbp_geoopt
     integer :: conjugateGrad = 2
     integer :: diis = 3
     integer :: lbfgs = 4
+    integer :: fire = 5
   end type TGeoOptTypesEnum
 
   type(TGeoOptTypesEnum), parameter :: geoOptTypes = TGeoOptTypesEnum()
@@ -124,6 +128,22 @@ contains
 
   end subroutine GeoOpt_initLbfgs
 
+
+  !> Creates a general geometry optimizier with a FIRE instance
+  subroutine GeoOpt_iniTFire(this, pFire)
+
+    !> GeoOpt instance
+    type(TGeoOpt), intent(out) :: this
+
+    !> An already initialized conjugate gradient instance
+    type(TFire), allocatable, intent(inout) :: pFire
+
+    this%iGeoOpt = geoOptTypes%fire
+    call move_alloc(pFire, this%pFire)
+
+  end subroutine GeoOpt_iniTFire
+
+
   !> Resets the geometry optimizer
   subroutine GeoOpt_reset(this, x0)
 
@@ -142,6 +162,8 @@ contains
       call reset(this%pDiis, x0)
     case (geoOptTypes%lbfgs)
       call this%pLbfgs%reset(x0)
+    case (geoOptTypes%fire)
+      call this%pFire%reset(x0)
     end select
 
   end subroutine GeoOpt_reset
@@ -175,6 +197,8 @@ contains
       call next(this%pDiis, dx, xNew, tConverged)
     case (geoOptTypes%lbfgs)
       call this%pLbfgs%next(fx, dx, xNew, tConverged)
+    case (geoOptTypes%fire)
+      call this%pFire%next(dx, xNew, tConverged)
     end select
 
   end subroutine GeoOpt_next

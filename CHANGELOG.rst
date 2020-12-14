@@ -11,7 +11,50 @@ Unreleased
 Added
 -----
 
+
+Changed
+-------
+
+
+Fixed
+-----
+
+
+20.2.1 (2020-12-07)
+===================
+
+Fixed
+-----
+
+- Lattice derivatives are now correctly written into detailed.out
+
+- Upgraded to libNEGF version 1.0.1 fixing usage of uninitialized variables
+
+- Removed '-heap-arrays' option from ifort compiler options to work around Intel
+  compiler bug causing steadily increasing memory consumption during long runs
+
+
+20.2 (2020-11-17)
+=================
+
+Added
+-----
+
 - Many body and Tkatchenko-Scheffler dispersion
+
+- Delta DFTB for lowest singlet excitated state
+
+- Electron transport for system with colinear spin polarisation
+
+- Phonon transport calculations with new code
+
+- Linear response gradients for spin polarisation
+
+- FIRE geometry optimizer
+
+- Simple D3-dispersion implementation (can be used without needing the external
+  D3-library)
+
 
 Changed
 -------
@@ -20,12 +63,17 @@ Changed
 
 - OMP parallelisation for UFF and Slater-Kirkwood dispersion
 
-- Re-enabled (collinear) spin polarization in transport
+- Option to take quasi-Newton steps in lBFGS (set as default)
+
+- CMake cache variable names in accordance with CMake devel documentation
+
 
 Fixed
 -----
 
 - Stress tensor is now calculated with Slater-Kirkwood dispersion
+
+- Cube format closer to the files expected by several external tools
 
 
 20.1 (2020-07-22)

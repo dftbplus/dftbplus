@@ -66,7 +66,7 @@ class RepeatgenTest(common.TestWithWorkDir):
         outfile = output.get_as_stringio()
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
-    def test_fail_cluster_without_latvecs(self):
+    def test_fail_clusterwithoutlatvecs(self):
         '''Failing due to missing lattice vectors'''
         infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.234.gen')
@@ -74,41 +74,12 @@ class RepeatgenTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
 
-    def test_fail_wrong_repetition(self):
-        '''Failing due to wrong repetition numbers'''
-        infile = self.get_input('h2o.gen')
-        latticefile = self.get_input('h2o.latvecs')
-        outfile = self.get_output('h2o.234.gen')
-        cmdargs = ['-o', outfile, '-l', latticefile, infile, '0', '3', '4']
-        with self.assertRaises(ScriptError):
-            repeatgen.main(cmdargs)
-            
-    def test_fail_invalid_repetition(self):
-        '''Failing due to invalid type of repetition numbers'''
-        infile = self.get_input('h2o.gen')
-        latticefile = self.get_input('h2o.latvecs')
-        outfile = self.get_output('h2o.234.gen')
-        cmdargs = ['-o', outfile, '-l', latticefile, infile, 'a', '3', '4']
-        with self.assertRaises(ScriptError):
-            repeatgen.main(cmdargs)
-            
-    def test_fail_missing_arguments(self):
-        '''Failing due to missing arguments'''
-        infile = self.get_input('h2o.gen')
-        latticefile = self.get_input('h2o.latvecs')
-        outfile = self.get_output('h2o.234.gen')
-        cmdargs = ['-o', outfile, '-l', latticefile, infile, '3', '4']
-        with self.assertRaises(ScriptError):
-            repeatgen.main(cmdargs)
-
-
-    def test_fail_superfluous_arguments(self):
-        '''Failing due to superfluous arguments.'''
-        infile = self.get_input('h2o.gen')
-        latticefile = self.get_input('h2o.latvecs')
-        outfile = self.get_output('h2o.234.gen')
-        cmdargs = ['-o', outfile, '-l', latticefile, infile, '3', '4', '5',
-                   'something']
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
+        tempname = common.get_temporary_filename(self.workroot)
+        nonexisting_infile = os.path.join(self.workdir, tempname)
+        outfile = self.get_output('h2o.234.xyz')
+        cmdargs = ['-o', outfile, nonexisting_infile, '2', '3', '4']
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
 

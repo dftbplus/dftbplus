@@ -110,3 +110,28 @@ class Geometry:
             if np.any(abs(self.relcoords - other.relcoords) > tolerance):
                 return False
         return True
+
+
+def get_latvecs_fromcif(celllengths, cellangles):
+    '''Calculate cartesian lattice vectors from crystallographic CIF information
+
+    Args:
+        celllengths: Cell lengths a, b, c from CIF
+        cellangles: Angles alpha, beta, gamma that span the cell
+
+    Returns:
+        latvecs: calculated cartesian lattice vectors
+    '''
+    celllengths = celllengths
+    cellangles = cellangles * 2*np.pi/360
+    latvecs = np.empty((3, 3), dtype=float)
+
+    latvecs[0, :] = np.array([celllengths[0], 0, 0], dtype=float)
+    latvecs[1, :] = np.array([np.cos(cellangles[2]), np.sin(cellangles[2]), 0], dtype=float) \
+    * celllengths[1]
+    trig_term = (np.cos(cellangles[0]) - np.cos(cellangles[2]) * np.cos(cellangles[1])) \
+    /np.sin(cellangles[2])
+    latvecs[2, :] = np.array([np.cos(cellangles[1]), trig_term, \
+    np.sqrt(1 - np.cos(cellangles[1])**2 - trig_term**2)], dtype=float) * celllengths[2]
+
+    return latvecs

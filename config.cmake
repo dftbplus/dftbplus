@@ -1,10 +1,11 @@
 #
 # Global architecture independent build settings
 #
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
-  "Directory to install the compiled code into")
+#set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (Release|RelWithDebInfo|Debug|MinSizeRel)")
+# CMAKE_BUILD_TYPE is commented out in order to allow for multi-configuration builds. It will
+# automatically default to RelWithDebInfo if used in a single configuration build. Uncomment or
+# override it only if you want a non-default single configuration build.
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
@@ -50,7 +51,6 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # calling DFTB+ functions from Python or Julia).
 
 
-
 #
 # Test environment settings
 #
@@ -74,22 +74,14 @@ endif()
 #
 # Installation options
 #
-set(CMAKE_INSTALL_BINDIR "bin" CACHE PATH
-  "Installation directory for executables")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
+  "Directory to install the compiled code into")
 
-set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Installation directory for libraries")
+set(INSTALL_INCLUDEDIR "dftbplus" CACHE PATH
+  "Name of the project specific sub-folder within the install folder for include files")
 
-set(CMAKE_INSTALL_INCLUDDIR "include/dftb+" CACHE PATH
-  "Installation directory for header and include files")
-
-set(CMAKE_INSTALL_MODULEDIR "${CMAKE_INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
-  "Installation directory for Fortran module files")
-
-option(EXPORT_EXTLIBS_WITH_PATH
-  "Whether external libraries in the CMake export file should contain their full path" FALSE)
-# For CMake experts only: It allows to link exact the same external libraries when using
-# the library in an other CMake project. It does not play well with the CMake export file of
-# the ELSI library.
+set(INSTALL_MODULEDIR "${INSTALL_INCLUDEDIR}/modfiles" CACHE PATH
+  "Installation directory for Fortran module files (within the install folder for include files)")
 
 set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
   "Compiler and Linker language to assume when creating the pkg-config export file (C or Fortran)")
@@ -98,3 +90,28 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 # Depending on the language setting ("C" or "Fortran") you would get the flags for the case of using
 # that compiler for the linking.
 
+
+#
+# Advanced options (e.g. for developers and packagers)
+#
+
+#set(TOOLCHAIN "gnu" CACHE STRING "Prefix of the toolchain file to be read from the sys/ folder")
+# Uncomment and set it if you want to override the automatic, compiler based toolchain file
+# selection.
+
+
+set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
+  "Configuration methods to try in order to satisfy hybrid dependencies")
+#
+# This list can be used to control how hybrid dependencies (external dependencies which can
+# optionally be built during the build process) are configured. The listed methods are applied in
+# the following order:
+#
+# Submodule: Use the source in external/*/origin and build the dependency as part of the build
+#     process. If the source is not present, try to retrieve it via the 'git submodule' command
+#     (provided the source tree is a git repository and git is available)
+#
+# Find: Find the dependency as an already installed package in the system.
+#
+# Fetch: Fetch the source into the build folder and build the dependency as part of the build
+#     process (works also in cases where the source tree is not a Git repository)

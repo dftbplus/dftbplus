@@ -34,7 +34,7 @@ module negf_int
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_linkedlist
-  use dftbp_periodic
+  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_assert
   use dftbp_eigensolver
 #:if WITH_MPI
@@ -345,11 +345,13 @@ module negf_int
       params%nf(1:l) = tundos%nf(1:l)
 
       ! setting of intervals and indices for projected DOS
-      nldos = size(tundos%dosOrbitals)
-      call init_ldos(negf, nldos)
-      do i = 1, nldos
-         call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
-      end do
+      if (allocated(tundos%dosOrbitals)) then
+        nldos = size(tundos%dosOrbitals)
+        call init_ldos(negf, nldos)
+        do i = 1, nldos
+           call set_ldos_indexes(negf, i, tundos%dosOrbitals(i)%data)
+        end do
+      end if
 
       params%Emin =  tundos%Emin
       params%Emax =  tundos%Emax
@@ -507,16 +509,11 @@ module negf_int
   !> Destroy (module stored!) CSR matrices
   subroutine negf_destroy()
 
+    write(stdOut, *)
+    write(stdOut, *) 'Release NEGF memory:'
     call destruct(csrHam)
     call destruct(csrOver)
     call destroy_negf(negf)
-
-    write(stdOut, *)
-    write(stdOut, *) 'Release NEGF memory:'
-    !if (tIoProc) then
-    !  call writePeakInfo(6)
-    !  call writeMemInfo(6)
-    !end if
     call writePeakInfo(stdOut)
     call writeMemInfo(stdOut)
 
@@ -1285,7 +1282,7 @@ module negf_int
   !> Calculate the current and optionally density of states
   subroutine calc_current(env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
+      & currLead, tWriteTunn, tWriteLDOS, regionLabelLDOS, mu)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1342,7 +1339,7 @@ module negf_int
     real(dp), allocatable, intent(inout) :: currLead(:)
 
     !> should tunneling data be written
-    logical, intent(in) :: writeTunn
+    logical, intent(in) :: tWriteTunn
 
     !> should DOS data be written
     logical, intent(in) :: tWriteLDOS
@@ -1362,9 +1359,9 @@ module negf_int
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont
-    type(units) :: unitOfEnergy        ! Set the units of H
-    type(units) :: unitOfCurrent       ! Set desired units for Jel
+    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
+    type(units) :: unitsOfEnergy        ! Set the units of H
+    type(units) :: unitsOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
     integer :: NumStates
@@ -1376,8 +1373,8 @@ module negf_int
 #:endif
     call get_params(negf, params)
 
-    unitOfEnergy%name = "H"
-    unitOfCurrent%name = "A"
+    unitsOfEnergy%name = "H"
+    unitsOfCurrent%name = "A"
 
     ! groupKS is local, hence nKS il local
     nKS = size(groupKS, dim=2)
@@ -1481,18 +1478,18 @@ module negf_int
 #:endif
 
     ! converts from internal atomic units into amperes
-    currLead(:) = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
+    currLead(:) = currLead * convertCurrent(unitsOfEnergy, unitsOfCurrent)
 
     do ii = 1, size(currLead)
       write(stdOut, *)
       write(stdOut, '(1x,a,i3,i3,a,ES14.5,a,a)') ' contacts: ',params%ni(ii),params%nf(ii),&
-          & ' current: ', currLead(ii),' ',unitOfCurrent%name
+          & ' current: ', currLead(ii),' ',unitsOfCurrent%name
     enddo
 
     ! Write Total transmission, T(E), on a separate file (optional)
     if (allocated(tunnMat)) then
       filename = 'transmission'
-      if (tIOProc .and. writeTunn) then
+      if (tIOProc .and. twriteTunn) then
         call write_file(negf, tunnMat, tunnSKRes, filename, nS, kpoints, kWeights)
       end if
     else
@@ -1506,7 +1503,7 @@ module negf_int
     ! Write Total lead current, I_i(E), on a separate file (optional)
     if (allocated(currMat)) then
       filename = 'current'
-      if (tIOProc .and. writeTunn) then
+      if (tIOProc .and. tWriteTunn) then
         call write_file(negf, currMat, currSKRes, filename, nS, kpoints, kWeights)
       end if
     else
@@ -1919,7 +1916,7 @@ module negf_int
     allocate(lc_species(lc_nAllAtom))
     allocate(lc_img2CentCell(lc_nAllAtom))
     allocate(lc_iCellVec(lc_nAllAtom))
-    call init(lc_neigh, nAtom, nInitNeigh) 
+    call TNeighbourlist_init(lc_neigh, nAtom, nInitNeigh)
 
     call updateNeighbourListAndSpecies(lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)

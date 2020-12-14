@@ -219,16 +219,17 @@ contains
 
       ! Check for current restrictions
       if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
-        call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
+        call error("Spin-unrestricted calculation for thresholded range separation not yet&
+            & implemented!")
       end if
 
       if (this%tREKS .and. this%rsAlg == rangeSepTypes%threshold) then
-        call error("REKS calculation with thresholding algorithm not yet implemented!")
+        call error("REKS calculation with thresholded range separation not yet implemented!")
       end if
 
       if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
             & rangeSepTypes%matrixBased] == this%rsAlg)) then
-        call error("Unknown algorithm for screening the exchange")
+        call error("Unknown algorithm for screening the exchange in range separation")
       end if
 
     end subroutine checkRequirements

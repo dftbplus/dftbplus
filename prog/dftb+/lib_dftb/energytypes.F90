@@ -22,34 +22,34 @@ module dftbp_energytypes
   type TEnergies
 
     !> repulsive energy
-    real(dp) :: Erep    = 0.0_dp
+    real(dp) :: Erep = 0.0_dp
 
     !> Non-SCC energy
     real(dp) :: EnonSCC = 0.0_dp
 
     !> SCC energy
-    real(dp) :: ESCC    = 0.0_dp
+    real(dp) :: ESCC = 0.0_dp
 
     !> spin energy
-    real(dp) :: Espin   = 0.0_dp
+    real(dp) :: Espin = 0.0_dp
 
     !> range-separation energy
-    real(dp) :: Efock   = 0.0_dp
+    real(dp) :: Efock = 0.0_dp
 
     !> spin orbit energy
-    real(dp) :: ELS     = 0.0_dp
+    real(dp) :: ELS = 0.0_dp
 
     !> DFTB+U energy
-    real(dp) :: Edftbu  = 0.0_dp
+    real(dp) :: Edftbu = 0.0_dp
 
     !> energy in external field
-    real(dp) :: Eext    = 0.0_dp
+    real(dp) :: Eext = 0.0_dp
 
     !> total electronic energy
-    real(dp) :: Eelec   = 0.0_dp
+    real(dp) :: Eelec = 0.0_dp
 
     !> Dispersion energy
-    real(dp) :: eDisp   = 0.0_dp
+    real(dp) :: eDisp = 0.0_dp
 
     !> Number of electrons times Fermi energy for cases of the system being connected to reservoir
     real(dp) :: NEf = 0.0_dp
@@ -58,7 +58,13 @@ module dftbp_energytypes
     real(dp) :: pV = 0.0_dp
 
     !> Electronic entropy times temperature
-    real(dp) :: TS
+    real(dp), allocatable :: TS(:)
+
+    !> band structure energy
+    real(dp), allocatable :: EBand(:)
+
+    !> zero temperature estimated band energy
+    real(dp), allocatable :: E0(:)
 
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
@@ -67,7 +73,7 @@ module dftbp_energytypes
     real(dp) :: eHalogenX = 0.0_dp
 
     !> Total 3rd order
-    real(dp) :: e3rd    = 0.0_dp
+    real(dp) :: e3rd = 0.0_dp
 
     !> Solvation free energy
     real(dp) :: ESolv = 0.0_dp
@@ -76,7 +82,7 @@ module dftbp_energytypes
     real(dp) :: Eexcited = 0.0_dp
 
     !> total energy (Erep+Etotal)
-    real(dp) :: Etotal  = 0.0_dp
+    real(dp) :: Etotal = 0.0_dp
 
     !> Total Mermin energy (note that this may be evaluated even when the TS term cannot be set, so
     !> contains the same as Etotal in those cases)
@@ -153,13 +159,24 @@ contains
 
 
   !> Allocates storage for the energy components
-  subroutine TEnergies_init(this, nAtom)
+  subroutine TEnergies_init(this, nAtom, nSpin)
 
     !> data structure to allocate
     type(TEnergies), intent(out) :: this
 
     !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
+
+    !> Number of independent spins
+    integer, intent(in) :: nSpin
+
+    allocate(this%TS(nSpin))
+    allocate(this%E0(nSpin))
+    allocate(this%EBand(nSpin))
+
+    this%TS(:) = 0.0_dp
+    this%E0(:) = 0.0_dp
+    this%EBand(:) = 0.0_dp
 
     allocate(this%atomRep(nAtom))
     allocate(this%atomNonSCC(nAtom))

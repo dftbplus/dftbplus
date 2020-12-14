@@ -34,7 +34,7 @@ _FILES_AND_PATTERNS = [
     ('doc/api/ford/dftbplus-api.md',
      r'^\s*RELEASE\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
      '        RELEASE={shortversion}'),
-    
+
     ('doc/dftb+/manual/manual.tex',
      r'Version[ ]*{}'.format(_VERSION_PATTERN),
      'Version {shortversion}'),
@@ -62,8 +62,9 @@ def main():
     rootdir = os.path.join(os.path.dirname(sys.argv[0]), '../../')
 
     _replace_in_registered_files(rootdir, version, shortversion)
+    _replace_in_dftbplus_parser(rootdir, shortversion)
     _replace_in_changelog(rootdir, version)
-    _warn_about_parser_version(shortversion)
+    _warn_about_manual_changes()
 
 
 def _parse_arguments():
@@ -85,6 +86,44 @@ def _get_short_version(version):
     '''Returns the short version (without patch number).'''
 
     return '.'.join(version.split('.')[0:2])
+
+
+def _replace_in_dftbplus_parser(rootdir, shortversion):
+    '''Sets InputVersion tag to current ParserVersion in dftb+ parser'''
+    fname = os.path.join(rootdir, "prog/dftb+/lib_dftbplus/parser.F90")
+    with open(fname, "r") as fp:
+        txt = fp.read()
+    match = re.search(
+        r'^\s*integer\s*,\s*parameter\s*::\s*parserVersion\s*=\s*(\d+)\s*$',
+        txt, flags=re.MULTILINE)
+    if not match:
+        _fatal_error("Could not find dftb+ parser version in parser.F90")
+    parserversion = int(match.group(1))
+    print("Replacments in '{}': ".format(fname), end='')
+    match = re.search(
+        r'^\s*type\(TVersionMap\),\s*parameter\s*::\s*versionMaps\(\*\)\s*'
+        r'=\s*\[\s*\&\s*(?P<versionmap>(?:\n[^\]]*)*)]\s*$',
+        txt, flags=re.MULTILINE)
+    if not match:
+        _fatal_error("Could not find version-map array in parser.F90")
+    versionmap = match.group('versionmap')
+    if shortversion in versionmap:
+        newtxt, nsub = re.subn(
+            r'TVersionMap\("{}", \d+\)'.format(shortversion),
+            'TVersionMap("{}", {})'.format(shortversion, parserversion),
+            txt, count=1, flags=re.MULTILINE)
+    else:
+        newtxt, nsub = re.subn(
+            r'^\s*type\(TVersionMap\),\s*parameter\s*::\s*versionMaps\(\*\)\s*'
+            r'=\s*\[\s*\&\s*$',
+            '  type(TVersionMap), parameter :: versionMaps(*) = [&\n'
+            '      & TVersionMap("{}", {}),&'.format(shortversion, parserversion),
+            txt, count=1, flags=re.MULTILINE)
+    print(nsub)
+    with open(fname, 'w') as fp:
+        fp.write(newtxt)
+
+
 
 
 def _replace_in_registered_files(rootdir, version, shortversion):
@@ -122,19 +161,20 @@ def _replace_in_changelog(rootdir, version):
     fp.close()
 
 
-def _warn_about_parser_version(shortversion):
-    '''Warn about changes needed in getParserVersion'''
+def _warn_about_manual_changes():
+    '''Warn about changes which must be made manually'''
 
     txt = """
-
-Make sure to update getParserVersion() in prog/dftb+/lib_dftbplus/parser.F90
-manually by adding the block
-
-    case("{shortversion}")
-      parserVersion = N
-
-with N being the current parser version.""".format(shortversion=shortversion)
+Make sure to check that the table in doc/dftb+/manual/releases.tex has been
+updated."""
     print(txt)
+
+
+def _fatal_error(msg):
+    '''Writes error message and exits.'''
+    sys.stderr.write(msg + "\n")
+    sys.exit(1)
+
 
 if __name__ == '__main__':
     main()

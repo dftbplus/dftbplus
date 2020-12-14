@@ -62,6 +62,9 @@ contains
       case (7)
         call convert_7_8(root)
         version = 8
+      case (8)
+        call convert_8_9(root)
+        version = 9
       end select
     end do
 
@@ -465,6 +468,59 @@ contains
     end if
 
   end subroutine convert_7_8
+
+
+  !> Converts input from version 8 to 9. (Version 9 introduced in August 2020)
+  subroutine convert_8_9(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, par
+    logical :: tVal1, tVal2
+    type(fnode), pointer :: pTaskType
+    type(string) :: buffer
+
+    ! If this is an electron dynamics restart, then remove keywords for the (un-needed) ground state
+    ! calculation (unless the eigenvectors are required)
+    call getDescendant(root, "ElectronDynamics/Restart", ch1)
+    if (associated(ch1)) then
+      call getChildValue(ch1, "", tVal1)
+      call setUnprocessed(ch1)
+      tVal2 = .false.
+      ! Population projection requires eigenvectors, which are not currently stored in the restart
+      ! file.
+      call getDescendant(root, "ElectronDynamics/Populations", ch2)
+      if (associated(ch2)) then
+        call getChildValue(ch2, "", tVal2)
+        call setUnprocessed(ch2)
+      end if
+      if (tVal1 .and. .not.tVal2) then
+        call getDescendant(root, "Hamiltonian/DFTB/Filling", ch1)
+        if (associated(ch1)) then
+          call detailedWarning(ch1, "Restarted electronDynamics does not require Filling{}&
+              & settings unless projected onto ground state")
+          call destroyNode(ch1)
+        end if
+        call getDescendant(root, "Analysis", ch1)
+        if (associated(ch1)) then
+          call detailedWarning(ch1, "Restarted electronDynamics does not use the Analysis{} block")
+          call destroyNode(ch1)
+        end if
+      end if
+    end if
+
+    call getDescendant(root, "Driver/lBFGS", ch1)
+    if (associated(ch1)) then
+      call setChildValue(ch1, "LineSearch", .true., child=ch2)
+      call setUnprocessed(ch2)
+      call detailedWarning(ch2, "Set 'LineSearch = Yes'")
+      call setChildValue(ch1, "oldLineSearch", .true., child=ch2)
+      call setUnprocessed(ch2)
+      call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
+    end if
+
+  end subroutine convert_8_9
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

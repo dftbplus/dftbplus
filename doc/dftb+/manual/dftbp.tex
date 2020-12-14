@@ -271,6 +271,8 @@ methods are available:
   method. See p.~\pref{sec:dftbp.gDIIS}.
 \item[\iscb{LBFGS}] Geometry optimisation using the LBFGS
   algorithm. See p.~\pref{sec:dftbp.LBFGS}.
+\item[\iscb{FIRE}] Geometry optimisation using the FIRE
+  algorithm. See p.~\pref{sec:dftbp.FIRE}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
   energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
@@ -473,7 +475,8 @@ properties.\footnote{This approach is distinct from
 \label{sec:dftbp.LBFGS}
 
 \begin{ptable}
-  \kw{Memory} &i & & 20 & \\
+  \kw{Memory}            & i & & 20 & \\
+  \kw{LineSearch}        & l & & No & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
   \kw{MaxSteps}          & i & & 200 & \\
@@ -484,29 +487,57 @@ properties.\footnote{This approach is distinct from
   \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
-  \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
+  \kw{MaxLatticeStep} & r & \parbox{0.4\textwidth}{LatticeOpt = Yes, LineSearch
+    = Yes or setMaxStep = Yes} & 0.2 & \\
+  \kw{MaxAtomStep}       & r & LineSearch = Yes or setMaxStep
+  = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 Specific properties for this method are:
 \begin{description}
 \item[\is{Memory}] Number of last steps which are saved and used to calculate
-  the next step via the LBFGS algorithm. The literature recommends that
+  the next step via the lBFGS algorithm. The literature recommends that
   \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
+\item[\is{LineSearch}] Should a line search be performed, instead of a
+  quasi-Newton step along the lBFGS direction.
+\item[\is{SetMaxStep}] Limit maximum changes per iteration if the quasi-Newton
+  step along the lBFGS direction is used.
+\end{description}
+
+\htcbsubsection{FIRE}
+\label{sec:dftbp.FIRE}
+
+The {\it fast inertial relaxation engine} of Bitzek {\it et
+  al.}~\cite{Bitzek-PRL-97-170201}, using the default values from their paper
+and a Leap-frog integrator. This can be faster than conjugate gradient and
+competitive with LBFGS in some cases, but you should verify if FIRE is stable
+and efficient for your system before using it over other optimisers.
+
+\begin{ptable}
+  \kw{TimeStep} & r & & 1.0 & \\
+\end{ptable}
+
+Specific properties for this method are:
+\begin{description}
+\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step size used
+  in the dynamics integrator.
 \end{description}
 
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
-Calculates the second derivatives\index{Hessian} of the energy
-(currently only using a numerical differentiation of the forces). The
-derivatives matrix is written out for the $i$, $j$ and $k$ directions
-of atoms $1 \ldots n$ as $$\frac{\partial^2 E}{\partial x_{i1}
-\partial x_{i1}} \frac{\partial^2 E}{\partial x_{j1} \partial x_{i1}}
-\frac{\partial^2 E}{\partial x_{k1} \partial x_{i1}} \frac{\partial^2
-E}{\partial x_{i2} \partial x_{i1}} \frac{\partial^2 E}{\partial
-x_{j2} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k2} \partial
-x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn} \partial x_{kn}}$$
+Calculates the second derivatives\index{Hessian} of the energy (currently only
+using a numerical differentiation of the forces). The derivatives matrix is
+written out for the $i$, $j$ and $k$ directions of atoms $1 \ldots n$ as
+\begin{equation*}
+  \frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+    \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+  \frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+    E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial
+    x_{kn} \partial x_{kn}}
+\end{equation*}
 into {\it hessian.out}
 
 \textbf{Note}: for supercell calculations, the derivatives are obtained at the $\mathbf{q}=0$ point,
@@ -625,7 +656,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   be stored in the file \verb|plumed.dat| in the current directory. The file
   must be formatted according to Plumed's own format. (Note: This option
   requires a {\dftbp} binary built with Plumed support.)
-  
+
 \end{description}
 
 
@@ -796,10 +827,12 @@ fluctuations). Options are provided for either isotropic or cell shape changing
 pressure control. This can also be used in tandem with a thermostat
 (p.~\pref{sec:dftbp.Thermostat}) for the NPT\index{NPT ensemble} ensemble. If the barostat
 is used, a partial Gibbs free energy is reported in code output, of the form
-$$G = E + PV - TS_\mathrm{electronic}.$$ This does not include structural
-entropy, only any electronic entropy. For barostated constant energy simulations
-(no thermostat in use), the conserved quantity is the sum of the kinetic and
-Gibbs partial energies.
+\begin{equation*}
+  G = E + PV - TS_\mathrm{electronic}.
+\end{equation*}
+This does not include structural entropy, only any electronic entropy. For
+barostated constant energy simulations (no thermostat in use), the conserved
+quantity is the sum of the kinetic and Gibbs partial energies.
 
 \begin{ptable}
   \kw{Pressure}   & r & & - & \\
@@ -1072,6 +1105,7 @@ following properties:
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
+  \kwcb{NonAufbau} & m & & - & \pref{sec:dftbp.NonAufbau} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
@@ -2069,6 +2103,91 @@ different fillings, band entropies, and Mermin free energies may result, dependi
 been found by the Fermi-level search algorithm. The differences, however, are usually not physically
 significant.
 
+\subsection{Time-independent DFTB (TI-DFTB) excited states}
+
+\subsubsection{$\boldsymbol\Delta$DFTB}
+The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
+variational relaxation of the lowest singlet excited state of closed-shell
+singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
+optimized under non-Aufbau orbital occupation constraints via promotion of an
+electron from the highest occupied molecular orbital (HOMO) of the ground state
+to lowest unoccupied molecular orbital (LUMO) at each SCC
+iteration. Specifically, the \kwcb{NonAufbau} block in \dftbp manipulates the
+electronic filling to emulate a singlet excited state. By modifying the
+occupation pattern, the target excited state density ($\rho_e$) is can be
+constructed according to the standard formula for obtaining the electron density
+from the occupied colinear spin orbitals,
+\begin{equation*}
+  \rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2.
+\end{equation*}
+Because the constraint is placed on the spin orbitals rather than the MO's, this
+method introduces heavy spin contamination to the system by the arbitrary
+promotion of $\alpha$ spin electrons.  This issue is circumvented with spin
+purification, where the triplet state energy is subtracted from twice the mixed
+singlet state energy, in accordance with the Ziegler sum
+rule,\cite{baerends-TCA-43-261}
+\begin{equation*}
+  E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t].
+\end{equation*}
+A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
+$\Delta$DFTB calculations can be more challenging to converge than their
+ground-state analogs. To aid convergence, one can first run a ground-state
+intial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
+alternative mixer for converging $\Delta$DFTB calculations in cases where the
+calculation fails to converge with the Broyden mixer.
+
+\label{sec:dftbp.NonAufbau}
+
+This is a singlet excitation from a spin zero ground state system, so
+\is{SpinPolarisation} should not be set in the input for this type of
+calculation, but spin constants (p.~\pref{sec:dftbp.SpinConstants}) {\em are}
+required. The calculation can be modified by including the following properties
+in the \iscb{nonAufbau} block:
+\begin{ptable}
+  \kw{SpinPurify} & l & & Yes & \\
+  \kw{GroundGuess} & l & & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{SpinPurify}] Calculates both a triplet and mixed state for
+  spin-purification. If set to \is{No}, only the mixed state is calculated. The
+  mixed state is formed by promoting an $\alpha$ electron from the HOMO to the
+  LUMO.
+\item[\is{GroundGuess}] Calculates the ground state energy prior to a non-Aufbau
+  calculation.  The SCC loop will run three times if \is{NonAubau},
+  \is{SpinPurify}, and \is{GroundGuess} are set to \is{Yes}, but only twice if
+  \is{SpinPurify = No}.
+\end{description}
+
+The default settings, if \kwcb{NonAufbau} is included in the input, is
+equivalent to:
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = No
+    SpinPurify = Yes
+  }
+\end{verbatim}
+This performs two self-consistent calculations at each geometry step, and then
+evaluates the energy, forces and charges in the $\Delta$DFTB first excited
+state. Note that this is a singlet state, hence only the {\em total} charge is
+relevant in Mulliken populations.
+
+If instead the ground state is also requested (\is{SpinPurify} = \is{Yes} by
+default):
+\invparskip
+\begin{verbatim}
+  NonAufbau = {
+    GroundGuess = Yes
+  }
+\end{verbatim}
+The \verb|detailed.out| will then contain energies of the ground, triplet and
+the spin purified singlet excitation, along with estimates for the excitation
+energies from the $S_o$ to the $T_1$ and $S_1$ states:
+\begin{verbatim}
+S0 -> T1:                            0.2104101411 H            5.7256 eV
+S0 -> S1:                            0.2615036445 H            7.1159 eV
+\end{verbatim}
+
 \subsection{SlaterKosterFiles}
 \label{sec:dftbp.SlaterKosterFiles}
 
@@ -2458,15 +2577,17 @@ The \kw{External} field keyword has the following options
   direction (see above).
 \item[\is{Frequency}]\modif{\modtype{Frequency}} If using molecular
   dynamics, the field can be time varying with this frequency.
-\item[\is{Phase}] Initial field phase in units of geometry steps, this
-  is needed if restarting an MD run in an external field to give the
-  offset in phase of the field after the specified number of steps
-  from the old calculation. The applied field is of the
-  form $$\mathbf{E}_0 \sin( \omega \Delta t (step + phase) ) $$ where
-  $\mathbf{E}_0$ is the field vector specified by \kw{Strength} and
-  \kw{Direction}, $\omega$ is the angular \kw{Frequency} and $step$ is
-  the current MD-step in the simulation, using the MD \kw{TimeStep} of
-  $\Delta t$ (see section \ref{sec:dftbp.VelocityVerlet}).
+\item[\is{Phase}] Initial field phase in units of geometry steps, this is needed
+  if restarting an MD run in an external field to give the offset in phase of
+  the field after the specified number of steps from the old calculation. The
+  applied field is of the form
+  \begin{equation*}
+    \mathbf{E}_0 \sin( \omega \Delta t (step + phase) )
+  \end{equation*}
+  where $\mathbf{E}_0$ is the field vector specified by \kw{Strength} and
+  \kw{Direction}, $\omega$ is the angular \kw{Frequency} and $step$ is the
+  current MD-step in the simulation, using the MD \kw{TimeStep} of $\Delta t$
+  (see section \ref{sec:dftbp.VelocityVerlet}).
 \end{description}
 
 \subsection{Dispersion}
@@ -2856,7 +2977,7 @@ can be adjusted in the input.
 \begin{description}
 \item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
   parameters, see equations above.
-  
+
 \item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
   interaction, should always be set to 1.0.
 
@@ -2998,7 +3119,13 @@ CoordinationNumber = Cov {
 \subsubsection{TS}
 \label{sec:dftbp.DispTS}
 
-Applies the Tkatchenko-Scheffler dispersion model~\cite{TkatchenkoPRL09,StohrJCP16}.
+Applies the Tkatchenko-Scheffler dispersion model
+\cite{TkatchenkoPRL09,StohrJCP16}.
+
+\textbf{Note:} DFTB+ uses the external libMBD-library to calculate the
+TS-dispersion. Currently, libMBD calculates the gradients for the TS dispersion
+model by finite differences, resulting in long gradient calculation times for
+large systems.
 
 The following keywords can be used with this dispersion model:
 \begin{ptable}
@@ -3402,9 +3529,9 @@ This model is currently only available for finite systems.
 \begin{ptable}
   \kw{ProbeRadius} & r & & & \\
   \kw{Smoothing} & r & & 0.3 AA & \\
-  \kw{Offset} & r & & 2.0 AA & \\ 
-  \kw{Tolerance} & r & & 1.0e-6 & \\ 
-  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Offset} & r & & 2.0 AA & \\
+  \kw{Tolerance} & r & & 1.0e-6 & \\
+  \kw{AngularGrid} & i & & 230 & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
   \kw{SurfaceTension} & m & & & \\
 \end{ptable}
@@ -3639,7 +3766,7 @@ has the following option:
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
   possible:
-  
+
   \begin{description}
   \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
     terms. This is faster than the \is{NeighbourBased} method below, but does
@@ -3675,7 +3802,7 @@ has the following option:
 
   \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
     can be faster than other two algorithms.
-    
+
   \end{description}
 \end{description}
 
@@ -4154,8 +4281,8 @@ the SCC-DFTB level of theory and molecular systems.\footnote{Excitation energies
   can also be calculated for gamma point periodic systems, but will be incorrect
   for delocalised excitations or for charge transfer-type excited states.}
 Excitations can be calculated for fractional occupations and collinear
-spin-polarisation, but forces (and hence geometry optimisation or MD) are only
-available for spin-unpolarised systems with no fractional occupations. The
+spin-polarisation. Forces (and hence geometry optimisation or MD) are
+available for collinear spin-polarised systems but not for fractional occupations. The
 specifications for this block have the following properties:
 
 \textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
@@ -4284,7 +4411,7 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     decrease memory use substantially, if you are short on memory.
 
   \end{description}
-  
+
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}
 
@@ -4338,13 +4465,13 @@ The specifications for this block have the following properties:
 
 \item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
   be employed. This will speed up the calculation.
-    
+
 \item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
   the Hartree kernel. Values of some of these parameters are given in
   appendix~\ref{app:hhubbard}.
 
 \end{description}
-  
+
 The output of the pp-RPA calculation are described in
 section~\ref{sec:ppRPAout}.
 
@@ -4558,7 +4685,7 @@ Apply time-dependent sinusoidal perturbation to the system.
 \begin{description}
  \item[\is{PolarizationDirection}] Vector along which the electric
    field is polarized.
-  
+
  \item[\is{ImagPolarizationDirection}] Imaginary part of the
    polarization vector. Useful for circularly polarized fields.
 
@@ -4578,7 +4705,7 @@ Apply time-dependent sinusoidal perturbation to the system.
   polarization direction must be orthogonal to the periodic
   directions} of the system. Therefore, the code does not work with 3D
 periodic systems with laser perturbations.
- 
+
 \paragraph{\kwcb{KickAndLaser}}
 Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing
 the excited state on the system while being driven by a laser. The
@@ -4654,12 +4781,13 @@ $\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
 \paragraph{\kwcb{Sin2}}
 
 Applies a sin$^2$ envelope function:
-
-$$ f(t) =
- \begin{cases}
-    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
-    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
-  \end{cases} $$
+\begin{equation*}
+  f(t) =
+  \begin{cases}
+    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau \\ 0 & t < t_0 \text{ or
+    } t > t_0 + \tau.\\
+  \end{cases}
+\end{equation*}
 
 The properties of this method are the same as for the Gaussian
 (\kw{Time0}, \kw{Time1}) and have the same meaning.
@@ -4836,10 +4964,10 @@ The specifications for this block have the following properties:
 
 \item[\is{Gradient}] Choice of gradient solver used in CP-REKS equations. This \is{Gradient} block has the following choices:
 
-  \begin{description} 
+  \begin{description}
   \item[\is{ConjugateGradient}] Uses a congugate-gradient based algorithm. This
     algorithm is usually recommended since it is considerably faster than other algorithms.
-    
+
     \begin{ptable}
       \kw{CGmaxIter} & i & & 20 & \\
       \kw{Tolerance} & r & & 1e-8 & \\
@@ -5069,8 +5197,11 @@ Some of the common energy results printed in this file are:\\
 Where available the Fermi level $\mu$ (i.e. the chemical potential of the
 electrons in the system) is also printed. For systems with an externally fixed
 Fermi level (i.e. where the total charge can change), this contribution is
-included in the Force related energy: $$\Delta E = + q_\mathrm{total} \mu,$$ but
-for calculations with fixed numbers of electrons it is not included in this
+included in the Force related energy:
+\begin{equation*}
+  \Delta E = + q_\mathrm{total} \mu,
+\end{equation*}
+but for calculations with fixed numbers of electrons it is not included in this
 energy. \textbf{Note:} The total energy reference may not match your required
 case in some situations, for example a shift with respect to the average
 electrostatic potential (in periodic cases) or whether the chemical potential
@@ -5535,10 +5666,12 @@ calculating first the change of basis matrix $\Lambda$ from the
 coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then
 projecting the time-dependent density matrix of the system in the
 atomic orbital basis:
-$$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$ The
-diagonal elements of $\rho^{GSMO}$ are the sought populations. The
-first column is the time (in fs), and from the second one the
-populations starting from the lowest lying orbital.
+\begin{equation*}
+  \rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger}
+\end{equation*}
+The diagonal elements of $\rho^{GSMO}$ are the sought populations. The first
+column is the time (in fs), and from the second one the populations starting
+from the lowest lying orbital.
 
 \subsection{forcesvst.dat}
 
@@ -5592,12 +5725,12 @@ for furan:
 \begin{verbatim}
      w [eV]        Transitions                         Weight            KS [eV]              Symm.
 
- =================================================  
+ =================================================
 
       6.411        HOMO -> LUMO + 0            0.998            5.162                     S
       6.904        HOMO -> LUMO + 1            0.973            6.755                     S
      11.339        HOMO -> LUMO + 0, 0        0.959            5.162,  5.162            S
-\end{verbatim}  
+\end{verbatim}
 
 The first two excitations are single, whereas the third one is a
 double transition with predominant HOMO-to-LUMO character.

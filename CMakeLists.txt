@@ -1,29 +1,22 @@
-cmake_minimum_required(VERSION 3.5)
-cmake_policy(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
-set(DFTBPLUS_VERSION "20.1")
-
-# Follow GNU conventions for installing directories
-include(GNUInstallDirs)
-
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-include(dftbpUtils)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+include(DftbPlusUtils)
 
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
+set(DFTBPLUS_VERSION "20.2.1")
+
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
-# By default, use intrinsic Fortran 2008 erf/erfc
-set(INTERNAL_ERFC CACHE BOOL 0)
-GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_MODULEDIR CMAKE_INSTALL_MODULEDIR)
-
+dftbp_setup_build_type()
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-# Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
-if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+# CMake has difficulties linking C-executables against NAG-compiled Fortran libraries
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
   set(WITH_C_EXECUTABLES FALSE)
 else()
   set(WITH_C_EXECUTABLES TRUE)
@@ -37,7 +30,7 @@ if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
 
-find_package(MPI)
+find_package(MPI QUIET)
 if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
   message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
     "a WITH_MPI=TRUE build")
@@ -47,43 +40,43 @@ elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
     "build.")
 endif()
 
-if(WITH_OMP)
+if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
   find_package(OpenMP REQUIRED)
-  string(APPEND CMAKE_C_FLAGS " ${OpenMP_C_FLAGS}")
-  string(APPEND CMAKE_Fortran_FLAGS " ${OpenMP_Fortran_FLAGS}")
-  string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_EXE_LINKER_FLAGS}")
+  # Fix CMake bug on OpenMP settings for the NAG compiler
+  # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
+    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+  endif()
+endif()
+
+#
+# Git repository check
+#
+find_package(Git)
+if(Git_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  set(GIT_WORKING_COPY True)
 endif()
 
 #
 # Check external libraries
 #
-set(EXPORTED_EXTERNAL_LIBRARIES)
-set(EXPORTED_EXTERNAL_LIBRARY_DIRS)
-set(EXPORTED_EXTERNAL_PACKAGES)
-set(EXPORTED_EXPORTED_COMPILED_LIBRARIES)
+set(PKG_CONFIG_REQUIRES)
+set(PKG_CONFIG_LIBS)
+set(PKG_CONFIG_LIBS_PRIVATE)
 
-if(WITH_MPI)
-  dftbp_create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_DIRS}")
-  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${SCALAPACK_LIBRARIES})
-  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${SCALAPACK_LIBRARY_DIRS})
-endif()
-
-if(WITH_ELSI)
+if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
-  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED PATHS ${ELSI_ROOT})
-  dftbp_create_library_targets("${ELSI_EXTERNAL_LIBRARIES}" "${ELSI_EXTERNAL_LIBRARY_DIRS}")
-  list(APPEND EXPORTED_EXTERNAL_PACKAGES elsi)
-  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${ELSI_EXTERNAL_LIBRARIES})
-  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${ELSI_EXTERNAL_LIBRARY_DIRS})
+  find_package(elsi ${ELSI_MIN_VERSION} REQUIRED)
+  list(APPEND PKG_CONFIG_REQUIRES elsi)
+
   if(TARGET elsi::pexsi)
     set(ELSI_WITH_PEXSI TRUE)
+    enable_language(CXX)
+    # Avoid to link everything associated with PEXSI with C++
+    set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
   else()
     set(ELSI_WITH_PEXSI FALSE)
-  endif()
-  if(ELSI_WITH_PEXSI)
-    dftbp_create_library_targets("${PEXSI_EXTERNAL_LIBRARIES}" "${PEXSI_EXTERNAL_LIBRARY_DIRS}")
-    list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${PEXSI_EXTERNAL_LIBRARIES})
-    list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${PEXSI_EXTERNAL_LIBRARY_DIRS})
   endif()
   if(elsi_VERSION VERSION_GREATER "2.5.0")
     message(STATUS "ELSI > v2.5.0")
@@ -97,39 +90,34 @@ else()
 endif()
 
 if(WITH_PLUMED)
-  #find_package(PkgConfig REQUIRED)
-  #pkg_check_modules(PLUMED REQUIRED IMPORTED_TARGET plumed)
-  dftbp_create_library_targets("${PLUMED_LIBRARIES}" "${PLUMED_LIBRARY_DIRS}")
-  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${PLUMED_LIBRARIES})
-  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${PLUMED_LIBRARY_DIRS})
+  find_package(CustomPlumed REQUIRED)
+  list(APPEND PKG_CONFIG_REQUIRES plumed)
 endif()
 
-dftbp_create_library_targets("${LAPACK_LIBRARIES}" "${LAPACK_LIBRARY_DIRS}")
-list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${LAPACK_LIBRARIES})
-list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${LAPACK_LIBRARY_DIRS})
+find_package(CustomLapack REQUIRED)
+list(APPEND PKG_CONFIG_LIBS_PRIVATE ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
-  dftbp_create_library_targets("${ARPACK_LIBRARIES}" "${ARPACK_LIBRARY_DIRS}")
-  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${ARPACK_LIBRARIES})
-  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${ARPACK_LIBRARY_DIRS})
+  find_package(CustomArpack REQUIRED)
+  list(APPEND PKG_CONFIG_LIBS_PRIVATE ${ARPACK_LIBRARY})
 endif()
 
 if(WITH_GPU)
-  find_package(MAGMA REQUIRED)
-  dftbp_create_library_targets("${MAGMA_LIBRARIES}" "${MAGMA_LIBRARY_DIRS}")
-  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${MAGMA_LIBRARIES})
-  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${MAGMA_LIBRARY_DIRS})
+  find_package(CustomMagma REQUIRED)
+  list(APPEND PKG_CONFIG_REQUIRES magma)
 endif()
 
-dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
-list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
-list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
 
 #
 # Preprocessor details
 #
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_add_fypp_defines(FYPP_FLAGS)
+
+set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
+# Make sure, the line-marker option is not set
+list(REMOVE_ITEM FYPP_CONFIG_FLAGS "-n")
+set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
 
 set(PYTHON_INTERPRETER "python3" CACHE STRING
   "Python interpreter to use for installing and test python components")
@@ -149,6 +137,9 @@ else()
   option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
+# Follow GNU conventions for installing directories
+include(GNUInstallDirs)
+
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
 if(WITH_SOCKETS)
@@ -159,25 +150,50 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
-if(WITH_MBD)
-  add_subdirectory(external/mbd ${exclude})
-endif()
+# Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
 
 if(WITH_MPI)
-  add_subdirectory(external/mpifx ${exclude})
-  add_subdirectory(external/scalapackfx ${exclude})
+  set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
+  set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
+  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
+    external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
+
+  # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
+  find_package(CustomScalapack REQUIRED)
+  
+  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+  set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
+  dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
+    "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
+    "${SCALAPACKFX_GIT_TAG}")
+  list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
+endif()
+
+# MBD must be invoked *after* Scalapack has been found by ScalapackFx
+if(WITH_MBD)
+  set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
+  set(MBD_GIT_TAG "82005cbb65bdf5d32ca021848eec8f19da956a77")  # do not change manually!
+  dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
+    "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mbd)
 endif()
 
 if(WITH_TRANSPORT)
-  add_subdirectory(external/libnegf ${exclude})
+  set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
+  set(LIBNEGF_GIT_TAG "1b31cac15f0633d2f002c45b53a3766df50cc87f")  # do not change manually!
+  dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)
+
 
 #
 # Add internal components
 #
 add_subdirectory(prog)
 add_subdirectory(tools)
+
 
 #
 # Testing
@@ -187,28 +203,50 @@ if(NOT WITH_MPI)
   string(CONFIGURE "${MODES_RUNNER_TEMPLATE}" MODES_RUNNER)
 endif()
 enable_testing()
-add_subdirectory(test)
+if(NOT BUILD_EXPORTED_TARGETS_ONLY)
+  add_subdirectory(test)
+endif()
 
 
 #
 # Export package info
 # 
 if(WITH_API)
+  include(CMakePackageConfigHelpers)
 
-  install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
+  add_library(DftbPlus INTERFACE)
+  target_link_libraries(DftbPlus INTERFACE dftbplus)
+  install(TARGETS DftbPlus EXPORT dftbplus-targets)
+
+  install(EXPORT dftbplus-targets
+    FILE dftbplus-targets.cmake
+    NAMESPACE DftbPlus::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus")
   
-  configure_file(utils/export/DftbPlusConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake DESTINATION
-    "${CMAKE_INSTALL_LIBDIR}/cmake/DftbPlus")
+  configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/export/dftbplus-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus)
+
+  write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config-version.cmake
+    VERSION ${API_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+  install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus)
+
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus)
 
   dftbp_get_pkgconfig_params(PKGCONFIG_REQUIRES PKGCONFIG_LIBS PKGCONFIG_LIBS_PRIVATE
     PKGCONFIG_C_FLAGS)
   configure_file(utils/export/dftbplus.pc.in ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc @ONLY)
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
-  )
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
   
 endif()

@@ -1,0 +1,52 @@
+geometry = genformat {
+<<< "c24.gen"
+}
+
+transport {
+    device {
+      atomrange = 1 8 
+    }
+    contact {
+      Id = "Source"
+      PLShiftTolerance = 1e-4
+      atomrange = 9 16
+      temperature [K] = 100.0
+    }
+    contact {
+      Id = "Drain"
+      PLShiftTolerance = 1e-4
+      atomrange = 17 24
+      temperature [K] = 200.0
+    }
+}
+
+Masses = SlaterKosterFiles{
+  C-C = "./C-C.skf"
+}
+
+Hessian = {
+  Cutoff [AA] = 4.0 
+  Matrix = dftb{} 
+}
+
+Analysis {
+  TunnelingAndDOS{
+    #Verbosity = 91
+    FreqRange [eV] = 1e-6 4e-1
+    FreqStep [eV] = 5e-3
+    DeltaModel = deltaomega{
+      Delta [eV] = 1e-6
+    }
+    #DeltaModel = Mingo{
+    #  Delta = 10.0
+    #  Wmax [eV] = 4e-1 
+    #}
+  }
+}
+
+Options{
+  WriteHSDInput = Yes 
+  WriteAutotestTag = Yes
+  parserversion = 4
+}
+
