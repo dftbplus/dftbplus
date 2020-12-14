@@ -65,7 +65,7 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 # sure your CMAKE_PREFIX_PATH variable is set up accordingly.
 
 # LAPACK and BLAS
-set(LAPACK_LIBRARY "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
+#set(LAPACK_LIBRARY "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING
 #  "Directories where LAPACK and BLAS libraries can be found")
 
