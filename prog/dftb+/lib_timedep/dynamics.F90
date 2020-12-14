@@ -516,6 +516,9 @@ contains
           this%nExcitedAtom = nAtom
         end if
       end if
+      if (.not. this%tSCC) then
+        call error("Ion dynamics and forces are not implemented yet for non-SCC calculations.")
+      end if
     end if
 
     this%tNetCharges = .false.
