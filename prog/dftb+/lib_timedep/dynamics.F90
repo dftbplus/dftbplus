@@ -923,7 +923,6 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
-    ! Main loop
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
 
@@ -934,6 +933,7 @@ contains
     rho => trho
     rhoOld => trhoOld
 
+    ! Main loop
     do iStep = 0, this%nSteps
 
       call doTdStep(this, iStep, trho, trhoOld, coord, orb, neighbourList, nNeighbourSK,&
@@ -954,43 +954,7 @@ contains
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
-    if (tWriteAutotest) then
-      call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce, this%occ, this%lastBondPopul,&
-          & taggedWriter)
-    end if
-
-    call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
-         & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
-
-    deallocate(this%rhoPrim)
-    deallocate(this%ErhoPrim)
-    if (allocated(this%H1LC)) then
-      deallocate(this%H1LC)
-    end if
-    if (allocated(this%deltaRho)) then
-      deallocate(this%deltaRho)
-    end if
-    if (allocated(this%qBlock)) then
-      deallocate(this%qBlock)
-    end if
-    if (allocated(this%qNetAtom)) then
-      deallocate(this%qNetAtom)
-    end if
-    if (this%tPopulations) then
-      deallocate(this%Eiginv)
-      deallocate(this%EiginvAdj)
-    end if
-    if (this%tBondE .or. this%tBondP) then
-      deallocate(this%bondWork)
-    end if
-
-    if (this%tIons) then
-      if (allocated(this%polDirs)) then
-        if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
-          deallocate(this%pMDIntegrator)
-        end if
-      end if
-    end if
+    call finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
 
   end subroutine doDynamics
 
@@ -3903,4 +3867,58 @@ contains
 
   end subroutine doTdStep
 
+  !> Handles deallocation, closing outputs and autotest writing
+  subroutine finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Should autotest data be written?
+    logical, intent(in) :: tWriteAutotest
+
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+
+    if (tWriteAutotest) then
+      call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
+           & this%occ, this%lastBondPopul, taggedWriter)
+    end if
+
+    call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
+         & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
+
+    deallocate(this%rhoPrim)
+    deallocate(this%ErhoPrim)
+    if (allocated(this%H1LC)) then
+      deallocate(this%H1LC)
+    end if
+    if (allocated(this%deltaRho)) then
+      deallocate(this%deltaRho)
+    end if
+    if (allocated(this%qBlock)) then
+      deallocate(this%qBlock)
+    end if
+    if (allocated(this%qNetAtom)) then
+      deallocate(this%qNetAtom)
+    end if
+    if (this%tPopulations) then
+      deallocate(this%Eiginv)
+      deallocate(this%EiginvAdj)
+    end if
+    if (this%tBondE .or. this%tBondP) then
+      deallocate(this%bondWork)
+    end if
+
+    if (this%tIons) then
+      if (allocated(this%polDirs)) then
+        if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
+          deallocate(this%pMDIntegrator)
+        end if
+      end if
+    end if
+
+  end subroutine finalizeDynamics
 end module dftbp_timeprop
