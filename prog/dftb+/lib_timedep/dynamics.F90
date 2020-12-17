@@ -235,6 +235,7 @@ module dftbp_timeprop
     complex(dp), allocatable :: Sinv(:,:,:)
     complex(dp), allocatable :: H1(:,:,:)
     complex(dp), allocatable :: RdotSprime(:,:)
+    complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
     real(dp), allocatable :: qq(:,:,:), deltaQ(:,:)
     real(dp), allocatable :: dipole(:,:), chargePerShell(:,:,:)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
@@ -906,14 +907,11 @@ contains
 
     complex(dp), allocatable, target :: trho(:,:,:)
     complex(dp), allocatable, target :: trhoOld(:,:,:)
-    complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
 
     type(TTimer) :: loopTime
     integer :: iStep
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
-
-    iStep = 0
 
     call initializeDynamics(this, trho, trhoOld, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
@@ -930,9 +928,6 @@ contains
     write(stdOut, "(A)") 'Starting electronic dynamics...'
     write(stdOut, "(A80)") repeat("-", 80)
 
-    rho => trho
-    rhoOld => trhoOld
-
     ! Main loop
     do iStep = 0, this%nSteps
 
@@ -940,7 +935,7 @@ contains
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, pRepCont,&
-       & iAtInCentralRegion, tFixEf, Ef, rho, rhoOld, electronicSolver, qDepExtPot)
+       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
 
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
@@ -3413,10 +3408,10 @@ contains
     type(TElecDynamics), intent(inout) :: this
 
     !> Density Matrix
-    complex(dp), intent(inout), allocatable :: rho(:,:,:)
+    complex(dp), intent(inout), allocatable, target :: rho(:,:,:)
 
     !> Density Matrix at previous step
-    complex(dp), intent(inout), allocatable :: rhoOld(:,:,:)
+    complex(dp), intent(inout), allocatable, target :: rhoOld(:,:,:)
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3607,6 +3602,9 @@ contains
           & neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
+    this%rho => rho
+    this%rhoOld => rhoOld
+
     call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
         & neighbourList, pRepCont, iAtInCentralRegion)
 
@@ -3629,7 +3627,7 @@ contains
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, pRepCont,&
-       & iAtInCentralRegion, tFixEf, Ef, rho, rhoOld, electronicSolver, qDepExtPot)
+       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -3641,12 +3639,6 @@ contains
 
     !> Density Matrix at previous step
     complex(dp), intent(inout), target :: trhoOld(:,:,:)
-
-    !> Density Matrix
-    complex(dp), intent(inout), pointer :: rho(:,:,:)
-
-    !> Density Matrix at previous step
-    complex(dp), intent(inout), pointer :: rhoOld(:,:,:)
 
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
@@ -3754,7 +3746,7 @@ contains
       else
         velInternal(:,:) = 0.0_dp
       end if
-      call writeRestartFile(rho, rhoOld, coord, velInternal, this%time, this%dt, &
+      call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
            &restartFileName, this%tWriteRestartAscii)
       deallocate(velInternal)
     end if
@@ -3770,7 +3762,7 @@ contains
       else
         velInternal(:,:) = 0.0_dp
       end if
-      call writeRestartFile(rho, rhoOld, coord, velInternal, this%time, this%dt,&
+      call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
           & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
       deallocate(velInternal)
     end if
@@ -3788,7 +3780,7 @@ contains
           & this%ErhoPrim, coordAll)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, rho, this%Ssqr, coord, iSquare, this%qBlock,&
+    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord, iSquare, this%qBlock,&
        & this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -3799,10 +3791,10 @@ contains
          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
          & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
          & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-         & this%dispersion,rho)
+         & this%dispersion,this%rho)
 
     if (this%tForces) then
-       call getForces(this, this%movedAccel, this%totalForce, rho, this%H1, this%Sinv, neighbourList,&  !F_1
+       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
             & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
             & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
             & this%deltaRho)
@@ -3822,7 +3814,7 @@ contains
            & neighbourList, pRepCont, iAtInCentralRegion)
     end if
 
-    call getTDEnergy(this, this%energy, this%rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
+    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
          & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
          & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
          & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -3838,30 +3830,30 @@ contains
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
-          call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iKS), 1, rhoOld(:,:,iKS), 1)
-          call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), this%H1(:,:,iKS), this%Sinv(:,:,iKS),&
-               & this%dt)
+          call zcopy(this%nOrbs*this%nOrbs, this%rho(:,:,iKS), 1, this%rhoOld(:,:,iKS), 1)
+          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+               & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
         else
-          call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), this%H1(:,:,iKS), this%Sinv(:,:,iKS),&
-               & 2.0_dp * this%dt)
+          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+               & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
         end if
       else
-        call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), this%H1(:,:,iKS), this%Sinv(:,:,iKS),&
-             & 2.0_dp * this%dt)
+        call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+             &this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
       end if
     end do
 
     if (mod(iStep, 2) == 1) then
-       rho => trho
-       rhoOld => trhoOld
+       this%rho => trho
+       this%rhoOld => trhoOld
     else
-       rho => trhoOld
-       rhoOld => trho
+       this%rho => trhoOld
+       this%rhoOld => trho
     end if
 
     if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
       do iKS = 1, this%parallelKS%nLocalKS
-        call getTDPopulations(this, this%occ, rho, this%Eiginv, this%EiginvAdj, this%populDat, this%time, iKS)
+        call getTDPopulations(this, this%occ, this%rho, this%Eiginv, this%EiginvAdj, this%populDat, this%time, iKS)
       end do
     end if
 
