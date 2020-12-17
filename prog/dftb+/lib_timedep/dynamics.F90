@@ -321,7 +321,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -389,6 +389,9 @@ contains
     !> LC correction
     logical, intent(in) :: isRangeSep
 
+    !> SCC module internal variables
+    type(TScc), intent(in), allocatable :: sccCalc
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -415,6 +418,11 @@ contains
     this%KWeight = KWeight
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
+    if (.not. allocated(sccCalc)) then
+      call error("SCC calculations are currently required for dynamics")
+    else
+      this%sccCalc = sccCalc
+    end if
 
     if (inp%envType /= envTypes%constant) then
       this%time0 = inp%time0
@@ -571,10 +579,10 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, referenceN0, over, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
-      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
-      & taggedWriter, refExtPot)
+      & spinW, pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
+      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll,&
+      & onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
+      & electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -638,9 +646,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> SCC module internal variables
-    type(TScc), intent(in), allocatable :: sccCalc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -708,40 +713,7 @@ contains
     integer :: iPol
     logical :: tWriteAutotest
 
-    if (.not. allocated(sccCalc)) then
-      call error("SCC calculations are currently required for dynamics")
-    end if
-    this%sccCalc = sccCalc
-    this%speciesAll = speciesAll
-    this%nSpin = size(ham(:,:), dim=2)
-    if (this%nSpin > 1) then
-      call qm2ud(q0)
-    end if
-
-    if (this%tRealHS .and. .not. this%isRangeSep) then
-      this%nOrbs = size(eigvecs, dim=1)
-    else
-      this%nOrbs = size(eigvecsCplx, dim=1)
-    end if
-
-    this%nAtom = size(coord, dim=2)
-    this%latVec = latVec
-    this%invLatVec = invLatVec
-    this%iCellVec = iCellVec
-    this%rCellVec = rCellVec
-    this%cellVec = cellVec
     tWriteAutotest = this%tWriteAutotest
-
-    allocate(this%Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
-    allocate(this%Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
-    allocate(this%H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
-    allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
-    allocate(this%qq(orb%mOrb, this%nAtom, this%nSpin))
-    allocate(this%deltaQ(this%nAtom,this%nSpin))
-    allocate(this%dipole(3,this%nSpin))
-    allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
-    allocate(this%occ(this%nOrbs))
-
     this%iCall = 1
     if (allocated(this%polDirs)) then
       if (size(this%polDirs) > 1) then
@@ -757,8 +729,8 @@ contains
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
             & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
             & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
-            & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver,&
-            & eigvecsCplx, taggedWriter, refExtPot)
+            & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
+            & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
         this%iCall = this%iCall + 1
       end do
     else
@@ -766,19 +738,9 @@ contains
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
           & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
           & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
-          & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, eigvecsCplx,&
-          & taggedWriter, refExtPot)
+          & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
+          & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
     end if
-
-    deallocate(this%Ssqr)
-    deallocate(this%Sinv)
-    deallocate(this%H1)
-    deallocate(this%RdotSprime)
-    deallocate(this%qq)
-    deallocate(this%deltaQ)
-    deallocate(this%dipole)
-    deallocate(this%chargePerShell)
-    deallocate(this%occ)
 
   end subroutine runDynamics
 
@@ -787,8 +749,9 @@ contains
   subroutine doDynamics(this, eigvecsReal, ham, H0, q0, referenceN0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
       & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
+      & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
+      & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -905,6 +868,24 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
+    !> Lattice vectors if periodic
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Inverse of the lattice vectors
+    real(dp), intent(in) :: invLatVec(:,:)
+
+    !> cell vectors in absolute units
+    real(dp), intent(in) :: rCellVec(:,:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index of cell in cellVec and rCellVec for each atom
+    integer, allocatable, intent(in) :: iCellVec(:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: speciesAll(:)
+
     complex(dp), allocatable, target :: trho(:,:,:)
     complex(dp), allocatable, target :: trhoOld(:,:,:)
 
@@ -917,7 +898,8 @@ contains
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
-       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef)
+       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
+       & rCellVec, cellVec, speciesAll)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -3403,7 +3385,8 @@ contains
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
-       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef)
+       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
+       & rCellVec, cellVec, speciesAll)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -3513,12 +3496,58 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
+    !> Lattice vectors if periodic
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Inverse of the lattice vectors
+    real(dp), intent(in) :: invLatVec(:,:)
+
+    !> cell vectors in absolute units
+    real(dp), intent(in) :: rCellVec(:,:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index of cell in cellVec and rCellVec for each atom
+    integer, allocatable, intent(in) :: iCellVec(:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: speciesAll(:)
+
     this%startTime = 0.0_dp
     this%timeElec = 0.0_dp
-    this%RdotSprime(:,:) = 0.0_dp
 
+    this%speciesAll = speciesAll
+    this%nSpin = size(ham(:,:), dim=2)
+    if (this%nSpin > 1) then
+      call qm2ud(q0)
+    end if
+
+    if (this%tRealHS .and. .not. this%isRangeSep) then
+      this%nOrbs = size(eigvecsReal, dim=1)
+    else
+      this%nOrbs = size(eigvecsCplx, dim=1)
+    end if
+
+    this%nAtom = size(coord, dim=2)
+    this%latVec = latVec
+    this%invLatVec = invLatVec
+    this%iCellVec = iCellVec
+    this%rCellVec = rCellVec
+    this%cellVec = cellVec
+
+    allocate(this%Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(this%Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(this%H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
+    allocate(this%qq(orb%mOrb, this%nAtom, this%nSpin))
+    allocate(this%deltaQ(this%nAtom,this%nSpin))
+    allocate(this%dipole(3,this%nSpin))
+    allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
+    allocate(this%occ(this%nOrbs))
     allocate(rho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(rhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    this%RdotSprime(:,:) = 0.0_dp
 
     if (this%tReadRestart) then
       call readRestartFile(rho, rhoOld, coord, this%movedVelo, this%startTime, this%dt,&
@@ -3565,7 +3594,8 @@ contains
     call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
          & this%populDat, this%forceDat, this%coorDat)
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, rho, this%Ssqr, coord, iSquare, this%qBlock, this%qNetAtom)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, rho, this%Ssqr,&
+         & coord, iSquare, this%qBlock, this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
@@ -3881,6 +3911,16 @@ contains
 
     call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
+
+    deallocate(this%Ssqr)
+    deallocate(this%Sinv)
+    deallocate(this%H1)
+    deallocate(this%RdotSprime)
+    deallocate(this%qq)
+    deallocate(this%deltaQ)
+    deallocate(this%dipole)
+    deallocate(this%chargePerShell)
+    deallocate(this%occ)
 
     deallocate(this%rhoPrim)
     deallocate(this%ErhoPrim)
