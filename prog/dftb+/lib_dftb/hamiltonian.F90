@@ -327,6 +327,8 @@ contains
       ! poiss_getshift() updates only the device region
       if (tPoisson) then
         if (tUpload) then
+          write(*,*)'A',shape(shellPot)
+          write(*,*)'B',shape(shiftPerLUp)
           shellPot(:,:,1) = shiftPerLUp
         else
           ! Potentials for non-existing angular momenta must be 0 for later summations

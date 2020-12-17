@@ -226,9 +226,6 @@ contains
       end if
 
       if (this%tStress) then
-        this%intPressure = (this%totalStress(1,1) + this%totalStress(2,2) +&
-            & this%totalStress(3,3)) / 3.0_dp
-        this%totalLatDeriv(:,:) = -this%cellVol * matmul(this%totalStress, this%invLatVec)
 
         call printVolume(this%cellVol)
 
@@ -1063,40 +1060,38 @@ contains
           & this%dftbEnergy(this%deltaDftb%iDeterminant)%Edisp,&
           & this%iAtInCentralRegion)
       call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
+    end if
 
-      if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
-        close(this%fdDetailedOut)
-        call openDetailedOut(this%fdDetailedOut, userOut,&
-            & tAppendDetailedOut)
-        if (allocated(this%reks)) then
-          call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
-              & this%tDerivs, this%tCoordOpt, this%tLatOpt , iLatGeoStep, iSccIter,&
-              & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
-              & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
-              & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
-              & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
-              & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-              & allocated(this%thirdOrd), this%isRangeSep)
-        else
-          call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
-              & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
-              & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
-              & this%invLatVec, this%kPoint)
-          call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-              & this%species, this%tDFTBU, this%tImHam.or.this%tSpinOrbit, this%tPrintMulliken,&
-              & this%orbitalL, this%qBlockOut, this%nSpin, allocated(this%onSiteElements),&
-              & this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
-          call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, this%tDFTBU,&
-              & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
-              & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
-              & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
-              & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-              & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
-        end if
+    if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
+      close(this%fdDetailedOut)
+      call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
+      if (allocated(this%reks)) then
+        call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
+            & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
+            & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
+            & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
+            & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
+            & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
+            & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
+            & allocated(this%thirdOrd), this%isRangeSep)
+      else
+        call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
+            & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
+            & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
+            & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
+            & this%invLatVec, this%kPoint)
+        call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
+            & this%species, this%tDFTBU, this%tImHam.or.this%tSpinOrbit, this%tPrintMulliken,&
+            & this%orbitalL, this%qBlockOut, this%nSpin, allocated(this%onSiteElements),&
+            & this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
+        call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
+            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, this%tDFTBU,&
+            & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
+            & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
+            & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
+            & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
+            & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
       end if
-
     end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
@@ -1306,7 +1301,7 @@ contains
     logical, intent(in) :: tLatOpt
 
     !> Derivative of total energy with respect to lattice vectors
-    real(dp) :: totalLatDerivs(:,:)
+    real(dp), intent(in) :: totalLatDerivs(:,:)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp), intent(in) :: extLatDerivs(:,:)
@@ -5918,6 +5913,9 @@ contains
       end select
     end if
 
+    intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    
   end subroutine getStress
 
 

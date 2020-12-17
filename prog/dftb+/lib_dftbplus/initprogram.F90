@@ -525,9 +525,9 @@ module dftbp_initprogram
     logical :: tSocket
 
     !> socket details
-#:if WITH_SOCKETS
+  #:if WITH_SOCKETS
     type(ipiSocketComm), allocatable :: socket
-#:endif
+  #:endif
 
     !> File containing output geometry
     character(lc) :: geoOutFile
@@ -616,8 +616,8 @@ module dftbp_initprogram
     !> nr. of inequivalent orbitals
     integer :: nIneqOrb
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
-    !> (if tDFTBU or onsite corrections)
+    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> blocks (if tDFTBU or onsite corrections)
     integer :: nMixElements
 
     !> Orbital equivalency for orbital blocks
@@ -955,11 +955,11 @@ module dftbp_initprogram
     !> Container for the atomistic structure for poisson
     type(TPoissonStructure) :: poissStr
 
-#:if WITH_TRANSPORT
+  #:if WITH_TRANSPORT
     !> Transport variables
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-#:endif
+  #:endif
 
     !> Transport interface (may be dummy placeholder, if built without transport)
     type(TNegfInt) :: negfInt
@@ -1062,28 +1062,28 @@ module dftbp_initprogram
     procedure :: initializeCharges
     procedure :: initializeReferenceCharges
     procedure :: setNElectrons
-#:if WITH_TRANSPORT
+  #:if WITH_TRANSPORT
 !   procedure :: checkTransportRanges
     procedure :: initTransport
     procedure :: initTransportArrays
-#:endif
+  #:endif
     procedure :: destructProgramVariables
 !   procedure :: createRandomGenerators
-#:if WITH_SOCKETS
+  #:if WITH_SOCKETS
     procedure :: initSocket
-#:endif
+  #:endif
     procedure :: initOutputFiles
     procedure :: initArrays
     procedure :: initDetArrays
     procedure :: allocateDenseMatrices
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
     procedure :: initScalapack
 !    procedure :: getDenseDescBlacs
-#:endif
+  #:endif
     procedure :: getDenseDescCommon
-#:if WITH_MBD
+  #:if WITH_MBD
 !   procedure :: writeMbdInfo
-#:endif
+  #:endif
 !   procedure :: ensureSolverCompatibility
 !   procedure :: applyCustomReferenceOccupations
 !   procedure :: printCustomReferenceOccupations
@@ -2168,7 +2168,7 @@ contains
         end if
         call move_alloc(dftd4, this%dispersion)
     #:if WITH_MBD
-      elseif (allocated(input%ctrl%dispInp%mbd)) then
+      else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
           call error("MBD model not currently supported for Casida linear response")
         end if
@@ -2184,7 +2184,11 @@ contains
         end associate
         call mbd%checkError()
         call move_alloc(mbd, this%dispersion)
-     #:endif
+        if (input%ctrl%dispInp%mbd%method == 'ts' .and. this%tForces) then
+          call warning("Forces for the TS-dispersion model are calculated by finite differences&
+              & which may result in long gradient calculation times for large systems")
+        end if
+    #:endif
       end if
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
     end if
@@ -2587,6 +2591,7 @@ contains
 
   #:else
     this%tNegf = .false.
+    this%tUpload = .false.
   #:endif
 
     if (this%tPoisson) then
