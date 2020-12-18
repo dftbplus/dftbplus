@@ -15,6 +15,7 @@ module dftbp_mainapi
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : TDftbPlusMain
+  use dftbp_timeprop, only : initializeDynamics, doTdStep
 #:if WITH_SCALAPACK
   use dftbp_initprogram, only : getDenseDescBlacs
 #:endif
@@ -400,6 +401,62 @@ contains
     call main%initializeCharges(initialSpins, initialCharges)
 
   end subroutine updateDataDependentOnSpeciesOrdering
+
+
+  !> After calculation of the ground state, this subroutine initializes the variables
+  !> and the initial step of the propagators for electron and nuclear dynamics
+  subroutine initializeTimeProp(env, main)
+
+    !> dftb+ environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    if (main%electronDynamics%tPropagatorsInitialized) then
+      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
+          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
+          & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
+          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%nDftbUFunc, main%UJ,&
+          & main%nUJ, main%iUJ, main%niUJ, main%onSiteElements, main%refExtPot, main%solvation,&
+          & main%rangeSep, main%referenceN0, main%q0, main%pRepCont, main%iAtInCentralRegion,&
+          & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
+          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species)
+    else
+      call error("Electron dynamics not enabled, please initialize the calculator&
+          & including the ElectronDynamics block")
+    end if
+
+  end subroutine initializeTimeProp
+
+
+  !> After calling initializeTimeProp, this subroutine performs one timestep of
+  !> electron and nuclear (if IonDynamics enabled) dynamics.
+  subroutine doOneTdStep(env, main, iStep)
+
+    !> dftb+ environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> present step of dynamics
+    integer, intent(in) :: iStep
+
+    if (allocated(main%electronDynamics)) then
+      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
+           & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
+           & main%skHamCont, main%skOverCont, main%ham,main%over, env, main%coord, main%q0,&
+           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%nDftbUFunc,&
+           & main%UJ, main%nUJ, main%iUJ, main%niUJ, main%onSiteElements, main%refExtPot, main%solvation,&
+           & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+           & main%electronicSolver, main%qDepExtPot)
+    else
+      call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
+          & first.")
+    end if
+
+  end subroutine doOneTdStep
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

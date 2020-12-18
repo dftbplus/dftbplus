@@ -69,6 +69,7 @@ module dftbp_timeprop
   private
 
   public :: runDynamics, TElecDynamics_init
+  public :: initializeDynamics, doTdStep
   public :: TElecDynamicsInp, TElecDynamics
   public :: pertTypes, envTypes, tdSpinTypes
 
@@ -259,6 +260,9 @@ module dftbp_timeprop
 
     !> Number of times this has been called
     integer :: iCall
+
+    logical, public :: tPropagatorsInitialized = .false.
+
   end type TElecDynamics
 
   type :: TDPertTypeEnum
@@ -3641,6 +3645,8 @@ contains
     if (this%tProbe) then
       this%startTime = 0.0_dp
     end if
+
+    this%tPropagatorsInitialized = .true.
 
   end subroutine initializeDynamics
 
