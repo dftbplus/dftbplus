@@ -131,11 +131,13 @@ module dftbp_hsdparser
   !> list label
   character(len=*), parameter :: attrList = "l"
 
+  #:set HSD_LINE_LENGTH = 1024
+
   !> Length of a parsed line (adjust lineFormat below, if you change this number)
-  integer, parameter :: lc = 1024
+  integer, parameter :: lc = ${HSD_LINE_LENGTH}$
 
   !> Format string to read in one parse line (field length must correspond to lc above)
-  character(len=*), parameter :: lineFormat = "(A1024)"
+  character(len=*), parameter :: lineFormat = "(A${HSD_LINE_LENGTH}$)"
 
   !> Maximal record lenght on output in characters (bytes).
   !> If text nodes bigger than that occur runtime error can be expected.

@@ -36,10 +36,6 @@ module dftbp_mmapi
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
 
-! !> Number of DFTB+ calculation instances
-! integer :: nDftbPlusCalc = 0
-
-
   !> list of QM atoms and species for DFTB+ calculation
   type :: TDftbPlusAtomList
     !> number of atoms
@@ -69,8 +65,8 @@ module dftbp_mmapi
   !> A DFTB+ calculation
   type :: TDftbPlus
     private
-    type(TEnvironment) :: env
-    type(TDftbPlusMain) :: main
+    type(TEnvironment), allocatable :: env
+    type(TDftbPlusMain), allocatable :: main
     logical :: tInit = .false.
   contains
     !> read input from a file
@@ -254,13 +250,9 @@ contains
       stdOut = output_unit
     end if
 
-!   if (nDftbPlusCalc /= 0) then
-!     write(stdOut, "(A)") "Error: only one DFTB+ instance is currently allowed"
-!     stop
-!   end if
-!   nDftbPlusCalc = 1
-
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
+    allocate(this%env)
+    allocate(this%main)
     call TEnvironment_init(this%env)
     this%env%tAPICalculation = .true.
     this%tInit = .true.
@@ -278,8 +270,8 @@ contains
 
     call this%main%destructProgramVariables()
     call this%env%destruct()
+    deallocate(this%main, this%env)
     call destructGlobalEnv()
-!   nDftbPlusCalc = 0
     this%tInit = .false.
 
   end subroutine TDftbPlus_destruct

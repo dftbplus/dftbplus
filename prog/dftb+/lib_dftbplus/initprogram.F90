@@ -123,39 +123,39 @@ module dftbp_initprogram
   type :: TNegfInt
   end type TNegfInt
 
-#:endif  
+#:endif
 
 ! private
 
   !> Tagged output files (machine readable)
-  character(*), parameter :: autotestTag = "autotest.tag" ! parameter
+  character(*), parameter :: autotestTag = "autotest.tag"
 
   !> Detailed user output
-  character(*), parameter :: userOut = "detailed.out" ! parameter
+  character(*), parameter :: userOut = "detailed.out"
 
   !> band structure and filling information
-  character(*), parameter :: bandOut = "band.out" ! parameter
+  character(*), parameter :: bandOut = "band.out"
 
   !> File accumulating data during an MD run
-  character(*), parameter :: mdOut = "md.out" ! parameter
+  character(*), parameter :: mdOut = "md.out"
 
   !> Machine readable tagged output
-  character(*), parameter :: resultsTag = "results.tag" ! parameter
+  character(*), parameter :: resultsTag = "results.tag"
 
   !> Second derivative of the energy with respect to atomic positions
-  character(*), parameter :: hessianOut = "hessian.out" ! parameter
+  character(*), parameter :: hessianOut = "hessian.out"
 
   !> file name prefix for charge data
-  character(*), parameter :: fCharges = "charges" ! parameter
+  character(*), parameter :: fCharges = "charges"
 
   !> file to stop code during geometry driver
-  character(*), parameter :: fStopDriver = "stop_driver" ! parameter
+  character(*), parameter :: fStopDriver = "stop_driver"
 
   !> file to stop code during scc cycle
-  character(*), parameter :: fStopSCC = "stop_scc" ! parameter
+  character(*), parameter :: fStopSCC = "stop_scc"
 
   !> file name for shift data
-  character(*), parameter :: fShifts = "shifts.dat" ! parameter
+  character(*), parameter :: fShifts = "shifts.dat"
 
 
   !> Interaction cutoff distances
@@ -194,7 +194,7 @@ module dftbp_initprogram
     integer :: nType
 
     !> data type for atomic orbital information
-    type(TOrbitals) :: orb ! target
+    type(TOrbitals) :: orb
 
     !> nr. of orbitals in the system
     integer :: nOrb
@@ -203,13 +203,13 @@ module dftbp_initprogram
     integer, allocatable :: species(:)
 
     !> type of the atoms (nAtom)
-    integer, allocatable :: species0(:) ! target
+    integer, allocatable :: species0(:)
 
     !> Coords of the atoms (3, nAllAtom)
     real(dp), allocatable :: coord(:,:)
 
     !> Coords in central cell (3, nAtom)
-    real(dp), allocatable :: coord0(:,:) ! target
+    real(dp), allocatable :: coord0(:,:)
 
     !> if calculation is periodic
     logical :: tPeriodic
@@ -230,13 +230,13 @@ module dftbp_initprogram
     real(dp) :: sccTol
 
     !> lattice vectors as columns
-    real(dp), allocatable :: latVec(:,:) ! target
+    real(dp), allocatable :: latVec(:,:)
 
     !> Origin of coordinate system for periodic systems
     real(dp), allocatable :: origin(:)
 
     !> reciprocal lattice vectors as columns
-    real(dp), allocatable :: recVec(:,:) ! target
+    real(dp), allocatable :: recVec(:,:)
 
     !> original lattice vectors used for optimizing
     real(dp) :: origLatVec(3,3)
@@ -281,7 +281,7 @@ module dftbp_initprogram
     integer, allocatable :: iSparseStart(:,:)
 
     !> Hubbard Us (orbital, atom)
-    real(dp), allocatable :: hubbU(:,:) ! target
+    real(dp), allocatable :: hubbU(:,:)
 
     !> self energy (orbital, atom)
     real(dp), allocatable :: atomEigVal(:,:)
@@ -557,10 +557,10 @@ module dftbp_initprogram
     type(TMDIntegrator), allocatable :: pMDIntegrator
 
     !> Temperature profile driver in MD
-    type(TTempProfile), allocatable :: temperatureProfile ! target
+    type(TTempProfile), allocatable :: temperatureProfile
 
     !> geometry optimiser
-    type(TNumDerivs), allocatable :: derivDriver ! target
+    type(TNumDerivs), allocatable :: derivDriver
 
     !> Total charge
     real(dp) :: nrChrg
@@ -709,10 +709,10 @@ module dftbp_initprogram
     type(TRangeSepFunc), allocatable :: rangeSep
 
     !> DeltaRho input for calculation of range separated Hamiltonian
-    real(dp), allocatable :: deltaRhoIn(:) ! target
+    real(dp), allocatable :: deltaRhoIn(:)
 
     !> DeltaRho output from calculation of range separated Hamiltonian
-    real(dp), allocatable :: deltaRhoOut(:) ! target
+    real(dp), allocatable :: deltaRhoOut(:)
 
     !> Holds change in deltaRho between SCC steps for range separation
     real(dp), allocatable :: deltaRhoDiff(:)
@@ -889,7 +889,7 @@ module dftbp_initprogram
     real(dp), pointer :: pCoord0Out(:,:)
 
     !> Folded coords (3, nAtom)
-    real(dp), allocatable :: coord0Fold(:,:) ! target
+    real(dp), allocatable :: coord0Fold(:,:)
 
     !> New coordinates returned by the MD routines
     real(dp), allocatable :: newCoords(:,:)
@@ -898,7 +898,7 @@ module dftbp_initprogram
     real(dp), allocatable :: orbitalL(:,:,:)
 
     !> Natural orbitals for excited state density matrix, if requested
-    real(dp), allocatable :: occNatural(:) ! target
+    real(dp), allocatable :: occNatural(:)
 
     !> Dynamical (Hessian) matrix
     real(dp), pointer :: pDynMatrix(:,:)
@@ -1057,18 +1057,15 @@ module dftbp_initprogram
   contains
 
     procedure :: initProgramVariables
-!   procedure :: inputCoherenceCheck
     procedure :: setEquivalencyRelations
     procedure :: initializeCharges
     procedure :: initializeReferenceCharges
     procedure :: setNElectrons
   #:if WITH_TRANSPORT
-!   procedure :: checkTransportRanges
     procedure :: initTransport
     procedure :: initTransportArrays
   #:endif
     procedure :: destructProgramVariables
-!   procedure :: createRandomGenerators
   #:if WITH_SOCKETS
     procedure :: initSocket
   #:endif
@@ -1078,23 +1075,11 @@ module dftbp_initprogram
     procedure :: allocateDenseMatrices
   #:if WITH_SCALAPACK
     procedure :: initScalapack
-!    procedure :: getDenseDescBlacs
   #:endif
     procedure :: getDenseDescCommon
-  #:if WITH_MBD
-!   procedure :: writeMbdInfo
-  #:endif
-!   procedure :: ensureSolverCompatibility
-!   procedure :: applyCustomReferenceOccupations
-!   procedure :: printCustomReferenceOccupations
     procedure :: ensureRangeSeparatedReqs
-!   procedure :: ensureLinRespConditions
-!   procedure :: getRangeSeparatedCutOff
     procedure :: initRangeSeparated
     procedure :: initPlumed
-!   procedure :: checkReksConsistency
-!   procedure :: TReksCalc_init
-!   procedure :: printReksInitInfo
 
   end type TDftbPlusMain
 
@@ -1229,7 +1214,7 @@ contains
     logical :: tRandomSeed
 
     !> First guess for nr. of neighbours.
-    integer :: nInitNeighbour = 40 ! parameter
+    integer :: nInitNeighbour = 40
 
     !> Spin loop index
     integer :: iSpin
@@ -1301,7 +1286,7 @@ contains
     this%tHelical = input%geom%tHelical
 
     ! start by assuming stress can be calculated if periodic
-    this%tStress = this%tPeriodic ! .or. this%tHelical
+    this%tStress = this%tPeriodic
 
     ! Brillouin zone sampling
     if (this%tPeriodic .or. this%tHelical) then
@@ -1592,7 +1577,7 @@ contains
         if (.not.this%tSccCalc) then
           call error("External charges can only be used in an SCC calculation")
         end if
-        this%tStress = .false. ! Stress calculations not allowed
+        this%tStress = .false.
         @:ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
         @:ASSERT(size(input%ctrl%extChrg, dim=2) == this%nExtChrg)
         sccInp%extCharges = input%ctrl%extChrg
@@ -1702,7 +1687,7 @@ contains
     allocate(this%iCellVec(this%nAllAtom))
 
     ! Intialize Hamilton and overlap
-    this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. this%tDFTBU) ! .or. tBField
+    this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. this%tDFTBU)
     if (this%tSccCalc .and. .not.allocated(this%reks)) then
       allocate(this%chargePerShell(this%orb%mShell,this%nAtom,this%nSpin))
     else
@@ -1822,7 +1807,7 @@ contains
     this%tMD = input%ctrl%tMD
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
-    this%tEField = input%ctrl%tEfield ! external electric field
+    this%tEField = input%ctrl%tEfield
     this%tExtField = this%tEField
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%tExtField .or.&
         & this%tFixEf .or. this%isRangeSep
@@ -4077,40 +4062,6 @@ contains
       call destruct(this%iOrbRegion)
       call destruct(this%regionLabels)
     end if
-
-    @:SAFE_DEALLOC(this%sccCalc, this%img2CentCell, this%species, this%species0, this%coord)
-    @:SAFE_DEALLOC(this%coord0, this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVec)
-    @:SAFE_DEALLOC(this%rCellVec, this%iCellVec, this%neighbourList, this%nNeighbourSK)
-    @:SAFE_DEALLOC(this%nNeighbourRep, this%iSparseStart, this%hubbU, this%atomEigVal)
-    @:SAFE_DEALLOC(this%referenceN0, this%mass, this%speciesMass, this%ham, this%iHam)
-    @:SAFE_DEALLOC(this%chargePerShell, this%chargePerAtom, this%over, this%kPoint, this%kWeight)
-    @:SAFE_DEALLOC(this%nEl, this%spinW, this%xi, this%UJ, this%nUJ, this%niUJ, this%iUJ, this%Ef)
-    @:SAFE_DEALLOC(this%esp, this%indMovedAtom, this%conAtom, this%conVec, this%pipekMezey)
-    #:if WITH_SOCKETS
-      @:SAFE_DEALLOC(this%socket)
-    #:endif
-    @:SAFE_DEALLOC(this%speciesName, this%pGeoCoordOpt, this%pGeoLatOpt, this%pChrgMixer)
-    @:SAFE_DEALLOC(this%pMDFrame, this%pMDIntegrator, this%temperatureProfile, this%derivDriver)
-    @:SAFE_DEALLOC(this%q0, this%qShell0, this%qInput, this%qOutput, this%qNetAtom)
-    @:SAFE_DEALLOC(this%qInpRed, this%qOutRed, this%qDiffRed)
-    @:SAFE_DEALLOC(this%iEqOrbitals, this%iEqBlockDftbU, this%iEqBlockOnSite, this%iEqBlockDftbULs)
-    @:SAFE_DEALLOC(this%iEqBlockOnSiteLs)
-    @:SAFE_DEALLOC(this%thirdOrd, this%onSiteElements, this%onSiteDipole)
-    @:SAFE_DEALLOC(this%dispersion, this%xlbomdIntegrator)
-    @:SAFE_DEALLOC(this%velocities, this%movedVelo, this%movedAccel, this%movedMass)
-    @:SAFE_DEALLOC(this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%h0, this%filling)
-    @:SAFE_DEALLOC(this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%HSqrReal, this%SSqrReal)
-    @:SAFE_DEALLOC(this%eigvecsReal, this%eigen)
-    @:SAFE_DEALLOC(this%groundDerivs, this%tripletDerivs, this%mixedDerivs, this%tripletStress)
-    @:SAFE_DEALLOC(this%mixedStress)
-    @:SAFE_DEALLOC(this%rhoSqrReal, this%qDepExtPot, this%derivs, this%chrgForces)
-    @:SAFE_DEALLOC(this%excitedDerivs, this%dipoleMoment)
-    @:SAFE_DEALLOC(this%coord0Fold, this%newCoords, this%orbitalL, this%occNatural, this%mu)
-    @:SAFE_DEALLOC(this%tunneling, this%ldos, this%current, this%leadCurrents, this%shiftPerLUp)
-    @:SAFE_DEALLOC(this%chargeUp)
-    @:SAFE_DEALLOC(this%regionLabelLDOS)
-    @:SAFE_DEALLOC(this%iAtInCentralRegion, this%energiesCasida)
-    @:SAFE_DEALLOC(this%reks)
 
   end subroutine destructProgramVariables
 

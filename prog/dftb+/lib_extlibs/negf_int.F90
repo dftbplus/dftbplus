@@ -1080,6 +1080,12 @@ contains
 
     integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR), target :: csrDens
+    type(z_CSR), pointer :: pCsrHam, pCsrOver
+
+    ! Workaround: intel18
+    ! Explicit pointer needed instead of using this%* directly as pointer argument in calls
+    pCsrHam => this%csrHam
+    pCsrOver => this%csrOver
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%groupComm)
@@ -1122,7 +1128,7 @@ contains
       call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(this%negf, iSCCIter, iS, iK, this%csrHam, this%csrOver, mu(:,iS),&
+      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS),&
           & DensMat=csrDens)
 
       ! NOTE:
@@ -1219,7 +1225,12 @@ contains
 
     integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR), target :: csrEDens
-    type(z_CSR), pointer :: pCsrEDens
+    type(z_CSR), pointer :: pCsrEDens, pCsrHam, pCsrOver
+
+    ! Workaround: intel18
+    ! Explicit pointer needed instead of using this%* directly as pointer argument in calls
+    pCsrHam => this%csrHam
+    pCsrOver => this%csrOver
 
     pCsrEDens => csrEDens
 
@@ -1262,8 +1273,7 @@ contains
       call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(this%negf, iSCCIter, iS, iK, this%csrHam, this%csrOver, mu(:,iS),&
-          & EnMat=pCsrEDens)
+      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
       ! NOTE:
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
@@ -1383,6 +1393,12 @@ contains
     integer :: NumStates
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
+    type(z_CSR), pointer :: pCsrHam, pCsrOver
+
+    ! Workaround: intel18
+    ! Explicit pointer needed instead of using this%* directly as pointer argument in calls
+    pCsrHam => this%csrHam
+    pCsrOver => this%csrOver
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%groupComm)
@@ -1455,8 +1471,8 @@ contains
 
       end if
 
-      call negf_current(this%negf, this%csrHam, this%csrOver, iS, iK, kWeights(iK), tunnPMat,&
-          & currPMat, ldosPMat, currPVec)
+      call negf_current(this%negf, pCsrHam, pCsrOver, iS, iK, kWeights(iK), tunnPMat, currPMat,&
+          & ldosPMat, currPVec)
 
       if(.not.allocated(currLead)) then
         allocate(currLead(size(currPVec)), stat=err)
@@ -1891,10 +1907,15 @@ contains
     character(6) :: fmtstring
     integer :: iSCCiter
     type(z_CSR), target :: csrDens, csrEDens
-    type(z_CSR), pointer :: pCsrDens, pCsrEDens
+    type(z_CSR), pointer :: pCsrHam, pCsrOver, pCsrDens, pCsrEDens
     type(lnParams) :: params
     integer :: fdUnit
     logical :: tPrint
+
+    ! Workaround: intel18
+    ! Explicit pointer needed instead of using this%* directly as pointer argument in calls
+    pCsrHam => this%csrHam
+    pCsrOver => this%csrOver
 
     pCsrDens => csrDens
     pCsrEDens => csrEDens
@@ -1956,7 +1977,7 @@ contains
       call foldToCSR(this%csrOver, over, kPoints(:,iK), iAtomStart, iPair,&
           & neighbourList%iNeighbour, nNeighbour, img2CentCell, iCellVec, CellVec, orb)
 
-      call negf_density(this%negf, iSCCIter, iS, iK, this%csrHam, this%csrOver, chempot(:,iS),&
+      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS),&
           & DensMat=pCsrDens)
 
       ! Unless SGFs are not stored, read them from file
@@ -1964,7 +1985,7 @@ contains
          call set_readOldDMsgf(this%negf, READ_SGF)
       end if
 
-      call negf_density(this%negf, iSCCIter, iS, iK, this%csrHam, this%csrOver, chempot(:,iS),&
+      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS),&
           & EnMat=pCsrEDens)
 
     #:if WITH_MPI

@@ -135,7 +135,7 @@ contains
     type(fnode), pointer :: hsdTree
 
     !> Returns initialised input variables on exit
-    type(TInputData), intent(inout) :: input
+    type(TInputData), intent(out) :: input
 
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
