@@ -476,6 +476,7 @@ contains
         this%polDirs = [1, 2, 3]
       else
         this%polDirs = [inp%polDir]
+        this%currPolDir = inp%polDir
       end if
     end if
 

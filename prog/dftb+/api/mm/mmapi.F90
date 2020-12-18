@@ -661,7 +661,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    call initializeTimeProp(this%env)
+    call initializeTimeProp(this%env, this%main)
 
   end subroutine TDftbPlus_initializeTimeProp
 
@@ -674,7 +674,7 @@ contains
     !> present step of dynamics
     integer, intent(in) :: iStep
 
-    call doOneTdStep(this%env, iStep)
+    call doOneTdStep(this%env, this%main, iStep)
 
   end subroutine TDftbPlus_doOneTdStep
 
