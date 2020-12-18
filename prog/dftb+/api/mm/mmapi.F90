@@ -99,6 +99,10 @@ module dftbp_mmapi
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
     procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
+    !> Initialise electron and nuclear Ehrenfest dynamics
+    procedure :: initializeTimeProp => TDftbPlus_initializeTimeProp
+    !> Do one propagator step for electrons and, if enabled, nuclei
+    procedure :: doOneTdStep => TDftbPlus_doOneTdStep
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
@@ -650,5 +654,28 @@ contains
     call updateDataDependentOnSpeciesOrdering(this%env, this%main, inputSpecies)
 
   end subroutine TDftbPlus_setSpeciesAndDependents
+
+
+  !> Initialise propagatos for electron and nuclei dynamics
+  subroutine TDftbPlus_initializeTimeProp(this)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    call initializeTimeProp(this%env)
+
+  end subroutine TDftbPlus_initializeTimeProp
+
+
+  !> Propagate one time step for electron and nuclei dynamics
+  subroutine TDftbPlus_doOneTdStep(this, iStep)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> present step of dynamics
+    integer, intent(in) :: iStep
+
+    call doOneTdStep(this%env, iStep)
+
+  end subroutine TDftbPlus_doOneTdStep
 
 end module dftbp_mmapi
