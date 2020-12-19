@@ -66,6 +66,7 @@ int main()
 {
   DftbPlus calculator;
   DftbPlusInput input;
+  DftbPlusAtomList dummyAtomList;
 
   /* Coordinates in row major format, atomic units */
   double coords_si2[3 * NR_OF_ATOMS_SI2] = {
@@ -99,6 +100,8 @@ int main()
   int si2, ii, ij;
   int major, minor, patch;
 
+  dummyAtomList.pDftbPlusAtomList = NULL;
+
   dftbp_api(&major, &minor, &patch);
   printf("API version %d.%d.%d\n", major, minor, patch);
 
@@ -124,7 +127,7 @@ int main()
     } else {
       dftbp_get_input_from_file(&calculator, "dftb_in.H2O.hsd", &input);
     }
-    dftbp_process_input(&calculator, &input);
+    dftbp_process_input(&calculator, &input, &dummyAtomList);
 
     /* Check whether the calculator was initialized with the correct nr. of atoms */
     natom = dftbp_get_nr_atoms(&calculator);

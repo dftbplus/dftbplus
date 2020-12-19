@@ -131,27 +131,18 @@ module dftbp_hsdparser
   !> list label
   character(len=*), parameter :: attrList = "l"
 
+  #:set HSD_LINE_LENGTH = 1024
 
-  !> Length of a parsed line
-  integer, parameter :: lc = 1024
+  !> Length of a parsed line (adjust lineFormat below, if you change this number)
+  integer, parameter :: lc = ${HSD_LINE_LENGTH}$
 
+  !> Format string to read in one parse line (field length must correspond to lc above)
+  character(len=*), parameter :: lineFormat = "(A${HSD_LINE_LENGTH}$)"
 
   !> Maximal record lenght on output in characters (bytes).
   !> If text nodes bigger than that occur runtime error can be expected.
   integer, parameter :: MAXRECL = 1024 * 1024
 
-
-  !> Name of the root tag
-  character(len=lc) :: rootName
-
-
-  !> Pointer to the top of the currently processed document
-  !> (modified only in parseHSD and replaceTreeFromFile)
-  type(fnode), pointer :: myDoc
-
-
-  !> Format of the input line
-  character(len=lc) :: lineFormat = ""
 
   public :: parseHSD, dumpHSD, newline
   public :: getNodeHSDName, getHSDPath
@@ -202,7 +193,7 @@ contains
     type(fnode), pointer :: rootNode, dummy
     logical :: tFinished
     integer :: curLine
-    character(len=lc) :: residual, curFile
+    character(len=lc) :: rootName, residual, curFile
 
     if (present(file)) then
       curFile = file
@@ -210,20 +201,15 @@ contains
       curFile = "???"
     end if
 
-    if (len_trim(lineFormat) == 0) then
-      lineFormat = "(A" // i2c(lc) // ")"
-    end if
     rootName = tolower(initRootName(:min(lc, len(initRootName))))
-    myDoc => createDocumentNode()
+    xmlDoc => createDocumentNode()
     rootNode => createElement(trim(rootName))
-    dummy => appendChild(myDoc, rootNode)
+    dummy => appendChild(xmlDoc, rootNode)
     curLine = 0
     residual = ""
     tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
         &0, curLine, &
         &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
-    xmlDoc => myDoc
-    myDoc => null()
 
   end subroutine parseHSD_opened
 
@@ -291,7 +277,7 @@ contains
         strLine = adjustl(residual)
         residual = ""
       else
-        read (fd, trim(lineFormat), iostat=iostat) strLine
+        read (fd, lineFormat, iostat=iostat) strLine
         curLine = curLine + 1
         call convertWhitespaces(strLine)
         strLine = adjustl(strLine)
@@ -676,36 +662,6 @@ contains
     call error(msgArray)
 
   end subroutine parsingError
-
-
-  !> Replaces the tree
-  !>
-  !> The solution with access to a global module variable is not very
-  !> elegant, but it saves the deep cloning of the parsed document.
-  subroutine replaceTreeFromFile(curNode, file)
-
-    !> Node, which should contained the parsed children from file
-    type(fnode), pointer :: curNode
-
-    !> File to parse
-    character(len=*), intent(in) :: file
-
-    type(fnode), pointer :: newDoc, rootNode
-
-    newDoc => parsefile(file)
-    call removeSpace(newDoc)
-    call normalize(newDoc)
-    rootNode => getLastChildByName(newDoc, trim(rootName))
-    if (.not. associated(rootNode)) then
-      call parsingError("File '" // file // "' does not contain '" // trim(rootName) // "' node.",&
-          & file, -1)
-    else
-      call destroyNode(myDoc)
-      myDoc => newDoc
-      curNode => rootNode
-    end if
-
-  end subroutine replaceTreeFromFile
 
 
   !> Dumps a HSD tree in a file.

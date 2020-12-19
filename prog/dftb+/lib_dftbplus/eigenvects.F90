@@ -10,16 +10,13 @@
 !> Module to wrap around the process of converting from a Hamiltonian and overlap in sparse form
 !> into eigenvectors
 module dftbp_eigenvects
+  use dftbp_environment, only : TEnvironment
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_eigensolver
   use dftbp_message
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
-#:endif
-#:if WITH_GPU
-  use dftbp_gpuinfo, only: ngpus
-  use magma
 #:endif
   use dftbp_elsiiface
   use dftbp_parallelks
@@ -51,7 +48,10 @@ contains
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
   !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
-  subroutine diagDenseRealMtx(electronicSolver, jobz, HSqrReal, SSqrReal, eigen)
+  subroutine diagDenseRealMtx(env, electronicSolver, jobz, HSqrReal, SSqrReal, eigen)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -83,7 +83,7 @@ contains
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%magma_gvd)
   #:if WITH_GPU
-      call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)
+      call gpu_gvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
   #:else
       call error("This binary is compiled without GPU support")
   #:endif
@@ -97,8 +97,11 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
   !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
   !> effect of lapack)
-  subroutine diagDenseComplexMtx(electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+  subroutine diagDenseComplexMtx(env, electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen)
 
+    !> Environment
+    type(TEnvironment), intent(in) :: env
+    
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
@@ -129,7 +132,7 @@ contains
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%magma_gvd)
   #:if WITH_GPU
-      call gpu_gvd(ngpus,HSqrCplx,SSqrCplx,eigen,'L',jobz)
+      call gpu_gvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
   #:else
       call error("This binary is compiled without GPU support")
   #:endif

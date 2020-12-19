@@ -293,9 +293,6 @@ module dftbp_timeprop
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
 
-  !> Used to return runtime diagnostics
-  character(len=120) :: error_string
-
 contains
 
   !> Initialisation of input variables
@@ -1111,7 +1108,7 @@ contains
         call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
         if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-          call updateBasisMatrices(this, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
+          call updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
         end if
 
         call getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
@@ -2505,6 +2502,8 @@ contains
     logical, intent(in) :: tAsciiFile
 
     integer :: fd, ii, jj, kk, iErr
+    character(len=120) :: error_string
+
 
     if (tAsciiFile) then
       open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
@@ -2594,6 +2593,7 @@ contains
     integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
     real(dp) :: deltaT
     logical :: tExist
+    character(len=120) :: error_string
 
     if (tAsciiFile) then
       inquire(file=trim(fileName)//'.dat', exist=tExist)
@@ -2877,9 +2877,13 @@ contains
 
   ! updates Eiginv and EiginvAdj if nuclear dynamics is done
   ! important to call after H1 has been updated with new charges and before D is included in H1
-  subroutine updateBasisMatrices(this, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
+  subroutine updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -2912,7 +2916,7 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       !check if this works with both complex and real
       T1(:,:) = H1(:,:,iKS)
-      call diagDenseMtx(electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen)
+      call diagDenseMtx(env, electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen)
       if (this%tRealHS) then
         T2(:,:) = real(T1, dp)
         call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), T2)
