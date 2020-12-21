@@ -7,6 +7,7 @@
 
 program test_timeprop
   use, intrinsic :: iso_fortran_env, only : output_unit
+  use dftbp_constants, only : AA__Bohr
   use dftbplus
   ! Only needed for the internal test system
   !use testhelpers, only : writeAutotestTag
@@ -15,6 +16,7 @@ program test_timeprop
   integer, parameter :: dp = kind(1.0d0)
 
   integer, parameter :: nAtom = 12
+  integer, parameter :: nOrbs = 30
 
   ! H2O coordinates (atomic units)
   real(dp), parameter :: initialCoords(3, nAtom) = reshape([&
@@ -37,26 +39,23 @@ program test_timeprop
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
-  real(dp) :: coords(3, nAtom), merminEnergy
+  real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
+  real(dp) :: force(3, nAtom), occ(nOrbs), lastBondPopul
   real(dp), parameter :: timestep = 0.2_dp
   real(dp), parameter :: fstrength = 0.001_dp
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
   type(fnode), pointer :: pPerturb, pKick
 
   character(:), allocatable :: DftbVersion
-  integer :: major, minor, patch, istep
-  integer, parameter :: nsteps = 2000
+  integer :: major, minor, patch, istep, ii
+  integer, parameter :: nsteps = 200
 
-  !integer :: devNull
 
   call getDftbPlusBuild(DftbVersion)
   write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
   call getDftbPlusApi(major, minor, patch)
   write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-  ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
-  !open(newunit=devNull, file="/dev/null", action="write")
-  !call TDftbPlus_init(dftbp, outputUnit=devNull)
   call TDftbPlus_init(dftbp)
 
   call dftbp%getEmptyInput(input)
@@ -75,9 +74,6 @@ program test_timeprop
   call setChildValue(pMaxAng, "C", "p")
   call setChildValue(pMaxAng, "H", "s")
   
-  ! get the SK data
-  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
-  ! be downloaded with the utils/get_opt_externals script
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "./")
@@ -101,7 +97,7 @@ program test_timeprop
   call dftbp%setupCalculator(input)
 
   ! Replace coordinates
-  coords(:,:) = initialCoords
+  coords(:,:) = initialCoords*AA__Bohr
   call dftbp%setGeometry(coords)
 
   ! get ground state
@@ -110,10 +106,17 @@ program test_timeprop
   call dftbp%initializeTimeProp()
 
   do istep = 1, nsteps
-    call dftbp%doOneTdStep(istep)
+    call dftbp%doOneTdStep(istep, dipole, energy, atomNetCharges,&
+      & coords, force, occ, lastBondPopul)
   end do 
   
-  print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
+  print "(A,F15.10)", 'Final Total Energy:', energy
+  print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
+  print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
+  print "(A,100F15.10)", 'Final coordinates:', (coords(:,ii)/AA__Bohr, ii=1,nAtom)
+  print "(A,100F15.10)", 'Final forces:', force
+  print "(A,F15.10)", 'Final bond populations:', lastBondPopul
+
 
   call TDftbPlus_destruct(dftbp)
 

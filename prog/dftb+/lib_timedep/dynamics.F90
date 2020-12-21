@@ -239,21 +239,19 @@ module dftbp_timeprop
     complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
     complex(dp), allocatable :: trho(:,:,:)
     complex(dp), allocatable :: trhoOld(:,:,:)
-    real(dp), allocatable :: qq(:,:,:), deltaQ(:,:)
-    real(dp), allocatable :: dipole(:,:), chargePerShell(:,:,:)
-    real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
+    real(dp), allocatable :: qq(:,:,:)
+    real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:), chargePerShell(:,:,:)
     complex(dp), allocatable :: H1LC(:,:), deltaRho(:,:,:)
-    real(dp), allocatable :: coordNew(:,:), totalForce(:,:)
+    real(dp), allocatable :: coordNew(:,:)
     real(dp), allocatable :: movedAccel(:,:)
     real(dp), allocatable :: qBlock(:,:,:,:), qNetAtom(:)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
-    real(dp), allocatable :: bondWork(:, :), occ(:)
-    real(dp) :: time, startTime, timeElec, energyKin, lastBondPopul
+    real(dp), allocatable :: bondWork(:, :)
+    real(dp) :: time, startTime, timeElec, energyKin
     integer, allocatable :: populDat(:)
     integer :: dipoleDat, qDat, energyDat
     integer :: forceDat, coorDat, fdBondPopul, fdBondEnergy
     type(TPotentials) :: potential
-    type(TEnergies) :: energy
 
     !> count of the number of times dynamics has been initialised
     integer :: nDynamicsInit = 0
@@ -262,6 +260,9 @@ module dftbp_timeprop
     integer :: iCall
 
     logical, public :: tPropagatorsInitialized = .false.
+    real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
+    real(dp), public :: lastBondPopul
+    type(TEnergies), public :: energy
 
   end type TElecDynamics
 
@@ -519,7 +520,6 @@ contains
       this%movedMass(:,:) = spread(mass(this%indMovedAtom), 1, 3)
 
       allocate(this%coordNew(3, nAtom))
-      allocate(this%totalForce(3, nAtom))
       allocate(this%movedAccel(3, this%nMovedAtom))
 
       allocate(this%pThermostat)
@@ -3534,18 +3534,22 @@ contains
     this%rCellVec = rCellVec
     this%cellVec = cellVec
 
+    allocate(this%trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(this%trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
-    allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
     allocate(this%qq(orb%mOrb, this%nAtom, this%nSpin))
     allocate(this%deltaQ(this%nAtom,this%nSpin))
     allocate(this%dipole(3,this%nSpin))
     allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
+
     allocate(this%occ(this%nOrbs))
-    allocate(this%trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
-    allocate(this%trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
+    allocate(this%totalForce(3, this%nAtom))
     this%RdotSprime(:,:) = 0.0_dp
+    this%totalForce(:,:) = 0.0_dp
+    this%occ(:) = 0.0_dp
 
     if (this%tReadRestart) then
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
@@ -3915,6 +3919,7 @@ contains
     deallocate(this%dipole)
     deallocate(this%chargePerShell)
     deallocate(this%occ)
+    deallocate(this%totalForce)
     deallocate(this%trho)
     deallocate(this%trhoOld)
 

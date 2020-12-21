@@ -667,14 +667,38 @@ contains
 
 
   !> Propagate one time step for electron and nuclei dynamics
-  subroutine TDftbPlus_doOneTdStep(this, iStep)
+  subroutine TDftbPlus_doOneTdStep(this, iStep, dipole, energy, atomNetCharges,&
+      & coord, force, occ, lastBondPopul)
+
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> present step of dynamics
     integer, intent(in) :: iStep
 
-    call doOneTdStep(this%env, this%main, iStep)
+    !> Dipole moment
+    real(dp), intent(out) :: dipole(:,:)
+
+    !> data type for energy components and total
+    real(dp), intent(out) :: energy
+
+    !> Negative gross charge
+    real(dp), intent(out) :: atomNetCharges(:,:)
+
+    !> atomic coordinates
+    real(dp), intent(out) :: coord(:,:)
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: force(:,:)
+
+    !> molecular orbital projected populations
+    real(dp), intent(out) :: occ(:)
+
+    !> Last bond population in the run
+    real(dp), intent(out) :: lastBondPopul
+
+    call doOneTdStep(this%env, this%main, iStep, dipole, energy, atomNetCharges,&
+      & coord, force, occ, lastBondPopul)
 
   end subroutine TDftbPlus_doOneTdStep
 

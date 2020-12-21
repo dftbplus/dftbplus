@@ -433,7 +433,8 @@ contains
 
   !> After calling initializeTimeProp, this subroutine performs one timestep of
   !> electron and nuclear (if IonDynamics enabled) dynamics.
-  subroutine doOneTdStep(env, main, iStep)
+  subroutine doOneTdStep(env, main, iStep, dipole, energy, atomNetCharges,&
+      & coordOut, force, occ, lastBondPopul)
 
     !> dftb+ environment
     type(TEnvironment), intent(inout) :: env
@@ -444,6 +445,27 @@ contains
     !> present step of dynamics
     integer, intent(in) :: iStep
 
+    !> Dipole moment
+    real(dp), intent(out) :: dipole(:,:)
+
+    !> total energy
+    real(dp), intent(out) :: energy
+
+    !> Negative gross charge
+    real(dp), intent(out) :: atomNetCharges(:,:)
+
+    !> atomic coordinates
+    real(dp), intent(out) :: coordOut(:,:)
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: force(:,:)
+
+    !> molecular orbital projected populations
+    real(dp), intent(out) :: occ(:)
+
+    !> Last bond population in the run
+    real(dp), intent(out) :: lastBondPopul
+
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
@@ -452,6 +474,14 @@ contains
            & main%UJ, main%nUJ, main%iUJ, main%niUJ, main%onSiteElements, main%refExtPot, main%solvation,&
            & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
            & main%electronicSolver, main%qDepExtPot)
+
+      dipole(:,:) = main%electronDynamics%dipole
+      energy = main%electronDynamics%energy%Etotal
+      atomNetCharges(:,:) = main%electronDynamics%deltaQ
+      coordOut(:,:) = main%coord0
+      force(:,:) = main%electronDynamics%totalForce
+      occ(:) = main%electronDynamics%occ
+      lastBondPopul = main%electronDynamics%lastBondPopul
     else
       call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
           & first.")
