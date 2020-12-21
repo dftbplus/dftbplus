@@ -87,7 +87,7 @@ jobs:
 
     - name: Configure build
       run: >-
-        cmake -B _build -G Ninja
+        cmake -B ${BUILD_DIR} -G Ninja
         -DCMAKE_INSTALL_PREFIX=${PWD}/_install
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
@@ -115,3 +115,62 @@ jobs:
       run: >-
         PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
         ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
+
+  # Test MinGW native compilation
+  mingw-build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { msystem: MINGW64, arch: x86_64 },
+          { msystem: MINGW32, arch: i686   }
+        ]
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.msystem }}
+        update: false
+        install: >-
+          git
+          mingw-w64-${{ matrix.arch }}-gcc-fortran
+          mingw-w64-${{ matrix.arch }}-openblas
+          mingw-w64-${{ matrix.arch }}-lapack
+          mingw-w64-${{ matrix.arch }}-python
+          mingw-w64-${{ matrix.arch }}-python-pip
+          mingw-w64-${{ matrix.arch }}-cmake
+          mingw-w64-${{ matrix.arch }}-ninja
+
+    - name: Install fypp
+      run: pip install fypp
+
+    - name: Configure build
+      run: >-
+        cmake -B ${BUILD_DIR} -G Ninja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        -DFYPP=$(which fypp)
+        -DFYPP_FLAGS='-DTRAVIS'
+        -DLAPACK_LIBRARY='lapack;openblas'
+      env:
+        FC: gfortran
+        CC: gcc
+
+    - name: Build project
+      run: cmake --build ${BUILD_DIR}
+
+    # Cannot run regression tests due to symlink issue on Windows
+    #- name: Run regression tests
+    #  run: |
+    #    pushd ${BUILD_DIR}
+    #    ctest -j 2 --output-on-failure
+    #    popd
+
+    - name: Install project
+      run: |
+        cmake --install ${BUILD_DIR}
