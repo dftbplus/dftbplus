@@ -677,28 +677,28 @@ contains
     integer, intent(in) :: iStep
 
     !> Dipole moment
-    real(dp), intent(out) :: dipole(:,:)
+    real(dp), optional, intent(out) :: dipole(:,:)
 
     !> data type for energy components and total
-    real(dp), intent(out) :: energy
+    real(dp), optional, intent(out) :: energy
 
     !> Negative gross charge
-    real(dp), intent(out) :: atomNetCharges(:,:)
+    real(dp), optional, intent(out) :: atomNetCharges(:,:)
 
     !> atomic coordinates
-    real(dp), intent(out) :: coord(:,:)
+    real(dp), optional, intent(out) :: coord(:,:)
 
     !> forces (3, nAtom)
-    real(dp), intent(out) :: force(:,:)
+    real(dp), optional, intent(out) :: force(:,:)
 
     !> molecular orbital projected populations
-    real(dp), intent(out) :: occ(:)
+    real(dp), optional, intent(out) :: occ(:)
 
     !> Last bond population in the run
-    real(dp), intent(out) :: lastBondPopul
+    real(dp), optional, intent(out) :: lastBondPopul
 
-    call doOneTdStep(this%env, this%main, iStep, dipole, energy, atomNetCharges,&
-      & coord, force, occ, lastBondPopul)
+    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
+        & coordOut = coord, force=force, occ=occ, lastBondPopul=lastBondPopul)
 
   end subroutine TDftbPlus_doOneTdStep
 

@@ -446,25 +446,25 @@ contains
     integer, intent(in) :: iStep
 
     !> Dipole moment
-    real(dp), intent(out) :: dipole(:,:)
+    real(dp), optional, intent(out) :: dipole(:,:)
 
     !> total energy
-    real(dp), intent(out) :: energy
+    real(dp), optional, intent(out) :: energy
 
     !> Negative gross charge
-    real(dp), intent(out) :: atomNetCharges(:,:)
+    real(dp), optional, intent(out) :: atomNetCharges(:,:)
 
     !> atomic coordinates
-    real(dp), intent(out) :: coordOut(:,:)
+    real(dp), optional, intent(out) :: coordOut(:,:)
 
     !> forces (3, nAtom)
-    real(dp), intent(out) :: force(:,:)
+    real(dp), optional, intent(out) :: force(:,:)
 
     !> molecular orbital projected populations
-    real(dp), intent(out) :: occ(:)
+    real(dp), optional, intent(out) :: occ(:)
 
     !> Last bond population in the run
-    real(dp), intent(out) :: lastBondPopul
+    real(dp), optional, intent(out) :: lastBondPopul
 
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
@@ -475,13 +475,27 @@ contains
            & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
            & main%electronicSolver, main%qDepExtPot)
 
-      dipole(:,:) = main%electronDynamics%dipole
-      energy = main%electronDynamics%energy%Etotal
-      atomNetCharges(:,:) = main%electronDynamics%deltaQ
-      coordOut(:,:) = main%coord0
-      force(:,:) = main%electronDynamics%totalForce
-      occ(:) = main%electronDynamics%occ
-      lastBondPopul = main%electronDynamics%lastBondPopul
+      if (present(dipole)) then
+        dipole(:,:) = main%electronDynamics%dipole
+      end if
+      if (present(energy)) then
+        energy = main%electronDynamics%energy%Etotal
+      end if
+      if (present(atomNetCharges)) then
+        atomNetCharges(:,:) = main%electronDynamics%deltaQ
+      end if
+      if (present(coordOut)) then
+        coordOut(:,:) = main%coord0
+      end if
+      if (present(force)) then
+        force(:,:) = main%electronDynamics%totalForce
+      end if
+      if (present(occ)) then
+        occ(:) = main%electronDynamics%occ
+      end if
+      if (present(lastBondPopul)) then
+        lastBondPopul = main%electronDynamics%lastBondPopul
+      end if
     else
       call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
           & first.")

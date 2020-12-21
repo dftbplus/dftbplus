@@ -16,7 +16,6 @@ program test_timeprop
   integer, parameter :: dp = kind(1.0d0)
 
   integer, parameter :: nAtom = 12
-  integer, parameter :: nOrbs = 30
 
   ! H2O coordinates (atomic units)
   real(dp), parameter :: initialCoords(3, nAtom) = reshape([&
@@ -40,7 +39,7 @@ program test_timeprop
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: force(3, nAtom), occ(nOrbs), lastBondPopul
+  real(dp) :: force(3, nAtom), lastBondPopul
   real(dp), parameter :: timestep = 0.2_dp
   real(dp), parameter :: fstrength = 0.001_dp
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
@@ -106,8 +105,8 @@ program test_timeprop
   call dftbp%initializeTimeProp()
 
   do istep = 1, nsteps
-    call dftbp%doOneTdStep(istep, dipole, energy, atomNetCharges,&
-      & coords, force, occ, lastBondPopul)
+    call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
+      & coord=coords, force=force, lastBondPopul=lastBondPopul)
   end do 
   
   print "(A,F15.10)", 'Final Total Energy:', energy
