@@ -434,7 +434,7 @@ contains
   !> After calling initializeTimeProp, this subroutine performs one timestep of
   !> electron and nuclear (if IonDynamics enabled) dynamics.
   subroutine doOneTdStep(env, main, iStep, dipole, energy, atomNetCharges,&
-      & coordOut, force, occ, lastBondPopul)
+      & coordOut, force, occ)
 
     !> dftb+ environment
     type(TEnvironment), intent(inout) :: env
@@ -463,9 +463,6 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    !> Last bond population in the run
-    real(dp), optional, intent(out) :: lastBondPopul
-
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
@@ -479,7 +476,7 @@ contains
         dipole(:,:) = main%electronDynamics%dipole
       end if
       if (present(energy)) then
-        energy = main%electronDynamics%energy%Etotal
+        energy = main%electronDynamics%energy%eSCC
       end if
       if (present(atomNetCharges)) then
         atomNetCharges(:,:) = main%electronDynamics%deltaQ
@@ -492,9 +489,6 @@ contains
       end if
       if (present(occ)) then
         occ(:) = main%electronDynamics%occ
-      end if
-      if (present(lastBondPopul)) then
-        lastBondPopul = main%electronDynamics%lastBondPopul
       end if
     else
       call error("Propagators for dynamics not initialize, please call initializeTimeProp()&

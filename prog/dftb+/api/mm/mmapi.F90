@@ -668,7 +668,7 @@ contains
 
   !> Propagate one time step for electron and nuclei dynamics
   subroutine TDftbPlus_doOneTdStep(this, iStep, dipole, energy, atomNetCharges,&
-      & coord, force, occ, lastBondPopul)
+      & coord, force, occ)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -694,11 +694,8 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    !> Last bond population in the run
-    real(dp), optional, intent(out) :: lastBondPopul
-
     call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-        & coordOut = coord, force=force, occ=occ, lastBondPopul=lastBondPopul)
+        & coordOut = coord, force=force, occ=occ)
 
   end subroutine TDftbPlus_doOneTdStep
 

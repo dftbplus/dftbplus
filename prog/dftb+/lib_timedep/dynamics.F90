@@ -247,7 +247,7 @@ module dftbp_timeprop
     real(dp), allocatable :: qBlock(:,:,:,:), qNetAtom(:)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp), allocatable :: bondWork(:, :)
-    real(dp) :: time, startTime, timeElec, energyKin
+    real(dp) :: time, startTime, timeElec, energyKin, lastBondPopul
     integer, allocatable :: populDat(:)
     integer :: dipoleDat, qDat, energyDat
     integer :: forceDat, coorDat, fdBondPopul, fdBondEnergy
@@ -261,7 +261,6 @@ module dftbp_timeprop
 
     logical, public :: tPropagatorsInitialized = .false.
     real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
-    real(dp), public :: lastBondPopul
     type(TEnergies), public :: energy
 
   end type TElecDynamics

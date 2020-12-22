@@ -7,10 +7,10 @@
 
 program test_timeprop
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbp_constants, only : AA__Bohr
+  use dftbp_constants, only : AA__Bohr, V_m__au
   use dftbplus
   ! Only needed for the internal test system
-  !use testhelpers, only : writeAutotestTag
+  use testhelpers, only : writeAutotestTag
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -35,19 +35,20 @@ program test_timeprop
   ! H2O atom types
   integer, parameter :: species(nAtom) = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]
 
+  real(dp), parameter :: timestep = 0.2_dp
+  real(dp), parameter :: fstrength = 0.001_dp
+  integer, parameter :: nsteps = 1000
+
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: force(3, nAtom), lastBondPopul
-  real(dp), parameter :: timestep = 0.2_dp
-  real(dp), parameter :: fstrength = 0.001_dp
+  real(dp) :: force(3, nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
   type(fnode), pointer :: pPerturb, pKick
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch, istep, ii
-  integer, parameter :: nsteps = 200
 
 
   call getDftbPlusBuild(DftbVersion)
@@ -83,7 +84,7 @@ program test_timeprop
   call setChild(pRoot, "ElectronDynamics", pElecDyn)
   call setChildValue(pElecDyn, "Steps", nsteps)
   call setChildValue(pElecDyn, "TimeStep", timestep)
-  call setChildValue(pElecDyn, "FieldStrength", fstrength)
+  call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au)
   call setChild(pElecDyn, "Perturbation", pPerturb)
   call setChild(pPerturb, "Kick", pKick)
   call setChildValue(pKick, "PolarizationDirection", "z")
@@ -104,23 +105,17 @@ program test_timeprop
   
   call dftbp%initializeTimeProp()
 
-  do istep = 1, nsteps
-    call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-      & coord=coords, force=force, lastBondPopul=lastBondPopul)
+  do istep = 0, nsteps
+    call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
   end do 
-  
-  print "(A,F15.10)", 'Final Total Energy:', energy
+
+  print "(A,F15.10)", 'Final SCC Energy:', energy
   print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
   print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
-  print "(A,100F15.10)", 'Final coordinates:', (coords(:,ii)/AA__Bohr, ii=1,nAtom)
-  print "(A,100F15.10)", 'Final forces:', force
-  print "(A,F15.10)", 'Final bond populations:', lastBondPopul
-
 
   call TDftbPlus_destruct(dftbp)
 
   ! Write file for internal test system
-  !call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-  !    & extChargeGradients=extChargeGrads)
+  call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges)
 
 end program test_timeprop
