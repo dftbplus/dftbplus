@@ -200,9 +200,8 @@ module dftbp_timeprop
   !> Data type for electronic dynamics internal settings
   type TElecDynamics
     private
-    real(dp) :: field, dt, omega, time0, time1
+    real(dp) :: field, dt, omega, time0, time1, phase
     complex(dp) :: fieldDir(3)
-    real(dp), allocatable :: tdFunction(:, :), phase
     integer :: nSteps, writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
     logical :: tdWriteExtras
@@ -262,6 +261,7 @@ module dftbp_timeprop
     logical, public :: tPropagatorsInitialized = .false.
     real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
     type(TEnergies), public :: energy
+    real(dp), allocatable, public :: tdFunction(:, :)
 
   end type TElecDynamics
 

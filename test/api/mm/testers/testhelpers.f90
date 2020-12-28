@@ -20,7 +20,7 @@ contains
 
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges)
+      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -45,6 +45,12 @@ contains
 
     !> Time-dependent negative gross charge
     real(dp), optional, intent(in) :: tdCharges(:,:)
+
+    !> Time-dependent coordinates in Ehrenfest dynamics
+    real(dp), optional, intent(in) :: tdCoords(:,:)
+
+    !> Time-dependent Ehrenfest forces
+    real(dp), optional, intent(in) :: tdForces(:,:)
 
     type(TTaggedWriter) :: taggedWriter
     integer :: autotestTag
@@ -75,6 +81,12 @@ contains
     end if
     if (present(tdCharges)) then
       call taggedWriter%write(autotestTag, tagLabels%tdcharges, tdCharges)
+    end if
+    if (present(tdCoords)) then
+      call taggedWriter%write(autotestTag, tagLabels%ehrencoords, tdCoords)
+    end if
+    if (present(tdForces)) then
+      call taggedWriter%write(autotestTag, tagLabels%ehrenforces, tdForces)
     end if
 
     close(autotestTag)

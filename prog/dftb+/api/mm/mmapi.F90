@@ -103,6 +103,8 @@ module dftbp_mmapi
     procedure :: initializeTimeProp => TDftbPlus_initializeTimeProp
     !> Do one propagator step for electrons and, if enabled, nuclei
     procedure :: doOneTdStep => TDftbPlus_doOneTdStep
+    !> Set electric field for current propagation step of electrons and nuclei
+    procedure :: setTdElectricField => TDftbPlus_setTdElectricField
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
@@ -698,5 +700,22 @@ contains
         & coordOut = coord, force=force, occ=occ)
 
   end subroutine TDftbPlus_doOneTdStep
+
+
+  !> sets electric field for td propagation
+  subroutine TDftbPlus_setTdElectricField(this, iStep, field)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> present step of dynamics
+    integer, intent(in) :: iStep
+
+    ! electric field components
+    real(dp), intent(in) :: field(3)
+
+    call setTdElectricField(iStep, field)
+
+  end subroutine TDftbPlus_setTdElectricField
 
 end module dftbp_mmapi

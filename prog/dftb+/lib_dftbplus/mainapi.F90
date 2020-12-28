@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField
 
 
 contains
@@ -496,6 +496,20 @@ contains
     end if
 
   end subroutine doOneTdStep
+
+
+  !> sets electric field for td propagation
+  subroutine setTdElectricField(iStep, field)
+
+    !> present step of dynamics
+    integer, intent(in) :: iStep
+
+    ! electric field components
+    real(dp), intent(in) :: field(3)
+
+    electronDynamics%tdFunction(:, iStep) = field
+
+  end subroutine setTdElectricField
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
