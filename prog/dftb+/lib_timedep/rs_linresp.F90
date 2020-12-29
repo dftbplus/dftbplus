@@ -66,8 +66,6 @@ module dftbp_rs_linearresponse
   !> Maximal allowed iteration in the ARPACK solver.
   integer, parameter :: MAX_AR_ITER = 300
 
-  character(lc) :: tmpStr
-
   !> Communication with ARPACK for progress information
   integer :: ndigit
   integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
@@ -827,6 +825,7 @@ contains
 
     !> aux variables
     integer :: mu, nu
+    character(lc) :: tmpStr
 
     ! For now, spin-polarized calculation not supported
     tSpin = .false.

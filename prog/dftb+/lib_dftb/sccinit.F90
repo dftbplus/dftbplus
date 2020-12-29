@@ -21,9 +21,6 @@ module dftbp_sccinit
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
   public :: initQFromUsrChrg
 
-  !> Used to return runtime diagnostics
-  character(len=120) :: error_string
-
   !> version number for restart format, please increment if you change the interface.
   integer, parameter :: restartFormat = 4
 
@@ -233,6 +230,8 @@ contains
     !> requested to be re-loaded
     logical :: tBlock, tiBlock, tRho
 
+    character(len=120) :: error_string
+
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
@@ -438,6 +437,8 @@ contains
 
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(in), allocatable :: deltaRhoIn(:)
+
+    character(len=120) :: error_string
 
     integer :: nAtom, nOrb, nSpin
     integer :: iAtom, iOrb, iSpin, ii

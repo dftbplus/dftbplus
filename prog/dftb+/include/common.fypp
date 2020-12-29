@@ -72,12 +72,4 @@
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
 #:enddef
 
-
-#! Macro for automated deallocations
-#:def SAFE_DEALLOC(*args)
-  #:for arg in args
-    if (allocated(${arg}$)) deallocate(${arg}$)
-  #:endfor
-#:enddef
-
 #:endmute

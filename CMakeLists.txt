@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "20.2")
+set(DFTBPLUS_VERSION "20.2.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -180,7 +180,7 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "1d841660559e3915c1a3027244247654967144a3")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "1b31cac15f0633d2f002c45b53a3766df50cc87f")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
@@ -192,7 +192,7 @@ add_subdirectory(external/mudpack)
 # Add internal components
 #
 add_subdirectory(prog)
-#add_subdirectory(tools)
+add_subdirectory(tools)
 
 
 #

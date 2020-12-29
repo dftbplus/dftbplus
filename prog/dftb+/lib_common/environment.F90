@@ -12,12 +12,19 @@ module dftbp_environment
   use dftbp_globalenv, only : shutdown, stdOut
   use dftbp_timerarray
   use dftbp_fileregistry
+
 #:if WITH_MPI
   use dftbp_mpienv
 #:endif
+
 #:if WITH_SCALAPACK
   use dftbp_blacsenv
 #:endif
+
+#:if WITH_GPU
+  use dftbp_gpuenv
+#:endif
+
   implicit none
   private
 
@@ -48,9 +55,15 @@ module dftbp_environment
     !> Global mpi settings
     type(TMpiEnv), public :: mpi
   #:endif
+
   #:if WITH_SCALAPACK
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
+  #:endif
+
+  #:if WITH_GPU
+    !> Global GPU settings
+    type(TGpuEnv), public :: gpu
   #:endif
 
     !> Is this calculation called by the API?
@@ -60,11 +73,17 @@ module dftbp_environment
     procedure :: destruct => TEnvironment_destruct
     procedure :: shutdown => TEnvironment_shutdown
     procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
+
   #:if WITH_MPI
     procedure :: initMpi => TEnvironment_initMpi
   #:endif
+
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
+  #:endif
+
+  #:if WITH_GPU
+    procedure :: initGpu => TEnvironment_initGpu
   #:endif
 
   end type TEnvironment
@@ -155,8 +174,8 @@ contains
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-    
-  
+
+
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -240,6 +259,21 @@ contains
     call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
 
   end subroutine TEnvironment_initBlacs
+
+#:endif
+
+
+#:if WITH_GPU
+
+  !> Initialize GPU environment
+  subroutine TEnvironment_initGpu(this)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    call TGpuEnv_init(this%gpu)
+
+  end subroutine TEnvironment_initGpu
 
 #:endif
 
