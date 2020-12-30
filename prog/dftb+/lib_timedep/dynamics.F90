@@ -200,9 +200,9 @@ module dftbp_timeprop
   !> Data type for electronic dynamics internal settings
   type TElecDynamics
     private
-    real(dp) :: field, dt, omega, time0, time1, phase
+    real(dp) :: field, omega, time0, time1, phase
     complex(dp) :: fieldDir(3)
-    integer :: nSteps, writeFreq, pertType, envType, spType
+    integer :: writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
     logical :: tdWriteExtras
     integer, allocatable :: species(:), polDirs(:), speciesAll(:)
@@ -259,9 +259,11 @@ module dftbp_timeprop
     integer :: iCall
 
     logical, public :: tPropagatorsInitialized = .false.
-    real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
     type(TEnergies), public :: energy
+    real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
     real(dp), allocatable, public :: tdFunction(:, :)
+    real(dp), public :: dt
+    integer, public :: nSteps
 
   end type TElecDynamics
 
@@ -465,7 +467,6 @@ contains
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
       norm = sqrt(dot_product(real(this%fieldDir, dp),real(this%fieldDir, dp)))
       this%fieldDir = this%fieldDir / norm
-      allocate(this%tdFunction(3, 0:this%nSteps))
       this%tEnvFromFile = (this%envType == envTypes%fromFile)
       this%indExcitedAtom = inp%indExcitedAtom
       this%nExcitedAtom = inp%nExcitedAtom
@@ -1238,6 +1239,9 @@ contains
     real(dp) :: tdfun(3)
     integer :: iStep, laserDat
 
+    allocate(this%tdFunction(3, 0:this%nSteps))
+    this%tdFunction(:,:) = 0.0_dp
+
     midPulse = (this%time0 + this%time1)/2.0_dp
     deltaT = this%time1 - this%time0
     angFreq = this%omega
@@ -1245,7 +1249,6 @@ contains
     if (this%tKickAndLaser) then
       E0 = this%laserField
     end if
-    this%tdFunction(:,:) = 0.0_dp
     if (this%tEnvFromFile) then
       E0 = 0.0_dp !this is to make sure we never sum the current field with the read from file
     end if

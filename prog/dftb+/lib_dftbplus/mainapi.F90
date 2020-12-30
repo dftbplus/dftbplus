@@ -406,7 +406,7 @@ contains
 
   !> After calculation of the ground state, this subroutine initializes the variables
   !> and the initial step of the propagators for electron and nuclear dynamics
-  subroutine initializeTimeProp(env, main)
+  subroutine initializeTimeProp(env, main, nSteps, dt)
 
     !> dftb+ environment
     type(TEnvironment), intent(inout) :: env
@@ -414,7 +414,15 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
+    !> total number of steps
+    integer, intent(in) :: nSteps
+
+    !> time step
+    real(dp), intent(in) :: dt
+
     if (allocated(main%electronDynamics)) then
+      main%electronDynamics%nSteps = nSteps
+      main%electronDynamics%dt = dt
       call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
           & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
           & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
@@ -499,7 +507,10 @@ contains
 
 
   !> sets electric field for td propagation
-  subroutine setTdElectricField(iStep, field)
+  subroutine setTdElectricField(main, iStep, field)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> present step of dynamics
     integer, intent(in) :: iStep
@@ -507,7 +518,7 @@ contains
     ! electric field components
     real(dp), intent(in) :: field(3)
 
-    electronDynamics%tdFunction(:, iStep) = field
+    main%electronDynamics%tdFunction(:, iStep) = field
 
   end subroutine setTdElectricField
 

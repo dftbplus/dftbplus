@@ -659,11 +659,17 @@ contains
 
 
   !> Initialise propagatos for electron and nuclei dynamics
-  subroutine TDftbPlus_initializeTimeProp(this)
+  subroutine TDftbPlus_initializeTimeProp(this, nSteps, dt)
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    call initializeTimeProp(this%env, this%main)
+    !> total number os steps
+    integer, intent(in) :: nSteps
+
+    !> time step
+    real(dp), intent(in) :: dt
+
+    call initializeTimeProp(this%env, this%main, nSteps, dt)
 
   end subroutine TDftbPlus_initializeTimeProp
 
@@ -714,7 +720,7 @@ contains
     ! electric field components
     real(dp), intent(in) :: field(3)
 
-    call setTdElectricField(iStep, field)
+    call setTdElectricField(this%main, iStep, field)
 
   end subroutine TDftbPlus_setTdElectricField
 
