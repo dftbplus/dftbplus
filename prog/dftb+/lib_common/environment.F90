@@ -66,11 +66,6 @@ module dftbp_environment
     type(TGpuEnv), public :: gpu
   #:endif
 
-  #:if WITH_MPI and WITH_TRANSPORT
-    !> Global libnegf settings
-    type(TNegfEnv), public :: mpinegf
-  #:endif
-
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
 
