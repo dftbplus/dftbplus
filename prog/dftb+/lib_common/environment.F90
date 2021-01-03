@@ -25,10 +25,6 @@ module dftbp_environment
   use dftbp_gpuenv
 #:endif
 
-#:if WITH_MPI and WITH_TRANSPORT
-  use dftbp_negfmpienv
-#:endif
-
   implicit none
   private
 
