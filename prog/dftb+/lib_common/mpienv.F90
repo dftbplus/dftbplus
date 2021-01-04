@@ -180,8 +180,7 @@ contains
 
     type(mpifx_comm) :: cartComm
 
-    call negf_setup_mpi_communicators(this%globalComm, this%nGroup, cartComm, this%groupComm,&
-        & this%interGropComm)
+    call negf_cart_init(this%globalComm, this%nGroup, cartComm, this%groupComm, this%interGropComm)
     if (this%globalComm%lead .neqv. cartComm%lead) then
       call error("Internal error: Lead process mismatch between Cartesian and global communicator")
     end if
