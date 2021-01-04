@@ -174,8 +174,8 @@ contains
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-
-
+    
+  
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.

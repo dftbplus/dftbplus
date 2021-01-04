@@ -11,7 +11,7 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
-  use libnegf, only : negf_mpi_init
+  use libnegf, only : negf_mpi_init, negf_cart_init
 #:endif
   use libnegf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
@@ -45,6 +45,9 @@ module negf_int
   private
 
   public :: TNegfInt, TNegfInt_init, TNegfInt_final
+  #:if WITH_MPI
+    public :: negf_cart_init
+  #:endif
 
 
   !> Contains data needed by the NEGF interface
@@ -56,6 +59,7 @@ module negf_int
 
     !> compressed sparse row hamiltonian
     type(z_CSR) :: csrHam
+    type(Z_CSR), pointer :: pCsrHam => null()
 
     !> compressed sparse row overlap
     type(z_CSR) :: csrOver
@@ -72,10 +76,8 @@ module negf_int
 
   end type TNegfInt
 
-
   !> Format for two values with units
   character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
 
 contains
 
@@ -2415,5 +2417,6 @@ contains
     !close(12)
 
   end subroutine orthogonalization_dev
+
 
 end module negf_int
