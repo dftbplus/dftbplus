@@ -659,17 +659,17 @@ contains
 
 
   !> Initialise propagatos for electron and nuclei dynamics
-  subroutine TDftbPlus_initializeTimeProp(this, nSteps, dt)
+  subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI)
     !> Instance
     class(TDftbPlus), intent(inout) :: this
-
-    !> total number os steps
-    integer, intent(in) :: nSteps
 
     !> time step
     real(dp), intent(in) :: dt
 
-    call initializeTimeProp(this%env, this%main, nSteps, dt)
+    !> field will be provided through the API?
+    logical, intent(in) :: tdFieldThroughAPI
+
+    call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI)
 
   end subroutine TDftbPlus_initializeTimeProp
 
@@ -709,18 +709,15 @@ contains
 
 
   !> sets electric field for td propagation
-  subroutine TDftbPlus_setTdElectricField(this, iStep, field)
+  subroutine TDftbPlus_setTdElectricField(this, field)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> present step of dynamics
-    integer, intent(in) :: iStep
-
     ! electric field components
     real(dp), intent(in) :: field(3)
 
-    call setTdElectricField(this%main, iStep, field)
+    call setTdElectricField(this%main, field)
 
   end subroutine TDftbPlus_setTdElectricField
 

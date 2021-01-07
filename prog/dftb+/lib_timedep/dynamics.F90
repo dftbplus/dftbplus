@@ -201,6 +201,7 @@ module dftbp_timeprop
   type TElecDynamics
     private
     real(dp) :: field, omega, time0, time1, phase
+    real(dp), allocatable :: tdFunction(:, :)
     complex(dp) :: fieldDir(3)
     integer :: writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
@@ -256,12 +257,14 @@ module dftbp_timeprop
     integer :: nDynamicsInit = 0
 
     !> Number of times this has been called
-    integer :: iCall
+    integer, public :: iCall
 
     logical, public :: tPropagatorsInitialized = .false.
+    logical, public :: tdFieldIsSet = .false.
+    logical, public :: tdFieldThroughAPI = .false.
     type(TEnergies), public :: energy
     real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
-    real(dp), allocatable, public :: tdFunction(:, :)
+    real(dp), public :: presentField(3)
     real(dp), public :: dt
     integer, public :: nSteps
 
@@ -1091,9 +1094,18 @@ contains
 
     ! Add time dependent field if necessary
     if (this%tLaser) then
+      if (.not. this%tdFieldThroughAPI) then
+        this%presentField(:) = this%tdFunction(:, iStep)
+      elseif (.not. this%tdFieldIsSet) then
+        if (iStep == 0) then
+          this%presentField(:) = 0.0_dp
+        else
+          call error("External field has not been set.")
+        end if
+      end if
       do iAtom = 1, this%nExcitedAtom
         iEatom = this%indExcitedAtom(iAtom)
-        potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%tdFunction(:, iStep))
+        potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%presentField)
       end do
       call total_shift(potential%extShell, potential%extAtom, orb, speciesAll)
       call total_shift(potential%extBlock, potential%extShell, orb, speciesAll)
@@ -3109,9 +3121,18 @@ contains
     end if
 
     if (this%tLaser) then
+      if (.not. this%tdFieldThroughAPI) then
+        this%presentField(:) = this%tdFunction(:, iStep)
+      elseif (.not. this%tdFieldIsSet) then
+        if (iStep == 0) then
+          this%presentField(:) = 0.0_dp
+        else
+          call error("External field has not been set.")
+        end if
+      end if
       do iDir = 1, 3
         derivs(iDir,:) = derivs(iDir,:)&
-            & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%TDFunction(iDir, iStep)
+            & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%presentField(iDir)
       end do
     end if
 
@@ -3573,7 +3594,7 @@ contains
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
-    if (this%tLaser) then
+    if (this%tLaser .and. .not. this%tdFieldThroughAPI) then
       call getTDFunction(this, this%startTime)
     end if
 

@@ -117,7 +117,7 @@ program test_ehrenfest
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
   
-  call dftbp%initializeTimeProp(nsteps, timestep)
+  call dftbp%initializeTimeProp(timestep, .true.)
 
   do istep = 0, nsteps
     ! calculate field at present timestep
@@ -128,7 +128,7 @@ program test_ehrenfest
       envelope = 0.0_dp
     end if
     field = fstrength * 1.0e10_dp * V_m__au * envelope * aimag(exp(imag*time*angFreq) * fielddir)
-    call dftbp%setTdElectricField(istep, field)
+    call dftbp%setTdElectricField(field)
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
          & coord=coords, force=force)
   end do 
