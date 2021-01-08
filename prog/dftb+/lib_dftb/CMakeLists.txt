@@ -1,6 +1,7 @@
 set(curdir "lib_dftb")
 
 set(sources-fpp
+  ${curdir}/blockpothelper.F90
   ${curdir}/bondpopulations.F90
   ${curdir}/boundarycond.F90
   ${curdir}/chargeconstr.F90

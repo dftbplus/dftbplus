@@ -20,10 +20,10 @@ module dftbp_dftbplusu
   implicit none
   private
 
-  public :: TDftbU_inp, TDftbU, TDftbU_init, plusUFunctionals, AppendBlock_reduce
+  public :: TDftbUInp, TDftbU, TDftbU_init, plusUFunctionals
 
   !> Input for DFTB+U calculation
-  type TDftbU_inp
+  type TDftbUInp
 
     !> list of U-J values for each species
     real(dp), allocatable :: UJ(:,:)
@@ -39,7 +39,7 @@ module dftbp_dftbplusu
 
     integer :: iFunctional
 
-  end type TDftbU_inp
+  end type TDftbUInp
 
 
   !> Type for DFTB+U
@@ -72,7 +72,7 @@ module dftbp_dftbplusu
     generic :: getDftbUShift => shift_U, shift_iU
 
     !> Expand charges from reduced vector
-    procedure :: Block_expand
+    procedure :: expandBlock
 
     !> Equivalence between orbitals
     procedure :: getOrbitalEquiv
@@ -81,7 +81,7 @@ module dftbp_dftbplusu
     procedure :: blockIndx
 
     !> Energy from +U
-    procedure :: E_DFTBU
+    procedure :: getEnergy
 
     !> Returns the name of the functional in use
     procedure :: funcName
@@ -119,7 +119,7 @@ contains
     type(TDftbU), intent(out) :: this
 
     !> Input for DFTB+U
-    type(TDftbU_inp), intent(inout) :: inp
+    type(TDftbUInp), intent(inout) :: inp
 
     integer :: iSp, jj
 
@@ -306,7 +306,7 @@ contains
   !> Calculates the energy contribution for the DFTB+U type functionals
   !>
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
-  subroutine E_dftbU(this, egy, qBlock, species, orb, qiBlock)
+  subroutine getEnergy(this, egy, qBlock, species, orb, qiBlock)
 
     !> Instance of DFTB+U calculation
     class(TDftbU), intent(in) :: this
@@ -426,7 +426,7 @@ contains
       end do
     end if
 
-  end subroutine E_dftbU
+  end subroutine getEnergy
 
 
   !> Returns the equivalence between the orbitals in the DFTB+U interactions
@@ -542,65 +542,8 @@ contains
   end subroutine blockIndx
 
 
-  !> Adds DFTB+U blocks onto end of a 1D vector of reduced charges
-  subroutine AppendBlock_reduce(input, equiv, orb, output, isSkew)
-
-    !> unpacked data
-    real(dp), intent(in) :: input(:,:,:,:)
-
-    !> equivalences
-    integer, intent(in) :: equiv(:,:,:,:)
-
-    !> Information about the orbitals and their angular momenta
-    type(TOrbitals), intent(in) :: orb
-
-    !> 1D array with appended data
-    real(dp), intent(inout) :: output(:)
-
-    !> is skew symmetry required
-    logical, optional, intent(in) :: isSkew
-
-    integer :: nAtom, nSpin
-    integer :: iS, iOrb1, iOrb2, iAt
-    logical :: tSkew
-
-    nAtom = size(input, dim=3)
-    nSpin = size(input, dim=4)
-    @:ASSERT(size(input, dim=1) == orb%mOrb)
-    @:ASSERT(size(input, dim=2) == orb%mOrb)
-    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
-
-    if (present(isSkew)) then
-      tSkew = isSkew
-    else
-      tSkew = .false.
-    end if
-
-    do iS = 1, nSpin
-      do iAt = 1, nAtom
-        do iOrb1 = 1, orb%nOrbAtom(iAt)
-          do iOrb2 = 1, orb%nOrbAtom(iAt)
-            if (equiv(iOrb1, iOrb2, iAt, iS) > 0) then
-              if (tSkew) then
-                output(equiv(iOrb1, iOrb2, iAt, iS)) = &
-                    & 0.5_dp*( input(iOrb1, iOrb2, iAt, iS) &
-                    &  - input(iOrb2, iOrb1, iAt, iS) )
-              else
-                output(equiv(iOrb1, iOrb2, iAt, iS)) = &
-                    & 0.5_dp*( input(iOrb1, iOrb2, iAt, iS) &
-                    &  + input(iOrb2, iOrb1, iAt, iS) )
-              end if
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine AppendBlock_reduce
-
-
   !> Extract DFTB+U blocks from the end of a 1D vector
-  subroutine Block_expand(this, input, blockEquiv, orb, output, species, orbEquiv, isSkew)
+  subroutine expandBlock(this, input, blockEquiv, orb, output, species, orbEquiv, isSkew)
 
     !> Instance of DFTB+U calculation
     class(TDftbU), intent(in) :: this
@@ -684,7 +627,7 @@ contains
       end do
     end do
 
-  end subroutine Block_expand
+  end subroutine expandBlock
 
 
   !> Returns name of current DFTB+U functional

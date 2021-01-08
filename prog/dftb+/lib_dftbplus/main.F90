@@ -3922,9 +3922,9 @@ contains
         end if
       else
         ! only a subset of blocks are covered in +U type operations
-        call dftbU%Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, orbEquiv=iEqOrbitals)
+        call dftbU%expandBlock(qRed, iEqBlockDftbu, orb, qBlock, species0, orbEquiv=iEqOrbitals)
         if (allocated(qiBlock)) then
-          call dftbU%Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, isSkew=.true.)
+          call dftbU%expandBlock(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, isSkew=.true.)
         end if
       end if
     end if

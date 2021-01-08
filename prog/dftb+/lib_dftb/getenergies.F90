@@ -207,9 +207,9 @@ contains
 
     if (allocated(dftbU)) then
       if (allocated(qiBlock)) then
-        call dftbU%E_DFTBU(energy%atomDftbu, qBlock, species, orb, qiBlock)
+        call dftbU%getEnergy(energy%atomDftbu, qBlock, species, orb, qiBlock)
       else
-        call dftbU%E_DFTBU(energy%atomDftbu, qBlock, species, orb)
+        call dftbU%getEnergy(energy%atomDftbu, qBlock, species, orb)
       end if
       energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion))
     end if

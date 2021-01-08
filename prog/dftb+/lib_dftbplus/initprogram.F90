@@ -72,7 +72,8 @@ module dftbp_initprogram
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftbplusu, only : TDftbU_inp, TDftbU, TDftbU_init, AppendBlock_reduce
+  use dftbp_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_blockpothelper, only : AppendBlock_reduce
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
@@ -1227,7 +1228,6 @@ contains
     if (allocated(input%ctrl%dftbU_inp)) then
       allocate(this%dftbU)
       call TDftbU_init(this%dftbU, input%ctrl%dftbU_inp)
-      deallocate(input%ctrl%dftbU_inp)
     end if
     this%tSpin = input%ctrl%tSpin
     this%nSpin = 1

@@ -14,7 +14,7 @@ module dftbp_inputdata
   use dftbp_accuracy
   use dftbp_typegeometry
   use dftbp_message
-  use dftbp_dftbplusu, only : TDftbU_inp
+  use dftbp_dftbplusu, only : TDftbUInp
   use dftbp_dispersions, only : TDispersionInp
   use dftbp_linresp, only : TLinrespini
   use dftbp_pprpa, only : TppRPAcal
@@ -360,7 +360,7 @@ module dftbp_inputdata
     real(dp), allocatable :: xi(:,:)
 
     !> DFTB+U input, if present
-    type(TDftbU_inp), allocatable :: dftbU_inp
+    type(TDftbUInp), allocatable :: dftbU_inp
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable :: onSiteElements(:,:,:,:)
