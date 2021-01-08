@@ -42,6 +42,7 @@ module dftbp_timeprop
   use dftbp_periodic
   use dftbp_velocityverlet
   use dftbp_nonscc
+  use dftbp_dftbplusu, only : TDftbU
   use dftbp_energytypes, only : TEnergies, TEnergies_init
   use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
@@ -543,9 +544,9 @@ contains
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, referenceN0, over, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
       & spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
-      & qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll,&
-      & onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
-      & electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
+      & taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -636,20 +637,8 @@ contains
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    !> DFTB+U functional (if used)
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
@@ -728,18 +717,16 @@ contains
         call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
             & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
-            & coordAll, onSiteElements, skHamCont, skOverCont, iCall, electronicSolver,&
-            & eigvecsCplx, taggedWriter, refExtPot)
+            & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
+            & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
         iCall = iCall + 1
       end do
     else
       call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
           & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
-          & coordAll, onSiteElements, skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx,&
-          & taggedWriter, refExtPot)
+          & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
+          & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
     end if
 
   end subroutine runDynamics
@@ -748,10 +735,9 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, eigvecsReal, ham, H0, q0, referenceN0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc,&
-      & UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
-      & onSiteElements, skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter,&
-      & refExtPot)
+      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -825,20 +811,8 @@ contains
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    !> DFTB+U functional (if used)
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
@@ -956,8 +930,8 @@ contains
     call initializeTDVariables(this, trho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
         & filling, orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock,&
-        & qNetAtom,UJ, onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul,&
-        & lastBondPopul, time)
+        & qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy,&
+        & fdBondPopul, lastBondPopul, time)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -980,9 +954,8 @@ contains
 
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
-        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion,&
-        & trho)
+        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
+        & deltaRho, H1LC, Ssqr, solvation, rangeSep, this%dispersion, trho)
 
     if (this%tForces) then
       totalForce(:,:) = 0.0_dp
@@ -1015,7 +988,7 @@ contains
     call getTDEnergy(this, energy, rhoPrim, trhoOld, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
         & energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
-        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     ! after calculating the TD function, set initial time to zero for probe simulations
     ! this is to properly calculate the dipole fourier transform after the simulation
@@ -1090,8 +1063,8 @@ contains
 
       call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
+          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU,&
+          & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep,&
           & this%dispersion,rho)
 
       if (this%tForces) then
@@ -1117,8 +1090,8 @@ contains
 
       call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
           & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-          & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, dftbU, xi,&
+          & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
       if ((mod(iStep, this%writeFreq) == 0)) then
         call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over,&
@@ -1191,8 +1164,8 @@ contains
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
-      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
+      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
+      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1266,20 +1239,8 @@ contains
     !> block (dual) atomic populations
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    !> DFTB+U functional (if used)
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
@@ -1312,7 +1273,7 @@ contains
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: T2(:,:)
     integer :: iAtom, iEatom, iSpin, iKS, iK
-    logical :: tDFTBU, tImHam
+    logical :: tImHam
 
     ! left over from Poisson shift upload from transport being messy
     real(dp), allocatable :: dummy(:,:)
@@ -1326,10 +1287,6 @@ contains
       call ud2qm(q0)
     end if
 
-    tDFTBU = .false.
-    if (size(UJ) > 0) then
-      tDFTBU = .true.
-    end if
     tImHam = .false. ! for the moment
 
     call resetExternalPotentials(refExtPot, potential)
@@ -1340,14 +1297,13 @@ contains
         & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
         & elstatTypes%gammaFunc, .false., .false., dummy, dispersion)
 
-    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
+    if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
       call ud2qm(qBlock)
     end if
 
-    if (size(UJ) /= 0) then
-      call addBlockChargePotentials(qBlock, qiBlock, tDftbU, .false., speciesAll, orb, nDftbUFunc,&
-          & UJ, nUJ, iUJ, niUJ, potential)
+    if (allocated(dftbU)) then
+      call addBlockChargePotentials(qBlock, qiBlock, dftbU, .false., speciesAll, orb, potential)
     end if
     if (allocated(onSiteElements)) then
       call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
@@ -1670,8 +1626,8 @@ contains
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
   subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
       & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
-      & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, dftbU, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1739,20 +1695,8 @@ contains
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    !> DFTB+U functional (if used)
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> Spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
@@ -1773,7 +1717,6 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
-    logical :: tDFTBU
     type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
@@ -1795,17 +1738,11 @@ contains
     end if
     call ud2qm(rhoPrim)
 
-    tDFTBU = .false.
-    if (size(UJ) > 0) then
-      tDFTBU = .true.
-    end if
-
     TS = 0.0_dp
     call calcEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
-        & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+        & dftbU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-        & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
-        & tFixEf, Ef, onSiteElements)
+        & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
@@ -1823,7 +1760,7 @@ contains
   !> Create all necessary matrices and instances for dynamics
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
       & filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-      & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, qNetAtom, UJ,&
+      & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, qNetAtom, isDftbU,&
       & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
 
     !> ElecDynamics instance
@@ -1907,8 +1844,8 @@ contains
     !> net (onsite only) atomic charges
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
+    !> Is this a DFTB+U calculation
+    logical, intent(in) :: isDftbU
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
@@ -2041,7 +1978,7 @@ contains
     call init(potential, orb, this%nAtom, this%nSpin)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
-    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
+    if (isDftbU .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
     end if
 

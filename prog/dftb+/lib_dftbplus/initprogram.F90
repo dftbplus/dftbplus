@@ -72,7 +72,8 @@ module dftbp_initprogram
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftbplusu
+  use dftbp_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
@@ -83,7 +84,6 @@ module dftbp_initprogram
   use dftbp_orbitalequiv
   use dftbp_orbitals
   use dftbp_commontypes
-  use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_timeprop
@@ -366,24 +366,8 @@ module dftbp_initprogram
     !> Spin orbit constants
     real(dp), allocatable :: xi(:,:)
 
-
-    !> is this a DFTB+U calculation?
-    logical :: tDFTBU
-
-    !> Choice of orbital functional
-    integer :: nDFTBUfunc
-
-    !> list of U-J for species
-    real(dp), allocatable :: UJ(:,:)
-
-    !> How many U-J for each species
-    integer, allocatable :: nUJ(:)
-
-    !> number of l-values of U-J for each block
-    integer, allocatable :: niUJ(:,:)
-
-    !> l-values of U-J for each block
-    integer, allocatable :: iUJ(:,:,:)
+    !> DFTB+U calculation, if relevant
+    type(TDftbU), allocatable :: dftbU
 
     !> electron temperature
     real(dp) :: tempElec
@@ -1241,7 +1225,10 @@ contains
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
     this%tSccCalc = input%ctrl%tScc
-    this%tDFTBU = input%ctrl%tDFTBU
+    if (allocated(input%ctrl%dftbUInp)) then
+      allocate(this%dftbU)
+      call TDftbU_init(this%dftbU, input%ctrl%dftbUInp)
+    end if
     this%tSpin = input%ctrl%tSpin
     this%nSpin = 1
     if (input%ctrl%reksInp%reksAlg /= reksTypes%noReks) then
@@ -1450,34 +1437,7 @@ contains
       this%onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
-    this%tMixBlockCharges = this%tDFTBU .or. allocated(this%onSiteElements)
-
-    ! DFTB+U parameters
-    if (this%tDFTBU) then
-      this%nDFTBUfunc = input%ctrl%DFTBUfunc
-      allocate(this%UJ(size(input%ctrl%UJ,dim=1),size(input%ctrl%UJ,dim=2)))
-      allocate(this%nUJ(size(input%ctrl%nUJ)))
-      allocate(this%niUJ(size(input%ctrl%niUJ,dim=1),size(input%ctrl%niUJ,dim=2)))
-      allocate(this%iUJ(size(input%ctrl%iUJ,dim=1), size(input%ctrl%iUJ,dim=2),&
-          & size(input%ctrl%iUJ,dim=3)))
-
-      this%UJ(:,:) = input%ctrl%UJ(:,:)
-      this%nUJ(:) = input%ctrl%nUJ(:)
-      this%niUJ(:,:) = input%ctrl%niUJ(:,:)
-      this%iUJ(:,:,:) = input%ctrl%iUJ(:,:,:)
-      do iSp = 1, this%nType
-        do jj = 1, this%nUJ(iSp)
-          if (this%niUJ(jj,iSp)>1) then
-            call heap_sort(this%iUJ(1:this%niUJ(jj,iSp),jj,iSp))
-          end if
-        end do
-      end do
-    else
-      allocate(this%UJ(0,0))
-      allocate(this%nUJ(0))
-      allocate(this%niUJ(0,0))
-      allocate(this%iUJ(0,0,0))
-    end if
+    this%tMixBlockCharges = allocated(this%dftbU) .or. allocated(this%onSiteElements)
 
     select case(this%hamiltonianType)
     case default
@@ -1687,7 +1647,7 @@ contains
     allocate(this%iCellVec(this%nAllAtom))
 
     ! Intialize Hamilton and overlap
-    this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. this%tDFTBU)
+    this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. allocated(this%dftbU))
     if (this%tSccCalc .and. .not.allocated(this%reks)) then
       allocate(this%chargePerShell(this%orb%mShell,this%nAtom,this%nSpin))
     else
@@ -2258,7 +2218,7 @@ contains
       end if
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
-          & this%tSpin, this%tHelical, this%tSpinOrbit, this%tDFTBU, this%tempElec, input)
+          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(this%nType))
@@ -2315,7 +2275,7 @@ contains
         call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
       end if
 
-    #:for VAR, ERR in [("this%tSpinOrbit","spin orbit coupling"), ("this%tDFTBU","DFTB+U/pSIC"),&
+    #:for VAR, ERR in [("this%tSpinOrbit","spin orbit coupling"), &
       & ("this%tSpin","spin polarised ground state"), ("this%t3rd","third order"),&
       & ("any(this%kPoint /= 0.0_dp)","non-gamma k-points"),&
       & ("this%tFixEf", "a fixed Fermi level"), ("this%tPoisson", "use of the Poisson solver")]
@@ -2329,7 +2289,7 @@ contains
         call error("PP-RPA does not support ${ERR}$")
       end if
     #:endfor
-    #:for VAR, ERR in [("this%solvation","solvation"),&
+    #:for VAR, ERR in [("this%solvation","solvation"), ("this%dftbU","DFTB+U/pSIC"),&
       & ("this%onSiteElements","onsite corrections"), ("this%reks","REKS")]
       if (allocated(${VAR}$)) then
         call error("PP-RPA does not support ${ERR}$")
@@ -2370,8 +2330,8 @@ contains
       ! Create temperature profile, if thermostat is not the dummy one
       if (input%ctrl%iThermostat /= 0) then
         allocate(this%temperatureProfile)
-        call TempProfile_init(this%temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
-            & input%ctrl%tempValues)
+        call TempProfile_init(this%temperatureProfile, input%ctrl%tempMethods,&
+            & input%ctrl%tempSteps, input%ctrl%tempValues)
         pTempProfile => this%temperatureProfile
       else
         nullify(pTempProfile)
@@ -2443,7 +2403,7 @@ contains
         call error("XLBOMD does not work with thermostats yet")
       elseif (this%tBarostat) then
         call error("XLBOMD does not work with barostats yet")
-      elseif (this%nSpin /= 1 .or. this%tDFTBU .or. allocated(this%onSiteElements)) then
+      elseif (this%nSpin /= 1 .or. allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (this%forceType /= forceTypes%dynamicT0 .and. this%forceType /=&
           & forceTypes%dynamicTFinite) then
@@ -2455,7 +2415,7 @@ contains
       call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
     end if
 
-    this%minSccIter = getMinSccIters(this%tSccCalc, this%tDFTBU, this%nSpin)
+    this%minSccIter = getMinSccIters(this%tSccCalc, allocated(this%dftbU), this%nSpin)
     this%minSccIter = min(this%minSccIter, this%maxSccIter)
     if (this%isXlbomd) then
       call this%xlbomdIntegrator%setDefaultSCCParameters(this%minSccIter, this%maxSccIter,&
@@ -2640,7 +2600,7 @@ contains
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & this%tDFTBU, this%tEField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
+          & allocated(this%dftbU), this%tEField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
           & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
@@ -2651,7 +2611,6 @@ contains
 
     call this%initDetArrays()
     call this%initArrays(env)
-
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -2911,10 +2870,9 @@ contains
       else
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
       end if
-      if (this%tDFTBU) then
+      if (allocated(this%dftbU)) then
         write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
-        write(stdOut, "(A,':',T30,A)")"Orbital functional",&
-            & trim(plusUFunctionals%names(this%nDFTBUfunc))
+        write(stdOut, "(A,':',T30,A)")"Orbital functional", this%dftbU%funcName()
       end if
       if (allocated(this%onSiteElements)) then
         write(stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
@@ -3303,15 +3261,15 @@ contains
       end if
     end if
 
-    if (this%tDFTBU) then
+    if (allocated(this%dftbU)) then
       do iSp = 1, this%nType
-        if (this%nUJ(iSp)>0) then
+        if (this%dftbU%nUJ(iSp)>0) then
           write(strTmp, "(A,':')") "U-J coupling constants"
           write(stdOut, "(A,T25,A2)")trim(strTmp), this%speciesName(iSp)
-          do jj = 1, this%nUJ(iSp)
-            write(strTmp, "(A,I1,A)")'(A,',this%niUJ(jj,iSp),'I2,T25,A,F6.4)'
-            write(stdOut, trim(strTmp)) 'Shells:', this%iUJ(1:this%niUJ(jj,iSp),jj,iSp),&
-                & 'UJ:', this%UJ(jj,iSp)
+          do jj = 1, this%dftbU%nUJ(iSp)
+            write(strTmp, "(A,I1,A)")'(A,',this%dftbU%niUJ(jj,iSp),'I2,T25,A,F6.4)'
+            write(stdOut, trim(strTmp)) 'Shells:',&
+                & this%dftbU%iUJ(1:this%dftbU%niUJ(jj,iSp),jj,iSp), 'UJ:', this%dftbU%UJ(jj,iSp)
           end do
         end if
       end do
@@ -3393,7 +3351,7 @@ contains
       call error("Delta DFTB incompatible with localisation")
     end if
 
-    if (this%tSpinOrbit .and. this%tDFTBU .and. .not. this%tDualSpinOrbit)  then
+    if (this%tSpinOrbit .and. allocated(this%dftbU) .and. .not. this%tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
     end if
 
@@ -3420,7 +3378,7 @@ contains
     end if
 
     if (this%isLinResp) then
-      if (this%tDFTBU) then
+      if (allocated(this%dftbU)) then
         call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
 
@@ -3588,11 +3546,10 @@ contains
       this%nIneqOrb = maxval(this%iEqOrbitals)
       this%nMixElements = this%nIneqOrb
 
-      if (this%tDFTBU) then
+      if (allocated(this%dftbU)) then
         allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
         allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
-        call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0,&
-          & this%nUJ, this%niUJ, this%iUJ)
+        call this%dftbU%getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
         call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
         this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
         this%nIneqOrb = maxval(this%iEqOrbitals)
@@ -3628,13 +3585,12 @@ contains
         if (allocated(this%iEqBlockOnSiteLS)) then
           this%nMixElements = max(this%nMixElements, maxval(this%iEqBlockOnSiteLS))
         end if
-      else if (this%tDFTBU) then
+      else if (allocated(this%dftbU)) then
         ! only a sub-set of onsite blocks are reduced/expanded
         if(.not. allocated(this%iEqBlockDFTBU))then
           allocate(this%iEqBlockDFTBU(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
         endif
-        call DFTBU_blockIndx(this%iEqBlockDFTBU, this%nIneqOrb, this%orb, this%species0,&
-            & this%nUJ, this%niUJ, this%iUJ)
+        call this%dftbU%blockIndx(this%iEqBlockDFTBU, this%nIneqOrb, this%orb, this%species0)
         this%nMixElements = max(this%nMixElements, maxval(this%iEqBlockDFTBU)) ! as
         !  iEqBlockDFTBU does not include diagonal elements, so in the case of
         !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
@@ -3643,8 +3599,8 @@ contains
           if(.not. allocated(this%iEqBlockDFTBULS))then
             allocate(this%iEqBlockDFTBULS(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin))
           endif
-          call DFTBU_blockIndx(this%iEqBlockDFTBULS, this%nMixElements, this%orb, this%species0,&
-              & this%nUJ, this%niUJ, this%iUJ)
+          call this%dftbU%blockIndx(this%iEqBlockDFTBULS, this%nMixElements, this%orb,&
+              & this%species0)
           this%nMixElements = max(this%nMixElements, maxval(this%iEqBlockDFTBULS))
         end if
       end if
@@ -3875,16 +3831,16 @@ contains
     call OrbitalEquiv_reduce(this%qInput, this%iEqOrbitals, this%orb, this%qInpRed(1:this%nIneqOrb))
 
     if (allocated(this%onSiteElements)) then
-      call AppendBlock_reduce(this%qBlockIn, this%iEqBlockOnSite, this%orb, this%qInpRed)
+      call appendBlockReduced(this%qBlockIn, this%iEqBlockOnSite, this%orb, this%qInpRed)
       if (this%tImHam) then
-        call AppendBlock_reduce(this%qiBlockIn, this%iEqBlockOnSiteLS, this%orb, this%qInpRed,&
-            & skew=.true.)
+        call appendBlockReduced(this%qiBlockIn, this%iEqBlockOnSiteLS, this%orb, this%qInpRed,&
+            & isSkew=.true.)
       end if
-    else if (this%tDFTBU) then
-      call AppendBlock_reduce(this%qBlockIn, this%iEqBlockDFTBU, this%orb, this%qInpRed)
+    else if (allocated(this%dftbU)) then
+      call appendBlockReduced(this%qBlockIn, this%iEqBlockDFTBU, this%orb, this%qInpRed)
       if (this%tImHam) then
-        call AppendBlock_reduce(this%qiBlockIn, this%iEqBlockDFTBULS, this%orb, this%qInpRed,&
-            & skew=.true.)
+        call appendBlockReduced(this%qiBlockIn, this%iEqBlockDFTBULS, this%orb, this%qInpRed,&
+            & isSkew=.true.)
       end if
     end if
 
@@ -4427,7 +4383,7 @@ contains
       allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
       this%qDets(:,:,:,:) = 0.0_dp
       ! When block charges are needed
-      if (this%tDFTBU .or. allocated(this%onSiteElements)) then
+      if (allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
         allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
         this%qBlockDets(:,:,:,:,:) = 0.0_dp
       end if
@@ -4802,13 +4758,13 @@ contains
 
 
   !> Initialises SCC related parameters before geometry loop starts
-  function getMinSccIters(tSccCalc, tDFTBU, nSpin) result(minSccIter)
+  function getMinSccIters(tSccCalc, isDftbU, nSpin) result(minSccIter)
 
     !> Is this a self consistent calculation
     logical, intent(in) :: tSccCalc
 
     !> Are there orbital potentials present
-    logical, intent(in) :: tDFTBU
+    logical, intent(in) :: isDftbU
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
@@ -4817,7 +4773,7 @@ contains
     integer :: minSccIter
 
     if (tSccCalc) then
-      if (tDFTBU) then
+      if (isDftbU) then
         minSccIter = 2
       else
         if (nSpin == 1) then
@@ -4888,7 +4844,7 @@ contains
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 
-    if (this%tDFTBU) then
+    if (allocated(this%dftbU)) then
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
@@ -4917,7 +4873,7 @@ contains
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -4953,7 +4909,7 @@ contains
     logical, intent(in) :: tSpinOrbit
 
     !> Is this a DFTB+U calculation?
-    logical, intent(in) :: tDFTBU
+    logical, intent(in) :: isDftbU
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
@@ -4995,7 +4951,7 @@ contains
     if (tSpinOrbit) then
       call error("Linear response does not support spin orbit coupling at the moment.")
     end if
-    if (tDFTBU) then
+    if (isDftbU) then
       call error("Linear response does not support LDA+U yet")
     end if
     if (input%ctrl%tShellResolved) then
@@ -5179,7 +5135,7 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
+      & tSccCalc, tSpin, tSpinOrbit, isDftbU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
 
     !> data type for REKS input
@@ -5210,7 +5166,7 @@ contains
     logical, intent(in) :: tSpinOrbit
 
     !> is this a DFTB+U calculation?
-    logical, intent(in) :: tDFTBU
+    logical, intent(in) :: isDftbU
 
     !> external electric field
     logical, intent(in) :: tEField
@@ -5243,7 +5199,7 @@ contains
 
     if (tSpinOrbit) then
       call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
-    else if (tDFTBU) then
+    else if (isDftbU) then
       call error("REKS is not compatible with DFTB+U calculation")
     else if (tEField) then
       call error("REKS is not compatible with external electric field, only point charge&

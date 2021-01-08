@@ -16,15 +16,80 @@ module dftbp_dftbplusu
   use dftbp_fileid
   use dftbp_commontypes
   use dftbp_spin
+  use dftbp_sorting, only : heap_sort
   implicit none
   private
 
-  public :: getDftbUShift, AppendBlock_reduce, Block_expand
-  public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
-  public :: plusUFunctionals
+  public :: TDftbUInp, TDftbU, TDftbU_init, plusUFunctionals
 
-  
-  !> Contains functional characteristics
+  !> Input for DFTB+U calculation
+  type TDftbUInp
+
+    !> list of U-J values for each species
+    real(dp), allocatable :: UJ(:,:)
+
+    !> number of blocks in each case
+    integer, allocatable :: nUJ(:)
+
+    !> number of shells in each block
+    integer, allocatable :: niUJ(:,:)
+
+    !> shells in the block
+    integer, allocatable :: iUJ(:,:,:)
+
+    integer :: iFunctional
+
+  end type TDftbUInp
+
+
+  !> Type for DFTB+U
+  type TDftbU
+
+    !> list of U-J values for each species
+    real(dp), allocatable :: UJ(:,:)
+
+    !> number of +U blocks to calculate for each species
+    integer, allocatable :: nUJ(:)
+
+    !> number of l values contained in each block for each species
+    integer, allocatable :: niUJ(:,:)
+
+    !> list of l values in each block for each species
+    integer, allocatable :: iUJ(:,:,:)
+
+    !> choice of functional, so far FLL, pSIC
+    integer :: iFunctional
+
+  contains
+
+    !> Block shift from +U potentials
+    procedure, private :: shift_U
+
+    !> Complex shift from +U potentials
+    procedure, private :: shift_iU
+
+    !> Shift from +U potentials
+    generic :: getDftbUShift => shift_U, shift_iU
+
+    !> Expand charges from reduced vector
+    procedure :: expandBlock
+
+    !> Equivalence between orbitals
+    procedure :: getOrbitalEquiv
+
+    !> Generates index for packing atomic blocks into 1D array
+    procedure :: blockIndx
+
+    !> Energy from +U
+    procedure :: getEnergy
+
+    !> Returns the name of the functional in use
+    procedure :: funcName
+
+  end type TDftbU
+
+
+  !> Contains +U functional characteristics
   type :: TPlusUFuncHelper
 
     !> Fully localised limit
@@ -38,26 +103,51 @@ module dftbp_dftbplusu
 
     !> Functional names (to be used in output)
     character(sc) :: names(2) = [character(sc) :: 'FLL', 'pSIC']
-    
-  end type TPlusUFuncHelper
 
+  end type TPlusUFuncHelper
 
   !> Can be queried for functional indices and names
   type(TPlusUFuncHelper), parameter :: plusUFunctionals = TPlusUFuncHelper()
 
 
-  !> Potential shift from LDA+U type potentials
-  interface getDftbUShift
-    module procedure shift_U
-    module procedure shift_iU
-  end interface getDftbUShift
-
 contains
+
+  !> Initialise the input
+  subroutine TDftbU_init(this, inp)
+
+    !> Instance of DFTB+U
+    type(TDftbU), intent(out) :: this
+
+    !> Input for DFTB+U
+    type(TDftbUInp), intent(inout) :: inp
+
+    integer :: iSp, jj
+
+    this%iFunctional = inp%iFunctional
+    @:ASSERT(any(plusUFunctionals%indices == this%iFunctional))
+
+    call move_alloc(inp%UJ, this%UJ)
+    call move_alloc(inp%nUJ, this%nUJ)
+    call move_alloc(inp%niUJ, this%niUJ)
+    call move_alloc(inp%iUJ, this%iUJ)
+    do iSp = 1, size(this%nUJ) ! loop over species
+      do jj = 1, this%nUJ(iSp)
+        if (this%niUJ(jj,iSp) > 1) then
+          ! put orbitals in a particular U group in order
+          call heap_sort(this%iUJ(1:this%niUJ(jj,iSp),jj,iSp))
+        end if
+      end do
+    end do
+
+  end subroutine TDftbU_init
 
 
   !> Construct the Orbital contribution to the Hamiltonian
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein PHYSICAL REVIEW B 67 (15): 153106 APR 15 2003
-  subroutine shift_U(shift, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ)
+  subroutine shift_U(this, shift, qBlock, species, orb)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
 
     !> potential to augment
     real(dp), intent(inout) :: shift(:,:,:,:)
@@ -71,21 +161,6 @@ contains
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
-    !> choice of functional, so far FLL, pSIC
-    integer, intent(in), optional :: functional
-
-    !> list of U-J values for each species
-    real(dp), intent(in) :: UJ(:,:)
-
-    !> number of blocks in each case
-    integer, intent(in) :: nUJ(:)
-
-    !> number of shells in each block
-    integer, intent(in) :: niUJ(:,:)
-
-    !> shells in the block
-    integer, intent(in) :: iUJ(:,:,:)
-
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
     integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
@@ -98,24 +173,16 @@ contains
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
 
-    if (present(functional)) then
-      iFunctional = functional
-    else
-      iFunctional = plusUFunctionals%fll
-    end if
-
-    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
-
-    if (iFunctional == plusUFunctionals%fll) then
+    if (this%iFunctional == plusUFunctionals%fll) then
       ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
             do kk = iStart1, iEnd1
-              shift(kk,kk,iAt,1) = shift(kk,kk,iAt,1) + 0.5_dp * UJ(ii,iSpecies)
+              shift(kk,kk,iAt,1) = shift(kk,kk,iAt,1) + 0.5_dp * this%UJ(ii,iSpecies)
             end do
           end do
         end do
@@ -125,18 +192,18 @@ contains
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
                   ! factor of 1/2 as using qm not Pauli matrix coefficients
                   shift(ll,kk,iAt,iSp) = shift(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp * qBlock(ll,kk,iAt,iSp)
+                      & - this%UJ(ii,iSpecies) * 0.5_dp * qBlock(ll,kk,iAt,iSp)
                 end do
               end do
             end do
@@ -148,11 +215,13 @@ contains
   end subroutine Shift_U
 
 
-  !> Construct the orbital contribution to the Hamiltonian
+  !> Construct the orbital contribution to the Hamiltonian with complex block charges
   !>
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein Physical Review B 67, 153106 (2003)
-  subroutine shift_iU(shiftRe, shiftIm, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
-      & iUJ)
+  subroutine shift_iU(this, shiftRe, shiftIm, qBlockR, qBlockI, species, orb)
+
+    !> Instance
+    class(TDftbU), intent(in) :: this
 
     !> Real part of shift
     real(dp), intent(inout) :: shiftRe(:,:,:,:)
@@ -172,21 +241,6 @@ contains
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
-    !> choice of functional, so far FLL, pSIC (1,2)
-    integer, intent(in), optional :: functional
-
-    !> list of U-J values for each species
-    real(dp), intent(in) :: UJ(:,:)
-
-    !> number of +U blocks to calculate for each species
-    integer, intent(in) :: nUJ(:)
-
-    !> number of l values contained in each block for each species
-    integer, intent(in) :: niUJ(:,:)
-
-    !> list of l values in each block for each species
-    integer, intent(in) :: iUJ(:,:,:)
-
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
     integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
@@ -205,24 +259,16 @@ contains
     ! future)
     @:ASSERT(nSpin == 4)
 
-    if (present(functional)) then
-      iFunctional = functional
-    else
-      iFunctional = plusUFunctionals%fll
-    end if
-
-    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
-
-    if (iFunctional == plusUFunctionals%fll) then
+    if (this%iFunctional == plusUFunctionals%fll) then
       ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
             do kk = iStart1, iEnd1
-              shiftRe(kk,kk,iAt,1) = shiftRe(kk,kk,iAt,1) + 0.5_dp * UJ(ii,iSpecies)
+              shiftRe(kk,kk,iAt,1) = shiftRe(kk,kk,iAt,1) + 0.5_dp * this%UJ(ii,iSpecies)
             end do
           end do
         end do
@@ -232,20 +278,20 @@ contains
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
                   ! factor of 1/2 as using qm not Pauli matrix coefficients
                   shiftRe(ll,kk,iAt,iSp) = shiftRe(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp * qBlockR(ll,kk,iAt,iSp)
+                      & - this%UJ(ii,iSpecies) * 0.5_dp * qBlockR(ll,kk,iAt,iSp)
                   shiftIm(ll,kk,iAt,iSp) = shiftIm(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp * qBlockI(ll,kk,iAt,iSp)
+                      & - this%UJ(ii,iSpecies) * 0.5_dp * qBlockI(ll,kk,iAt,iSp)
                 end do
               end do
             end do
@@ -260,7 +306,10 @@ contains
   !> Calculates the energy contribution for the DFTB+U type functionals
   !>
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
-  subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
+  subroutine getEnergy(this, egy, qBlock, species, orb, qiBlock)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
 
     !> energy contribution
     real(dp), intent(out) :: egy(:)
@@ -273,21 +322,6 @@ contains
 
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
-
-    !> choice of functional, so far FLL, pSIC (1,2)
-    integer, intent(in), optional :: functional
-
-    !> list of U-J values for each species
-    real(dp), intent(in) :: UJ(:,:)
-
-    !> number of +U blocks to calculate for each species
-    integer, intent(in) :: nUJ(:)
-
-    !> number of l values contained in each block for each species
-    integer, intent(in) :: niUJ(:,:)
-
-    !> list of l values in each block for each species
-    integer, intent(in) :: iUJ(:,:,:)
 
     !> optional skew population for L.S cases
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
@@ -314,26 +348,17 @@ contains
     @:ASSERT(size(egy)==nAtom)
 
     egy(:) = 0.0_dp
-
-    if (present(functional)) then
-      iFunctional = functional
-    else
-      iFunctional = plusUFunctionals%fll
-    end if
-
-    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
-
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
+        do ii = 1, this%nUJ(iSpecies)
           blockTmp(:,:) = 0.0_dp
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
                   blockTmp(ll,kk) = qBlock(ll,kk,iAt,iSp)
@@ -343,7 +368,7 @@ contains
           end do
           ! factor of 1/2 as using qm not Pauli matrix coefficients, and another from the +U
           ! functional itself
-          egy(iAt) = egy(iAt) - 0.25_dp * UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
+          egy(iAt) = egy(iAt) - 0.25_dp * this%UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
         end do
       end do
     end do
@@ -352,14 +377,14 @@ contains
       do iSp = 1, nSpin
         do iAt = 1, nAtom
           iSpecies = species(iAt)
-          do ii = 1, nUJ(iSpecies)
+          do ii = 1, this%nUJ(iSpecies)
             blockTmp(:,:) = 0.0_dp
-            do jj = 1, niUJ(ii,iSpecies)
-              iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-              iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-              do ik = 1, niUJ(ii,iSpecies)
-                iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-                iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+            do jj = 1, this%niUJ(ii,iSpecies)
+              iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+              iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+              do ik = 1, this%niUJ(ii,iSpecies)
+                iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+                iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
                 do kk = iStart1, iEnd1
                   do ll = iStart2, iEnd2
                     blockTmp(ll,kk) = qiBlock(ll,kk,iAt,iSp)
@@ -369,24 +394,24 @@ contains
             end do
             ! factor of 1/2 as using qm not Pauli matrix coefficients, and another from the +U
             ! functional itself
-            egy(iAt) = egy(iAt) - 0.25_dp * UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
+            egy(iAt) = egy(iAt) - 0.25_dp * this%UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
           end do
         end do
       end do
     end if
 
     ! only trace of the identity (charge) part of the density matrix appears in this term
-    if (iFunctional == plusUFunctionals%fll) then
+    if (this%iFunctional == plusUFunctionals%fll) then
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
+        do ii = 1, this%nUJ(iSpecies)
           blockTmp(:,:) = 0.0_dp
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
                   blockTmp(ll,kk) = qBlock(ll,kk,iAt,1)
@@ -395,17 +420,20 @@ contains
             end do
           end do
           do jj = 1, orb%mOrb
-            egy(iAt) = egy(iAt) + 0.5_dp * UJ(ii,iSpecies) * blockTmp(jj,jj)
+            egy(iAt) = egy(iAt) + 0.5_dp * this%UJ(ii,iSpecies) * blockTmp(jj,jj)
           end do
         end do
       end do
     end if
 
-  end subroutine E_dftbU
+  end subroutine getEnergy
 
 
   !> Returns the equivalence between the orbitals in the DFTB+U interactions
-  subroutine DFTBplsU_getOrbitalEquiv(equiv, orb, species, nUJ, niUJ, iUJ)
+  subroutine getOrbitalEquiv(this, equiv, orb, species)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
 
     !> The equivalence vector on return
     integer, intent(out) :: equiv(:,:,:)
@@ -416,15 +444,6 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> How many U-J for each species
-    integer, intent(in) :: nUJ(:)
-
-    !> number of l-values of U-J for each block
-    integer, intent(in) :: niUJ(:,:)
-
-    !> l-values of U-J for each block
-    integer, intent(in) :: iUJ(:,:,:)
-
     integer :: nAtom, iCount, iSpin, nSpin
     integer :: iAt, iSp, ii, jj, kk, iStart, iEnd
 
@@ -432,13 +451,6 @@ contains
     nSpin = size(equiv, dim=3)
 
     @:ASSERT(size(equiv, dim=1) == orb%mOrb)
-    @:ASSERT(size(nUJ) == maxval(species))
-    @:ASSERT(all(nUJ <= orb%mShell))
-    @:ASSERT(size(niUJ,dim=2) == maxval(species))
-    @:ASSERT(all(niUJ <= orb%mShell))
-    @:ASSERT(size(iUJ,dim=3) == maxval(species))
-    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    @:ASSERT(all(iUJ <= orb%mShell))
 
     equiv(:,:,:) = 0
 
@@ -455,10 +467,10 @@ contains
     do iSpin = 1, nSpin
       do iAt = 1, nAtom
         iSp = species(iAt)
-        do ii = 1, nUJ(iSp)
-          do jj = 1, niUJ(ii,iSp)
-            iStart = orb%posShell(iUJ(jj,ii,iSp),iSp)
-            iEnd = orb%posShell(iUJ(jj,ii,iSp)+1,iSp)-1
+        do ii = 1, this%nUJ(iSp)
+          do jj = 1, this%niUJ(ii,iSp)
+            iStart = orb%posShell(this%iUJ(jj,ii,iSp),iSp)
+            iEnd = orb%posShell(this%iUJ(jj,ii,iSp)+1,iSp)-1
             do kk = iStart, iEnd
               iCount = iCount + 1
               equiv(kk, iAt, iSpin) = iCount
@@ -468,11 +480,14 @@ contains
       end do
     end do
 
-  end subroutine DFTBplsU_getOrbitalEquiv
+  end subroutine getOrbitalEquiv
 
 
   !> Returns the index for packing the relevant parts of DFTB+U atomic blocks into a 1D array
-  subroutine DFTBU_blockIndx(iEqBlockDFTBU, count, orb, species, nUJ, niUJ, iUJ)
+  subroutine blockIndx(this, iEqBlockDFTBU, count, orb, species)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
 
     !> The mapping array on return
     integer, intent(out) :: iEqBlockDFTBU(:,:,:,:)
@@ -486,15 +501,6 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> How many U-J for each species
-    integer, intent(in) :: nUJ(:)
-
-    !> number of l-values of U-J for each block
-    integer, intent(in) :: niUJ(:,:)
-
-    !> l-values of U-J for each block
-    integer, intent(in) :: iUJ(:,:,:)
-
     integer :: nAtom, nSpin, iCount
     integer :: iAt, iSp, iSpecies
     integer :: iStart1, iEnd1, iStart2, iEnd2
@@ -505,13 +511,6 @@ contains
 
     @:ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
     @:ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
-    @:ASSERT(size(nUJ) == maxval(species))
-    @:ASSERT(all(nUJ <= orb%mShell))
-    @:ASSERT(size(niUJ,dim=2) == maxval(species))
-    @:ASSERT(all(niUJ <= orb%mShell))
-    @:ASSERT(size(iUJ,dim=3) == maxval(species))
-    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    @:ASSERT(all(iUJ <= orb%mShell))
 
     iEqBlockDFTBU(:,:,:,:) = 0
 
@@ -519,13 +518,13 @@ contains
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
                   if (ll > kk) then
@@ -540,68 +539,14 @@ contains
       end do
     end do
 
-  end subroutine DFTBU_blockIndx
-
-
-  !> Adds DFTB+U blocks onto end of a 1D vector
-  subroutine AppendBlock_reduce(input, equiv, orb, output, skew)
-
-    !> unpacked data
-    real(dp), intent(in) :: input(:,:,:,:)
-
-    !> equivalences
-    integer, intent(in) :: equiv(:,:,:,:)
-
-    !> Information about the orbitals and their angular momenta
-    type(TOrbitals), intent(in) :: orb
-
-    !> 1D array with appended data
-    real(dp), intent(inout) :: output(:)
-
-    !> is skew symmetry required
-    logical, optional, intent(in) :: skew
-
-    integer :: nAtom, nSpin
-    integer :: iS, iOrb1, iOrb2, iAt
-    logical :: iSkew
-
-    nAtom = size(input, dim=3)
-    nSpin = size(input, dim=4)
-    @:ASSERT(size(input, dim=1) == orb%mOrb)
-    @:ASSERT(size(input, dim=2) == orb%mOrb)
-    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
-
-    if (present(skew)) then
-      iSkew = skew
-    else
-      iSkew = .false.
-    end if
-
-    do iS = 1, nSpin
-      do iAt = 1, nAtom
-        do iOrb1 = 1, orb%nOrbAtom(iAt)
-          do iOrb2 = 1, orb%nOrbAtom(iAt)
-            if (equiv(iOrb1, iOrb2, iAt, iS) > 0) then
-              if (iSkew) then
-                output(equiv(iOrb1, iOrb2, iAt, iS)) = &
-                    & 0.5_dp*( input(iOrb1, iOrb2, iAt, iS) &
-                    &  - input(iOrb2, iOrb1, iAt, iS) )
-              else
-                output(equiv(iOrb1, iOrb2, iAt, iS)) = &
-                    & 0.5_dp*( input(iOrb1, iOrb2, iAt, iS) &
-                    &  + input(iOrb2, iOrb1, iAt, iS) )
-              end if
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine AppendBlock_reduce
+  end subroutine blockIndx
 
 
   !> Extract DFTB+U blocks from the end of a 1D vector
-  subroutine Block_expand(input, blockEquiv, orb, output, species, nUJ, niUJ, iUJ, orbEquiv, skew)
+  subroutine expandBlock(this, input, blockEquiv, orb, output, species, orbEquiv, isSkew)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
 
     !> 1D array of packed data
     real(dp), intent(in) :: input(:)
@@ -618,34 +563,26 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> How many U-J for each species
-    integer, intent(in) :: nUJ(:)
-
-    !> number of l-values of U-J for each block
-    integer, intent(in) :: niUJ(:,:)
-
-    !> l-values of U-J for each block
-    integer, intent(in) :: iUJ(:,:,:)
-
-    !> equivalences for atoms
+    !> equivalences for atoms, if present, charges are over-written with relevant part of block
+    !> charges
     integer, intent(in),optional :: orbEquiv(:,:,:)
 
     !> is skew symmetry required
-    logical, optional, intent(in) :: skew
+    logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin
     integer :: iAt, iSp, iSpecies
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
-    logical :: iSkew
+    logical :: tSkew
 
     nAtom = size(output, dim=3)
     nSpin = size(output, dim=4)
 
-    if (present(skew)) then
-      iSkew = skew
+    if (present(isSkew)) then
+      tSkew = isSkew
     else
-      iSkew = .false.
+      tSkew = .false.
     end if
 
     @:ASSERT(size(output, dim=1) == orb%mOrb)
@@ -657,18 +594,18 @@ contains
   #:endblock DEBUG_CODE
     @:ASSERT(all(shape(blockEquiv) == shape(output)))
 
-    output = 0.0_dp
+    output(:,:,:,:) = 0.0_dp
 
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
-        do ii = 1, nUJ(iSpecies)
-          do jj = 1, niUJ(ii,iSpecies)
-            iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
-            iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
-            do ik = 1, niUJ(ii,iSpecies)
-              iStart2 = orb%posShell(iUJ(ik,ii,iSpecies),iSpecies)
-              iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
+        do ii = 1, this%nUJ(iSpecies)
+          do jj = 1, this%niUJ(ii,iSpecies)
+            iStart1 = orb%posShell(this%iUJ(jj,ii,iSpecies),iSpecies)
+            iEnd1 = orb%posShell(this%iUJ(jj,ii,iSpecies)+1,iSpecies)-1
+            do ik = 1, this%niUJ(ii,iSpecies)
+              iStart2 = orb%posShell(this%iUJ(ik,ii,iSpecies),iSpecies)
+              iEnd2 = orb%posShell(this%iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 if (present(orbEquiv)) then
                   output(kk,kk,iAt,iSp) = input(orbEquiv(kk,iAt,iSp))
@@ -676,7 +613,7 @@ contains
                 do ll = iStart2, iEnd2
                   if (ll > kk) then
                     output(ll,kk,iAt,iSp) = input(blockEquiv(ll,kk,iAt,iSp))
-                    if (iSkew) then
+                    if (tSkew) then
                       output(kk,ll,iAt,iSp) = -input(blockEquiv(ll,kk,iAt,iSp))
                     else
                       output(kk,ll,iAt,iSp) = input(blockEquiv(ll,kk,iAt,iSp))
@@ -690,6 +627,27 @@ contains
       end do
     end do
 
-  end subroutine Block_expand
+  end subroutine expandBlock
+
+
+  !> Returns name of current DFTB+U functional
+  function funcName(this) result(name)
+
+    !> Instance of DFTB+U calculation
+    class(TDftbU), intent(in) :: this
+
+    !> Name of functional in use
+    character(:), allocatable :: name
+
+    select case(this%iFunctional)
+    case(plusUFunctionals%fll)
+      allocate( character(len=3) :: name)
+      name = "FLL"
+    case(plusUFunctionals%pSic)
+      allocate( character(len=4) :: name)
+      name = "pSic"
+    end select
+
+  end function funcName
 
 end module dftbp_dftbplusu

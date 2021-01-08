@@ -19,7 +19,7 @@ module dftbp_getenergies
   use dftbp_shift, only : add_shift, total_shift
   use dftbp_spin, only : getSpinShift
   use dftbp_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
-  use dftbp_dftbplusu, only : getDftbUShift, e_dftbu
+  use dftbp_dftbplusu, only : TDftbU
   use dftbp_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_environment, only : TEnvironment
@@ -45,11 +45,10 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
+  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, dftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-      & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
-      & tFixEf, Ef, onSiteElements)
+      & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -73,7 +72,7 @@ contains
     logical, intent(in) :: isXlbomd
 
     !> Are there orbital potentials present
-    logical, intent(in) :: tDftbU
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> Is dual spin orbit being used
     logical, intent(in) :: tDualSpinOrbit
@@ -134,21 +133,6 @@ contains
 
     !> Imaginary part of block atomic populations
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
@@ -221,12 +205,11 @@ contains
       energy%eOnSite = sum(energy%atomOnSite)
     end if
 
-    if (tDftbU) then
+    if (allocated(dftbU)) then
       if (allocated(qiBlock)) then
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
-            & qiBlock)
+        call dftbU%getEnergy(energy%atomDftbu, qBlock, species, orb, qiBlock)
       else
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+        call dftbU%getEnergy(energy%atomDftbu, qBlock, species, orb)
       end if
       energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion))
     end if

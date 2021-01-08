@@ -1457,22 +1457,20 @@ contains
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
-    if (.not. associated(child)) then
-      ctrl%tDFTBU = .false.
-      ctrl%DFTBUfunc = 0
-    else
+    if (associated(child)) then
+      allocate(ctrl%dftbUInp)
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%DFTBUfunc = plusUFunctionals%fll
+        ctrl%dftbUInp%iFunctional = plusUFunctionals%fll
       case ("psic")
-        ctrl%DFTBUfunc = plusUFunctionals%pSic
+        ctrl%dftbUInp%iFunctional = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
 
-      allocate(ctrl%nUJ(geo%nSpecies))
-      ctrl%nUJ = 0
+      allocate(ctrl%dftbUInp%nUJ(geo%nSpecies))
+      ctrl%dftbUInp%nUJ(:) = 0
 
       ! to hold list of U-J values for each atom
       allocate(lrN(geo%nSpecies))
@@ -1486,8 +1484,8 @@ contains
         call init(liN(iSp1))
         call init(li1N(iSp1))
         call getChildren(child, trim(geo%speciesNames(iSp1)), children)
-        ctrl%nUJ(iSp1) = getLength(children)
-        do ii = 1, ctrl%nUJ(iSp1)
+        ctrl%dftbUInp%nUJ(iSp1) = getLength(children)
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
           call getItem1(children, ii, child2)
 
           call init(li)
@@ -1516,28 +1514,29 @@ contains
       end do
 
       do iSp1 = 1, geo%nSpecies
-        ctrl%nUJ(iSp1) = len(lrN(iSp1))
+        ctrl%dftbUInp%nUJ(iSp1) = len(lrN(iSp1))
       end do
-      allocate(ctrl%UJ(maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%UJ = 0.0_dp
-      allocate(ctrl%niUJ(maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%niUJ = 0
+      allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%UJ(:,:) = 0.0_dp
+      allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%niUJ(:,:) = 0
       do iSp1 = 1, geo%nSpecies
-        call asArray(lrN(iSp1),ctrl%UJ(1:len(lrN(iSp1)),iSp1))
+        call asArray(lrN(iSp1),ctrl%dftbUInp%UJ(1:len(lrN(iSp1)),iSp1))
         allocate(iTmpN(len(liN(iSp1))))
         call asArray(liN(iSp1),iTmpN)
-        ctrl%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
+        ctrl%dftbUInp%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
         deallocate(iTmpN)
         call destruct(lrN(iSp1))
         call destruct(liN(iSp1))
       end do
-      allocate(ctrl%iUJ(maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%iUJ = 0
+      allocate(ctrl%dftbUInp%iUJ(maxval(ctrl%dftbUInp%niUJ),&
+          & maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%iUJ(:,:,:) = 0
       do iSp1 = 1, geo%nSpecies
-        do ii = 1, ctrl%nUJ(iSp1)
-          allocate(iTmpN(ctrl%niUJ(ii,iSp1)))
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+          allocate(iTmpN(ctrl%dftbUInp%niUJ(ii,iSp1)))
           call get(li1N(iSp1),iTmpN,ii)
-          ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
+          ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
           deallocate(iTmpN)
         end do
         call destruct(li1N(iSp1))
@@ -1547,14 +1546,14 @@ contains
       deallocate(lrN)
       deallocate(liN)
 
-      ! sanity check time
+      ! check input values
       allocate(iTmpN(slako%orb%mShell))
       do iSp1 = 1, geo%nSpecies
         iTmpN = 0
         ! loop over number of blocks for that species
-        do ii = 1, ctrl%nUJ(iSp1)
-          iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) = &
-              & iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) + 1
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+          iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) = &
+              & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
         if (any(iTmpN(:)>1)) then
           write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
@@ -1566,8 +1565,6 @@ contains
         end if
       end do
       deallocate(iTmpN)
-
-      ctrl%tDFTBU = .true.
 
     end if
 

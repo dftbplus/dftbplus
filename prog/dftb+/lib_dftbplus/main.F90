@@ -198,8 +198,8 @@ contains
             & this%qDets, this%qBlockIn, this%qBlockDets, this%deltaRhoIn, this%deltaRhoDets)
         if (isUnReduced) then
           call reduceCharges(this%orb, this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed,&
-              & this%qBlockIn, this%iEqBlockDftbu, this%qiBlockIn, this%iEqBlockDftbuLS,&
-              & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+              & this%qBlockIn, this%dftbU, this%iEqBlockDftbu, this%qiBlockIn,&
+              & this%iEqBlockDftbuLS, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
         end if
 
         call processGeometry(this, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
@@ -330,10 +330,9 @@ contains
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%pRepCont, this%sccCalc, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
-          & this%qDepExtPot, this%nDftbUFunc, this%UJ, this%nUJ, this%iUJ, this%niUJ,&
-          & this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord, this%onsiteElements,&
-          & this%skHamCont, this%skOverCont, this%latVec, this%invLatVec, this%iCellVec,&
-          & this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
+          & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
+          & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
+          & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
           & this%taggedWriter, this%refExtPot)
     end if
 
@@ -728,9 +727,9 @@ contains
             & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
             & this%electrostatics,  this%tPoisson, this%tUpload, this%shiftPerLUp, this%rangeSep,&
             & this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this%tExtField, this%isXlbomd,&
-            & this%tDftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%nDftbUFunc, this%UJ, this%nUJ, this%iUJ, this%niUJ, this%tFixEf, this%Ef,&
-            & this%rhoPrim, this%onSiteElements, this%iHam, this%dispersion, this%reks)
+            & this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
+            & this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam, this%dispersion,&
+            & this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -835,9 +834,8 @@ contains
               & this%solvation, this%thirdOrd, this%potential, this%electrostatics, this%tPoisson,&
               & this%tUpload, this%shiftPerLUp, this%dispersion)
 
-          call addBlockChargePotentials(this%qBlockIn, this%qiBlockIn, this%tDftbU, this%tImHam,&
-              & this%species, this%orb, this%nDftbUFunc, this%UJ, this%nUJ, this%iUJ, this%niUJ,&
-              & this%potential)
+          call addBlockChargePotentials(this%qBlockIn, this%qiBlockIn, this%dftbU, this%tImHam,&
+              & this%species, this%orb, this%potential)
 
           if (allocated(this%onSiteElements) .and. (iSCCIter > 1 .or. this%tReadChrg)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockIn,&
@@ -940,9 +938,8 @@ contains
               & this%solvation, this%thirdOrd, this%potential, this%electrostatics,&
               & this%tPoissonTwice, this%tUpload, this%shiftPerLUp, this%dispersion)
 
-          call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%tDftbU, this%tImHam,&
-              & this%species, this%orb, this%nDftbUFunc, this%UJ, this%nUJ, this%iUJ, this%niUJ,&
-              & this%potential)
+          call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
+              & this%species, this%orb, this%potential)
 
           if (allocated(this%onSiteElements)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockOut,&
@@ -959,14 +956,13 @@ contains
         end if
 
         call calcEnergies(this%sccCalc, this%qOutput, this%q0, this%chargePerShell, this%species,&
-            & this%tExtField, this%isXlbomd, this%tDftbU, this%tDualSpinOrbit, this%rhoPrim,&
+            & this%tExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit, this%rhoPrim,&
             & this%H0, this%orb, this%neighbourList, this%nNeighbourSk, this%img2CentCell,&
             & this%iSparseStart, this%cellVol, this%extPressure,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
             & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%nDftbUFunc, this%UJ, this%nUJ, this%iUJ, this%niUJ, this%xi,&
-            & this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements)
+            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -976,10 +972,9 @@ contains
             call getNextInputCharges(env, this%pChrgMixer, this%qOutput, this%qOutRed, this%orb,&
                 & this%nIneqOrb, this%iEqOrbitals, iGeoStep, iSccIter, this%minSccIter,&
                 & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
-                & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%qBlockOut,&
+                & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
                 & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
-                & this%species0, this%nUJ, this%iUJ, this%niUJ, this%qiBlockIn,&
-                & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
           else
             call getNextInputDensity(this%SSqrReal, this%over, this%neighbourList,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
@@ -995,7 +990,7 @@ contains
           if (this%tNegf) then
             call printSccHeader()
           end if
-          call printSccInfo(this%tDftbU, iSccIter,&
+          call printSccInfo(allocated(this%dftbU), iSccIter,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, diffElec, sccErrorQ)
 
           if (this%tNegf) then
@@ -1029,11 +1024,12 @@ contains
               & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
               & this%invLatVec, this%kPoint)
           call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-              & this%species, this%tDFTBU, this%tImHam .or. this%tSpinOrbit, this%tPrintMulliken,&
-              & this%orbitalL, this%qBlockOut, this%nSpin, allocated(this%onSiteElements),&
-              & this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
+              & this%species, allocated(this%dftbU), this%tImHam .or. this%tSpinOrbit,&
+              & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
+              & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont,&
+              & this%qNetAtom)
           call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, this%tDFTBU,&
+              & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
               & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
               & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
               & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
@@ -1081,11 +1077,11 @@ contains
             & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
             & this%invLatVec, this%kPoint)
         call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-            & this%species, this%tDFTBU, this%tImHam.or.this%tSpinOrbit, this%tPrintMulliken,&
-            & this%orbitalL, this%qBlockOut, this%nSpin, allocated(this%onSiteElements),&
-            & this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
+            & this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
+            & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
+            & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
         call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, this%tDFTBU,&
+            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
             & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
@@ -1140,9 +1136,9 @@ contains
 
     if (this%isXlbomd) then
       call getXlbomdCharges(this%xlbomdIntegrator, this%qOutRed, this%pChrgMixer, this%orb,&
-          & this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed, this%iEqBlockDftbU,&
-          & this%qBlockIn, this%species0, this%nUJ, this%iUJ, this%niUJ, this%iEqBlockDftbuLs,&
-          & this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+          & this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed, this%dftbU,&
+          & this%iEqBlockDftbU, this%qBlockIn, this%species0, this%iEqBlockDftbuLs, this%qiBlockIn,&
+          & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
     end if
 
     if (this%tDipole .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
@@ -3514,8 +3510,8 @@ contains
   !> Returns input charges for next SCC iteration.
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
-      & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
-      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
+      & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
+      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3574,6 +3570,9 @@ contains
     !> Has the calculation converged>
     logical, intent(out) :: tConverged
 
+    !> Are there orbital potentials present
+    type(TDftbU), intent(in), allocatable :: dftbU
+
     !> Dual output charges
     real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
 
@@ -3592,15 +3591,6 @@ contains
     !> atomic species for atoms
     integer, intent(in), allocatable :: species0(:)
 
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
     !> Imaginary part of block atomic input populations
     real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
@@ -3615,8 +3605,8 @@ contains
 
     nSpin = size(qOutput, dim=3)
 
-    call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
-        & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+    call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, dftbU,&
+        & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
     qDiffRed = qOutRed - qInpRed
     sccErrorQ = maxval(abs(qDiffRed))
     tConverged = (sccErrorQ < sccTol)&
@@ -3642,9 +3632,8 @@ contains
         call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
         qInpRed(:) = qInpRed / env%mpi%globalComm%size
       #:endif
-        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-            & iEqBlockOnSiteLS)
+        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
+            & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
       end if
     end if
 
@@ -3805,8 +3794,8 @@ contains
 
 
   !> Reduce charges according to orbital equivalency rules.
-  subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu, qiBlock,&
-      & iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+  subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, dftbU, iEqBlockDftbu,&
+      & qiBlock, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3825,6 +3814,9 @@ contains
 
     !> Block (dual) populations, if also being reduced
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Are there orbital potentials present
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> equivalences for block charges
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
@@ -3854,13 +3846,13 @@ contains
         ! all blocks are full of unique elements
         call onsBlock_reduce(qBlockUpDown, iEqBlockOnSite, orb, qRed)
         if (allocated(qiBlock)) then
-          call onsBlock_reduce(qiBlock, iEqBlockOnSiteLS, orb, qRed, skew=.true.)
+          call onsBlock_reduce(qiBlock, iEqBlockOnSiteLS, orb, qRed, isSkew=.true.)
         end if
       else
         ! only a subset of blocks are covered in +U type operations
-        call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
+        call appendBlockReduced(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
         if (allocated(qiBlock)) then
-          call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
+          call appendBlockReduced(qiBlock, iEqBlockDFTBULS, orb, qRed, isSkew=.true.)
         end if
       end if
     end if
@@ -3869,8 +3861,8 @@ contains
 
 
   !> Expand reduced charges according orbital equivalency rules.
-  subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, qOrb, qBlock, iEqBlockDftbu, species0,&
-      & nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+  subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, qOrb, dftbU, qBlock, iEqBlockDftbu,&
+      & species0, qiBlock, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> Reduction of atomic populations
     real(dp), intent(in) :: qRed(:)
@@ -3887,6 +3879,9 @@ contains
     !> Electrons in atomic orbitals
     real(dp), intent(out) :: qOrb(:,:,:)
 
+    !> Are there orbital potentials present
+    type(TDftbU), intent(in), allocatable :: dftbU
+
     !> Block (dual) populations, if also stored in reduced form
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
@@ -3895,15 +3890,6 @@ contains
 
     !> species of central cell atoms
     integer, intent(in), allocatable :: species0(:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Imaginary part of block atomic populations
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
@@ -3921,9 +3907,6 @@ contains
 
     @:ASSERT(allocated(qBlock) .eqv. (allocated(iEqBlockDftbU) .or. allocated(iEqBlockOnSite)))
     @:ASSERT(.not. allocated(qBlock) .or. allocated(species0))
-    @:ASSERT(.not. allocated(qBlock) .or. allocated(nUJ))
-    @:ASSERT(.not. allocated(qBlock) .or. allocated(iUJ))
-    @:ASSERT(.not. allocated(qBlock) .or. allocated(niUJ))
     @:ASSERT(.not. allocated(qiBlock) .or. allocated(qBlock))
     @:ASSERT(allocated(qiBlock) .eqv. (allocated(iEqBlockDftbuLS) .or. allocated(iEqBlockOnSiteLS)))
 
@@ -3935,15 +3918,13 @@ contains
         ! all blocks are full of unique elements
         call Onsblock_expand(qRed, iEqBlockOnSite, orb, qBlock, orbEquiv=iEqOrbitals)
         if (allocated(qiBlock)) then
-          call Onsblock_expand(qRed, iEqBlockOnSiteLS, orb, qiBlock, skew=.true.)
+          call Onsblock_expand(qRed, iEqBlockOnSiteLS, orb, qiBlock, isSkew=.true.)
         end if
       else
         ! only a subset of blocks are covered in +U type operations
-        call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
-            & orbEquiv=iEqOrbitals)
+        call dftbU%expandBlock(qRed, iEqBlockDftbu, orb, qBlock, species0, orbEquiv=iEqOrbitals)
         if (allocated(qiBlock)) then
-          call Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, nUJ, niUJ, iUJ,&
-              & skew=.true.)
+          call dftbU%expandBlock(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, isSkew=.true.)
         end if
       end if
     end if
@@ -4417,8 +4398,8 @@ contains
 
   !> Get the XLBOMD charges for the current geometry.
   subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
-      & qInput, qInpRed, iEqBlockDftbu, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLS,&
-      & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
+      & qInput, qInpRed, dftbU, iEqBlockDftbu, qBlockIn, species0, iEqBlockDftbuLS, qiBlockIn,&
+      & iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> integrator for the extended Lagrangian
     type(TXLBOMD), intent(inout) :: xlbomdIntegrator
@@ -4444,6 +4425,9 @@ contains
     !> input charges reduced by equivalences
     real(dp), intent(out) :: qInpRed(:)
 
+    !> Are there orbital potentials present
+    type(TDftbU), intent(in), allocatable :: dftbU
+
     !> +U equivalences
     integer, intent(in), allocatable :: iEqBlockDftbU(:,:,:,:)
 
@@ -4452,15 +4436,6 @@ contains
 
     !> block input charges
     real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> equivalences for spin orbit
     integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
@@ -4484,8 +4459,8 @@ contains
       deallocate(invJacobian)
     end if
     call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
-    call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-        & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+    call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn, iEqBlockDftbu,&
+        & species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
   end subroutine getXlbomdCharges
 
@@ -6889,8 +6864,8 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
       & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, tExtField, &
-      & isXlbomd, tDftbU, TS, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
+      & isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements,&
+      & iHam, dispersion, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6983,7 +6958,7 @@ contains
     logical, intent(in) :: isXlbomd
 
     !> Are there orbital potentials present
-    logical, intent(in) :: tDftbU
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> electron entropy contribution
     real(dp), intent(in) :: TS(:)
@@ -6996,21 +6971,6 @@ contains
 
     !> Imaginary part of block atomic populations
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
@@ -7171,10 +7131,10 @@ contains
       end if
 
       call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
-          & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
+          & species, tExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
