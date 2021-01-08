@@ -11,6 +11,7 @@
 module dftbp_blockpothelper
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
+  use dftbp_assert
   implicit none
 
   private
