@@ -423,6 +423,7 @@ contains
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
       main%electronDynamics%dt = dt
+      main%electronDynamics%iCall = 1
       call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
           & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
           & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
