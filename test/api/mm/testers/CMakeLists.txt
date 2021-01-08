@@ -34,6 +34,12 @@ target_link_libraries(test_qdepextpot dftbplus)
 set(fypp_flags ${FYPP_BUILD_FLAGS})
 list(APPEND fypp_flags -I${projectdir}/prog/dftb+/include -DRELEASE="'${releasename}'")
 
+add_executable(test_timeprop test_timeprop.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_timeprop dftbplus)
+
+add_executable(test_ehrenfest test_ehrenfest.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_ehrenfest dftbplus)
+
 dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_setspeciesanddependents.F90"
   test_setspeciesanddependents.f90)
 

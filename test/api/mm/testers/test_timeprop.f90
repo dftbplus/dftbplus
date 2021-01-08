@@ -103,7 +103,7 @@ program test_timeprop
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
   
-  call dftbp%initializeTimeProp(nsteps, timestep)
+  call dftbp%initializeTimeProp(timestep, .true.)
 
   do istep = 0, nsteps
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
