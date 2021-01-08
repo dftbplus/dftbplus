@@ -1458,19 +1458,19 @@ contains
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (associated(child)) then
-      allocate(ctrl%dftbU_inp)
+      allocate(ctrl%dftbUInp)
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%dftbU_inp%iFunctional = plusUFunctionals%fll
+        ctrl%dftbUInp%iFunctional = plusUFunctionals%fll
       case ("psic")
-        ctrl%dftbU_inp%iFunctional = plusUFunctionals%pSic
+        ctrl%dftbUInp%iFunctional = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
 
-      allocate(ctrl%dftbU_inp%nUJ(geo%nSpecies))
-      ctrl%dftbU_inp%nUJ(:) = 0
+      allocate(ctrl%dftbUInp%nUJ(geo%nSpecies))
+      ctrl%dftbUInp%nUJ(:) = 0
 
       ! to hold list of U-J values for each atom
       allocate(lrN(geo%nSpecies))
@@ -1484,8 +1484,8 @@ contains
         call init(liN(iSp1))
         call init(li1N(iSp1))
         call getChildren(child, trim(geo%speciesNames(iSp1)), children)
-        ctrl%dftbU_inp%nUJ(iSp1) = getLength(children)
-        do ii = 1, ctrl%dftbU_inp%nUJ(iSp1)
+        ctrl%dftbUInp%nUJ(iSp1) = getLength(children)
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
           call getItem1(children, ii, child2)
 
           call init(li)
@@ -1514,29 +1514,29 @@ contains
       end do
 
       do iSp1 = 1, geo%nSpecies
-        ctrl%dftbU_inp%nUJ(iSp1) = len(lrN(iSp1))
+        ctrl%dftbUInp%nUJ(iSp1) = len(lrN(iSp1))
       end do
-      allocate(ctrl%dftbU_inp%UJ(maxval(ctrl%dftbU_inp%nUJ),geo%nSpecies))
-      ctrl%dftbU_inp%UJ(:,:) = 0.0_dp
-      allocate(ctrl%dftbU_inp%niUJ(maxval(ctrl%dftbU_inp%nUJ),geo%nSpecies))
-      ctrl%dftbU_inp%niUJ(:,:) = 0
+      allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%UJ(:,:) = 0.0_dp
+      allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%niUJ(:,:) = 0
       do iSp1 = 1, geo%nSpecies
-        call asArray(lrN(iSp1),ctrl%dftbU_inp%UJ(1:len(lrN(iSp1)),iSp1))
+        call asArray(lrN(iSp1),ctrl%dftbUInp%UJ(1:len(lrN(iSp1)),iSp1))
         allocate(iTmpN(len(liN(iSp1))))
         call asArray(liN(iSp1),iTmpN)
-        ctrl%dftbU_inp%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
+        ctrl%dftbUInp%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
         deallocate(iTmpN)
         call destruct(lrN(iSp1))
         call destruct(liN(iSp1))
       end do
-      allocate(ctrl%dftbU_inp%iUJ(maxval(ctrl%dftbU_inp%niUJ),&
-          & maxval(ctrl%dftbU_inp%nUJ),geo%nSpecies))
-      ctrl%dftbU_inp%iUJ(:,:,:) = 0
+      allocate(ctrl%dftbUInp%iUJ(maxval(ctrl%dftbUInp%niUJ),&
+          & maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+      ctrl%dftbUInp%iUJ(:,:,:) = 0
       do iSp1 = 1, geo%nSpecies
-        do ii = 1, ctrl%dftbU_inp%nUJ(iSp1)
-          allocate(iTmpN(ctrl%dftbU_inp%niUJ(ii,iSp1)))
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+          allocate(iTmpN(ctrl%dftbUInp%niUJ(ii,iSp1)))
           call get(li1N(iSp1),iTmpN,ii)
-          ctrl%dftbU_inp%iUJ(1:ctrl%dftbU_inp%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
+          ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
           deallocate(iTmpN)
         end do
         call destruct(li1N(iSp1))
@@ -1551,9 +1551,9 @@ contains
       do iSp1 = 1, geo%nSpecies
         iTmpN = 0
         ! loop over number of blocks for that species
-        do ii = 1, ctrl%dftbU_inp%nUJ(iSp1)
-          iTmpN(ctrl%dftbU_inp%iUJ(1:ctrl%dftbU_inp%niUJ(ii,iSp1),ii,iSp1)) = &
-              & iTmpN(ctrl%dftbU_inp%iUJ(1:ctrl%dftbU_inp%niUJ(ii,iSp1),ii,iSp1)) + 1
+        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+          iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) = &
+              & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
         if (any(iTmpN(:)>1)) then
           write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'

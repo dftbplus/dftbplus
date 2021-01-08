@@ -360,7 +360,7 @@ module dftbp_inputdata
     real(dp), allocatable :: xi(:,:)
 
     !> DFTB+U input, if present
-    type(TDftbUInp), allocatable :: dftbU_inp
+    type(TDftbUInp), allocatable :: dftbUInp
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable :: onSiteElements(:,:,:,:)

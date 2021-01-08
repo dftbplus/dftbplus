@@ -73,7 +73,7 @@ module dftbp_initprogram
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu, only : TDftbU, TDftbU_init
-  use dftbp_blockpothelper, only : AppendBlock_reduce
+  use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
@@ -1225,9 +1225,9 @@ contains
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
     this%tSccCalc = input%ctrl%tScc
-    if (allocated(input%ctrl%dftbU_inp)) then
+    if (allocated(input%ctrl%dftbUInp)) then
       allocate(this%dftbU)
-      call TDftbU_init(this%dftbU, input%ctrl%dftbU_inp)
+      call TDftbU_init(this%dftbU, input%ctrl%dftbUInp)
     end if
     this%tSpin = input%ctrl%tSpin
     this%nSpin = 1
@@ -3831,15 +3831,15 @@ contains
     call OrbitalEquiv_reduce(this%qInput, this%iEqOrbitals, this%orb, this%qInpRed(1:this%nIneqOrb))
 
     if (allocated(this%onSiteElements)) then
-      call AppendBlock_reduce(this%qBlockIn, this%iEqBlockOnSite, this%orb, this%qInpRed)
+      call appendBlockReduced(this%qBlockIn, this%iEqBlockOnSite, this%orb, this%qInpRed)
       if (this%tImHam) then
-        call AppendBlock_reduce(this%qiBlockIn, this%iEqBlockOnSiteLS, this%orb, this%qInpRed,&
+        call appendBlockReduced(this%qiBlockIn, this%iEqBlockOnSiteLS, this%orb, this%qInpRed,&
             & isSkew=.true.)
       end if
     else if (allocated(this%dftbU)) then
-      call AppendBlock_reduce(this%qBlockIn, this%iEqBlockDFTBU, this%orb, this%qInpRed)
+      call appendBlockReduced(this%qBlockIn, this%iEqBlockDFTBU, this%orb, this%qInpRed)
       if (this%tImHam) then
-        call AppendBlock_reduce(this%qiBlockIn, this%iEqBlockDFTBULS, this%orb, this%qInpRed,&
+        call appendBlockReduced(this%qiBlockIn, this%iEqBlockDFTBULS, this%orb, this%qInpRed,&
             & isSkew=.true.)
       end if
     end if

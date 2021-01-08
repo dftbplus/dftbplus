@@ -15,12 +15,12 @@ module dftbp_blockpothelper
   implicit none
 
   private
-  public :: AppendBlock_reduce
+  public :: appendBlockReduced
 
 contains
 
   !> Adds block (dual) charges onto end of a 1D vector of reduced charges
-  subroutine AppendBlock_reduce(input, equiv, orb, output, isSkew)
+  subroutine appendBlockReduced(input, equiv, orb, output, isSkew)
 
     !> unpacked data
     real(dp), intent(in) :: input(:,:,:,:)
@@ -73,6 +73,6 @@ contains
       end do
     end do
 
-  end subroutine AppendBlock_reduce
+  end subroutine appendBlockReduced
 
 end module dftbp_blockpothelper
