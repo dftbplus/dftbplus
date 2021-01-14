@@ -427,8 +427,8 @@ contains
       call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
           & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
           & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
-          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%nDftbUFunc, main%UJ,&
-          & main%nUJ, main%iUJ, main%niUJ, main%onSiteElements, main%refExtPot, main%solvation,&
+          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+          & main%onSiteElements, main%refExtPot, main%solvation,&
           & main%rangeSep, main%referenceN0, main%q0, main%pRepCont, main%iAtInCentralRegion,&
           & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
           & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species)
@@ -476,8 +476,8 @@ contains
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
            & main%skHamCont, main%skOverCont, main%ham,main%over, env, main%coord, main%q0,&
-           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%nDftbUFunc,&
-           & main%UJ, main%nUJ, main%iUJ, main%niUJ, main%onSiteElements, main%refExtPot, main%solvation,&
+           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+           & main%onSiteElements, main%refExtPot, main%solvation,&
            & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
            & main%electronicSolver, main%qDepExtPot)
 
