@@ -111,7 +111,9 @@ module dftbp_rangeseparated
 
   contains
 
-    procedure :: updateCoords
+    procedure :: updateCoordsClust
+    procedure :: updateCoordsNeigh
+    generic :: updateCoords => updateCoordsClust, updateCoordsNeigh
     procedure :: addLrHamiltonian
     procedure :: addLrHamiltonianMatrixCmplx
     procedure :: addLrEnergy
@@ -238,7 +240,7 @@ contains
 
 
   !> update the rangeSep module on coordinate change
-  subroutine updateCoords(this, coords)
+  subroutine updateCoordsClust(this, coords)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -252,8 +254,8 @@ contains
     this%coords(:,:) = coords
     nAtom = size(this%species)
     do iAtom1 = 1, nAtom
+      iSp1 = this%species(iAtom1)
       do iAtom2 = 1, iAtom1
-        iSp1 = this%species(iAtom1)
         iSp2 = this%species(iAtom2)
         dist = norm2(this%coords(:, iAtom1) - this%coords(:, iAtom2))
         this%lrGammaEval(iAtom1, iAtom2) = getAnalyticalGammaValue(this, iSp1, iSp2, dist)
@@ -267,7 +269,54 @@ contains
       this%lrEnergy = 0.0_dp
     end if
 
-  end subroutine updateCoords
+  end subroutine updateCoordsClust
+
+
+  !> update the rangeSep module on coordinate change, using a neighbour map hence cutting off 1/r at
+  !> a defined radius
+  subroutine updateCoordsNeigh(this, coords, nNeigh, iNeigh, img2CentCell)
+
+    !> class instance
+    class(TRangeSepFunc), intent(inout) :: this
+
+    !> list of atomic coordinates, potentially including periodic images
+    real(dp), intent(in) :: coords(:,:)
+
+    integer, intent(in) :: nNeigh(:)
+
+    integer, intent(in) :: iNeigh(0:,:)
+
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: nAt, iAt1, iN, iAt2, iAt2f, iSp1, iSp2
+    real(dp) :: dist
+
+    nAt = size(this%species)
+    @:ASSERT(nAt == size(nNeigh))
+    this%coords(:,:) = coords(:, :nAt)
+    this%lrGammaEval(:,:) = 0.0_dp
+    do iAt1 = 1, nAt
+      iSp1 = this%species(iAt1)
+      do iN = 0, nNeigh(iAt1)
+        iAt2 = iNeigh(iN, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = this%species(iAt2f)
+        dist = norm2(this%coords(:, iAt1) - this%coords(:, iAt2))
+        this%lrGammaEval(iAt2f, iAt1) = this%lrGammaEval(iAt2f, iAt1)&
+            & + getAnalyticalGammaValue(this, iSp1, iSp2, dist)
+      end do
+    end do
+    do iAt1 = 1, nAt
+      this%lrGammaEval(iAt1, iAt1+1:) = this%lrGammaEval(iAt1+1:, iAt1)
+    end do
+
+    if (this%tScreeningInited) then
+      this%hprev(:,:) = 0.0_dp
+      this%dRhoPrev(:,:) = 0.0_dp
+      this%lrEnergy = 0.0_dp
+    end if
+
+  end subroutine updateCoordsNeigh
 
 
   !> Interface routine.
@@ -820,7 +869,7 @@ contains
               & this%lrGammaEval(jAt,iAt)
         end do
       end do
-      gammaCmplx = LRgammaAO
+      gammaCmplx(:,:) = LRgammaAO
 
     end subroutine allocateAndInit
 

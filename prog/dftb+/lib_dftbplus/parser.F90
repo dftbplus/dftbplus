@@ -1175,7 +1175,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure to be filled
@@ -1334,7 +1334,7 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call parseRangeSeparated(node, ctrl%rangeSepInp)
+    call parseRangeSeparated(node, ctrl%rangeSepInp, geo)
 
     if (.not. allocated(ctrl%rangeSepInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
@@ -7172,9 +7172,12 @@ contains
 
 
   !> Parse range separation input
-  subroutine parseRangeSeparated(node, input)
+  subroutine parseRangeSeparated(node, input, geo)
     type(fnode), pointer, intent(in) :: node
     type(TRangeSepInp), allocatable, intent(out) :: input
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
 
     type(fnode), pointer :: child1, value1, child2, value2, child3
     type(string) :: buffer, modifier
@@ -7207,6 +7210,12 @@ contains
         input%rangeSepAlg = rangeSepTypes%matrixBased
         ! In this case, CutoffRedunction is not used so it should be set to zero.
         input%cutoffRed = 0.0_dp
+        if (geo%tPeriodic) then
+          call getChildValue(value2, "CoulombTruncation", input%coulombTruncation,&
+              & 0.5_dp*sqrt(minval(sum(geo%latVecs**2, dim=1))), modifier=modifier,&
+              & child=child3)
+          call convertByMul(char(modifier), lengthUnits, child3, input%coulombTruncation)
+        end if
       case default
         call getNodeHSdName(value2, buffer)
         call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
