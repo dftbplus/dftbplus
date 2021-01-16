@@ -601,8 +601,8 @@ contains
           & this%solvation, this%thirdOrd, this%rangeSep, this%reks, this%img2CentCell,&
           & this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold, this%coord,&
           & this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourRep, this%nNeighbourLC,&
-          & this%ham, this%over, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
-          & this%iSparseStart, this%cm5Cont, stat)
+          & this%nNeighbourRSRc, this%ham, this%over, this%H0, this%rhoPrim, this%iRhoPrim,&
+          & this%iHam, this%ERhoPrim, this%iSparseStart, this%tPoisson, this%cm5Cont, stat)
         @:HANDLE_ERROR(stat)
     end if
 
@@ -1589,8 +1589,8 @@ contains
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
       & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
-      & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-      & ERhoPrim, iSparseStart, cm5Cont, stat)
+      & nNeighbourSK, nNeighbourRep, nNeighbourLC, nNeighbourRSRc, ham, over, H0, rhoPrim,&
+      & iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson, cm5Cont, stat)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1671,6 +1671,9 @@ contains
     !> functional
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
+    !> Number of neighbours for each of the atoms for the exchange contribution 1/R cutoff
+    integer, intent(inout), allocatable :: nNeighbourRSRc(:)
+
     !> Sparse hamiltonian storage
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
@@ -1729,8 +1732,21 @@ contains
     call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, cutoff%repCutOff)
 
     if (allocated(nNeighbourLC)) then
-      ! count neighbours for repulsive interactions between atoms
+      ! count neighbours for range separated interaction
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
+    end if
+
+    if (allocated(nNeighbourRSRc)) then
+      ! count neighbours for 1/Rc range separated cutoff
+      call getNrOfNeighboursForAll(nNeighbourRSRc, neighbourList, cutoff%lcRsCutOff)
+    end if
+
+    ! Notify various modules about coordinate changes
+    if (tPoisson) then
+      !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
+      !! folding can mess up the contact position. Could we have the supercell
+      !! centered on the input atomic structure?
+      call poiss_updcoords(coord0)
     end if
 
     if (allocated(sccCalc)) then
@@ -1748,7 +1764,11 @@ contains
       call thirdOrd%updateCoords(neighbourList, species)
     end if
     if (allocated(rangeSep)) then
-      call rangeSep%updateCoords(coord0)
+      if (tPeriodic .or. tHelical) then
+        call rangeSep%updateCoords(coord0, nNeighbourRSRc, neighbourList%iNeighbour, img2CentCell)
+      else
+        call rangeSep%updateCoords(coord0)
+      end if
     end if
     if (allocated(cm5Cont)) then
        call cm5Cont%updateCoords(neighbourList, img2CentCell, coord, species)
