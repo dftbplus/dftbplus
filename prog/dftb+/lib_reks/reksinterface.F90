@@ -861,7 +861,7 @@ module dftbp_reksinterface
         lcDerivs(:,:,iL) = 0.0_dp
         call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
             & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
-            & neighbourList%iNeighbour, nNeighbourSK)
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell)
       end if
 
       if (iL == 1) then

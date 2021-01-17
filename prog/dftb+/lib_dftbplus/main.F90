@@ -1774,7 +1774,7 @@ contains
     end if
     if (allocated(rangeSep)) then
       if (tPeriodic .or. tHelical) then
-        call rangeSep%updateCoords(coord0, nNeighbourRSRc, neighbourList%iNeighbour, img2CentCell)
+        call rangeSep%updateCoords(coord, nNeighbourRSRc, neighbourList%iNeighbour, img2CentCell)
       else
         call rangeSep%updateCoords(coord0)
       end if
@@ -5611,7 +5611,8 @@ contains
         call error("Range separated forces do not support non-colinear spin")
       else
         call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
-            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
+            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK,&
+            & img2CentCell)
       end if
     end if
 
