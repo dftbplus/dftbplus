@@ -293,11 +293,7 @@ contains
 
     nAt = size(this%species)
     @:ASSERT(nAt == size(nNeigh))
-    if (size(this%coords, dim=2) /= size(coords, dim=2)) then
-      deallocate(this%coords)
-      allocate(this%coords(3,size(coords, dim=2)))
-    end if
-    this%coords(:,:) = coords
+    this%coords = coords
     this%lrGammaEval(:,:) = 0.0_dp
     do iAt1 = 1, nAt
       iSp1 = this%species(iAt1)
