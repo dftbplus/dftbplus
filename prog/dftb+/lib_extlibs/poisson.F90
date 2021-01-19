@@ -8,30 +8,83 @@
 #:include "common.fypp"
 
 !> Interface to libPoisson routines
-module poisson_init
+!>
+!> NOTE: THIS MODULE IS NOT MULTI-INSTANCE SAFE
+!>
+module dftbp_poisson
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals
   use dftbp_globalenv, only : stdOut
-  use dftbp_message
+  use dftbp_message, only : error
 #:if WITH_MPI
-  use libmpifx_module
+  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
 #:endif
-  use poisson
+  use poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms, verbose, bufferBox,&
+      & deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate,&
+      & GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter, numprocs,&
+      & overrBulkBC, overrideBC, OxLength, period, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot,&
+      & scratchfolder, uhubb, lmax, izp, dQmat, init_poissbox, mudpack_drv, poiss_freepoisson,&
+      & set_scratch, init_structure, init_skdata, init_charges, init_defaults, set_temperature,&
+      & set_ncont, set_cluster, set_mol_indeces, set_dopoisson, set_poissonbox, set_poissongrid,&
+      & set_accuracy, set_verbose, check_biasdir, check_poisson_box, check_parameters,&
+      & check_localbc, check_contacts, write_parameters, poiss_getlatvecs
+#:if WITH_MPI
+  use poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
+#:endif
+#:if WITH_TRANSPORT
+  use poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi, set_potentials, set_builtin
+#:endif
   use dftbp_environment, only : TEnvironment, globalTimers
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
 #:endif
   implicit none
-  private
 
-  public :: poiss_init
-  public :: poiss_updcharges, poiss_getshift
-  public :: poiss_destroy
-  public :: poiss_updcoords
-  public :: poiss_savepotential
-  public :: TPoissonInfo
-  public :: TPoissonStructure
+  private
+  public :: TPoissonInfo, TPoissonStructure
+  public :: TPoissonInput, TPoisson, TPoisson_init
+
+
+
+  !> Contains some part of the Poisson solvers internal data
+  !>
+  !> Note: As much of the data of the solver is kept in global variables, the solver is not
+  !> multi-instance safe!
+  !>
+  type :: TPoisson
+    private
+
+    ! Stores last calculated shell resolved potential
+    real(dp), allocatable :: shellPot_(:,:)
+
+    ! Stores the shift vector to use in order to upload the shell potential
+    real(dp), allocatable :: shellPotUpload_(:,:)
+
+  contains
+
+    !> Updates the lattice vectors.
+    procedure, nopass :: updateLatVecs
+
+    !> Updates the coordinates
+    procedure, nopass :: updateCoords
+
+    !> Updates the charges.
+    procedure :: updateCharges
+
+    !> Adds the potential calculated with the last charges.
+    procedure :: addPotentials
+
+    !> Returns the gradients corresponding to the last charges.
+    procedure :: getGradients
+
+    !> Saves the internal potential of the Poisson solver.
+    procedure, nopass :: savePotential
+
+    ! Finalizer
+    final :: finalize_
+
+  end type TPoisson
 
 
   !> Geometry of the atoms for the Poisson solver
@@ -44,22 +97,13 @@ module poisson_init
     integer :: nSpecies
 
     !> type of the atoms (nAtom)
-    integer, pointer :: specie0(:)
-
-    !> atom START pos for squared H/S
-    integer, pointer :: iatomstart(:)
+    integer, allocatable :: specie0(:)
 
     !> coordinates in central cell
-    real(dp), pointer :: x0(:,:)
-
-    !> total number of electrons
-    real(dp) :: nel
+    real(dp), allocatable :: x0(:,:)
 
     !> lattice vectors
-    real(dp) :: latVecs(3,3)
-
-    !> electron temperature
-    real(dp) :: tempElec
+    real(dp), allocatable :: latVecs(:,:)
 
     !> tells whether the system is periodic
     logical :: isperiodic
@@ -112,9 +156,6 @@ module poisson_init
     !> save the potential on a file
     logical :: savePotential = .false.
 
-    !> Recompute poisson after D.M.
-    logical :: solveTwice  = .false.
-
     !> maximum number of poisson iter
     integer :: maxPoissIter
 
@@ -166,14 +207,215 @@ module poisson_init
   end type TPoissonInfo
 
 
+  !> Contains the main input for the Poisson-solver
+  type :: TPoissonInput
+
+    !> Geometrical structure related input data
+    type(TPoissonStructure) :: poissonStruct
+
+    !> Poisson solver specific parameters
+    type(TPoissonInfo) :: poissonInfo
+
+  #:if WITH_TRANSPORT
+
+    !> Optional transport parameters (only when used in transport calculations)
+    type(TTransPar), allocatable :: transPar
+
+  #:endif
+
+    !> Hubbard U values (uncontracted). Shape: [mShell, nSpecies]
+    real(dp), allocatable :: hubbU(:,:)
+
+    !> Optional shift vectors to upload shifts for atoms which are not calculated explicitely.
+    !> Typically used in transport calculations to upload the contact atoms. Shape: [mShell, nAtom].
+    real(dp), allocatable :: shellPotUpload(:,:)
+
+  end type TPoissonInput
+
+
+  ! Nr. of active Poisson-solver instances
+  integer :: nInstances_ = 0
+
 contains
 
+  !> Initialized Poisson solver
+  !>
+  !> Note: Only single instance should exist, as part of the internal state is stored in
+  !>     global variables.
+  !>
+  subroutine TPoisson_init(this, input, env, orb, success)
+
+    !> Instance
+    type(TPoisson), intent(out) :: this
+
+    !> Input parameters for the solver
+    type(TPoissonInput), intent(inout) :: input
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Success of initialisation
+    logical, intent(out) :: success
+
+    integer :: nAtom
+
+    if (nInstances_ > 0) then
+      call error("Internal error: There exists already an instance of PoissonSolver")
+    end if
+    nInstances_ = 1
+
+    nAtom = size(orb%nOrbAtom)
+    allocate(this%shellPot_(orb%mShell, nAtom))
+
+    call move_alloc(input%shellPotUpload, this%shellPotUpload_)
+
+  #:if WITH_TRANSPORT
+    call poiss_init_(env, input%poissonStruct, orb, input%hubbU, input%poissonInfo, input%transpar,&
+        & success)
+  #:else
+    call poiss_init_(env, input%poissonStruct, orb, input%hubbU, input%poissonInfo, success)
+  #:endif
+
+  end subroutine TPoisson_init
+
+
+  !> Invokes the finalization of the instance.
+  subroutine finalize_(this)
+    type(TPoisson), intent(inout) :: this
+
+    call poiss_destroy_()
+    nInstances_ = nInstances_ - 1
+
+  end subroutine finalize_
+
+
+  !> Updates the lattice vectors.
+  !>
+  !> Note: The Poisson solver can not handle lattice vectors updates. This routine just checks
+  !> whether the new lattice vectors are the ones used at the initialization and triggers
+  !> an error, if it is not the case.
+  !>
+  subroutine updateLatVecs(latVecs)
+
+    !> New lattice vectors. Shape: [3, 3]
+    real(dp), intent(in) :: latVecs(:,:)
+
+    real(dp) :: origLatVecs(3, 3)
+    logical :: latticeChanged
+
+    ! Poisson solver stores init data only on the lead node
+    if (active_id) then
+      call poiss_getlatvecs(origLatVecs)
+      latticeChanged = any(abs(latVecs - origLatVecs) > 1e-10_dp)
+    end if
+
+    ! To warranty a proper stop, distribute result and call error() on all processes if needed
+  #:if WITH_MPI
+    call mpifx_bcast(global_comm, latticeChanged)
+  #:endif
+    if (latticeChanged) then
+      call error("Internal error: Poisson solver can not handle lattice vector changes")
+    end if
+
+  end subroutine updateLatVecs
+
+
+  !> Updates the coordinates
+  subroutine updateCoords(coords)
+
+    !> New coordinates. Shape: [3, nAtom]
+    real(dp), intent(in) :: coords(:,:)
+
+    call poiss_updcoords(coords)
+
+  end subroutine updateCoords
+
+
+  !> Updates the charges.
+  subroutine updateCharges(this, env, qOrb, q0)
+
+    !> Instance.
+    class(TPoisson), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Orbital resolved charges. Shape: [mOrb, nAtom]
+    real(dp), intent(in) :: qOrb(:,:)
+
+    !> Orbital resolved reference charges. Shape: [mOrb, nAtom].
+    real(dp), intent(in) :: q0(:,:)
+
+    call poiss_updcharges_(env, qOrb, q0)
+    if (allocated(this%shellPotUpload_)) then
+      this%shellPot_(:,:) = this%shellPotUpload_
+    else
+      this%shellPot_(:,:) = 0.0_dp
+    end if
+    call poiss_getshift_(env, this%shellPot_)
+
+  end subroutine updateCharges
+
+
+  !> Adds the potential calculated with the last charges.
+  subroutine addPotentials(this, shellPot)
+
+    !> Instance.
+    class(TPoisson), intent(in) :: this
+
+    !> Potential to increase by the potential corresponding to the last trasmitted charges.
+    real(dp), intent(inout) :: shellPot(:,:)
+
+    shellPot(:,:) = shellPot + this%shellPot_
+
+  end subroutine addPotentials
+
+
+  !> Returns the gradients corresponding to the last charges.
+  subroutine getGradients(this, env, gradients)
+
+    !> Instance.
+    class(TPoisson), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Gradients
+    real(dp), intent(out) :: gradients(:,:)
+
+    real(dp), allocatable :: dummyArray(:,:)
+
+    allocate(dummyArray, mold=this%shellPot_)
+    call poiss_getshift_(env, dummyArray, gradients)
+
+  end subroutine getGradients
+
+
+  !> Saves the internal potential of the Poisson solver.
+  subroutine savePotential(env)
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
+
+    call poiss_savepotential(env)
+
+  end subroutine savePotential
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Private routines
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   !> Initialise gDFTB environment and variables
-  subroutine poiss_init(env, structure, orb, hubbU, poissoninfo,&
-    #:if WITH_TRANSPORT
-      & transpar,&
-    #:endif
-      & initinfo)
+#:if WITH_TRANSPORT
+  subroutine poiss_init_(env, structure, orb, hubbU, poissoninfo, transpar, initinfo)
+#:else
+  subroutine poiss_init_(env, structure, orb, hubbU, poissoninfo, initinfo)
+#:endif
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -221,7 +463,7 @@ contains
 
     if (id0) then
       ! only use a scratch folder on the lead node
-      call create_directory(trim(scratchfolder),iErr)
+      call create_directory_(trim(scratchfolder),iErr)
     end if
 
     if (active_id) then
@@ -241,7 +483,7 @@ contains
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy(env)
+        call poiss_destroy_()
         initinfo = .false.
         return
       endif
@@ -313,14 +555,14 @@ contains
       ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
       if (deltaR_max < 0.0_dp) then
         write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
-        deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
+        deltaR_max = getAtomDensityCutoff_(-deltaR_max, uhubb)
       end if
 
       write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
     #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-        call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
+        call checkDensityCutoff_(deltaR_max, transpar%contacts(:)%length)
       end if
     #:endif
 
@@ -387,10 +629,10 @@ contains
 
     endif
 
-  end subroutine poiss_init
+  end subroutine poiss_init_
 
 
-  subroutine create_directory(dirName, iErr)
+  subroutine create_directory_(dirName, iErr)
 
     character(*), intent(in) :: dirName
 
@@ -411,26 +653,23 @@ contains
       write (stdOut,*) "command msg:  ", trim(cmsg)
     end if
 
-  end subroutine create_directory
+  end subroutine create_directory_
 
 
   !> Release gDFTB varibles in poisson library
-  subroutine poiss_destroy(env)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
+  subroutine poiss_destroy_()
 
     if (active_id) then
       write(stdOut,'(A)')
       write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson(env)
+      call poiss_freepoisson()
     endif
 
-  end subroutine poiss_destroy
+  end subroutine poiss_destroy_
 
 
   !> Interface subroutine to call Poisson
-  subroutine poiss_getshift(env, V_L_atm,grad_V)
+  subroutine poiss_getshift_(env, V_L_atm,grad_V)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -498,11 +737,11 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%poisson)
 
-  end subroutine poiss_getshift
+  end subroutine poiss_getshift_
 
 
   !> Interface subroutine to overload Mulliken charges stored in libPoisson
-  subroutine poiss_updcharges(env, q, q0)
+  subroutine poiss_updcharges_(env, q, q0)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -540,11 +779,11 @@ contains
     endif
     call env%globalTimer%stopTimer(globalTimers%poisson)
 
-  end subroutine poiss_updcharges
+  end subroutine poiss_updcharges_
 
 
   !> Calculates the atom density cutoff from the density tolerance.
-  function getAtomDensityCutoff(denstol, uhubb) result(res)
+  function getAtomDensityCutoff_(denstol, uhubb) result(res)
 
     !> Density tolerance.
     real(dp), intent(in) :: denstol
@@ -565,11 +804,13 @@ contains
       res = max(res, -log(8.0_dp * pi / tau**3 * denstol) / tau)
     end do
 
-  end function getAtomDensityCutoff
+  end function getAtomDensityCutoff_
 
+
+#:if WITH_TRANSPORT
 
   !> Checks whether density cutoff fits into the PLs and stop if not.
-  subroutine checkDensityCutoff(rr, pllens)
+  subroutine checkDensityCutoff_(rr, pllens)
 
     !> Density cutoff.
     real(dp), intent(in) :: rr
@@ -591,7 +832,8 @@ contains
       end if
     end do
 
-  end subroutine checkDensityCutoff
+  end subroutine checkDensityCutoff_
 
+#:endif
 
-end module poisson_init
+end module dftbp_poisson

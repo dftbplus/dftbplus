@@ -273,7 +273,7 @@ module dftbp_reksinterface
 
     ! get the periodic information
     if (this%tPeriodic) then
-      call sccCalc%coulombCont%getPeriodicInfo(this%rVec, this%gVec, this%alpha, this%volume)
+      call sccCalc%coulomb%getPeriodicInfo(this%rVec, this%gVec, this%alpha, this%volume)
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &

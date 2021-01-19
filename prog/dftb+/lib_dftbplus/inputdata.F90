@@ -39,8 +39,8 @@ module dftbp_inputdata
 #:if WITH_TRANSPORT
   use libnegf_vars
 #:endif
-  use poisson_init
-
+  use dftbp_poisson, only : TPoissonInfo
+  use dftbp_h5correction, only : TH5CorrectionInput
   implicit none
   private
   save
@@ -408,15 +408,7 @@ module dftbp_inputdata
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
-
-    ! H5 correction
-    !> H5 correction On/Off(default) flag
-    logical ::h5SwitchedOn = .false.
-    !> Global parameters - set to -1 to identify they were not initialized
-    real(dp) :: h5RScale = -1.0_dp
-    real(dp) :: h5WScale = -1.0_dp
-    real(dp), allocatable :: h5ElementPara(:)
-    ! H5 correction end
+    type(TH5CorrectionInput), allocatable :: h5Input
 
     !> Halogen X correction
     logical :: tHalogenX = .false.
@@ -520,6 +512,10 @@ module dftbp_inputdata
 
     !> REKS input
     type(TReksInp) :: reksInp
+
+    !> Whether Scc should be updated with the output charges (obtained after diagonalization)
+    !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    logical :: updateSccAfterDiag = .true.
 
   end type TControl
 
