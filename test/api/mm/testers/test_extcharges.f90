@@ -133,7 +133,7 @@ program test_extcharges
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
-  atomMasses = dftbp%getAtomicMasses()
+  call dftbp%getAtomicMasses(atomMasses)
 
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy

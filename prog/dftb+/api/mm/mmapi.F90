@@ -528,23 +528,19 @@ contains
 
 
   !> Returns the atomic masses for each atom in the system.
-  function TDftbPlus_getAtomicMasses(this) result(mass)
+  subroutine TDftbPlus_getAtomicMasses(this, mass)
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
 
     !> Masses for each species of the system
-    real(dp), allocatable :: mass(:)
-
-    integer :: nAtom
+    real(dp), intent(out) :: mass(:)
 
     call this%checkInit()
 
-    nAtom = nrOfAtoms(this%main)
-    allocate(mass(nAtom))
     call getAtomicMasses(this%main, mass)
 
-  end function TDftbPlus_getAtomicMasses
+  end subroutine TDftbPlus_getAtomicMasses
 
 
   !> Checks whether the type is already initialized and stops the code if not.
