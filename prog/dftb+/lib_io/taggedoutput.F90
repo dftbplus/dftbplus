@@ -171,6 +171,9 @@ module dftbp_taggedoutput
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
+    !> atomic masses
+    character(lenLabel) :: atomMass = 'atomic_masses'
+
   end type TTagLabelsEnum
 
 

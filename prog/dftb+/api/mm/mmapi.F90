@@ -101,6 +101,8 @@ module dftbp_mmapi
     procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
+    !> Return the masses for each atom in the system
+    procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
   end type TDftbPlus
 
 
@@ -523,6 +525,22 @@ contains
     nAtom = nrOfAtoms(this%main)
 
   end function TDftbPlus_nrOfAtoms
+
+
+  !> Returns the atomic masses for each atom in the system.
+  subroutine TDftbPlus_getAtomicMasses(this, mass)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Masses for each species of the system
+    real(dp), intent(out) :: mass(:)
+
+    call this%checkInit()
+
+    call getAtomicMasses(this%main, mass)
+
+  end subroutine TDftbPlus_getAtomicMasses
 
 
   !> Checks whether the type is already initialized and stops the code if not.
