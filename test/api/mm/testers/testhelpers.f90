@@ -74,7 +74,7 @@ contains
       call taggedWriter%write(autotestTag, tagLabels%stressTot, stressTensor)
     end if
     if (present(tdEnergy)) then
-       call taggedWriter%write(autotestTag, tagLabels%tdenergy, tdEnergy)
+      call taggedWriter%write(autotestTag, tagLabels%tdenergy, tdEnergy)
     end if
     if (present(tdDipole)) then
       call taggedWriter%write(autotestTag, tagLabels%tddipole, tdDipole)
