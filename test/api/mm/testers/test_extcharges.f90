@@ -57,7 +57,7 @@ program test_extcharges
   character(2), allocatable :: speciesNames(:)
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
+  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
   type(fnode), pointer :: pParserOpts
 
@@ -133,6 +133,8 @@ program test_extcharges
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
+  call dftbp%getAtomicMasses(atomMasses)
+
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
@@ -147,6 +149,6 @@ program test_extcharges
 
   ! Write file for internal test system
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-      & extChargeGradients=extChargeGrads)
+      & extChargeGradients=extChargeGrads, atomMasses=atomMasses)
 
 end program test_extcharges

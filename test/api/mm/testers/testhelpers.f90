@@ -20,7 +20,7 @@ contains
 
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces)
+      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces, atomMasses)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -51,6 +51,9 @@ contains
 
     !> Time-dependent Ehrenfest forces
     real(dp), optional, intent(in) :: tdForces(:,:)
+
+    !> Atomic masses
+    real(dp), optional, intent(in) :: atomMasses(:)
 
     type(TTaggedWriter) :: taggedWriter
     integer :: autotestTag
@@ -87,6 +90,9 @@ contains
     end if
     if (present(tdForces)) then
       call taggedWriter%write(autotestTag, tagLabels%ehrenforces, tdForces)
+    end if
+    if(present(atomMasses)) then
+      call taggedWriter%write(autotestTag, tagLabels%atomMass, atomMasses)
     end if
 
     close(autotestTag)

@@ -33,7 +33,7 @@ module dftbp_mainapi
 
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
-  public :: nrOfAtoms
+  public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField
 
@@ -520,6 +520,19 @@ contains
     main%electronDynamics%tdFieldIsSet = .true.
 
   end subroutine setTdElectricField
+
+
+  !> Obtains mass for each atom in the system
+  subroutine getAtomicMasses(main, outMass)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    real(dp), intent(out) :: outMass(main%nAtom)
+
+    outMass = main%mass
+
+  end subroutine getAtomicMasses
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
