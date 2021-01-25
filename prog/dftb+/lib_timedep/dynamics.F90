@@ -3604,11 +3604,11 @@ contains
     end if
 
     call initializeTDVariables(this, this%trho, this%H1, this%Ssqr, this%Sinv, H0, this%ham0, &
-         & over, ham, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
-         & neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
-         & this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, skOverCont, this%qBlock,&
-         & this%qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, this%H1LC, this%bondWork, &
-         & this%fdBondEnergy, this%fdBondPopul, this%lastBondPopul, this%time)
+        & over, ham, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
+        & neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
+        & this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, skOverCont, this%qBlock,&
+        & this%qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, this%H1LC, this%bondWork, &
+        & this%fdBondEnergy, this%fdBondPopul, this%lastBondPopul, this%time)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -3622,10 +3622,10 @@ contains
     end if
 
     call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
-         & this%populDat, this%forceDat, this%coorDat)
+        & this%populDat, this%forceDat, this%coorDat)
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%trho, this%Ssqr,&
-         & coord, iSquare, this%qBlock, this%qNetAtom)
+        & coord, iSquare, this%qBlock, this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
@@ -3803,13 +3803,13 @@ contains
         velInternal(:,:) = 0.0_dp
       end if
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
-           &restartFileName, this%tWriteRestartAscii)
+          &restartFileName, this%tWriteRestartAscii)
       deallocate(velInternal)
     end if
 
     ! WORKAROUND for gfort9 using max() as mod(0,0) can be reached and fails with this compiler
     tProbeFrameWrite = this%tPump .and. (iStep >= this%PpIni) .and. (iStep <= this%PpEnd)&
-       & .and. (mod(iStep-this%PpIni, max(this%PpFreq,1)) == 0)
+        & .and. (mod(iStep-this%PpIni, max(this%PpFreq,1)) == 0)
     if (tProbeFrameWrite) then
       write(dumpIdx,'(I0)')int((iStep-this%PpIni)/this%PpFreq)
       allocate(velInternal(3,size(this%movedVelo, dim=2)))
@@ -3837,23 +3837,23 @@ contains
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord, iSquare, this%qBlock,&
-       & this%qNetAtom)
+        & this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
-           & this%speciesAll(:this%nAtom), .true.)
+          & this%speciesAll(:this%nAtom), .true.)
     end if
 
     call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb, this%potential,&
-         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
-         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-         & this%dispersion,this%rho)
+        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & this%dispersion,this%rho)
 
     if (this%tForces) then
-       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
-            & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
-            & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
-            & this%deltaRho)
+      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
+          & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
+          & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
+          & this%deltaRho)
     end if
 
     if (this%tIons) then
@@ -3861,24 +3861,24 @@ contains
       call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
       this%coordNew(:, this%indMovedAtom) = new3Coord
       call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-           &neighbourList, nNeighbourSK, iSquare)
+          &neighbourList, nNeighbourSK, iSquare)
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-           & neighbourList, pRepCont, iAtInCentralRegion)
+          & neighbourList, pRepCont, iAtInCentralRegion)
     end if
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
-         & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
-         & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
-         & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
+        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
+        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if ((mod(iStep, this%writeFreq) == 0)) then
       call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
-           & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
-           & this%fdBondEnergy, this%fdBondPopul, this%time)
+          & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+          & this%fdBondEnergy, this%fdBondPopul, this%time)
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
@@ -3888,23 +3888,23 @@ contains
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
           call zcopy(this%nOrbs*this%nOrbs, this%rho(:,:,iKS), 1, this%rhoOld(:,:,iKS), 1)
           call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-               & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
+              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
         else
           call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-               & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
         end if
       else
         call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-             &this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
       end if
     end do
 
     if (mod(iStep, 2) == 1) then
-       this%rho => this%trho
-       this%rhoOld => this%trhoOld
+      this%rho => this%trho
+      this%rhoOld => this%trhoOld
     else
-       this%rho => this%trhoOld
-       this%rhoOld => this%trho
+      this%rho => this%trhoOld
+      this%rhoOld => this%trho
     end if
 
     if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
@@ -3917,6 +3917,7 @@ contains
 
   !> Handles deallocation, closing outputs and autotest writing
   subroutine finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -3929,14 +3930,13 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-
     if (tWriteAutotest) then
       call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
-           & this%occ, this%lastBondPopul, taggedWriter)
+          & this%occ, this%lastBondPopul, taggedWriter)
     end if
 
     call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
-         & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
+        & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
 
     deallocate(this%Ssqr)
     deallocate(this%Sinv)
