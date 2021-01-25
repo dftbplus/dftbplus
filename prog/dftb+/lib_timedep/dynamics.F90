@@ -1094,15 +1094,7 @@ contains
 
     ! Add time dependent field if necessary
     if (this%tLaser) then
-      if (.not. this%tdFieldThroughAPI) then
-        this%presentField(:) = this%tdFunction(:, iStep)
-      elseif (.not. this%tdFieldIsSet) then
-        if (iStep == 0) then
-          this%presentField(:) = 0.0_dp
-        else
-          call error("External field has not been set.")
-        end if
-      end if
+      call setPresentField(this, iStep)
       do iAtom = 1, this%nExcitedAtom
         iEatom = this%indExcitedAtom(iAtom)
         potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%presentField)
@@ -3121,15 +3113,7 @@ contains
     end if
 
     if (this%tLaser) then
-      if (.not. this%tdFieldThroughAPI) then
-        this%presentField(:) = this%tdFunction(:, iStep)
-      elseif (.not. this%tdFieldIsSet) then
-        if (iStep == 0) then
-          this%presentField(:) = 0.0_dp
-        else
-          call error("External field has not been set.")
-        end if
-      end if
+      call setPresentField(this, iStep)
       do iDir = 1, 3
         derivs(iDir,:) = derivs(iDir,:)&
             & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%presentField(iDir)
@@ -3405,6 +3389,27 @@ contains
     end if
 
   end subroutine getBondPopulAndEnergy
+
+
+  !> sets electric field at present timestep
+  subroutine setPresentField(this, iStep)
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> current step of the propagation
+    integer, intent(in) :: iStep
+
+    if (.not. this%tdFieldThroughAPI) then
+      this%presentField(:) = this%tdFunction(:, iStep)
+    elseif (.not. this%tdFieldIsSet) then
+      if (iStep == 0) then
+        this%presentField(:) = 0.0_dp
+      else
+        call error("External field has not been set.")
+      end if
+    end if
+
+  end subroutine setPresentField
 
 
   !> Handles the initializations of the variables needed for the time propagation
