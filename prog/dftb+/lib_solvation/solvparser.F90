@@ -280,7 +280,7 @@ contains
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
 
     call readVanDerWaalsRad(node, geo, input%vdwRad)
-    call getChildValue(node, "radScale", radScale, 1.0_dp)
+    call getChildValue(node, "radScale", radScale)
     input%vdwRad(:) = input%vdwRad * radScale
 
     call readAngularGrid(node, input%gridSize, 230)
@@ -310,7 +310,6 @@ contains
     call getChildValue(node, "MaxMoment", input%lmax, 6, child=child)
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
     call getChildValue(node, "Accuracy", input%iconv, 8, child=child)
-    call getChildValue(node, "Convergence", input%conv, 1.0e-8_dp, child=child)
 
   end subroutine readDomainDecomposition
 

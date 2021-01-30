@@ -3509,6 +3509,42 @@ CM5 {
 \subsubsection{Conductor like screening model}
 \label{sec:dftbp.COSMO}
 
+The conductor like screening model (COSMO)\cite{klamt1993} allows to include dielectric screening effects in quantum chemical calculations.
+DFTB+ uses the fast domain decomposition algorithm\cite{lipparini2013} to minimize the overhead of solving the COSMO equations in the SCC iterations.
+
+In the domain decomposition algorithm the solvation energy is given by
+%
+\begin{equation}
+  E_\text{solv} =
+  \frac12 \left(\frac1{\epsilon_\text{in}}-\frac1{\epsilon_\text{out}}\right)
+  \sum^{N_\text{atoms}}_{j=1}
+  \sum^{N_\text{basis}}_{l=0}\sum^{l}_{m=-l}
+  \left[\Psi_j\right]^m_l \left[X_j\right]^m_l
+\end{equation}
+%
+where $N_\text{basis}$ is the maximum degree of the expansion in spherical harmonics,
+$\left[\Psi_j\right]^m_l$ decribes the interaction of the tight-binding Hamiltonian with
+the spherical harmonics and $\left[X_j\right]^m_l$ are the local solution of the
+block sparse COSMO equation
+%
+\begin{equation}
+  LX=g
+\end{equation}
+
+The right-hand-side of the system of equations depends on the solute potential at the cavity by
+%
+\begin{equation}
+  \left[g_j\right]^m_l =
+  \sum^{N_\text{grid}}_{n=1}
+  w_n
+  Y^m_l(\vec y_n)
+  U^j_n
+  \Psi^j_n
+\end{equation}
+%
+where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
+
+
 \begin{ptable}
   \kw{FreeEnergyShift} & r & & 0.0 Eh & \\
   \kw{Temperature} & r & & 298.15 K & \\
@@ -3564,7 +3600,7 @@ CM5 {
     Both methods accept \modif{\modtype{length}} units.
 
   \item[\is{RadScale}] Allows to scale the provided radii by the provided value.
-    Radii are not scaled by default.
+    Values greater one between 1.2 and 1.5 are recommended when using van-der-Waals radii.
 
   \item[\is{Solver}] for the COSMO equation. Default is \is{DomainDecomposition\cb}.
 \end{description}
@@ -3585,6 +3621,8 @@ Hamiltonian = DFTB {
     AngularGrid = 110
     Solver = DomainDecomposition {
       MaxMoment = 10
+      Accuracy = 8
+      Regularisation = 0.2
     }
   }
 }

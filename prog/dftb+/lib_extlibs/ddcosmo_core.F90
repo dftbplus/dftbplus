@@ -49,9 +49,6 @@ module dftbp_extlibs_ddcosmo_core
     !> Threshold for iterative solver (10^-iconv)
     integer :: iconv
 
-    !> Threshold for iterative solver (10^-iconv)
-    real(dp) :: conv
-
     !> Regularization parameters
     real(dp) :: eta
 
@@ -126,9 +123,7 @@ contains
     self%lmax = input%lmax
     self%iconv = input%iconv
     self%eta = input%eta
-
-    ! print a nice header:
-    call header(self)
+    self%igrad = 1
 
     ! allocate:
     self%grad   = self%igrad /= 0
