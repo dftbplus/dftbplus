@@ -528,13 +528,13 @@ contains
       ! Determine fixed and moving atoms
     #:if WITH_TRANSPORT
       if (transpar%defined) then
-        call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom,&
+        call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom,&
             & transpar%idxdevice)
       else
-        call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom)
+        call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom)
       end if
     #:else
-      call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom)
+      call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom)
     #:endif
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
@@ -5370,7 +5370,7 @@ contains
       indMovedAtoms = work(:ii)
     end if
 
-    if (associated(child2)) then
+    if (.not.associated(child3)) then
       ! check for atoms that can move
       strTmp = "1:-1"
       if (present(subRange)) then
