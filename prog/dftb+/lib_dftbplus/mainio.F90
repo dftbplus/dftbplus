@@ -76,6 +76,7 @@ module dftbp_mainio
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
+  public :: printForceNorm, printLatticeForceNorm
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
@@ -4257,6 +4258,17 @@ contains
   end subroutine printMaxForce
 
 
+  !> Writes norm of the force
+  subroutine printForceNorm(forceNorm)
+
+    !> Norm of the force
+    real(dp), intent(in) :: forceNorm
+
+    write(stdOut, "(A, ':', T30, E20.6)") "Norm of forces", forceNorm
+
+  end subroutine printForceNorm
+
+
   !> Print maximal lattice force component
   subroutine printMaxLatticeForce(maxLattForce)
 
@@ -4266,6 +4278,17 @@ contains
     write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
   end subroutine printMaxLatticeForce
+
+
+  !> Print norm of lattice force
+  subroutine printLatticeForceNorm(lattForceNorm)
+
+    !> Norm of the lattice force
+    real(dp), intent(in) :: lattForceNorm
+
+    write(stdOut, format1Ue) "Norm of lattice forces", lattForceNorm, 'au'
+
+  end subroutine printLatticeForceNorm
 
 
   !> Prints out info about current MD step.

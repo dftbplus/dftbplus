@@ -6462,9 +6462,11 @@ contains
 
     if (tCoordOpt) then
       call printMaxForce(maxval(abs(derivs(:, indMovedAtoms))))
+      call printForceNorm(norm2(derivs(:, indMovedAtoms)))
     end if
     if (tLatOpt) then
       call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
+      call printLatticeForceNorm(norm2(constrLatDerivs))
     end if
 
   end subroutine printMaxForces
