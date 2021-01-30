@@ -2147,6 +2147,14 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName)
         end if
+      else if (allocated(input%ctrl%solvInp%CosmoInp)) then
+        if (this%tPeriodic) then
+          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName, this%latVec)
+        else
+          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName)
+        end if
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
