@@ -67,6 +67,7 @@ module dftbp_parser
   use libnegf_vars
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
+  use dftbp_sorting, only : heap_sort
   implicit none
   private
 
@@ -407,18 +408,7 @@ contains
     character(lc) :: sTmp
   #:endif
 
-    ! range of default atoms to move
-    character(mc) :: atomsRange
-
     logical :: isMaxStepNeeded
-
-    atomsRange = "1:-1"
-  #:if WITH_TRANSPORT
-    if (transpar%defined) then
-      ! only those atoms in the device region
-      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
-    end if
-  #:endif
 
     ctrl%isGeoOpt = .false.
     ctrl%tCoordOpt = .false.
@@ -507,10 +497,18 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
-      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
+
+    #:if WITH_TRANSPORT
+      if (transpar%defined) then
+        call readMovingAtoms(ctrl%indMovedAtom, "Atoms", "IgnoreAtoms", node, geom,&
+            & transpar%idxdevice)
+      else
+        call readMovingAtoms(ctrl%indMovedAtom, "Atoms", "IgnoreAtoms", node, geom)
+      end if
+    #:else
+      call readMovingAtoms(ctrl%indMovedAtom, "Atoms", "IgnoreAtoms", node, geom)
+    #:endif
+
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
         call error("No atoms specified for derivatives calculation.")
@@ -527,10 +525,18 @@ contains
       ctrl%tMD = .true.
 
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
-      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-          & ctrl%indMovedAtom)
+      ! Determine fixed and moving atoms
+    #:if WITH_TRANSPORT
+      if (transpar%defined) then
+        call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom,&
+            & transpar%idxdevice)
+      else
+        call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom)
+      end if
+    #:else
+      call readMovingAtoms(ctrl%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom)
+    #:endif
+
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
         call error("No atoms specified for molecular dynamics.")
@@ -814,7 +820,6 @@ contains
     type(fnode), pointer :: child, child2, child3, value1, value2, field
     type(string) :: buffer, buffer2, modifier
     ! range of default atoms to move
-    character(mc) :: atomsRange
     logical :: isMaxStep
 
     if (present(isMaxStepNeeded)) then
@@ -822,14 +827,6 @@ contains
     else
       isMaxStep = .true.
     end if
-
-    atomsRange = "1:-1"
-  #:if WITH_TRANSPORT
-    if (transpar%defined) then
-      ! only those atoms in the device region
-      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
-    end if
-  #:endif
 
     ctrl%tForces = .true.
     ctrl%restartFreq = 1
@@ -851,10 +848,17 @@ contains
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
     end if
-    call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-        &multiple=.true.)
-    call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-        & ctrl%indMovedAtom)
+    ! determine moved/fixed atoms
+  #:if WITH_TRANSPORT
+    if (transpar%defined) then
+      call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom,&
+          & transpar%idxdevice)
+    else
+      call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom)
+    end if
+  #:else
+    call readMovingAtoms(ctrl%indMovedAtom, "MovedAtoms", "FixedAtoms", node, geom)
+  #:endif
 
     ctrl%nrMoved = size(ctrl%indMovedAtom)
     ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
@@ -5267,10 +5271,7 @@ contains
     !! Non-adiabatic molecular dynamics
     call getChildValue(node, "IonDynamics", input%tIons, .false.)
     if (input%tIons) then
-      call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
-          & input%indMovedAtom)
-
+      call readMovingAtoms(input%indMovedAtom, "MovingAtoms", "FixedAtoms", node, geom)
       input%nMovedAtom = size(input%indMovedAtom)
       call readInitialVelocitiesNAMD(node, input, geom%nAtom)
       if (input%tReadMDVelocities) then
@@ -5287,6 +5288,101 @@ contains
     end if
 
   end subroutine readElecDynamics
+
+
+  !> Parse blocks setting which atoms can move in the calculation
+  subroutine readMovingAtoms(indMovedAtoms, movingLabel, fixedLabel, node, geom, subRange)
+
+    !> Which atoms can move in the system
+    integer, intent(inout), allocatable :: indMovedAtoms(:)
+
+    !> Name of the field to look for to add atoms to moving list
+    character(*), intent(in) :: movingLabel
+
+    !> Name of the field to look for to exclude atoms from moving list
+    character(*), intent(in) :: fixedLabel
+
+    !> input data to parse
+    type(fnode), pointer :: node
+
+    !> Geometry type
+    type(TGeometry), intent(in) :: geom
+
+    !> Sub-range of atoms in central cell / device region of structure
+    integer, intent(in), optional :: subRange(2)
+
+    character(lc) :: strTmp
+    type(string) :: buffer
+    type(fnode), pointer :: child, value1, child2, child3
+    integer, allocatable :: complementInd(:), work(:)
+    integer :: nAtom, iAt, ii
+
+    call getChild(node, trim(movingLabel), child2, requested=.false.)
+    !if (associated(child2)) then
+    !  call setUnprocessed(child2)
+    !end if
+    call getChild(node, trim(fixedLabel), child3, requested=.false.)
+    !if (associated(child3)) then
+    !  call setUnprocessed(child3)
+    !end if
+
+    if (associated(child2) .and. associated(child3)) then
+      write(strTmp,*)"Cannot set "//trim(movingLabel)//" and "//trim(fixedLabel)//" simultaneously"
+      call error(strTmp)
+    end if
+
+    if (associated(child3)) then
+      ! try finding atoms that can not move
+      call getChildValue(node, trim(fixedLabel), buffer, child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, complementInd)
+
+      if (present(subRange)) then
+        if (subRange(1) > subRange(2)) then
+          call error("Fixed atom range incorrectly ordered")
+        end if
+        if (minval(complementInd) < subRange(1) .or. maxval(complementInd) > subRange(2)) then
+          call error("Fixed atom outside of allowed range")
+        end if
+      else
+        if (minval(complementInd) < 1 .or. maxval(complementInd) > size(geom%species)) then
+          call error("Fixed atom outside of allowed range")
+        end if
+      end if
+      nAtom = size(geom%species)
+      if (present(subRange)) then
+        nAtom = subRange(2)
+      end if
+      allocate(work(nAtom))
+      do iAt = 1, nAtom
+        work(iAt) = iAt
+      end do
+      if (present(subRange)) then
+        do ii = 1, subRange(1)-1
+          work(ii) = huge(0)
+        end do
+      end if
+      do ii = 1, size(complementInd)
+        iAt = complementInd(ii)
+        work(iAt) = huge(0)
+      end do
+      call heap_sort(work)
+      ii = count(work < huge(0))
+      indMovedAtoms = work(:ii)
+    end if
+
+    if (associated(child2)) then
+      ! check for atoms that can move
+      strTmp = "1:-1"
+      if (present(subRange)) then
+        ! only those atoms can move
+        write(strTmp,"(I0,':',I0)")subRange
+      end if
+      call getChildValue(node, trim(movingLabel), buffer, trim(strTmp), child=child,&
+          & multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, indMovedAtoms)
+    end if
+
+  end subroutine readMovingAtoms
 
 
   !> Read in initial ion temperature for simple MD
@@ -5801,14 +5897,16 @@ contains
     call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
-    if (associated(pTmp) .and. associated(pTmp2)) then
-      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
-          & can be specified.")
-    else if (associated(pTmp)) then
-      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
-      call convertByMul(char(modifier), lengthUnits, pTmp, poisson%maxRadAtomDens)
-      if (poisson%maxRadAtomDens <= 0.0_dp) then
-        call detailedError(pTmp2, "Atom density cutoff must be > 0")
+    if (associated(pTmp)) then
+      if (associated(pTmp2)) then
+        call detailedError(pNode, "Only one of the tags AtomDensityCutoff or AtomDensityTolerance&
+            & should be specified.")
+      else
+        call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
+        call convertByMul(char(modifier), lengthUnits, pTmp, poisson%maxRadAtomDens)
+        if (poisson%maxRadAtomDens <= 0.0_dp) then
+          call detailedError(pTmp2, "Atom density cutoff must be > 0")
+        end if
       end if
     else
       call getChildValue(pNode, "AtomDensityTolerance", denstol, 1e-6_dp, child=pTmp2)
@@ -6009,7 +6107,7 @@ contains
       & contactDir)
 
     !> Range of atoms in the contact
-    integer, intent(in) :: atomrange(2)
+    integer, intent(in) :: atomRange(2)
 
     !> Atomic geometry, including the contact atoms
     type(TGeometry), intent(in) :: geom
@@ -6037,8 +6135,8 @@ contains
     character(lc) :: errorStr
 
     !! Sanity check for the atom ranges
-    iStart = atomrange(1)
-    iEnd = atomrange(2)
+    iStart = atomRange(1)
+    iEnd = atomRange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
       call detailedError(pContact, "Invalid atom range '" // i2c(iStart) &
           &// " " // i2c(iEnd) // "', values should be between " // i2c(1) &

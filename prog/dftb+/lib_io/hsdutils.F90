@@ -1428,7 +1428,6 @@ contains
 
     !> Default value for the child, if child is not found. If the empty string is passed as default
     !> value, the child is created but no value is added to it. The returned value pointer will be
-
     !> unassociated. (allowEmptyValue must be explicitely set to .true.)
     character(len=*), intent(in), optional :: default
 
