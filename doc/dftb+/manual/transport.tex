@@ -108,8 +108,8 @@ the system into a {\em device} and the {\em contact} regions and additional
 information needed to calculate the required self-energies associated with the
 contacts. The transport block contains the following properties:
 \begin{ptable}
-  \kw{Device} &p& & - & \pref{Device} \\
-  \kw{Contact} &p& & - & \pref{Contact} \\
+  \kw{Device} &p& & - & \pref{sec:transport.Device} \\
+  \kw{Contact} &p& & - & \pref{sec:transport.Contact} \\
   \kw{Task} & m & & UploadContacts & \pref{Task} \\
 \end{ptable}
 
@@ -138,6 +138,8 @@ layers (atoms 9--16 and 17--24 in the ``source'' contact, atoms 25--32 and
 33--40 in the ``drain'' contact).
 
 \htcbsubsection{Device}
+\label{sec:transport.Device}
+
 The Device blocks contains the following properties:
 
 \begin{ptable}
@@ -166,7 +168,10 @@ The Device blocks contains the following properties:
 
 \end{description}
 
-\htcbsubsection{Contact} The contact block contains the following properties:
+\htcbsubsection{Contact}
+\label{sec:transport.Contact}
+
+The contact block contains the following properties:
 
 \begin{ptable}
   \kw{Id} & s &  & &  \\
