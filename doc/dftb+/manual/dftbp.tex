@@ -287,6 +287,7 @@ methods are available:
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ &  & & \\
   \kw{MaxForceComponent} & r &  & 1e-4 & \\
   \kw{MaxSteps} &i &  & 200 & \\
   \kw{StepSize} &r &  & 100.0 & \\
@@ -328,6 +329,15 @@ methods are available:
 \begin{verbatim}
   # Move atoms 1, 2, 3, all Ga atoms, and the last two atoms.
   MovedAtoms = 1:3 Ga -2:-1
+\end{verbatim}
+
+\item[\is{FixedAtoms}] Alternative specification, all atoms not in the list will
+  be able to move. This is incompatible with use of \is{MovedAtoms}. The same
+  syntax as \is{MovedAtoms} for specific atoms, ranges of atoms or species can
+  be used, for example:
+\begin{verbatim}
+  # Move only atoms which are not Ga atoms.
+  FixedAtoms = Ga
 \end{verbatim}
 
 \item[\is{MaxForceComponent}]\modif{\modtype{force}} Optimisation is
@@ -424,6 +434,7 @@ methods are available:
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ &  & & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
   \kw{MaxSteps}          & i & & 200 & \\
   \kw{OutputPrefix}      & s & & "geo\_end" & \\
@@ -447,6 +458,7 @@ See previous subsection for the description of the properties.
   \kw{Alpha} & r & & 0.1 & \\
   \kw{Generations} &i & & 8 & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ &  & & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
   \kw{MaxSteps}          & i & & 200 & \\
   \kw{OutputPrefix}      & s & & "geo\_end" & \\
@@ -478,6 +490,7 @@ properties.\footnote{This approach is distinct from
   \kw{Memory}            & i & & 20 & \\
   \kw{LineSearch}        & l & & No & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ &  & & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
   \kw{MaxSteps}          & i & & 200 & \\
   \kw{OutputPrefix}      & s & & "geo\_end" & \\
@@ -559,6 +572,8 @@ frequencies.
 \item[\is{Atoms}] Index of the atoms for which to calculate the second
   derivatives. The atoms can be specified via indices, index ranges
   and species. (See \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+\item[\is{IgnoreAtoms}] Converse to \is{Atoms}, atoms not to be considered for
+  derivatives. This option is incompatible with the use of \is{Atoms}.
 \item[\is{Delta}] Step size for numerical differentiation of forces to
   get the second derivatives of the energy with respect to atomic
   coordinates.
@@ -576,6 +591,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ &  & & \\
   \kw{Steps} &i &  & - & \\
   \kw{TimeStep} & r & & - & \\
   \kw{KeepStationary} & l & & Yes & \\
@@ -595,6 +611,10 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \item[\is{MovedAtoms}] List of atoms to move during the MD. (See more
   detailed description on page \pref{sec:dftbp.SteepestDescent}.)
 
+\item[\is{FixedAtoms}] Converse to \is{MovedAtoms}, list of atoms to be kept
+  fixed during the MD. This option is incompatible with the use of
+  \is{MovedAtoms}.
+
 \item[\is{Steps}] Number of MD steps to perform. In the case of a
   thermostat using a \kwcb{TemperatureProfile} the number of steps is
   calculated from the profile.
@@ -605,7 +625,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   MD steps.
 
-\item[\is{Thermostat}] Thermostating method for the MD simulation. See
+\item[\is{Thermostat}] Thermostatting method for the MD simulation. See
   p.~\pref{sec:dftbp.Thermostat}.
 
 \item[\is{OutputPrefix}] Prefix of the geometry files containing the
@@ -665,7 +685,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 
 \paragraph{\iscb{None}}
 
-No thermostating during the run, only the initial velocities are set
+No Thermostatting during the run, only the initial velocities are set
 according to either a given temperature or velocities, hence an
 NVE\index{NVE ensemble} ensemble should be achieved for a reasonable
 time step.
@@ -684,7 +704,7 @@ time step.
 
 Andersen thermostat~\cite{andersen-JCP-72-2384} sampling an NVT\index{NVT ensemble} ensemble.
 
-\textbf{Note:} Andersen thermostating has a reputation for suppressing diffusion and also prevents
+\textbf{Note:} Andersen Thermostatting has a reputation for suppressing diffusion and also prevents
 accumulation of data for dynamical properties.
 
 \begin{ptable}
@@ -771,7 +791,7 @@ all of the atoms in the system.
   (See p.~\pref{sec:dftbp.TemperatureProfile}, but note that profiles are not
   well tested with this thermostat yet.)
 \item[\is{CouplingStrength}]\modif{\modtype{Frequency}} Frequency of
-  oscillation of the thermostating particles (see section~2.5 of
+  oscillation of the Thermostatting particles (see section~2.5 of
   Ref.~\cite{martyna-mp-87-1117}). This is typically related to the
   highest vibrational mode frequency of the system.
 \item[\is{ChainLength}] Number of particles in the thermostat chain.
@@ -831,7 +851,7 @@ is used, a partial Gibbs free energy is reported in code output, of the form
   G = E + PV - TS_\mathrm{electronic}.
 \end{equation*}
 This does not include structural entropy, only any electronic entropy. For
-barostated constant energy simulations (no thermostat in use), the conserved
+barostatted constant energy simulations (no thermostat in use), the conserved
 quantity is the sum of the kinetic and Gibbs partial energies.
 
 \begin{ptable}
@@ -1770,7 +1790,7 @@ distribution:
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
 
-This environment suplies the atomic constants required for either spin polarised
+This environment supplies the atomic constants required for either spin polarised
 calculations or when evaluating properties which depend on spin interactions
 (triplet excitations for example).  In these cases, for each atomic species in
 the calculation the spin coupling constants for that atom must be specified.
@@ -2108,15 +2128,15 @@ significant.
 \subsubsection{$\boldsymbol\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
-singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
-optimized under non-Aufbau orbital occupation constraints via promotion of an
+singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-consistently
+optimised under non-Aufbau orbital occupation constraints via promotion of an
 electron from the highest occupied molecular orbital (HOMO) of the ground state
 to lowest unoccupied molecular orbital (LUMO) at each SCC
 iteration. Specifically, the \kwcb{NonAufbau} block in \dftbp manipulates the
 electronic filling to emulate a singlet excited state. By modifying the
 occupation pattern, the target excited state density ($\rho_e$) is can be
 constructed according to the standard formula for obtaining the electron density
-from the occupied colinear spin orbitals,
+from the occupied collinear spin orbitals,
 \begin{equation*}
   \rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2.
 \end{equation*}
@@ -2132,7 +2152,7 @@ rule,\cite{baerends-TCA-43-261}
 A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
 $\Delta$DFTB calculations can be more challenging to converge than their
 ground-state analogs. To aid convergence, one can first run a ground-state
-intial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
+initial guess with \is{GroundGuess = Yes}.  The DIIS mixer is often an effective
 alternative mixer for converging $\Delta$DFTB calculations in cases where the
 calculation fails to converge with the Broyden mixer.
 
@@ -2292,7 +2312,7 @@ of the k-point weights is automatically normalised by the program.
 \label{sec:dftbp.SupercellFolding}
 
 This method generates a sampling set containing all the special
-k-points in the Brillouin zone related to points that would occur in
+k-points in the Brillouin zone (BZ) related to points that would occur in
 an enlarged supercell repeating of the current unit cell.  If two
 $k$-points in the BZ are related by inversion, only one (with double
 weight) is used (in the absence of spin-orbit coupling this is
@@ -2403,7 +2423,7 @@ the default value of \kw{MaxSccIterations} is set to be 1 in this case.
 
 \htcbsubsubsection{HelicalUniform}
 
-This method specifies $k$-points lying along the generalized reciprocal vector
+This method specifies $k$-points lying along the generalised reciprocal vector
 of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
 (currently the $k$-points that exactly represent the $C_n$ rotation are
 used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
@@ -3010,11 +3030,11 @@ can be adjusted in the input.
 \subsubsection{DftD4 ChargeModel}
 \label{sec:dftbp.ChargeModel}
 
-This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
+This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialise
 the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
-is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
+is instantiated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
 up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
 
 \begin{ptable}
@@ -3032,7 +3052,7 @@ up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
 
 \item[\is{Chi}] Electronegativities of all species.
 
-\item[\is{Gam}] Chemical hardnesses of all species.
+\item[\is{Gam}] Chemical hardness of all species.
 
 \item[\is{Kcn}] CN scaling factor of all species.
 
@@ -3230,14 +3250,14 @@ Hamiltonian = DFTB {
 \subsection{Implicit Solvation Model}
 \label{sec:dftbp.Solvation}
 
-\subsubsection{Generalized Born Model}
+\subsubsection{Generalised Born Model}
 \label{sec:dftbp.GeneralizedBorn}
 
-In generalized Born (GB) theory,\cite{onufriev2019} a molecule is considered as
+In generalised Born (GB) theory,\cite{onufriev2019} a molecule is considered as
 continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
 infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
 Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
-and their interaction in the presence of a polarized solvent can be
+and their interaction in the presence of a polarised solvent can be
 expressed as the solvation energy
 %
 \begin{equation}
@@ -3283,9 +3303,9 @@ is scaled by the element-specific descreening value~$s_\text{B}$
 to compensate the systematic overestimation of the volume by this
 approach.
 
-To use the generalized Born model in the SCC procedure use the
+To use the generalised Born model in the SCC procedure use the
 \is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
-The non-polar solvent area model can be combinded with the GB model
+The non-polar solvent area model can be combined with the GB model
 enabling to additionally correct for hydrogen bonding, the resulting
 model is called GBSA.
 The parameters for the GBSA model are currently available at
@@ -3391,7 +3411,7 @@ systems.
 
   \item[\is{ALPB}]
     Use analytical lineared Poisson Boltzmann (ALPB) model\cite{sigalov2006}
-    instead of Generalized Born.
+    instead of Generalised Born.
     The main difference is a molecular shape dependent contribution for charged
     systems.
 
@@ -3544,9 +3564,9 @@ This model is currently only available for finite systems.
     Smoothing parameter for numerical integration.
 
   \item[\is{Offset}] \modif{\modtype{length}}
-    This offset value is added on the realspace cutoff radius for the
-    neighbourlist generation.
-    The realspace cutoff is determined automatically from the probe radius,
+    This offset value is added on the real-space cutoff radius for the
+    neighbour list generation.
+    The real space cutoff is determined automatically from the probe radius,
     the largest atomic radius and the smoothing parameter.
 
   \item[\is{Tolerance}]
@@ -3653,7 +3673,7 @@ HCorrection = H5 {}
 \textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
 involving the terminal nitrogen of an azide group, and the published results in
 Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
-for these specific atoms. To reproduce this behavior in a system containing
+for these specific atoms. To reproduce this behaviour in a system containing
 nitrogen in several environments, a new atom type with a different name but the
 same DFTB parameters can be used for specific N atoms to which the correction
 should not be applied.
@@ -3718,7 +3738,7 @@ atoms are also required. \dftbp{} stores these for most of the periodic table,
 but for cases that are not available their contribution to this correction are
 neglected.
 
-For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
+For a DFTB3-D3H5 calculation, a specific parameterisation of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
 parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
 hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
@@ -4108,7 +4128,7 @@ with the following options
   with \is{ShellResolved}, this only allowed, if all the selected atoms are of
   the same type.
 \item[\is{Atoms}] Specification of the atoms over which to make the
-  projection.. Atoms are specified in the same way as \is{MovedAtoms}
+  projection. Atoms are specified in the same way as \is{MovedAtoms}
   in section \ref{sec:dftbp.SteepestDescent}.)
 \item[\is{Label}] Prefix of the label for the resulting file of data for this region. The default is
   ``region\textit{i}.out'' where {\it i} is the number of the region in the input. In the case that
@@ -4504,6 +4524,7 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
   \kw{IonDynamics} & l & & No & \\
   \kw{InitialTemperature} & r & IonDynamics = Yes & - & \\
   \kw{MovedAtoms} & (i|s)+ & IonDynamics = Yes & 1:-1 & \\
+  \kw{FixedAtoms} & (i|s)+ & IonDynamics = Yes & & \\
   \kw{Velocities} & (3r)* & IonDynamics = Yes & - & \\
   \kw{Pump} & l & & No & \\
   \kw{PumpProbeFrames} & i & Pump = Yes & - & \\
@@ -4565,6 +4586,9 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
 \item[\is{MovedAtoms}] List of atoms that will be moved during the
   dynamics. See \is{MovedAtoms} in section
   \ref{sec:dftbp.SteepestDescent}.
+
+\item[\is{FixedAtoms}] List of atoms that will {\em not} be moved during the
+  dynamics. Use of this keyword is incompatible with \is{MovedAtoms}.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
