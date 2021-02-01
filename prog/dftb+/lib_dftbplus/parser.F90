@@ -5315,16 +5315,16 @@ contains
     type(string) :: buffer
     type(fnode), pointer :: child, value1, child2, child3
     integer, allocatable :: complementInd(:), work(:)
-    integer :: nAtom, iAt, ii
+    integer :: nAtom, iAt, ii, mAtom
+
+    if (present(subRange)) then
+      mAtom = subRange(2)
+    else
+      mAtom = size(geom%species)
+    end if
 
     call getChild(node, trim(movingLabel), child2, requested=.false.)
-    !if (associated(child2)) then
-    !  call setUnprocessed(child2)
-    !end if
     call getChild(node, trim(fixedLabel), child3, requested=.false.)
-    !if (associated(child3)) then
-    !  call setUnprocessed(child3)
-    !end if
 
     if (associated(child2) .and. associated(child3)) then
       write(strTmp,*)"Cannot set "//trim(movingLabel)//" and "//trim(fixedLabel)//" simultaneously"
@@ -5334,7 +5334,8 @@ contains
     if (associated(child3)) then
       ! try finding atoms that can not move
       call getChildValue(node, trim(fixedLabel), buffer, child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, complementInd)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, complementInd,&
+          & maxRange=mAtom)
 
       if (present(subRange)) then
         if (subRange(1) > subRange(2)) then
@@ -5379,7 +5380,8 @@ contains
       end if
       call getChildValue(node, trim(movingLabel), buffer, trim(strTmp), child=child,&
           & multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, indMovedAtoms)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child, indMovedAtoms,&
+          & maxRange=mAtom)
     end if
 
   end subroutine readMovingAtoms
