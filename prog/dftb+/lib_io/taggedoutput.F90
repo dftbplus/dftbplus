@@ -105,6 +105,9 @@ module dftbp_taggedoutput
     !> Charge model 5 corrected atomic gross charges
     character(lenLabel) :: qOutAtCM5 = 'cm5_atomic_charges'
 
+    !> Gross atomic spin polarizations
+    character(lenLabel) :: spinOutAtGross  = 'gross_atomic_spins'
+
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 
