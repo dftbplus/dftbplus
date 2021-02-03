@@ -463,14 +463,14 @@ contains
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
-    integer :: iKS, iSpin
+    integer :: iKS
     integer :: ii, fd
 
     call prepareEigvecFileBin(fd, runId, fileName)
+    ! By construction of parallelKS, iKS runs over (iK, iS) with iK growing faster
     do iKS = 1, parallelKS%nLocalKS
-      iSpin = parallelKS%localKS(2, iKS)
       do ii = 1, size(eigvecs, dim=2)
-        write(fd) eigvecs(:,ii,iSpin)
+        write(fd) eigvecs(:, ii, iKS)
       end do
     end do
     close(fd)
