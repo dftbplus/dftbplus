@@ -164,11 +164,6 @@ contains
   end subroutine scaleShortGammaDeriv
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
   ! Get H5 parameters for all species pairs.
   subroutine getParams_(speciesNames, elementParams, h5Scaling_, sumVdw_)
     character(*), intent(in) :: speciesNames(:)

@@ -54,7 +54,7 @@ module dftbp_scc
     type(TPoissonInput), allocatable :: poissonInput
 
     !> Boundary condition of the system
-    integer :: boundaryCond
+    integer :: boundaryCond = boundaryConditions%unknown
 
   end type TSccInput
 
@@ -497,6 +497,9 @@ contains
 
 
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+  !>
+  !> Works only, if SCC-instance uses Gamma-electrostatics.
+  !>
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
     !> Instance
@@ -513,14 +516,11 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
   #:endif
-
-    if (this%elstatType /= elstatTypes%gammaFunc) then
-      call error("scc:getAtomicGammaMatrix only works with Gamma-electrostatics")
-    end if
 
     gammamat(:,:) = this%coulomb%invRMat
     call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
@@ -529,6 +529,9 @@ contains
 
 
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
+  !>
+  !> Works only, if SCC-instance uses Gamma-electrostatics.
+  !>
   subroutine getAtomicGammaMatU(this, gammamat, hubbU, species, iNeighbour, img2CentCell)
 
     !> Instance
@@ -553,25 +556,20 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [this%nAtom, this%nAtom]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
     call error("scc:getAtomicGammaMatU does not work with MPI yet")
   #:endif
 
-    if (this%elstatType /= elstatTypes%gammaFunc) then
-      call error("scc:getAtomicGammaMatU only works with Gamma-electrostatics")
-    end if
-
-    if (this%elstatType == elstatTypes%gammaFunc) then
-      gammamat(:,:) = this%coulomb%invRMat
-      call this%shortGamma%addAtomicMatrixCustomU(gammamat, hubbU, species, this%coord, iNeighbour,&
-          & img2CentCell)
-      do iAt1 = 1, this%nAtom
-        do iAt2 = 1, iAt1 - 1
-          gammamat(iAt2, iAt1) = gammamat(iAt1, iAt2)
-        end do
+    gammamat(:,:) = this%coulomb%invRMat
+    call this%shortGamma%addAtomicMatrixCustomU(gammamat, hubbU, species, this%coord, iNeighbour,&
+        & img2CentCell)
+    do iAt1 = 1, this%nAtom
+      do iAt2 = 1, iAt1 - 1
+        gammamat(iAt2, iAt1) = gammamat(iAt1, iAt2)
       end do
-    end if
+    end do
 
   end subroutine getAtomicGammaMatU
 

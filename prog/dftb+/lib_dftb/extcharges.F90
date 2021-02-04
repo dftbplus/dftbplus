@@ -38,7 +38,7 @@ module dftbp_extcharges
     real(dp), allocatable :: charges(:)
 
     !> Shift vector
-    real(dp), allocatable :: invRVec(:)
+    real(dp), allocatable :: shift(:)
 
     !> If charges should be blured
     logical :: tBlur
@@ -106,7 +106,7 @@ contains
     this%nChrg = nExtCharge
     allocate(this%coords(3, this%nChrg))
     allocate(this%charges(this%nChrg))
-    allocate(this%invRVec(nAtom))
+    allocate(this%shift(nAtom))
     this%tPeriodic = tPeriodic
     this%tBlur = .false.
 
@@ -194,7 +194,7 @@ contains
 
     @:ASSERT(this%tInitialized)
 
-    call coulomb%getPotential(env, coords, this%coords, this%charges, this%invRVec,&
+    call coulomb%getPotential(env, coords, this%coords, this%charges, this%shift,&
         & blurWidths=this%blurWidths)
     this%tUpdated = .true.
 
@@ -213,7 +213,7 @@ contains
     @:ASSERT(this%tInitialized .and. this%tUpdated)
     @:ASSERT(size(shift) == this%nAtom)
 
-    shift(:) = shift + this%invRVec
+    shift(:) = shift + this%shift
 
   end subroutine addShiftPerAtom
 
@@ -234,7 +234,7 @@ contains
     @:ASSERT(size(atomCharges) == this%nAtom)
     @:ASSERT(size(energy) == this%nAtom)
 
-    energy(:) = energy(:) + this%invRVec(:) * atomCharges(:)
+    energy(:) = energy + this%shift * atomCharges
 
   end subroutine addEnergyPerAtom
 
@@ -313,7 +313,7 @@ contains
     !> (Q * invR) contribution
     real(dp), intent(out) :: qInvR(:)
 
-    qInvR(:) = this%invRVec
+    qInvR(:) = this%shift
 
   end subroutine copyInvRvec
 
