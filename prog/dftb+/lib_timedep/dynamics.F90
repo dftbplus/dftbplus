@@ -2905,6 +2905,9 @@ contains
     end if
     call reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, ErhoPrim)
 
+    if (this%tPeriodic) then
+      call initLatticeVectors(this)
+    end if
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
 
     if (allocated(this%dispersion)) then
