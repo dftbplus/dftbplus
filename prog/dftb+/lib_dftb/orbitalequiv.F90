@@ -12,10 +12,11 @@
 !> An orbital equivalency relation is a mapping, which maps the orbitals of the atoms onto a one
 !> dimensional vector, where equivalent orbitals are mapped on the same element in the vector. Two
 !> orbitals are equivalent, if charge can be transferred between the orbitals, without changing the
-!> resulting Hamiltonian or the total energy. The mapping is an (mmAng, nAtom, nSpin) shaped integer
+!> resulting Hamiltonian or the total energy. The mapping is an (mOrb, nAtom, nSpin) shaped integer
 !> array, where the integer for (iOrb, iAtom, iSpin) specifies the position in the 1D vector for
 !> orbital iOrb on atom iAtom for spin iSpin. Values must be positive integers and continuous. Zeros
 !> in the mapping vector stand for non-existent orbitals.
+!>
 module dftbp_orbitalequiv
   use dftbp_assert
   use dftbp_accuracy

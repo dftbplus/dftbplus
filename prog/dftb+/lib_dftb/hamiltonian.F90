@@ -23,8 +23,6 @@ module dftbp_hamiltonian
   use dftbp_solvation, only : TSolvation
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
-  use dftbp_elstattypes
-  use poisson_init
   use dftbp_dispersions, only : TDispersionIface
 
   implicit none
@@ -236,9 +234,8 @@ contains
 
 
   !> Add potentials coming from point charges.
-  subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-      & tPoisson, tUpload, shiftPerLUp, dispersion)
+  subroutine addChargePotentials(env, sccCalc, updateScc, qInput, q0, chargePerShell, orb, species,&
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -246,6 +243,9 @@ contains
     !> SCC module internal variables
     type(TScc), intent(inout) :: sccCalc
 
+    !> Whether the charges in the scc calculator should be updated before obtaining the potential
+    logical, intent(in) :: updateScc
+    
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
 
@@ -279,25 +279,12 @@ contains
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
-    !> electrostatic solver (poisson or gamma-functional)
-    integer, intent(in) :: electrostatics
-
-    !> whether Poisson is solved (used with tPoissonTwice)
-    logical, intent(in) :: tPoisson
-
-    !> whether contacts are uploaded
-    logical, intent(in) :: tUpload
-
-    !> uploded potential per shell per atom
-    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
-
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(in) :: dispersion
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
 
@@ -308,44 +295,12 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call sccCalc%updateCharges(env, qInput, q0, orb, species)
-
-    select case(electrostatics)
-
-    case(elstatTypes%gammaFunc)
-
-      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-      call sccCalc%getShiftPerAtom(atomPot(:,1))
-      call sccCalc%getShiftPerL(shellPot(:,:,1))
-
-    case(elstatTypes%poisson)
-
-      ! NOTE: charge-magnetization representation is used
-      !       iSpin=1 stores total charge
-      ! Logic of calls order:
-      ! shiftPerLUp      is 0.0 on the device region,
-      ! poiss_getshift() updates only the device region
-      if (tPoisson) then
-        if (tUpload) then
-          shellPot(:,:,1) = shiftPerLUp
-        else
-          ! Potentials for non-existing angular momenta must be 0 for later summations
-          shellPot(:,:,1) = 0.0_dp
-        end if
-        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(env, shellPot(:,:,1))
-        if (.not.allocated(shellPotBk)) then
-          allocate(shellPotBk(orb%mShell, nAtom))
-        end if
-        shellPotBk = shellPot(:,:,1)
-      else
-        shellPot(:,:,1) = shellPotBk
-      end if
-      atomPot(:,:) = 0.0_dp
-      call sccCalc%setShiftPerAtom(atomPot(:,1))
-      call sccCalc%setShiftPerL(shellPot(:,:,1))
-
-    end select
+    if (updateScc) then
+      call sccCalc%updateCharges(env, qInput, q0, orb, species)
+    end if
+    call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+    call sccCalc%getShiftPerAtom(atomPot(:,1))
+    call sccCalc%getShiftPerL(shellPot(:,:,1))
 
     if (allocated(dispersion)) then
       call dispersion%addPotential(atomPot(:,1))

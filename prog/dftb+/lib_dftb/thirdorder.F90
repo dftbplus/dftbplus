@@ -12,7 +12,7 @@ module dftbp_thirdorder
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_shortgamma, only : expGammaCutoff
+  use dftbp_shortgammafuncs, only : expGammaCutoff
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_charges
   implicit none

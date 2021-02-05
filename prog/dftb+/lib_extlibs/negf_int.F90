@@ -82,7 +82,7 @@ module negf_int
 contains
 
   !> Init gDFTB environment and variables
-  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, solver)
+  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec)
 
     !> Instance
     type(TNegfInt), intent(out) :: this
@@ -101,9 +101,6 @@ contains
 
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
-
-    !> Which solver call is used in the main code
-    integer, intent(in) :: solver
 
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
