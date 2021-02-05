@@ -12,11 +12,11 @@
 !> Note: Currently only velocity Verlet is wrapped.
 module dftbp_mdintegrator
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_velocityverlet
+  use dftbp_accuracy, only : dp
+  use dftbp_velocityverlet, only : TVelocityVerlet, state, reset, rescale, next, init
   implicit none
+  
   private
-
   public :: TMDIntegrator
   public :: init, next, rescale, reset, state
 

@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 program dftbplus
-  use dftbp_globalenv
+  use dftbp_globalenv, only : initGlobalEnv, destructGlobalEnv
   use dftbp_environment, only : TEnvironment, TEnvironment_init
   use dftbp_main, only : runDftbPlus
   use dftbp_inputdata, only : TInputData

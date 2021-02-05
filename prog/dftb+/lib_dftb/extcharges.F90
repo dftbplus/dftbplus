@@ -9,8 +9,8 @@
 
 !> Routines for calculating the interaction with external charges
 module dftbp_extcharges
-  use dftbp_accuracy, only : dp
   use dftbp_assert
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_coulomb, only : TCoulomb
   use dftbp_environment, only : TEnvironment

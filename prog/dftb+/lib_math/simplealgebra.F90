@@ -10,10 +10,10 @@
 !> Simple algebraic stuff for cases where LAPACK would be overkill
 module dftbp_simplealgebra
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: cross3, determinant33, derivDeterminant33, invert33
 
 contains

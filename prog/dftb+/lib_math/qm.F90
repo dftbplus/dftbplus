@@ -11,7 +11,6 @@
 module dftbp_qm
   use dftbp_assert
   use dftbp_accuracy, only : dp, rsp
-
   implicit none
 
   private

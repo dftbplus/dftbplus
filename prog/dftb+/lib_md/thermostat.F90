@@ -7,14 +7,14 @@
 
 !> Contains wrapper for all thermostats.
 module dftbp_thermostat
-  use dftbp_accuracy
-  use dftbp_dummytherm
-  use dftbp_andersentherm
-  use dftbp_berendsentherm
-  use dftbp_nhctherm
+  use dftbp_accuracy, only : dp
+  use dftbp_dummytherm, only : TDummyThermostat, getInitVelocities, init
+  use dftbp_andersentherm, only : TAndersenThermostat, getInitVelocities, updateVelocities, state
+  use dftbp_berendsentherm, only : TBerendsenThermostat, state, updateVelocities, getInitVelocities
+  use dftbp_nhctherm, only : TNHCThermostat, state, updateVelocities, getInitVelocities, init
   implicit none
+  
   private
-
   public :: TThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

@@ -14,14 +14,14 @@
 !> See Andersen J. Chem. Phys. 72. 2384 (1980)
 module dftbp_andersentherm
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_tempprofile
-  use dftbp_message
+  use dftbp_accuracy, only : dp, minTemp
+  use dftbp_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame, rescaleTokT
+  use dftbp_ranlux, only : TRanlux, getRandom
+  use dftbp_tempprofile, only : TTempProfile
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: TAndersenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

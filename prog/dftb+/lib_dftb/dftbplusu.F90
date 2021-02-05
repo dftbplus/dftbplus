@@ -11,15 +11,12 @@
 !> Intended to be used with SCC switched on !
 module dftbp_dftbplusu
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_fileid
-  use dftbp_commontypes
-  use dftbp_spin
+  use dftbp_accuracy, only : dp, sc
+  use dftbp_commontypes, only : TOrbitals
   use dftbp_sorting, only : heap_sort
   implicit none
+  
   private
-
   public :: TDftbUInp, TDftbU, TDftbU_init, plusUFunctionals
 
   !> Input for DFTB+U calculation

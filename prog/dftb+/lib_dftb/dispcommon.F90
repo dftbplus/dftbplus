@@ -13,17 +13,17 @@
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 module dftbp_dispcommon
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, lc, nSearchIter
   use dftbp_constants, only : pi
   use dftbp_environment, only : TEnvironment
-  use dftbp_errorfunction
-  use dftbp_message
+  use dftbp_errorfunction, only : erfcwrap
+  use dftbp_message, only : error
   use dftbp_simplealgebra, only : cross3
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_sorting
+  use dftbp_sorting, only : index_heap_sort
   implicit none
+  
   private
-
   public :: addDispEGr_per_species, addDispEGr_per_atom
   public :: getOptimalEta, getMaxRDispersion, getMaxGDispersion
 

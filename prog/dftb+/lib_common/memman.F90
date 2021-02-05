@@ -7,12 +7,11 @@
 
 !> Contains various constants for memory management
 module dftbp_memman
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
 
   implicit none
 
   private
-
   public :: incrmntOfArray
 
 

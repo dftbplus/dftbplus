@@ -12,15 +12,15 @@
 module dftbp_nonscc
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_sk
-  use dftbp_slakocont
-  use dftbp_commontypes
-  use dftbp_message
-  use dftbp_schedule
-  use dftbp_environment
+  use dftbp_sk, only : rotateH0
+  use dftbp_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_message, only : error
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_environment, only : TEnvironment
   implicit none
+  
   private
-
   public :: buildH0, buildS
   public :: TNonSccDiff, NonSccDiff_init
   public :: diffTypes

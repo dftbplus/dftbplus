@@ -11,21 +11,24 @@
 module parcheck
 
   use dftbp_accuracy, only : lc, dp
-  use dftbp_constants
+  use dftbp_constants, only : hartree__eV, Bohr__AA
   use dftbp_message, only : warning
-  use parameters
+  use parameters, only : cluster, DoGate, gatedir, ncdim, ncont, verbose, localBC, mixed,&
+      & overrideBC, contdir, iatc, dr_cont, poissbox, iatm, mu, poissBC, Efermi, Rmin_ins,&
+      & Rmin_gate, dr_eps, GateLength_l, deltaR_max, DoCilGate, DoPoisson, eps_r, gate, &
+      & GateLength_t, initPot, OxLength, PoissAcc, foundbox
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
   use dftbp_globalenv, only : stdOut
 
-implicit none
-private
+  implicit none
+  
+  private
+  public :: check_poisson_box, check_contacts, check_localbc
+  public :: check_parameters, write_parameters, check_biasdir
 
- public :: check_poisson_box, check_contacts, check_localbc
- public :: check_parameters, write_parameters, check_biasdir
-
- !> Verbosity threashold
- integer, parameter :: VBT=30
+  !> Verbosity threashold
+  integer, parameter :: VBT=30
 
 contains
  ! ---------------------------------------------------------------------------

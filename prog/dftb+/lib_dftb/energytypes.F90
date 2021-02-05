@@ -10,10 +10,10 @@
 !> Module to wrap around the different energy components in the DFTB total energy expression
 module dftbp_energytypes
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: TEnergies, TEnergies_init
 
 

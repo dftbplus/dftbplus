@@ -16,19 +16,17 @@
 !> instead of the conventional c*c)
 module dftbp_densitymatrix
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_blasroutines
-  use dftbp_sorting
-  use dftbp_commontypes
+  use dftbp_accuracy, only : dp
+  use dftbp_blasroutines, only : herk
+  use dftbp_sorting, only : unique, heap_sort
+  use dftbp_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-  use dftbp_blacsenv
+  use dftbp_scalapackfx, only : blacsgrid, blocklist, pblasfx_pherk, size, pblasfx_psyrk
 #:endif
   implicit none
+  
   private
-
   public :: makeDensityMatrix
-
 #:if WITH_SCALAPACK
   public :: makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
 #:endif

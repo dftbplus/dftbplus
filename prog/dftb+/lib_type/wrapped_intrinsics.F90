@@ -7,10 +7,10 @@
 
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
 module dftbp_wrappedintr
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: TWrappedInt1, TWrappedReal1, TWrappedLogical1
 
   !> 1 dimensional integers

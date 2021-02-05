@@ -7,11 +7,11 @@
 
 !> Contains some widely used types (at the moment only TOrbitals)
 module dftbp_commontypes
-  use dftbp_orbitals
-  use dftbp_parallelks
+  use dftbp_orbitals, only : TOrbitals
+  use dftbp_parallelks, only : TParallelKS, TParallelKS_init
   implicit none
+  
   private
-
   public :: TOrbitals
   public :: TParallelKS, TParallelKS_init
 

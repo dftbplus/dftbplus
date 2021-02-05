@@ -14,16 +14,16 @@
 !> interpolation instead of bisection.
 module dftbp_etemp
   use dftbp_assert
-  use dftbp_accuracy, only : dp, elecTol, elecTolMax, mExpArg
-  use dftbp_errorfunction
-  use dftbp_message
-  use dftbp_hermite
-  use dftbp_sorting
-  use dftbp_constants
+  use dftbp_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
+  use dftbp_errorfunction, only : erfcwrap
+  use dftbp_message, only : error
+  use dftbp_hermite, only : hx
+  use dftbp_sorting, only : index_heap_sort
+  use dftbp_constants, only : pi
   use dftbp_factorial, only : fact
   implicit none
+  
   private
-
   public :: Efilling, electronFill, fillingTypes
 
   type :: TFillingTypesEnum

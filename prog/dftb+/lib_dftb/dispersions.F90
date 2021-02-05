@@ -10,21 +10,21 @@
 !> Offers everything which is publicly available when dealing with dispersions.
 !!
 module dftbp_dispersions
-  use dftbp_dispiface
-  use dftbp_dispuff
-  use dftbp_dispuffdata
-  use dftbp_dispslaterkirkw
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dispuff, only : TDispUffInp, TDispUFF, dispuff_init
+  use dftbp_dispuffdata, only : getuffvalues
+  use dftbp_dispslaterkirkw, only : TDispSlaKirkInp, TDispSlaKirk, dispslakirk_init
 #:if WITH_DFTD3
-  use dftbp_dispdftd3
+  use dftbp_dispdftd3, only : TDispDftD3Inp
 #:endif
-  use dftbp_simpledftd3
-  use dftbp_dispdftd4
+  use dftbp_simpledftd3, only : TSimpleDftD3Input, TSimpleDftD3, init
+  use dftbp_dispdftd4, only : TDispDftD4Inp, TDispDftD4, init
 #:if WITH_MBD
-  use dftbp_dispmbd
+  use dftbp_dispmbd, only : TDispMbdInp
 #:endif
   implicit none
+  
   public
-
 
   !> Types of dispersion model
   type :: TDispersionInp

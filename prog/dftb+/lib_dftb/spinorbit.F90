@@ -10,18 +10,18 @@
 !> Routines for spin orbit coupling
 module dftbp_spinorbit
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
-  use dftbp_environment
+  use dftbp_environment, only : TEnvironment
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : imag
   use dftbp_angmomentum, only : getLOperators
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_densedescr
+  use dftbp_densedescr, only : TDenseDescr
   implicit none
+  
   private
-
   public :: getOnsiteSpinOrbitEnergy, addOnsiteSpinOrbitHam
   public :: getDualSpinOrbitEnergy, getDualSpinOrbitShift
 

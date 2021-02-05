@@ -10,16 +10,17 @@
 !> DFT-D3 dispersion model.
 module dftbp_dispdftd3
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_dispiface
-  use dftbp_dftd3
+  use dftbp_accuracy, only : dp
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dftd3, only : dftd3_input, dftd3_calc, dftd3_pbc_dispersion, dftd3_dispersion,&
+      & dftd3_init, dftd3_set_params
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   use dftbp_constants
   implicit none
+  
   private
-
   public :: TDispDftD3Inp, TDispDftD3, DispDftD3_init
   public :: hhRepCutOff
 

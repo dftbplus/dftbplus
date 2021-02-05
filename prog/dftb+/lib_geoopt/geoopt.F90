@@ -7,16 +7,15 @@
 
 !> General interface for the optimization algorithms
 module dftbp_geoopt
-  use dftbp_accuracy
-  use dftbp_conjgrad
-  use dftbp_steepdesc
-  use dftbp_gdiis
-  use dftbp_lbfgs
-  use dftbp_fire
+  use dftbp_accuracy, only : dp
+  use dftbp_conjgrad, only : TConjGrad, next, reset, init
+  use dftbp_steepdesc, only : TSteepDesc, next, reset, init
+  use dftbp_gdiis, only : TDIIS, reset, next, init
+  use dftbp_lbfgs, only : TLbfgs
+  use dftbp_fire, only : TFire
   implicit none
+  
   private
-
-
   public :: Tgeoopt
   public :: init, reset, next
   public :: geoOptTypes

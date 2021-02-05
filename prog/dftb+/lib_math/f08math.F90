@@ -15,10 +15,9 @@
 module dftbp_f08math
   use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
 #:if EMULATE_F08_MATH
-
   public :: norm2
 
 contains

@@ -10,12 +10,14 @@
 !> Utilities for processing an XML tree
 module dftbp_xmlutils
   use dftbp_assert
-  use dftbp_charmanip
-  use dftbp_xmlf90
+  use dftbp_charmanip, only : len_trim2
+  use dftbp_xmlf90, only : fnode, string, fnodeList, TEXT_NODE, item, getParentNode, getLength,&
+      & getFirstChild, removeChild, getNextSibling, getAttributeNode, getNodeType, char,&
+      & getLastChild, getPreviousSibling, operator(==), destroyNode, append, getNodeValue,&
+      & getNodeName
   implicit none
 
   private
-
   public :: getFirstChildByName, getLastChildByName, removeSpace
   public :: getTagsWithoutAttribute, removeChildNodes, removeNodes
   public :: getChildrenByName

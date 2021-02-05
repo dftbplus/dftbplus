@@ -12,13 +12,13 @@
 module dftbp_halogenx
   use dftbp_assert
   use dftbp_accuracy, only : dp, mc
-  use dftbp_vdwdata
+  use dftbp_vdwdata, only : getVdwData
   use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_message
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: THalogenX, THalogenX_init
   public :: halogenXSpecies1, halogenXSpecies2
 

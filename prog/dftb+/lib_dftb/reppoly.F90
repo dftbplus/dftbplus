@@ -10,11 +10,10 @@
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
 module dftbp_reppoly
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_bisect
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: powMin, powMax
   public :: TRepPolyIn, TRepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv

@@ -17,11 +17,13 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_andersonmixer
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_lapackroutines, only : gesv
   implicit none
 
   private
+  public :: TAndersonMixer
+  public :: init, reset, mix
 
 
   !> Contains the necessary data for an Anderson mixer
@@ -87,9 +89,6 @@ module dftbp_andersonmixer
   interface mix
     module procedure AndersonMixer_mix
   end interface mix
-
-  public :: TAndersonMixer
-  public :: init, reset, mix
 
 contains
 

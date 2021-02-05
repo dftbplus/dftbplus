@@ -10,21 +10,20 @@
 
 !> Contains range separated related routines.
 module dftbp_rangeseparated
-  use dftbp_accuracy
-  use dftbp_environment
+  use dftbp_accuracy, only : dp, tolSameDist, MinHubDiff
+  use dftbp_environment, only : TEnvironment, globalTimers
   use dftbp_assert
-  use dftbp_message
+  use dftbp_message, only : error
   use dftbp_nonscc, only : TNonSccDiff
   use dftbp_slakocont, only : TSlakoCont
-  use dftbp_commontypes
-  use dftbp_sorting
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_sorting, only : index_heap_sort
   use dftbp_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
   use dftbp_globalenv, only : stdOut
-  use dftbp_f08math
   use dftbp_blasroutines, only : gemm
   implicit none
+  
   private
-
   public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue, rangeSepTypes
 
 

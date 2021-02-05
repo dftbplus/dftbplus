@@ -12,20 +12,19 @@
 !>
 module dftbp_sparse2dense
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, imag
-  use dftbp_commontypes
-  use dftbp_memman
+  use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
-  use dftbp_densedescr
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_angmomentum, only : rotateZ
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-  use dftbp_blacsenv
+  use dftbp_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
+  use dftbp_blacsenv, only : TBlacsEnv
 #:endif
   implicit none
+  
   private
-
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
   public :: hermitianSquareMatrix

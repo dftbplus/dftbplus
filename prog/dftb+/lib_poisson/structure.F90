@@ -8,12 +8,17 @@
 module structure
 
   use dftbp_accuracy, only : dp
-  use gallocation
-  use mpi_poisson
+  use gallocation, only : log_gallocate
+  use mpi_poisson, only : active_id
   use dftbp_globalenv, only : stdOut
    
   implicit none
+  
   private
+  public :: find_ntypes, buildsupercell
+  public :: shortvertice
+  public :: gamma_summind
+  public :: init_structure, init_charges, init_skdata
   
   integer,  public, save :: natoms
   integer, allocatable, public, save :: izp(:)       ! specie
@@ -43,12 +48,6 @@ module structure
   
   !! Renormalization volumes: to ensure charge neutrality
   real(kind=dp), public, allocatable :: renorm(:,:)
-
-
-  public :: find_ntypes, buildsupercell
-  public :: shortvertice
-  public :: gamma_summind
-  public :: init_structure, init_charges, init_skdata
 
   contains
 

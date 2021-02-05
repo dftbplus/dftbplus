@@ -28,8 +28,8 @@ module dftbp_mainapi
   use dftbp_wrappedintr, only : TWrappedInt1
   use dftbp_charmanip, only : newline
   implicit none
+  
   private
-
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses

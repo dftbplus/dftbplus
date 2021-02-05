@@ -14,7 +14,8 @@ module dftbp_dftd4param
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_encharges, only : TEeqInput
   use dftbp_coordnumber, only : TCNCont, TCNInput, cnType
-  use dftbp_dftd4refs
+  use dftbp_dftd4refs, only : secaiw, alphaiw, clsh, clsq, refn, refsys, refcn, sscale, refcovcn,&
+      & hcount, ascale
   implicit none
 
   public :: TDftD4Calculator, TDispDftD4Inp, initializeCalculator

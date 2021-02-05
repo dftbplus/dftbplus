@@ -17,8 +17,8 @@ module dftbp_atomicrad
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : AA__Bohr, symbolToNumber
   implicit none
+  
   private
-
   public :: getAtomicRad
 
 

@@ -7,8 +7,8 @@
 
 module dftbp_hamiltoniantypes
   implicit none
+  
   private
-
   public :: hamiltonianTypes
 
   !> Namespace for possible hamiltonian models

@@ -19,11 +19,11 @@
 !>
 module dftbp_orbitalequiv
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_commontypes
+  use dftbp_accuracy, only : dp
+  use dftbp_commontypes, only : TOrbitals
   implicit none
+  
   private
-
   public :: OrbitalEquiv_merge, OrbitalEquiv_reduce, OrbitalEquiv_expand
 
 contains

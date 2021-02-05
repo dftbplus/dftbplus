@@ -10,14 +10,14 @@
 !> Routines implementing the full 3rd order DFTB.
 module dftbp_thirdorder
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, minHubDiff, tolSameDist
   use dftbp_commontypes, only : TOrbitals
   use dftbp_shortgammafuncs, only : expGammaCutoff
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighbours
-  use dftbp_charges
+  use dftbp_charges, only : getSummedCharges
   implicit none
+  
   private
-
   public :: TThirdOrderInp, TThirdOrder, ThirdOrder_init
 
 

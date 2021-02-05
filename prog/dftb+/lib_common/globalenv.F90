@@ -18,11 +18,12 @@ module dftbp_globalenv
   use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
 #:if WITH_MPI
   use mpi, only : MPI_COMM_WORLD
-  use dftbp_mpifx
+  use dftbp_mpifx, only : mpifx_comm, MPI_THREAD_FUNNELED, mpifx_init_thread, mpifx_abort,&
+      & mpifx_barrier, mpifx_finalize
 #:endif
   implicit none
+  
   private
-
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
   public :: stdOut, stdErr, tIoProc

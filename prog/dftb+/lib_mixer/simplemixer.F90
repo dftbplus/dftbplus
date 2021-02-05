@@ -10,10 +10,12 @@
 !> Simple mixer for mixing charges
 module dftbp_simplemixer
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
 
   private
+  public :: TSimpleMixer
+  public :: init, reset, mix
 
 
   !> Contains data for a simple mixer
@@ -42,9 +44,6 @@ module dftbp_simplemixer
   interface mix
     module procedure SimpleMixer_mix
   end interface
-
-  public :: TSimpleMixer
-  public :: init, reset, mix
 
 contains
 

@@ -11,12 +11,12 @@
 !> specified on an equidistant grid.
 module dftbp_slakoeqgrid
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_interpolation
-  use dftbp_message
+  use dftbp_accuracy, only : dp, distFudge, distFudgeOld
+  use dftbp_interpolation, only : polyInterUniform, poly5ToZero, freeCubicSpline
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: TSlakoEqGrid, init
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew

@@ -15,7 +15,6 @@ module gewald
   implicit none
 
   private
-  
   public :: short_pot
   public :: long_pot
   public :: getalpha

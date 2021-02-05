@@ -9,12 +9,14 @@
 
 !> Module for square dense matrix specification
 module dftbp_densedescr
-  use dftbp_scalapackfx
+#:if WITH_SCALAPACK
+  use dftbp_scalapackfx, only : DLEN_
+#:endif
   implicit none
+  
   private
-
   public :: TDenseDescr
-
+  
 
   type :: TDenseDescr
 

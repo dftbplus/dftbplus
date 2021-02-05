@@ -9,42 +9,41 @@
 
 !> Contains data type representing the input data for DFTB
 module dftbp_inputdata
-  use dftbp_hamiltoniantypes
+  use dftbp_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_message
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_typegeometry, only : TGeometry
+  use dftbp_message, only : error, warning
   use dftbp_dftbplusu, only : TDftbUInp
   use dftbp_dispersions, only : TDispersionInp
   use dftbp_linresp, only : TLinrespini
   use dftbp_pprpa, only : TppRPAcal
-  use dftbp_slakocont
-  use dftbp_commontypes
-  use dftbp_repcont
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_repcont, only : TRepCont
+  use dftbp_linkedlist, only : TListIntR1, destruct
+  use dftbp_wrappedintr, only : TWrappedInt1
   use dftbp_elecsolvers, only : TElectronicSolverInp
-  use dftbp_timeprop
+  use dftbp_timeprop, only : TElecDynamicsInp
   use dftbp_etemp, only : fillingTypes
-  use dftbp_xlbomd
+  use dftbp_xlbomd, only : TXLBOMDInp
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketCommInp
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
-  use dftbp_reks
+  use dftbp_reks, only : TReksInp
   use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
-
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use libnegf_vars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
   use dftbp_poisson, only : TPoissonInfo
   use dftbp_h5correction, only : TH5CorrectionInput
   implicit none
+  
   private
   save
-
   public :: TControl, TGeometry, TSlater, TInputData, TXLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: TRangeSepInp

@@ -10,16 +10,16 @@
 !> HSD-parsing related helper routines.
 module dftbp_hsdhelpers
   use dftbp_globalenv, only : stdOut, tIoProc
-  use dftbp_parser
-  use dftbp_hsdparser
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_inputdata
-  use dftbp_message
+  use dftbp_parser, only : TParserFlags, rootTag, readHsdFile, parseHsdTree
+  use dftbp_hsdparser, only : dumpHSD
+  use dftbp_hsdutils, only : getChild
+  use dftbp_hsdutils2, only : warnUnprocessedNodes
+  use dftbp_inputdata, only : TInputData
+  use dftbp_message, only : error
   use dftbp_xmlf90, only : fnode, destroyNode
   implicit none
+  
   private
-
   public :: parseHsdInput, doPostParseJobs
 
 

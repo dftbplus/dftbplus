@@ -10,13 +10,13 @@
 !> Contains routines to convert data (typically delivered by the parser) to the internal form.
 module dftbp_inputconversion
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_commontypes
-  use dftbp_wrappedintr
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_wrappedintr, only : TWrappedInt1
   use dftbp_periodic, only : buildSquaredAtomIndex
   implicit none
+  
   private
-
   public :: transformPdosRegionInfo
 
 contains

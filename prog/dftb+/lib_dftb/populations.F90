@@ -11,13 +11,12 @@
 !> To do: extend to other populations than Mulliken
 module dftbp_populations
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_periodic
-  use dftbp_commontypes
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : pi
+  use dftbp_commontypes, only : TOrbitals
   implicit none
+  
   private
-
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
   public :: getOnsitePopulation

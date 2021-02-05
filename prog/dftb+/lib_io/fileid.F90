@@ -7,10 +7,10 @@
 
 !> IDs for file operations
 module dftbp_fileid
-  use dftbp_message
+  use dftbp_message, only : error
+  implicit none
 
   private
-
   public :: getFileId
 
 

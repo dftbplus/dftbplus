@@ -12,17 +12,25 @@
 !> Todo: Some more routines for complex numbers?
 module dftbp_hsdutils
   use dftbp_assert
-  use dftbp_xmlf90
-  use dftbp_tokenreader
-  use dftbp_hsdparser
-  use dftbp_xmlutils
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_linkedlist
-  use dftbp_accuracy
+  use dftbp_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string, appendChild,&
+      & xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength, assignment(=),&
+      & getNodeType, replaceChild, createTextNode, createElement, removeChild, trim, getAttribute,&
+      & setAttribute, append_to_string, resize_string, xml_NewElement, xml_AddPCData,&
+      & xml_EndElement, getItem1, prepend_to_string, getAttribute, getNodeName,&
+      & getNodeValue, destroyNode, setAttribute, getAttribute, normalize
+  use dftbp_tokenreader, only : TOKEN_EOS, TOKEN_ERROR, LOGICAL_TRUE, LOGICAL_FALSE, TOKEN_OK,&
+      & getNextToken
+  use dftbp_hsdparser, only : attrEnd, attrFile, attrList, attrStart, attrModifier, attrName,&
+      & getHSDPath, getNodeHSDName
+  use dftbp_xmlutils, only : getChildrenByName, getFirstChildByName
+  use dftbp_charmanip, only : newline, whiteSpaces, space, tolower, unquote, complementaryScan
+  use dftbp_message, only : error, warning
+  use dftbp_linkedlist, only : len, TListString, TListReal, TListRealR1, TListInt, TlistIntR1,&
+      & append, init, asArray, destruct
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: checkError, detailedError, detailedWarning
   public :: getFirstTextChild, getChildValue, setChildValue
   public :: writeChildValue, getAsString

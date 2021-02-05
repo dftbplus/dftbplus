@@ -15,14 +15,12 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reksvar
 
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_orbitals
-
+  use dftbp_accuracy, only : dp
+  use dftbp_message, only : error
+  use dftbp_orbitals, only : TOrbitals
   implicit none
 
   private
-
   public :: TReksInp, TReksCalc, REKS_init, reksTypes
 
   type :: TReksTypesEnum

@@ -10,12 +10,12 @@
 !> Dummy thermostat, delivers only initial velocities according to the Maxwell-Boltzmann statistics.
 module dftbp_dummytherm
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_mdcommon
-  use dftbp_ranlux
+  use dftbp_accuracy, only : dp, minTemp
+  use dftbp_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame, rescaleTokT
+  use dftbp_ranlux, only : TRanlux
   implicit none
+  
   private
-
   public :: TDummythermostat
   public :: init, getInitVelocities, state
 

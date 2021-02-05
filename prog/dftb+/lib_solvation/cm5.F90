@@ -17,8 +17,8 @@ module dftbp_cm5
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TChargeModel5, TCM5Input, TChargeModel5_init
 
 

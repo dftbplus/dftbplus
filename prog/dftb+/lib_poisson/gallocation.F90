@@ -28,12 +28,13 @@ module gallocation
   use, intrinsic :: iso_c_binding, only : c_sizeof
   use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : dp
+  implicit none
+  
+  public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
 
   integer, parameter :: long = int64
   integer, save :: iolog
-  integer(int64), save :: alloc_mem, peak_mem
-
-  public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
+  integer(int64), save :: alloc_mem, peak_mem  
 
   interface log_gallocate
   #:for LABEL, _, _, _ in ALLOC_CASES

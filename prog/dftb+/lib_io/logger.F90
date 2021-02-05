@@ -11,8 +11,8 @@ module dftbp_logger
   use dftbp_globalenv, only : stdOut
   use dftbp_optarg
   implicit none
+  
   private
-
   public :: LogWriter, LogWriter_init
 
 

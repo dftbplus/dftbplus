@@ -201,14 +201,6 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
       string(TOUPPER "${_buildtype}" _buildtype_upper)
       set(_flags "${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${_buildtype_upper}}")
       message(STATUS "FLAGS: ${_flags}")
-      string(FIND "${_flags} "  "-standard-semantics" pos1)
-      string(FIND "${_flags}" "realloc_lhs" pos2)
-      string(FIND "${_flags}" "norealloc_lhs" pos3)
-      if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-        message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
-          "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
-          "code (missing flag in build type '${_buildtype}'")
-      endif()
     endforeach()
   endif()
 

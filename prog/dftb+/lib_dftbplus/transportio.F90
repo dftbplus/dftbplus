@@ -9,13 +9,13 @@
 
 module dftbp_transportio
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_orbitals
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : Hartree__eV
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message, only : error
+  use dftbp_orbitals, only : TOrbitals
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use libnegf_vars, only : TTransPar
 #:endif
   implicit none
 

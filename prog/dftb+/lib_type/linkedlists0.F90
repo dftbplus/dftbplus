@@ -10,8 +10,9 @@
 !> Linked list of single strings
 module dftbp_linkedlists0
   use dftbp_assert
-  use dftbp_xmlf90
+  use dftbp_xmlf90, only : string, assignment(=), operator(==), len
   implicit none
+
   private
 
   $:define_list(&

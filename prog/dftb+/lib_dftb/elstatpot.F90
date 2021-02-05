@@ -9,12 +9,12 @@
 
 !> Provides data structure for evaluated electrostatic potentials
 module dftbp_elstatpot
-  use dftbp_accuracy
-  use dftbp_scc
-  use dftbp_environment
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_scc, only : TScc
+  use dftbp_environment, only : TEnvironment
   implicit none
+  
   private
-
   public :: TElStatPotentialsInp
   public :: TElStatPotentials, TElStatPotentials_init
 

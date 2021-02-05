@@ -11,10 +11,10 @@
 module mpi_poisson
 
 #:if WITH_MPI
-  use libmpifx_module
+  use libmpifx_module, only : mpifx_comm, mpifx_gatherv
   implicit none
+  
   private  
-
   public :: mpifx_gatherv
   public :: poiss_mpi_init, poiss_mpi_split
 

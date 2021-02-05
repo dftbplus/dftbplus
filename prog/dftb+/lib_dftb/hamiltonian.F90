@@ -24,7 +24,6 @@ module dftbp_hamiltonian
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_dispersions, only : TDispersionIface
-
   implicit none
 
   private

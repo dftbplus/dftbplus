@@ -25,8 +25,8 @@ module dftbp_encharges
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_simplealgebra, only : determinant33, invert33
   implicit none
+  
   private
-
   public :: TEeqCont, TEeqInput, init
   public :: getEEQcharges
 

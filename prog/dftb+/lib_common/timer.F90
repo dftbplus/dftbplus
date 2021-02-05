@@ -9,8 +9,8 @@
 module dftbp_timer
   use dftbp_globalenv, only : stdOut
   implicit none
+  
   private
-
   public :: TTimer
 
   !> Simple timer object

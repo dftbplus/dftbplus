@@ -8,13 +8,15 @@
 module fancybc
 
   use dftbp_accuracy, only : dp
-  use parameters
+  use parameters, only : poissbox, cntr_gate, base_atom1, base_atom2, tip_atom, r_cont, localbc,&
+      & cntr_cont, contdir, ncont, gatedir, dr_cont, iatc, mixed, rmin_gate, gatelength_l,&
+      & biasdir, tipbias, gate, OxLength, dr_eps, eps_r, rmin_ins, gatelength_t
   use bulkpot , only : super_array
-  use mpi_poisson
+  use mpi_poisson, only : id0
   
   implicit none
+  
   private
-
   public :: bndyc, coef, coef_period, coef_gate, gate_bound
   public :: coef_tip ,tip_bound, coef_cilgate, cilgate_bound
   public :: coef_local, local_bound

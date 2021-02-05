@@ -10,18 +10,18 @@
 !> Angular momentum related routines
 module dftbp_angmomentum
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_scalapackfx, only : scalafx_addg2l
 #:endif
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : imag
-  use dftbp_qm
+  use dftbp_qm, only : makeSimilarityTrans
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_environment
-  use dftbp_densedescr
+  use dftbp_environment, only : TEnvironment
+  use dftbp_densedescr, only : TDenseDescr
   implicit none
+  
   private
-
   public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ
 
   !> Construct matrix for rotation of orbitals around the z axis in the tesseral spherical hamonics

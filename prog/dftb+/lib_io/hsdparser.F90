@@ -18,13 +18,17 @@
 !> For the specification of the HSD format see the sample input
 module dftbp_hsdparser
   use dftbp_assert
-  use dftbp_message
-  use dftbp_charmanip
-  use dftbp_xmlutils
-  use dftbp_xmlf90
+  use dftbp_message, only : error
+  use dftbp_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
+      & unquotedScan, convertWhitespaces, getFirstOccurance
+  use dftbp_xmlutils, only : getFirstChildByName
+  use dftbp_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
+      & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
+      & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&
+      & getAttribute, getNodeName, getNodeValue, destroyNode, setAttribute, getAttribute, normalize
   implicit none
+  
   private
-
 
   !> Wrapper around the parsing function
   interface parseHSD

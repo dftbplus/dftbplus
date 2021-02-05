@@ -14,59 +14,58 @@
 !> https://doi.org/10.1021/acs.jctc.9b01217
 
 module dftbp_timeprop
-  use dftbp_globalenv
-  use dftbp_commontypes
-  use dftbp_potentials
-  use dftbp_scc
-  use dftbp_shift
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_sparse2dense
-  use dftbp_densitymatrix
-  use dftbp_blasroutines
-  use dftbp_lapackroutines
-  use dftbp_populations
-  use dftbp_bondpops
-  use dftbp_blas
-  use dftbp_lapack
-  use dftbp_spin
-  use dftbp_forces
-  use dftbp_repulsive
-  use dftbp_slakocont
-  use dftbp_repcont
-  use dftbp_thermostat
-  use dftbp_mdintegrator
-  use dftbp_dummytherm
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_periodic
-  use dftbp_velocityverlet
-  use dftbp_nonscc
+  use dftbp_globalenv, only : stdOut
+  use dftbp_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_potentials, only : TPotentials, init
+  use dftbp_scc, only : TScc
+  use dftbp_shift, only : total_shift
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
+  use dftbp_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS
+  use dftbp_densitymatrix, only : makeDensityMatrix
+  use dftbp_blasroutines, only : mc, sc, lc, gemm, her2k
+  use dftbp_lapackroutines, only : matinv, gesv 
+  use dftbp_bondpops, only : addPairWiseBondInfo
+  use dftbp_spin, only : ud2qm, qm2ud
+  use dftbp_forces, only : derivative_shift
+  use dftbp_repulsive, only : getERepDeriv
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_thermostat, only : TThermostat
+  use dftbp_mdintegrator, only : TMDIntegrator, reset, init, state, next
+  use dftbp_dummytherm, only : TDummyThermostat
+  use dftbp_mdcommon, only : TMDCommon
+  use dftbp_ranlux, only : TRanlux
+  use dftbp_periodic, only : TNeighbourList, foldCoordToUnitCell, updateNeighbourListAndSpecies,&
+      & getNrOfNeighboursForAll, getSparseDescriptor
+  use dftbp_velocityverlet, only : TVelocityVerlet
+  use dftbp_nonscc, only : TNonSccDiff, buildH0, buildS
   use dftbp_dftbplusu, only : TDftbU
   use dftbp_energytypes, only : TEnergies, TEnergies_init
   use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
-  use dftbp_populations
-  use dftbp_eigenvects
-  use dftbp_sk
-  use dftbp_dispiface
-  use dftbp_dispersions
-  use dftbp_environment
-  use dftbp_repcont
-  use dftbp_timer
-  use dftbp_taggedoutput
-  use dftbp_hamiltonian
-  use dftbp_onsitecorrection
-  use dftbp_message
+  use dftbp_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
+  use dftbp_eigenvects, only : diagDenseMtx
+  use dftbp_dispersions, only : TDispersionIface
+  use dftbp_timer, only : TTimer
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_hamiltonian, only : TRefExtPot, resetExternalPotentials, resetInternalPotentials,&
+      & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
+  use dftbp_onsitecorrection, only : addOnsShift
+  use dftbp_message, only : error, warning
   use dftbp_elecsolvers, only : TElectronicSolver
-  use dftbp_simplealgebra
+  use dftbp_simplealgebra, only : determinant33
   use dftbp_RangeSeparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_reks, only : TReksCalc
+  use dftbp_repcont, only : TRepCont
+  use dftbp_environment, only : TEnvironment, globalTimers
+#:if WITH_MBD
+  use dftbp_dispmbd, only : TDispMbd
+#:endif
   implicit none
+  
   private
-
   public :: runDynamics, TElecDynamics_init
   public :: TElecDynamicsInp, TElecDynamics
   public :: pertTypes, envTypes, tdSpinTypes

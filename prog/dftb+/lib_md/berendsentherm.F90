@@ -14,14 +14,14 @@
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
 module dftbp_berendsentherm
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_tempprofile
-  use dftbp_message
+  use dftbp_accuracy, only : dp, minTemp
+  use dftbp_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_ranlux, only : TRanlux
+  use dftbp_tempprofile, only : TTempProfile
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: TBerendsenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

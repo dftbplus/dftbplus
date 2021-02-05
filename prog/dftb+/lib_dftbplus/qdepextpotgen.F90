@@ -9,8 +9,8 @@
 module dftbp_qdepextpotgen
   use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: TQDepExtPotGen, TQDepExtPotGenWrapper
 
   !> Base class for generating external population dependent potentials.

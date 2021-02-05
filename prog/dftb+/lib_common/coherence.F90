@@ -25,9 +25,9 @@
 !> Contains MPI coherence tests across a comm world
 module dftbp_coherence
   use dftbp_accuracy, only : dp, lc
-  use dftbp_environment
+  use dftbp_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : MPI_LAND, mpifx_bcast, mpifx_allreduce
 #:endif
   implicit none
 

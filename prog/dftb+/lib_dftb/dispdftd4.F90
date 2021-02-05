@@ -24,8 +24,8 @@ module dftbp_dispdftd4
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TDispDftD4, TDispDftD4Inp, init
 
 

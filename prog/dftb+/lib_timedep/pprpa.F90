@@ -12,25 +12,21 @@
 !> (doi:10.1063/1.4977928)
 module dftbp_pprpa
   use dftbp_assert
-  use dftbp_linrespcommon
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_shortgamma
-  use dftbp_accuracy
+  use dftbp_linrespcommon, only : indxoo, indxvv
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : Hartree__eV
   use dftbp_scc, only : TScc
-  use dftbp_blasroutines
-  use dftbp_eigensolver
-  use dftbp_message
+  use dftbp_blasroutines, only : symm
+  use dftbp_eigensolver, only : geev
+  use dftbp_message, only : error
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_sorting
-  use dftbp_qm
-  use dftbp_transcharges
-  use dftbp_densedescr
-  use dftbp_fileid
+  use dftbp_sorting, only : index_heap_sort
+  use dftbp_transcharges, only : TTransCharges, transq
+  use dftbp_densedescr, only : TDenseDescr
   implicit none
+  
   private
-
   public :: ppRPAenergies, TppRPAcal
 
   !> Data type for pp-RPA calculations

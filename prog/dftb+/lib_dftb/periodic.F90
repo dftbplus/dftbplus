@@ -10,22 +10,21 @@
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_periodic
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
   use dftbp_constants, only : pi
-  use dftbp_message
-  use dftbp_sorting
-  use dftbp_bisect
-  use dftbp_linkedlist
+  use dftbp_message, only : error, warning
+  use dftbp_sorting, only : index_heap_sort
+  use dftbp_bisect, only : bisection
+  use dftbp_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
   use dftbp_simplealgebra, only : determinant33, invert33
-  use dftbp_commontypes
-  use dftbp_memman
-  use dftbp_latpointiter
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_memman, only : incrmntOfArray
+  use dftbp_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_quaternions, only : rotate3
   use dftbp_boundarycond, only : zAxis
   implicit none
 
   private
-
   public :: getCellTranslations, getLatticePoints, foldCoordToUnitCell
   public :: reallocateHS, buildSquaredAtomIndex
   public :: TNeighbourList, TNeighbourlist_init

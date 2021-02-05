@@ -12,13 +12,13 @@
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_xlbomd
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_globalenv, only : stdOut
-  use dftbp_message
-  use dftbp_extlagrangian
+  use dftbp_message, only : error
+  use dftbp_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
   implicit none
+  
   private
-
   public :: TXLBOMDInp, TXLBOMD, Xlbomd_init
 
 

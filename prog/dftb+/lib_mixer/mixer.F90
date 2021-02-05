@@ -10,15 +10,15 @@
 !> Provides a general mixer which contains the desired actual mixer.
 module dftbp_mixer
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_simplemixer
-  use dftbp_andersonmixer
-  use dftbp_broydenmixer
-  use dftbp_diismixer
-  use dftbp_message
+  use dftbp_accuracy, only : dp
+  use dftbp_simplemixer, only : TSimpleMixer, mix, reset
+  use dftbp_andersonmixer, only : TAndersonMixer, mix, reset
+  use dftbp_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
+  use dftbp_diismixer, only : TDIISMixer, mix, reset
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: TMixer
   public :: init, reset, mix
   public :: hasInverseJacobian, getInverseJacobian

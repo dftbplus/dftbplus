@@ -10,11 +10,11 @@
 !> Contains routines for interpolation and extrapolation
 module dftbp_interpolation
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
+  use dftbp_accuracy, only : dp
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: poly5ToZero, freeCubicSpline, polyInter, polyInterUniform
 
   !> Uniform grid polynomial interpolation

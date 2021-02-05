@@ -10,8 +10,8 @@ Module parameters
   use dftbp_accuracy, only : dp
 
   implicit none
+  
   private
-
   public :: init_defaults
   public :: set_verbose, set_scratch, set_contdir, set_fermi, set_potentials
   public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces
