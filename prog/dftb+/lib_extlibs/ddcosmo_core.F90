@@ -46,8 +46,8 @@ module dftbp_extlibs_ddcosmo_core
     !> Max angular momentum of spherical harmonics basis
     integer :: lmax
 
-    !> Threshold for iterative solver (10^-iconv)
-    integer :: iconv
+    !> Threshold for iterative solver
+    real(dp) :: conv
 
     !> Regularization parameters
     real(dp) :: eta
@@ -67,8 +67,8 @@ module dftbp_extlibs_ddcosmo_core
     !> Desired number of Lebedev integration points
     integer :: ngrid
 
-    !> Threshold for iterative solver (10^-iconv)
-    integer :: iconv
+    !> Threshold for iterative solver
+    integer :: conv
 
     !> 1) compute forces ; 0) do not compute forces
     integer :: igrad
@@ -121,7 +121,7 @@ contains
     self%ngrid = size(wang)
     self%iprint = 0
     self%lmax = input%lmax
-    self%iconv = input%iconv
+    self%conv = input%conv
     self%eta = input%eta
     self%igrad = 1
 
@@ -1094,7 +1094,7 @@ contains
     if (self%iprint > 0) then
 
       write(iout, 1000)
-      write(iout, 1010) self%ngrid, self%nat, self%lmax, 10.0_dp**(-self%iconv), self%eta
+      write(iout, 1010) self%ngrid, self%nat, self%lmax, self%conv, self%eta
 
       if (self%igrad == 1)  write(iout, 1013)
       1013   format(' Compute forces.'//)

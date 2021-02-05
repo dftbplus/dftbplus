@@ -3585,12 +3585,11 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
 
   \item[\is{AngularGrid}]
     Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
-    The grid size mainly determines the computational cost of evaluating the
-    accessible surface area, too small grid sizes can lead to significant errors
+    The grid size mainly determines the computational cost of solving the
+    COSMO equations, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
-    A safe choice should be 230 grid points per atom.
     Possible values are
-    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, \textit{230}, 266, 302, 350,
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, 230, 266, 302, 350,
     434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
     4334, 4802, 5294, 5810.
 
@@ -3603,6 +3602,19 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     Values greater one between 1.2 and 1.5 are recommended when using van-der-Waals radii.
 
   \item[\is{Solver}] for the COSMO equation. Default is \is{DomainDecomposition\cb}.
+
+    \begin{itemize}
+      \item[\is{MaxMoment}]
+        Maximum moment for spherical harmonic expansion in the ddCOSMO equations.
+        Moments of 6 and higher are recommended
+      \item[\is{Regularisation}]
+        Regularisation factor for the ddCOSMO equation. A value of 0.2 is recommended
+      \item[\is{Accuracy}]
+        Convergence criteria for the ddCOSMO equations, this value effects the cost
+        of the solver in the self-consistent charge iterations.
+        The convergence thresholds are automatically decreased for the gradient
+        calculations to avoid numerical noise.
+    \end{itemize}
 \end{description}
 
 Example for a COSMO model
@@ -3621,7 +3633,7 @@ Hamiltonian = DFTB {
     AngularGrid = 110
     Solver = DomainDecomposition {
       MaxMoment = 10
-      Accuracy = 8
+      Accuracy = 1e-8
       Regularisation = 0.2
     }
   }

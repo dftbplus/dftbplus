@@ -330,7 +330,7 @@ contains
       & ef(3, max(this%nAtom, this%ddCosmo%ncav)))
 
     call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, .true., &
-      & accuracy=this%ddCosmo%iconv+3)
+      & accuracy=this%ddCosmo%conv*1e-3_dp)
 
     ! reset Phi
     call gemv(this%phi, this%jmat, this%chargesPerAtom)
@@ -591,7 +591,7 @@ contains
     real(dp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
 
     ! parameters for the solver and matvec routine
-    tol     = 10.0_dp**(-ddCosmo%iconv)
+    tol     = ddCosmo%conv
     n_iter  = 200
 
     ! DIRECT COSMO EQUATION L X = g
@@ -676,7 +676,7 @@ contains
     logical, intent(in) :: restart
 
     !> Overwrite accuracy
-    integer, intent(in), optional :: accuracy
+    real(dp), intent(in), optional :: accuracy
 
     integer :: iat, istatus, n_iter, info, c1, c2, cr
     real(dp) :: tol, r_norm
@@ -686,9 +686,9 @@ contains
 
     ! parameters for the solver and matvec routine
     if (present(accuracy)) then
-      tol = 10.0_dp**(-accuracy)
+      tol = accuracy
     else
-      tol = 10.0_dp**(-ddCosmo%iconv)
+      tol = ddCosmo%conv
     end if
     n_iter  = 200
 

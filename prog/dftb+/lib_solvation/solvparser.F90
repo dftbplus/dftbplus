@@ -283,7 +283,7 @@ contains
     call getChildValue(node, "radScale", radScale)
     input%vdwRad(:) = input%vdwRad * radScale
 
-    call readAngularGrid(node, input%gridSize, 230)
+    call readAngularGrid(node, input%gridSize)
 
     call getChildValue(node, "Solver", value1, "DomainDecomposition", child=child)
     call getNodeName(value1, buffer)
@@ -307,9 +307,9 @@ contains
 
     type(fnode), pointer :: child
 
-    call getChildValue(node, "MaxMoment", input%lmax, 6, child=child)
+    call getChildValue(node, "MaxMoment", input%lmax, child=child)
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
-    call getChildValue(node, "Accuracy", input%iconv, 8, child=child)
+    call getChildValue(node, "Accuracy", input%conv, child=child)
 
   end subroutine readDomainDecomposition
 

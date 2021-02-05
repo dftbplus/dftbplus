@@ -43,7 +43,7 @@ Hamiltonian = DFTB {
     AngularGrid = 110
     Solver = DomainDecomposition {
       MaxMoment = 10
-      Accuracy = 8
+      Accuracy = 1e-8
     }
   }
   SCC = Yes
