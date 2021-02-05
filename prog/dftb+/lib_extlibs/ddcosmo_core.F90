@@ -68,7 +68,7 @@ module dftbp_extlibs_ddcosmo_core
     integer :: ngrid
 
     !> Threshold for iterative solver
-    integer :: conv
+    real(dp) :: conv
 
     !> 1) compute forces ; 0) do not compute forces
     integer :: igrad
