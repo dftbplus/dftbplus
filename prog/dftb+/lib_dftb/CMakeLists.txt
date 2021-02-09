@@ -26,7 +26,7 @@ set(sources-fpp
   ${curdir}/energytypes.F90
   ${curdir}/encharges.F90
   ${curdir}/etemp.F90
-  ${curdir}/externalcharges.F90
+  ${curdir}/extcharges.F90
   ${curdir}/forces.F90
   ${curdir}/getenergies.F90
   ${curdir}/h5correction.F90
@@ -48,6 +48,7 @@ set(sources-fpp
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90
   ${curdir}/shortgamma.F90
+  ${curdir}/shortgammafuncs.F90
   ${curdir}/simpledftd3.F90
   ${curdir}/sk.F90
   ${curdir}/slakocont.F90
@@ -57,6 +58,7 @@ set(sources-fpp
   ${curdir}/spinorbit.F90
   ${curdir}/stress.F90
   ${curdir}/thirdorder.F90
+  ${curdir}/uniquehubbard.F90
   ${curdir}/vdwdata.F90)
 
 if(WITH_DFTD3)

@@ -14,7 +14,7 @@ module dftbp_mainapi
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : TDftbPlusMain
+  use dftbp_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
   use dftbp_timeprop, only : initializeDynamics, doTdStep
 #:if WITH_SCALAPACK
   use dftbp_initprogram, only : getDenseDescBlacs
@@ -268,7 +268,7 @@ contains
         allocate(main%chrgForces(3, size(chargeQs)))
       end if
     end if
-    call main%sccCalc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
 
   end subroutine setExternalCharges
 
@@ -356,11 +356,6 @@ contains
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
 
-    !> Dummy arguments. Won't be used if not allocated
-    real(dp), allocatable :: initialCharges(:), initialSpins(:,:)
-    type(TWrappedInt1), allocatable :: customOccAtoms(:)
-    real(dp), allocatable :: customOccFillings(:,:)
-
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
 
@@ -378,6 +373,10 @@ contains
       call error("Number of atoms must be kept constant in simulation." // newline //&
           & "Instead call destruct and then fully re-initialize DFTB+.")
     endif
+
+    if (main%atomOrderMatters) then
+      call error("This DftbPlus instance can not cope with atom reordeirng (by initialization)")
+    end if
 
     main%species0 = inputSpecies
     main%mass = updateAtomicMasses(main)
@@ -397,9 +396,11 @@ contains
 
     ! If atomic order changes, partial charges need to be initialised, else wrong charge will be
     ! associated with each atom
-    call main%initializeReferenceCharges(customOccAtoms, customOccFillings)
-    call main%setNElectrons()
-    call main%initializeCharges(initialSpins, initialCharges)
+    call initReferenceCharges(main%species0, main%orb, main%referenceN0, main%nSpin, main%q0,&
+        & main%qShell0)
+    call initElectronNumbers(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
+        & main%nEl0, main%nEl)
+    call main%initializeCharges()
 
   end subroutine updateDataDependentOnSpeciesOrdering
 

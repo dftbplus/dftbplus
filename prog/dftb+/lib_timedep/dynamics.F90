@@ -57,7 +57,6 @@ module dftbp_timeprop
   use dftbp_timer
   use dftbp_taggedoutput
   use dftbp_hamiltonian
-  use dftbp_elstattypes
   use dftbp_onsitecorrection
   use dftbp_message
   use dftbp_elecsolvers, only : TElectronicSolver
@@ -1057,9 +1056,6 @@ contains
     integer :: iAtom, iEatom, iSpin, iKS, iK
     logical :: tImHam
 
-    ! left over from Poisson shift upload from transport being messy
-    real(dp), allocatable :: dummy(:,:)
-
     allocate(T2(this%nOrbs,this%nOrbs))
 
     ham(:,:) = 0.0_dp
@@ -1075,9 +1071,8 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & elstatTypes%gammaFunc, .false., .false., dummy, dispersion)
+    call addChargePotentials(env, this%sccCalc, .true., qq, q0, chargePerShell, orb, speciesAll,&
+        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
@@ -2908,7 +2903,7 @@ contains
     if (this%tPeriodic) then
       call initLatticeVectors(this)
     end if
-    call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
+    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
 
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
@@ -3617,7 +3612,7 @@ contains
       call initLatticeVectors(this)
     end if
 
-    call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
+    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)

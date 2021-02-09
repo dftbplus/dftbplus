@@ -15,7 +15,7 @@ module dftbp_rs_linearresponse
   use dftbp_arpack
   use dftbp_commontypes
   use dftbp_slakoCont
-  use dftbp_shortgamma
+  use dftbp_shortgammafuncs, only : expGammaPrime
   use dftbp_accuracy
   use dftbp_constants, only: Hartree__eV, au__Debye
   use dftbp_nonscc, only: TNonSccDiff

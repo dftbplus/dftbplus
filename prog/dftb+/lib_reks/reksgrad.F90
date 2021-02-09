@@ -491,7 +491,6 @@ module dftbp_reksgrad
     end do
 
     ! get total gamma derivative (gamma = 1/R - S)
-    GammaDeriv(:,:,:) = 0.0_dp
     call sccCalc%getGammaDeriv(env, species, iNeighbour, img2CentCell, GammaDeriv)
     do ii = 1, 3
       call symmetrizeHS(GammaDeriv(:,:,ii))

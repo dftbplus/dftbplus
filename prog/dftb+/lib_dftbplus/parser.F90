@@ -62,7 +62,7 @@ module dftbp_parser
   use dftbp_reks
   use dftbp_plumed, only : withPlumed
   use dftbp_arpack, only : withArpack
-  use poisson_init
+  use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
   use libnegf_vars
 #:endif
@@ -2029,9 +2029,9 @@ contains
     case ("poisson")
       ctrl%tPoisson = .true.
     #:if WITH_TRANSPORT
-      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
+      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
     #:else
-      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs)
+      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
     #:endif
     case default
       call getNodeHSDName(value1, buffer)
@@ -3093,42 +3093,47 @@ contains
 
     ! X-H interaction corrections including H5 and damping
     ctrl%tDampH = .false.
-    ctrl%h5SwitchedOn = .false.
     call getChildValue(node, "HCorrection", value1, "None", child=child)
     call getNodeName(value1, buffer)
+
     select case (char(buffer))
+
     case ("none")
       ! nothing to do
+
     case ("damping")
       ! Switch the correction on
       ctrl%tDampH = .true.
       call getChildValue(value1, "Exponent", ctrl%dampExp)
+
     case ("h5")
-      ! Switch the correction on
-      ctrl%h5SwitchedOn = .true.
+      allocate(ctrl%h5Input)
+      associate (h5Input => ctrl%h5Input)
+        call getChildValue(value1, "RScaling", h5Input%rScale, 0.714_dp)
+        call getChildValue(value1, "WScaling", h5Input%wScale, 0.25_dp)
+        allocate(h5Input%elementParams(geo%nSpecies))
+        call getChild(value1, "H5Scaling", child2, requested=.false.)
+        if (.not. associated(child2)) then
+          call setChild(value1, "H5scaling", child2)
+        end if
+        do iSp = 1, geo%nSpecies
+          select case (geo%speciesNames(iSp))
+          case ("O")
+            h5ScalingDef = 0.06_dp
+          case ("N")
+            h5ScalingDef = 0.18_dp
+          case ("S")
+            h5ScalingDef = 0.21_dp
+          case default
+            ! Default value is -1, this indicates that the element should be ignored
+            h5ScalingDef = -1.0_dp
+          end select
+          call getChildValue(child2, geo%speciesNames(iSp), h5Input%elementParams(iSp),&
+              & h5ScalingDef)
+        end do
+        h5Input%speciesNames = geo%speciesNames
+      end associate
 
-      call getChildValue(value1, "RScaling", ctrl%h5RScale, 0.714_dp)
-      call getChildValue(value1, "WScaling", ctrl%h5WScale, 0.25_dp)
-
-      allocate(ctrl%h5ElementPara(geo%nSpecies))
-      call getChild(value1, "H5Scaling", child2, requested=.false.)
-      if (.not. associated(child2)) then
-        call setChild(value1, "H5scaling", child2)
-      end if
-      do iSp = 1, geo%nSpecies
-        select case (geo%speciesNames(iSp))
-        case ("O")
-          h5ScalingDef = 0.06_dp
-        case ("N")
-          h5ScalingDef = 0.18_dp
-        case ("S")
-          h5ScalingDef = 0.21_dp
-        case default
-          ! Default value is -1, this indicates that the element should be ignored
-          h5ScalingDef = -1.0_dp
-        end select
-        call getChildValue(child2, geo%speciesNames(iSp), ctrl%h5ElementPara(iSp), h5ScalingDef)
-      end do
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid HCorrection '" // char(buffer) // "'")
@@ -5734,9 +5739,9 @@ contains
 
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
-  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs)
+  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
 #:else
-  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs)
+  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs, updateSccAfterDiag)
 #:endif
 
     !> Input tree
@@ -5755,6 +5760,9 @@ contains
 
     !> Lattice vectors if periodic
     real(dp), allocatable, intent(in) :: latVecs(:,:)
+
+    !> Whether Scc should be updated with the output charges (obtained after diagonalization)
+    logical, intent(out) :: updateSccAfterDiag
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modifier
@@ -5825,7 +5833,7 @@ contains
     call getChildValue(pNode, "PoissonAccuracy", poisson%poissAcc, 1.0e-6_dp)
     call getChildValue(pNode, "BuildBulkPotential", poisson%bulkBC, .true.)
     call getChildValue(pNode, "ReadOldBulkPotential", poisson%readBulkPot, .false.)
-    call getChildValue(pNode, "RecomputeAfterDensity", poisson%solvetwice, .false.)
+    call getChildValue(pNode, "RecomputeAfterDensity", updateSccAfterDiag, .false.)
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
     poisson%overrideBC(:) = 0
