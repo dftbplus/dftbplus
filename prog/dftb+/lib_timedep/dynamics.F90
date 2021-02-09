@@ -510,16 +510,19 @@ contains
       this%nMovedAtom = inp%nMovedAtom
       tempAtom = inp%tempAtom
       tMDstill = .false.
-      allocate(this%initialVelocities(3, this%nMovedAtom))
-
-      this%ReadMDVelocities = allocated(inp%initialVelocities)
-      if (this%ReadMDVelocities) then
-        this%initialVelocities(:,:) = inp%initialVelocities
-      end if
 
       allocate(this%movedVelo(3, this%nMovedAtom))
       allocate(this%movedMass(3, this%nMovedAtom))
       this%movedMass(:,:) = spread(mass(this%indMovedAtom), 1, 3)
+
+      allocate(this%initialVelocities(3, this%nMovedAtom))
+      this%ReadMDVelocities = allocated(inp%initialVelocities)
+      if (this%ReadMDVelocities) then
+        this%initialVelocities(:,:) = inp%initialVelocities
+        this%movedVelo(:, :) = this%initialVelocities
+      else
+        this%movedVelo(:, :) = 0.0_dp
+      end if
 
       allocate(this%coordNew(3, nAtom))
       allocate(this%movedAccel(3, this%nMovedAtom))
@@ -2769,12 +2772,6 @@ contains
       allocate(pVelocityVerlet)
     end if
 
-    if (this%ReadMDVelocities) then
-      this%movedVelo(:, :) = this%initialVelocities
-    else
-      this%movedVelo(:, :) = 0.0_dp
-    end if
-
     if (this%nDynamicsInit == 0) then
       if (this%tReadRestart) then
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
@@ -3640,9 +3637,12 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, skOverCont, this%qq, q0, &
           & pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep, this%deltaRho)
-      if (this%tIons) then
-        call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
-      end if
+    end if
+
+    ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
+    ! needed to initialise the electronic dynamics
+    if (this%tIons) then
+      call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
     end if
 
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
