@@ -3601,9 +3601,11 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
   \item[\is{RadScale}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.2 and 1.5 are recommended when using van-der-Waals radii.
 
-  \item[\is{Solver}] for the COSMO equation. Default is \is{DomainDecomposition\cb}.
+  \item[\is{Solver}] for the COSMO equation. Currently only
+    \is{DomainDecomposition\cb} is implemented (default). If specified
+    explicitely, following parameters can be set:
 
-    \begin{itemize}
+    \begin{description}
       \item[\is{MaxMoment}]
         Maximum moment for spherical harmonic expansion in the ddCOSMO equations.
         Moments of 6 and higher are recommended
@@ -3614,21 +3616,21 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
         of the solver in the self-consistent charge iterations.
         The convergence thresholds are automatically decreased for the gradient
         calculations to avoid numerical noise.
-    \end{itemize}
+    \end{description}
 \end{description}
 
 Example for a COSMO model
 
 \begin{verbatim}
-Hamiltonian = DFTB {
+Hamiltonian = Dftb {
   Solvation = Cosmo {
-    Solvent = fromConstants {
+    Solvent = FromConstants {
       Epsilon = 80.2
       MolecularMass [amu] = 18.0
       Density [kg/l] = 1.0
     }
     FreeEnergyShift [kcal/mol] = 0.0
-    Radii = vanDerWaalsRadiiD3 {}
+    Radii = VanDerWaalsRadiiD3 {}
     RadScale = 1.55
     AngularGrid = 110
     Solver = DomainDecomposition {
