@@ -5,7 +5,9 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
 #:include "error.fypp"
+
 
 !> Contains MPI related environment settings
 module dftbp_mpienv
