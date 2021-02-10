@@ -98,8 +98,8 @@ module dftbp_main
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_determinants
 #:if WITH_TRANSPORT
-  use libnegf_vars, only : TTransPar
-  use negf_int
+  use dftbp_negfvars, only : TTransPar
+  use dftbp_negfint
 #:endif
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&

@@ -31,7 +31,7 @@ module dftbp_initphonons
   use dftbp_oldskdata
   use dftbp_wrappedintr
   use dftbp_simplealgebra
-  use libnegf_vars
+  use dftbp_negfvars
   implicit none
   private
 

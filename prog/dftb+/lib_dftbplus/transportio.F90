@@ -15,7 +15,7 @@ module dftbp_transportio
   use dftbp_message
   use dftbp_orbitals
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
   implicit none
 

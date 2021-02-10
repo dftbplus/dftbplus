@@ -34,7 +34,7 @@ module dftbp_parsersetup
   use dftbp_oldskdata
   use dftbp_xmlf90
   use dftbp_wrappedintr
-  use libnegf_vars
+  use dftbp_negfvars
   use dftbp_helpsetupgeom
   use dftbp_inputsetup
   use dftbp_inputconversion
