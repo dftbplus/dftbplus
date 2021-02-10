@@ -49,6 +49,9 @@ add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES
 
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
+# Link ddCOSMO implementation
+target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:ddcosmo_objlib>)
+
 if(WITH_SOCKETS)
   target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
 endif()
@@ -71,6 +74,9 @@ endif()
 
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+target_include_directories(dftbplus PUBLIC
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddcosmo_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(dftbplus PRIVATE ${projectdir}/external/dftd4refs)
 

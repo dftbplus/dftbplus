@@ -1,10 +1,3 @@
-!--------------------------------------------------------------------------------------------------!
-!  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
-!                                                                                                  !
-!  See the LICENSE file for terms of usage and distribution.                                       !
-!--------------------------------------------------------------------------------------------------!
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  COPYRIGHT (C) 2015 by Filippo Lipparini, Benjamin Stamm, Paolo Gatto        !
 !  Eric Cancès, Yvon Maday, Jean-Philip Piquemal, Louis Lagardère and          !
@@ -22,15 +15,15 @@
 ! or FITNESS FOR A PARTICULAR PURPOSE.
 ! See the GNU Lesser General Public License for more details.
 
-module dftbp_extlibs_ddcosmo_solver
-  use dftbp_accuracy, only : dp
-  use dftbp_extlibs_ddcosmo_core, only : TDomainDecomposition, hsnorm, calcv, &
+module ddcosmo_solver
+  use ddcosmo_core, only : TDomainDecomposition, hsnorm, calcv, &
       & intrhs, prtsph, adjrhs
-  use dftbp_message, only : error
   implicit none
   private
 
   public :: jacobi_diis, lx, lstarx, ldm1x, hnorm
+
+  integer, parameter :: dp = selected_real_kind(15)
 
 
 contains
@@ -105,7 +98,7 @@ contains
 
     ! check inputs
     if ((norm == 4) .and. (.not.present(u_norm))) then
-      call error('must provide a function norm(n, x) to evaluate the norm of the increment')
+      error stop 'must provide a function norm(n, x) to evaluate the norm of the increment'
       return
     end if
 
@@ -551,4 +544,4 @@ contains
   end function hnorm
 
 
-end module dftbp_extlibs_ddcosmo_solver
+end module ddcosmo_solver

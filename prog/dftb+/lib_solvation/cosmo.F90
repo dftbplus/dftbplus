@@ -15,8 +15,7 @@ module dftbp_cosmo
   use dftbp_commontypes, only : TOrbitals
   use dftbp_constants, only : pi, Hartree__eV
   use dftbp_environment, only : TEnvironment
-  use dftbp_extlibs_ddcosmo_core
-  use dftbp_extlibs_ddcosmo_solver
+  use dftbp_extlibs_ddcosmo
   use dftbp_lebedev, only : getAngGrid, gridSize
   use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList

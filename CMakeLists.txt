@@ -142,6 +142,9 @@ include(GNUInstallDirs)
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
+# Include ddCOSMO library
+add_subdirectory(external/ddcosmo EXCLUDE_FROM_ALL)
+
 if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()

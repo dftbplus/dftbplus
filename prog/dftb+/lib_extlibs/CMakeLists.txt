@@ -3,8 +3,7 @@ set(curdir "lib_extlibs")
 set(sources-fpp
   ${curdir}/arpack.F90
   ${curdir}/blas.F90
-  ${curdir}/ddcosmo_core.F90
-  ${curdir}/ddcosmo_solver.F90
+  ${curdir}/ddcosmo.F90
   ${curdir}/dftd4refs.F90
   ${curdir}/elsiiface.F90
   ${curdir}/lapack.F90

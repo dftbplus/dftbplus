@@ -1,10 +1,3 @@
-!--------------------------------------------------------------------------------------------------!
-!  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
-!                                                                                                  !
-!  See the LICENSE file for terms of usage and distribution.                                       !
-!--------------------------------------------------------------------------------------------------!
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  COPYRIGHT (C) 2015 by Filippo Lipparini, Benjamin Stamm, Paolo Gatto        !
 !  Eric Cancès, Yvon Maday, Jean-Philip Piquemal, Louis Lagardère and          !
@@ -21,11 +14,7 @@
 ! WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ! or FITNESS FOR A PARTICULAR PURPOSE.
 ! See the GNU Lesser General Public License for more details.
-module dftbp_extlibs_ddcosmo_core
-  use dftbp_accuracy, only : dp
-  use dftbp_bisect, only : bisection
-  use dftbp_lebedev, only : gridSize, getAngGrid
-  use dftbp_message, only : error
+module ddcosmo_core
   implicit none
   private
 
@@ -33,6 +22,7 @@ module dftbp_extlibs_ddcosmo_core
   public :: hsnorm, calcv, intrhs, prtsph, adjrhs, wghpot, ddupdate, fdoka, fdokb, fdoga
 
 
+  integer, parameter :: dp = selected_real_kind(15)
   integer, parameter :: ndiis=25, iout=6, nngmax=100
   real(dp), parameter :: zero=0._dp, pt5=0.5_dp, one=1._dp, two=2._dp, four=4._dp
   real(dp), parameter :: se = -1.0_dp
@@ -1429,6 +1419,4 @@ contains
   end subroutine ddmkxi
 
 
-
-
-end module dftbp_extlibs_ddcosmo_core
+end module ddcosmo_core
