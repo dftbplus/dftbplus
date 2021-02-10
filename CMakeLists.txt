@@ -31,10 +31,10 @@ if(WITH_API)
 endif()
 
 if(WITH_MPI)
-  find_package(MPI QUIET)
+  find_package(MPI REQUIRED)
   if(NOT MPI_FORTRAN_FOUND)
-    message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
-      "a WITH_MPI=TRUE build")
+    message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified "
+      "for a WITH_MPI=TRUE build")
   endif()
 endif()
 
