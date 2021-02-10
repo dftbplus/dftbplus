@@ -1698,6 +1698,9 @@ contains
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
 
+    !> Whether Poisson solver is invoked
+    logical, intent(in) :: tPoisson
+
     !> Charge model 5
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
@@ -1739,14 +1742,6 @@ contains
     if (allocated(nNeighbourRSRc)) then
       ! count neighbours for 1/Rc range separated cutoff
       call getNrOfNeighboursForAll(nNeighbourRSRc, neighbourList, cutoff%lcRsCutOff)
-    end if
-
-    ! Notify various modules about coordinate changes
-    if (tPoisson) then
-      !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
-      !! folding can mess up the contact position. Could we have the supercell
-      !! centered on the input atomic structure?
-      call poiss_updcoords(coord0)
     end if
 
     if (allocated(sccCalc)) then
