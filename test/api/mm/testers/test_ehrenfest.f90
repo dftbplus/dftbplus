@@ -119,7 +119,7 @@ program test_ehrenfest
   
   call dftbp%initializeTimeProp(timestep, .true.)
 
-  do istep = 0, nsteps
+  do istep = 1, nsteps
     ! calculate field at present timestep
     time = istep * timestep
     if (time >= time0 .and. time <= time1) then

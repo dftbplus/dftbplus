@@ -908,7 +908,7 @@ contains
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll)
+       & rCellVec, cellVec, speciesAll, electronicSolver)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -920,7 +920,7 @@ contains
     write(stdOut, "(A80)") repeat("-", 80)
 
     ! Main loop
-    do iStep = 0, this%nSteps
+    do iStep = 1, this%nSteps
 
       call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
@@ -3413,7 +3413,7 @@ contains
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll)
+       & rCellVec, cellVec, speciesAll, electronicSolver)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
 
@@ -3535,6 +3535,12 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: speciesAll(:)
 
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    real(dp) :: new3Coord(3, this%nMovedAtom)
+    integer :: iKS
+
     this%startTime = 0.0_dp
     this%timeElec = 0.0_dp
 
@@ -3641,6 +3647,7 @@ contains
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
     ! needed to initialise the electronic dynamics
+    ! coordNew stores the coordinates at t=dt
     if (this%tIons) then
       call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
     end if
@@ -3648,6 +3655,30 @@ contains
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
       call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
+    end if
+
+    call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
+        & neighbourList, pRepCont, iAtInCentralRegion)
+
+    call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
+        & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell,&
+        & this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock,&
+        & dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+    if (.not. this%tReadRestart .or. this%tProbe) then
+      ! output ground state data
+      call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
+          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
+          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, 0)
+    end if
+
+
+    ! now first step of dynamics is computed (init of leapfrog and first step of nuclei)
+
+    ! after calculating the TD function, set initial time to zero for probe simulations
+    ! this is to properly calculate the dipole fourier transform after the simulation
+    if (this%tProbe) then
+      this%startTime = 0.0_dp
     end if
 
     ! had to add the "or tKick" option to override rhoOld if tReadRestart = yes, otherwise it will
@@ -3663,21 +3694,72 @@ contains
     this%rho => this%trho
     this%rhoOld => this%trhoOld
 
-    call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-        & neighbourList, pRepCont, iAtInCentralRegion)
-
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%trhoOld, neighbourList, nNeighbourSK, orb,&
-        & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell,&
-        & this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock,&
-        & dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-
-    ! after calculating the TD function, set initial time to zero for probe simulations
-    ! this is to properly calculate the dipole fourier transform after the simulation
-    if (this%tProbe) then
-      this%startTime = 0.0_dp
+    if (this%tIons) then
+      coord(:,:) = this%coordNew
+      call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env, this%rhoPrim,&
+          & this%ErhoPrim, coordAll)
     end if
 
+    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord, iSquare, this%qBlock,&
+        & this%qNetAtom)
+    if (allocated(this%dispersion)) then
+      call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
+          & this%speciesAll(:this%nAtom), .true.)
+    end if
+
+    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb, this%potential,&
+        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
+        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & this%dispersion,this%rho)
+
+    if (this%tForces) then
+      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
+          & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
+          & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep,&
+          & this%deltaRho)
+    end if
+
+    if (this%tIons) then
+      new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
+      call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
+      this%coordNew(:, this%indMovedAtom) = new3Coord
+      call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
+          &neighbourList, nNeighbourSK, iSquare)
+      if (this%tPopulations) then
+        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
+      end if
+
+      call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
+          & neighbourList, pRepCont, iAtInCentralRegion)
+    end if
+
+    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
+        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
+        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
+        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+    call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
+        & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+        & this%fdBondEnergy, this%fdBondPopul, this%time)
+
+    do iKS = 1, this%parallelKS%nLocalKS
+      if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
+        this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
+        call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+      else
+        call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+      end if
+    end do
+
+    this%rho => this%trhoOld
+    this%rhoOld => this%trho
+
     this%tPropagatorsInitialized = .true.
+
 
   end subroutine initializeDynamics
 
@@ -3793,6 +3875,12 @@ contains
 
     this%time = iStep * this%dt + this%startTime
 
+    if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
+      call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
+          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
+          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, iStep)
+    end if
+
     if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, max(this%restartFreq,1)) == 0) then
       allocate(velInternal(3,size(this%movedVelo, dim=2)))
       if (this%tIons) then
@@ -3819,12 +3907,6 @@ contains
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
           & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
       deallocate(velInternal)
-    end if
-
-    if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
-      call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
-          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
-          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, iStep)
     end if
 
     if (this%tIons) then

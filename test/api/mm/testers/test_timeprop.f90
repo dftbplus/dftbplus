@@ -105,7 +105,7 @@ program test_timeprop
   
   call dftbp%initializeTimeProp(timestep, .true.)
 
-  do istep = 0, nsteps
+  do istep = 1, nsteps
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
   end do 
 

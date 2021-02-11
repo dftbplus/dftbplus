@@ -432,7 +432,7 @@ contains
           & main%onSiteElements, main%refExtPot, main%solvation,&
           & main%rangeSep, main%referenceN0, main%q0, main%pRepCont, main%iAtInCentralRegion,&
           & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
-          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species)
+          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
     else
       call error("Electron dynamics not enabled, please initialize the calculator&
           & including the ElectronDynamics block")
