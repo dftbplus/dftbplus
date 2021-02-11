@@ -280,7 +280,7 @@ contains
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
 
     call readVanDerWaalsRad(node, geo, input%vdwRad)
-    call getChildValue(node, "radScale", radScale)
+    call getChildValue(node, "RadiiScaling", radScale)
     input%vdwRad(:) = input%vdwRad * radScale
 
     call readAngularGrid(node, input%gridSize)

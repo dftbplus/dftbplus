@@ -3549,9 +3549,9 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
   \kw{FreeEnergyShift} & r & & 0.0 Eh & \\
   \kw{Temperature} & r & & 298.15 K & \\
   \kw{State} & s & & gsolv & \\
-  \kw{AngularGrid} & i & & 230 & \\
+  \kw{AngularGrid} & i & & & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
-  \kw{RadScale} & r & & 1.0 & \\
+  \kw{RadiiScaling} & r & & & \\
   \kw{Solver} & m & & \kw{DomainDecomposition} & \\
 \end{ptable}
 
@@ -3598,7 +3598,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
 
-  \item[\is{RadScale}] Allows to scale the provided radii by the provided value.
+  \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.2 and 1.5 are recommended when using van-der-Waals radii.
 
   \item[\is{Solver}] for the COSMO equation. Currently only
@@ -3608,7 +3608,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     \begin{description}
       \item[\is{MaxMoment}]
         Maximum moment for spherical harmonic expansion in the ddCOSMO equations.
-        Moments of 6 and higher are recommended
+        Moments of 6 and higher are recommended.
       \item[\is{Regularisation}]
         Regularisation factor for the ddCOSMO equation. A value of 0.2 is recommended
       \item[\is{Accuracy}]
@@ -3631,7 +3631,7 @@ Hamiltonian = Dftb {
     }
     FreeEnergyShift [kcal/mol] = 0.0
     Radii = VanDerWaalsRadiiD3 {}
-    RadScale = 1.55
+    RadiiScaling = 1.55
     AngularGrid = 110
     Solver = DomainDecomposition {
       MaxMoment = 10
