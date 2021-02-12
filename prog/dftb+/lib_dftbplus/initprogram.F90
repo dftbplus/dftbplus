@@ -110,8 +110,8 @@ module dftbp_initprogram
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
 
 #:if WITH_TRANSPORT
-  use libnegf_vars
-  use negf_int
+  use dftbp_negfvars
+  use dftbp_negfint
 #:endif
   use dftbp_poisson, only : TPoissonInput
   use dftbp_transportio

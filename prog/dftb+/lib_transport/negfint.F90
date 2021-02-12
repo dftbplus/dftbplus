@@ -4,24 +4,25 @@
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
+
 #:include "common.fypp"
 
 !> Interface to LIBNEGF for DFTB+
-module negf_int
-  use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
+module dftbp_negfint
+  use dftbp_negfvars
+  use dftbp_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
-  use libnegf, only : negf_mpi_init, negf_cart_init
+  use dftbp_negf, only : negf_mpi_init, negf_cart_init
 #:endif
-  use libnegf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
-  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
-  use libnegf, only : associate_current, compute_current, compute_density_dft, compute_ldos
-  use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
-  use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
-  use libnegf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
-  use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
-  use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
-  use libnegf, only : printcsr
+  use dftbp_negf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use dftbp_negf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use dftbp_negf, only : associate_current, compute_current, compute_density_dft, compute_ldos
+  use dftbp_negf, only : create, create_scratch, destroy, set_readoldDMsgf
+  use dftbp_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use dftbp_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
+  use dftbp_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
+  use dftbp_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch
+  use dftbp_negf, only : writememinfo, writepeakinfo, printcsr
   use dftbp_accuracy
   use dftbp_environment
   use dftbp_constants
@@ -45,9 +46,6 @@ module negf_int
   private
 
   public :: TNegfInt, TNegfInt_init, TNegfInt_final
-  #:if WITH_MPI
-    public :: negf_cart_init
-  #:endif
 
 
   !> Contains data needed by the NEGF interface
@@ -2416,4 +2414,4 @@ contains
   end subroutine orthogonalization_dev
 
 
-end module negf_int
+end module dftbp_negfint

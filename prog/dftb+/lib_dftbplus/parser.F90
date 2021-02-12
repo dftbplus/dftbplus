@@ -64,7 +64,7 @@ module dftbp_parser
   use dftbp_arpack, only : withArpack
   use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
   implicit none

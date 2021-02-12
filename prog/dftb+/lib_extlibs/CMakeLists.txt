@@ -24,9 +24,7 @@ endif(WITH_SOCKETS)
 
 if(WITH_TRANSPORT)
   list(APPEND sources-fpp
-    ${curdir}/libnegf_vars.F90
-    ${curdir}/matconv.F90
-    ${curdir}/negf_int.F90)
+    ${curdir}/negf.F90)
 endif()
 
 if(WITH_GPU)

@@ -37,7 +37,7 @@ module dftbp_inputdata
   use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
   use dftbp_poisson, only : TPoissonInfo
   use dftbp_h5correction, only : TH5CorrectionInput
