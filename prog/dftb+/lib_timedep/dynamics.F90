@@ -3744,20 +3744,6 @@ contains
         & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
         & this%fdBondEnergy, this%fdBondPopul, this%time)
 
-    do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
-        this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
-        call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-      else
-        call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-      end if
-    end do
-
-    this%rho => this%trhoOld
-    this%rhoOld => this%trho
-
     this%tPropagatorsInitialized = .true.
 
 
@@ -3875,6 +3861,41 @@ contains
 
     this%time = iStep * this%dt + this%startTime
 
+    do iKS = 1, this%parallelKS%nLocalKS
+      if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
+        this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
+
+        if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
+          call zcopy(this%nOrbs*this%nOrbs, this%rho(:,:,iKS), 1, this%rhoOld(:,:,iKS), 1)
+          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
+        else
+          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+        end if
+      else
+        call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+      end if
+    end do
+
+    if (mod(iStep, 2) == 0) then
+      this%rho => this%trho
+      this%rhoOld => this%trhoOld
+    else
+      this%rho => this%trhoOld
+      this%rhoOld => this%trho
+    end if
+
+    if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
+      do iKS = 1, this%parallelKS%nLocalKS
+        ! time-dt is due to the fact that populations were always written one step later than the rest of the quantities
+        ! but with the same time label.
+        ! TODO: fix tests values for populations so that it becomes exactly syncronized with the other outputs
+        call getTDPopulations(this, this%occ, this%rho, this%Eiginv, this%EiginvAdj, this%populDat, this%time-this%dt, iKS)
+      end do
+    end if
+
     if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
           & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
@@ -3959,38 +3980,6 @@ contains
       call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
           & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
           & this%fdBondEnergy, this%fdBondPopul, this%time)
-    end if
-
-    do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
-        this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
-
-        if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
-          call zcopy(this%nOrbs*this%nOrbs, this%rho(:,:,iKS), 1, this%rhoOld(:,:,iKS), 1)
-          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
-        else
-          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-        end if
-      else
-        call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-      end if
-    end do
-
-    if (mod(iStep, 2) == 1) then
-      this%rho => this%trho
-      this%rhoOld => this%trhoOld
-    else
-      this%rho => this%trhoOld
-      this%rhoOld => this%trho
-    end if
-
-    if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-      do iKS = 1, this%parallelKS%nLocalKS
-        call getTDPopulations(this, this%occ, this%rho, this%Eiginv, this%EiginvAdj, this%populDat, this%time, iKS)
-      end do
     end if
 
   end subroutine doTdStep
