@@ -6453,20 +6453,36 @@ contains
 
   end subroutine calcPipekMezeyLocalisation
 
+  
+  !> Prints information about maximal forces in the system.
   subroutine printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
+    
+    !> Gradients on atoms ]3, nAtom]
     real(dp), intent(in), allocatable :: derivs(:,:)
+    
+    !> Lattcie derivatives. Shape: [9]
     real(dp), intent(in) :: constrLatDerivs(:)
+    
+    !> Whether coordinate optimization is on.
     logical, intent(in) :: tCoordOpt
+    
+    !> Wheter lattice optimization is on.
     logical, intent(in) :: tLatOpt
+    
+    !> Indices of moved atoms. Shape [nMovedAtoms].
     integer, intent(in) :: indMovedAtoms(:)
 
+    real(dp) :: normedDeriv
+    
     if (tCoordOpt) then
       call printMaxForce(maxval(abs(derivs(:, indMovedAtoms))))
-      call printForceNorm(norm2(derivs(:, indMovedAtoms)))
+      normedDeriv = norm2(derivs(:, indMovedAtoms)) / sqrt(real(size(indMovedAtoms), dp))
+      call printForceNorm(normedDeriv)
     end if
     if (tLatOpt) then
       call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
-      call printLatticeForceNorm(norm2(constrLatDerivs))
+      normedDeriv = norm2(constrLatDerivs) / sqrt(3.0_dp)
+      call printLatticeForceNorm(normedDeriv)
     end if
 
   end subroutine printMaxForces

@@ -4264,7 +4264,7 @@ contains
     !> Norm of the force
     real(dp), intent(in) :: forceNorm
 
-    write(stdOut, "(A, ':', T30, E20.6)") "Norm of forces", forceNorm
+    write(stdOut, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
 
   end subroutine printForceNorm
 
@@ -4286,7 +4286,7 @@ contains
     !> Norm of the lattice force
     real(dp), intent(in) :: lattForceNorm
 
-    write(stdOut, format1Ue) "Norm of lattice forces", lattForceNorm, 'au'
+    write(stdOut, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
 
   end subroutine printLatticeForceNorm
 
