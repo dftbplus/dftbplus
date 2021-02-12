@@ -21,8 +21,8 @@ module dftbp_cosmo
   use dftbp_periodic, only : TNeighbourList
   use dftbp_solvation, only : TSolvation
   implicit none
+  
   private
-
   public :: TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
   public :: TDomainDecompositionInput
 
