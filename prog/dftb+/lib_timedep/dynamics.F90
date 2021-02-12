@@ -3735,15 +3735,6 @@ contains
           & neighbourList, pRepCont, iAtInCentralRegion)
     end if
 
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
-        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
-        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
-        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-
-    call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
-        & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
-        & this%fdBondEnergy, this%fdBondPopul, this%time)
-
     this%tPropagatorsInitialized = .true.
 
 
@@ -3861,6 +3852,17 @@ contains
 
     this%time = iStep * this%dt + this%startTime
 
+    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
+        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
+        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
+        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+    if ((mod(iStep, this%writeFreq) == 0)) then
+      call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
+          & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+          & this%fdBondEnergy, this%fdBondPopul, this%time)
+    end if
+
     do iKS = 1, this%parallelKS%nLocalKS
       if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
@@ -3969,17 +3971,6 @@ contains
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
           & neighbourList, pRepCont, iAtInCentralRegion)
-    end if
-
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
-        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
-        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
-        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-
-    if ((mod(iStep, this%writeFreq) == 0)) then
-      call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
-          & this%fdBondEnergy, this%fdBondPopul, this%time)
     end if
 
   end subroutine doTdStep
