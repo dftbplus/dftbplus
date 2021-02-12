@@ -327,7 +327,7 @@ contains
       call runDynamics(this%electronDynamics, this%eigvecsReal, this%ham, this%H0, this%species,&
           & this%q0, this%referenceN0, this%over, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
-          & this%img2CentCell, this%orb, this%coord0, this%spinW, this%pRepCont, this%scc, env,&
+          & this%img2CentCell, this%orb, this%coord0, this%spinW, this%pRepCont, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
           & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
           & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
