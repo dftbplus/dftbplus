@@ -763,9 +763,8 @@ contains
               & this%species0, tConverged)
           call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
               & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-          call sumEnergies(this%dftbEnergy(1))
         end if
-        call sumEnergies(dftbEnergy(1))
+        call sumEnergies(this%dftbEnergy(1))
 
         call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
