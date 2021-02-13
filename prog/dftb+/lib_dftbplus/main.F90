@@ -724,12 +724,12 @@ contains
               & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
-        if (allocated(dispersion)) then
+        if (allocated(dispersion) .and. .not. tConverged) then
           call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0, species0, tConverged)
           call calcDispersionEnergy(dispersion, dftbEnergy(1)%atomDisp,&
               & dftbEnergy(1)%Edisp, iAtInCentralRegion)
-          call sumEnergies(dftbEnergy(1))
         end if
+        call sumEnergies(dftbEnergy(1))
 
         call getSccInfo(iSccIter, dftbEnergy(1)%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, dftbEnergy(1)%Etotal, diffElec,&
