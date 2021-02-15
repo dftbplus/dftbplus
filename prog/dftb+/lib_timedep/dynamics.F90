@@ -3669,7 +3669,7 @@ contains
       ! output ground state data
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
           & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
-          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, 0)
+          & 0.0_dp, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, 0)
     end if
 
 
@@ -3719,20 +3719,6 @@ contains
           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
           & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep,&
           & this%deltaRho)
-    end if
-
-    if (this%tIons) then
-      new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
-      call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
-      this%coordNew(:, this%indMovedAtom) = new3Coord
-      call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-          &neighbourList, nNeighbourSK, iSquare)
-      if (this%tPopulations) then
-        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
-      end if
-
-      call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-          & neighbourList, pRepCont, iAtInCentralRegion)
     end if
 
     this%tPropagatorsInitialized = .true.
@@ -3852,6 +3838,20 @@ contains
 
     this%time = iStep * this%dt + this%startTime
 
+    if (this%tIons) then
+      new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
+      call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
+      this%coordNew(:, this%indMovedAtom) = new3Coord
+      call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
+          &neighbourList, nNeighbourSK, iSquare)
+      if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
+        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
+      end if
+
+      call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
+          & neighbourList, pRepCont, iAtInCentralRegion)
+    end if
+
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
         & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
         & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
@@ -3957,20 +3957,6 @@ contains
           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
           & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
           & this%deltaRho)
-    end if
-
-    if (this%tIons) then
-      new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
-      call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
-      this%coordNew(:, this%indMovedAtom) = new3Coord
-      call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-          &neighbourList, nNeighbourSK, iSquare)
-      if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
-      end if
-
-      call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-          & neighbourList, pRepCont, iAtInCentralRegion)
     end if
 
   end subroutine doTdStep
