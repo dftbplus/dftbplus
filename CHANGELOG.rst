@@ -11,6 +11,9 @@ Unreleased
 Added
 -----
 
+- Conductor like screening model (COSMO)
+  implicit solvation model for SCC calculations
+
 
 Changed
 -------

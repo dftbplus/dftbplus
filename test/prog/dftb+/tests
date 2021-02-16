@@ -204,6 +204,8 @@ solvation/alpb_anion                   #? MPI_PROCS <= 1
 solvation/alpb_p16                     #? MPI_PROCS <= 1
 solvation/cosmo_g1                     #? MPI_PROCS <= 2
 solvation/cosmo_b33                    #? MPI_PROCS <= 2
+solvation/cosmo_i8e                    #? MPI_PROCS <= 2
+solvation/cosmo_444                    #? MPI_PROCS <= 2
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
