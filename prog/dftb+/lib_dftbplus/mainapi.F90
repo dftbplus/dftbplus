@@ -407,7 +407,7 @@ contains
 
   !> After calculation of the ground state, this subroutine initializes the variables
   !> and the initial step of the propagators for electron and nuclear dynamics
-  subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI)
+  subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
     !> dftb+ environment
     type(TEnvironment), intent(inout) :: env
@@ -421,8 +421,20 @@ contains
     !> field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
+    !> field will be provided through the API?
+    logical, intent(in) :: tdCoordsAndVelosThroughAPI
+
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
+      if (tdCoordsAndVelosThroughAPI) then
+        if (main%electronDynamics%tIons) then
+          main%electronDynamics%tdCoordsAndVelosThroughAPI = tdCoordsAndVelosThroughAPI
+        else
+          call error("Setting coordinates and velocities at each step is allowed only for&
+              & simulations with ion dynamics enabled")
+        end if
+      end if
+
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
       call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&

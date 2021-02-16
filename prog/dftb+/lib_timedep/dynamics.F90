@@ -219,7 +219,7 @@ module dftbp_timeprop
     real(dp), allocatable :: atomEigVal(:,:)
     integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
     integer, allocatable :: iCellVec(:), indExcitedAtom(:)
-    logical :: tIons, tForces, ReadMDVelocities, tPump, tProbe, tRealHS
+    logical :: tForces, ReadMDVelocities, tPump, tProbe, tRealHS
     logical :: isRangeSep
     logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
     logical :: tPeriodic = .false., tFillingsFromFile = .false.
@@ -262,6 +262,7 @@ module dftbp_timeprop
     logical, public :: tdFieldThroughAPI = .false.
     logical, public :: tdCoordsAndVelosAreSet = .false.
     logical, public :: tdCoordsAndVelosThroughAPI = .false.
+    logical, public :: tIons
     real(dp), allocatable, public :: coordNew(:,:), movedVelo(:,:)
     integer, allocatable, public :: indMovedAtom(:)
     type(TEnergies), public :: energy

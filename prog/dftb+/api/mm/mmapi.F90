@@ -679,7 +679,7 @@ contains
 
 
   !> Initialise propagatos for electron and nuclei dynamics
-  subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI)
+  subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
@@ -689,7 +689,10 @@ contains
     !> field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
-    call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI)
+    !> coords and velocities will be provided at each step through the API?
+    logical, intent(in) :: tdCoordsAndVelosThroughAPI
+
+    call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
   end subroutine TDftbPlus_initializeTimeProp
 
