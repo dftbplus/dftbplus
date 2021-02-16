@@ -213,12 +213,12 @@ module dftbp_timeprop
     type(TScc), allocatable :: sccCalc
     character(mc) :: autotestTag
 
-    real(dp), allocatable :: initialVelocities(:,:), movedVelo(:,:), movedMass(:,:)
+    real(dp), allocatable :: initialVelocities(:,:), movedMass(:,:)
     real(dp) :: mCutoff, skCutoff, laserField
     real(dp), allocatable :: rCellVec(:,:), cellVec(:,:), kPoint(:,:), KWeight(:)
     real(dp), allocatable :: atomEigVal(:,:)
     integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
-    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
+    integer, allocatable :: iCellVec(:), indExcitedAtom(:)
     logical :: tIons, tForces, ReadMDVelocities, tPump, tProbe, tRealHS
     logical :: isRangeSep
     logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
@@ -241,7 +241,6 @@ module dftbp_timeprop
     real(dp), allocatable :: qq(:,:,:)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:), chargePerShell(:,:,:)
     complex(dp), allocatable :: H1LC(:,:), deltaRho(:,:,:)
-    real(dp), allocatable :: coordNew(:,:)
     real(dp), allocatable :: movedAccel(:,:)
     real(dp), allocatable :: qBlock(:,:,:,:), qNetAtom(:)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
@@ -261,6 +260,10 @@ module dftbp_timeprop
     logical, public :: tPropagatorsInitialized = .false.
     logical, public :: tdFieldIsSet = .false.
     logical, public :: tdFieldThroughAPI = .false.
+    logical, public :: tdCoordsAndVelosAreSet = .false.
+    logical, public :: tdCoordsAndVelosThroughAPI = .false.
+    real(dp), allocatable, public :: coordNew(:,:), movedVelo(:,:)
+    integer, allocatable, public :: indMovedAtom(:)
     type(TEnergies), public :: energy
     real(dp), allocatable, public :: dipole(:,:), totalForce(:,:), occ(:), deltaQ(:,:)
     real(dp), public :: presentField(3)
@@ -3839,9 +3842,20 @@ contains
     this%time = iStep * this%dt + this%startTime
 
     if (this%tIons) then
-      new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
-      call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
-      this%coordNew(:, this%indMovedAtom) = new3Coord
+
+      if (.not. this%tdCoordsAndVelosThroughAPI) then
+        ! update coordNew (saved for later), get velocities for current step
+        new3Coord(:,:) = this%coordNew(:, this%indMovedAtom)
+        call next(this%pMDIntegrator, this%movedAccel, new3Coord, this%movedVelo)
+        this%coordNew(:, this%indMovedAtom) = new3Coord
+
+      elseif (.not. this%tdCoordsAndVelosAreSet) then
+        call error("Coordinates and velocities were not set externally.")
+      end if
+
+    end if
+
+    if (this%tIons) then
       call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
           &neighbourList, nNeighbourSK, iSquare)
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
@@ -3957,6 +3971,11 @@ contains
           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
           & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
           & this%deltaRho)
+    end if
+
+    ! unset coordinates and velocities at the end of the step
+    if (this%tdCoordsAndVelosThroughAPI) then
+      this%tdCoordsAndVelosAreSet = .false.
     end if
 
   end subroutine doTdStep

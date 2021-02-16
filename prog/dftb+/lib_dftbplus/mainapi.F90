@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos
 
 
 contains
@@ -521,6 +521,25 @@ contains
     main%electronDynamics%tdFieldIsSet = .true.
 
   end subroutine setTdElectricField
+
+
+  !> sets coordinates and velos for td propagation
+  subroutine setTdCoordsAndVelos(main, coords, velos)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    ! coordinates
+    real(dp), intent(in) :: coords(3, main%nAtom)
+
+    ! velocities
+    real(dp), intent(in) :: velos(3, main%nAtom)
+
+    main%electronDynamics%coordNew(:,:) = coords
+    main%electronDynamics%movedVelo(:,:) = velos(:, main%electronDynamics%indMovedAtom)
+    main%electronDynamics%tdCoordsAndVelosAreSet = .true.
+
+  end subroutine setTdCoordsAndVelos
 
 
   !> Obtains mass for each atom in the system

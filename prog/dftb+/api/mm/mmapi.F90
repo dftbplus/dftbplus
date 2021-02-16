@@ -105,6 +105,8 @@ module dftbp_mmapi
     procedure :: doOneTdStep => TDftbPlus_doOneTdStep
     !> Set electric field for current propagation step of electrons and nuclei
     procedure :: setTdElectricField => TDftbPlus_setTdElectricField
+    !> Set electric field for current propagation step of electrons and nuclei
+    procedure :: setTdCoordsAndVelos => TDftbPlus_setTdCoordsAndVelos
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
@@ -739,5 +741,20 @@ contains
 
   end subroutine TDftbPlus_setTdElectricField
 
+
+  subroutine TDftbPlus_setTdCoordsAndVelos(this, coords, velos)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    ! coordinates
+    real(dp), intent(in) :: coords(3, this%main%nAtom)
+
+    ! velocities
+    real(dp), intent(in) :: velos(3, this%main%nAtom)
+
+    call setTdCoordsAndVelos(this%main, coords, velos)
+
+  end subroutine TDftbPlus_setTdCoordsAndVelos
 
 end module dftbp_mmapi
