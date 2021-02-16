@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
 
 contains
@@ -421,7 +421,7 @@ contains
     !> field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
-    !> field will be provided through the API?
+    !> coords and velocities will be provided at each step through the API?
     logical, intent(in) :: tdCoordsAndVelosThroughAPI
 
     if (allocated(main%electronDynamics)) then
@@ -552,6 +552,19 @@ contains
     main%electronDynamics%tdCoordsAndVelosAreSet = .true.
 
   end subroutine setTdCoordsAndVelos
+
+
+  !> gets atomic forces from td propagation
+  subroutine getTdForces(main, force)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: force(:,:)
+
+    force(:,:) = main%electronDynamics%totalForce
+  end subroutine getTdForces
 
 
   !> Obtains mass for each atom in the system
