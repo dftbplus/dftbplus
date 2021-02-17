@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdGradients
 
 
 contains
@@ -554,17 +554,17 @@ contains
   end subroutine setTdCoordsAndVelos
 
 
-  !> gets atomic forces from td propagation
-  subroutine getTdForces(main, force)
+  !> gets atomic gradients from td propagation
+  subroutine getTdGradients(main, gradients)
 
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
     !> forces (3, nAtom)
-    real(dp), intent(out) :: force(:,:)
+    real(dp), intent(out) :: gradients(:,:)
 
-    force(:,:) = main%electronDynamics%totalForce
-  end subroutine getTdForces
+    gradients(:,:) = -main%electronDynamics%totalForce
+  end subroutine getTdGradients
 
 
   !> Obtains mass for each atom in the system
