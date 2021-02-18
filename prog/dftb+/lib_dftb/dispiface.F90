@@ -107,14 +107,33 @@ module dftbp_dispiface
 
 
     !> get force contributions
-    subroutine addGradientsIface(this, gradients)
-      import :: TDispersionIface, dp
+    subroutine addGradientsIface(this, env, neigh, img2CentCell, coords, species0, &
+        & gradients, stat)
+      import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
       class(TDispersionIface), intent(inout) :: this
 
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
+
+      !> list of neighbours to atoms
+      type(TNeighbourList), intent(in) :: neigh
+
+      !> image to central cell atom index
+      integer, intent(in) :: img2CentCell(:)
+
+      !> atomic coordinates
+      real(dp), intent(in) :: coords(:,:)
+
+      !> central cell chemical species
+      integer, intent(in) :: species0(:)
+
       !> gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
+
+      !> Status of operation
+      integer, intent(out), optional :: stat
     end subroutine addGradientsIface
 
 

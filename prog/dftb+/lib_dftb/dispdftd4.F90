@@ -128,6 +128,12 @@ module dftbp_dispdftd4
     !> Cutoff distance in real space for dispersion
     procedure :: getRCutoff
 
+    !> Updates with changed charges for the instance
+    procedure :: updateCharges
+
+    !> Returns the potential shift
+    procedure :: addPotential
+
   end type TDispDftD4
 
 
@@ -246,8 +252,8 @@ contains
     if (this%tPeriodic) then
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
           & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald, &
-          & stat=stat)
+          & parEwald=merge(this%eeqCont%parEwald, 0.0_dp, allocated(this%eeqCont)), &
+          & stress=this%stress, volume=this%vol, stat=stat)
     else
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
           & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
@@ -348,6 +354,7 @@ contains
   end subroutine updateCharges
 
 
+  !> Returns the potential shift
   subroutine addPotential(this, vDisp)
 
     !> Instance of DFTD4 data
@@ -387,17 +394,51 @@ contains
 
 
   !> Adds the atomic gradients to the provided vector
-  subroutine addGradients(this, gradients)
+  subroutine addGradients(this, env, neigh, img2CentCell, coords, species0, &
+      & gradients, stat)
 
     !> Instance of DFTD4 data
     class(TDispDftD4), intent(inout) :: this
 
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> image to central cell atom index
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
     !> The vector to increase by the gradients
     real(dp), intent(inout) :: gradients(:,:)
+
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
+    real(dp), allocatable :: scEnergies(:), scGradients(:, :), scStress(:, :)
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
+    if (allocated(this%sc)) then
+      allocate(scEnergies(this%nAtom), scGradients(3, this%nAtom))
+      if (this%tPeriodic) allocate(scStress(3, 3))
+      call addScDispGradient(this%calc, this%ref, env, this%nAtom, species0, coords, neigh, &
+          & img2CentCell, this%sc%charges, this%cnCont, scEnergies, scGradients, scStress, &
+          & this%vol, stat)
+      this%gradients(:, :) = this%gradients + scGradients
+      if (allocated(scStress)) then
+        this%stress(:, :) = this%stress + scStress
+      end if
+    else
+      if (present(stat)) stat = 0
+    end if
     gradients(:,:) = gradients + this%gradients
 
   end subroutine addGradients
@@ -1379,15 +1420,140 @@ contains
         dEr = calc%s6 * f6 + calc%s8 * f8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * f10
         nRef2 = ref%nRef(iSp2)
         do iRef1 = 1, ref%nRef(iSp1)
-          refc6(:nRef2) = ref%c6(:nRef2, iRef1, iSp2, iSp1) * gwVec(:nRef2, iAt2)
+          refc6(:nRef2) = ref%c6(:nRef2, iRef1, iSp2, iSp1) * gwVec(:nRef2, iAt2f)
           dispMat(:nRef2, iAt2f, iRef1, iAt1) = dispMat(:nRef2, iAt2f, iRef1, iAt1) &
-              & - (dEr * gwVec(iRef1, iAt1)) * refc6
+              & - (dEr * gwVec(iRef1, iAt1)) * refc6(:nRef2)
         end do
 
       end do
     end do
 
   end subroutine weightDispMat
+
+
+  subroutine addScDispGradient(calc, ref, env, nAtom, species, coords, neigh, img2CentCell, &
+      & charges, cnCont, energies, gradients, stress, volume, stat)
+
+    !> DFT-D dispersion model
+    type(TDftD4Calc), intent(in) :: calc
+
+    !> DFT-D dispersion model
+    type(TDftD4Ref), intent(in) :: ref
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+
+    !> Species of every atom
+    integer, intent(in) :: species(:)
+
+    !> Coordinates of the atoms (including images)
+    real(dp), intent(in) :: coords(:, :)
+
+    !> Updated neighbour list
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Mapping into the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic partial charges
+    real(dp), intent(in) :: charges(:)
+
+    !> Coordination number
+    type(TCNCont), intent(inout) :: cnCont
+
+    !> Updated energy vector at return
+    real(dp), intent(out) :: energies(:)
+
+    !> Updated gradient vector at return
+    real(dp), intent(out) :: gradients(:, :)
+
+    !> Upgraded stress
+    real(dp), intent(out), optional :: stress(:, :)
+
+    !> Volume, if system is periodic
+    real(dp), intent(in), optional :: volume
+
+    !> Status of operation
+    integer, intent(out), optional :: stat
+
+    integer :: iAtFirst, iAtLast, nRef
+    real(dp) :: sigma(3, 3)
+    real(dp) :: vol
+
+    !> Nr. of neighbours for each atom
+    integer, allocatable :: nNeighbour(:)
+
+    real(dp), allocatable :: zetaVec(:, :), zero(:)
+    real(dp), allocatable :: zetadq(:, :)
+    real(dp), allocatable :: zetadcn(:, :)
+    real(dp), allocatable :: dEdq(:), dEdcn(:)
+    real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
+    real(dp), allocatable :: localEnergies(:), localDeriv(:, :), localSigma(:, :)
+
+    if (present(volume)) then
+      vol = volume
+    else
+      vol = 0.0_dp
+    end if
+
+    energies(:) = 0.0_dp
+    gradients(:, :) = 0.0_dp
+    sigma(:, :) = 0.0_dp
+
+    nRef = maxval(ref%nRef)
+    allocate(nNeighbour(nAtom))
+    allocate(zetaVec(nRef, nAtom), zetadq(nRef, nAtom), zetadcn(nRef, nAtom),&
+        & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
+        & dEdq(nAtom), dEdcn(nAtom), zero(nAtom))
+
+    dEdq(:) = 0.0_dp
+    dEdcn(:) = 0.0_dp
+    zero(:) = 0.0_dp
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
+    localEnergies(:) = 0.0_dp
+    localDeriv(:,:) = 0.0_dp
+    localSigma(:,:) = 0.0_dp
+
+    call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+
+    call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, &
+        & charges, zetaVec, zetadq, zetadcn)
+
+    call getAtomicC6(calc, ref, env, nAtom, species, zetaVec, zetadq, zetadcn,&
+        & c6, dc6dcn, dc6dq)
+
+    call dispersionGradient(calc, iAtFirst, iAtLast, nNeighbour, neigh, &
+        & species, coords, img2CentCell, c6, dc6dq, dc6dcn, dEdq, dEdcn, &
+        & localEnergies, localDeriv, localSigma)
+
+    call assembleChunks(env, localEnergies)
+    call assembleChunks(env, localDeriv)
+    call assembleChunks(env, localSigma)
+
+    energies(:) = localEnergies
+    gradients(:,:) = localDeriv
+    sigma(:,:) = localSigma
+
+    call assembleChunks(env, dEdcn)
+
+    ! handle CN and charge contributions to the gradient by matrix-vector operation
+    call cnCont%addGradients(gradients, dEdcn)
+
+    ! handle CN and charge contributions to the sigma tensor
+    call cnCont%addStress(sigma, dEdcn)
+
+    if (present(stress)) then
+      stress(:, :) = sigma / volume
+    end if
+
+    if (present(stat)) stat = 0
+
+  end subroutine addScDispGradient
 
 
 end module dftbp_dispdftd4

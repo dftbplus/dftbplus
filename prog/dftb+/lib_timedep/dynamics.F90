@@ -3120,7 +3120,8 @@ contains
 
     totalDeriv(:,:) = repulsiveDerivs + derivs
     if (allocated(this%dispersion)) then
-      call this%dispersion%addGradients(totalDeriv)
+      call this%dispersion%addGradients(env, neighbourList, this%speciesAll, coordAll,  &
+          & img2CentCell, totalDeriv)
     end if
 
     totalForce(:,:) = - totalDeriv

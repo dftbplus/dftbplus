@@ -5544,7 +5544,7 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%addGradients(derivs)
+      call dispersion%addGradients(env, neighbourList, img2CentCell, coord, species, derivs)
     end if
 
     if (allocated(halogenXCorrection)) then
