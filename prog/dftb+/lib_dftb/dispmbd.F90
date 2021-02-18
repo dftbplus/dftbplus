@@ -236,7 +236,8 @@ contains
 
 
   !> Adds MBD forces to a gradient (using cached values if possible)
-  subroutine addGradients(this, gradients)
+  subroutine addGradients(this, env, neigh, img2CentCell, coords, species0, &
+      & gradients, stat)
 
     !> Instance
     class(TDispMbd), intent(inout) :: this
