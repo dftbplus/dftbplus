@@ -38,7 +38,7 @@ module dftbp_transcharges
 
   contains
 
-    procedure :: qTransIJ =>TTransCharges_qTransIJ
+    procedure :: qTransIA =>TTransCharges_qTransIA
     procedure :: qMatVec => TTransCharges_qMatVec
     procedure :: qVecMat => TTransCharges_qVecMat
     procedure :: qMatVecDs => TTransCharges_qMatVecDs
@@ -51,7 +51,7 @@ contains
 
   !> initialise the cache/on-the fly transition charge evaluator
   subroutine TTransCharges_init(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
-      & getij, win, tStore)
+      & getia, win, tStore)
 
     !> Instance
     type(TTransCharges), intent(out) :: this
@@ -75,7 +75,7 @@ contains
     logical, intent(in) :: tStore
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -95,9 +95,9 @@ contains
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn) SCHEDULE(RUNTIME)
       do ij = 1, nTrans
         kk = win(ij)
-        ii = getij(kk,1)
-        jj = getij(kk,2)
-        !call indxov(win, ij, getij, ii, jj)
+        ii = getia(kk,1)
+        jj = getia(kk,2)
+        !call indxov(win, ij, getia, ii, jj)
         updwn = (kk <= this%nMatUp)
         this%qCacheOccVirt(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
@@ -116,7 +116,7 @@ contains
 
 
   !> returns transtion charges between single particle levels
-  pure function TTransCharges_qTransIJ(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+  pure function TTransCharges_qTransIA(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win) result(q)
 
     !> instance of the transition charge object
@@ -135,7 +135,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -150,17 +150,17 @@ contains
       q(:) = this%qCacheOccVirt(:, ij)
     else
       kk = win(ij)
-      ii = getij(kk,1)
-      jj = getij(kk,2)
+      ii = getia(kk,1)
+      jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
       q(:) = transq(ii, jj, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
 
-  end function TTransCharges_qTransIJ
+  end function TTransCharges_qTransIA
 
 
   !> Transition charges left producted with a vector Q * v
-  pure subroutine TTransCharges_qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+  pure subroutine TTransCharges_qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
@@ -176,7 +176,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -203,8 +203,8 @@ contains
       !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
       do ij = 1, this%nTransitions
         kk = win(ij)
-        ii = getij(kk,1)
-        jj = getij(kk,2)
+        ii = getia(kk,1)
+        jj = getia(kk,2)
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(:) = qProduct + qij * vector(ij)
@@ -219,7 +219,7 @@ contains
 
 
   !> Transition charges right producted with a vector v * Q
-  pure subroutine TTransCharges_qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+  pure subroutine TTransCharges_qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
@@ -235,7 +235,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -262,8 +262,8 @@ contains
       !!$OMP& SCHEDULE(RUNTIME)
       do ij = 1, this%nTransitions
         kk = win(ij)
-        ii = getij(kk,1)
-        jj = getij(kk,2)
+        ii = getia(kk,1)
+        jj = getia(kk,2)
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
@@ -280,7 +280,7 @@ contains
   !> Transition charges left producted with a vector Q * v for spin up
   !> minus Transition charges left producted with a vector Q * v for spin down
   !> sum_ias q_ias V_ias delta_s,  where delta_s = 1 for spin up and delta_s = -1 for spin down
-  pure subroutine TTransCharges_qMatVecDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+  pure subroutine TTransCharges_qMatVecDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
@@ -296,7 +296,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -317,8 +317,8 @@ contains
     !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
     do ij = 1, this%nTransitions
       kk = win(ij)
-      ii = getij(kk,1)
-      jj = getij(kk,2)
+      ii = getia(kk,1)
+      jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
       qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
@@ -337,7 +337,7 @@ contains
   !> Transition charges right producted with a vector v * Q for spin up
   !> and negative transition charges right producted with a vector v * Q for spin down
   !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
-  pure subroutine TTransCharges_qVecMatDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+  pure subroutine TTransCharges_qVecMatDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
@@ -353,7 +353,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> index array for for single particle excitations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getia(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
@@ -374,8 +374,8 @@ contains
     !!$OMP& SCHEDULE(RUNTIME)
     do ij = 1, this%nTransitions
       kk = win(ij)
-      ii = getij(kk,1)
-      jj = getij(kk,2)
+      ii = getia(kk,1)
+      jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
       qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
