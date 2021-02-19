@@ -162,7 +162,7 @@ contains
     real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), xpy(:), xmy(:), pc(:,:,:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
-    integer, allocatable :: win(:), getia(:,:)
+    integer, allocatable :: win(:), getia(:,:), getij(:,:), getab(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
@@ -269,6 +269,26 @@ contains
     end do
     nxov = sum(nxov_ud)
 
+    ! # occupied/virtual states per spin channel
+    nocc_ud = 0
+    nvir_ud = 0
+    do iSpin = 1, nSpin
+      do i = 1, norb
+        if (filling(i,iSpin) > elecTolMax) then
+          nocc_ud(iSpin) = nocc_ud(iSpin) + 1
+        else
+          nvir_ud(iSpin) = nvir_ud(iSpin) + 1
+        end if
+      end do
+    end do
+
+    mHOMO = maxval(nocc_ud)
+    mLUMO = minval(nocc_ud) + 1
+
+    mnvir = maxval(nvir_ud)
+    nxoo_max = (mHOMO * (mHOMO + 1)) / 2
+    nxvv_max = (mnvir * (mnvir + 1)) / 2
+
     if (this%nExc + 1 >= nxov) then
       write(tmpStr,"(' Insufficent single particle excitations, ',I0,&
           & ', for required number of excited states ',I0)")nxov, this%nExc
@@ -327,6 +347,8 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getia(nxov, 3))
+    ALLOCATE(getij(nxoo_max, 3))
+    ALLOCATE(getab(nxvv_max, 3))
     ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
     ALLOCATE(nocc_ud(nSpin))
@@ -346,8 +368,8 @@ contains
     ALLOCATE(osz(this%nExc))
 
     ! Find all single particle transitions and KS energy differences for cases that go from filled
-    ! to empty states
-    call getSPExcitations(grndEigVal, filling, wij, getia)
+    ! to empty states, create index arrays for ov,oo,vv 
+    call getSPExcitations(grndEigVal, filling, wij, getia, getij, getab)
 
     ! put them in ascending energy order
     if (this%tOscillatorWindow) then
@@ -546,25 +568,6 @@ contains
               & calculations")
         end if
       end if
-
-      nocc_ud = 0
-      nvir_ud = 0
-      do iSpin = 1, nSpin
-        do i = 1, norb
-          if (filling(i,iSpin) > elecTolMax) then
-            nocc_ud(iSpin) = nocc_ud(iSpin) + 1
-          else
-            nvir_ud(iSpin) = nvir_ud(iSpin) + 1
-          end if
-        end do
-      end do
-
-      mHOMO = maxval(nocc_ud)
-      mLUMO = minval(nocc_ud) + 1
-
-      mnvir = maxval(nvir_ud)
-      nxoo_max = (mHOMO * (mHOMO + 1)) / 2
-      nxvv_max = (mnvir * (mnvir + 1)) / 2
 
       ! Arrays needed for Z vector
       ALLOCATE(xpy(nxov_rd))

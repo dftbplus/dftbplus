@@ -799,10 +799,11 @@ contains
     real(dp), allocatable :: atomicTransQ(:)
     !to hold precalculated transition charges, alloc and calc in rs calc
     real(dp), allocatable :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, allocatable :: win(:), iaTrans(:,:,:), getIA(:,:)
+    integer, allocatable :: win(:), iaTrans(:,:,:), getIA(:,:), getIJ(:,:), getAB(:,:)
     character, allocatable :: symmetries(:)
 
     integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR
+    integer :: nOccUD(2), nVirUD(2), mHOMO, mLUMO, mnVir, nXoo_max, nXvv_max 
     integer :: nXov, nXovUD(2), nXovR, nXovD, nXovRD, nOrb
     integer :: i, j, isym
     integer :: spinDim
@@ -901,6 +902,26 @@ contains
     end do
     nXov = sum(nXovUD)
 
+    ! # occupied/virtual states per spin channel
+    nOccUD = 0
+    nVirUD = 0
+    do iSpin = 1, nSpin
+      do i = 1, norb
+        if (filling(i,iSpin) > elecTolMax) then
+          nOccUD(iSpin) = nOccUD(iSpin) + 1
+        else
+          nVirUD(iSpin) = nVirUD(iSpin) + 1
+        end if
+      end do
+    end do
+
+    mHOMO = maxval(nOccUD)
+    mLUMO = minval(nOccUD) + 1
+
+    mnVir = maxval(nVirUD)
+    nXoo_max = (mHOMO * (mHOMO + 1)) / 2
+    nXvv_max = (mnVir * (mnVir + 1)) / 2
+
     if (nExc + 1 >= nXov) then
       write(tmpStr,"(' Insufficent single particle excitations, ', I0,&
           & ', for required number of excited states ', I0)") nXov, nExc
@@ -953,6 +974,8 @@ contains
     allocate(win(nXov))
     allocate(eval(nExc))
     allocate(getIA(nXov, 3))
+    allocate(getIJ(nXoo_max, 3))
+    allocate(getAB(nXvv_max, 3))
     allocate(transitionDipoles(nXov, 3))
     allocate(snglPartOscStrength(nXov))
 
@@ -986,7 +1009,7 @@ contains
 
     ! Find all single particle transitions and KS energy differences
     !   for cases that go from filled to empty states
-    call getSPExcitations(grndEigVal, filling, wIJ, getIA)
+    call getSPExcitations(grndEigVal, filling, wIJ, getIA, getIJ, getAB)
 
     ! put them in ascending energy order
     if (tOscillatorWindow) then

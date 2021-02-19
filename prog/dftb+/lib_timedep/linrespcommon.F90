@@ -735,7 +735,7 @@ contains
 
   !> calculating spin polarized excitations
   !> Note: the subroutine is generalized to account for spin and partial occupancy
-  subroutine getSPExcitations(grndEigVal, filling, wij, getia)
+  subroutine getSPExcitations(grndEigVal, filling, wij, getia, getij, getab)
 
     !> ground state eigenvalues
     real(dp), intent(in) :: grndEigVal(:,:)
@@ -746,11 +746,17 @@ contains
     !> Kohn-Sham energy differences between empty and filled states
     real(dp), intent(out) :: wij(:)
 
-    !> index of pairs of KS states for the transitions in wij
+    !> index of occ-vrt pairs of KS states for the transitions in wij
     integer, intent(out) :: getia(:,:)
 
-    integer :: ind, ii, jj
-    integer :: norb, iSpin, nSpin
+    !> index of occ-occ pairs of KS states for the transitions in wij
+    integer, intent(out) :: getij(:,:)
+
+    !> index of vrt-vrt pairs of KS states for the transitions in wij
+    integer, intent(out) :: getab(:,:)
+
+    integer :: ind, ii, jj, aa, bb
+    integer :: norb, iSpin, nSpin, nOcc(2)
 
     @:ASSERT(all(shape(grndEigVal)==shape(filling)))
 
@@ -761,12 +767,41 @@ contains
 
     do iSpin = 1, nSpin
       do ii = 1, norb - 1
-        do jj = ii, norb
-          if (filling(ii,iSpin) > filling(jj,iSpin) + elecTolMax) then
+        do aa = ii, norb
+          if (filling(ii,iSpin) > filling(aa,iSpin) + elecTolMax) then
             ind = ind + 1
-            wij(ind) = grndEigVal(jj,iSpin) - grndEigVal(ii,iSpin)
-            getia(ind,:) = [ii,jj,iSpin]
+            wij(ind) = grndEigVal(aa,iSpin) - grndEigVal(ii,iSpin)
+            getia(ind,:) = [ii,aa,iSpin]
           end if
+        end do
+      end do
+    end do
+    
+    nOcc(:) = 0
+    do iSpin = 1, nSpin
+       do ii = 1, norb
+          if (filling(ii,iSpin) > elecTolMax) then
+             nOcc(iSpin) = nOcc(iSpin) + 1
+          end if
+       end do
+    end do
+
+    ind = 0 
+    do iSpin = 1, nSpin
+      do ii = 1, nOcc(iSpin)
+        do jj = ii, nOcc(iSpin)
+          ind = ind + 1 
+          getij(ind,:) = [ii,jj,iSpin] 
+        end do
+      end do
+    end do
+
+    ind = 0 
+    do iSpin = 1, nSpin
+      do aa = nOcc(iSpin) + 1, norb
+        do bb = aa, norb
+          ind = ind + 1 
+          getab(ind,:) = [aa,bb,iSpin] 
         end do
       end do
     end do
