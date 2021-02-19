@@ -270,6 +270,8 @@ contains
     nxov = sum(nxov_ud)
 
     ! # occupied/virtual states per spin channel
+    ALLOCATE(nocc_ud(nSpin))
+    ALLOCATE(nvir_ud(nSpin))
     nocc_ud = 0
     nvir_ud = 0
     do iSpin = 1, nSpin
@@ -338,7 +340,7 @@ contains
       ALLOCATE(symmetries(1))
       symmetries(:) = [ " " ]
     end if
-
+  
     ! Allocation for general arrays
     ALLOCATE(gammaMat(this%nAtom, this%nAtom))
     ALLOCATE(snglPartTransDip(nxov, 3))
@@ -351,8 +353,6 @@ contains
     ALLOCATE(getab(nxvv_max, 3))
     ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
-    ALLOCATE(nocc_ud(nSpin))
-    ALLOCATE(nvir_ud(nSpin))
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
     ! remove the need to symmetrize the overlap and ground state density matrix in the main code if

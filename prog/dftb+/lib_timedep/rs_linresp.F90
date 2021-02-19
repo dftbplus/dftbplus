@@ -803,7 +803,8 @@ contains
     character, allocatable :: symmetries(:)
 
     integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR
-    integer :: nOccUD(2), nVirUD(2), mHOMO, mLUMO, mnVir, nXoo_max, nXvv_max 
+    integer :: mHOMO, mLUMO, mnVir, nXoo_max, nXvv_max 
+    integer, allocatable :: nOccUD(:), nVirUD(:)
     integer :: nXov, nXovUD(2), nXovR, nXovD, nXovRD, nOrb
     integer :: i, j, isym
     integer :: spinDim
@@ -903,6 +904,8 @@ contains
     nXov = sum(nXovUD)
 
     ! # occupied/virtual states per spin channel
+    allocate(nOccUD(nSpin))
+    allocate(nVirUD(nSpin))
     nOccUD = 0
     nVirUD = 0
     do iSpin = 1, nSpin
