@@ -758,13 +758,13 @@ contains
               & tStopScc, this%eigvecsReal, this%reks)
         end if
 
-        if (allocated(this%dispersion)) then
+        if (allocated(this%dispersion) .and. .not. tConverged) then
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
               & this%species0, tConverged)
           call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
               & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-          call sumEnergies(this%dftbEnergy(1))
         end if
+        call sumEnergies(this%dftbEnergy(1))
 
         call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
@@ -1000,14 +1000,13 @@ contains
           end if
         end if
 
-        if (allocated(this%dispersion)) then
+        if (allocated(this%dispersion) .and. .not. tConverged) then
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
               & this%species0, tConverged)
           call calcDispersionEnergy(this%dispersion,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%atomDisp,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%Edisp, this%iAtInCentralRegion)
         end if
-
         call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
 
         if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
