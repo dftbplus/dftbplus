@@ -12,7 +12,9 @@ Helper routines for finite difference scripts
 
 import numpy as np
 import numpy.linalg as la
-import os
+import shutil
+import tempfile
+
 
 BOHR__AA = 0.529177249
 AA__BOHR = 1.0 / BOHR__AA
@@ -104,3 +106,26 @@ def stress2latderivs(stress, latvecs):
     volume = la.det(latvecs)
     latderivs = -volume * np.transpose(np.dot(stress, invlatvecs))
     return latderivs
+
+
+def create_temporary_copy(src_file_name):
+    """
+    Copies the source file into a temporary file.
+    Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
+    (i.e. the temp file is deleted when the object goes out of scope).
+    """
+    tf = tempfile.NamedTemporaryFile()
+    shutil.copy2(src_file_name, tf.name)
+    return tf
+
+
+def exists(filename):
+    """
+    Check for existence of named file
+    """
+    try:
+        f = open(filename)
+        f.close()
+        return True
+    except:
+        return False

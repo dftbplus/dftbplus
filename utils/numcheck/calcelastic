@@ -11,10 +11,11 @@ Calculates the elastic stiffness tensor by finite differences of the stress tens
 """
 
 import argparse
-from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR
+from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
 import re
 import subprocess
+import shutil
 
 PRESURE_AU = 0.339893208050290E-13 # 1 Pa in atomic units of pressure
 
@@ -34,6 +35,8 @@ required.
 
 STRESS_PATTERN = re.compile(r"stress\s*:[^:]*:[^:]*:3,3\n\s*(?P<value11>\S+)\s+(?P<value21>\S+)\s+(?P<value31>\S+)\n\s*(?P<value12>\S+)\s+(?P<value22>\S+)\s+(?P<value32>\S+)\n\s*(?P<value13>\S+)\s+(?P<value23>\S+)\s+(?P<value33>\S+)\n")
 
+CHARGES_FILE = "charges.bin"
+
 def main():
     """Main routine"""
 
@@ -41,15 +44,21 @@ def main():
     specienames, species, coords, origin, latvecs = readgen("geo.gen.template")
     if latvecs is None:
         raise ValueError("Structure must be periodic for elastic constants!")
+    if (exists(CHARGES_FILE)):
+        chargeRestart = create_temporary_copy(CHARGES_FILE)
+    else:
+        chargeRestart = None
     disp = args.disp * AA__BOHR
     binary = args.binary
     print("BINARY:", binary)
 
-    elastic = calculate_elastic(
-        binary, disp, coords, latvecs, specienames, species, origin)
+    elastic = calculate_elastic( binary, disp, coords, latvecs,
+                                 specienames, species, origin, chargeRestart)
 
     print_elastic(elastic)
 
+    if (chargeRestart):
+        shutil.copy2 (chargeRestart.name, CHARGES_FILE)
 
 def parse_arguments():
     """Parses command line arguments"""
@@ -68,7 +77,7 @@ def parse_arguments():
 
 
 def calculate_elastic(binary, disp, coords, latvecs, specienames, species,
-                        origin):
+                        origin, chargeRestart):
     """Calculates elastic constants by finite differences"""
 
     # to hold stress tensor
@@ -92,6 +101,8 @@ def calculate_elastic(binary, disp, coords, latvecs, specienames, species,
             newvecs = np.dot(newvecs,strain)
             newcoords = frac2cart(newvecs,newcoords)
             writegen("geo.gen", (specienames, species, newcoords, origin, newvecs))
+            if (chargeRestart):
+                shutil.copy2 (chargeRestart.name, CHARGES_FILE)
             subprocess.call([binary,])
             fp = open("autotest.tag", "r")
             txt = fp.read()

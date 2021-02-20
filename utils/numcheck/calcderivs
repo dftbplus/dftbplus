@@ -11,10 +11,11 @@ Calculates forces and lattice derivatives with finite differences.
 """
 
 import argparse
-from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR
+from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
 import re
 import subprocess
+import shutil
 
 DESCRIPTION = """
 Calculates the forces using the specified DFTB+ binary by finite differences
@@ -37,13 +38,17 @@ LATTICE_DERIV_PATTERN = re.compile(
     r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)", re.MULTILINE)
 
 REFERENCE_AUTOTEST = 'autotest0.tag'
-
+CHARGES_FILE = "charges.bin"
 
 def main():
     """Main routine"""
 
     args = parse_arguments()
     specienames, species, coords, origin, latvecs = readgen("geo.gen.template")
+    if (exists(CHARGES_FILE)):
+        chargeRestart = create_temporary_copy(CHARGES_FILE)
+    else:
+        chargeRestart = None
     calcforces = not args.skipforces
     calclatderivs = (latvecs is not None) and not args.skiplattice
     if args.calcref:
@@ -58,7 +63,7 @@ def main():
 
     if args.calcref:
         calculate_reference(binary, reffile, coords, specienames, species,
-                            origin, latvecs)
+                            origin, latvecs, chargeRestart)
 
     if reffile is not None:
         forces0, latderivs0 = read_reference_results(reffile, calcforces,
@@ -67,18 +72,22 @@ def main():
         forces0 = latderivs0 = None
 
     if calcforces:
-        forces = calculate_forces(
-            binary, disp, coords, specienames, species, origin, latvecs)
+        forces = calculate_forces( binary, disp, coords, specienames,
+                                   species, origin, latvecs, chargeRestart)
 
     if latvecs is not None and calclatderivs:
-        latderivs = calculate_latderivs(
-            binary, disp, coords, latvecs, specienames, species, origin)
+        latderivs = calculate_latderivs( binary, disp, coords, latvecs,
+                                         specienames, species, origin,
+                                         chargeRestart)
 
     if calcforces:
         print_forces(forces, forces0)
 
     if latvecs is not None and calclatderivs:
         print_latderivs(latderivs, latderivs0)
+
+    if (chargeRestart):
+        shutil.copy2 (chargeRestart.name, CHARGES_FILE)
 
 
 def parse_arguments():
@@ -148,16 +157,18 @@ def read_reference_results(autotest0, calcforces, calclatderivs, latvecs):
 
 
 def calculate_reference(binary, reffile, coords, specienames, species, origin,
-                        latvecs):
+                        latvecs, chargeRestart):
     """Calculates reference system"""
 
     writegen("geo.gen", (specienames, species, coords, origin, latvecs))
+    if (chargeRestart):
+        shutil.copy2 (chargeRestart.name, CHARGES_FILE)
     subprocess.call([binary])
-    os.rename("autotest.tag", reffile)
+    shutil.move("autotest.tag", reffile)
 
 
 def calculate_forces(binary, disp, coords, specienames, species, origin,
-                     latvecs):
+                     latvecs, chargeRestart):
     """Calculates forces by finite differences"""
 
     energy = np.empty((2,), dtype=float)
@@ -169,6 +180,8 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 newcoords[iat][ii] += float(2 * jj - 1) * disp
                 writegen("geo.gen", (specienames, species, newcoords, origin,
                                      latvecs))
+                if (chargeRestart):
+                    shutil.copy2 (chargeRestart.name, CHARGES_FILE)
                 subprocess.call([binary])
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
@@ -185,7 +198,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
 
 
 def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
-                        origin):
+                        origin, chargeRestart):
     """Calculates lattice derivatives by finite differences"""
 
     energy = np.empty((2,), dtype=float)
@@ -200,6 +213,8 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 newcoords = frac2cart(newvecs, newcoords)
                 writegen("geo.gen", (specienames, species, newcoords, origin,
                                      newvecs))
+                if (chargeRestart):
+                    shutil.copy2 (chargeRestart.name, CHARGES_FILE)
                 subprocess.call([binary,])
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
