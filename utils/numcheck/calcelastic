@@ -9,15 +9,13 @@
 """
 Calculates the elastic stiffness tensor by finite differences of the stress tensor.
 """
-import os
-import subprocess
-import argparse
-import re
-import numpy as np
-import numpy.linalg as la
 
-BOHR__AA = 0.529177249
-AA__BOHR = 1.0 / BOHR__AA
+import argparse
+from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR
+import numpy as np
+import re
+import subprocess
+
 PRESURE_AU = 0.339893208050290E-13 # 1 Pa in atomic units of pressure
 
 DESCRIPTION = """
@@ -41,6 +39,8 @@ def main():
 
     args = parse_arguments()
     specienames, species, coords, origin, latvecs = readgen("geo.gen.template")
+    if latvecs is None:
+        raise ValueError("Structure must be periodic for elastic constants!")
     disp = args.disp * AA__BOHR
     binary = args.binary
     print("BINARY:", binary)
@@ -108,7 +108,7 @@ def calculate_elastic(binary, disp, coords, latvecs, specienames, species,
                 stress[5,kk] = 0.5*float(match.group("value12"))
                 stress[5,kk] += 0.5*float(match.group("value21"))
             else:
-                raise "No match found!"
+                raise ValueError("Stress tensor missing from autotest.tag!")
             for jj in range(6):
                 elastic[ii][jj] = (stress[jj][0] - stress[jj][1]) / (2.0 * disp)
 
@@ -124,91 +124,6 @@ def print_elastic(elastic):
     print("\nElastic constants (GPa):")
     for ii in range(6):
         print (("%12.4f"*6) % tuple(elastic[ii]))
-
-
-def readgen(fname):
-    """Reads in the content of a gen file."""
-
-    fp = open(fname, "r")
-    line = fp.readline()
-    words = line.split()
-    natom = int(words[0])
-    periodic = (words[1] == 'S' or words[1] == 's')
-    fractional = (words[1] == 'F' or words[1] == 'f')
-    if not (periodic or fractional):
-        raise "Structure must be periodic!"
-    line = fp.readline()
-    specienames = line.split()
-    coords = np.empty((natom, 3), dtype=float)
-    species = np.empty(natom, dtype=int)
-    for ii in range(natom):
-        line = fp.readline()
-        words = line.split()
-        species[ii] = int(words[1]) - 1
-        coords[ii] = (float(words[2]), float(words[3]), float(words[4]))
-    line = fp.readline()
-    origin = np.array([float(s) for s in line.split()], dtype=float)
-    latvecs = np.empty((3, 3), dtype=float)
-    for ii in range(3):
-        line = fp.readline()
-        latvecs[ii] = [float(s) for s in line.split()]
-    if fractional:
-        coords = frac2cart(latvecs, coords)
-    origin *= AA__BOHR
-    latvecs *= AA__BOHR
-    coords *= AA__BOHR
-    return specienames, species, coords, origin, latvecs
-
-
-def writegen(fname, data):
-    """Writes the geometry as gen file."""
-
-    fp = open(fname, "w")
-    specienames, species, coords, origin, latvecs = data
-    fp.write("%5d %s\n" % (len(coords), latvecs is None and "C" or "S"))
-    fp.write(("%2s "*len(specienames) + "\n") % tuple(specienames))
-    coords = coords * BOHR__AA
-    for ii in range(len(coords)):
-        fp.write("%5d %5d %23.15E %23.15E %23.15E\n"
-                 % (ii + 1, species[ii] + 1, coords[ii, 0], coords[ii, 1],
-                    coords[ii, 2]))
-    if latvecs is not None:
-        origin = origin * BOHR__AA
-        latvecs = latvecs * BOHR__AA
-        fp.write("%23.15E %23.15E %23.15E\n" % tuple(origin))
-        for ii in range(3):
-            fp.write("%23.15E %23.15E %23.15E\n" % tuple(latvecs[ii]))
-    fp.close()
-
-
-def cart2frac(latvecs, coords):
-    "Converts cartesian coordinates to fractional coordinates."
-
-    invlatvecs = np.empty((3, 3), dtype=float)
-    invlatvecs = np.transpose(latvecs)
-    newcoords = np.array(coords)
-    invlatvecs = la.inv(invlatvecs)
-    for iat, atcoords in enumerate(coords):
-        newcoords[iat] = np.dot(invlatvecs, atcoords)
-    return newcoords
-
-
-def frac2cart(latvecs, coords):
-    """Converts fractional coordinates to cartesian ones."""
-
-    newcoords = np.array(coords)
-    for iat, atcoords in enumerate(coords):
-        newcoords[iat] = np.dot(np.transpose(latvecs), atcoords)
-    return newcoords
-
-
-def stress2latderivs(stress, latvecs):
-    """Converts stress to lattice derivatives."""
-
-    invlatvecs = la.inv(latvecs)
-    volume = la.det(latvecs)
-    latderivs = -volume * np.transpose(np.dot(stress, invlatvecs))
-    return latderivs
 
 
 if __name__ == "__main__":
