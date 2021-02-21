@@ -11,6 +11,7 @@ Unreleased
 Added
 -----
 
+- Extended syntax for selecting atoms in HSD input
 
 Changed
 -------

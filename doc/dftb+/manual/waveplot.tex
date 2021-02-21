@@ -105,49 +105,38 @@ Example:
 NrOfPoints = { 50 50 50 }     # 125 000 grid points
 \end{verbatim}
 
-\item[\is{PlottedKPoints}] The list of integers specified here
-  represent the k-points, in which the molecular orbitals should be
-  plotted. The first k-point in the original \dftbp{} calculation is
-  represented by "1". The order of the specified k-points does not
-  matter. You can also use the specification of the form
-  \verb|from:to| to specify ranges. (For more details on range
-  specification, see the \is{MovedAtoms} keyword in the \dftbp{}
-  manual.) The actual list of molecular orbitals to plot is obtained
-  by intersecting the specifications for \is{PlottedKPoints},
-  \is{PlottedLevels} and \is{PlottedSpins}.  The option is ignored if
-  the original calculation was not periodic.
+\item[\is{PlottedKPoints}] The list of integers specified here represent the k-points, in which the
+  molecular orbitals should be plotted. The first k-point in the original \dftbp{} calculation is
+  represented by "1". The order of the specified k-points does not matter. (You can also use
+  index specification expressions as described in appendix \ref{sec:index_selection}.) The actual
+  list of molecular orbitals to plot is obtained by intersecting the specifications for
+  \is{PlottedKPoints}, \is{PlottedLevels} and \is{PlottedSpins}.  The option is ignored if the
+  original calculation was not periodic.
 
 Example:
 \begin{verbatim}
 PlottedKPoints =  1 3 5      # The 1st, 3rd and 5th k-point is plotted
 \end{verbatim}
 
-\item[\is{PlottedLevels}] The list of integers specified here
-  represent the states, which should be plotted. The first (lowest
-  lying) state in the original \dftbp{} calculation is represented by
-  "1". The order of the specified states does not matter. You can also
-  use the specification of the form \verb|from:to| to specify
-  ranges. (For more details on range specification, see the
-  \is{MovedAtoms} keyword in the \dftbp{} manual.) The actual list of
-  molecular orbitals to plot is obtained by intersecting the
-  specifications for \is{PlottedKPoints}, \is{PlottedLevels} and
-  \is{PlottedSpins}.
+\item[\is{PlottedLevels}] The list of integers specified here represent the states, which should be
+
+  plotted. The first (lowest lying) state in the original \dftbp{} calculation is represented by
+  "1". The order of the specified states does not matter. (You can also use  index specification
+  expressions as described in appendix \ref{sec:index_selection}.)  The actual list of molecular
+  orbitals to plot is obtained by intersecting the specifications for \is{PlottedKPoints},
+  \is{PlottedLevels} and \is{PlottedSpins}.
 
 Example:
 \begin{verbatim}
 PlottedLevels = 1:-1     # All levels plotted
 \end{verbatim}
 
-\item[\is{PlottedSpins}] The list of integers specified here represent
-  the spins, for which the molecular orbitals should be plotted. The
-  first spin in the original \dftbp{} calculation is represented by
-  "1". The order of the specified spins does not matter. You can also
-  use the specification of the form \verb|from:to| to specify
-  ranges. (For more details on range specification, see the
-  \is{MovedAtoms} keyword in the \dftbp{} manual.)  The actual list of
-  molecular orbitals to plot is obtained by intersecting the
-  specifications for \is{PlottedKPoints}, \is{PlottedLevels} and
-  \is{PlottedSpins}.
+\item[\is{PlottedSpins}] The list of integers specified here represent the spins, for which the
+  molecular orbitals should be plotted. The first spin in the original \dftbp{} calculation is
+  represented by "1". The order of the specified spins does not matter. (You can also use index
+  specification expressions as described in appendix \ref{sec:index_selection}.) The actual list of
+  molecular orbitals to plot is obtained by intersecting the specifications for \is{PlottedKPoints},
+  \is{PlottedLevels} and \is{PlottedSpins}.
 
 Example:
 \begin{verbatim}
@@ -159,7 +148,7 @@ PlottedSpins =  1 2      # Both spin-up and spin-down plotted
 
 \item[\is{RealComponent}] If true, the real component of the
   wavefunction is plotted for the selected molecular orbitals.
-  
+
 \item[\is{ImagComponent}] If true, the imaginary component of the
   wavefunction is plotted for the selected molecular orbitals. This
   option is only parsed, if the wavefunctions in the \dftbp{}
@@ -220,7 +209,7 @@ Example:
   specified grid origin will be at the edge of a cell.
 
 \item[\is{Verbose}] If true, some extra messages are printed out
-  during the calculation. 
+  during the calculation.
 
 \end{description}
 
@@ -419,17 +408,17 @@ wavefunction. Thereby the following properties must be used:
 \begin{description}
 \item[\is{AngularMomentum}] Angular momentum of the current orbital. ($s$ -- 0,
   $p$ -- 1, $d$ -- 2, $f$ -- 3)
-  
+
 \item[\is{Occupation}] Occupation of the orbital in the neutral ground state.
   (Needed to obtain the right superposed atomic densities.)
-  
+
 \item[\kw{Cutoff}] Cutoff for the wave function. You should choose a value,
   where the value of $4\pi r^2 \left|R(r)\right|^2$ drops below $10^{-4}$ or
   $10^{-5}$.  $R(r)$ is the radial part of the wave function. If you do not have
   the possibility to visualise the radial wave function, take the half of the
   longest distance, for which an overlap interaction exists in the appropriate
   homonuclear Slater-Koster file. (Value must be entered in Bohr.)
-  
+
 \item[\is{Exponents}] The radial wave function with angular momentum $l$ has the
   form:
   \begin{equation}
@@ -438,14 +427,14 @@ wavefunction. Thereby the following properties must be used:
       \sum_{j=1}^{n_{\text{pow}}} c_{ij}\, r^{l+j-1} e^{-\alpha_i r}
   \end{equation}
   This property defines the multiplication factors in the exponent ($\alpha_i$).
-  
+
 \item[\is{Coefficients}] This property contains the coefficients $c_{ij}$ as
   defined in equation \eqref{eq:raddef}. The sequence of the coefficients must
   be as follows:
 
   $c_{11}$ $c_{12}$ \dots\ $c_{1n_{\text{pow}}}$ $c_{21}$ $c_{22}$
   \dots\ $c_{2n_{\text{pow}}}$ \dots
-  
+
 
 \end{description}
 
@@ -457,7 +446,7 @@ This block contains the options, which are effecting only the behaviour of the
 HSD parser and are not passed to the main program.
 \begin{ptable}
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
-  \kw{StopAfterParsing} &l & & No & \\  
+  \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
 \begin{description}
 
@@ -470,5 +459,5 @@ HSD parser and are not passed to the main program.
   after processing the input and written out the processed input to
   the disc. It can be used to make sanity checks on the input without
   starting an actual calculation.
-  
+
 \end{description}
