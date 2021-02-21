@@ -573,7 +573,6 @@ contains
         zetadcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, q(iAt1) + zEff1) * dgwk
       end do
     end do
-    !$omp end parallel do
 
     call assembleChunks(env, zetaVec)
     call assembleChunks(env, zetadq)
@@ -791,7 +790,6 @@ contains
         dc6dq(iAt2, iAt1) = dc6dq2
       end do
     end do
-    !$omp end parallel do
 
     call assembleChunks(env, c6)
     call assembleChunks(env, dc6dcn)
@@ -1436,6 +1434,8 @@ contains
 
       end do
     end do
+
+    call assembleChunks(env, dispMat)
 
   end subroutine weightDispMat
 
