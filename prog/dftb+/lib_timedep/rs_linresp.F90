@@ -802,8 +802,8 @@ contains
     integer, allocatable :: win(:), iaTrans(:,:,:), getIA(:,:), getIJ(:,:), getAB(:,:)
     character, allocatable :: symmetries(:)
 
-    integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR
-    integer :: mHOMO, mLUMO, mnVir, nXoo_max, nXvv_max 
+    integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR, nXoo2, nXvv2, nXooUD(2), nXvvUD(2)
+    integer :: mHOMO, mLUMO, nXoo_max, nXvv_max 
     integer, allocatable :: nOccUD(:), nVirUD(:)
     integer :: nXov, nXovUD(2), nXovR, nXovD, nXovRD, nOrb
     integer :: i, j, isym
@@ -921,9 +921,17 @@ contains
     mHOMO = maxval(nOccUD)
     mLUMO = minval(nOccUD) + 1
 
-    mnVir = maxval(nVirUD)
-    nXoo_max = (mHOMO * (mHOMO + 1)) / 2
-    nXvv_max = (mnVir * (mnVir + 1)) / 2
+    ! Dimension of getIJ and getAB
+    nXooUD(:) = 0
+    nXvvUD(:) = 0
+    do iSpin = 1, nSpin
+       nXooUD(iSpin) = (nOccUD(iSpin) * (nOccUD(iSpin) + 1))/2
+       nXvvUD(iSpin) = (nVirUD(iSpin) * (nVirUD(iSpin) + 1))/2
+    enddo
+    nXoo2 = sum(nxooUD)
+    nXvv2 = sum(nxvvUD)
+    nXoo_max = maxval(nxooUD)
+    nXvv_max = maxval(nxvvUD)
 
     if (nExc + 1 >= nXov) then
       write(tmpStr,"(' Insufficent single particle excitations, ', I0,&
@@ -977,8 +985,8 @@ contains
     allocate(win(nXov))
     allocate(eval(nExc))
     allocate(getIA(nXov, 3))
-    allocate(getIJ(nXoo_max, 3))
-    allocate(getAB(nXvv_max, 3))
+    allocate(getIJ(nXoo2, 3))
+    allocate(getAB(nXvv2, 3))
     allocate(transitionDipoles(nXov, 3))
     allocate(snglPartOscStrength(nXov))
 

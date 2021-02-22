@@ -756,7 +756,7 @@ contains
     integer, intent(out) :: getab(:,:)
 
     integer :: ind, ii, jj, aa, bb
-    integer :: norb, iSpin, nSpin, nOcc(2)
+    integer :: norb, iSpin, nSpin, nOcc(2), nVrt(2)
 
     @:ASSERT(all(shape(grndEigVal)==shape(filling)))
 
@@ -778,10 +778,13 @@ contains
     end do
     
     nOcc(:) = 0
+    nVrt(:) = 0
     do iSpin = 1, nSpin
        do ii = 1, norb
           if (filling(ii,iSpin) > elecTolMax) then
              nOcc(iSpin) = nOcc(iSpin) + 1
+          else
+             nVrt(iSpin) = nVrt(iSpin) + 1
           end if
        end do
     end do

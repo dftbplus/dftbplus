@@ -170,11 +170,11 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    integer :: mnvir, nxoo_max, nxvv_max
+    integer :: nxoo_max, nxvv_max
     integer, allocatable :: nocc_ud(:), nvir_ud(:)
     integer :: mHOMO, mLUMO
-    integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
-    integer :: norb
+    integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
+    integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nSpin
     character :: sym
@@ -287,9 +287,17 @@ contains
     mHOMO = maxval(nocc_ud)
     mLUMO = minval(nocc_ud) + 1
 
-    mnvir = maxval(nvir_ud)
-    nxoo_max = (mHOMO * (mHOMO + 1)) / 2
-    nxvv_max = (mnvir * (mnvir + 1)) / 2
+    ! Dimension of getIJ and getAB
+    nxoo_ud(:) = 0
+    nxvv_ud(:) = 0
+    do iSpin = 1, nSpin
+       nxoo_ud(iSpin) = (nocc_ud(iSpin) * (nocc_ud(iSpin) + 1))/2
+       nxvv_ud(iSpin) = (nvir_ud(iSpin) * (nvir_ud(iSpin) + 1))/2
+    enddo
+    nxoo = sum(nxoo_ud)
+    nxvv = sum(nxvv_ud)
+    nxoo_max = maxval(nxoo_ud)
+    nxvv_max = maxval(nxvv_ud)
 
     if (this%nExc + 1 >= nxov) then
       write(tmpStr,"(' Insufficent single particle excitations, ',I0,&
@@ -349,8 +357,8 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getia(nxov, 3))
-    ALLOCATE(getij(nxoo_max, 3))
-    ALLOCATE(getab(nxvv_max, 3))
+    ALLOCATE(getij(nxoo, 3))
+    ALLOCATE(getab(nxvv, 3))
     ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
 
