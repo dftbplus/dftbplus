@@ -27,18 +27,32 @@ module dftbp_transcharges
     !> storage if caching the occupied -> virtual transition charges
     real(dp), allocatable :: qCacheOccVirt(:,:)
 
-    !> Number of transitions in the cache
+    !> storage if caching the occupied -> occupied transition charges
+    real(dp), allocatable :: qCacheOccOcc(:,:)
+
+    !> storage if caching the virtual -> virtual transition charges
+    real(dp), allocatable :: qCacheVirVir(:,:)
+
+    !> Number of occ-vir transitions in the cache
     integer :: nTransitions
 
     !> Number of atoms in the system
     integer :: nAtom
 
-    !> Number of transitions within the spin-up block
+    !> Number of occ-vir transitions within the spin-up block
     integer :: nMatUp
+
+    !> Number of occ-occ transitions within the spin-up block
+    integer :: nMatUpOccOcc
+
+    !> Number of vir-vir transitions within the spin-up block
+    integer :: nMatUpVirVir
 
   contains
 
     procedure :: qTransIA =>TTransCharges_qTransIA
+    procedure :: qTransIJ =>TTransCharges_qTransIJ
+    procedure :: qTransAB =>TTransCharges_qTransAB
     procedure :: qMatVec => TTransCharges_qMatVec
     procedure :: qVecMat => TTransCharges_qVecMat
     procedure :: qMatVecDs => TTransCharges_qMatVecDs
@@ -51,7 +65,7 @@ contains
 
   !> initialise the cache/on-the fly transition charge evaluator
   subroutine TTransCharges_init(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
-      & getia, win, tStore)
+      & nXooUD, nXvvUD, getia, getij, getab, win, tStore)
 
     !> Instance
     type(TTransCharges), intent(out) :: this
@@ -68,24 +82,38 @@ contains
     !> number of transitions in the system
     integer, intent(in) :: nTrans
 
-    !> number of up-up excitations
+    !> number of up-up occ-vir excitations
     integer, intent(in) :: nMatUp
+
+    !> number of occ-occ excitations per spin channel
+    integer, intent(in) :: nXooUD(:)
+
+    !> number of vir-vir excitations per spin channel
+    integer, intent(in) :: nXvvUD(:)
 
     !> should transitions be stored?
     logical, intent(in) :: tStore
 
-    !> index array for for single particle excitations
+    !> index array for occ-vir single particle excitations
     integer, intent(in) :: getia(:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> index array for vir-vir single particle excitations
+    integer, intent(in) :: getab(:,:)
 
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
 
-    integer :: ij, ii, jj, kk
+    integer :: ij, ii, jj, kk, ab, aa, bb
     logical :: updwn
 
     this%nTransitions = nTrans
     this%nAtom = size(iAtomStart) - 1
     this%nMatUp = nMatUp
+    this%nMatUpOccOcc = nXooUD(1)
+    this%nMatUpVirVir = nXvvUD(1)
 
     if (tStore) then
 
@@ -104,6 +132,23 @@ contains
       end do
       !!$OMP  END PARALLEL DO
 
+      do ij = 1, sum(nXooUD)
+        print *,'Creation: compound index, individuals ', ij, ii, jj
+        ii = getij(ij,1)
+        jj = getij(ij,2)
+        updwn = (ij <= nXooUD(1))
+        this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
+            & grndEigVecs)
+      end do
+
+      do ab = 1, sum(nXvvUD)
+        aa = getab(ab,1)
+        bb = getab(ab,2)
+        updwn = (ab <= nXvvUD(1))
+        this%qCacheVirVir(:,ab) = transq(aa, bb, iAtomStart, updwn,  sTimesGrndEigVecs,&
+            & grndEigVecs)
+      end do
+
       this%tCacheCharges = .true.
 
     else
@@ -115,7 +160,7 @@ contains
   end subroutine TTransCharges_init
 
 
-  !> returns transtion charges between single particle levels
+  !> returns transition charges between occ-vir single particle levels
   pure function TTransCharges_qTransIA(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win) result(q)
 
@@ -157,6 +202,84 @@ contains
     end if
 
   end function TTransCharges_qTransIA
+
+  !> returns transition charges between occ-occ single particle levels
+  pure function TTransCharges_qTransIJ(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij)&
+      & result(q)
+
+    !> instance of the transition charge object
+    class(TTransCharges), intent(in) :: this
+
+    !> Index of transition
+    integer, intent(in) :: ij
+
+    !> Starting position of each atom in the list of orbitals
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> Transition charge on exit. (nAtom)
+    real(dp), dimension(size(iAtomStart)-1) :: q
+
+    logical :: updwn
+    integer :: ii, jj
+
+    if (allocated(this%qCacheOccOcc)) then
+      q(:) = this%qCacheOccOcc(:, ij)
+    else
+      ii = getij(ij,1)
+      jj = getij(ij,2)
+      updwn = (ij <= this%nMatUpOccOcc)
+      q(:) = transq(ii, jj, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs)
+    end if
+
+  end function TTransCharges_qTransIJ
+
+  !> returns transition charges between vir-vir single particle levels
+  pure function TTransCharges_qTransAB(this, ab, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getab)&
+      & result(q)
+
+    !> instance of the transition charge object
+    class(TTransCharges), intent(in) :: this
+
+    !> Index of transition
+    integer, intent(in) :: ab
+
+    !> Starting position of each atom in the list of orbitals
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getab(:,:)
+
+    !> Transition charge on exit. (nAtom)
+    real(dp), dimension(size(iAtomStart)-1) :: q
+
+    logical :: updwn
+    integer :: aa, bb
+
+    if (allocated(this%qCacheVirVir)) then
+      q(:) = this%qCacheVirVir(:, ab)
+    else
+      aa = getab(ab,1)
+      bb = getab(ab,2)
+      updwn = (ab <= this%nMatUpVirVir)
+      q(:) = transq(aa, bb, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs)
+    end if
+
+  end function TTransCharges_qTransAB
 
 
   !> Transition charges left producted with a vector Q * v

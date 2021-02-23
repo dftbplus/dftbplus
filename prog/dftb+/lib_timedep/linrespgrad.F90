@@ -447,9 +447,8 @@ contains
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
     end if
 
-    call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getia,&
-        & win, this%tCacheCharges)
-
+    call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), &
+        & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
 
     if (this%fdXplusY >  0) then
       open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")

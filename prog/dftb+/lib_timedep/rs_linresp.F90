@@ -1075,7 +1075,9 @@ contains
     nXovRD = max(nXovRD, min(nExc+1, nXov))
 
     call TTransCharges_init(transChrg, iAtomStart, sTimesGrndEigVecs, grndEigVecs,&
-        & nXovRD, nXovUD(1), getIA, win, tCacheCharges)
+        & nXovRD, nXovUD(1), nXooUD, nXvvUD, getIA, getIJ, getAB, win, tCacheCharges)
+
+    print *,'Tst1: ', tCacheCharges
 
     !if (nStat == 0) then
     !  if(tTrans) then
@@ -1163,8 +1165,9 @@ contains
       cSym2 = symmetries(isym)
 
       call rsLinRespCalc(tZVector, tTransQ, wIJ, nExc, cSym2, win, nXovUD(1), nXovRD, nOcc, nOccR,&
-          & nVirR, iAtomStart, sTimesGrndEigVecs, grndEigVecs, filling, getIA, iaTrans, gamma,&
-          & lrGamma, species0, spinW, eval, evec, allXpY, nStat, vecXmY, tQov, tQoo, tQvv)
+          & nVirR, iAtomStart, sTimesGrndEigVecs, grndEigVecs, filling, getIA, getIJ, getAB, &
+          & iaTrans, gamma, lrGamma, species0, spinW, eval, evec, allXpY, nStat, vecXmY, tQov, &
+          & tQoo, tQvv, transChrg)
 
       call getOscillatorStrengthsRS(cSym2, snglPartTransDip(1:nXovRD,:), eval, allXpY, filling,&
           & nStat, oscStrength, tTraDip, transitionDipoles)
@@ -1248,8 +1251,10 @@ contains
 
   !> Perform linear response calculation with algorithm by Stratmann and Scuseria (JCP 1998)
   subroutine rsLinRespCalc(tZVector, tTransQ, wIJ, nExc, cSym, win, nMatUp, nXov, homo, nOcc,&
-      & nVir, iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIA, iaTrans, gamma, lrGamma,&
-      & species0, spinW, eval, evec, vecXpY, nStat, vecXmY, tQov, tQoo, tQvv)
+      & nVir, iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIA, getIJ, getAB, iaTrans, &
+      & gamma, lrGamma, species0, spinW, eval, evec, vecXpY, nStat, vecXmY, tQov, tQoo, tQvv, &
+      & transChrg)
+    type(TTransCharges) :: transChrg
     logical, intent(in) :: tZVector, tTransQ
     real(dp),intent(in) :: wIJ(:)
     character, intent(in) :: cSym
@@ -1258,7 +1263,7 @@ contains
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
-    integer, intent(in) :: getIA(:,:), species0(:)
+    integer, intent(in) :: getIA(:,:), getIJ(:,:), getAB(:,:), species0(:)
     integer, intent(in) :: iaTrans(1:,homo+1:,:) ! needed in fast setup of init mat
     real(dp), intent(in) :: spinW(:)
     integer, intent(in) :: nStat
@@ -1341,6 +1346,10 @@ contains
       qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
       tQvv(:,ab) = qIJ
     end do
+
+    ! Test cached charges
+    call chargeTestRS(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nVir, nOcc, &
+    &  nMatUp, homo, gamma, getia, getij, getab, transChrg) 
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
@@ -3217,5 +3226,44 @@ contains
     deallocate(Gq)
 
   end subroutine getHooT
+
+  subroutine chargeTestRS(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nVir, nOcc, &
+    &  nMatUp, homo, gamma, getia, getij, getab, transChrg)
+    integer, intent(in) :: win(:), nMatUp, homo, nOcc, nVir, iAtomStart(:), getia(:,:), getij(:,:), getab(:,:)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:)
+    type(TTransCharges) :: transChrg
+    integer ia, ii, aa, ss, ij, jj, ab, bb
+    real(dp), allocatable :: qIJ(:), qCache(:)
+    logical lUpdwn
+    real(dp) maxdev
+
+    allocate(qIJ(size(gamma, dim=1)))
+    allocate(qCache(size(gamma, dim=1)))
+
+    maxdev = 0._dp
+    do ia = 1, nVir * nOcc
+      call indXov(win, ia, getIA, ii, aa, ss)
+      lUpdwn = (win(ia) <= nMatUp)
+      qIJ = transQ(ii, aa, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      qCache = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia, win)
+      if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+         maxdev = maxval(abs(qIJ-qCache))
+      endif
+    end do
+    print *,'Max. deviation occ-virt trans charges: ', maxdev
+    do ij = 1, nOcc * (nOcc + 1) / 2
+      call indXoo(ij, ii, jj)
+      print *,'compound index, individuals ', ij, ii, jj
+      lUpdwn = .true. ! UNTESTED
+      qIJ = transQ(ii, jj, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      qCache = transChrg%qTransIJ(ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij)
+      print *,qIJ(1), qCache(1),'oo'
+    end do
+    do ab = 1, nVir * (nVir + 1) / 2
+      call indXvv(homo, ab, aa, bb)
+      lUpdwn = .true. ! UNTESTED
+      qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+    end do
+  end subroutine chargeTestRS
 
 end module dftbp_rs_linearresponse
