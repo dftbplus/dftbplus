@@ -166,7 +166,6 @@ contains
     type(TToken_) :: token
 
     @:ASSERT(size(selectionRange) == 2)
-    @:ASSERT(all(selectionRange > 0))
     @:ASSERT(selectionRange(2) >= selectionRange(1))
     @:ASSERT(present(speciesNames) .eqv. present(species))
 
@@ -191,54 +190,65 @@ contains
       selection%backwardIndexing = backwardIndexing
     end if
 
-    selected(:) = .false.
     call TTokenizer_init(tokenizer, expression)
     call tokenizer%getNextToken(token)
-    call evalExpression_(selection, tokenizer, token, selected, status)
+    selected(:) = .false.
+    call evalExpression_(selection, 1, tokenizer, token, selected, status)
     @:PROPAGATE_ERROR(status)
 
   end subroutine getIndexSelection
 
 
   !> Evaluates a selection expression.
-  subroutine evalExpression_(selection, tokenizer, token, selected, status)
+  subroutine evalExpression_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
+    integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
-    logical, intent(inout) :: selected(:)
+    logical, intent(out) :: selected(:)
     type(TStatus), intent(inout) :: status
 
-    call evalAdditiveTerm_(selection, tokenizer, token, selected, status)
+    logical, allocatable :: buffer(:)
+
+    call evalAdditiveTerm_(selection, level, tokenizer, token, selected, status)
     @:PROPAGATE_ERROR(status)
     ! Apply implicit OR operator if next token is of appropriate type
-    do while (any(token%type == [tokenTypes_%not, tokenTypes_%selector, tokenTypes_%open]))
-      call evalAdditiveTerm_(selection, tokenizer, token, selected, status)
-      @:PROPAGATE_ERROR(status)
-    end do
+    if (any(token%type == [tokenTypes_%not, tokenTypes_%selector, tokenTypes_%open])) then
+      allocate(buffer(size(selected)))
+      do while (any(token%type == [tokenTypes_%not, tokenTypes_%selector, tokenTypes_%open]))
+        call evalAdditiveTerm_(selection, level, tokenizer, token, buffer, status)
+        selected(:) = selected .or. buffer
+        @:PROPAGATE_ERROR(status)
+      end do
+    end if
+    if (level == 1 .and. token%type /= tokenTypes_%empty) then
+      @:RAISE_FORMATTED_ERROR(status, errors%syntaxError,&
+          & "('Unexpected token ''', A, ''' found')", token%content)
+    end if
 
   end subroutine evalExpression_
 
 
   !> Evaluetes an additive term.
-  subroutine evalAdditiveTerm_(selection, tokenizer, token, selected, status)
+  subroutine evalAdditiveTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
+    integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
-    logical, intent(inout) :: selected(:)
+    logical, intent(out) :: selected(:)
     type(TStatus), intent(inout) :: status
 
     logical, allocatable :: buffer(:)
 
-    call evalMultiplicativeTerm_(selection, tokenizer, token, selected, status)
+    call evalMultiplicativeTerm_(selection, level, tokenizer, token, selected, status)
     @:PROPAGATE_ERROR(status)
     if (token%type == tokenTypes_%and) then
       allocate(buffer(size(selected)))
       do while (token%type == tokenTypes_%and)
         call tokenizer%getNextToken(token)
-        buffer(:) = .false.
-        call evalMultiplicativeTerm_(selection, tokenizer, token, buffer, status)
-        @:PROPAGATE_ERROR(status)
+        call evalMultiplicativeTerm_(selection, level, tokenizer, token, buffer, status)
         selected(:) = selected .and. buffer
+        @:PROPAGATE_ERROR(status)
       end do
     end if
 
@@ -246,23 +256,24 @@ contains
 
 
   !> Evaluates a multiplicative term.
-  subroutine evalMultiplicativeTerm_(selection, tokenizer, token, selected, status)
+  subroutine evalMultiplicativeTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
+    integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
-    logical, intent(inout) :: selected(:)
+    logical, intent(out) :: selected(:)
     type(TStatus), intent(inout) :: status
 
     logical, allocatable :: buffer(:)
 
     if (token%type == tokenTypes_%not) then
       call tokenizer%getNextToken(token)
-      allocate(buffer(size(selected)), source=.false.)
-      call evalTerm_(selection, tokenizer, token, buffer, status)
+      allocate(buffer(size(selected)))
+      call evalTerm_(selection, level, tokenizer, token, buffer, status)
       @:PROPAGATE_ERROR(status)
-      selected(:) = selected .or. .not. buffer
+      selected(:) = .not. buffer
     else
-      call evalTerm_(selection, tokenizer, token, selected, status)
+      call evalTerm_(selection, level, tokenizer, token, selected, status)
       @:PROPAGATE_ERROR(status)
     end if
 
@@ -270,21 +281,23 @@ contains
 
 
   !> Evaluates a simple term.
-  subroutine evalTerm_(selection, tokenizer, token, selected, status)
+  subroutine evalTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
+    integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
-    logical, intent(inout) :: selected(:)
+    logical, intent(out) :: selected(:)
     type(TStatus), intent(inout) :: status
 
     if (token%type == tokenTypes_%empty) then
+      selected(:) = .false.
       return
     else if (token%type == tokenTypes_%selector) then
       call evalSelector_(token%content, selection, selected, status)
       @:PROPAGATE_ERROR(status)
     else if (token%type == tokenTypes_%open) then
       call tokenizer%getNextToken(token)
-      call evalExpression_(selection, tokenizer, token, selected, status)
+      call evalExpression_(selection, level + 1, tokenizer, token, selected, status)
       @:PROPAGATE_ERROR(status)
       if (token%type /= tokenTypes_%close) then
         @:RAISE_ERROR(status, errors%syntaxError, "Missing closing paranthesis ')'")
@@ -311,6 +324,8 @@ contains
 
     firstChar = selector(1:1)
     iFirstChar = ichar(firstChar)
+
+    selected(:) = .false.
 
     ! Numerical index value
     if (iFirstChar  >= ichar('0') .and. iFirstChar <= ichar('9') .or. firstChar == '-') then
