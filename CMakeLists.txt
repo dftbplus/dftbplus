@@ -156,12 +156,12 @@ endif()
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
   set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
-  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
+  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
   # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
   find_package(CustomScalapack REQUIRED)
-  
+
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
   set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
@@ -188,6 +188,13 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
+# FyTest currently can only be integrated as a submodule
+if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
+  set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")
+  set(FYTEST_GIT_TAG "94e05acb31e78da1180845e345e542a1a28577d4")  # do not change manually!
+  dftbp_config_hybrid_dependency(Fytest FyTest::FyTest "Submodule" "QUIET"
+  external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
+endif()
 
 #
 # Add internal components
@@ -211,7 +218,7 @@ endif()
 
 #
 # Export package info
-# 
+#
 if(WITH_API)
   include(CMakePackageConfigHelpers)
 
@@ -223,7 +230,7 @@ if(WITH_API)
     FILE dftbplus-targets.cmake
     NAMESPACE DftbPlus::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus")
-  
+
   configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/export/dftbplus-config.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config.cmake
@@ -249,5 +256,5 @@ if(WITH_API)
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-  
+
 endif()

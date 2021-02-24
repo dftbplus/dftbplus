@@ -14,3 +14,6 @@
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git
         branch = master
+[submodule "external/fytest/origin"]
+	path = external/fytest/origin
+	url = https://github.com/aradi/fytest.git

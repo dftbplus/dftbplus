@@ -200,7 +200,7 @@ contains
 
 
   !> Evaluates a selection expression.
-  subroutine evalExpression_(selection, level, tokenizer, token, selected, status)
+  recursive subroutine evalExpression_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
@@ -230,7 +230,7 @@ contains
 
 
   !> Evaluetes an additive term.
-  subroutine evalAdditiveTerm_(selection, level, tokenizer, token, selected, status)
+  recursive subroutine evalAdditiveTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
@@ -256,7 +256,7 @@ contains
 
 
   !> Evaluates a multiplicative term.
-  subroutine evalMultiplicativeTerm_(selection, level, tokenizer, token, selected, status)
+  recursive subroutine evalMultiplicativeTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
@@ -281,7 +281,7 @@ contains
 
 
   !> Evaluates a simple term.
-  subroutine evalTerm_(selection, level, tokenizer, token, selected, status)
+  recursive subroutine evalTerm_(selection, level, tokenizer, token, selected, status)
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
