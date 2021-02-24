@@ -61,11 +61,11 @@ contains
     real(dp), intent(in) :: tol
 
     !> Real, dimension(n), input, right-hand side of the linear system
-    real(dp), intent(in) :: rhs(n)
+    real(dp), intent(in) :: rhs(:, :)
 
     !> Real, dimension(n). In input, a guess of the solution (can be zero).
     !  In output, the solution
-    real(dp), intent(inout) :: x(n)
+    real(dp), intent(inout), contiguous, target :: x(:, :)
 
     !> Integer, in input, the maximum number of iterations. In output,
     !  the number of iterations needed to converge.
@@ -90,7 +90,9 @@ contains
     real(dp) :: rms_norm, max_norm, tol_max
     logical :: dodiis
 
-    real(dp), allocatable :: x_new(:), y(:), x_diis(:, :), e_diis(:, :), bmat(:, :)
+    real(dp), allocatable :: y(:, :), x_diis(:, :), e_diis(:, :), bmat(:, :)
+    real(dp), allocatable, target :: x_new(:, :)
+    real(dp), pointer :: xptr(:)
 
     character(len=*), parameter :: f100 = "(t3, 'iter=', i4, ' residual norm (rms, max): ', 2d14.4)"
     character(len=*), parameter :: f110 = "(t3, 'iter=', i4, ' residual norm (', a, '): ', d14.4)"
@@ -120,7 +122,8 @@ contains
     end if
 
     ! allocate workspaces
-    allocate(x_new(n), y(n))
+    allocate(x_new, mold=rhs)
+    allocate(y, mold=rhs)
 
     ! Jacobi iterations
     do it = 1, n_iter
@@ -134,10 +137,11 @@ contains
 
       ! DIIS extrapolation
       if (dodiis) then
-        x_diis(:, nmat) = x_new
-        e_diis(:, nmat) = x_new - x
+        x_diis(:, nmat) = reshape(x_new, [size(x_new)])
+        e_diis(:, nmat) = reshape(x_new - x, [size(x_new)])
 
-        call diis(n, nmat, diis_max, x_diis, e_diis, bmat, x_new)
+        xptr(1:size(x_new)) => x_new
+        call diis(n, nmat, diis_max, x_diis, e_diis, bmat, xptr)
       end if
 
       ! increment
@@ -147,7 +151,8 @@ contains
       if (norm <= 3) then
 
         ! compute norm
-        call rmsvec(n, x, rms_norm, max_norm)
+        xptr(1:size(x)) => x
+        call rmsvec(n, xptr, rms_norm, max_norm)
 
         ! check norm
         if (norm == 1) then
@@ -212,7 +217,7 @@ contains
     integer :: j, k
     logical :: ok
 
-    real(dp), allocatable :: bloc(:, :), cex(:)
+    real(dp), allocatable :: bloc(:, :), cex(:, :)
 
     if (nmat >= ndiis) then
       do j = 2, nmat - 10
@@ -227,7 +232,7 @@ contains
       nmat = nmat - 10
     end if
     nmat1 = nmat + 1
-    allocate(bloc(nmat1, nmat1), cex(nmat1), stat=istatus)
+    allocate(bloc(nmat1, nmat1), cex(nmat1, 1), stat=istatus)
     if (istatus /= 0) then
       nmat = 1
       return
@@ -235,16 +240,17 @@ contains
 
     call makeb(n, nmat, ndiis, e, b)
     bloc = b(1:nmat1, 1:nmat1)
-    cex = 0.0_dp
-    cex(1) = 1.0_dp
+    cex(:, :) = 0.0_dp
+    cex(1, 1) = 1.0_dp
     call gjinv(nmat1, 1, bloc, cex, ok)
     if (.not. ok) then
       nmat = 1
+      error stop "Upps!"
       return
     end if
     xnew = 0.0_dp
     do i = 1, nmat
-      xnew = xnew + cex(i+1)*x(:, i)
+      xnew = xnew + cex(i+1, 1)*x(:, i)
     end do
     nmat = nmat + 1
 
@@ -288,8 +294,8 @@ contains
   pure subroutine gjinv(n, nrhs, a, b, ok)
     integer, intent(in) :: n, nrhs
     logical, intent(inout) :: ok
-    real(dp), intent(inout) :: a(n, n)
-    real(dp), intent(inout) :: b(n, nrhs)
+    real(dp), intent(inout) :: a(:, :) ! [n, n]
+    real(dp), intent(inout) :: b(:, :) ! [n, nrhs]
 
     integer :: i, j, k, irow, icol, istatus
     real(dp) :: big, dum, pinv
@@ -413,8 +419,8 @@ contains
 
     type(TDomainDecomposition), intent(in) :: ddCosmo
     integer, intent(in) :: n
-    real(dp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+    real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    real(dp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
     integer :: iat, istatus
     real(dp), allocatable :: pot(:), vplm(:), basloc(:), vcos(:), vsin(:)
@@ -426,10 +432,10 @@ contains
     if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
     ! initialize
-    y = 0.0_dp
+    y(:, :) = 0.0_dp
 
-    !$omp parallel do default(shared) private(iat, pot, basloc, vplm, vcos, vsin) &
-    !$omp schedule(dynamic)
+    !$omp parallel do default(none) schedule(runtime) shared(ddCosmo, y) &
+    !$omp private(iat, pot, basloc, vplm, vcos, vsin)
     ! loop over spheres
     do iat = 1, ddCosmo%nat
 
@@ -454,8 +460,8 @@ contains
 
     type(TDomainDecomposition), intent(in) :: ddCosmo
     integer, intent(in) :: n
-    real(dp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+    real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    real(dp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
     integer :: iat, ig, istatus
     real(dp), allocatable :: xi(:, :), vplm(:), basloc(:), vcos(:), vsin(:)
@@ -467,10 +473,11 @@ contains
     if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
     ! initilize
-    y = 0.0_dp
+    y(:, :) = 0.0_dp
 
     ! expand x over spherical harmonics
-    !$omp parallel do default(shared) private(iat, ig)
+    !$omp parallel do default(none) schedule(runtime) collapse(2) &
+    !$omp shared(ddCosmo, xi, x) private(iat, ig)
     ! loop over spheres
     do iat = 1, ddCosmo%nat
       ! loop over gridpoints
@@ -480,8 +487,8 @@ contains
     end do
 
     ! compute action
-    !$omp parallel do default(shared) private(iat, basloc, vplm, vcos, vsin) &
-    !$omp schedule(dynamic)
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp shared(ddCosmo, xi, y) private(iat, basloc, vplm, vcos, vsin)
     ! loop over spheres
     do iat = 1, ddCosmo%nat
 
@@ -502,8 +509,8 @@ contains
   pure subroutine ldm1x(ddCosmo, n, x, y)
     type(TDomainDecomposition), intent(in) :: ddCosmo
     integer, intent(in) :: n
-    real(dp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+    real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    real(dp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
     integer :: iat
 
@@ -521,7 +528,7 @@ contains
   real(dp) function hnorm(ddCosmo, n, x)
     type(TDomainDecomposition), intent(in) :: ddCosmo
     integer, intent(in) :: n
-    real(dp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+    real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
     integer :: iat, istatus
     real(dp) :: vrms, vmax
     real(dp), allocatable :: u(:)

@@ -158,7 +158,8 @@ contains
 
     ! build a basis of spherical harmonics at the gridpoints:
     allocate(vplm(self%nylm), vcos(self%lmax+1), vsin(self%lmax+1))
-    !$omp parallel do default(shared) private(i, vplm, vcos, vsin)
+    !$omp parallel do default(none) schedule(runtime) &
+    !$omp shared(self) private(i, vplm, vcos, vsin)
     do i = 1, self%ngrid
       call ylmbas(self, self%grid(:, i), self%basis(:, i), vplm, vcos, vsin)
     end do
@@ -281,8 +282,8 @@ contains
     self%ui = 0.0_dp
     if (self%grad) self%zi = 0.0_dp
 
-    !$omp parallel do default(shared) &
-    !$omp private(iat, i, ii, jat, v, vv, t, xt, swthr, fac)
+    !$omp parallel do default(none) schedule(runtime) collapse(2) &
+    !$omp shared(self) private(iat, i, ii, jat, v, vv, t, xt, swthr, fac)
     ! loop over spheres
     do iat = 1, self%nat
 
@@ -323,7 +324,6 @@ contains
         if (self%fi(i, iat) <= 1.0_dp)  self%ui(i, iat) = 1.0_dp - self%fi(i, iat)
       end do
     end do
-    !$omp end parallel do
 
     if (self%iprint >= 4) then
       call ptcart(self, 'fi', self%nat, 0, self%fi)
@@ -594,8 +594,8 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     integer, intent(in) :: iat
-    real(dp), intent(in) :: x(self%ngrid)
-    real(dp), intent(inout) :: xlm(self%nylm)
+    real(dp), intent(in) :: x(:) ! [self%ngrid]
+    real(dp), intent(inout) :: xlm(:) ! [self%nylm]
 
     integer :: ig
 
@@ -620,9 +620,9 @@ contains
   pure subroutine ylmbas(self, x, basloc, vplm, vcos, vsin)
 
     type(TDomainDecomposition), intent(in) :: self
-    real(dp), intent(in) :: x(3)
-    real(dp), intent(out) :: basloc(self%nylm), vplm(self%nylm)
-    real(dp), intent(out) :: vcos(self%lmax+1), vsin(self%lmax+1)
+    real(dp), intent(in) :: x(:) ! [3]
+    real(dp), intent(out) :: basloc(:), vplm(:) ! [self%nylm]
+    real(dp), intent(out) :: vcos(:), vsin(:) ! [self%lmax+1]
 
     integer :: l, m, ind
     real(dp) :: cthe, sthe, cphi, sphi, plm
@@ -684,10 +684,10 @@ contains
   pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
 
     type(TDomainDecomposition), intent(in) :: self
-    real(dp), intent(in) :: x(3)
-    real(dp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-    real(dp), intent(inout) :: dbsloc(3, self%nylm)
-    real(dp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
+    real(dp), intent(in) :: x(:) ! [3]
+    real(dp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+    real(dp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+    real(dp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
 
     integer :: l, m, ind, VC, VS
     real(dp) :: cthe, sthe, cphi, sphi, plm, fln, pp1, pm1, pp
@@ -734,8 +734,8 @@ contains
       call trgev(self, cphi, sphi, vcos, vsin)
     else
       ! NORTH or SOUTH pole
-      vcos = 1.0_dp
-      vsin = 0.0_dp
+      vcos(:) = 1.0_dp
+      vsin(:) = 0.0_dp
     end if
     VC=0.0_dp
     VS=cthe
@@ -803,7 +803,7 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     real(dp), intent(in) :: x, y
-    real(dp), intent(inout) :: plm(self%nylm)
+    real(dp), intent(inout) :: plm(:) ! [self%nylm]
 
     integer :: m, ind, l, ind2
     real(dp) :: fact, pmm, somx2, pmm1, pmmo, pll, fm, fl
@@ -841,7 +841,7 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     real(dp), intent(in) :: x, y
-    real(dp), intent(inout) :: cx(max((self%lmax+1), 2)), sx(max((self%lmax+1), 2))
+    real(dp), intent(inout) :: cx(:), sx(:) ! [max((self%lmax+1), 2)]
 
     integer :: m
 
@@ -867,7 +867,7 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     real(dp), intent(in) :: t
-    real(dp), intent(in) :: sigma(self%nylm), basloc(self%nylm)
+    real(dp), intent(in) :: sigma(:), basloc(:) ! [self%nylm]
     real(dp) :: intmlp
 
     integer :: l, ind
@@ -904,8 +904,8 @@ contains
   subroutine wghpot(self, phi, g)
 
     type(TDomainDecomposition), intent(in) :: self
-    real(dp), intent(in)  :: phi(self%ncav)
-    real(dp), intent(out) :: g(self%ngrid, self%nat)
+    real(dp), intent(in)  :: phi(:) ! [self%ncav]
+    real(dp), intent(out) :: g(:, :) ! [self%ngrid, self%nat]
 
     integer :: iat, ig, ic
 
@@ -997,10 +997,10 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     integer, intent(in) :: iat
-    real(dp), intent(in) :: xi(self%ngrid, self%nat)
-    real(dp), intent(inout) :: vlm(self%nylm)
-    real(dp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-    real(dp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
+    real(dp), intent(in) :: xi(:, :) ! [self%ngrid, self%nat]
+    real(dp), intent(inout) :: vlm(:) ! [self%nylm]
+    real(dp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+    real(dp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
 
     integer :: ij, jat, ig, l, ind, m
     real(dp) :: vji(3), vvji, tji, sji(3), xji, oji, fac, ffac, t
@@ -1099,12 +1099,12 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     integer, intent(in) :: iat
-    real(dp), intent(in) :: sigma(self%nylm, self%nat)
-    real(dp), intent(in) :: xi(self%ngrid)
-    real(dp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-    real(dp), intent(inout) :: dbsloc(3, self%nylm)
-    real(dp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
-    real(dp), intent(inout) :: fx(3)
+    real(dp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+    real(dp), intent(in) :: xi(:) ! [self%ngrid]
+    real(dp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+    real(dp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+    real(dp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
+    real(dp), intent(inout) :: fx(:) ! [3]
 
     integer :: ig, ij, jat, l, ind, m
     real(dp) :: vvij, tij, xij, oij, t, fac, fl, f1, f2, f3, beta, tlow, thigh
@@ -1167,12 +1167,12 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     integer, intent(in) :: iat
-    real(dp), intent(in) :: sigma(self%nylm, self%nat)
-    real(dp), intent(in) :: xi(self%ngrid, self%nat)
-    real(dp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-    real(dp), intent(inout) :: dbsloc(3, self%nylm)
-    real(dp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
-    real(dp), intent(inout) :: fx(3)
+    real(dp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+    real(dp), intent(in) :: xi(:, :) ! [self%ngrid, self%nat]
+    real(dp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+    real(dp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+    real(dp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
+    real(dp), intent(inout) :: fx(:) ! [3]
 
     integer :: ig, ji, jat, l, ind, m, jk, kat
     logical :: proc
@@ -1269,8 +1269,8 @@ contains
 
     type(TDomainDecomposition), intent(in) :: self
     integer, intent(in) :: iat
-    real(dp), intent(in) :: xi(self%ngrid, self%nat), phi(self%ngrid, self%nat)
-    real(dp), intent(inout) :: fx(3)
+    real(dp), intent(in) :: xi(:, :), phi(:, :) ! [self%ngrid, self%nat]
+    real(dp), intent(inout) :: fx(:) ! [3]
 
     integer :: ig, ji, jat
     real(dp) :: vvji, tji, fac, swthr
@@ -1321,12 +1321,12 @@ contains
     type(TDomainDecomposition), intent(in) :: self
     logical, intent(in) :: first
     integer, intent(in) :: iat
-    real(dp), intent(in) :: sigma(self%nylm, self%nat)
-    real(dp), intent(inout) :: pot(self%ngrid)
-    real(dp), intent(inout) :: basloc(self%nylm)
-    real(dp), intent(inout) :: vplm(self%nylm)
-    real(dp), intent(inout) :: vcos(self%lmax+1)
-    real(dp), intent(inout) :: vsin(self%lmax+1)
+    real(dp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+    real(dp), intent(inout) :: pot(:) ! [self%ngrid]
+    real(dp), intent(inout) :: basloc(:) ! [self%nylm]
+    real(dp), intent(inout) :: vplm(:) ! [self%nylm]
+    real(dp), intent(inout) :: vcos(:) ! [self%lmax+1]
+    real(dp), intent(inout) :: vsin(:) ! [self%lmax+1]
 
     integer :: its, ij, jat
     real(dp) :: vij(3), sij(3)
@@ -1400,8 +1400,8 @@ contains
   pure subroutine ddmkxi(self, s, xi)
 
     type(TDomainDecomposition), intent(in) :: self
-    real(dp), intent(in) :: s(self%nylm, self%nat)
-    real(dp), intent(inout) :: xi(self%ncav)
+    real(dp), intent(in) :: s(:, :) ! [self%nylm, self%nat]
+    real(dp), intent(inout) :: xi(:) ! [self%ncav]
 
     integer :: its, iat, ii
 

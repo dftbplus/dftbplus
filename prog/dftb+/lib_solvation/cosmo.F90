@@ -317,7 +317,7 @@ contains
 
     integer :: ii, iat, ig
     real(dp) :: xx(1), esolv, keps
-    real(dp), allocatable :: fx(:, :), zeta(:), ef(:, :)
+    real(dp), allocatable :: fx(:, :), zeta(:), ef1(:, :), ef2(:, :)
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
@@ -326,17 +326,20 @@ contains
     keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
 
     allocate(fx(3, this%nAtom), zeta(this%ddCosmo%ncav), &
-      & ef(3, max(this%nAtom, this%ddCosmo%ncav)))
+      & ef1(3, this%ddCosmo%ncav), ef2(3, this%nAtom))
+
+    ! reset Psi
+    call getPsi(this%chargesPerAtom, this%psi)
 
     call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, .true., &
       & accuracy=this%ddCosmo%conv*1e-3_dp)
 
     ! reset Phi
-    call gemv(this%phi, this%jmat, this%chargesPerAtom)
+    call getPhi(this%chargesPerAtom, this%jmat, this%phi)
 
     ! now call the routine that computes the ddcosmo specific contributions
     ! to the forces.
-    call forces(this%ddCosmo, keps, this%nAtom, this%phi, this%sigma, this%s, fx)
+    call forces(this%ddCosmo, keps, this%phi, this%sigma, this%s, fx)
 
     ! form the "zeta" intermediate
     call getZeta(this%ddCosmo, keps, this%s, zeta)
@@ -344,7 +347,7 @@ contains
     ! 1. solute's electric field at the cav points times zeta:
     !    compute the electric field
     call efld(this%nAtom, this%chargesPerAtom, this%ddCosmo%xyz, this%ddCosmo%ncav, &
-      & this%ddCosmo%ccav, ef)
+      & this%ddCosmo%ccav, ef1)
 
     ! contract it with the zeta intermediate
     ii = 0
@@ -352,19 +355,21 @@ contains
       do ig = 1, size(this%angWeight)
         if (this%ddCosmo%ui(ig, iat) > 0.0_dp) then
           ii = ii + 1
-          fx(:, iat) = fx(:, iat) - zeta(ii)*ef(:, ii)
+          fx(:, iat) = fx(:, iat) - zeta(ii)*ef1(:, ii)
         end if
       end do
     end do
 
+    @:ASSERT(ii == this%ddCOSMO%ncav)
+
     ! 2. "zeta's" electric field at the nuclei times the charges.
     !    compute the "electric field"
     call efld(this%ddCosmo%ncav, zeta, this%ddCosmo%ccav, this%nAtom, &
-      & this%ddCosmo%xyz, ef)
+      & this%ddCosmo%xyz, ef2)
 
     ! contract it with the solute's charges.
     do iat = 1, this%nAtom
-      fx(:, iat) = fx(:, iat) - ef(:, iat)*this%chargesPerAtom(iat)
+      fx(:, iat) = fx(:, iat) - ef2(:, iat)*this%chargesPerAtom(iat)
     end do
 
     gradients(:, :) = gradients(:, :) - fx
@@ -504,7 +509,9 @@ contains
     integer :: ic, j
     real(dp) :: vec(3), d2, d
 
-    !$omp parallel do default(shared) private(ic, j, vec, d2, d)
+    jmat(:, :) = 0.0_dp
+    !$omp parallel do default(none) schedule(runtime) collapse(2) &
+    !$omp shared(ccav, xyz, jmat) private(ic, j, vec, d2, d)
     do ic = 1, size(ccav, 2)
       do j = 1, size(xyz, 2)
         vec(:) = ccav(:, ic) - xyz(:, j)
@@ -540,6 +547,9 @@ contains
     real(dp), intent(in) :: charge(:)
     real(dp), intent(in) :: jmat(:, :)
     real(dp), intent(out) :: phi(:)
+
+    @:ASSERT(size(jmat, 1) == size(phi))
+    @:ASSERT(size(jmat, 2) == size(charge))
 
     phi(:) = 0.0_dp
 
@@ -719,13 +729,17 @@ contains
   !  1/2 f(\eps) sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
   !              l, m
   !
-  pure subroutine getZeta(ddCosmo, keps, s, zeta)
+  subroutine getZeta(ddCosmo, keps, s, zeta)
     type(TDomainDecomposition), intent(in) :: ddCosmo
     real(dp), intent(in) :: keps
-    real(dp), intent(in) :: s(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(inout) :: zeta(ddCosmo%ncav)
+    real(dp), intent(in) :: s(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    real(dp), intent(inout) :: zeta(:) ! [ddCosmo%ncav]
 
     integer :: its, iat, ii
+
+    @:ASSERT(size(s, 1) == ddCosmo%nylm)
+    @:ASSERT(size(s, 2) == ddCosmo%nat)
+    @:ASSERT(size(zeta) == ddCosmo%ncav)
 
     ii = 0
     do iat = 1, ddCosmo%nat
@@ -738,18 +752,19 @@ contains
       end do
     end do
 
+    @:ASSERT(ii == ddCOSMO%ncav)
+
   end subroutine getZeta
 
 
   !> Sample driver for the calculation of the ddCOSMO forces.
-  subroutine forces(ddCosmo, keps, n, phi, sigma, s, fx)
+  subroutine forces(ddCosmo, keps, phi, sigma, s, fx)
     type(TDomainDecomposition), intent(in) :: ddCosmo
-    integer, intent(in) :: n
     real(dp), intent(in) :: keps
-    real(dp), intent(in) :: phi(ddCosmo%ncav)
-    real(dp), intent(in) :: sigma(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(in) :: s(ddCosmo%nylm, ddCosmo%nat)
-    real(dp), intent(inout) :: fx(3, n)
+    real(dp), intent(in) :: phi(:)
+    real(dp), intent(in) :: sigma(:, :)
+    real(dp), intent(in) :: s(:, :)
+    real(dp), intent(inout) :: fx(:, :)
 
     integer :: iat, ig, ii, c1, c2, cr
     real(dp) :: fep
@@ -757,12 +772,20 @@ contains
     real(dp), allocatable :: xi(:, :), phiexp(:, :), zeta(:), ef(:, :)
     real(dp), allocatable :: basloc(:), dbsloc(:, :), vplm(:), vcos(:), vsin(:)
 
+    @:ASSERT(size(phi) == ddCosmo%ncav)
+    @:ASSERT(size(sigma, 1) == ddCosmo%nylm)
+    @:ASSERT(size(sigma, 2) == ddCosmo%nat)
+    @:ASSERT(size(s, 1) == ddCosmo%nylm)
+    @:ASSERT(size(s, 2) == ddCosmo%nat)
+    @:ASSERT(size(fx, 2) == ddCosmo%nat)
+
     allocate (xi(ddCosmo%ngrid, ddCosmo%nat), phiexp(ddCosmo%ngrid, ddCosmo%nat))
     allocate (basloc(ddCosmo%nylm), dbsloc(3, ddCosmo%nylm), vplm(ddCosmo%nylm), &
       & vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
     ! compute xi:
-    !$omp parallel do default(shared) private(iat, ig)
+    !$omp parallel do default(none) collapse(2) schedule(runtime) &
+    !$omp shared(ddCosmo, s, xi) private(iat, ig)
     do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
         xi(ig, iat) = dot_product(s(:, iat), ddCosmo%basis(:, ig))
@@ -771,7 +794,7 @@ contains
 
     ! expand the potential on a sphere-by-sphere basis (needed for parallelism):
     ii = 0
-    phiexp = 0.0_dp
+    phiexp(:, :) = 0.0_dp
     do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
         if (ddCosmo%ui(ig, iat) > 0.0_dp) then
@@ -781,7 +804,7 @@ contains
       end do
     end do
 
-    fx = 0.0_dp
+    fx(:, :) = 0.0_dp
     do iat = 1, ddCosmo%nat
       call fdoka(ddCosmo, iat, sigma, xi(:, iat), basloc, dbsloc, vplm, &
         & vcos, vsin, fx(:, iat))
@@ -803,28 +826,31 @@ contains
   !  with coordinates csrc) at the ntrg target points ctrg:
   subroutine efld(nsrc, src, csrc, ntrg, ctrg, ef)
     integer, intent(in) :: nsrc, ntrg
-    real(dp), intent(in) :: src(nsrc)
-    real(dp), intent(in) :: csrc(3, nsrc)
-    real(dp), intent(in) :: ctrg(3, ntrg)
-    real(dp), intent(inout) :: ef(3, ntrg)
+    real(dp), intent(in) :: src(:)
+    real(dp), intent(in) :: csrc(:, :)
+    real(dp), intent(in) :: ctrg(:, :)
+    real(dp), intent(inout) :: ef(:, :)
 
     integer :: i, j
-    real(dp) :: vec(3), r2, rr, r3, f, e(3)
+    real(dp) :: vec(3), r2, rr, r3, f
     real(dp), parameter :: zero=0.0_dp
 
+    @:ASSERT(size(src) == size(csrc, 2))
+    @:ASSERT(size(ef, 2) == size(ctrg, 2))
+
     ef(:, :) = 0.0_dp
-    !$omp parallel do default(shared) private(j, i, vec, r2, rr, r3, e)
+    !$omp parallel do default(none) schedule(runtime) collapse(2) &
+    !$omp reduction(+:ef) shared(ntrg, nsrc, ctrg, csrc, src) &
+    !$omp private(j, i, f, vec, r2, rr, r3)
     do j = 1, ntrg
-      e(:) = 0.0_dp
       do i = 1, nsrc
         vec(:) = ctrg(:, j) - csrc(:, i)
         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
         rr = sqrt(r2)
         r3 = r2*rr
         f = src(i)/r3
-        e(:) = e(:) + f*vec
+        ef(:, j) = ef(:, j) + f*vec
       end do
-      ef(:, j) = e
     end do
 
   end subroutine efld
