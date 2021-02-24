@@ -1346,7 +1346,7 @@ contains
       qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
       tQvv(:,ab) = qIJ
     end do
-
+    
     ! Test cached charges
     call chargeTestRS(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nVir, nOcc, &
     &  nMatUp, homo, gamma, getia, getij, getab, transChrg) 
@@ -3239,7 +3239,6 @@ contains
 
     allocate(qIJ(size(gamma, dim=1)))
     allocate(qCache(size(gamma, dim=1)))
-
     maxdev = 0._dp
     do ia = 1, nVir * nOcc
       call indXov(win, ia, getIA, ii, aa, ss)
@@ -3250,20 +3249,32 @@ contains
          maxdev = maxval(abs(qIJ-qCache))
       endif
     end do
-    print *,'Max. deviation occ-virt trans charges: ', maxdev
+    print *,'Max. deviation occ-vir trans charges: ', maxdev
+
+    maxdev = 0._dp
     do ij = 1, nOcc * (nOcc + 1) / 2
       call indXoo(ij, ii, jj)
-      print *,'compound index, individuals ', ij, ii, jj
       lUpdwn = .true. ! UNTESTED
       qIJ = transQ(ii, jj, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
       qCache = transChrg%qTransIJ(ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij)
-      print *,qIJ(1), qCache(1),'oo'
+      if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+         maxdev = maxval(abs(qIJ-qCache))
+      endif
     end do
+    print *,'Max. deviation occ-occ trans charges: ', maxdev
+
+    maxdev = 0._dp
     do ab = 1, nVir * (nVir + 1) / 2
       call indXvv(homo, ab, aa, bb)
       lUpdwn = .true. ! UNTESTED
       qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      qCache = transChrg%qTransAB(ab, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getab)
+      if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+         maxdev = maxval(abs(qIJ-qCache))
+      endif
     end do
+    print *,'Max. deviation vir-vir trans charges: ', maxdev
+
   end subroutine chargeTestRS
 
 end module dftbp_rs_linearresponse

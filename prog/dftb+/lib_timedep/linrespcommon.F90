@@ -771,13 +771,14 @@ contains
           if (filling(ii,iSpin) > filling(aa,iSpin) + elecTolMax) then
             ind = ind + 1
             wij(ind) = grndEigVal(aa,iSpin) - grndEigVal(ii,iSpin)
-            getia(ind,:) = [ii,aa,iSpin]
+            getia(ind,:) = [ii, aa, iSpin]
           end if
         end do
       end do
     end do
     
     nOcc(:) = 0
+
     do iSpin = 1, nSpin
        do ii = 1, norb
           if (filling(ii,iSpin) > elecTolMax) then
@@ -786,22 +787,20 @@ contains
        end do
     end do
 
-    ind = 0 
     do iSpin = 1, nSpin
       do ii = 1, nOcc(iSpin)
-        do jj = ii, nOcc(iSpin)
-          ind = ind + 1 
-          getij(ind,:) = [ii,jj,iSpin] 
+        do jj = 1, ii
+          ind = jj + ((ii - 1) * ii) / 2
+          getij(ind,:) = [ii, jj, iSpin] 
         end do
       end do
     end do
 
-    ind = 0 
     do iSpin = 1, nSpin
-      do aa = nOcc(iSpin) + 1, norb
-        do bb = aa, norb
-          ind = ind + 1 
-          getab(ind,:) = [aa,bb,iSpin] 
+      do aa = 1, norb - nOcc(iSpin)
+        do bb = 1, aa 
+          ind = bb + ((aa  - 1) * aa) / 2 
+          getab(ind,:) = [aa + nOcc(iSpin), bb + nOcc(iSpin), iSpin] 
         end do
       end do
     end do

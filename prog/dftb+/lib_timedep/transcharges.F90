@@ -106,7 +106,7 @@ contains
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
 
-    integer :: ij, ii, jj, kk, ab, aa, bb
+    integer :: ij, ii, jj, kk, ab, aa, bb, i, j, a, b
     logical :: updwn
 
     this%nTransitions = nTrans
@@ -125,7 +125,6 @@ contains
         kk = win(ij)
         ii = getia(kk,1)
         jj = getia(kk,2)
-        !call indxov(win, ij, getia, ii, jj)
         updwn = (kk <= this%nMatUp)
         this%qCacheOccVirt(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
@@ -133,7 +132,6 @@ contains
       !!$OMP  END PARALLEL DO
 
       do ij = 1, sum(nXooUD)
-        print *,'Creation: compound index, individuals ', ij, ii, jj
         ii = getij(ij,1)
         jj = getij(ij,2)
         updwn = (ij <= nXooUD(1))
