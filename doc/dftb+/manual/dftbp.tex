@@ -297,38 +297,15 @@ methods are available:
   \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0
-  & \\
+  \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
-  atoms can be specified as a mixture of a list of atoms, ranges of
-  atoms and/or the species of atoms. Index ranges are specified as
-  \verb|start:end| (without white space as one word!), which
-  inclusively selects all atoms between \verb|start| and \verb|end|.
-  \index{Atom list}\index{List of atoms}
-\begin{verbatim}
-  MovedAtoms = 1:6
-  # equivalent to MovedAtoms = { 1 2 3 4 5 6 }
-\end{verbatim}
-  Negative indices can be used to count backwards from the last atom
-  (-1 = last atom, -2 = penultimate atom, etc.):
-\begin{verbatim}
-  MovedAtoms = 1:-1   # Move all atoms including the last
-\end{verbatim}
-  Species names can be used to select all atoms belonging to a given
-  species:
-\begin{verbatim}
-  MovedAtoms = Ga  # select all Ga atoms
-\end{verbatim}
-  Various specifiers can be combined together:
-\begin{verbatim}
-  # Move atoms 1, 2, 3, all Ga atoms, and the last two atoms.
-  MovedAtoms = 1:3 Ga -2:-1
-\end{verbatim}
+  atoms can be specified via index selection expressions, as described
+  in appendix \ref{sec:index_selection}.
 
 \item[\is{MaxForceComponent}]\modif{\modtype{force}} Optimisation is
   stopped, if the force component with the maximal absolute value goes
@@ -557,8 +534,8 @@ frequencies.
 
 \begin{description}
 \item[\is{Atoms}] Index of the atoms for which to calculate the second
-  derivatives. The atoms can be specified via indices, index ranges
-  and species. (See \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+  derivatives. The index selection format is described in appendix \ref{sec:index_selection}.
+
 \item[\is{Delta}] Step size for numerical differentiation of forces to
   get the second derivatives of the energy with respect to atomic
   coordinates.
@@ -592,8 +569,8 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \end{ptable}
 
 \begin{description}
-\item[\is{MovedAtoms}] List of atoms to move during the MD. (See more
-  detailed description on page \pref{sec:dftbp.SteepestDescent}.)
+\item[\is{MovedAtoms}] List of atoms to move during the MD. The atoms can be specified via index
+selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{Steps}] Number of MD steps to perform. In the case of a
   thermostat using a \kwcb{TemperatureProfile} the number of steps is
@@ -1336,12 +1313,12 @@ following properties:
     }
   }
 \end{verbatim}
-  Alternatively you can specify charges individually on atoms or
-  species using the \kw{AtomCharge} keyword. For every \is{AtomCharge}
-  declaration you must provide a charge and the list of atoms,
-  which should be initialised to that charge. (You can use the
-  same format for the list of atoms, as described at the
-  \is{MovedAtoms} keyword in the section for \isl{SteepestDescent}{sec:dftbp.SteepestDescent}):
+
+Alternatively you can specify charges individually for atoms or species using the \kw{AtomCharge}
+keyword. For every \is{AtomCharge} declaration you must provide a charge and the list of atoms,
+which should be initialised to that charge. (The atoms can be specified via index selection
+expressions, as described in appendix \ref{sec:index_selection}.):
+
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
     AtomCharge = {
@@ -1659,8 +1636,9 @@ specified:
   \end{ptable}
   \begin{description}
   \item[\is{Atoms}] Atoms to specify an initial spin value. The atoms
-    can be specified via indices, index ranges and species. (See
-    \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+    can be specified via indices, index ranges and\slash{}or species. (The
+      atoms can be specified via index selection expressions, as described
+      in appendix \ref{sec:index_selection}.)
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
   this \is{InitialSpins} block.
   \end{description}
@@ -1720,9 +1698,9 @@ distribution:
     \kw{SpinPerAtom} & (3r)+ &  & -  & \\
   \end{ptable}
   \begin{description}
-  \item[\is{Atoms}] Atoms to specify an initial spin vector. The atoms
-    can be specified via indices, index ranges and species. (See
-    \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+  \item[\is{Atoms}] Atoms to specify an initial spin vector. The
+    atoms can be specified via index selection expressions, as described
+    in appendix \ref{sec:index_selection}.
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
     this \is{InitialSpins} block.
   \end{description}
@@ -4248,8 +4226,8 @@ with the following options
   with \is{ShellResolved}, this only allowed, if all the selected atoms are of
   the same type.
 \item[\is{Atoms}] Specification of the atoms over which to make the
-  projection.. Atoms are specified in the same way as \is{MovedAtoms}
-  in section \ref{sec:dftbp.SteepestDescent}.)
+  projection. The atoms can be specified via index selection expressions, as described
+    in appendix \ref{sec:index_selection}.
 \item[\is{Label}] Prefix of the label for the resulting file of data for this region. The default is
   ``region\textit{i}.out'' where {\it i} is the number of the region in the input. In the case that
   \is{ShellResolved} = \is{Yes}, the shell index is appended, so that files with names
@@ -4702,9 +4680,8 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
   be set. The positions and velocities every \is{WriteFrequency} steps
   will be saved in XYZ format to \verb|tdcoords.xyz|.
 
-\item[\is{MovedAtoms}] List of atoms that will be moved during the
-  dynamics. See \is{MovedAtoms} in section
-  \ref{sec:dftbp.SteepestDescent}.
+\item[\is{MovedAtoms}] List of atoms that will be moved during the dynamics. The atoms can be
+  specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
@@ -4836,8 +4813,8 @@ Apply time-dependent sinusoidal perturbation to the system.
    such that sinusoidal component of the field is described by
    $\sin(\omega t + \phi)$.
 
- \item[\is{ExcitedAtoms}] List of atoms that will be excited by the
-   laser. The format is the same as the \is{MovedAtoms} keyword.
+ \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The atoms can be
+   specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \end{description}
 

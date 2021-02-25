@@ -18,7 +18,7 @@
     use dftbp_message
     !> Error handling string
     character(lc) :: stringTmp
-    
+
     write(stringTmp,"(A)")${msg}$
     if (present(${errVar}$)) then
       ${errVar}$ = ${errNumber}$
@@ -60,3 +60,41 @@
     end if
   end if
 #:enddef
+
+
+#! Signals error status.
+#:def SET_ERROR(status, code, message)
+  call ${status}$%setError(${code}$, ${message}$, "${_FILE_}$", ${_LINE_}$)
+#:enddef SET_ERROR
+
+
+#! Signals error status with error message formatting
+#:def SET_FORMATTED_ERROR(status, code, format, *messageVars)
+  block
+    character(1024) :: message
+    write(message, ${ format }$) ${ ",".join(messageVars) }$
+    $:SET_ERROR(status, code, 'trim(message)')
+  end block
+#:enddef SET_FORMATTED_ERROR
+
+
+#! Signals error status and returns from curren scope
+#:def RAISE_ERROR(status, code, message)
+  $:SET_ERROR(status, code, message)
+  return
+#:enddef RAISE_ERROR
+
+
+#! Signals error status with error message formatting and returns from curren scope
+#:def RAISE_FORMATTED_ERROR(status, code, format, *messageVars)
+  $:SET_FORMATTED_ERROR(status, code, format, *messageVars)
+  return
+#:enddef
+
+
+#! Returns immediately from current scope if status signals an error.
+#:def PROPAGATE_ERROR(status)
+  if (${status}$%hasError()) then
+    return
+  end if
+#:enddef PROPAGATE_ERROR

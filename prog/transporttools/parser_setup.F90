@@ -154,7 +154,7 @@ contains
     end if
 
     call destroyNode(hsdTree)
-      
+
     write(stdout,*) 'Geometry processed. Job finished'
 
   end subroutine parseHsdInput
@@ -270,7 +270,7 @@ contains
       call getChild(root, "Device", pDevice)
       call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
     end if
-    
+
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     if (transpar%ncont < 2) then
@@ -280,7 +280,7 @@ contains
 
     select case (char(buffer))
     case ("setupgeometry")
-      
+
       call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
       call getSKcutoff(pTask, geom, skCutoff)
       write(stdOut,*) 'Maximum SK cutoff:', SKcutoff*Bohr__AA,'(A)'
@@ -309,6 +309,7 @@ contains
     integer, intent(out), allocatable :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
+    integer :: selectionRange(2)
     integer :: ii
     type(fnode), pointer :: field, pNode, pTmp
     type(string) :: buffer, modif
@@ -341,8 +342,13 @@ contains
       if (task .eq. "setupgeometry") then
         call getChildValue(pNode, "PLsDefined", nPLs(ii))
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
-             iAtInRegion(ii)%data, ishift=string_to_int(char(modif)))
+        if (isZeroBased(char(modif))) then
+          selectionRange(:) = [0, size(geom%species) - 1]
+        else
+          selectionRange(:) = [1, size(geom%species)]
+        end if
+        call getSelectedAtomIndices(pTmp, char(buffer), geom%speciesNames, geom%species, &
+            & iAtInRegion(ii)%data, selectionRange=selectionRange)
         call init(vecBuffer)
         call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
         if (len(vecBuffer).eq.3) then
@@ -351,13 +357,13 @@ contains
            ! check vector is along x y or z
            if (count(vec == 0.0_dp) < 2 ) then
              call error("ContactVector must be along either x, y or z")
-           end if 
+           end if
            contacts(ii)%lattice = vec
            contacts(ii)%shiftAccuracy = contactLayerTol
            call destruct(vecBuffer)
         else
            call error("ContactVector must define three entries")
-        end if   
+        end if
       else
         call error("Invalid task for setpugeometry tool")
       end if
@@ -366,21 +372,19 @@ contains
 
     contains
 
-      function string_to_int(chr) result(ind)
+      function isZeroBased(chr)
         character(*), intent(in) :: chr
-        integer :: ind
-        if (trim(chr) .eq. "") then
-          ind = 0
+        logical :: isZeroBased
+
+        if (trim(chr) == "" .or. tolower(trim(chr)) == "onebased") then
+          isZeroBased = .false.
+        else if (tolower(trim(chr)) .eq. "zerobased") then
+          isZeroBased = .true.
         else
-          if (tolower(trim(chr)) .eq. "onebased") then
-            ind = 0    
-          else if (tolower(trim(chr)) .eq. "zerobased") then
-            ind = 1
-          else
-            call error("Modifier in Atoms "//trim(chr)//" not recongnized")   
-          end if
+          call error("Modifier in Atoms " // trim(chr) // " not recongnized")
         end if
-      end function string_to_int
+
+      end function isZeroBased
 
   end subroutine readContacts
 
@@ -422,7 +426,7 @@ contains
       mSKCutOff = mSKCutOff + distFudge
     end select
 
-  end subroutine getSKcutoff  
+  end subroutine getSKcutoff
 
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
@@ -437,7 +441,7 @@ contains
     !> Array with specie names
     character(mc), intent(in) :: speciesNames(:)
 
-    !> Maximum SK cutoff distance obtained from SK files  
+    !> Maximum SK cutoff distance obtained from SK files
     real(dp), intent(out) :: maxSKcutoff
 
     type(fnode), pointer :: value1, child, child2
@@ -449,7 +453,7 @@ contains
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
     character(lc) :: fileName
     logical :: tLower, tExist
-    
+
     ! Slater-Koster files
     allocate(skFiles(nSpecies, nSpecies))
     do iSp1 = 1, nSpecies
@@ -523,18 +527,18 @@ contains
         write(stdout,*) trim(fileName)
         call readFromFile(skData, fileName, (iSp1 == iSp2))
         maxSKcutoff = max(maxSKcutoff, skData%dist * size(skData%skHam,1))
-      end do 
+      end do
     end do
     write(stdout, "(A)") "Done."
-    write(stdout, *) 
-    
+    write(stdout, *)
+
     do iSp1 = 1, nSpecies
       do iSp2 = 1, nSpecies
         call destruct(skFiles(iSp2, iSp1))
       end do
     end do
     deallocate(skFiles)
-  
+
   end subroutine readSKFiles
 
 
