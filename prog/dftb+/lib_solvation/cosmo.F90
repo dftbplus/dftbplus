@@ -443,7 +443,7 @@ contains
     real(dp) :: cutoff
 
     if (allocated(this%sasaCont)) then
-      cutoff = max(cutoff, this%sasaCont%getRCutoff())
+      cutoff = this%sasaCont%getRCutoff()
     else
       cutoff = 0.0_dp
     end if
