@@ -62,13 +62,13 @@
 #:enddef
 
 
-#! Signalizes error status.
+#! Signals error status.
 #:def SET_ERROR(status, code, message)
   call ${status}$%setError(${code}$, ${message}$, "${_FILE_}$", ${_LINE_}$)
 #:enddef SET_ERROR
 
 
-#! Signalizes error status with error message formatting
+#! Signals error status with error message formatting
 #:def SET_FORMATTED_ERROR(status, code, format, *messageVars)
   block
     character(1024) :: message
@@ -78,21 +78,21 @@
 #:enddef SET_FORMATTED_ERROR
 
 
-#! Signalizes error status and returns from curren scope
+#! Signals error status and returns from curren scope
 #:def RAISE_ERROR(status, code, message)
   $:SET_ERROR(status, code, message)
   return
 #:enddef RAISE_ERROR
 
 
-#! Signalizes error status with error message formatting and returns from curren scope
+#! Signals error status with error message formatting and returns from curren scope
 #:def RAISE_FORMATTED_ERROR(status, code, format, *messageVars)
   $:SET_FORMATTED_ERROR(status, code, format, *messageVars)
   return
 #:enddef
 
 
-#! Returns immediately from current scope if status signalizes an error.
+#! Returns immediately from current scope if status signals an error.
 #:def PROPAGATE_ERROR(status)
   if (${status}$%hasError()) then
     return

@@ -153,28 +153,28 @@
       @:ASSERT(status%code == errors%invalidSelector)
     #:endblock
 
-    #:block TEST("outOfBondsPlus")
+    #:block TEST("outOfBounds")
       call getIndexSelection("17", fullRange, selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())
       @:ASSERT(status%code == errors%invalidSelector)
     #:endblock
 
-    #:block TEST("outOfBondsPlusZeroInd")
+    #:block TEST("outOfBoundsPlusZeroInd")
       call getIndexSelection("16", [0, nAtom - 1], selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())
       @:ASSERT(status%code == errors%invalidSelector)
     #:endblock
 
-    #:block TEST("outOfBondsMinus")
+    #:block TEST("outOfBoundsMinus")
       call getIndexSelection("-17", fullRange, selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())
       @:ASSERT(status%code == errors%invalidSelector)
     #:endblock
 
-    #:block TEST("outOfBondsMinusZeroInd")
+    #:block TEST("outOfBoundsMinusZeroInd")
       call getIndexSelection("-17", fullRange, selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())
@@ -188,7 +188,7 @@
       @:ASSERT(status%code == errors%invalidSelector)
     #:endblock
 
-    #:block TEST("outOfSubrangeBonds")
+    #:block TEST("outOfSubrangeBounds")
       call getIndexSelection("1:10", [9, 16], selected(9:16), status,&
           & speciesNames=speciesNames, species=species(9:16), indexRange=fullRange)
       @:ASSERT(status%hasError())

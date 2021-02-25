@@ -304,7 +304,7 @@ methods are available:
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
-  atoms can be specified via index selection expressions as described
+  atoms can be specified via index selection expressions, as described
   in appendix \ref{sec:index_selection}.
 
 \item[\is{MaxForceComponent}]\modif{\modtype{force}} Optimisation is
@@ -570,7 +570,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 
 \begin{description}
 \item[\is{MovedAtoms}] List of atoms to move during the MD. The atoms can be specified via index
-selection expressions as described in appendix \ref{sec:index_selection}.
+selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{Steps}] Number of MD steps to perform. In the case of a
   thermostat using a \kwcb{TemperatureProfile} the number of steps is
@@ -1314,10 +1314,10 @@ following properties:
   }
 \end{verbatim}
 
-Alternatively you can specify charges individually on atoms or species using the \kw{AtomCharge}
+Alternatively you can specify charges individually for atoms or species using the \kw{AtomCharge}
 keyword. For every \is{AtomCharge} declaration you must provide a charge and the list of atoms,
 which should be initialised to that charge. (The atoms can be specified via index selection
-expressions as described in appendix \ref{sec:index_selection}.):
+expressions, as described in appendix \ref{sec:index_selection}.):
 
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
@@ -1636,8 +1636,8 @@ specified:
   \end{ptable}
   \begin{description}
   \item[\is{Atoms}] Atoms to specify an initial spin value. The atoms
-    can be specified via indices, index ranges and species. (The
-      atoms can be specified via index selection expressions as described
+    can be specified via indices, index ranges and\slash{}or species. (The
+      atoms can be specified via index selection expressions, as described
       in appendix \ref{sec:index_selection}.)
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
   this \is{InitialSpins} block.
@@ -1699,7 +1699,7 @@ distribution:
   \end{ptable}
   \begin{description}
   \item[\is{Atoms}] Atoms to specify an initial spin vector. The
-    atoms can be specified via index selection expressions as described
+    atoms can be specified via index selection expressions, as described
     in appendix \ref{sec:index_selection}.
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
     this \is{InitialSpins} block.
@@ -4226,7 +4226,7 @@ with the following options
   with \is{ShellResolved}, this only allowed, if all the selected atoms are of
   the same type.
 \item[\is{Atoms}] Specification of the atoms over which to make the
-  projection. The atoms can be specified via index selection expressions as described
+  projection. The atoms can be specified via index selection expressions, as described
     in appendix \ref{sec:index_selection}.
 \item[\is{Label}] Prefix of the label for the resulting file of data for this region. The default is
   ``region\textit{i}.out'' where {\it i} is the number of the region in the input. In the case that
@@ -4681,7 +4681,7 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
   will be saved in XYZ format to \verb|tdcoords.xyz|.
 
 \item[\is{MovedAtoms}] List of atoms that will be moved during the dynamics. The atoms can be
-  specified via index selection expressions as described in appendix \ref{sec:index_selection}.
+  specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
@@ -4814,7 +4814,7 @@ Apply time-dependent sinusoidal perturbation to the system.
    $\sin(\omega t + \phi)$.
 
  \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The atoms can be
-   specified via index selection expressions as described in appendix \ref{sec:index_selection}.
+   specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \end{description}
 

@@ -105,7 +105,7 @@ Example:
 NrOfPoints = { 50 50 50 }     # 125 000 grid points
 \end{verbatim}
 
-\item[\is{PlottedKPoints}] The list of integers specified here represent the k-points, in which the
+\item[\is{PlottedKPoints}] The list of integers specified here represent the k-points, at which the
   molecular orbitals should be plotted. The first k-point in the original \dftbp{} calculation is
   represented by "1". The order of the specified k-points does not matter. (You can also use
   index specification expressions as described in appendix \ref{sec:index_selection}.) The actual
@@ -118,8 +118,7 @@ Example:
 PlottedKPoints =  1 3 5      # The 1st, 3rd and 5th k-point is plotted
 \end{verbatim}
 
-\item[\is{PlottedLevels}] The list of integers specified here represent the states, which should be
-
+\item[\is{PlottedLevels}] The list of integers specified here represent the states which should be
   plotted. The first (lowest lying) state in the original \dftbp{} calculation is represented by
   "1". The order of the specified states does not matter. (You can also use  index specification
   expressions as described in appendix \ref{sec:index_selection}.)  The actual list of molecular

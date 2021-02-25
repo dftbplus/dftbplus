@@ -444,13 +444,14 @@ special index selection expressions.  Typical examples are the selection of atom
 \is{MovedAtoms} or \is{Atoms} keywords) or the selection of energy levels, k-points and spins (as in
 the \waveplot{} keywords \is{PlottedKPoints}, \is{PlottedSpins}, \is{PlottedLevels}).
 
-The expressions might contain the logical operators ``not'' (\verb|!|), ``and'' (\verb|&|) and
-``or'' (space). The ``not'' operator has the highest and the ``or'' operator the lowest precedence.
-Parentheses can be used for grouping operations. If atoms are being selected, atom type names can be
-used to select all atoms of a given type. The first element of the list has the index one. Negativ
-indices are counted from backwards from the last element of the list, with -1 corresponding to the
-last element. Index ranges can be specified as \verb|start:end| (without white space as one word!),
-which inclusively selects all elements between \verb|start| and \verb|end|.
+The expressions might contain the logical operators ``not'' (``\verb|!|''), ``and'' (``\verb|&|'')
+and ``or'' (`` '', i.e.\ white space). The ``not'' operator has the highest and the ``or'' operator
+the lowest precedence. Parentheses can be used for grouping together operations. If atoms are being
+selected, atom type names can be used to select all atoms of a given type. The first element of the
+list has the index one. Negative indices are counted backwards from the last element of the list,
+with -1 corresponding to the last element. Index ranges can be specified as \verb|start:end| (i.e.\
+without white space as one word!), which inclusively selects all elements between \verb|start| and
+\verb|end|.
 
 Below you find a few examples for selection expressions:
 
@@ -471,10 +472,10 @@ MovedAtoms = 1:-4
 # All Si atoms and atoms 2 and 4.
 MovedAtoms = Si 2 4
 
-# All atoms from 2 to 6 which are Si atoms
+# Any atoms from 2 to 6 which are Si atoms
 MovedAtoms = 2:6 & Si
 
-# All atoms, apart of atoms 2, 3, 4, 5, 6
+# All atoms, apart from atoms 2, 3, 4, 5, 6
 MovedAtoms = !2:6
 
 # All atoms from 2 to 6 which are not Si atoms
@@ -483,7 +484,7 @@ MovedAtoms = 2:6 & !Si
 # All atoms apart from 1:3 and 5:7
 MovedAtoms = !(1:3 5:7)
 
-# All non-Si atoms in the ranges [1, 10], [21, 30] and [41, 50].
+# All non-Si atoms in the ranges 1 to 10, 21 to 30 and 41 to 50.
 MovedAtoms = !Si & (1:10 21:30 41:50)
 \end{verbatim}
 

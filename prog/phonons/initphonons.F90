@@ -147,13 +147,24 @@ module dftbp_initphonons
   !> Version of the oldest parser, for which compatibility is maintained
   integer, parameter :: minVersion = 4
 
+
   !> Container type for parser related flags.
   type TParserFlags
-    logical :: tStop                        ! stop after parsing?
-    logical :: tIgnoreUnprocessed           ! Continue despite unprocessed nodes
-    logical :: tWriteHSD                    ! write parsed HSD input
-    logical :: tWriteTagged                 ! write TaggedOutput
+
+    !> stop after parsing?
+    logical :: tStop
+
+    !> Continue despite unprocessed nodes
+    logical :: tIgnoreUnprocessed
+
+    !> write parsed HSD input
+    logical :: tWriteHSD
+
+    !> write TaggedOutput
+
+    logical :: tWriteTagged
   end type TParserFlags
+
 
   !> constants parameters
   type TModeEnum
@@ -530,7 +541,7 @@ contains
 
   end subroutine readFirstLayerAtoms
 
-   !!* Read bias information, used in Analysis and Green's function eigensolver
+   !> Read bias information, used in Analysis and Green's function solver
   subroutine readContacts(pNodeList, contacts, geom, upload)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
@@ -954,12 +965,14 @@ contains
   end subroutine readKPointsFile_help
 
 
-  ! Read DFTB hessian.
-  !The derivatives matrix must be stored as the following order:
-  ! For the x y z directions of atoms 1..n
-  !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
-  ! ---------- + --------- + --------- + ---------- + ---------- +...
-  ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
+  !>  Read DFTB hessian.
+  !>
+  !> The derivatives matrix must be stored as the following order:
+  !>  For the x y z directions of atoms 1..n
+  !>    d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
+  !>  ---------- + --------- + --------- + ---------- + ---------- +...
+  !>  dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
+  !>
   subroutine readDftbHessian(child)
     type(fnode), pointer :: child
 

@@ -18,13 +18,13 @@ module dftbp_status
   !> Represents status of an operation.
   type :: TStatus
 
-    !> Status code. Zero signalizes no error, every other value is interpreted as error.
+    !> Status code. Zero signals no error, every other value is interpreted as an error.
     integer :: code = 0
 
     !> Error message (in case error code is non-zero)
     character(:), allocatable :: message
 
-    !> File where error was generated (in case error code is non-zero)
+    !> Source file where error was generated (in case error code is non-zero)
     character(:), allocatable :: file
 
     !> Number of the line where error was generated (in case error code is non-zero)
