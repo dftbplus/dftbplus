@@ -106,7 +106,7 @@ contains
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
 
-    integer :: ij, ii, jj, kk, ab, aa, bb, i, j, a, b
+    integer :: ij, ii, jj, kk, ab, aa, bb, i, j, a, b, iSpin, nSpin
     logical :: updwn
 
     this%nTransitions = nTrans
@@ -114,6 +114,7 @@ contains
     this%nMatUp = nMatUp
     this%nMatUpOccOcc = nXooUD(1)
     this%nMatUpVirVir = nXvvUD(1)
+    nSpin = size(sTimesGrndEigVecs, dim=3)
 
     if (tStore) then
 
@@ -131,13 +132,15 @@ contains
       end do
       !!$OMP  END PARALLEL DO
 
-      do ij = 1, sum(nXooUD)
-        ii = getij(ij,1)
-        jj = getij(ij,2)
-        updwn = (ij <= nXooUD(1))
-        this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
+      do iSpin = 1, nSpin
+         do ij = 1, nXooUD(iSpin)
+            ii = getij(ij,1)
+            jj = getij(ij,2)
+            updwn = (ij <= nXooUD(1))
+            this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
-      end do
+         end do
+      enddo
 
       do ab = 1, sum(nXvvUD)
         aa = getab(ab,1)

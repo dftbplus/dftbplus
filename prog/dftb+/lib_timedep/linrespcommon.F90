@@ -735,7 +735,13 @@ contains
 
   !> calculating spin polarized excitations
   !> Note: the subroutine is generalized to account for spin and partial occupancy
-  subroutine getSPExcitations(grndEigVal, filling, wij, getia, getij, getab)
+  subroutine getSPExcitations(nOcc, nVir, grndEigVal, filling, wij, getia, getij, getab)
+
+    !> number of occupied states per spin channel
+    integer, intent(in) :: nOcc(:)
+
+    !> number of virtual states per spin channel
+    integer, intent(in) :: nVir(:)
 
     !> ground state eigenvalues
     real(dp), intent(in) :: grndEigVal(:,:)
@@ -746,17 +752,17 @@ contains
     !> Kohn-Sham energy differences between empty and filled states
     real(dp), intent(out) :: wij(:)
 
-    !> index of occ-vrt pairs of KS states for the transitions in wij
+    !> index of occ-vir pairs of KS states for the transitions in wij
     integer, intent(out) :: getia(:,:)
 
     !> index of occ-occ pairs of KS states for the transitions in wij
     integer, intent(out) :: getij(:,:)
 
-    !> index of vrt-vrt pairs of KS states for the transitions in wij
+    !> index of vir-vir pairs of KS states for the transitions in wij
     integer, intent(out) :: getab(:,:)
 
-    integer :: ind, ii, jj, aa, bb
-    integer :: norb, iSpin, nSpin, nOcc(2)
+    integer :: ind, ii, jj, aa, bb, off
+    integer :: norb, iSpin, nSpin
 
     @:ASSERT(all(shape(grndEigVal)==shape(filling)))
 
@@ -777,32 +783,28 @@ contains
       end do
     end do
     
-    nOcc(:) = 0
-
-    do iSpin = 1, nSpin
-       do ii = 1, norb
-          if (filling(ii,iSpin) > elecTolMax) then
-             nOcc(iSpin) = nOcc(iSpin) + 1
-          end if
-       end do
-    end do
+    off = 0
 
     do iSpin = 1, nSpin
       do ii = 1, nOcc(iSpin)
         do jj = 1, ii
-          ind = jj + ((ii - 1) * ii) / 2
+          ind = jj + ((ii - 1) * ii) / 2 + off
           getij(ind,:) = [ii, jj, iSpin] 
         end do
       end do
+      off = (nOcc(1) * (nOcc(1) + 1)) / 2
     end do
+
+    off = 0
 
     do iSpin = 1, nSpin
       do aa = 1, norb - nOcc(iSpin)
         do bb = 1, aa 
-          ind = bb + ((aa  - 1) * aa) / 2 
+          ind = bb + ((aa  - 1) * aa) / 2 + off 
           getab(ind,:) = [aa + nOcc(iSpin), bb + nOcc(iSpin), iSpin] 
         end do
       end do
+      off = (nVir(1) * (nVir(1) + 1)) / 2
     end do
 
   end subroutine getSPExcitations

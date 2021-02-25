@@ -377,7 +377,7 @@ contains
 
     ! Find all single particle transitions and KS energy differences for cases that go from filled
     ! to empty states, create index arrays for ov,oo,vv 
-    call getSPExcitations(grndEigVal, filling, wij, getia, getij, getab)
+    call getSPExcitations(nocc_ud, nvir_ud, grndEigVal, filling, wij, getia, getij, getab)
 
     ! put them in ascending energy order
     if (this%tOscillatorWindow) then
@@ -449,6 +449,14 @@ contains
 
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), &
         & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
+
+   #:block DEBUG_CODE
+    ! Test cached charges
+    print *,'--> Comparison of ov/oo/vv transition charges by direct evaluation of transQ'
+    print *,'--> and through the cache.'
+    call chargeTest(iAtomStart, stimc, grndEigVecs, win, nxov_rd, nxov_ud, &
+    &  nxoo_ud, nxvv_ud, nocc_ud, gammaMat, getia, getij, getab, transChrg) 
+   #:endblock DEBUG_CODE    
 
     if (this%fdXplusY >  0) then
       open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
@@ -2385,5 +2393,69 @@ contains
 
   end subroutine calcPMatrix
 
+  subroutine chargeTest(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nxov_rd, nxov_ud, &
+    &  nxoo_ud, nxvv_ud, homo, gamma, getia, getij, getab, transChrg)
+    integer, intent(in) :: win(:), homo(:), iAtomStart(:), getia(:,:), getij(:,:), getab(:,:)
+    integer, intent(in) :: nxov_rd, nxov_ud(:), nxoo_ud(:), nxvv_ud(:)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:)
+    type(TTransCharges) :: transChrg
+    integer ia, ii, aa, ss, ij, jj, ab, bb, iSpin, nSpin, off
+    real(dp), allocatable :: qIJ(:), qCache(:)
+    logical lUpdwn
+    real(dp) maxdev
 
+    allocate(qIJ(size(gamma, dim=1)))
+    allocate(qCache(size(gamma, dim=1)))
+    nSpin = size(sTimesGrndEigVecs, dim=3)
+    
+    print *,'--> Number of ov transitions (up,dn,tot): ', nxov_ud(1), nxov_ud(2), sum(nxov_ud)
+    print *,'--> Number of ov transitions considered : ', nxov_rd
+    print *,'--> Number of oo transitions (up,dn,tot): ', nxoo_ud(1), nxoo_ud(2), sum(nxoo_ud)
+    print *,'--> Number of vv transitions (up,dn,tot): ', nxvv_ud(1), nxvv_ud(2), sum(nxvv_ud)
+
+    maxdev = 0._dp
+    do ia = 1, nxov_rd
+      call indXov(win, ia, getIA, ii, aa, ss)
+      lUpdwn = (win(ia) <= nxov_ud(1))
+      qIJ = transQ(ii, aa, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      qCache = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia, win)
+      if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+         maxdev = maxval(abs(qIJ-qCache))
+      endif
+    end do
+    print *,'--> Max. deviation occ-vir trans charges: ', maxdev
+
+    maxdev = 0._dp
+    off = 0
+    do iSpin = 1, nSpin
+       do ij = 1, nxoo_ud(iSpin) 
+          call indXoo(ij, ii, jj)
+          lUpdwn = (iSpin == 1)
+          qIJ = transQ(ii, jj, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+          qCache = transChrg%qTransIJ(ij+off, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij)
+          if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+             maxdev = maxval(abs(qIJ-qCache))
+          endif
+       end do
+       off = nxoo_ud(1) 
+    enddo
+    print *,'--> Max. deviation occ-occ trans charges: ', maxdev
+
+    maxdev = 0._dp
+    off = 0
+    do iSpin = 1, nSpin
+       do ab = 1, nxvv_ud(iSpin) 
+          lUpdwn = (iSpin == 1)
+          call indXvv(homo(iSpin), ab, aa, bb)
+          qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+          qCache = transChrg%qTransAB(ab+off, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getab)
+          if(maxval(abs(qIJ-qCache)) .gt. maxdev) then
+             maxdev = maxval(abs(qIJ-qCache))
+          endif
+       end do
+       off = nxvv_ud(1)
+    enddo
+    print *,'--> Max. deviation vir-vir trans charges: ', maxdev
+
+  end subroutine chargeTest
 end module dftbp_linrespgrad

@@ -1020,7 +1020,7 @@ contains
 
     ! Find all single particle transitions and KS energy differences
     !   for cases that go from filled to empty states
-    call getSPExcitations(grndEigVal, filling, wIJ, getIA, getIJ, getAB)
+    call getSPExcitations(nOccUD, nVirUD, grndEigVal, filling, wIJ, getIA, getIJ, getAB)
 
     ! put them in ascending energy order
     if (tOscillatorWindow) then
@@ -1076,8 +1076,6 @@ contains
 
     call TTransCharges_init(transChrg, iAtomStart, sTimesGrndEigVecs, grndEigVecs,&
         & nXovRD, nXovUD(1), nXooUD, nXvvUD, getIA, getIJ, getAB, win, tCacheCharges)
-
-    print *,'Tst1: ', tCacheCharges
 
     !if (nStat == 0) then
     !  if(tTrans) then
@@ -1347,9 +1345,13 @@ contains
       tQvv(:,ab) = qIJ
     end do
     
+   #:block DEBUG_CODE
     ! Test cached charges
+    print *,'--> Comparison of ov/oo/vv transition charges by direct evaluation of transQ'
+    print *,'--> and through the cache.'
     call chargeTestRS(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nVir, nOcc, &
     &  nMatUp, homo, gamma, getia, getij, getab, transChrg) 
+   #:endblock DEBUG_CODE
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
