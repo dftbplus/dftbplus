@@ -75,7 +75,7 @@ Usage () {
     cat << EOT
 Performs automated tests and check results with tagdiff
 Usage: ${SCRIPTNAME} [options] [test1 test2 .. ]
-Options (default value in paranthesis):
+Options (default value in parenthesis):
     -r templateroot	path to root of test template directories (SCRIPTDIR/..)
     -w workdir		workdir to run the tests (./)
     -P prerun           command to use before executing binary
