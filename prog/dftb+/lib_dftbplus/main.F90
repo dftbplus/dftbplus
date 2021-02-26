@@ -336,11 +336,12 @@ contains
     end if
 
   #:if WITH_TRANSPORT
-    if (this%tContCalc) then
+
+    if (this%isAContactCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
       call writeContactShifts(this%transpar%contacts(this%transpar%taskContInd)%name, this%orb,&
-          & this%potential%intShell, this%qOutput, this%Ef, this%potential%intBlock,&
-          & this%qBlockOut, .not.this%transpar%tWriteBinShift)
+          & this%potential%coulombShell, this%qOutput, this%Ef, this%qBlockOut,&
+          & .not.this%transpar%tWriteBinShift)
     end if
 
     if (this%tLocalCurrents) then
@@ -659,8 +660,7 @@ contains
     call resetExternalPotentials(this%refExtPot, this%potential)
 
     if (this%tReadShifts) then
-      call readShifts(fShifts, this%orb, this%nAtom, this%nSpin,&
-          & this%potential%extShell)
+      call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
     end if
 
     call setUpExternalElectricField(this%tEField, this%tTDEField, this%tPeriodic,&
