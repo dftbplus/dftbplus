@@ -11,6 +11,7 @@
 
 !> Contains MPI related environment settings
 module dftbp_mpienv
+  use dftbp_globalenv, only : globalMpiComm
   use dftbp_accuracy, only : lc
   use dftbp_mpifx, only : mpifx_comm, mpifx_allgather
   use dftbp_message, only : error
@@ -20,7 +21,7 @@ module dftbp_mpienv
   implicit none
   private
 
-  public :: TMpiEnv, TMpiEnv_init
+  public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final
 
 
   !> Contains MPI related environment settings
@@ -96,7 +97,7 @@ contains
     !> Number of process groups to create
     integer, intent(in), optional :: nGroup
 
-    call this%globalComm%init()
+    this%globalComm = globalMpiComm
     if (present(nGroup)) then
       this%nGroup = nGroup
     else
@@ -117,6 +118,18 @@ contains
     end if
 
   end subroutine TMpiEnv_init
+
+
+  !> Finalizes the communicators allocated here
+  subroutine TMpiEnv_final(this)
+
+    !>  Initialised instance.
+    type(TMpiEnv), intent(inout) :: this
+
+    call this%interGroupComm%free()
+    call this%groupComm%free()
+
+  end subroutine TMpiEnv_final
 
 
   !> Routine to check this is a single processor instance, stopping otherwise (useful to call in

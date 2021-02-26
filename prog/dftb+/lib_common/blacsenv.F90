@@ -17,7 +17,7 @@ module dftbp_blacsenv
   implicit none
   private
 
-  public :: TBlacsEnv, TBlacsEnv_init
+  public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 
 
   !> Contains various BLACS related settings
@@ -97,6 +97,18 @@ contains
     this%columnBlockSize = colBlock
 
   end subroutine TBlacsEnv_init
+
+
+  !> Finalizes the initialized grids.
+  subroutine TBlacsEnv_final(this)
+
+    !> Initialized instance.
+    type(TBlacsEnv), intent(out) :: this
+
+    call this%orbitalGrid%destruct()
+    call this%atomGrid%destruct()
+
+  end subroutine TBlacsEnv_final
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

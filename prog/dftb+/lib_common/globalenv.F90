@@ -21,12 +21,16 @@ module dftbp_globalenv
   use dftbp_mpifx
 #:endif
   implicit none
-  private
 
+  private
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
   public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
+  #:if WITH_MPI
+    public :: globalMpiComm
+  #:endif
+
 
   !> Unredirected standard out
   integer, parameter :: stdOut0 = output_unit
