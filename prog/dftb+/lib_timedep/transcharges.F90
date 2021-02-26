@@ -25,7 +25,7 @@ module dftbp_transcharges
     logical :: tCacheCharges
 
     !> storage if caching the occupied -> virtual transition charges
-    real(dp), allocatable :: qCacheOccVirt(:,:)
+    real(dp), allocatable :: qCacheOccVir(:,:)
 
     !> storage if caching the occupied -> occupied transition charges
     real(dp), allocatable :: qCacheOccOcc(:,:)
@@ -106,7 +106,7 @@ contains
     !> index array for single particle excitions that are included
     integer, intent(in) :: win(:)
 
-    integer :: ij, ii, jj, kk, ab, aa, bb, i, j, a, b, iSpin, nSpin
+    integer :: ia, ij, ii, jj, kk, ab, aa, bb
     logical :: updwn
 
     this%nTransitions = nTrans
@@ -114,28 +114,28 @@ contains
     this%nMatUp = nMatUp
     this%nMatUpOccOcc = nXooUD(1)
     this%nMatUpVirVir = nXvvUD(1)
-    nSpin = size(sTimesGrndEigVecs, dim=3)
 
     if (tStore) then
 
-      @:ASSERT(.not.allocated(this%qCacheOccVirt))
-      allocate(this%qCacheOccVirt(this%nAtom, nTrans))
+      @:ASSERT(.not.allocated(this%qCacheOccVir))
+      allocate(this%qCacheOccVir(this%nAtom, nTrans))
       @:ASSERT(.not.allocated(this%qCacheOccOcc))
       allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
       @:ASSERT(.not.allocated(this%qCacheVirVir))
       allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
 
-      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn) SCHEDULE(RUNTIME)
-      do ij = 1, nTrans
-        kk = win(ij)
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
+      do ia = 1, nTrans
+        kk = win(ia)
         ii = getia(kk,1)
-        jj = getia(kk,2)
+        aa = getia(kk,2)
         updwn = (kk <= this%nMatUp)
-        this%qCacheOccVirt(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
+        this%qCacheOccVir(:,ia) = transq(ii, aa, iAtomStart, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
       !!$OMP  END PARALLEL DO
 
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn) SCHEDULE(RUNTIME)
       do ij = 1, sum(nXooUD)
         ii = getij(ij,1)
         jj = getij(ij,2)
@@ -143,7 +143,9 @@ contains
         this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
              & grndEigVecs)
       enddo
+      !!$OMP  END PARALLEL DO
 
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ab,aa,bb,updwn) SCHEDULE(RUNTIME)
       do ab = 1, sum(nXvvUD)
         aa = getab(ab,1)
         bb = getab(ab,2)
@@ -151,6 +153,7 @@ contains
         this%qCacheVirVir(:,ab) = transq(aa, bb, iAtomStart, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
+      !!$OMP  END PARALLEL DO
 
       this%tCacheCharges = .true.
 
@@ -194,8 +197,8 @@ contains
     logical :: updwn
     integer :: ii, jj, kk
 
-    if (allocated(this%qCacheOccVirt)) then
-      q(:) = this%qCacheOccVirt(:, ij)
+    if (allocated(this%qCacheOccVir)) then
+      q(:) = this%qCacheOccVir(:, ij)
     else
       kk = win(ij)
       ii = getia(kk,1)
@@ -319,7 +322,7 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = qProduct + matmul(this%qCacheOccVirt, vector)
+      qProduct(:) = qProduct + matmul(this%qCacheOccVir, vector)
 
     else
 
@@ -378,7 +381,7 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = qProduct + matmul(vector, this%qCacheOccVirt)
+      qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir)
 
     else
 
