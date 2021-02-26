@@ -120,6 +120,10 @@ contains
 
       @:ASSERT(.not.allocated(this%qCacheOccVirt))
       allocate(this%qCacheOccVirt(this%nAtom, nTrans))
+      @:ASSERT(.not.allocated(this%qCacheOccOcc))
+      allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
+      @:ASSERT(.not.allocated(this%qCacheVirVir))
+      allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn) SCHEDULE(RUNTIME)
       do ij = 1, nTrans
@@ -132,14 +136,12 @@ contains
       end do
       !!$OMP  END PARALLEL DO
 
-      do iSpin = 1, nSpin
-         do ij = 1, nXooUD(iSpin)
-            ii = getij(ij,1)
-            jj = getij(ij,2)
-            updwn = (ij <= nXooUD(1))
-            this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
-            & grndEigVecs)
-         end do
+      do ij = 1, sum(nXooUD)
+        ii = getij(ij,1)
+        jj = getij(ij,2)
+        updwn = (ij <= nXooUD(1))
+        this%qCacheOccOcc(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
+             & grndEigVecs)
       enddo
 
       do ab = 1, sum(nXvvUD)
