@@ -273,7 +273,7 @@ contains
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: spinW(:)
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
     real(dp), intent(out) :: vOut(:)
     real(dp), intent(out) :: gqvTmp(:,:)   !for faster, more memory intensive routine
 
@@ -456,7 +456,7 @@ contains
     !integer, intent(in) :: species0(:)
     !type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
     real(dp), intent(out) :: vOut(:)
 
     real(dp) :: gqvTmp(:,:)   !for faster, more memory intensive routine
@@ -597,7 +597,7 @@ contains
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
     integer,  intent(in) :: getIA(:,:)
-    integer, intent(in) :: iaTrans(1:, homo+1:, :)
+    integer, intent(in) :: iaTrans(:,:,:)
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: spinW(:)
     !type(TOrbitals), intent(in) :: orb
@@ -802,7 +802,7 @@ contains
     integer, allocatable :: win(:), iaTrans(:,:,:), getIA(:,:), getIJ(:,:), getAB(:,:)
     character, allocatable :: symmetries(:)
 
-    integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR, nXoo2, nXvv2, nXooUD(2), nXvvUD(2)
+    integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR, nXoo, nXvv, nXooUD(2), nXvvUD(2)
     integer :: mHOMO, mLUMO, nXoo_max, nXvv_max 
     integer, allocatable :: nOccUD(:), nVirUD(:)
     integer :: nXov, nXovUD(2), nXovR, nXovD, nXovRD, nOrb
@@ -928,8 +928,8 @@ contains
        nXooUD(iSpin) = (nOccUD(iSpin) * (nOccUD(iSpin) + 1))/2
        nXvvUD(iSpin) = (nVirUD(iSpin) * (nVirUD(iSpin) + 1))/2
     enddo
-    nXoo2 = sum(nxooUD)
-    nXvv2 = sum(nxvvUD)
+    nXoo = sum(nxooUD)
+    nXvv = sum(nxvvUD)
     nXoo_max = maxval(nxooUD)
     nXvv_max = maxval(nxvvUD)
 
@@ -985,8 +985,8 @@ contains
     allocate(win(nXov))
     allocate(eval(nExc))
     allocate(getIA(nXov, 3))
-    allocate(getIJ(nXoo2, 3))
-    allocate(getAB(nXvv2, 3))
+    allocate(getIJ(nXoo, 3))
+    allocate(getAB(nXvv, 3))
     allocate(transitionDipoles(nXov, 3))
     allocate(snglPartOscStrength(nXov))
 
@@ -1155,8 +1155,8 @@ contains
     end if
 
     ! for fast init. mat calc. need combined index
-    allocate(iaTrans(1:nOcc, nOcc+1:nOrb, nSpin))
-    call rIndXov_array(win, nOcc+1, nXov, getIA, iaTrans)
+    allocate(iaTrans(nOrb, nOrb, nSpin))
+    call rIndXov_array(win, nXov, nXoo, nXvv, getIA, getIJ, getAB, iaTrans)
 
     ! run lin. resp. calculation:
     do isym = 1, size(symmetries)
@@ -1262,7 +1262,7 @@ contains
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
     integer, intent(in) :: getIA(:,:), getIJ(:,:), getAB(:,:), species0(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:) ! needed in fast setup of init mat
+    integer, intent(in) :: iaTrans(:,:,:) ! needed in fast setup of init mat
     real(dp), intent(in) :: spinW(:)
     integer, intent(in) :: nStat
     ! lin. resp. eigenvalues and eigenvectors (F_I and X_I+Y_I)
@@ -1948,7 +1948,7 @@ contains
       & spinW, omega, cSym, rhs, t, vWov, vWoo, vWvv)
     real(dp), intent(in) :: vecXpY(:), vecXmY(:)
     integer, intent(in) :: win(:), iAtomStart(:)
-    integer, intent(in) :: homo, nOcc, nMatUp, getIA(:,:), iaTrans(1:,homo+1:,:), nAtom, species0(:)
+    integer, intent(in) :: homo, nOcc, nMatUp, getIA(:,:), iaTrans(:,:,:), nAtom, species0(:)
     real(dp), intent(in) :: ev(:), sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), spinW(:), omega
     character, intent(in) :: cSym
@@ -2238,7 +2238,7 @@ contains
     real(dp), intent(in) :: spinW(:)
     integer, intent(in) :: homo, nOcc, nVir
     real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
 
     integer :: nXov
     integer :: ia, i, a, k, ii, aa, s
@@ -2339,7 +2339,7 @@ contains
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:), lrGamma(:,:)
     real(dp), intent(in) :: ev(:)
     real(dp), intent(inout) :: vWov(:), vWoo(:), vWvv(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
 
     integer :: nXov, nXoo, nXvv, nAtom
     integer :: ij, ia, ab, i, j, a, b, alpha, s
@@ -2924,7 +2924,7 @@ contains
     real(dp), intent(out) :: vecHvv(:)
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer, intent(in) :: ipm, nXov, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIA(:,:)
+    integer, intent(in) :: iaTrans(:,:,:), getIA(:,:)
 
     integer :: i, a, b, ia, ib, ab, nXovAct, nOcc, nVirt, s
     logical :: lUpDwn
@@ -2987,7 +2987,7 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, vecHoo)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
     integer, intent(in) :: ipm, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIA(:,:)
+    integer, intent(in) :: iaTrans(:,:,:), getIA(:,:)
     real(dp), intent(out) :: vecHoo(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
@@ -3052,7 +3052,7 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHov)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
     integer, intent(in) :: nOcc, nXov, nXoo, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIA(:,:)
+    integer, intent(in) :: iaTrans(:,:,:), getIA(:,:)
     real(dp), intent(out) :: vecHov(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
@@ -3144,7 +3144,7 @@ contains
       & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHoo)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
     integer, intent(in) :: nOcc, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
-    integer, intent(in) :: iaTrans(1:,homo+1:,:), getIA(:,:)
+    integer, intent(in) :: iaTrans(:,:,:), getIA(:,:)
     real(dp), intent(out) :: vecHoo(:)
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), qXa(:,:,:), Gq(:,:)

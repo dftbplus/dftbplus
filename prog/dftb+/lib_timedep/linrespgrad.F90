@@ -450,14 +450,6 @@ contains
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), &
         & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
 
-   #:block DEBUG_CODE
-    ! Test cached charges
-    print *,'--> Comparison of ov/oo/vv transition charges by direct evaluation of transQ'
-    print *,'--> and through the cache.'
-    call chargeTest(iAtomStart, stimc, grndEigVecs, win, nxov_rd, nxov_ud, &
-    &  nxoo_ud, nxvv_ud, nocc_ud, gammaMat, getia, getij, getab, transChrg) 
-   #:endblock DEBUG_CODE    
-
     if (this%fdXplusY >  0) then
       open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
@@ -592,7 +584,7 @@ contains
       ALLOCATE(woo(nxoo_max, nSpin))
       ALLOCATE(wvv(nxvv_max, nSpin))
       ALLOCATE(wov(nxov_rd))
-      ALLOCATE(iatrans(1:mHOMO, mLUMO:norb, nSpin))
+      ALLOCATE(iatrans(norb, norb, nSpin))
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
@@ -601,7 +593,15 @@ contains
       end if
 
       ! set up transition indexing
-      call rindxov_array(win, mLUMO, nxov, getia, iatrans)
+      call rindxov_array(win, nxov, nxoo, nxvv, getia, getij, getab, iatrans)
+
+   #:block DEBUG_CODE
+      ! Test cached charges
+      print *,'--> Comparison of ov/oo/vv transition charges by direct evaluation of transQ'
+      print *,'--> and through the cache.'
+      call chargeTest(iAtomStart, stimc, grndEigVecs, win, nxov_rd, nxov_ud, &
+           &  nxoo_ud, nxvv_ud, nocc_ud, gammaMat, getia, getij, getab, iatrans, transChrg) 
+   #:endblock DEBUG_CODE 
 
       do iLev = nStartLev, nEndLev
         omega = sqrt(eval(iLev))
@@ -951,7 +951,7 @@ contains
     integer, intent(in) :: getia(:,:)
 
     !> index array from orbital pairs to compound index
-    integer, intent(in) :: iatrans(:,minval(homo)+1:,:)
+    integer, intent(in) :: iatrans(:,:,:)
 
     !> number of central cell atoms
     integer, intent(in) :: natom
@@ -2394,12 +2394,12 @@ contains
   end subroutine calcPMatrix
 
   subroutine chargeTest(iAtomStart, sTimesGrndEigVecs, grndEigVecs, win, nxov_rd, nxov_ud, &
-    &  nxoo_ud, nxvv_ud, homo, gamma, getia, getij, getab, transChrg)
+    &  nxoo_ud, nxvv_ud, homo, gamma, getia, getij, getab, iaTrans, transChrg)
     integer, intent(in) :: win(:), homo(:), iAtomStart(:), getia(:,:), getij(:,:), getab(:,:)
-    integer, intent(in) :: nxov_rd, nxov_ud(:), nxoo_ud(:), nxvv_ud(:)
+    integer, intent(in) :: nxov_rd, nxov_ud(:), nxoo_ud(:), nxvv_ud(:), iaTrans(:,:,:)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:)
     type(TTransCharges) :: transChrg
-    integer ia, ii, aa, ss, ij, jj, ab, bb, iSpin, nSpin, off
+    integer ia, ii, aa, ss, ij, jj, ab, bb, iSpin, nSpin, nOrb, off, rr
     real(dp), allocatable :: qIJ(:), qCache(:)
     logical lUpdwn
     real(dp) maxdev
@@ -2407,7 +2407,9 @@ contains
     allocate(qIJ(size(gamma, dim=1)))
     allocate(qCache(size(gamma, dim=1)))
     nSpin = size(sTimesGrndEigVecs, dim=3)
+    nOrb = size(sTimesGrndEigVecs, dim=2)
     
+    print *,'--> Number of orbitals per spin channel : ', nOrb
     print *,'--> Number of ov transitions (up,dn,tot): ', nxov_ud(1), nxov_ud(2), sum(nxov_ud)
     print *,'--> Number of ov transitions considered : ', nxov_rd
     print *,'--> Number of oo transitions (up,dn,tot): ', nxoo_ud(1), nxoo_ud(2), sum(nxoo_ud)
@@ -2456,6 +2458,25 @@ contains
        off = nxvv_ud(1)
     enddo
     print *,'--> Max. deviation vir-vir trans charges: ', maxdev
+
+    do iSpin = 1, nSpin
+       do ij = 1, nxoo_ud(iSpin)
+          ii = getij(ij,1)
+          jj = getij(ij,2)
+          if(ij /= iaTrans(ii,jj,iSpin)) then
+             print *,'--> Index difference for oo index', ij
+          endif
+       enddo
+    enddo
+    do iSpin = 1, nSpin
+       do ab = 1, nxvv_ud(iSpin)
+          aa = getab(ab,1)
+          bb = getab(ab,2)
+          if(ab /= iaTrans(aa,bb,iSpin)) then
+             print *,'--> Index difference for vv index', ab
+          endif         
+       enddo
+    enddo
 
   end subroutine chargeTest
 end module dftbp_linrespgrad
