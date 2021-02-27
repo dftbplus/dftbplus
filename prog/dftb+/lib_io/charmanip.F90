@@ -392,7 +392,7 @@ contains
 
 
   !> Returns a lowercase string
-  pure function tolower(str) result(lower)
+  elemental function tolower(str) result(lower)
 
     !> String to convert to lowercase
     character(len=*), intent(in) :: str

@@ -14,6 +14,7 @@ Added
 - Conductor like screening model (COSMO)
   implicit solvation model for SCC calculations
 
+- Extended syntax for selecting atoms in HSD input
 
 Changed
 -------

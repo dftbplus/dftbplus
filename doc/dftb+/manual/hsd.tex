@@ -20,7 +20,7 @@ where the value \verb|value| was assigned to the property
 \item Scalar, such as
   \begin{itemize}
   \item integer
-  \item real 
+  \item real
   \item logical
   \item string
   \end{itemize}
@@ -88,9 +88,9 @@ string and that they are not interpreted by the parser:
 A list of scalars is created by sequentially writing the scalars
 separated by one or more spaces:
 \begin{verbatim}
-  PlottedLevels =  1 2 3 
-  Origin =  0.0 0.0 0.0 
-  ConfirmItTwice =  Yes Yes 
+  PlottedLevels =  1 2 3
+  Origin =  0.0 0.0 0.0
+  ConfirmItTwice =  Yes Yes
   SpeciesNames =  "Ga" "As"
 \end{verbatim}
 
@@ -246,8 +246,8 @@ Assuming the following example as input
   # Lattice contant specified in Angstrom.
   # Internal representation uses Bohr, so it will be converted.
   LatticeConstant [Angstrom] = 12.0
-                    
-  # This property is not set, as its commented out, so the 
+
+  # This property is not set, as its commented out, so the
   # default value will be set for this (let's assume, it's Yes)
   #DoAProperJob = No
 
@@ -331,7 +331,7 @@ corresponding XML-representation is given below:
         </level2elem1>
      </level1elem2>
   </level0elem3>
-\end{verbatim}    
+\end{verbatim}
     \end{minipage}
   \end{center}
 \end{minipage}
@@ -434,7 +434,70 @@ following examples should make this a little bit more clear.
     }
   }
 \end{verbatim}
-  
+
+
+\section{Index selection expressions}
+\label{sec:index_selection}
+
+When specific elements should be selected from a list, the HSD parser allows for the usage of
+special index selection expressions.  Typical examples are the selection of atoms (as in the
+\is{MovedAtoms} or \is{Atoms} keywords) or the selection of energy levels, k-points and spins (as in
+the \waveplot{} keywords \is{PlottedKPoints}, \is{PlottedSpins}, \is{PlottedLevels}).
+
+The expressions might contain the logical operators ``not'' (``\verb|!|''), ``and'' (``\verb|&|'')
+and ``or'' (`` '', i.e.\ white space). The ``not'' operator has the highest and the ``or'' operator
+the lowest precedence. Parentheses can be used for grouping together operations. If atoms are being
+selected, atom type names can be used to select all atoms of a given type. The first element of the
+list has the index one. Negative indices are counted backwards from the last element of the list,
+with -1 corresponding to the last element. Index ranges can be specified as \verb|start:end| (i.e.\
+without white space as one word!), which inclusively selects all elements between \verb|start| and
+\verb|end|.
+
+Below you find a few examples for selection expressions:
+
+\begin{verbatim}
+# Atoms 1, 2, 3, 4
+MovedAtoms = 1 2 3 4 5
+
+# Atoms within the range [1, 4] -> 1, 2, 3, 4
+MovedAtoms = 1:4
+
+# All atoms (from first to last)
+MovedAtoms = 1:-1
+
+# All atoms up to (and including) the fourth from the end
+# (= all atoms apart the last 3)
+MovedAtoms = 1:-4
+
+# All Si atoms and atoms 2 and 4.
+MovedAtoms = Si 2 4
+
+# Any atoms from 2 to 6 which are Si atoms
+MovedAtoms = 2:6 & Si
+
+# All atoms, apart from atoms 2, 3, 4, 5, 6
+MovedAtoms = !2:6
+
+# All atoms from 2 to 6 which are not Si atoms
+MovedAtoms = 2:6 & !Si
+
+# All atoms apart from 1:3 and 5:7
+MovedAtoms = !(1:3 5:7)
+
+# All non-Si atoms in the ranges 1 to 10, 21 to 30 and 41 to 50.
+MovedAtoms = !Si & (1:10 21:30 41:50)
+\end{verbatim}
+
+The syntax of the index selection can be described by following formal grammar:
+
+\begin{verbatim}
+expr := addTerm { addTerm }
+addTerm := mulTerm { "&" mulTerm }
+mulTerm := term |  "!"term
+term := selector | "("expr")"
+selector := index{":"index} | speciesName
+index := {-}[0-9]+
+speciesName := [a-zA-Z][0-9a-zA-Z_]*
+\end{verbatim}
+
 \end{itemize}
-
-

@@ -20,13 +20,15 @@ module dftbp_hsdutils
   use dftbp_message
   use dftbp_linkedlist
   use dftbp_accuracy
+  use dftbp_io_indexselection, only : getIndexSelection
+  use dftbp_status, only : TStatus
   implicit none
   private
 
   public :: checkError, detailedError, detailedWarning
   public :: getFirstTextChild, getChildValue, setChildValue
   public :: writeChildValue, getAsString
-  public :: convAtomRangeToInt, convRangeToInt, appendPathAndLine
+  public :: getSelectedAtomIndices, getSelectedIndices, appendPathAndLine
   public :: getChild, getChildren, setChild
   public :: attrProcessed
 
@@ -1518,10 +1520,14 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine convAtomRangeToInt(str, speciesNames, species, node, val, ishift, maxRange)
+  subroutine getSelectedAtomIndices(node, selectionExpr, speciesNames, species, selectedIndices,&
+        & selectionRange, indexRange)
+
+    !> Top node for detailed errors.
+    type(fnode), pointer, intent(in) :: node
 
     !> String to convert
-    character(len=*), intent(in) :: str
+    character(len=*), intent(in) :: selectionExpr
 
     !> Contains the valid species names.
     character(len=*), intent(in) :: speciesNames(:)
@@ -1529,225 +1535,78 @@ contains
     !> Contains for every atom its species index
     integer, intent(in) :: species(:)
 
-    !> Top node for detailed errors.
-    type(fnode), pointer :: node
-
     !> Integer list of atom indices on return.
-    integer, allocatable, intent(out) :: val(:)
+    integer, allocatable, intent(out) :: selectedIndices(:)
 
-    !> Shift to be applied to provided atomic indices
-    integer, intent(in), optional :: ishift
+    !> The range of indices [from, to] available for selection. Default: [1, size(species)]
+    integer, optional, intent(in) :: selectionRange(:)
 
-    !> Upper range of atoms
-    integer, intent(in), optional :: maxRange
+    !> The range of indices [from, to] available in general. Must contain the range specified in
+    !> selectionRange. Default: selectionRange.
+    integer, optional, intent(in) :: indexRange(:)
 
-    type(string) :: buffer
-    type(TListInt) :: li
-    integer :: nAtom, iStart, iostat, shift
+    type(TStatus) :: status
+    logical, allocatable :: selected(:)
+    integer :: selectionRange_(2)
+    integer :: ii
 
-    shift = 0
-    if (present(ishift)) then
-      shift = ishift
-    end if
-    if (present(maxRange)) then
-      nAtom = maxRange
+    if (present(selectionRange)) then
+      selectionRange_(:) = selectionRange
     else
-      nAtom = size(species)
-    end if
-    call init(li)
-    iStart = 1
-    call getNextToken(str, buffer, iStart, iostat)
-    do while (iostat == TOKEN_OK)
-      call convAtomRangeToIntProcess(char(buffer), speciesNames, species, nAtom, node, li, shift)
-      call getNextToken(str, buffer, iStart, iostat)
-    end do
-    allocate(val(len(li)))
-    if (len(li) > 0) then
-      call asArray(li, val)
-    end if
-    call destruct(li)
-
-  end subroutine convAtomRangeToInt
-
-
-  !> Helper routine.
-  subroutine convAtomRangeToIntProcess(cbuffer, speciesNames, species, nAtom, node, li, shift)
-
-    !> Chunk of the specified atoms
-    character(len=*), intent(in) :: cbuffer
-
-    !> Name of chemical species
-    character(len=*), intent(in) :: speciesNames(:)
-
-    !> Chemical species of atoms
-    integer, intent(in) :: species(:)
-
-    !> Upper limit on range of atoms
-    integer, intent(in) :: nAtom
-
-    !> Top node for detailed errors.
-    type(fnode), pointer :: node
-
-    !> List of the converted atom numbers
-    type(TListInt), intent(inout) :: li
-
-    !> Shift in lower range of index
-    integer, intent(in) :: shift 
-
-    integer :: iPos, bounds(2), iSp, ii
-    integer :: iStart1, iStart2, iost(2)
-
-    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-        &.or. cbuffer(1:1) == "-") then
-      iPos = scan(cbuffer, ":")
-      if (iPos /= 0) then
-        iStart1 = 1
-        iStart2 = iPos + 1
-        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-        bounds = bounds + shift
-        if (any(iost /= TOKEN_OK)) then
-          call detailedError(node, "Invalid range specification '" &
-              &// trim(cbuffer) // "'")
-        end if
-        if (any(bounds > nAtom) .or. any(bounds < -nAtom) &
-            &.or. any(bounds == 0)) then
-          call detailedError(node, "Specified number out of range in '" &
-              &// trim(cbuffer) // "'")
-        end if
-        bounds = modulo(bounds, nAtom + 1)
-        if (bounds(1) > bounds(2)) then
-          call detailedError(node, "Negative range '" // trim(cbuffer) &
-              &// "'")
-        end if
-        do ii = bounds(1), bounds(2)
-          call append(li, ii)
-        end do
-      else
-        iStart1 = 1
-        call getNextToken(cbuffer, ii, iStart1, iost(1))
-        ii = ii + shift
-        if (iost(1) /= TOKEN_OK) then
-          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-              &// "'")
-        end if
-        if (ii > nAtom .or. ii < -nAtom .or. ii == 0) then
-          call detailedError(node, "Specified number (" // trim(cbuffer) // &
-              &") out of range.")
-        end if
-        ii = modulo(ii, nAtom + 1)
-        call append(li, ii)
-      end if
-    else
-      ! Try to interprete it as a species name
-      iPos = 0
-      do iSp = 1, size(speciesNames)
-        if (speciesNames(iSp) == cbuffer) then
-          iPos = iSp
-          exit
-        end if
-      end do
-      if (iPos == 0) then
-        call detailedError(node, "Invalid species name '" // trim(cbuffer) &
-            &// "'")
-      end if
-      do ii = 1, nAtom
-        if (species(ii) == iPos) then
-          call append(li, ii)
-        end if
-      end do
+      selectionRange_(:) = [1, size(species)]
     end if
 
-  end subroutine convAtomRangeToIntProcess
+    allocate(selected(selectionRange_(2) - selectionRange_(1) + 1))
+    call getIndexSelection(selectionExpr, selectionRange_, selected, status, indexRange=indexRange,&
+       speciesNames=speciesNames, species=species)
+    if (status%hasError()) then
+      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
+          & // "': " // status%message)
+    end if
+    selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
+    if (size(selectedIndices) == 0) then
+      call detailedWarning(node, "Atom index selection expression selected no atoms")
+    end if
+
+  end subroutine getSelectedAtomIndices
 
 
   !> Converts a string containing indices and ranges to a list of indices.
-  subroutine convRangeToInt(str, node, val, nMax)
-
-    !> String to convert
-    character(len=*), intent(in) :: str
+  subroutine getSelectedIndices(node, selectionExpr, selectionRange, selectedIndices, indexRange)
 
     !> Top node for detailed errors.
-    type(fnode), pointer :: node
+    type(fnode), pointer, intent(in) :: node
+
+    !> String to convert
+    character(len=*), intent(in) :: selectionExpr
+
+    !> The range of indices [from, to] offered for selection.
+    integer, intent(in) :: selectionRange(:)
 
     !> Integer list of atom indices on return.
-    integer, allocatable, intent(out) :: val(:)
+    integer, allocatable, intent(out) :: selectedIndices(:)
 
-    !> Maximum number for an index
-    integer, intent(in) :: nMax
+    !> The range of indices [from, to] available in general. Must contain the range specified in
+    !> selectionRange. Default: selectionRange.
+    integer, optional, intent(in) :: indexRange(:)
 
-    type(string) :: buffer
-    type(TListInt) :: li
-    integer :: iStart, iostat
+    type(TStatus) :: status
+    logical, allocatable :: selected(:)
+    integer :: ii
 
-    call init(li)
-    iStart = 1
-    call getNextToken(str, buffer, iStart, iostat)
-    do while (iostat == TOKEN_OK)
-      call convRangeToIntProcess(char(buffer), nMax, node, li)
-      call getNextToken(str, buffer, iStart, iostat)
-    end do
-    allocate(val(len(li)))
-    if (len(li) > 0) then
-      call asArray(li, val)
+    allocate(selected(selectionRange(2) - selectionRange(1) + 1))
+    call getIndexSelection(selectionExpr, selectionRange, selected, status, indexRange=indexRange)
+    if (status%hasError()) then
+      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
+          & // "': " // status%message)
     end if
-    call destruct(li)
-
-  end subroutine convRangeToInt
-
-  !> Helper routine.
-  subroutine convRangeToIntProcess(cbuffer, nMax, node, li)
-    character(len=*), intent(in) :: cbuffer
-    integer, intent(in) :: nMax
-    type(fnode), pointer :: node
-    type(TListInt), intent(inout) :: li
-
-    integer :: iPos, bounds(2), ii
-    integer :: iStart1, iStart2, iost(2)
-
-    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-        &.or. cbuffer(1:1) == "-") then
-      iPos = scan(cbuffer, ":")
-      if (iPos /= 0) then
-        iStart1 = 1
-        iStart2 = iPos + 1
-        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-        if (any(iost /= TOKEN_OK)) then
-          call detailedError(node, "Invalid range specification '" &
-              &// trim(cbuffer) // "'")
-        end if
-        if (any(bounds > nMax) .or. any(bounds < -nMax) &
-            &.or. any(bounds == 0)) then
-          call detailedError(node, "Specified number out of range in '" &
-              &// trim(cbuffer) // "'")
-        end if
-        bounds = modulo(bounds, nMax + 1)
-        if (bounds(1) > bounds(2)) then
-          call detailedError(node, "Negative range '" // trim(cbuffer) &
-              &// "'")
-        end if
-        do ii = bounds(1), bounds(2)
-          call append(li, ii)
-        end do
-      else
-        iStart1 = 1
-        call getNextToken(cbuffer, ii, iStart1, iost(1))
-        if (iost(1) /= TOKEN_OK) then
-          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-              &// "'")
-        end if
-        if (ii > nMax .or. ii < -nMax .or. ii == 0) then
-          call detailedError(node, "Specified number (" // trim(cbuffer) // &
-              &") out of range.")
-        end if
-        call append(li, ii)
-      end if
-    else
-      call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
+    selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
+    if (size(selectedIndices) == 0) then
+      call detailedWarning(node, "Atom index selection expression selected no atoms")
     end if
 
-  end subroutine convRangeToIntProcess
+  end subroutine getSelectedIndices
+
 
   !> Returns a child node with a specified name
   subroutine getChild(node, name, child, requested, modifier)

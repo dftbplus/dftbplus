@@ -14,6 +14,7 @@ set(sources-fpp
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
+  ${curdir}/status.F90
   ${curdir}/timer.F90
   ${curdir}/timerarray.F90
   ${curdir}/unitconversion.F90
