@@ -88,7 +88,7 @@
       @:ASSERT(checkSelection(selected, fullRange, [6, 8, 10]))
     #:endblock
 
-    #:block TEST("notWithParanthesis")
+    #:block TEST("notWithParenthesis")
       call getIndexSelection("!(Si 1:4 12:16)", fullRange, selected, status,&
            speciesNames=speciesNames, species=species)
       @:ASSERT(status%isOk())
@@ -102,21 +102,21 @@
       @:ASSERT(checkSelection(selected, fullRange, [1, 2, 3, 7, 9, 10, 11, 12]))
     #:endblock
 
-    #:block TEST("paranthesisPrecedence")
+    #:block TEST("parenthesisPrecedence")
       call getIndexSelection("(1:3 6:8) & Si 9:12", fullRange, selected, status,&
           speciesNames=speciesNames, species=species)
       @:ASSERT(status%isOk())
       @:ASSERT(checkSelection(selected, fullRange, [1, 3, 7, 9, 10, 11, 12]))
     #:endblock
 
-    #:block TEST("paranthesisPrecedence2")
+    #:block TEST("parenthesisPrecedence2")
       call getIndexSelection("1 (1:3 6:8) & !Si 9:12", fullRange, selected, status,&
           speciesNames=speciesNames, species=species)
       @:ASSERT(status%isOk())
       @:ASSERT(checkSelection(selected, fullRange, [1, 2, 6, 8, 9, 10, 11, 12]))
     #:endblock
 
-    #:block TEST("paranthesisPrecedence3")
+    #:block TEST("parenthesisPrecedence3")
       call getIndexSelection("1 & (1:3 6:8) & !Si 9:12", fullRange, selected, status,&
           speciesNames=speciesNames, species=species)
       @:ASSERT(status%isOk())
@@ -202,14 +202,14 @@
       @:ASSERT(status%code == errors%syntaxError)
     #:endblock
 
-    #:block TEST("unclosedParanthesis")
+    #:block TEST("unclosedParenthesis")
       call getIndexSelection("(1 & 2", fullRange, selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())
       @:ASSERT(status%code == errors%syntaxError)
     #:endblock
 
-    #:block TEST("unopenedParanthesis")
+    #:block TEST("unopenedParenthesis")
       call getIndexSelection("1 & 2)", fullRange, selected, status, speciesNames=speciesNames,&
           & species=species)
       @:ASSERT(status%hasError())

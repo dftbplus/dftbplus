@@ -40,10 +40,10 @@ module dftbp_io_indexselection
     !> Logical NOT operator
     integer :: not = 4
 
-    !> Opening paranthesis
+    !> Opening parenthesis
     integer :: open = 5
 
-    !> Closing paranthesis
+    !> Closing parenthesis
     integer :: close = 6
 
   end type  TTokenTypeEnum_
@@ -300,7 +300,7 @@ contains
       call evalExpression_(selection, level + 1, tokenizer, token, selected, status)
       @:PROPAGATE_ERROR(status)
       if (token%type /= tokenTypes_%close) then
-        @:RAISE_ERROR(status, errors%syntaxError, "Missing closing paranthesis ')'")
+        @:RAISE_ERROR(status, errors%syntaxError, "Missing closing parenthesis ')'")
       end if
     else
       @:RAISE_FORMATTED_ERROR(status, errors%syntaxError,&
