@@ -2920,7 +2920,7 @@ contains
       type is (TSimpleDftD3)
         write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
-        write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
+        call writeDftD4Info(stdOut, o)
     #:if WITH_MBD
       type is (TDispMbd)
         call writeMbdInfo(input%ctrl%dispInp%mbd)

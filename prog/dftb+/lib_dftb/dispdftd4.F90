@@ -29,7 +29,7 @@ module dftbp_dispdftd4
   implicit none
   private
 
-  public :: TDispDftD4, TDispDftD4Inp, init
+  public :: TDispDftD4, TDispDftD4Inp, init, writeDftD4Info
 
 
   !> Dispersion data cache for self-consistent evaluation of DFT-D4
@@ -221,6 +221,22 @@ contains
     allocate(this%zetadq(nRef, nAtom))
 
   end subroutine TScD4_init
+
+
+  !> Write information about DFT-D4 dispersion model
+  subroutine writeDftD4Info(unit, this)
+    !> Formatted unit for output
+    integer, intent(in) :: unit
+
+    !> Instance of the type to describe
+    class(TDispDftD4), intent(in) :: this
+
+    if (allocated(this%sc)) then
+      write(unit, "(A)") "Using self-consistent DFT-D4 dispersion corrections"
+    else
+      write(unit, "(A)") "Using DFT-D4 dispersion corrections"
+    end if
+  end subroutine writeDftD4Info
 
 
   !> Notifies the objects about changed coordinates
