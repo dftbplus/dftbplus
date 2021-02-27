@@ -294,6 +294,12 @@ contains
       call readDomainDecomposition(value1, input%ddInput)
     end select
 
+    call getChild(node, "SASA", value1, requested=.false.)
+    if (associated(value1)) then
+      allocate(input%sasaInput)
+      call readSolvSASA(value1, geo, input%sasaInput)
+    end if
+
   end subroutine readSolvCosmo
 
 

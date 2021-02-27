@@ -19,6 +19,7 @@ module dftbp_cosmo
   use dftbp_lebedev, only : getAngGrid, gridSize
   use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation, only : TSolvation
   implicit none
   
@@ -45,6 +46,9 @@ module dftbp_cosmo
     !> Input for the domain decomposition algorithm
     type(TDomainDecompositionInput) :: ddInput
 
+    !> Input for solvent accessible surface area model
+    type(TSASAInput), allocatable :: sasaInput
+
   end type TCosmoInput
 
 
@@ -53,9 +57,6 @@ module dftbp_cosmo
 
     !> Number of atoms
     integer :: nAtom
-
-    !> Input for the domain decomposition algorithm
-    type(TDomainDecompositionInput) :: ddInput
 
     !> Domain decomposition COSMO solver
     type(TDomainDecomposition) :: ddCosmo
@@ -101,6 +102,9 @@ module dftbp_cosmo
 
     !> Coordinates are current
     logical :: tCoordsUpdated
+
+    !> Solvent accessible surface area model
+    type(TSASACont), allocatable :: sasaCont
 
   contains
 
@@ -167,8 +171,6 @@ contains
     this%dielectricConst = input%dielectricConst
     this%freeEnergyShift = input%freeEnergyShift
 
-    this%ddInput = input%ddInput  ! FIXME
-
     allocate(this%vdwRad(nAtom))
     do iat = 1, nAtom
       this%vdwRad(iat) = input%vdwRad(species0(iat))
@@ -178,14 +180,20 @@ contains
     allocate(this%angWeight(gridSize(input%gridSize)))
     call getAngGrid(input%gridSize, this%angGrid, this%angWeight, stat)
     if (stat /= 0) then
-      call error("Could not initialize angular grid for SASA model")
+      call error("Could not initialize angular grid for COSMO model")
     end if
 
     allocate(this%chargesPerAtom(nAtom))
     allocate(this%shiftsPerAtom(nAtom))
 
-    call TDomainDecomposition_init(this%ddCosmo, this%ddInput, &
+    call TDomainDecomposition_init(this%ddCosmo, input%ddInput, &
       this%vdwRad, this%angWeight, this%angGrid)
+
+    if (allocated(input%sasaInput)) then
+       allocate(this%sasaCont)
+       call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
+           & speciesNames, latVecs)
+    end if
 
   end subroutine TCosmo_init
 
@@ -207,6 +215,14 @@ contains
         & solvation%nAtom*real(size(solvation%angWeight, dim=1), dp), "total", &
         & size(solvation%angWeight, dim=1), "per atom"
     write(unit, '(a, ":", t30, a)') "Solver", "domain decomposition"
+
+    write(unit, '(a, ":", t30)', advance='no') "SASA model"
+    if (allocated(solvation%sasaCont)) then
+      write(unit, '(a)') "Yes"
+      call writeSASAContInfo(unit, solvation%sasaCont)
+    else
+      write(unit, '(a)') "No"
+    end if
 
   end subroutine writeCosmoInfo
 
@@ -231,6 +247,10 @@ contains
 
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
+
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
+    end if
 
     if (allocated(this%phi)) deallocate(this%phi)
     if (allocated(this%psi)) deallocate(this%psi)
@@ -260,6 +280,10 @@ contains
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateLatVecs(latVecs)
+    end if
+
     this%tChargesUpdated = .false.
     this%tCoordsUpdated = .false.
 
@@ -282,10 +306,16 @@ contains
     @:ASSERT(this%tChargesUpdated)
     @:ASSERT(size(energies) == this%nAtom)
 
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getEnergies(energies)
+    else
+      energies(:) = 0.0_dp
+    end if
+
     keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
     do iat = 1, size(energies)
       energies(iat) = keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
-         & + this%freeEnergyShift / real(this%nAtom, dp)
+         & + this%freeEnergyShift / real(this%nAtom, dp) + energies(iat)
     end do
 
   end subroutine getEnergies
@@ -322,6 +352,10 @@ contains
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+    end if
 
     keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
 
@@ -390,6 +424,12 @@ contains
     @:ASSERT(this%tChargesUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
 
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getStress(stress)
+    else
+      stress(:, :) = 0.0_dp
+    end if
+
   end subroutine getStress
 
 
@@ -402,7 +442,11 @@ contains
     !> Resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = 0.0_dp
+    if (allocated(this%sasaCont)) then
+      cutoff = this%sasaCont%getRCutoff()
+    else
+      cutoff = 0.0_dp
+    end if
 
   end function getRCutoff
 
@@ -438,6 +482,10 @@ contains
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
+
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+    end if
 
     restart = allocated(this%sigma)
     if (.not.allocated(this%sigma)) then
@@ -485,10 +533,15 @@ contains
     @:ASSERT(size(shiftPerAtom) == this%nAtom)
     @:ASSERT(size(shiftPerShell, dim=2) == this%nAtom)
 
-    shiftPerShell(:,:) = 0.0_dp
+    if (allocated(this%sasaCont)) then
+      call this%sasaCont%getShifts(shiftPerAtom, shiftPerShell)
+    else
+      shiftPerAtom(:) = 0.0_dp
+      shiftPerShell(:,:) = 0.0_dp
+    end if
 
     keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
-    shiftPerAtom(:) = keps * this%sigma(1, :) * sqrt(fourpi)
+    shiftPerAtom(:) = keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
 
     ! we abuse Phi to store the unpacked and scaled value of s
     call getZeta(this%ddCosmo, keps, this%s, this%phi)
