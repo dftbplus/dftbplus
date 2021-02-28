@@ -195,6 +195,12 @@ module dftbp_initprogram
     !> SCC module internal variables
     type(TScc), allocatable :: scc
 
+    !> If the SCC error is above this tolerance, use the expressions with only the output properties
+    !> to evaluate energy, so is bounded from below. If below the tolerance re-use the input
+    !> potentials (faster, but not bounded, only stationary). Both expressions give the same energy
+    !> at self consistency.
+    real(dp) :: variationalEgyTol
+
     !> nr. of atoms
     integer :: nAtom
 
@@ -1232,6 +1238,9 @@ contains
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
     this%tSccCalc = input%ctrl%tScc
+    if (this%tSccCalc) then
+      this%variationalEgyTol = input%ctrl%variationalEgyTol
+    end if
     if (allocated(input%ctrl%dftbUInp)) then
       allocate(this%dftbU)
       call TDftbU_init(this%dftbU, input%ctrl%dftbUInp)
@@ -2707,6 +2716,7 @@ contains
       if (.not.this%tRestartNoSC) then
         write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
         write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", this%sccTol
+        write(stdOut, "(A,':',T30,E14.6)") "Variational above SCC error", this%variationalEgyTol
         write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", this%maxSccIter
       end if
       !if (this%tPeriodic) then

@@ -1,0 +1,44 @@
+Geometry = GenFormat {
+6 C
+ O H
+   1   2     -.499735     -.006429      .000000
+   2   1    -1.467047     -.147444      .000000
+   3   1     1.392547      .133948      .000000
+   4   2    -1.876914      .729873      .000000
+   5   2     1.737135     -.325150     -.779513
+   6   2     1.737135     -.325150      .779513
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  VariationalEnergy = No
+  SCCTolerance = 1E-8
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 9
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

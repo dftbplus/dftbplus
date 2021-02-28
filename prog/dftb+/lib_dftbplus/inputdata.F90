@@ -127,13 +127,19 @@ module dftbp_inputdata
     real(dp) :: maxForce    = 0.0_dp
 
     !> SCC calculation?
-    logical :: tScc        = .false.
+    logical :: tScc = .false.
+
+    !> SCC tolerance at which the evaluated energy and forces should only use output quantities (so
+    !> energy bounded from below by the converged result) or if below this tolerance, recycle input
+    !> potentials with output charges, which can be faster to evaluate. Both expressions agree at
+    !> self-consistency
+    real(dp) :: variationalEgyTol
 
     !> l-shell resolved SCC
     logical :: tShellResolved = .false.
 
     !> SCC tolerance
-    real(dp) :: sccTol      = 0.0_dp
+    real(dp) :: sccTol = 0.0_dp
 
     !> Read starting charges from disc
     logical :: tReadChrg = .false.

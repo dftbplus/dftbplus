@@ -579,6 +579,13 @@ contains
 
     real(dp), allocatable :: dipoleTmp(:)
 
+    ! Should the variational energy expression be used, hence re-computing potentials from output
+    ! charges
+    logical :: isVariationalEgy
+
+    ! charge changes between input and output
+    real(dp), allocatable :: qDiffRed(:)
+
     if (this%tDipole) then
       allocate(dipoleTmp(3))
     end if
@@ -930,9 +937,28 @@ contains
           call getLDual(this%orbitalL, this%qiBlockOut, this%orb, this%species)
         end if
 
+        if (this%tSccCalc) then
+          if(.not. this%isRangeSep) then
+            call reduceCharges(this%orb, this%nIneqOrb, this%iEqOrbitals, this%qOutput,&
+                & this%qOutRed, this%qBlockOut, this%dftbU, this%iEqBlockDftbu, this%qiBlockOut,&
+                & this%iEqBlockDftbuLS, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+            qDiffRed = this%qOutRed - this%qInpRed
+            sccErrorQ = maxval(abs(qDiffRed))
+          else
+            this%deltaRhoDiff = this%deltaRhoOut - this%deltaRhoIn
+            sccErrorQ = maxval(abs(this%deltaRhoDiff))
+          end if
+        end if
+
+        if (this%tSccCalc .and. .not. this%isXlbomd) then
+          isVariationalEgy = sccErrorQ > this%variationalEgyTol
+        else
+          isVariationalEgy = .false.
+        end if
+
         ! Note: if XLBOMD is active, potential created with input charges is needed later,
         ! therefore it should not be overwritten here.
-        if (this%tSccCalc .and. .not. this%isXlbomd) then
+        if (isVariationalEgy) then
           call resetInternalPotentials(this%tDualSpinOrbit, this%xi, this%orb, this%species,&
               & this%potential)
           call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
@@ -953,7 +979,7 @@ contains
           this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
         end if
 
-        if (allocated(this%qDepExtPot)) then
+        if (allocated(this%qDepExtPot) .and. isVariationalEgy) then
           call getChargePerShell(this%qOutput, this%orb, this%species, dQ, qRef=this%q0)
           call this%qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), this%orb,&
               & this%species, this%potential%intBlock)
@@ -978,7 +1004,8 @@ contains
                 & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
                 & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
                 & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
-                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS,&
+                & qDiffRed)
           else
             call getNextInputDensity(this%SSqrReal, this%over, this%neighbourList,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
@@ -3461,7 +3488,8 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
-      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
+      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
+      & qDiffRed)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3473,7 +3501,7 @@ contains
     real(dp), intent(inout) :: qOutput(:,:,:)
 
     !> Output electrons reduced by unique orbital types
-    real(dp), intent(inout) :: qOutRed(:)
+    real(dp), intent(in) :: qOutRed(:)
 
     !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
@@ -3515,7 +3543,7 @@ contains
     real(dp), intent(inout) :: qInpRed(:)
 
     !> SCC error
-    real(dp), intent(out) :: sccErrorQ
+    real(dp), intent(in) :: sccErrorQ
 
     !> Has the calculation converged>
     logical, intent(out) :: tConverged
@@ -3550,15 +3578,13 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary elements
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
-    real(dp), allocatable :: qDiffRed(:)
+    !> Reduced charge difference between input and output charges
+    real(dp), intent(in) :: qDiffRed(:)
+
     integer :: nSpin
 
     nSpin = size(qOutput, dim=3)
 
-    call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, dftbU,&
-        & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-    qDiffRed = qOutRed - qInpRed
-    sccErrorQ = maxval(abs(qDiffRed))
     tConverged = (sccErrorQ < sccTol)&
         & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
@@ -3663,19 +3689,19 @@ contains
     real(dp), intent(inout) :: qInput(:,:,:)
 
     !> SCC error
-    real(dp), intent(out) :: sccErrorQ
+    real(dp), intent(in) :: sccErrorQ
 
     !> Has the calculation converged>
     logical, intent(out) :: tConverged
 
     !> delta density matrix for rangeseparated calculations
-    real(dp), intent(inout) :: deltaRhoOut(:)
+    real(dp), intent(in) :: deltaRhoOut(:)
 
     !> delta density matrix as input for next SCC cycle
     real(dp), target, intent(inout) :: deltaRhoIn(:)
 
     !> difference of delta density matrix in and out
-    real(dp), intent(inout) :: deltaRhoDiff(:)
+    real(dp), intent(in) :: deltaRhoDiff(:)
 
     !> block charge input (if needed for orbital potentials)
     real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
@@ -3683,14 +3709,11 @@ contains
     !> Dual output charges
     real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
 
-
     integer :: nSpin, iSpin, iAt, iOrb
     real(dp), pointer :: deltaRhoInSqr(:,:,:)
 
     nSpin = size(qOutput, dim=3)
 
-    deltaRhoDiff(:) = deltaRhoOut - deltaRhoIn
-    sccErrorQ = maxval(abs(deltaRhoDiff))
     tConverged = (sccErrorQ < sccTol)&
         & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
 

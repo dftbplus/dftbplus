@@ -520,6 +520,15 @@ contains
       call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
     end if
 
+    call getDescendant(root, "Hamiltonian/DFTB/SCC", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(ch1, "", tVal1)
+      call setUnprocessed(ch1)
+      if (tVal1) then
+        call setChildValue(par, "VariationalEnergyTolerance", epsilon(0.0_dp), child=ch2)
+      end if
+    end if
+
   end subroutine convert_8_9
 
 

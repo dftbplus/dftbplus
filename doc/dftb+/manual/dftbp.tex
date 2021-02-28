@@ -1071,6 +1071,7 @@ following properties:
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{VariationalEnergyTolerance} & r & SCC = Yes & \is{SCCTolerance} & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
@@ -1159,6 +1160,16 @@ following properties:
   is set to \is{Yes}, any charge transfer between atomic shells will
   change the energy of the system compared to when it is set to set to
   \is{No}.
+
+\item[\is{VariationalEnergyTolerance}] During self-consistency cycles sets the
+  SCC tolerance at which the evaluated ground state energy only use output
+  quantities (larger than tolerance) or recycle input potentials with output
+  charges (under the tolerance), which for loose SCC tolerances can also
+  slightly affect forces. The first case is bounded from below by the
+  self-consistent energy, while the second can be faster to evaluate, but both
+  expressions agree at self-consistency. See section II of
+  ref.~\cite{hourahine07} for a short discussion of the difference between the
+  two forms.
 
 \item[\is{Mixer}]  Mixer type for mixing the charges in an SCC
   calculation. See p.~\pref{sec:dftbp.Mixer}.

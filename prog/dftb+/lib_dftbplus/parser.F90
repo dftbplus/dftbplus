@@ -2844,6 +2844,8 @@ contains
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
 
+    call getChildValue(node, "VariationalEnergyTolerance", ctrl%variationalEgyTol, ctrl%sccTol)
+
     ! temporararily removed until debugged
     !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
     ctrl%tWriteShifts = .false.
