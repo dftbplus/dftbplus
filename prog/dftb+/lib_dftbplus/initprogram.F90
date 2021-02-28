@@ -1490,6 +1490,7 @@ contains
     this%tLocalCurrents = .false.
     this%tNegf = .false.
     this%tUpload = .false.
+    this%tContCalc = .false.
   #:endif
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
@@ -1796,23 +1797,8 @@ contains
           & solver.")
     end if
 
-    ! temporary disables for various issues with NEGF
-    if (this%tNegf) then
-      if (this%nSpin > 2) then
-        call error("Non-collinear spin polarization disabled for transport calculations at the&
-            & moment.")
-      end if
-      if (this%tExtChrg) then
-        call error("External charges temporarily disabled for transport calculations&
-            & (electrostatic gates are available).")
-      end if
-    #:if WITH_TRANSPORT
-      if (this%isRangeSep .and. this%transpar%nCont > 0) then
-        call error("Range separated calculations do not work with transport calculations yet")
-      end if
-    #:endif
-    end if
-
+    ! Check for incompatible options if this is a transport calculation
+    call ensureTransportCompatibility(this)
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
@@ -4571,6 +4557,40 @@ contains
     end if
 
   end subroutine ensureSolverCompatibility
+
+
+  !> Check for compatibility between NEGF transport (or contact set-up for transport) and features
+  !> of the calculation
+  subroutine ensureTransportCompatibility(this)
+
+    !> Instance
+    class(TDftbPlusMain), intent(in) :: this
+
+    ! temporary checks for various issues with NEGF or generation of contacts for NEGF
+  #:if WITH_TRANSPORT
+    if (this%transpar%nCont > 0 .or. this%tContCalc) then
+      if (this%nSpin > 2) then
+        call error("Non-collinear spin polarization disabled for transport calculations at the&
+            & moment.")
+      end if
+      if (this%tExtChrg) then
+        call error("External charges temporarily disabled for transport calculations&
+            & (electrostatic gates are available).")
+      end if
+      if (this%t3rd .or. this%t3rdFull) then
+        call error ("Third order DFTB is not currently available for transport calculations")
+      end if
+      if (allocated(this%dispersion)) then
+        call error ("Dispersion interactions are not currently available for transport&
+            & calculations")
+      end if
+      if (this%isRangeSep) then
+        call error("Range separated calculations do not yet work with transport calculations")
+      end if
+    end if
+  #:endif
+
+  end subroutine ensureTransportCompatibility
 
 
   !> Modify the reference atomic shell charges for the neutral atom
