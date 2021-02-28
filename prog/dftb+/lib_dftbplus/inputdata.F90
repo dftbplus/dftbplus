@@ -464,7 +464,8 @@ module dftbp_inputdata
 
     !> 3rd order
     real(dp), allocatable :: hubDerivs(:,:)
-    logical :: t3rd, t3rdFull
+    logical :: t3rd = .false.
+    logical :: t3rdFull = .false.
 
 
     !> XLBOMD
