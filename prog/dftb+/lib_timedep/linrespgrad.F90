@@ -348,7 +348,6 @@ contains
       ALLOCATE(symmetries(1))
       symmetries(:) = [ " " ]
     end if
-  
     ! Allocation for general arrays
     ALLOCATE(gammaMat(this%nAtom, this%nAtom))
     ALLOCATE(snglPartTransDip(nxov, 3))
