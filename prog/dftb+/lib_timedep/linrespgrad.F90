@@ -375,7 +375,7 @@ contains
     ALLOCATE(osz(this%nExc))
 
     ! Find all single particle transitions and KS energy differences for cases that go from filled
-    ! to empty states, create index arrays for ov,oo,vv 
+    ! to empty states, create index arrays for ov,oo,vv
     call getSPExcitations(nocc_ud, nvir_ud, grndEigVal, filling, wij, getia, getij, getab)
 
     ! put them in ascending energy order
