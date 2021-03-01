@@ -365,7 +365,22 @@ contains
 
     ! Non-numerical value. If this is an atom selection, try to interprete it as species name.
     else if (allocated(selection%speciesNames)) then
-      iSpecies = findloc(selection%speciesNames, tolower(selector), dim=1)
+
+      !iSpecies = findloc(selection%speciesNames, tolower(selector), dim=1)
+
+      ! Workaround: gcc7 and gcc8 lack findloc as partially implement F08 standard
+      iSpecies = 1
+      do while (iSpecies <= size(selection%speciesNames))
+        if (selection%speciesNames(iSpecies) == tolower(selector)) then
+          exit
+        else
+          iSpecies = iSpecies + 1
+        end if
+      end do
+      if (iSpecies > size(selection%speciesNames)) then
+        iSpecies = 0
+      end if
+
       if (iSpecies == 0) then
         @:RAISE_FORMATTED_ERROR(status, errors%invalidSelector,&
             & "('Invalid species name ''', A, '''')", trim(selector))
