@@ -11,7 +11,6 @@
 
 !> Contains MPI related environment settings
 module dftbp_mpienv
-  use dftbp_globalenv, only : globalMpiComm
   use dftbp_accuracy, only : lc
   use dftbp_mpifx, only : mpifx_comm, mpifx_allgather
   use dftbp_message, only : error
@@ -89,15 +88,22 @@ contains
   ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
   ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
   ! ---------------------------------------------------------------
-  subroutine TMpiEnv_init(this, nGroup)
+  subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
 
     !> Initialised instance on exit
     type(TMpiEnv), intent(out) :: this
 
+    !> The global MPI communicator (assumed to be MPI_COMM_WORLD if not specified)
+    type(mpifx_comm), optional, intent(in) :: globalMpiComm
+
     !> Number of process groups to create
     integer, intent(in), optional :: nGroup
 
-    this%globalComm = globalMpiComm
+    if (present(globalMpiComm)) then
+      this%globalComm = globalMpiComm
+    else
+      call this%globalComm%init()
+    end if
     if (present(nGroup)) then
       this%nGroup = nGroup
     else

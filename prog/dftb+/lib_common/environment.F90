@@ -16,6 +16,7 @@ module dftbp_environment
   use dftbp_status, only : TStatus
 #:if WITH_MPI
   use dftbp_mpienv
+  use dftbp_globalenv, only : globalMpiComm
 #:endif
 
 #:if WITH_SCALAPACK
@@ -251,7 +252,7 @@ contains
     integer, intent(in) :: nGroup
 
     ! MPI settings
-    call TMpiEnv_init(this%mpi, nGroup)
+    call TMpiEnv_init(this%mpi, globalMpiComm=globalMpiComm, nGroup=nGroup)
     this%tGlobalLead = this%mpi%tGlobalLead
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
