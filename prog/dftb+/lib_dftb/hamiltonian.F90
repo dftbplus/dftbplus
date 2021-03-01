@@ -308,7 +308,7 @@ contains
     if (allocated(potential%coulombShell)) then
       ! need to retain the just electrostatic contributions to the potential for a contact
       ! calculation or similar
-      potential%coulombShell(:,:,1) = shellPot(:,:,1)
+      potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
       call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
     end if
 

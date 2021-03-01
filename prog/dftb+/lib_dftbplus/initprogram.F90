@@ -2459,7 +2459,7 @@ contains
       ! geometry is reduced to contacts only
       allocate(this%iAtInCentralRegion(this%nAtom))
       ! for storage of the electrostatic potential in the contact
-      allocate(this%potential%coulombShell(this%orb%mOrb,this%nAtom,1))
+      allocate(this%potential%coulombShell(this%orb%mShell,this%nAtom,1))
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
     end if
