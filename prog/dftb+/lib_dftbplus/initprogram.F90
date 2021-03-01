@@ -2838,7 +2838,7 @@ contains
       end if
     end if
 
-    if (this%tSccCalc .and. .not.this%tRestartNoSC) then
+    if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
       if (this%tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
