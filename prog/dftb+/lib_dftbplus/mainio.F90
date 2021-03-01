@@ -2096,7 +2096,7 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    real(dp), allocatable :: qOutputUpDown(:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     integer :: fd
 
     open(newunit=fd, file=fileName, action="write", status="replace")
@@ -2150,13 +2150,15 @@ contains
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
-      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-          & dim=1))
-       if (allocated(cm5Cont)) then
-          call taggedWriter%write(fd, tagLabels%qOutAtCM5, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-             & dim=1) + cm5Cont%cm5)
-       end if
+      qDiff = qOutput - q0
+      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown)
+      call taggedWriter%write(fd, tagLabels%qOutAtGross, -sum(qDiff(:,:,1), dim=1))
+      if (size(qDiff, dim=3) > 1) then
+        call taggedWriter%write(fd, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
+      end if
+      if (allocated(cm5Cont)) then
+        call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
+      end if
     end if
 
     close(fd)
