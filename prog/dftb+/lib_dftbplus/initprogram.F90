@@ -771,6 +771,9 @@ module dftbp_initprogram
     !> Charge Model 5 for printout
     type(TChargeModel5), allocatable :: cm5Cont
 
+    !> Write cavity information as cosmo file
+    logical :: tWriteCosmoFile
+
     !> Can stress be calculated?
     logical :: tStress
 
@@ -1684,6 +1687,7 @@ contains
     this%tMD = input%ctrl%tMD
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
+    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
     this%tEField = input%ctrl%tEfield
     this%tExtField = this%tEField
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%tExtField .or.&

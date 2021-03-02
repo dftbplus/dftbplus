@@ -4174,6 +4174,7 @@ calculation and/or calculate properties.
 \begin{ptable}
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
+  \kw{WriteCosmoFile} & l & & No & \\
   \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
   \kw{WriteNetCharges} & l & MullikenAnalysis = Yes & No & \\
   \kw{ProjectStates} & m & & \cb & \\
@@ -4196,6 +4197,9 @@ calculation and/or calculate properties.
 \item[\is{WriteNetCharges}] If \is{Yes}, the net charges (component of the
   charge associated only with the on-site part of the atomic orbitals, not the
   off-site hybridisation).
+
+\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is written as
+  cosmo file to dftbp.cosmo. Only works if the solvation model is COSMO.
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
