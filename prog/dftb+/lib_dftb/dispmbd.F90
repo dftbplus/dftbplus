@@ -236,13 +236,32 @@ contains
 
 
   !> Adds MBD forces to a gradient (using cached values if possible)
-  subroutine addGradients(this, gradients)
+  subroutine addGradients(this, env, neigh, img2CentCell, coords, species0, &
+      & gradients, stat)
 
     !> Instance
     class(TDispMbd), intent(inout) :: this
 
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> image to central cell atom index
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
     !> Gradients to be modified
     real(dp), intent(inout) :: gradients(:,:)
+
+    !> Status of operation
+    integer, intent(out), optional :: stat
 
     @:ASSERT(allocated(this%calculator))
 
@@ -255,6 +274,8 @@ contains
       this%gradientsUpdated = .true.
     end if
     gradients(:,:) = gradients + this%gradients
+
+    if (present(stat)) stat = 0
 
   end subroutine addGradients
 

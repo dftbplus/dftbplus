@@ -5543,7 +5543,7 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%addGradients(derivs)
+      call dispersion%addGradients(env, neighbourList, img2CentCell, coord, species, derivs)
     end if
 
     if (allocated(halogenXCorrection)) then
@@ -6957,7 +6957,7 @@ contains
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> dispersion interactions
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks

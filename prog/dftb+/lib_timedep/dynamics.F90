@@ -1045,7 +1045,7 @@ contains
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> dispersion data and calculations
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -3120,7 +3120,8 @@ contains
 
     totalDeriv(:,:) = repulsiveDerivs + derivs
     if (allocated(this%dispersion)) then
-      call this%dispersion%addGradients(totalDeriv)
+      call this%dispersion%addGradients(env, neighbourList, this%speciesAll, coordAll,  &
+          & img2CentCell, totalDeriv)
     end if
 
     totalForce(:,:) = - totalDeriv

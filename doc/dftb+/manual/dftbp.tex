@@ -2948,7 +2948,7 @@ can be adjusted in the input.
   \kw{CutoffInter} & r & & 64 & \\
   \kw{CutoffThree} & r & & 40 & \\
   \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
-  \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+  \kw{ChargeModel} & m & & \is{EEQ} or \is{SelfConsistent} & \pref{sec:dftbp.ChargeModel} \\
   \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 
@@ -2988,8 +2988,11 @@ can be adjusted in the input.
 \subsubsection{DftD4 ChargeModel}
 \label{sec:dftbp.ChargeModel}
 
-This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
-the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
+This implementation of DFT-D4 supports the \is{EEQ\cb} method to initialize
+the charge model with an electronegativity equilibration~(EEQ) model\cite{rappe1991}
+as well as a self-consistent evaluation of the dispersion with \is{SelfConsistent\cb}.
+
+For the electronegativity equilibration model the following parameters are available.
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements

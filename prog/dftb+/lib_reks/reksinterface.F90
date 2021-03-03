@@ -868,7 +868,8 @@ module dftbp_reksinterface
 
         dispDerivs(:,:) = 0.0_dp
         if (allocated(dispersion)) then
-          call dispersion%addGradients(dispDerivs)
+          call dispersion%addGradients(env, neighbourList, species, coord, img2CentCell, &
+              & dispDerivs)
         end if
 
         repDerivs(:,:) = 0.0_dp
