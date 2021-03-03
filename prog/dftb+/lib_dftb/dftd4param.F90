@@ -71,13 +71,6 @@ module dftbp_dftd4param
   end interface getSqrtZr4r2
 
 
-  interface init
-    module procedure :: TDftD4Calculator_init
-    module procedure :: TDftD4Ref_init
-  end interface
-
-
-
   !> Maximum atomic number allowed in EEQ calculations
   integer, parameter :: maxElementEeq = 86
 
