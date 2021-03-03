@@ -664,10 +664,10 @@ module dftbp_initprogram
     type(TListCharLc) :: regionLabels
 
     !> Third order DFTB
-    logical :: t3rd
+    logical :: t3rd = .false.
 
     !> Full 3rd order or only atomic site
-    logical :: t3rdFull
+    logical :: t3rdFull = .false.
 
     !> data structure for 3rd order
     type(TThirdOrder), allocatable :: thirdOrd
@@ -1490,6 +1490,7 @@ contains
     this%tLocalCurrents = .false.
     this%tNegf = .false.
     this%tUpload = .false.
+    this%tContCalc = .false.
   #:endif
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
@@ -1796,8 +1797,13 @@ contains
           & solver.")
     end if
 
-    ! temporary disables for various issues with NEGF
-    if (this%tNegf) then
+  #:if WITH_TRANSPORT
+    ! Check for incompatible options if this is a transport calculation
+    if (this%transpar%nCont > 0 .or. this%tContCalc) then
+      if (allocated(this%dispersion)) then
+        call error ("Dispersion interactions are not currently available for transport&
+            & calculations")
+      end if
       if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
@@ -1806,13 +1812,14 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
-    #:if WITH_TRANSPORT
-      if (this%isRangeSep .and. this%transpar%nCont > 0) then
-        call error("Range separated calculations do not work with transport calculations yet")
+      if (this%t3rdFull .or. this%t3rd) then
+        call error ("Third order DFTB is not currently available for transport calculations")
       end if
-    #:endif
+      if (this%isRangeSep) then
+        call error("Range separated calculations do not yet work with transport calculations")
+      end if
     end if
-
+  #:endif
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
