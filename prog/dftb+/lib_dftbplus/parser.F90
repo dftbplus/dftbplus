@@ -4109,7 +4109,7 @@ contains
     case default
       call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
     case ("selfconsistent")
-      input%tSelfConsistent = .true.
+      input%selfConsistent = .true.
     case ("eeq")
       allocate(input%eeqInput)
       allocate(d4Chi(geo%nSpecies))

@@ -19,7 +19,7 @@ module dftbp_dispdftd4
   use dftbp_constants, only : pi, symbolToNumber
   use dftbp_coordnumber, only : TCNCont, init_ => init
   use dftbp_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
-      & init_ => init
+      & TDftD4Calculator_init, TDftD4Ref_init
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_encharges, only : TEeqCont, init_ => init
   use dftbp_environment, only : TEnvironment
@@ -29,7 +29,7 @@ module dftbp_dispdftd4
   implicit none
   private
 
-  public :: TDispDftD4, TDispDftD4Inp, init, writeDftD4Info
+  public :: TDispDftD4, TDispDftD4Inp, TDispDftD4_init, init, writeDftD4Info
 
 
   !> Dispersion data cache for self-consistent evaluation of DFT-D4
@@ -138,7 +138,7 @@ module dftbp_dispdftd4
 
 
   interface init
-    module procedure :: DispDftD4_init
+    module procedure :: TDispDftD4_init
   end interface init
 
 
@@ -146,7 +146,7 @@ contains
 
 
   !> Initialize DispDftD4 instance
-  subroutine DispDftD4_init(this, inp, nAtom, speciesNames, latVecs)
+  subroutine TDispDftD4_init(this, inp, nAtom, speciesNames, latVecs)
 
     !> Initialized instance of D4 dispersion model
     type(TDispDftD4), intent(out) :: this
@@ -183,16 +183,16 @@ contains
     allocate(this%energies(nAtom))
     allocate(this%gradients(3, nAtom))
 
-    call init_(this%calc, inp)
-    call init_(this%ref, inp%izp, inp%chargeScale, inp%chargeSteepness)
+    call TDftD4Calculator_init(this%calc, inp)
+    call TDftD4Ref_init(this%ref, inp%izp, inp%chargeScale, inp%chargeSteepness)
 
     ! Calculation must be self-consistent if no charge model is available
-    if (inp%tSelfConsistent) then
+    if (inp%selfConsistent) then
       allocate(this%sc)
       call TScD4_init(this%sc, this%ref, nAtom)
     end if
 
-  end subroutine DispDftD4_init
+  end subroutine TDispDftD4_init
 
 
   !> Initialize dispersion data cache for self-consistent evaluation

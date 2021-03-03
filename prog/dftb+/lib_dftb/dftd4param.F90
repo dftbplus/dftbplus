@@ -18,7 +18,7 @@ module dftbp_dftd4param
   implicit none
 
   public :: TDftD4Calc, TDispDftD4Inp, TDftD4Calculator_init
-  public :: TDftD4Ref, TDftD4Ref_init, init
+  public :: TDftD4Ref, TDftD4Ref_init
   public :: getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   public :: getChemicalHardness, getEffectiveNuclearCharge, getSqrtZr4r2
   private
@@ -132,7 +132,7 @@ module dftbp_dftd4param
     real(dp) :: chargeSteepness = 2.0_dp
 
     !> Dispersion is evaluated self-consistent
-    logical :: tSelfConsistent = .false.
+    logical :: selfConsistent = .false.
 
     !> Input for EEQ charge model
     type(TEeqInput), allocatable :: eeqInput
