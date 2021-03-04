@@ -268,7 +268,6 @@ contains
     if (this%tPeriodic) then
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
           & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & parEwald=merge(this%eeqCont%parEwald, 0.0_dp, allocated(this%eeqCont)), &
           & stress=this%stress, volume=this%vol, stat=stat)
     else
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
@@ -979,7 +978,7 @@ contains
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
   subroutine evalDispersion(calc, ref, env, nAtom, species, coords, neigh, img2CentCell, &
-      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald, stat)
+      & eeqCont, cnCont, energies, gradients, stress, volume, stat)
 
     !> DFT-D dispersion model
     type(TDftD4Calc), intent(in) :: calc
@@ -1011,9 +1010,6 @@ contains
     !> Coordination number
     type(TCNCont), intent(inout) :: cnCont
 
-    !> Parameter for Ewald summation
-    real(dp), intent(in), optional :: parEwald
-
     !> Updated energy vector at return
     real(dp), intent(out) :: energies(:)
 
@@ -1031,7 +1027,7 @@ contains
 
     integer :: iAtFirst, iAtLast, nRef
     real(dp) :: sigma(3, 3)
-    real(dp) :: vol, parEwald0
+    real(dp) :: vol
 
     !> Nr. of neighbours for each atom
     integer, allocatable :: nNeighbour(:)
@@ -1047,12 +1043,6 @@ contains
       vol = volume
     else
       vol = 0.0_dp
-    end if
-
-    if (present(parEwald)) then
-       parEwald0 = parEwald
-    else
-       parEwald0 = 0.0_dp
     end if
 
     energies(:) = 0.0_dp
