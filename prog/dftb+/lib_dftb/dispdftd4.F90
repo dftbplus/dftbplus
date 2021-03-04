@@ -264,12 +264,18 @@ contains
     integer, intent(out), optional :: stat
 
     integer, allocatable :: nNeighbour(:)
+    real(dp) :: parEwald
+
 
     if (this%tPeriodic) then
+      if (allocated(this%eeqCont)) then
+        parEwald = this%eeqCont%parEwald
+      else
+        parEwald = 0.0_dp
+      end if
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
           & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & parEwald=merge(this%eeqCont%parEwald, 0.0_dp, allocated(this%eeqCont)), &
-          & stress=this%stress, volume=this%vol, stat=stat)
+          & parEwald=parEwald, stress=this%stress, volume=this%vol, stat=stat)
     else
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
           & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
