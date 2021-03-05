@@ -938,7 +938,7 @@ contains
     real(dp) :: cosmoEnergy, keps
     real(dp), allocatable :: phi(:), zeta(:), area(:)
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
+    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
     cosmoEnergy = this%freeEnergyShift
     do iat = 1, this%nAtom
       cosmoEnergy = cosmoEnergy + keps*dot_product(this%sigma(:, iat), this%psi(:, iat))
