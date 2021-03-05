@@ -38,8 +38,11 @@ module dftbp_linresptypes
     !> onsite corrections (if in use)
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
-    !> should transition charges be cached or evaluated on the fly?
-    logical :: tCacheCharges
+    !> should occ-vir transition charges be cached or evaluated on the fly?
+    logical :: tCacheChargesOccVir
+
+    !> same for occ-occ/vir-vir transitions
+    logical :: tCacheChargesSame
 
     !> Number of atoms
     integer :: nAtom

@@ -317,6 +317,11 @@ contains
     tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
         & this%tWriteDensityMatrix
 
+    !> occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
+    if((.not. tZVector) .and. this%tCacheChargesSame) then
+       this%tCacheChargesSame = .false.
+    endif
+
     ! Sanity checks
     nstat = this%nStat
     if (nstat < 0 .and. this%symmetry /= "S") then
@@ -447,7 +452,8 @@ contains
     end if
 
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), &
-        & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
+        & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheChargesOccVir,             &
+        & this%tCacheChargesSame)
 
     if (this%fdXplusY >  0) then
       open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")

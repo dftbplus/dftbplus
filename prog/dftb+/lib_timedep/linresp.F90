@@ -146,7 +146,9 @@ contains
       this%energyWindow = ini%energyWindow
       this%tOscillatorWindow = ini%tOscillatorWindow
       this%oscillatorWindow = ini%oscillatorWindow
-      this%tCacheCharges = ini%tCacheCharges
+      ! Final decision on value of tCacheChargesSame in linRespGrad
+      this%tCacheChargesOccVir = ini%tCacheCharges
+      this%tCacheChargesSame = ini%tCacheCharges
       this%nStat = ini%nStat
       this%symmetry = ini%sym
 
