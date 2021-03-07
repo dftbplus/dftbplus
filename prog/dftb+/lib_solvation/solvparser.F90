@@ -9,6 +9,7 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvparser
+  use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
   use dftbp_accuracy, only : dp
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
@@ -463,7 +464,16 @@ contains
         call detailedError(value1, "Invalid solvent " // char(buffer))
       end if
     case('fromconstants')
-      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      call getChildValue(value1, "Epsilon", buffer)
+      if (unquote(char(buffer)) == "Inf") then
+         if (ieee_support_inf(solvent%dielectricConstant)) then
+            solvent%dielectricConstant = ieee_value(solvent%dielectricConstant, ieee_positive_inf)
+         else
+            solvent%dielectricConstant = huge(solvent%dielectricConstant)
+         end if
+      else
+         call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      end if
       call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
         & modifier=modifier, child=field)
       call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)

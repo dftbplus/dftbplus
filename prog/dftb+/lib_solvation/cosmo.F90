@@ -312,7 +312,7 @@ contains
       energies(:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
+    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
     do iat = 1, size(energies)
       energies(iat) = keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
          & + this%freeEnergyShift / real(this%nAtom, dp) + energies(iat)
@@ -357,7 +357,7 @@ contains
       call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
     end if
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
+    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
 
     allocate(fx(3, this%nAtom), zeta(this%ddCosmo%ncav), &
       & ef1(3, this%ddCosmo%ncav), ef2(3, this%nAtom))
@@ -540,7 +540,7 @@ contains
       shiftPerShell(:,:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
+    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
     shiftPerAtom(:) = keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
 
     ! we abuse Phi to store the unpacked and scaled value of s
