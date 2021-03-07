@@ -1487,7 +1487,7 @@ contains
     this%tLocalCurrents = .false.
     this%tNegf = .false.
     this%tUpload = .false.
-    this%tContCalc = .false.
+    this%isAContactCalc = .false.
   #:endif
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
@@ -1796,7 +1796,7 @@ contains
 
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
-    if (this%transpar%nCont > 0 .or. this%tContCalc) then
+    if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
       if (allocated(this%dispersion)) then
         call error ("Dispersion interactions are not currently available for transport&
             & calculations")
