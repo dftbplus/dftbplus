@@ -959,8 +959,8 @@ module dftbp_initprogram
     !> Synonym for G.F. calculation of density
     logical :: tUpload
 
-    !> Whether contact Hamiltonians are computed
-    logical :: tContCalc
+    !> Whether a contact Hamiltonian is being computed and stored
+    logical :: isAContactCalc
 
     !> Whether Poisson solver is invoked
     logical :: tPoisson
@@ -997,14 +997,11 @@ module dftbp_initprogram
     !> Array storing local (bond) currents
     real(dp), allocatable :: lCurrArray(:,:)
 
-    !> Shell-resolved Potential shifts uploaded from contacts
+    !> Shell-resolved electrostatic potential shifts uploaded from contacts
     real(dp), allocatable :: shiftPerLUp(:,:)
 
     !> Orbital-resolved charges uploaded from contacts
     real(dp), allocatable :: chargeUp(:,:,:)
-
-    !> Shell-resolved block potential shifts uploaded from contacts
-    real(dp), allocatable :: shiftBlockUp(:,:,:,:)
 
     !> Block populations uploaded from contacts
     real(dp), allocatable :: blockUp(:,:,:,:)
@@ -1480,10 +1477,10 @@ contains
         & .and. .not. this%tSccCalc)
     if (this%tUpload) then
       call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
-          & this%shiftPerLUp, this%chargeUp, this%shiftBlockUp, this%blockUp)
+          & this%shiftPerLUp, this%chargeUp, this%blockUp)
     end if
     call initTransport_(env, input, this%electronicSolver, this%nSpin, this%tempElec, this%tNegf,&
-        & this%tContCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
+        & this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
         & this%tWriteLDOS, this%regionLabelLDOS)
   #:else
     this%tTunn = .false.
@@ -2465,9 +2462,11 @@ contains
       call checkTransportRanges(this%nAtom, input%transpar)
     end if
 
-    if (this%tContCalc) then
+    if (this%isAContactCalc) then
       ! geometry is reduced to contacts only
       allocate(this%iAtInCentralRegion(this%nAtom))
+      ! for storage of the electrostatic potential in the contact
+      allocate(this%potential%coulombShell(this%orb%mShell,this%nAtom,1))
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
     end if
@@ -4010,7 +4009,8 @@ contains
 
 #:if WITH_TRANSPORT
 
-  subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, tContCalc,&
+  !> Initialise a transport calculation
+  subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, isAContactCalc,&
       & mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
     type(TEnvironment), intent(inout) :: env
     type(TInputData), intent(in) :: input
@@ -4018,7 +4018,7 @@ contains
     integer, intent(in) :: nSpin
     real(dp), intent(in) :: tempElec
     logical, intent(in) :: tNegf
-    logical, intent(out) :: tContCalc
+    logical, intent(out) :: isAContactCalc
     real(dp), allocatable, intent(out) :: mu(:,:)
     type(TNegfInt), intent(out) :: negfInt
     type(TNegfInfo), intent(out) :: ginfo
@@ -4031,8 +4031,8 @@ contains
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
 
-    ! contact calculation in case some contact is computed
-    tContCalc = (input%transpar%taskContInd /= 0)
+    ! Its a contact calculation in the case that some contact is computed
+    isAContactCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <= 2) then
       nSpinChannels = nSpin
@@ -4327,13 +4327,28 @@ contains
 
   ! initialize arrays for tranpsport
   subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
-      & shiftBlockUp, blockUp)
+      & blockUp)
+
+    !> Transport calculation parameters
     type(TTransPar), intent(inout) :: transpar
+
+    !> Data structure for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> Are block charges expected for the contact?
     logical, intent(in) :: hasBlockCharges
-    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:), chargeUp(:,:,:)
-    real(dp), allocatable, intent(out) :: shiftBlockUp(:,:,:,:), blockUp(:,:,:,:)
+
+    !> Electrostatic shifts from contact(s)
+    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+
+    !> Uploaded charges from contact(s)
+    real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+
+    !> Block charges from contact(s), if present
+    real(dp), allocatable, intent(out) :: blockUp(:,:,:,:)
 
     !> Format for two values with units
     character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
@@ -4344,10 +4359,9 @@ contains
     allocate(shiftPerLUp(orb%mShell, nAtom))
     allocate(chargeUp(orb%mOrb, nAtom, nSpin))
     if (hasBlockCharges) then
-      allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
     end if
-    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
+    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, blockUp)
 
   end subroutine initUploadArrays_
 
