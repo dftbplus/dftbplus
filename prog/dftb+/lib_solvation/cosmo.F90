@@ -935,14 +935,8 @@ contains
     real(dp), intent(in) :: energy
 
     integer :: ii, ig, iat
-    real(dp) :: cosmoEnergy, keps
+    real(dp) :: dielEnergy, keps
     real(dp), allocatable :: phi(:), zeta(:), area(:)
-
-    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
-    cosmoEnergy = this%freeEnergyShift
-    do iat = 1, this%nAtom
-      cosmoEnergy = cosmoEnergy + keps*dot_product(this%sigma(:, iat), this%psi(:, iat))
-    end do
 
     allocate(phi(this%ddCosmo%ncav), zeta(this%ddCosmo%ncav), area(this%ddCosmo%ncav))
     ! Reset potential on the cavity, note that the potential is expected in e/Å
@@ -961,6 +955,10 @@ contains
       end do
     end do
 
+    ! Dielectric energy is the energy on the dielectric continuum
+    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
+    dielEnergy = keps * dot_product(zeta, phi)
+
     write(unit, '(a)') &
         & "$info", &
         & "prog.: dftb+"
@@ -973,6 +971,7 @@ contains
     write(unit, '(a)') &
         & "$cosmo_data"
     write(unit, '(2x, a:, "=", g0)') &
+        & "fepsi", keps, &
         & "area", sum(area)
 
     write(unit, '(a)') &
@@ -1011,8 +1010,8 @@ contains
         & "Total energy [a.u.]            ", energy, &
         & "Total energy + OC corr. [a.u.] ", energy, &
         & "Total energy corrected [a.u.]  ", energy, &
-        & "Dielectric energy [a.u.]       ", cosmoEnergy, &
-        & "Diel. energy + OC corr. [a.u.] ", cosmoEnergy
+        & "Dielectric energy [a.u.]       ", dielEnergy, &
+        & "Diel. energy + OC corr. [a.u.] ", dielEnergy
 
     write(unit, '(a)') &
         & "$segment_information", &
