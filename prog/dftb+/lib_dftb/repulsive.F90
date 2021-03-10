@@ -7,355 +7,165 @@
 
 #:include 'common.fypp'
 
-!> Contains a calculator for the repulsive (force-field like) potential
+!> Implements interface for the repulsive (force-field like) potential
 module dftbp_repulsive
-  use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_boundarycond, only : zAxis
-  use dftbp_constants, only : pi
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_quaternions, only : rotate3
-  use dftbp_repcont, only : TRepCont, getCutOff, getEnergy, getEnergyDeriv
+  use dftbp_periodic, only : TNeighbourList
   implicit none
 
   private
-  public :: TRepulsiveInput, TRepulsive, TRepulsive_init
+  public :: TRepulsive
 
 
-  !> Input for the repulsive generator
-  type :: TRepulsiveInput
-
-    !> Number of atoms in the system
-    integer :: nAtom
-
-    !> Whether the system is helical
-    logical :: isHelical = .false.
-
-    !> Two body repulsives
-    type(TRepCont), allocatable :: twoBodyCont
-
-    !! !> Chimes calculator
-    !! type(TChimes), allocatable :: chimes
-
-  end type TRepulsiveInput
-
-
-  !> Provides a calculator for repulsive (force-field type) corrections
-  type :: TRepulsive
-    private
-
-    !> Container for two body repulsives
-    type(TRepCont), allocatable :: twoBodyCont_
-
-    !> Nr. of neighbours for the two body repulsive
-    integer, allocatable :: nNeighTwoBody_(:)
-
-    !> Whether repulsive must be calculated for a helical system
-    logical :: isHelical_
-
+  !> Generic wrapper for force field-like (repulsive) contributions
+  type, abstract :: TRepulsive
   contains
 
-    procedure :: getCutoff => TRepulsive_getCutoff
-    procedure :: updateCoords => TRepulsive_updateCoords
-    procedure :: getEnergy => TRepulsive_getEnergy
-    procedure :: getGradients => TRepulsive_getGradients
-    procedure :: getStress => TRepulsive_getStress
+    procedure(getRCutOff), deferred :: getRCutOff
+    procedure(updateLatVecs), deferred :: updateLatVecs
+    procedure(updateCoords), deferred :: updateCoords
+    procedure(getEnergy), deferred :: getEnergy
+    procedure(getGradients), deferred :: getGradients
+    procedure(getStress), deferred :: getStress
 
   end type TRepulsive
 
 
-contains
+  abstract interface
 
-  !> Initializes a calculator for repulsive (force-field like) contributions
-  subroutine TRepulsive_init(this, input)
+    !> Returns the real space cutoff needed by the neighbour lists
+    function getRCutOff(this) result(cutOff)
+      import :: TRepulsive, dp
 
-    !> Instance on exit.
-    type(TRepulsive), intent(out) :: this
+      !> Instance
+      class(TRepulsive), intent(in) :: this
 
-    !> Input data
-    type(TRepulsiveInput), intent(inout) :: input
+      !> Real space cutoff needed by the object
+      real(dp) :: cutOff
 
-    call move_alloc(input%twoBodyCont, this%twoBodyCont_)
-    allocate(this%nNeighTwoBody_(input%nAtom))
-    this%isHelical_ = input%isHelical
+    end function getRCutOff
 
-  end subroutine TRepulsive_init
 
+    !> Transmits the updated lattice vectors to enable for pre-calculations.
+    subroutine updateLatVecs(this, latVecs)
+      import :: TRepulsive, dp
 
-  !> Returns the real space cutoff needed by the neighbour lists
-  function TRepulsive_getCutOff(this) result(cutOff)
+      !> Instance
+      class(TRepulsive), intent(inout) :: this
 
-    !> Instance
-    class(TRepulsive), intent(in) :: this
+      !> New lattice vectors
+      real(dp), intent(in) :: latVecs(:,:)
 
-    !> Real space cutoff needed by the object
-    real(dp) :: cutOff
+    end subroutine updateLatVecs
 
-    cutOff = getCutOff(this%twoBodyCont_)
 
-  end function TRepulsive_getCutOff
+    !> Transmits the updated coordinates to enable for pre-calculations.
+    subroutine updateCoords(this, coords, species, img2CentCell, neighbourList)
+      import :: TRepulsive, TNeighbourList, dp
 
+      !> Instance
+      class(TRepulsive), intent(inout) :: this
 
-  !> Transmits the updated coordinates to enable for pre-calculations.
-  !>
-  !> Note: The same geometry must be passed, if any of the get routines are called.
-  !>
-  subroutine TRepulsive_updateCoords(this, neighbourList)
+      !> New coordinates (including those in repeated cells). Shape: [3, nAllAtom]
+      real(dp), intent(in) :: coords(:,:)
 
-    !> Instance
-    class(TRepulsive), intent(inout) :: this
+      !> Species of each atom. Shape: [nAllAtom]
+      integer, intent(in) :: species(:)
 
-    !> Updated neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
+      !> Mapping of atoms into the central cell. Shape: [nAllAtom]
+      integer, intent(in) :: img2CentCell(:)
 
-    ! count neighbours for repulsive interactions between atoms
-    call getNrOfNeighboursForAll(this%nNeighTwoBody_, neighbourList, this%getCutoff())
+      !> Neighbour list.
+      type(TNeighbourList), intent(in) :: neighbourList
 
-  end subroutine TRepulsive_updateCoords
+    end subroutine updateCoords
 
 
-  !> Returns the energy contribution of the repulsive
-  subroutine TRepulsive_getEnergy(this, coords, species, img2CentCell, neighbourList,&
-      & iAtInCentralRegion, Eatom, Etotal)
+    !> Returns the energy contribution of the repulsive
+    subroutine getEnergy(this, coords, species, img2CentCell, neighbourList, Eatom, Etotal,&
+        & iAtInCentralRegion)
+      import :: TRepulsive, TNeighbourList, dp
 
-    !> Instance.
-    class(TRepulsive), intent(in) :: this
+      !> Instance.
+      class(TRepulsive), intent(in) :: this
 
-    !> All atomic coordinates
-    real(dp), intent(in) :: coords(:,:)
+      !> All atomic coordinates
+      real(dp), intent(in) :: coords(:,:)
 
-    !> All atoms chemical species
-    integer, intent(in) :: species(:)
+      !> All atoms chemical species
+      integer, intent(in) :: species(:)
 
-    !> Image atom indices to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
+      !> Image atom indices to central cell atoms
+      integer, intent(in) :: img2CentCell(:)
 
-    !> List of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
+      !> List of neighbours for each atom
+      type(TNeighbourList), intent(in) :: neighbourList
 
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
+      !> Energy for each atom
+      real(dp), intent(out) :: Eatom(:)
 
-    !> Energy for each atom
-    real(dp), intent(out) :: Eatom(:)
+      !> Total energy
+      real(dp), intent(out) :: Etotal
 
-    !> Total energy
-    real(dp), intent(out) :: Etotal
+      !> Atoms in the central cell (or device region if transport)
+      integer, intent(in), optional :: iAtInCentralRegion(:)
 
-    call getTwoBodyEnergy_(Eatom, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
-        & species, this%twoBodyCont_, img2CentCell)
-    Etotal = sum(Eatom(iAtInCentralRegion))
+    end subroutine getEnergy
 
-  end subroutine TRepulsive_getEnergy
 
+    !> Returns the gradients of the repulsive interaction
+    subroutine getGradients(this, coords, species, img2CentCell, neighbourList, grads)
+      import :: TRepulsive, TNeighbourList, dp
 
-  !> Returns the gradients of the repulsive interaction
-  subroutine TRepulsive_getGradients(this, coords, neighbourList, species, img2CentCell, grads)
+      !> Instance
+      class(TRepulsive), intent(in) :: this
 
-    !> Instance
-    class(TRepulsive), intent(in) :: this
+      !> coordinates (x,y,z, all atoms including possible images)
+      real(dp), intent(in) :: coords(:,:)
 
-    !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in) :: coords(:,:)
+      !> Species of atoms in the central cell.
+      integer, intent(in) :: species(:)
 
-    type(TNeighbourList), intent(in) :: neighbourList
+      !> Index of each atom in the central cell which the atom is mapped on.
+      integer, intent(in) :: img2CentCell(:)
 
-    !> Species of atoms in the central cell.
-    integer, intent(in) :: species(:)
+      !> Neighbour list
+      type(TNeighbourList), intent(in) :: neighbourList
 
-    !> Index of each atom in the central cell which the atom is mapped on.
-    integer, intent(in) :: img2CentCell(:)
+      !> Gradient for each atom. Shape: [3, nAtom]
+      real(dp), intent(out) :: grads(:,:)
 
-    !> Gradient for each atom. Shape: [3, nAtom]
-    real(dp), intent(out) :: grads(:,:)
+    end subroutine getGradients
 
-    call getTwoBodyGradients_(grads, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
-        & species, this%twoBodyCont_, img2CentCell, this%isHelical_)
 
-  end subroutine TRepulsive_getGradients
-
-
-  !> Returns the  stress tensor contribution from the repulsive term
-  subroutine TRepulsive_getStress(this, coords, neighbourList, species, img2CentCell, cellVol,&
-      & stress)
-
-    !> Instance
-    class(TRepulsive), intent(in) :: this
-
-    !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in) :: coords(:,:)
-
-    !> Neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Species of atoms in the central cell.
-    integer, intent(in) :: species(:)
-
-    !> indexing array for periodic image atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> cell volume.
-    real(dp), intent(in) :: cellVol
-
-    !> stress tensor
-    real(dp), intent(out) :: stress(:,:)
-
-    call getTwoBodyStress_(stress, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
-        & species, img2CentCell, this%twoBodyCont_, cellVol)
-
-  end subroutine TRepulsive_getStress
-
-
-  !> Subroutine for repulsive energy contributions for each atom
-  subroutine getTwoBodyEnergy_(reslt, coords, nNeighbourRep, iNeighbours, species, repCont,&
-      & img2CentCell)
-
-    real(dp), intent(out) :: reslt(:)
-    real(dp), intent(in) :: coords(:,:)
-    integer, intent(in) :: nNeighbourRep(:)
-    integer, intent(in) :: iNeighbours(0:,:)
-    integer, intent(in) :: species(:)
-    type(TRepCont), intent(in) :: repCont
-    integer, intent(in) :: img2CentCell(:)
-
-    integer :: iAt1, iNeigh, iAt2, iAt2f
-    real(dp) :: vect(3), dist, intermed
+    !> Returns the stress tensor contribution from the repulsive term
+    subroutine getStress(this, coords, species, img2CentCell, neighbourList, cellVol, stress)
+      import :: TRepulsive, TNeighbourList, dp
 
-    @:ASSERT(size(reslt) == size(nNeighbourRep))
+      !> Instance
+      class(TRepulsive), intent(in) :: this
 
-    reslt(:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbourRep)
-      do iNeigh = 1, nNeighbourRep(iAt1)
-        iAt2 = iNeighbours(iNeigh,iAt1)
-        iAt2f = img2CentCell(iAt2)
-        vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        dist = sqrt(sum(vect**2))
-        call getEnergy(repCont, intermed, dist, species(iAt1), species(iAt2))
-        reslt(iAt1) = reslt(iAt1) + 0.5_dp * intermed
-        if (iAt2f /= iAt1) then
-          reslt(iAt2f) = reslt(iAt2f) + 0.5_dp * intermed
-        end if
-      end do
-    end do
+      !> coordinates (x,y,z, all atoms including possible images)
+      real(dp), intent(in) :: coords(:,:)
 
-  end subroutine getTwoBodyEnergy_
+      !> Species of atoms in the central cell.
+      integer, intent(in) :: species(:)
 
+      !> indexing array for periodic image atoms
+      integer, intent(in) :: img2CentCell(:)
 
-  !> Subroutine for force contributions of the repulsives.
-  subroutine getTwoBodyGradients_(reslt, coords, nNeighbourRep, iNeighbours, species, repCont,&
-      & img2CentCell, tHelical)
+      !> Neighbour list
+      type(TNeighbourList), intent(in) :: neighbourList
 
-    real(dp), intent(out) :: reslt(:,:)
-    real(dp), intent(in) :: coords(:,:)
-    integer, intent(in) :: nNeighbourRep(:)
-    integer, intent(in) :: iNeighbours(0:,:)
-    integer, intent(in) :: species(:)
-    type(TRepCont), intent(in) :: repCont
-    integer, intent(in) :: img2CentCell(:)
-    logical, intent(in) :: tHelical
-
-    integer :: iAt1, iNeigh, iAt2, iAt2f
-    real(dp) :: vect(3), intermed(3), theta
-    logical :: tHelix
-
-    tHelix = tHelical
-    reslt(:,:) = 0.0_dp
-
-    if (tHelix) then
-      do iAt1 = 1, size(nNeighbourRep)
-        lpNeighH: do iNeigh = 1, nNeighbourRep(iAt1)
-          iAt2 = iNeighbours(iNeigh,iAt1)
-          iAt2f = img2CentCell(iAt2)
-          vect(:) = coords(:,iAt1) - coords(:,iAt2)
-          call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
-          reslt(:,iAt1) = reslt(:,iAt1) + intermed(:)
-          theta = - atan2(coords(2,iAt2),coords(1,iAt2)) &
-              & + atan2(coords(2,iAt2f),coords(1,iAt2f))
-          theta = mod(theta,2.0_dp*pi)
-          call rotate3(intermed, theta, zAxis)
-          if (iAt2f /= iAt1) then
-            reslt(:,iAt2f) = reslt(:,iAt2f) - intermed(:)
-          end if
-        end do lpNeighH
-      end do
-
-    else
-
-      do iAt1 = 1, size(nNeighbourRep)
-        lpNeigh: do iNeigh = 1, nNeighbourRep(iAt1)
-          iAt2 = iNeighbours(iNeigh,iAt1)
-          iAt2f = img2CentCell(iAt2)
-          if (iAt2f == iAt1) then
-            cycle lpNeigh
-          end if
-          vect(:) = coords(:,iAt1) - coords(:,iAt2)
-          call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
-          reslt(:,iAt1) = reslt(:,iAt1) + intermed(:)
-          reslt(:,iAt2f) = reslt(:,iAt2f) - intermed(:)
-        end do lpNeigh
-      end do
-
-    end if
-
-  end subroutine getTwoBodyGradients_
-
-
-  !> The stress tensor contribution from the repulsive energy term
-  subroutine getTwoBodyStress_(stress, coords, nNeighbourRep, iNeighbours, species, img2CentCell,&
-      & repCont, cellVol)
-
-    !> stress tensor
-    real(dp), intent(out) :: stress(:,:)
-
-    !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in) :: coords(:,:)
-
-    !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourRep(:)
-
-    !> Index of neighbours for a given atom.
-    integer, intent(in) :: iNeighbours(0:,:)
-
-    !> Species of atoms in the central cell.
-    integer, intent(in) :: species(:)
-
-    !> indexing array for periodic image atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Container for repulsive potentials.
-    type(TRepCont), intent(in) :: repCont
-
-    !> cell volume.
-    real(dp), intent(in) :: cellVol
-
-    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, nAtom
-    real(dp) :: vect(3), intermed(3), prefac
-
-    @:ASSERT(all(shape(stress) == [3, 3]))
-
-    nAtom = size(nNeighbourRep)
-    stress(:,:) = 0.0_dp
-
-    do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbourRep(iAt1)
-        iAt2 = iNeighbours(iNeigh,iAt1)
-        iAt2f = img2CentCell(iAt2)
-        vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
-        if (iAt1 == iAt2f) then
-          prefac = 0.5_dp
-        else
-          prefac = 1.0_dp
-        end if
-        do ii = 1, 3
-          stress(:, ii) = stress(:, ii) - prefac * intermed * vect(ii)
-        end do
-      end do
-    end do
-
-    stress = stress / cellVol
-
-  end subroutine getTwoBodyStress_
+      !> cell volume.
+      real(dp), intent(in) :: cellVol
+
+      !> stress tensor
+      real(dp), intent(out) :: stress(:,:)
+
+    end subroutine getStress
+
+  end interface
 
 
 end module dftbp_repulsive

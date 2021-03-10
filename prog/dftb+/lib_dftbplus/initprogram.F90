@@ -70,7 +70,8 @@ module dftbp_initprogram
   use dftbp_h5correction, only : TH5CorrectionInput
   use dftbp_halogenx
   use dftbp_slakocont
-  use dftbp_repulsive, only : TRepulsive, TRepulsiveInput, TRepulsive_init
+  use dftbp_repulsive, only : TRepulsive
+  use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
@@ -309,7 +310,7 @@ module dftbp_initprogram
     type(TSlakoCont) :: skOverCont
 
     !> Repulsive (force-field like) interactions
-    type(TRepulsive), allocatable :: repulsive
+    class(TRepulsive), allocatable :: repulsive
 
     !> Cut off distances for various types of interaction
     type(TCutoffs) :: cutOff
@@ -1362,7 +1363,7 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -1417,7 +1418,7 @@ contains
       this%cutOff%skCutOff = max(getCutOff(this%skHamCont), getCutOff(this%skOverCont))
       this%cutOff%mCutoff = this%cutOff%skCutOff
       if (allocated(this%repulsive)) then
-        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getCutOff())
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
       end if
     case(hamiltonianTypes%xtb)
       ! TODO
@@ -5606,21 +5607,23 @@ contains
 
 
   !> Initializes the repulsive interactions
-  subroutine initRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
     integer, intent(in) :: nAtom
     logical, intent(in) :: isHelical
     type(TRepCont), intent(in) :: twoBodyCont
-    type(TRepulsive), allocatable, intent(out) :: repulsive
+    class(TRepulsive), allocatable, intent(out) :: repulsive
 
-    type(TRepulsiveInput) :: input
+    type(TSplinePolyRepInput) :: input
+    type(TSplinePolyRep), allocatable :: splinePolyRep
 
     input%nAtom = nAtom
     input%isHelical = isHelical
     input%twoBodyCont = twoBodyCont
-    allocate(repulsive)
-    call TRepulsive_init(repulsive, input)
+    allocate(splinePolyRep)
+    call TSplinePolyRep_init(splinePolyRep, input)
+    call move_alloc(splinePolyRep, repulsive)
 
-  end subroutine initRepulsive_
+  end subroutine initSplinePolyRepulsive_
 
 
   ! Decides how many Cholesky-decompositions should be buffered

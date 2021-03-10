@@ -647,9 +647,9 @@ contains
 
     if (allocated(this%repulsive)) then
       call this%repulsive%getEnergy(this%coord, this%species, this%img2CentCell,&
-          & this%neighbourList, this%iAtInCentralRegion,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep)
+          & this%neighbourList,this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
+          & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep,&
+          & iAtInCentralRegion=this%iAtInCentralRegion)
     end if
 
     if (allocated(this%halogenXCorrection)) then
@@ -1625,7 +1625,7 @@ contains
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Repulsive
-    type(TRepulsive), allocatable, intent(inout) :: repulsive
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1736,7 +1736,7 @@ contains
     end if
 
     if (allocated(repulsive)) then
-      call repulsive%updateCoords(neighbourList)
+      call repulsive%updateCoords(coord, species, img2CentCell, neighbourList)
     end if
 
     if (allocated(dispersion)) then
@@ -5375,7 +5375,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepulsive), allocatable, intent(in) :: repulsive
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -5567,7 +5567,7 @@ contains
     end if
 
     if (allocated(repulsive)) then
-      call repulsive%getGradients(coord, neighbourList, species, img2CentCell, tmpDerivs)
+      call repulsive%getGradients(coord, species, img2CentCell, neighbourList, tmpDerivs)
     else
       tmpDerivs(:,:) = 0.0_dp
     end if
@@ -5717,7 +5717,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepulsive), allocatable, intent(in) :: repulsive
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -5838,7 +5838,7 @@ contains
     end if
 
     if (allocated(repulsive)) then
-      call repulsive%getStress(coord, neighbourList, species, img2CentCell, cellVol, tmpStress)
+      call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
     else
       tmpStress(:,:) = 0.0_dp
     end if

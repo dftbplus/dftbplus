@@ -219,7 +219,7 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepulsive), allocatable, intent(in) :: repulsive
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -581,7 +581,7 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepulsive), allocatable, intent(in) :: repulsive
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -704,7 +704,7 @@ module dftbp_reksinterface
       end if
 
       if (allocated(repulsive)) then
-        call repulsive%getStress(coord, neighbourList, species, img2CentCell, cellVol, tmpStress)
+        call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
       else
         tmpStress(:,:) = 0.0_dp
       end if
@@ -762,7 +762,7 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepulsive), allocatable, intent(in) :: repulsive
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -865,7 +865,7 @@ module dftbp_reksinterface
         end if
 
         if (allocated(repulsive)) then
-          call repulsive%getGradients(coord, neighbourList,  species, img2CentCell, repDerivs)
+          call repulsive%getGradients(coord, species, img2CentCell, neighbourList, repDerivs)
         else
           repDerivs(:,:) = 0.0_dp
         end if
