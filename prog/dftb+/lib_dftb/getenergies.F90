@@ -39,7 +39,7 @@ module dftbp_getenergies
   implicit none
 
   private
-  public :: calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
+  public :: calcEnergies, calcDispersionEnergy, sumEnergies
 
 contains
 
@@ -248,44 +248,6 @@ contains
     energy%TS = TS
 
   end subroutine calcEnergies
-
-
-  !> Calculates repulsive energy for current geometry
-  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
-      & pRepCont, Eatom, Etotal, iAtInCentralRegion)
-
-    !> All atomic coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> All atoms chemical species
-    integer, intent(in) :: species(:)
-
-    !> Image atom indices to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Number of neighbours for each atom within the repulsive distance
-    integer, intent(in) :: nNeighbourRep(:)
-
-    !> List of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Repulsive interaction data
-    type(TRepCont), intent(in) :: pRepCont
-
-    !> Energy for each atom
-    real(dp), intent(out) :: Eatom(:)
-
-    !> Total energy
-    real(dp), intent(out) :: Etotal
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
-        & img2CentCell)
-    Etotal = sum(Eatom(iAtInCentralRegion))
-
-  end subroutine calcRepulsiveEnergy
 
 
   !> Calculates dispersion energy for current geometry.

@@ -70,6 +70,8 @@ module dftbp_initprogram
   use dftbp_h5correction, only : TH5CorrectionInput
   use dftbp_halogenx
   use dftbp_slakocont
+  use dftbp_repulsive, only : TRepulsive
+  use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
@@ -164,7 +166,6 @@ module dftbp_initprogram
   !> Interaction cutoff distances
   type :: TCutoffs
     real(dp) :: skCutOff
-    real(dp) :: repCutOff
     real(dp) :: lcCutOff
     real(dp) :: mCutOff
   end type TCutoffs
@@ -280,9 +281,6 @@ module dftbp_initprogram
     !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
 
-    !> nr. of neighbours for atoms within Erep interaction distance (usually short)
-    integer, allocatable :: nNeighbourRep(:)
-
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
     integer, allocatable :: nNeighbourLC(:)
@@ -311,14 +309,11 @@ module dftbp_initprogram
     !> Raw overlap hamiltonian data
     type(TSlakoCont) :: skOverCont
 
-    !> Repulsive interaction raw data
-    type(TRepCont) :: pRepCont
+    !> Repulsive (force-field like) interactions
+    class(TRepulsive), allocatable :: repulsive
 
     !> Cut off distances for various types of interaction
     type(TCutoffs) :: cutOff
-
-    !> Cut off distance for repulsive interactions
-    real(dp) :: repCutOff
 
     !> Sparse hamiltonian matrix
     real(dp), allocatable :: ham(:,:)
@@ -1368,7 +1363,7 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      this%pRepCont = input%slako%repCont
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -1421,8 +1416,10 @@ contains
     case(hamiltonianTypes%dftb)
       ! Cut-offs for SlaKo, repulsive
       this%cutOff%skCutOff = max(getCutOff(this%skHamCont), getCutOff(this%skOverCont))
-      this%cutOff%repCutOff = getCutOff(this%pRepCont)
-      this%cutOff%mCutOff = maxval([this%cutOff%skCutOff, this%cutOff%repCutOff])
+      this%cutOff%mCutoff = this%cutOff%skCutOff
+      if (allocated(this%repulsive)) then
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
+      end if
     case(hamiltonianTypes%xtb)
       ! TODO
       call error("xTB calculation currently not supported")
@@ -2384,7 +2381,6 @@ contains
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    allocate(this%nNeighbourRep(this%nAtom))
     if (this%isRangeSep) then
       allocate(this%nNeighbourLC(this%nAtom))
     end if
@@ -5608,6 +5604,26 @@ contains
     call TScc_init(sccCalc, sccInput, env, orb)
 
   end subroutine initSccCalculator_
+
+
+  !> Initializes the repulsive interactions
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+    integer, intent(in) :: nAtom
+    logical, intent(in) :: isHelical
+    type(TRepCont), intent(in) :: twoBodyCont
+    class(TRepulsive), allocatable, intent(out) :: repulsive
+
+    type(TSplinePolyRepInput) :: input
+    type(TSplinePolyRep), allocatable :: splinePolyRep
+
+    input%nAtom = nAtom
+    input%isHelical = isHelical
+    input%twoBodyCont = twoBodyCont
+    allocate(splinePolyRep)
+    call TSplinePolyRep_init(splinePolyRep, input)
+    call move_alloc(splinePolyRep, repulsive)
+
+  end subroutine initSplinePolyRepulsive_
 
 
   ! Decides how many Cholesky-decompositions should be buffered
