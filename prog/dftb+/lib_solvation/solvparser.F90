@@ -14,7 +14,6 @@ module dftbp_solvparser
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
   use dftbp_born, only : TGBInput, fgbKernel
-  use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
   use dftbp_constants, only : Boltzmann, lc, amu__au, kg__au, AA__Bohr
@@ -26,6 +25,8 @@ module dftbp_solvparser
   use dftbp_hsdutils2, only : convertByMul
   use dftbp_lebedev, only : gridSize
   use dftbp_sasa, only : TSASAInput
+  use dftbp_solvdata, only : getVanDerWaalsRadiusD3, getVanDerWaalsRadiusCosmo, &
+      & getVanDerWaalsRadiusBondi
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
   use dftbp_specieslist, only : readSpeciesList
@@ -556,6 +557,18 @@ contains
     case("vanderwaalsradiid3")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiicosmo")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusCosmo(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiibondi")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusBondi(geo%speciesNames)
       call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
         & conv=conv)
       deallocate(vdwRadDefault)
