@@ -46,7 +46,9 @@ module dftbp_mainio
   use dftbp_message
   use dftbp_reks
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_cosmo, only : TCosmo
   use dftbp_dispersions, only : TDispersionIface
+  use dftbp_solvation, only : TSolvation
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -84,6 +86,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
+  public :: writeCosmoFile
 
   !> Ground state eigenvectors in text format
   character(*), parameter :: eigvecOut = "eigenvec.out"
@@ -112,6 +115,10 @@ module dftbp_mainio
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
+
+
+  !> Cosmo file name
+  character(len=*), parameter :: cosmoFile = "dftbp.cosmo"
 
 
   interface readEigenvecs
@@ -5294,4 +5301,33 @@ contains
   end subroutine writeReksDetailedOut1
 
 
+  !> Write cavity information as cosmo file
+  subroutine writeCosmoFile(solvation, species0, speciesNames, coords0, energy)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in) :: solvation
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords0(:,:)
+
+    !> Total energy
+    real(dp), intent(in) :: energy
+
+    integer :: unit
+
+    select type(solvation)
+    class is (TCosmo)
+      write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
+      open(file=cosmoFile, newunit=unit)
+      call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
+      close(unit)
+    end select
+
+  end subroutine writeCosmoFile
 end module dftbp_mainio

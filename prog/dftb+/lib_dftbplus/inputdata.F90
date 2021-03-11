@@ -518,6 +518,9 @@ module dftbp_inputdata
     !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
     logical :: updateSccAfterDiag = .true.
 
+    !> Write cavity information as COSMO file
+    logical :: tWriteCosmoFile = .false.
+
   end type TControl
 
 

@@ -396,6 +396,10 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont)
     end if
+    if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
+      call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
+          & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin)
+    end if
     if (this%tWriteDetailedXML) then
       call writeDetailedXml(this%runId, this%speciesName, this%species0, this%pCoord0Out,&
           & this%tPeriodic, this%tHelical, this%latVec, this%origin, this%tRealHS, this%nKPoint,&

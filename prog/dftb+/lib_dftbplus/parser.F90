@@ -4822,6 +4822,14 @@ contains
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
 
+    if (allocated(ctrl%solvInp)) then
+      call getChildValue(node, "writeCosmoFile", ctrl%tWriteCosmoFile, &
+          & allocated(ctrl%solvInp%cosmoInp), child=child)
+      if (ctrl%tWriteCosmoFile .and. .not.allocated(ctrl%solvInp%cosmoInp)) then
+        call detailedError(child, "Cosmo file can only be written for Cosmo calculations")
+      end if
+    end if
+
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
   #:if WITH_TRANSPORT
