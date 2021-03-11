@@ -191,7 +191,7 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
   endif()
 
   # Make sure Intel has the proper flag
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel" AND CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 18.0)
     if(CMAKE_BUILD_TYPE)
       set(_buildtypes "${CMAKE_BUILD_TYPE}")
     else()
