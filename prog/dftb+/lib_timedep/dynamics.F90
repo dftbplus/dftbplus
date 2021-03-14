@@ -1081,8 +1081,8 @@ contains
       call addBlockChargePotentials(qBlock, qiBlock, dftbU, .false., speciesAll, orb, potential)
     end if
     if (allocated(onSiteElements)) then
-      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
-          & onSiteElements, speciesAll, orb)
+      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock,&
+          & onSiteElements, speciesAll, orb, q0)
     end if
 
     ! Add time dependent field if necessary
@@ -1753,7 +1753,7 @@ contains
       end do
     end if
 
-    call init(potential, orb, this%nAtom, this%nSpin)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
@@ -3096,7 +3096,7 @@ contains
     call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
         & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
         & img2CentCell, iSparseStart, orb, potential%intBlock)
-    call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
+    call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
         & img2CentCell)
     if (allocated(repulsive)) then

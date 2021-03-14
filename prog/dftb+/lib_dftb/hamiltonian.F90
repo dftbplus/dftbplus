@@ -299,7 +299,7 @@ contains
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
     if (updateScc) then
-      call sccCalc%updateCharges(env, qInput, q0, orb, species)
+      call sccCalc%updateCharges(env, qInput, orb, species, q0)
     end if
     call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
     call sccCalc%getShiftPerAtom(atomPot(:,1))

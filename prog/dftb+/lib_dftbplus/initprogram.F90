@@ -507,6 +507,12 @@ module dftbp_initprogram
     !> Pipek-Mezey localisation calculator
     type(TPipekMezey), allocatable :: pipekMezey
 
+    !> Density functional tight binding perturbation theory
+    logical :: isDFTBPT = .false.
+
+    !> Static polarisability
+    logical :: isPolarisability = .false.
+
     !> use commands from socket communication to control the run
     logical :: tSocket
 
@@ -2098,6 +2104,35 @@ contains
     if (this%tLocalise .and. (this%nSpin > 2 .or. this%t2Component)) then
       call error("Localisation of electronic states currently unsupported for non-collinear and&
           & spin orbit calculations")
+    end if
+
+    this%isDFTBPT = input%ctrl%isDFTBPT
+    if (this%isDFTBPT) then
+      this%isPolarisability = input%ctrl%isStaticEPerturbation
+      if (this%tNegf) then
+        call error("Currently the perturbation expresions for NEGF are not implemented")
+      end if
+      if (.not. this%electronicSolver%providesEigenvals) then
+        call error("Perturbation expression for polarisability require eigenvalues and&
+            & eigenvectors")
+      end if
+      if (this%tPeriodic) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%tHelical) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%t3rd) then
+        call error("Only full 3rd order currently supported for perturbation")
+      end if
+      if (allocated(this%reks)) then
+        call error("REKS not currently supported for perturbation")
+      end if
+      if (this%tFixEf) then
+        call error("Perturbation for fixed Fermi energy is not currently supported")
+      end if
+    else
+      this%isPolarisability = .false.
     end if
 
     if (this%isLinResp) then
@@ -4206,7 +4241,7 @@ contains
       end if
     end if
 
-    call init(this%potential, this%orb, this%nAtom, this%nSpin)
+    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin)
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)

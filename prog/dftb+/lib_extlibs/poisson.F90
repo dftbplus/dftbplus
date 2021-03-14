@@ -347,7 +347,7 @@ contains
     real(dp), intent(in) :: qOrb(:,:)
 
     !> Orbital resolved reference charges. Shape: [mOrb, nAtom].
-    real(dp), intent(in) :: q0(:,:)
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     call poiss_updcharges_(env, qOrb, q0)
     if (allocated(this%shellPotUpload_)) then
@@ -750,7 +750,7 @@ contains
     real(dp), intent(in) :: q(:,:)
 
     !> reference charges
-    real(dp), intent(in) :: q0(:,:)
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     integer :: nsh, l, i, o, orb
     real(dp) :: Qtmp
@@ -762,19 +762,35 @@ contains
         call error('ERROR in udpcharges size of q')
       end if
 
-      do i = 1, natoms
-        nsh = lmax(izp(i))+1
-        orb=0
-        do l = 1, nsh
-          Qtmp = 0.0_dp
-          do o= 1,2*l-1
-            orb = orb + 1
-            ! - is for negative electron charge density
-            Qtmp = Qtmp + q0(orb,i)-q(orb,i)
+      if (present(q0)) then
+        do i = 1, natoms
+          nsh = lmax(izp(i))+1
+          orb=0
+          do l = 1, nsh
+            Qtmp = 0.0_dp
+            do o= 1,2*l-1
+              orb = orb + 1
+              ! - is for negative electron charge density
+              Qtmp = Qtmp + q0(orb,i,1)-q(orb,i)
+            enddo
+            dQmat(l,i) = Qtmp
           enddo
-          dQmat(l,i) = Qtmp
         enddo
-      enddo
+      else
+        do i = 1, natoms
+          nsh = lmax(izp(i))+1
+          orb=0
+          do l = 1, nsh
+            Qtmp = 0.0_dp
+            do o= 1,2*l-1
+              orb = orb + 1
+              ! - is for negative electron charge density
+              Qtmp = Qtmp -q(orb,i)
+            enddo
+            dQmat(l,i) = Qtmp
+          enddo
+        enddo
+      end if
 
     endif
     call env%globalTimer%stopTimer(globalTimers%poisson)

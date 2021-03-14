@@ -4805,6 +4805,15 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ! electric field polarisability of system
+      call getChild(node, "Polarisability", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        call getChildValue(child, "Static", ctrl%isStaticEPerturbation, .true.)
+      else
+        ctrl%isDFTBPT = .false.
+      end if
+
     end if
 
     ! Is this compatible with Poisson solver use?
@@ -4831,6 +4840,9 @@ contains
     end if
 
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+
+
+
 
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)

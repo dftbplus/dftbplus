@@ -4194,6 +4194,7 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
+  \kw{Polarisability} & m & Molecular system & \cb & \pref{sec:dftbp.perturbation} \\
 \end{ptable}
 
 \begin{description}
@@ -4382,6 +4383,24 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
+\subsubsection{Polarisability}
+\label{sec:dftbp.perturbation}
+
+Evaluates electric polarisability using coupled-perturbed linear
+response. Currently only molecular (i.e.\ not periodic, helical or transport)
+geometries are supported for perturbation. REKS calculations are not currently
+supported.
+
+In the case of degenerate single particle levels, the reported level derivatives
+for those states are ordered in increasing value.
+
+\begin{ptable}
+  \kw{Static} & l & & \is{Yes} & \\
+\end{ptable}
+\begin{description}
+\item[\is{Static}] Evaluates static polarisability with respect to cartesian
+  directions of a static uniform electric field.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
