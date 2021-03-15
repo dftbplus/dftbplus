@@ -21,6 +21,11 @@ module dftbp_linrespcommon
   implicit none
   public
 
+  interface TN_incSize
+    module procedure TN_incSizeInt
+    module procedure TN_incSizeVec
+    module procedure TN_incSizeMat
+  end interface TN_incSize
 
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
@@ -1232,5 +1237,593 @@ contains
     close(fdMulliken)
 
   end subroutine writeExcMulliken
+
+  !> Set value of sizeIn to new, three times as large, value
+  pure subroutine TN_incSizeInt(sizeIn)
+
+    integer, intent(inout) :: sizeIn
+    sizeIn = 3 * sizeIn
+
+  end subroutine TN_incSizeInt
+
+
+  !> increase size of a NxsizeIn array to 3*sizeIn
+  pure subroutine TN_incSizeMat(sizeIn, vec)
+
+    integer, intent(inout) :: sizeIn
+    real(dp), allocatable, intent(inout) :: vec(:,:)
+
+    integer :: dim1
+    real(dp), allocatable :: temp(:,:)
+    dim1 = size(vec, dim=1)
+    allocate(temp(dim1, 3 * sizeIn))
+    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
+    temp(:,1:sizeIn) = vec
+    call move_alloc(temp, vec)
+
+  end subroutine TN_incSizeMat
+
+
+  !>increase size of a sizeIn array to 3*sizeIn
+  pure subroutine TN_incSizeVec(sizeIn, vec)
+
+    integer, intent(in) :: sizeIn
+    real(dp), allocatable, intent(inout) :: vec(:)
+
+    real(dp), allocatable :: temp(:)
+    allocate(temp(3 * sizeIn))
+    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
+    temp(1:sizeIn) = vec
+    call move_alloc(temp, vec)
+
+  end subroutine TN_incSizeVec
+
+
+  !>increase size of a sizeInxN array to 3*sizeInxN
+  pure subroutine TN_incSizeMatSwapped(sizeIn, vec)
+
+    integer, intent(inout) :: sizeIn
+    real(dp), allocatable, intent(inout) :: vec(:,:)
+
+    integer :: dim1
+    real(dp), allocatable :: temp(:,:)
+    dim1 = size(vec, dim=2)
+    allocate(temp(3 * sizeIn, dim1))
+    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
+    temp(1:sizeIn,:) = vec
+    call move_alloc(temp, vec)
+
+  end subroutine TN_incSizeMatSwapped
+
+
+  !>increase size of a sizeInxsizeIn array
+  pure subroutine TN_incSizeMatBoth(sizeIn, vec)
+
+    integer, intent(inout) :: sizeIn
+    real(dp), allocatable, intent(inout) :: vec(:,:)
+
+    real(dp), allocatable :: temp(:,:)
+
+    allocate(temp(3 * sizeIn, 2 * sizeIn))
+    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
+    temp(1:sizeIn, 1:sizeIn) = vec
+    call move_alloc(temp, vec)
+
+  end subroutine TN_incSizeMatBoth
+
+  !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
+  subroutine calcMatrixSqrt_TN(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
+
+    real(dp), intent(in) :: matIn(:,:)
+    integer, intent(in) :: spaceDim, memDim
+    real(dp), intent(out) :: matOut(:,:), matInvOut(:,:)
+    real(dp) :: workArray(:)
+    integer :: workDim
+
+    real(dp) :: dummyEV(spaceDim)
+    real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
+    integer :: info
+    integer :: ii
+
+    dummyM(:,:) = matIn(1:spaceDim,1:spaceDim)
+
+    call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
+    !calc. sqrt
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
+    end do
+
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matOut, memDim)
+    !calc. inv. of sqrt
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
+    end do
+
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matInvOut, memDim)
+
+  end subroutine calcMatrixSqrt_TN
+
+
+  !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
+  !> vectors 1:(start-1) are orthonormal yet
+  pure subroutine orthonormalizeVectors_TN(start, end, vec)
+    integer, intent(in) :: start
+    integer, intent(in) :: end
+    real(dp), intent(inout) :: vec(:,:)
+
+    integer :: ii, jj
+
+    do ii = start, end
+      do jj = 1, ii - 1
+        vec(:,ii) = vec(:,ii) - dot_product(vec(:,ii), vec(:,jj)) * vec(:,jj)
+      end do
+      vec(:,ii) = vec(:,ii) / sqrt(dot_product(vec(:,ii), vec(:,ii)))
+    end do
+
+  end subroutine orthonormalizeVectors_TN
+
+  !> Calculate the product of the matrix A+B and a vector. A,B as usual in linear response TD-DFT.
+  subroutine multApBVecFast_TN(vin, wIJ, sym, win, nMatUp, homo, nOcc, nVir, occNr, getIA, gamma,&
+      & lrGamma, species0, spinW, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
+    real(dp), intent(in) :: vin(:)
+    real(dp), intent(in) :: wIJ(:)
+    character, intent(in) :: sym
+    integer, intent(in) :: win(:), nMatUp, homo, nOcc, nVir !, ind(:)
+    real(dp), intent(in) :: occNr(:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
+    integer,  intent(in) :: getIA(:,:)
+    integer, intent(in) :: species0(:)
+    real(dp), intent(in) :: spinW(:)
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
+    real(dp), intent(out) :: vOut(:)
+    real(dp), intent(out) :: gqvTmp(:,:)   !for faster, more memory intensive routine
+
+    integer :: izpAlpha, nMat, nAtom
+    integer :: ia, ib, ja, jb, alpha, ii, jj, ij, aa, bb, ab, ss
+    real(dp) :: tmp2
+    real(dp) :: oTmp(size(gamma, dim=1)), gTmp(size(gamma, dim=1))
+    real(dp) :: wnIJ(size(wIJ))
+
+    nMat = size(vin) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+    gTmp(:) = 0.0_dp  !used to be oTmp before optimization
+
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIA, wnIJ)
+
+    !----only spin unpolarized case for now-------------------------------
+
+    if (sym == 'S') then
+      !full range coupling matrix contribution
+      do ia = 1, nMat
+        !call hemv(gTmp, gamma, tQov(:,ia))
+        !oTmp(:) = oTmp + vin(ia) * gTmp
+        gTmp(:) = gTmp + tQov(:,ia) * vin(ia) !gTmp=sum_jb q_B^jb * vin_jb
+      end do
+
+      call hemv(oTmp, gamma, gTmp)
+
+      do ia= 1, nMat
+        !call indXov(win, ia, getIA, ii, jj)
+        !lUpDwn = (win(ia) <= nMatUp)
+        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        vOut(ia) = 4.0 * dot_product(tQov(:,ia), oTmp)
+        ! Check: prefactor! need 4.0 * for symmetry reduced sum?
+      end do
+
+    else
+      do ia = 1, nMat
+        !call indXov(win, ia, getIA, ii, jj)
+        !lUpDwn = (win(ia) <= nMatUp)
+        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        oTmp(:) = oTmp + vin(ia) * tQov(:,ia)
+      end do
+
+      do ia = 1, nMat
+        vOut(ia) = 0.0_dp
+        !call indXov(win, ia, getIA, ii, jj)
+        !lUpDwn = (win(ia) <= nMatUp)
+        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        do alpha = 1, nAtom
+          izpAlpha = species0(alpha)
+          tmp2 = 2.0_dp * (spinW(izpAlpha)) !== 2*magnetization
+          vOut(ia) = vOut(ia) + oTmp(alpha) * tmp2 * tQov(alpha,ia)
+        end do
+      end do
+
+    end if
+
+    !   Old implementation, probably slower, but need less memory
+    !   Reintroduce as option later on
+
+    !!long range coupling matrix contribution
+    !do ia = 1, nMat !adds -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB + q_ib^A * q_ja^B * Gamma_lr_AB )
+    !  do jb = 1, nMat
+
+    !    call indXov(win, ia, getIA, ii, aa)
+    !    call indXov(win, jb, getIA, jj, bb)
+
+    !    lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
+
+    !    lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+
+    !    lUpDwn = .true. ! ???
+    !    qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
+
+    !    lUpDwn = .true. ! ???
+    !    qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+
+    !  end do
+    !end do
+
+    ! End old implementation
+
+    ! Faster but more memory intensive routine
+
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIA, jj, bb, ss)
+      !lUpDwn = (win(jb) <= nMatUp)
+      do aa = homo + 1, homo + nVir
+        !lUpDwn = .true.
+        !qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (bb < aa) then
+          call rIndXvv(homo, aa, bb, ab)
+        else
+          call rIndXvv(homo, bb, aa, ab)
+        end if
+        !call hemv(gTmp, lrGamma, tQvv(:,ab))
+        ja = nVir * (jj - 1) + aa - nOcc
+        gqvTmp(:,ja) = gqvTmp(:,ja) + tQvv(:,ab) * vin(jb)
+
+      end do
+    end do
+
+    do ja = 1, nMat
+      gTmp(:) = gqvTmp(:,ja)
+      call hemv(gqvTmp(:,ja), lrGamma, gTmp)
+    end do
+
+    do jj = 1, nOcc
+      do ia = 1, nMat
+        !would prefer to swap loops, but want to avoid calculation ia as unsure how implemented
+        call indXov(win, ia, getIA, ii, aa, ss)
+        !lUpDwn = (win(ia) <= nMatUp)
+        !lUpDwn = .true.
+        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (jj < ii) then
+          ! inverted indXoo function
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii -homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj -homo + nOcc)) / 2 + homo - nOcc
+        end if
+        ja = nVir * (jj - 1) + aa - nOcc
+        vOut(ia) = vOut(ia) - dot_product(tQoo(:,ij), gqvTmp(:,ja))
+
+      end do
+    end do
+
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIA, jj, bb, ss)
+      do aa = homo + 1, homo + nVir
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        ja = iaTrans(jj, aa, ss)
+        gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
+      end do
+    end do
+
+    do ab = 1, nVir * nVir
+      gTmp(:) = gqvTmp(:,ab)
+      call hemv(gqvTmp(:,ab), lrGamma, gTmp)
+    end do
+
+    do bb = homo + 1, homo + nVir
+      do ia = 1, nMat
+        call indXov(win, ia, getIA, ii, aa, ss)
+        ib = iaTrans(ii,bb,ss)
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        vOut(ia) = vOut(ia) - dot_product(tQov(:,ib), gqvTmp(:,ab))
+      end do
+    end do
+
+    ! End faster implementation
+
+    !----only spin unpolarized case for now------------------------------------
+    !vOut(:) = vOut + 0.5_dp * wnIJ * vin !orb. energy difference diagonal contribution
+    vOut(:) = vOut + 0.5_dp * wnIJ(1:nMat) * vin(1:nMat)
+    !Check: What about the factor 0.5 introduced here? Check derivation!
+
+  end subroutine multApBVecFast_TN
+
+
+  !> Calculate the product of A-B and a vector.
+  subroutine multAmBVecFast_TN(vin, wIJ, win, nMatUp, homo, nOcc, nVir,&
+      & occNr, getIA, gamma, lrGamma, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
+    !logical, intent(in) :: spin !for now ignore spin and assume unpolarized system
+    real(dp), intent(in) :: vin(:)
+    real(dp), intent(in) :: wIJ(:)
+    !character, intent(in) :: sym
+    integer, intent(in) :: win(:), nMatUp, homo, nOcc, nVir !, ind(:)
+    !real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
+    real(dp), intent(in) :: occNr(:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
+    integer,  intent(in) :: getIA(:,:)
+    !integer, intent(in) :: species0(:)
+    !type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
+    real(dp), intent(out) :: vOut(:)
+
+    real(dp) :: gqvTmp(:,:)   !for faster, more memory intensive routine
+    integer :: nMat, nAtom
+    integer :: ia, ib, ja, jb, ii, jj, ij, aa, bb, ab, ss
+    !real(dp) :: oTmp(size(gamma, dim=1))
+    real(dp) :: gTmp(size(gamma, dim=1))
+    !real(dp) :: qIJ(size(gamma, dim=1))
+    real(dp) :: wnIJ(size(wIJ))
+    !logical :: lUpDwn
+
+    nMat = size(vin) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIA, wnIJ)
+
+    !----only spin unpolarized case and singlet for now-------------------------------
+
+    ! Old routine, reintroduce as option later on, see A+B fct
+
+    !! Long range coupling matrix contribution
+    !do ia = 1, nMat !Calc -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB - q_ib^A * q_ja^B * Gamma_lr_AB )
+    !  vOut(ia) = 0.0_dp
+    !  do jb = 1, nMat
+
+    !    call indXov(win, ia, getIA, ii, aa)
+    !    call indXov(win, jb, getIA, jj, bb)
+
+    !    lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
+
+    !    lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) + dot_product(qIJ, gTmp) * vin(jb)
+
+    !    lUpDwn = .true.
+    !    qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
+
+    !    lUpDwn = .true.
+    !    qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+
+    !  end do
+    !end do
+
+    ! End old routine
+
+    ! Faster but more memory intensive routine
+
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIA, jj, bb, ss)
+      !lUpDwn = (win(jb) <= nMatUp)
+      do aa = homo + 1, homo + nVir
+        !lUpDwn = .true.
+        !qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (bb < aa) then
+          call rIndXvv(homo, aa, bb, ab)
+        else
+          call rIndXvv(homo, bb, aa, ab)
+        end if
+        !call hemv(gTmp, lrGamma, tQvv(:,ab))
+        ja = nVir * (jj - 1) + aa - nOcc
+        gqvTmp(:,ja) = gqvTmp(:,ja) + tQvv(:,ab) * vin(jb)
+      end do
+    end do
+
+    do ja = 1, nMat
+      gTmp(:) = gqvTmp(:,ja)
+      call hemv(gqvTmp(:,ja), lrGamma, gTmp)
+    end do
+
+    do jj = 1, nOcc
+      do ia = 1, nMat
+        ! would prefer to swap loops, but want to avoid calculation ia as unsure how implemted
+        call indXov(win, ia, getIA, ii, aa, ss)
+        !lUpDwn = (win(ia) <= nMatUp)
+        !lUpDwn = .true.
+        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (jj < ii) then
+          ! inverted indXoo function
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii - homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj - homo + nOcc)) / 2 + homo - nOcc
+        end if
+        ja = nVir * (jj - 1) + aa - nOcc
+        vOut(ia) = vOut(ia) - dot_product(tQoo(:,ij), gqvTmp(:,ja))
+
+      end do
+    end do
+
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIA, jj, bb, ss)
+      do aa = homo + 1, homo + nVir
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        ja = iaTrans(jj, aa, ss)
+        gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
+      end do
+    end do
+
+    do ab = 1, nVir * nVir
+      gTmp(:) = gqvTmp(:,ab)
+      call hemv(gqvTmp(:,ab), lrGamma, gTmp)
+    end do
+
+    do bb = homo + 1, homo + nVir
+      do ia = 1, nMat
+        call indXov(win, ia, getIA, ii, aa, ss)
+        ib = iaTrans(ii,bb,ss)
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        vOut(ia) = vOut(ia) + dot_product(tQov(:,ib), gqvTmp(:,ab))
+      end do
+    end do
+
+    ! End faster implementation
+
+    ! orb. energy difference diagonal contribution
+    vOut(:) = vOut + 0.5_dp * wnIJ(1:nMat) * vin(1:nMat)
+
+
+  end subroutine multAmBVecFast_TN
+
+
+  !> Generates initial matrices Mm and Mp without calculating full Mat Vec product,
+  !> not required for init. space.
+  !> Use precalculated transition charges
+  subroutine setupInitMatFast_TN(initDim, wIJ, sym, win, nMatUp, nOcc, homo, occNr, getIA, iaTrans,&
+      & gamma, lrGamma, species0, spinW, tQov, tQoo, tQvv, vP, vM, mP, mM)
+    integer, intent(in) :: initDim
+    !logical, intent(in) :: spin !for now ignore spin and assume unpolarized system
+    real(dp), intent(in) :: wIJ(:)
+    character, intent(in) :: sym
+    integer, intent(in) :: win(:), nMatUp, nOcc, homo ! , ind(:)
+    !real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
+    real(dp), intent(in) :: occNr(:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
+    integer,  intent(in) :: getIA(:,:)
+    integer, intent(in) :: iaTrans(:,:,:)
+    integer, intent(in) :: species0(:)
+    real(dp), intent(in) :: spinW(:)
+    !type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    real(dp), intent(out) :: vP(:,:), vM(:,:)
+    real(dp), intent(out) :: mP(:,:), mM(:,:)
+
+    integer :: izpAlpha, nMat, nAtom, nw
+    integer :: ia, jb, alpha, ii, jj, aa, bb, aaOld, bbOld, jjOld, ij, ab, ss
+    real(dp) :: tmp2
+    real(dp), allocatable :: oTmp(:), oTmp2(:), qIJ(:), wnIJ(:)
+    real(dp) :: dtmp, dtmp2
+
+    nMat = size(vP, dim=1) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+    nw = size(wIJ)
+
+    allocate(oTmp(nAtom))
+    allocate(oTmp2(nAtom))
+    allocate(qIJ(nAtom))
+    allocate(wnIJ(nw))
+
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIA, wnIJ)
+
+    !calc. vP, vM
+
+    vP(:,:) = 0.0_dp
+    vM(:,:) = 0.0_dp
+    mP(:,:) = 0.0_dp
+    mM(:,:) = 0.0_dp
+
+    oTmp(:) = 0.0_dp
+
+    !----only spin unpolarized case for now-------------------------------
+
+    if (sym == 'S') then
+      ! full range coupling matrix contribution
+      do jb = 1, initDim ! calc 4* sum_A q^ia_A sum_B gamma_AB q^jb_B
+        call hemv(oTmp, gamma, tQov(:,jb))
+        do ia = 1, nMat
+          vP(ia,jb) = 4.0 * dot_product(tQov(:,ia), oTmp)
+        end do
+      end do
+    else
+      do jb = 1, initDim
+        oTmp(:) = oTmp + tQov(:,jb)
+        do ia = 1, nMat
+          vP(ia,jb) = 0.0_dp
+          do alpha = 1, nAtom
+            izpAlpha = species0(alpha)
+            tmp2 = 2.0_dp * (spinW(izpAlpha)) !== 2*magnetization
+            vP(ia,jb) = vP(ia,jb) + oTmp(alpha) * tmp2 * tQov(alpha, jb)
+          end do
+        end do
+      end do
+    end if
+
+    aaOld = -1
+    bbOld = -1
+    jjOld = -1
+
+    ! long range coupling matrix contribution
+    do jb = 1, initDim
+      call indXov(win, jb, getIA, jj, bb, ss)
+      do ia = 1, nMat
+        call indXov(win, ia, getIA, ii, aa, ss)
+        if ((aaOld .ne. aa) .or. (bbOld .ne. bb)) then
+          if (bb < aa) then
+            call rIndXvv(homo, aa, bb, ab)
+          else
+            call rIndXvv(homo, bb, aa, ab)
+          end if
+          call hemv(oTmp, lrGamma, tQvv(:,ab))
+        end if
+
+        if (jj < ii) then
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii - homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj - homo + nOcc)) / 2 + homo - nOcc
+        end if
+
+        dtmp = dot_product(tQoo(:,ij), oTmp)
+
+        vP(ia,jb) = vP(ia,jb) - dtmp
+        vM(ia,jb) = vM(ia,jb) - dtmp
+
+        if ((jjOld .ne. jj) .or. (aaOld .ne. aa)) then
+          call hemv(oTmp2, lrGamma, tQov(:,iaTrans(jj,aa,1)))
+        end if
+
+        dtmp2 = dot_product(tQov(:,iaTrans(ii,bb,1)), oTmp2)
+
+        vP(ia,jb) = vP(ia,jb) - dtmp2
+        vM(ia,jb) = vM(ia,jb) + dtmp2
+
+        aaOld = aa
+      end do
+      jjOld = jj
+      bbOld = bb
+    end do
+
+    do jb = 1, initDim
+      vP(jb,jb) = vP(jb,jb) + 0.5_dp * wnIJ(jb)  !orb. energy difference diagonal contribution
+      vM(jb,jb) = vM(jb,jb) + 0.5_dp * wnIJ(jb)
+    end do
+    ! end calc. vP, vM
+
+    ! Calc. matrices
+    do ii = 1, initDim
+      do jj = ii, initDim
+        mP(ii,jj) = vP(ii,jj)
+        mP(jj,ii) = mP(ii,jj)
+        mM(ii,jj) = vM(ii,jj)
+        mM(jj,ii) = mM(ii,jj)
+      end do
+    end do
+
+    deallocate(oTmp)
+    deallocate(oTmp2)
+    deallocate(qIJ)
+    deallocate(wnIJ)
+
+  end subroutine setupInitMatFast_TN
 
 end module dftbp_linrespcommon
