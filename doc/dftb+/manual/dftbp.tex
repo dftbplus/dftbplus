@@ -5403,6 +5403,18 @@ Only non-comment lines (lines not starting with "\#") are documented:
   \end{itemize}
 \end{itemize}
 
+Each column / row of a quadratic dense matrix belongs to an (atom, orbital)
+index pair, with the orbital index running faster. The order of the atoms
+follows their order in the input geometry. The orbitals are ordered by
+increasing ($l$, $m$) angular quantum numbers of the real tesserals with $m$
+running faster. For a given atom it results in the orbital order
+\begin{equation*}
+  s,\, p_y,\, p_z,\, p_x,\, d_{xy},\, d_{yz},\, d_{z^2},\, d_{xz},\,
+  d_{x^2-y^2},\, f_{y(3x^2-y^2)},\, f_{xyz},\, f_{yz^2},\, f_{z^3},\, f_{xz^2},
+  f_{z(x^2-y^2)},\, f_{x(x^2-3y^2)} \text,
+\end{equation*}
+where only the orbitals present in the basis of the atom are considered.
+
 The files are produced if requested by \is{WriteHS} = \is{Yes} (see
 section~\ref{kw:dftbp.WriteHS}).
 
