@@ -2131,6 +2131,9 @@ contains
       if (this%tFixEf) then
         call error("Perturbation for fixed Fermi energy is not currently supported")
       end if
+      if (this%deltaDftb%isNonAufbau) then
+        call error("Delta-DFTB not currently supported for perturbation")
+      end if
     else
       this%isPolarisability = .false.
     end if
