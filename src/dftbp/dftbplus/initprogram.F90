@@ -93,6 +93,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
+  use dftbp_math_contactsymm, only : TEquivContactAtoms_init, TEquivContactAtoms
   use dftbp_math_duplicate, only : isRepeated
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
@@ -1053,11 +1054,14 @@ module dftbp_dftbplus_initprogram
     type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
-    !> Synonym for G.F. calculation of density
+    !! Synonym for G.F. calculation of density
     logical :: tUpload
 
     !> Whether a contact Hamiltonian is being computed and stored
     logical :: isAContactCalc
+
+    !> Equivalent atoms in the structure
+    type(TEquivContactAtoms), allocatable :: equivContactAtoms
 
     !> Whether Poisson solver is invoked
     logical :: tPoisson
@@ -1690,6 +1694,11 @@ contains
     this%tUpload = .false.
     this%isAContactCalc = .false.
   #:endif
+
+    if (this%isAContactCalc) then
+      allocate(this%equivContactAtoms)
+      call TEquivContactAtoms_init(this%equivContactAtoms, this%nAtom)
+    end if
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
