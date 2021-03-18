@@ -975,7 +975,8 @@ contains
                 & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
                 & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
                 & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
-                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS,&
+                & this%isAContactCalc, this%nAtom)
           else
             call getNextInputDensity(this%SSqrReal, this%over, this%neighbourList,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
@@ -3500,7 +3501,8 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
-      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
+      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
+      & isAContactCalc, nAtom)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3589,8 +3591,12 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary elements
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
+    logical, intent(in) :: isAContactCalc
+
+    integer, intent(in) :: nAtom
+
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin
+    integer :: nSpin, iAt
 
     nSpin = size(qOutput, dim=3)
 
@@ -3623,6 +3629,27 @@ contains
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
             & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+
+        if (isAContactCalc) then
+          ! symmetrize charges between the principle layers of the contact
+          do iAt = 1, nAtom/2
+            qInput(:,iAt,:) = 0.5_dp*(qInput(:,iAt,:) + qInput(:,iAt+nAtom/2,:))
+            qInput(:,iAt+nAtom/2,:) = qInput(:,iAt,:)
+          end do
+          if (allocated(qBlockIn)) then
+            do iAt = 1, nAtom/2
+              qBlockIn(:,:,iAt,:) = 0.5_dp*(qBlockIn(:,:,iAt,:) + qBlockIn(:,:,iAt+nAtom/2,:))
+              qBlockIn(:,:,iAt+nAtom/2,:) = qBlockIn(:,:,iAt,:)
+            end do
+          end if
+          if (allocated(qiBlockIn)) then
+            do iAt = 1, nAtom/2
+              qiBlockIn(:,:,iAt,:) = 0.5_dp*(qiBlockIn(:,:,iAt,:) + qiBlockIn(:,:,iAt+nAtom/2,:))
+              qiBlockIn(:,:,iAt+nAtom/2,:) = qiBlockIn(:,:,iAt,:)
+            end do
+          end if
+        end if
+
       end if
     end if
 
