@@ -90,6 +90,7 @@ module dftbp_dftbplus_main
   use dftbp_math_blasroutines, only : hemm, symm
   use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
   use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_math_symmetrize, only : TEquivalentAtoms
   use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
   use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
@@ -929,15 +930,15 @@ contains
       tStopScc = hasStopFile(fStopScc)
 
       ! Mix charges Input/Output
-
       if (.not. this%isHybridXc) then
         call getNextInputCharges(env, this%pChrgMixerReal, this%qOutput, this%qOutRed, this%orb,&
             & this%nIneqOrb, this%iEqOrbitals, iGeoStep, iSccIter, this%minSccIter,&
             & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
-            & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
-            & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
-            & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS,&
-            & this%nIneqDip, this%nIneqQuad, this%multipoleOut, this%multipoleInp)
+            & this%qInput, this%qInpRed, this%equivalentAtoms, sccErrorQ, tConverged, this%dftbU,&
+            & this%qBlockOut, this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut,&
+            & this%iEqBlockDftbULS, this%species0, this%qiBlockIn, this%iEqBlockOnSite,&
+            & this%iEqBlockOnSiteLS, this%nIneqDip, this%nIneqQuad, this%multipoleOut,&
+            & this%multipoleInp, this%isAContactCalc, this%nAtom)
       else
         if (this%tRealHS) then
           call getNextInputDensityReal(env, this%parallelKS, this%SSqrReal, this%ints,&
@@ -4321,9 +4322,9 @@ contains
   !> Returns input charges for next SCC iteration.
   subroutine getNextInputCharges(env, pChrgMixerReal, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
-      & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
-      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
-      & nIneqDip, nIneqQuad, multipoleOut, multipoleInp)
+      & qInput, qInpRed, equivalentAtoms, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU,&
+      & qBlockIn, qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite,&
+      & iEqBlockOnSiteLS, nIneqDip, nIneqQuad, multipoleOut, multipoleInp, isAContactCalc, nAtom)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4376,6 +4377,9 @@ contains
     !> Equivalence reduced input charges
     real(dp), intent(inout) :: qInpRed(:)
 
+    !> Mapping between symmetry equivalent atoms
+    type(TEquivalentAtoms), intent(in), allocatable :: equivalentAtoms
+
     !> Self-consistency error
     real(dp), intent(out) :: sccErrorQ
 
@@ -4424,8 +4428,14 @@ contains
     !> Multipole moments
     type(TMultipole), intent(inout) :: multipoleOut
 
+    !> Is this a contact calculation for transport
+    logical, intent(in) :: isAContactCalc
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin, nMix
+    integer :: nSpin, iAt, nMix
 
     nSpin = size(qOutput, dim=3)
 
@@ -4470,6 +4480,7 @@ contains
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
             & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+
         if (nIneqDip > 0) then
           ! FIXME: Assumes we always mix all dipole moments
           nMix = nIneqOrb
@@ -4483,6 +4494,19 @@ contains
               & shape(multipoleInp%quadrupoleAtom(:,:, 1)))
         end if
       end if
+    end if
+
+    if (isAContactCalc) then
+      @:ASSERT(mod(nAtom,2) == 0)
+    end if
+
+    if (allocated(equivalentAtoms)) then
+      ! symmetrize charges between equivalent atoms
+      call equivalentAtoms%mapAtomicQuantities(qInput)
+      if (allocated(qBlockIn)) call equivalentAtoms%mapAtomicQuantities(qBlockIn)
+      if (allocated(qiBlockIn)) call equivalentAtoms%mapAtomicQuantities(qiBlockIn)
+      if (nIneqDip > 0) call equivalentAtoms%mapAtomicQuantities(multipoleInp%dipoleAtom)
+      if (nIneqQuad > 0) call equivalentAtoms%mapAtomicQuantities(multipoleInp%quadrupoleAtom)
     end if
 
   end subroutine getNextInputCharges
