@@ -127,6 +127,9 @@ module dftbp_initprogram
   public :: autotestTag, userOut, bandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
+#:if WITH_TRANSPORT
+  public :: overrideContactCharges
+#:endif
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
@@ -3547,19 +3550,27 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), nEl = sum(this%nEl))
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
-              & magnetisation=this%nEl(1)-this%nEl(2))
+              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion),&
+              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
         end if
       end if
+
+    #:if WITH_TRANSPORT
+      if (this%tUpload) then
+        call overrideContactCharges(this%qInput, this%chargeUp, this%transpar, this%qBlockIn,&
+            & this%blockUp)
+      end if
+    #:endif
+
     endif
 
     if (.not. allocated(this%reks)) then
@@ -5643,6 +5654,48 @@ contains
     end if
 
   end subroutine getBufferedCholesky_
+
+
+  #:if WITH_TRANSPORT
+
+  !> Replace charges with those from the stored contact values
+  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
+
+    !> input charges
+    real(dp), intent(inout) :: qOrb(:,:,:)
+
+    !> uploaded charges
+    real(dp), intent(in) :: qOrbUp(:,:,:)
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> block charges, for example from DFTB+U
+    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
+
+    !> uploaded block charges
+    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
+
+    integer :: ii, iStart, iEnd
+
+    do ii = 1, transpar%ncont
+      iStart = transpar%contacts(ii)%idxrange(1)
+      iEnd = transpar%contacts(ii)%idxrange(2)
+      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
+    end do
+
+    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
+    if (allocated(qBlock)) then
+      do ii = 1, transpar%ncont
+        iStart = transpar%contacts(ii)%idxrange(1)
+        iEnd = transpar%contacts(ii)%idxrange(2)
+        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
+      end do
+    end if
+
+  end subroutine overrideContactCharges
+
+#:endif
 
 
 end module dftbp_initprogram

@@ -104,6 +104,9 @@ module dftbp_main
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
       & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
+#:if WITH_TRANSPORT
+  use dftbp_initprogram, only : overrideContactCharges
+#:endif
   use dftbp_blockpothelper, only : appendBlockReduced
   implicit none
 
@@ -256,7 +259,7 @@ contains
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
       end if
 
       if (this%tForces) then
@@ -1003,7 +1006,7 @@ contains
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-                & this%qiBlockIn, this%deltaRhoIn)
+                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
           end if
         end if
 
@@ -1977,48 +1980,6 @@ contains
     end if
 
   end subroutine initSccLoop
-
-
-#:if WITH_TRANSPORT
-
-  !> Replace charges with those from the stored contact values
-  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
-
-    !> input charges
-    real(dp), intent(inout) :: qOrb(:,:,:)
-
-    !> uploaded charges
-    real(dp), intent(in) :: qOrbUp(:,:,:)
-
-    !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
-
-    !> block charges, for example from DFTB+U
-    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
-
-    !> uploaded block charges
-    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
-
-    integer :: ii, iStart, iEnd
-
-    do ii = 1, transpar%ncont
-      iStart = transpar%contacts(ii)%idxrange(1)
-      iEnd = transpar%contacts(ii)%idxrange(2)
-      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
-    end do
-
-    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
-    if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont
-        iStart = transpar%contacts(ii)%idxrange(1)
-        iEnd = transpar%contacts(ii)%idxrange(2)
-        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
-      end do
-    end if
-
-  end subroutine overrideContactCharges
-
-#:endif
 
 
   !> Transform the hamiltonian from QM to UD representation
