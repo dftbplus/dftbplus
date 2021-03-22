@@ -2134,6 +2134,13 @@ contains
       if (this%deltaDftb%isNonAufbau) then
         call error("Delta-DFTB not currently supported for perturbation")
       end if
+      if (allocated(this%solvation)) then
+        call error("Solvation not currently implemented for perturbation")
+      end if
+      if (allocated(this%dispersion)) then
+        call error("Dispersion (particularly charge dependent) not currently implemented for&
+            & perturbation")
+      end if
     else
       this%isPolarisability = .false.
     end if
