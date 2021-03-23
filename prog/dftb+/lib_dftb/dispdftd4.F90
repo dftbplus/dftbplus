@@ -660,7 +660,7 @@ contains
     real(dp) :: f6, df6, f8, df8, f10, df10
 
     !$omp parallel do default(none) schedule(runtime) &
-    !$omp reduction(+:energies, gradients, sigma, dEdq, dEdcn) &
+    !$omp shared(energies, gradients, sigma, dEdq, dEdcn) &
     !$omp shared(iAtFirst, iAtLast, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq) &
     !$omp shared(dc6dcn, calc) &
     !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
@@ -876,7 +876,7 @@ contains
     real(dp) :: dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3
 
     !$omp parallel do default(none) schedule(runtime) &
-    !$omp reduction(+:energies, gradients, sigma, dEdq, dEdcn) &
+    !$omp shared(energies, gradients, sigma, dEdq, dEdcn) &
     !$omp shared(iAtFirst, iAtLast, species, nNeighbour, coords) &
     !$omp shared(img2CentCell, neigh, c6, dc6dcn, dc6dq, calc) &
     !$omp private(iAt1, iSp1, iNeigh2, iNeigh3, iAt2, iAt2f, iAt3, iAt3f, iSp2, iSp3) &
@@ -1393,7 +1393,7 @@ contains
 
     dispMat(:, :, :, :) = 0.0_dp
 
-    !$omp parallel do default(none) schedule(runtime) reduction(+:dispMat) &
+    !$omp parallel do default(none) schedule(runtime) shared(dispMat) &
     !$omp shared(iAtFirst, iAtLast, calc, ref, species, nNeighbour, neigh) &
     !$omp shared(img2CentCell, gwVec) private(iAt1, iSp1, iNeigh, iAt2) &
     !$omp private(iRef1, iRef2, nRef1, nRef2, iAt2f, iSp2, r2, r4, r6, r8, r10) &
