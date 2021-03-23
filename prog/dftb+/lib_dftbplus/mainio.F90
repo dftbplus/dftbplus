@@ -3364,7 +3364,7 @@ contains
 
   !> Fifth group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment, deltaDftb)
+      & dipoleMoment, deltaDftb, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3392,6 +3392,9 @@ contains
 
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     if (allocated(dipoleMoment)) then
       if (deltaDftb%isNonAufbau) then
@@ -3428,6 +3431,11 @@ contains
         write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
             & * au__Debye, ' Debye'
         write(fd, *)
+      end if
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
       end if
     end if
 
@@ -3486,7 +3494,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & absEField, qOutput, q0, dipoleMoment)
+      & absEField, qOutput, q0, dipoleMoment, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3545,6 +3553,9 @@ contains
     !> dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3594,6 +3605,11 @@ contains
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
+      end if
     end if
 
   end subroutine writeMdOut2

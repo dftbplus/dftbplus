@@ -304,7 +304,7 @@ contains
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs,&
-            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb)
+            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb, this%solvation)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs)
@@ -391,7 +391,8 @@ contains
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
-          & localisation, this%esp, this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray)
+          & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
+          & this%lCurrArray)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
@@ -1150,7 +1151,7 @@ contains
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%over, this%orb,&
           & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell)
+          & this%img2CentCell, this%solvation)
     #:endblock DEBUG_CODE
     end if
 
@@ -1271,12 +1272,12 @@ contains
       end if
     end if
 
-    if (this%tSccCalc .and. allocated(this%esp)&
+    if (this%tSccCalc .and. allocated(this%electrostatPot)&
         & .and. (.not. (this%isGeoOpt .or. this%tMD)&
         & .or. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep, this%nGeoSteps,&
         & this%restartFreq))) then
-      call this%esp%evaluate(env, this%scc, this%EField)
-      call writeEsp(this%esp, env, iGeoStep, this%nGeoSteps)
+      call this%electrostatPot%evaluate(env, this%scc, this%EField)
+      call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
 
   end subroutine processGeometry
@@ -1447,7 +1448,7 @@ contains
             & this%tEField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%absEField,&
-            & this%qOutput, this%q0, this%dipoleMoment)
+            & this%qOutput, this%q0, this%dipoleMoment, this%solvation)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -4448,7 +4449,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, solvation)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4479,6 +4480,9 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
     integer :: nAtom, sparseSize, iAt, ii
@@ -4512,6 +4516,11 @@ contains
       write(stdOut, "(F12.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
+    if (allocated(solvation)) then
+      if (solvation%isEFieldModified()) then
+        write(stdOut, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+      end if
+    end if
 
   end subroutine checkDipoleViaHellmannFeynman
 

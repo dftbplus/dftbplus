@@ -139,6 +139,9 @@ module dftbp_cosmo
     !> Returns shifts per atom
     procedure :: getShifts
 
+    !> Is the electrostic field modified by this solvent model?
+    procedure :: isEFieldModified
+
     !> Write cavity information
     procedure :: writeCosmoFile
 
@@ -557,6 +560,19 @@ contains
 
   end subroutine getShifts
 
+
+  !> Is the electrostic field modified by this solvent model?
+  function isEFieldModified(this) result(isChanged)
+
+    !> Data structure
+    class(TCosmo), intent(in) :: this
+
+    !> Has the solvent model changed the electrostatic environment
+    logical :: isChanged
+
+    isChanged = .false.
+
+  end function isEFieldModified
 
   !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
   !> surface elements of the cavity (ccav).

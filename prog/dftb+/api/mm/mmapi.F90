@@ -391,6 +391,13 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        stop
+      end if
+    end if
+
     call setExternalPotential(this%main, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
@@ -413,6 +420,13 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        stop
+      end if
+    end if
+
     call setExternalCharges(this%main, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
@@ -431,6 +445,13 @@ contains
     type(TQDepExtPotProxy) :: extPotProxy
 
     call this%checkInit()
+
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        stop
+      end if
+    end if
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
@@ -727,8 +748,8 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-        & coordOut = coord, force=force, occ=occ)
+    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy,&
+        & atomNetCharges=atomNetCharges, coordOut = coord, force=force, occ=occ)
 
   end subroutine TDftbPlus_doOneTdStep
 
@@ -741,6 +762,13 @@ contains
 
     ! electric field components
     real(dp), intent(in) :: field(3)
+
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        stop
+      end if
+    end if
 
     call setTdElectricField(this%main, field)
 

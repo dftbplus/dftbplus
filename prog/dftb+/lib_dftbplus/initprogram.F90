@@ -454,7 +454,7 @@ module dftbp_initprogram
     logical :: tMulliken
 
     !> Electrostatic potentials if requested
-    type(TElStatPotentials), allocatable :: esp
+    type(TElStatPotentials), allocatable :: electrostatPot
 
     !> Calculate localised orbitals?
     logical :: tLocalise
@@ -2088,9 +2088,15 @@ contains
       if (.not.this%tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
-      allocate(this%esp)
-      call TElStatPotentials_init(this%esp, input%ctrl%elStatPotentialsInp, this%tEField .or.&
-          & this%tExtChrg)
+      if (allocated(this%solvation)) then
+        if (this%solvation%isEFieldModified()) then
+          call error("Electrostatic potentials not currently available in the presence of a solvent&
+              & which modifies the electrostatics")
+        end if
+      end if
+      allocate(this%electrostatPot)
+      call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp, this%tEField&
+          & .or. this%tExtChrg)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2101,6 +2107,13 @@ contains
     if (this%tLocalise .and. (this%nSpin > 2 .or. this%t2Component)) then
       call error("Localisation of electronic states currently unsupported for non-collinear and&
           & spin orbit calculations")
+    end if
+
+    if (allocated(this%solvation)) then
+      if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
+        call error('External fields are not currently compatible with this implicit solvent.')
+      end if
+
     end if
 
     if (this%isLinResp) then
@@ -3290,7 +3303,7 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%solvation)
 
     end if
 
@@ -4169,8 +4182,8 @@ contains
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
-    if (allocated(this%esp)) then
-      call initOutputFile(this%esp%espOutFile)
+    if (allocated(this%electrostatPot)) then
+      call initOutputFile(this%electrostatPot%espOutFile)
     end if
 
   end subroutine initOutputFiles

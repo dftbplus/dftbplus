@@ -333,7 +333,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, solvation)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -404,6 +404,9 @@ contains
     !> SCC module internal variables
     type(TScc), intent(in), allocatable :: sccCalc
 
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -457,6 +460,12 @@ contains
     case default
       call error("Wrong type of perturbation.")
     end select
+
+    if (allocated(solvation)) then
+      if (solvation%isEFieldModified() .and. (this%tKick .or. this%tLaser)) then
+        call error("This type of solvation model currently unsupported for electron dyanamics")
+      end if
+    end if
 
     if (this%tLaser) then
       if (tPeriodic) then
@@ -3594,8 +3603,8 @@ contains
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
           & restartFileName, this%tRestartAscii)
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env, this%rhoPrim,&
-          & this%ErhoPrim, coordAll)
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & this%rhoPrim, this%ErhoPrim, coordAll)
       if (this%tIons) then
 
         this%initialVelocities(:,:) = this%movedVelo
@@ -3605,8 +3614,8 @@ contains
     else if (this%iCall > 1 .and. this%tIons) then
       coord(:,:) = this%initCoord
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env, this%rhoPrim,&
-          & this%ErhoPrim, coordAll)
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & this%rhoPrim, this%ErhoPrim, coordAll)
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
@@ -3642,17 +3651,18 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb, this%potential,&
-        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, this%chargePerShell,&
-        & spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
-        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep, this%dispersion,&
-        & this%trho)
+    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+        & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
+        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & this%dispersion, this%trho)
 
     if (this%tForces) then
       this%totalForce(:,:) = 0.0_dp
-      call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv, neighbourList, nNeighbourSK, &
-          & img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, skOverCont, this%qq, q0, &
-          & repulsive, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep, this%deltaRho)
+      call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
+          & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
+          & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
+          & 0, env, rangeSep, this%deltaRho)
     end if
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
@@ -3671,15 +3681,16 @@ contains
         & neighbourList, repulsive, iAtInCentralRegion)
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
-        & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell,&
-        & this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock,&
-        & dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
+        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
+        & qDepExtPot, this%qBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if (.not. this%tReadRestart .or. this%tProbe) then
       ! output ground state data
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
           & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
-          & 0.0_dp, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, 0)
+          & 0.0_dp, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce,&
+          & 0)
     end if
 
 
@@ -3697,8 +3708,8 @@ contains
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       this%trhoOld(:,:,:) = this%trho
-      call initializePropagator(this, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv, coordAll, skOverCont, orb,&
-          & neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
+      call initializePropagator(this, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv,&
+          & coordAll, skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
     this%rho => this%trho
@@ -3707,28 +3718,28 @@ contains
     if (this%tIons) then
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env, this%rhoPrim,&
-          & this%ErhoPrim, coordAll)
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & this%rhoPrim, this%ErhoPrim, coordAll)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord, iSquare, this%qBlock,&
-        & this%qNetAtom)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
+        & iSquare, this%qBlock, this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb, this%potential,&
-        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
+    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+        & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
         & this%dispersion,this%rho)
 
     if (this%tForces) then
-      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
-          & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
-          & skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep,&
-          & this%deltaRho)
+      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
+          & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
+          & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
+          & 0, env, rangeSep, this%deltaRho)
     end if
 
     this%tPropagatorsInitialized = .true.
@@ -3743,6 +3754,7 @@ contains
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
 
@@ -3866,21 +3878,22 @@ contains
       call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
           &neighbourList, nNeighbourSK, iSquare)
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1, this%Ssqr)
+        call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&
+            & this%Ssqr)
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
           & neighbourList, repulsive, iAtInCentralRegion)
     end if
 
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&
-        & iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell, this%energyKin,&
-        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, this%qBlock, dftbU,&
-        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
+        & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
+        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
+        & qDepExtPot, this%qBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if ((mod(iStep, this%writeFreq) == 0)) then
-      call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+      call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0,&
+          & over, neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
           & this%fdBondEnergy, this%fdBondPopul, this%time)
     end if
 
@@ -3912,17 +3925,20 @@ contains
 
     if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
       do iKS = 1, this%parallelKS%nLocalKS
-        ! time-dt is due to the fact that populations were always written one step later than the rest of the quantities
-        ! but with the same time label.
-        ! TODO: fix tests values for populations so that it becomes exactly syncronized with the other outputs
-        call getTDPopulations(this, this%occ, this%rho, this%Eiginv, this%EiginvAdj, this%populDat, this%time-this%dt, iKS)
+        ! time-dt is due to the fact that populations were always written one step later than the
+        ! rest of the quantities but with the same time label.
+        ! TODO: fix tests values for populations so that it becomes exactly syncronized with the
+        ! other outputs
+        call getTDPopulations(this, this%occ, this%rho, this%Eiginv, this%EiginvAdj, this%populDat,&
+            & this%time-this%dt, iKS)
       end do
     end if
 
     if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
           & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
-          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce, iStep)
+          & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord,&
+          & this%totalForce, iStep)
     end if
 
     if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, max(this%restartFreq,1)) == 0) then
@@ -3956,28 +3972,28 @@ contains
     if (this%tIons) then
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env, this%rhoPrim,&
-          & this%ErhoPrim, coordAll)
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & this%rhoPrim, this%ErhoPrim, coordAll)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord, iSquare, this%qBlock,&
-        & this%qNetAtom)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
+        & iSquare, this%qBlock, this%qNetAtom)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb, this%potential,&
-        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+        & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
         & this%dispersion,this%rho)
 
     if (this%tForces) then
-      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
-          & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
-          & skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
-          & this%deltaRho)
+      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
+          & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
+          & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
+          & iStep, env, rangeSep, this%deltaRho)
     end if
 
     ! unset coordinates and velocities at the end of the step
