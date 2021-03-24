@@ -2470,6 +2470,7 @@ contains
       allocate(this%iAtInCentralRegion(this%nAtom))
       ! for storage of the electrostatic potential in the contact
       allocate(this%potential%coulombShell(this%orb%mShell,this%nAtom,1))
+      this%potential%coulombShell(:,:,:) = 0.0_dp
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
     end if
