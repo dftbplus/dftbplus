@@ -197,6 +197,7 @@ contains
     type(TTransCharges) :: transChrg
 
     tUseArpack = .false.
+    !tUseArpack = .true.
     if (withArpack) then
 
       ! ARPACK library variables
@@ -795,7 +796,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getia, gammaMat,&
-          & species0, spinW, onsMEs, orb, transChrg)
+          & species0, spinW, onsMEs, orb, .false., transChrg)
 
     end do
 
@@ -836,7 +837,8 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, transChrg)
+            & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
+            & .false., transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
@@ -1018,11 +1020,14 @@ contains
 
         !extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
-          call multApBVecFast_TN(vecB(:,ii), wij, sym, win, nmatup, homo, nOcc, nVir, filling, &
-              & getia, gammaMat, lrGamma, species0, spinW, iaTrans, gqvTmp, tQov, tQoo, tQvv,&
-              & vP(:,ii))
-          call multAmBVecFast_TN(vecB(:,ii), wij, win, nmatup, homo, nOcc, nVir, filling, getia, &
-              & gammaMat, lrGamma, iaTrans, gqvTmp, tQov, tQoo, tQvv, vM(:,ii))
+           call omegatvec(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
+            & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
+            & .true., transChrg)
+
+!!$          call multApBVecFast_TN(vecB(:,ii), wij, sym, win, nmatup, homo, nOcc, nVir, filling, &
+!!$              & getia, gammaMat, lrGamma, species0, spinW, iaTrans, gqvTmp, tQov, tQoo, tQvv,&
+!!$              & vP(:,ii))
+          call multAmBVecFast_TN(tSpin, win, nmatup, filling, getia, wij, vecB(:,ii), vM(:,ii))
         end do
 
         do ii = prevSubSpaceDim + 1, subSpaceDim
@@ -1036,8 +1041,9 @@ contains
 
       else
 
-        call setupInitMatFast_TN(subSpaceDim, wij, sym, win, nmatup, nOcc, homo, filling, getia,&
-            & iaTrans, gammaMat, lrGamma, species0, spinW, tQov, tQoo, tQvv, vP, vM, mP, mM)
+        call setupInitMatFast_TN(transChrg, subSpaceDim, wij, sym, win, &
+            & iAtomStart, stimc, grndEigVecs, getia, iaTrans, gammaMat, lrGamma, species0,&
+            & spinW, tSpin, vP, vM, mP, mM)
 
       end if
 
