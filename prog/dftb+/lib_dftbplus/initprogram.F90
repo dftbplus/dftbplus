@@ -1458,13 +1458,6 @@ contains
     call initReferenceCharges(this%species0, this%orb, this%referenceN0, this%nSpin, this%q0,&
         & this%qShell0, input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
 
-    this%nrChrg = input%ctrl%nrChrg
-    this%nrSpinPol = input%ctrl%nrSpinPol
-    call initElectronNumbers(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
-        & this%nEl0, this%nEl)
-    call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
-        & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
-
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%tSpin, this%kPoint,&
         & input%ctrl%parallelOpts, nIndepHam, this%tempElec)
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
@@ -1495,6 +1488,17 @@ contains
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
+
+    this%nrChrg = input%ctrl%nrChrg
+    this%nrSpinPol = input%ctrl%nrSpinPol
+    if (this%isAContactCalc) then
+      ! 1 PL in calculation, so half the spin
+      this%nrSpinPol = 0.5_dp * this%nrSpinPol
+    end if
+    call initElectronNumbers(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
+        & this%nEl0, this%nEl)
+    call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
+        & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
     if (this%tSccCalc) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)

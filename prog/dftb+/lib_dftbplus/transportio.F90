@@ -138,7 +138,7 @@ contains
     !> Should a text or binary file be saved
     logical, intent(in), optional :: tWriteAscii
 
-    integer :: fdHS, nAtom, nSpin, iAt, iSp
+    integer :: fdHS, nAtom, nSpin, iAt, iSp, iPL
     logical :: tAsciiFile
 
     nSpin = size(charges, dim=3)
@@ -156,15 +156,23 @@ contains
       ! now with a version number on the top of the file:
       write(fdHS, *) contactFormatVersion
 
-      write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS, *) orb%nOrbAtom
-      write(fdHS, *) shiftPerL(:,:,1)
-      write(fdHS, *) charges
+      write(fdHS, *) 2*nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS, *) orb%nOrbAtom, orb%nOrbAtom
+      do iPl = 1, 2
+        write(fdHS, *) shiftPerL(:,:nAtom,1)
+      end do
+      do iSp = 1, nSpin
+        do iPl = 1, 2
+          write(fdHS, *) charges(:,:,iSp)
+        end do
+      end do
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+          do iPL = 1, 2
+            do iAt = 1, nAtom
+              write(fdHS, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            end do
           end do
         end do
       end if
@@ -185,15 +193,23 @@ contains
       ! now with a version number on the top of the file:
       write(fdHS) contactFormatVersion
 
-      write(fdHS) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS) orb%nOrbAtom
-      write(fdHS) shiftPerL(:,:,1)
-      write(fdHS) charges
+      write(fdHS) 2*nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS) orb%nOrbAtom, orb%nOrbAtom
+      write(fdHS) shiftPerL(:,:nAtom,1), shiftPerL(:,:nAtom,1)
+      select case(nSpin)
+      case(1)
+        write(fdHS) charges(:,:nAtom,1), charges(:,:nAtom,1)
+      case(2)
+        write(fdHS) charges(:,:nAtom,1), charges(:,:nAtom,1), charges(:,:nAtom,2),&
+            & charges(:,:nAtom,2)
+      end select
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+          do iPL = 1, 2
+            do iAt = 1, nAtom
+              write(fdHS) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            end do
           end do
         end do
       end if
