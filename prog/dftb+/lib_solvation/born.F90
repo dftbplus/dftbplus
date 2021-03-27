@@ -1140,7 +1140,7 @@ contains
   end subroutine getBornMatrixStillCluster
 
 
-  !> compute Born matrix using Still interaction kernel
+  !> compute Born matrix using P16 interaction kernel
   subroutine getBornMatrixP16Cluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
       & bornMat)
 

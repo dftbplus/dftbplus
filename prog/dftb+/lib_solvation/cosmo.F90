@@ -38,6 +38,9 @@ module dftbp_cosmo
     !> Dielectric constant
     real(dp) :: dielectricConst
 
+    !> dielectric scaling factor on going between inside cavity (vacuum) and outside region
+    real(dp) :: keps
+
     !> Grid for numerical integration of atomic surfaces
     integer :: gridSize
 
@@ -76,6 +79,9 @@ module dftbp_cosmo
 
     !> Dielectric constant
     real(dp) :: dielectricConst
+
+    !> scaling factor from dielectric inside cavity (vacuum) and outside region
+    real(dp) :: keps
 
     !> Energy shift to the reference system
     real(dp) :: freeEnergyShift
@@ -173,6 +179,7 @@ contains
 
     this%nAtom = nAtom
     this%dielectricConst = input%dielectricConst
+    this%keps = input%keps
     this%freeEnergyShift = input%freeEnergyShift
 
     allocate(this%vdwRad(nAtom))
@@ -304,7 +311,6 @@ contains
     real(dp), intent(out) :: energies(:)
 
     integer :: iat
-    real(dp) :: keps
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
@@ -316,9 +322,8 @@ contains
       energies(:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
     do iat = 1, size(energies)
-      energies(iat) = keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
+      energies(iat) = this%keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
          & + this%freeEnergyShift / real(this%nAtom, dp) + energies(iat)
     end do
 
@@ -350,7 +355,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     integer :: ii, iat, ig
-    real(dp) :: xx(1), esolv, keps
+    real(dp) :: xx(1), esolv
     real(dp), allocatable :: fx(:, :), zeta(:), ef1(:, :), ef2(:, :)
 
     @:ASSERT(this%tCoordsUpdated)
@@ -360,8 +365,6 @@ contains
     if (allocated(this%sasaCont)) then
       call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
     end if
-
-    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
 
     allocate(fx(3, this%nAtom), zeta(this%ddCosmo%ncav), &
       & ef1(3, this%ddCosmo%ncav), ef2(3, this%nAtom))
@@ -377,10 +380,10 @@ contains
 
     ! now call the routine that computes the ddcosmo specific contributions
     ! to the forces.
-    call forces(this%ddCosmo, keps, this%phi, this%sigma, this%s, fx)
+    call forces(this%ddCosmo, this%keps, this%phi, this%sigma, this%s, fx)
 
     ! form the "zeta" intermediate
-    call getZeta(this%ddCosmo, keps, this%s, zeta)
+    call getZeta(this%ddCosmo, this%keps, this%s, zeta)
 
     ! 1. solute's electric field at the cav points times zeta:
     !    compute the electric field
@@ -482,7 +485,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    real(dp) :: xx(1, 1), keps
+    real(dp) :: xx(1, 1)
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
@@ -529,7 +532,7 @@ contains
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
-    real(dp) :: xx(1), keps
+    real(dp) :: xx(1)
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
@@ -544,11 +547,10 @@ contains
       shiftPerShell(:,:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
-    shiftPerAtom(:) = keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
+    shiftPerAtom(:) = this%keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
 
     ! we abuse Phi to store the unpacked and scaled value of s
-    call getZeta(this%ddCosmo, keps, this%s, this%phi)
+    call getZeta(this%ddCosmo, this%keps, this%s, this%phi)
     ! and contract with the Coulomb matrix
     call gemv(shiftPerAtom, this%jmat, this%phi, alpha=-1.0_dp, &
       & beta=1.0_dp, trans='t')
@@ -935,7 +937,7 @@ contains
     real(dp), intent(in) :: energy
 
     integer :: ii, ig, iat
-    real(dp) :: dielEnergy, keps
+    real(dp) :: dielEnergy
     real(dp), allocatable :: phi(:), zeta(:), area(:)
 
     allocate(phi(this%ddCosmo%ncav), zeta(this%ddCosmo%ncav), area(this%ddCosmo%ncav))
@@ -956,8 +958,7 @@ contains
     end do
 
     ! Dielectric energy is the energy on the dielectric continuum
-    keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
-    dielEnergy = keps * dot_product(zeta, phi)
+    dielEnergy = this%keps * dot_product(zeta, phi)
 
     write(unit, '(a)') &
         & "$info", &
@@ -971,7 +972,7 @@ contains
     write(unit, '(a)') &
         & "$cosmo_data"
     write(unit, '(2x, a:, "=", g0)') &
-        & "fepsi", keps, &
+        & "fepsi", this%keps, &
         & "area", sum(area)
 
     write(unit, '(a)') &
