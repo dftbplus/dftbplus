@@ -268,6 +268,7 @@ contains
 
     call readSolvent(node, solvent)
     input%dielectricConst = solvent%dielectricConstant
+    input%keps = 0.5_dp * (1.0_dp - 1.0_dp/solvent%dielectricConstant)
 
     ! shift value for the free energy (usually zero)
     call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, &

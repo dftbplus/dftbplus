@@ -38,6 +38,9 @@ module dftbp_cosmo
     !> Dielectric constant
     real(dp) :: dielectricConst
 
+    !> dielectric scaling factor on going between inside cavity (vacuum) and outside region
+    real(dp) :: keps
+
     !> Grid for numerical integration of atomic surfaces
     integer :: gridSize
 
@@ -77,7 +80,7 @@ module dftbp_cosmo
     !> Dielectric constant
     real(dp) :: dielectricConst
 
-    !> scaling factor from dielectric inside (vacuum) and outside region
+    !> scaling factor from dielectric inside cavity (vacuum) and outside region
     real(dp) :: keps
 
     !> Energy shift to the reference system
@@ -176,7 +179,7 @@ contains
 
     this%nAtom = nAtom
     this%dielectricConst = input%dielectricConst
-    this%keps = 0.5_dp * (1.0_dp - 1.0_dp/this%dielectricConst)
+    this%keps = input%keps
     this%freeEnergyShift = input%freeEnergyShift
 
     allocate(this%vdwRad(nAtom))
