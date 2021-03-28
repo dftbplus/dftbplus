@@ -29,6 +29,7 @@ module dftbp_linrespgrad
   use dftbp_transcharges
   use dftbp_linresptypes
   use dftbp_degeneracyfind
+  use dftbp_solvation, only : TSolvation
   implicit none
   private
 
@@ -73,7 +74,7 @@ contains
   subroutine LinRespGrad_old(tSpin, this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
       & SSqr, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
       & taggedWriter, omega, allOmega, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr,&
-      & occNatural, naturalOrbs)
+      & occNatural, naturalOrbs, solvation)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -155,9 +156,11 @@ contains
     !> the single particle eigenvectors themselves for the excited state density matrix.
     real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
+    !> Solvation model
+    class(TSolvation), intent(in), optional :: solvation
 
     real(dp) :: Ssq(this%nExc)
-    real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:)
+    real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:), solvMat(:,:)
     real(dp), allocatable :: stimc(:,:,:), wij(:)
     real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), xpy(:), xmy(:), pc(:,:,:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
@@ -370,6 +373,14 @@ contains
 
     ! ground state Hubbard U softened coulombic interactions
     call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
+
+    ! If solvated, add the electrostatics from the solvent cavity
+    if (present(solvation)) then
+      ALLOCATE(solvMat(this%nAtom, this%nAtom))
+      call solvation%getAtomicSolvationMat(solvMat)
+      gammaMat(:,:) = gammaMat + solvMat
+      DEALLOCATE(solvMat)
+    end if
 
     ! Oscillator strengths for exited states, when needed.
     ALLOCATE(osz(this%nExc))
@@ -616,7 +627,8 @@ contains
         call solveZVectorPrecond(rhs, win, nxov_ud(1), getia, this%nAtom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg, species0, this%spinW)
         call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getia, iAtomStart,&
-            & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, this%spinW)
+            & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0,&
+            & this%spinW)
         call calcPMatrix(t, rhs, win, getia, pc)
 
         call writeCoeffs(pc, grndEigVecs, filling, this%fdCoeffs,&
@@ -1263,7 +1275,8 @@ contains
       call transChrg%qVecMat(iAtomStart, stimc, c, getia, win, -4.0_dp*gamqt, rhs)
     else
       call transChrg%qVecMat(iAtomStart, stimc, c, getia, win, -2.0_dp*gamqt, rhs)
-      call transChrg%qVecMatDs(iAtomStart, stimc, c, getia, win, -2.0_dp*gamxpyqds*spinW(species0), rhs)
+      call transChrg%qVecMatDs(iAtomStart, stimc, c, getia, win, -2.0_dp*gamxpyqds*spinW(species0),&
+          & rhs)
     end if
 
     ! Furche vectors

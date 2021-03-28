@@ -139,6 +139,9 @@ module dftbp_cosmo
     !> Returns shifts per atom
     procedure :: getShifts
 
+    !> Returns the matrix for solvent screening
+    procedure :: getAtomicSolvationMat
+
     !> Write cavity information
     procedure :: writeCosmoFile
 
@@ -556,6 +559,21 @@ contains
       & beta=1.0_dp, trans='t')
 
   end subroutine getShifts
+
+
+  !> Routine for returning atom resolved matrix of solvent electrostatic contributions
+  subroutine getAtomicSolvationMat(this, solvationMat)
+
+    !> Data structure
+    class(TCosmo), intent(in) :: this
+
+    !> Resulting electrostatic matrix for solvent interaction
+    real(dp), intent(out) :: solvationMat(:,:)
+
+    ! not currently implemented
+    solvationMat(:,:) = 0.0_dp
+
+  end subroutine getAtomicSolvationMat
 
 
   !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the

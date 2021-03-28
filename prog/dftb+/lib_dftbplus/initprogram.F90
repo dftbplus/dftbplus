@@ -4887,10 +4887,6 @@ contains
       call error("Forces in the excited state for periodic geometries are currently unavailable")
     end if
 
-    if (allocated(solvation)) then
-      call error("Solvation models do not work with linear response yet.")
-    end if
-
     if (nspin > 2) then
       call error("Linear reponse does not work with non-colinear spin polarization yet")
     end if
