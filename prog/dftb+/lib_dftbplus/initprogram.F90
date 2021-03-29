@@ -2186,8 +2186,8 @@ contains
       if (allocated(input%ctrl%h5Input)) then
         call error("PP-RPA does not support H5 correction")
       end if
-    #:for VAR, ERR in [("this%solvation","solvation"), ("this%dftbU","DFTB+U/pSIC"),&
-      & ("this%onSiteElements","onsite corrections"), ("this%reks","REKS")]
+    #:for VAR, ERR in [("this%dftbU","DFTB+U/pSIC"), ("this%onSiteElements","onsite corrections"),&
+      & ("this%reks","REKS")]
       if (allocated(${VAR}$)) then
         call error("PP-RPA does not support ${ERR}$")
       end if
