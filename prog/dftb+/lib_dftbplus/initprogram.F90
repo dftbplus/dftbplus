@@ -72,6 +72,7 @@ module dftbp_initprogram
   use dftbp_slakocont
   use dftbp_repulsive, only : TRepulsive
   use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
+  use dftbp_chimesrep, only : TChimesRepInput, TChimesRep, TChimesRep_init
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
@@ -1268,6 +1269,20 @@ contains
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol)
 
+    ! Get species names and output file
+    this%geoOutFile = input%ctrl%outFile
+    allocate(this%speciesName(size(input%geom%speciesNames)))
+    this%speciesName(:) = input%geom%speciesNames(:)
+
+    do iSp = 1, this%nType
+      do jj = iSp+1, this%nType
+        if (this%speciesName(iSp) == this%speciesName(jj)) then
+          write (tmpStr,"('Duplicate identical species labels in the geometry: ',A)")&
+              & this%speciesName(iSp)
+          call error(tmpStr)
+        end if
+      end do
+    end do
 
     select case(this%hamiltonianType)
     case default
@@ -1369,7 +1384,8 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont,&
+          & input%ctrl%chimesRepInput, this%speciesName, this%species0, this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -1430,21 +1446,6 @@ contains
       ! TODO
       call error("xTB calculation currently not supported")
     end select
-
-    ! Get species names and output file
-    this%geoOutFile = input%ctrl%outFile
-    allocate(this%speciesName(size(input%geom%speciesNames)))
-    this%speciesName(:) = input%geom%speciesNames(:)
-
-    do iSp = 1, this%nType
-      do jj = iSp+1, this%nType
-        if (this%speciesName(iSp) == this%speciesName(jj)) then
-          write (tmpStr,"('Duplicate identical species labels in the geometry: ',A)")&
-              & this%speciesName(iSp)
-          call error(tmpStr)
-        end if
-      end do
-    end do
 
     call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
     if (this%tSccCalc) then
@@ -5622,18 +5623,28 @@ contains
 
 
   !> Initializes the repulsive interactions
-  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, chimesRepInput, speciesNames,&
+        & species0, repulsive)
     integer, intent(in) :: nAtom
     logical, intent(in) :: isHelical
     type(TRepCont), intent(in) :: twoBodyCont
+    type(TChimesRepInput), allocatable, intent(in) :: chimesRepInput
+    character(*), intent(in) :: speciesNames(:)
+    integer, intent(in) :: species0(:)
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
     type(TSplinePolyRepInput) :: input
     type(TSplinePolyRep), allocatable :: splinePolyRep
+    type(TChimesRep), allocatable :: chimesRep
 
     input%nAtom = nAtom
     input%isHelical = isHelical
     input%twoBodyCont = twoBodyCont
+    if (allocated(chimesRepInput)) then
+      allocate(input%chimesRep)
+      call TChimesRep_init(input%chimesRep, chimesRepInput, speciesNames, species0)
+    end if
+
     allocate(splinePolyRep)
     call TSplinePolyRep_init(splinePolyRep, input)
     call move_alloc(splinePolyRep, repulsive)

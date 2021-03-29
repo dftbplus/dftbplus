@@ -16,4 +16,8 @@
         branch = master
 [submodule "external/fytest/origin"]
 	path = external/fytest/origin
-	url = https://github.com/aradi/fytest.git
+  url = https://github.com/aradi/fytest.git
+[submodule "external/chimes/origin"]
+	path = external/chimes/origin
+	url = https://github.com/aradi/chimes_calculator.git
+  branch = fortran08-api

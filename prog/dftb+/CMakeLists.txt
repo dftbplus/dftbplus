@@ -112,6 +112,10 @@ if(WITH_PLUMED)
   target_link_libraries(dftbplus PRIVATE Plumed::Plumed)
 endif()
 
+if(WITH_CHIMES)
+  target_link_libraries(dftbplus PUBLIC Chimes::Chimes)
+endif()
+
 if(WITH_MPI)
   target_link_libraries(dftbplus PUBLIC MPI::MPI_Fortran)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)

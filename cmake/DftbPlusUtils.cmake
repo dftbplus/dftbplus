@@ -75,6 +75,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_PLUMED)
   endif()
 
+  if(WITH_CHIMES)
+    list(APPEND _fyppflags -DWITH_CHIMES)
+  endif()
+
   if(WITH_MPI)
     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()

@@ -67,6 +67,8 @@ module dftbp_parser
   use dftbp_negfvars
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
+  use dftbp_chimes, only : withChimes
+  use dftbp_chimesrep, only : TChimesRepInput
   implicit none
   private
 
@@ -1317,6 +1319,8 @@ contains
             & be defined for using polynomial repulsive)")
       end if
     end select
+
+    call parseChimes(node, ctrl%chimesRepInput)
 
     ! SCC
     call getChildValue(node, "SCC", ctrl%tSCC, .false.)
@@ -7451,6 +7455,24 @@ contains
     end if
 
   end subroutine readSpinTuning
+
+
+  subroutine parseChimes(root, chimesRepInput)
+    type(fnode), pointer, intent(in) :: root
+    type(TChimesRepInput), allocatable, intent(out) :: chimesRepInput
+
+    type(fnode), pointer :: chimes
+    type(string) :: buffer
+
+    call getChild(root, "Chimes", chimes, requested=.false.)
+    if (.not. associated(chimes)) then
+      return
+    end if
+    allocate(chimesRepInput)
+    call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
+    chimesRepInput%chimesFile = unquote(char(buffer))
+
+  end subroutine parseChimes
 
 
   !> Returns parser version for a given input version or throws an error if not possible.

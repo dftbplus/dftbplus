@@ -17,6 +17,7 @@ module dftbp_splinepolyrep
   use dftbp_quaternions, only : rotate3
   use dftbp_repcont, only : TRepCont, getCutOff, getEnergy, getEnergyDeriv
   use dftbp_repulsive, only : TRepulsive
+  use dftbp_chimesrep, only : TChimesRep
   implicit none
 
   private
@@ -35,8 +36,8 @@ module dftbp_splinepolyrep
     !> Two body repulsives
     type(TRepCont), allocatable :: twoBodyCont
 
-    !! !> Chimes calculator
-    !! type(TChimes), allocatable :: chimes
+    !> Chimes repulsive to be added on top of the "classical" spline or polynomial repulsive
+    type(TChimesRep), allocatable :: chimesRep
 
   end type TSplinePolyRepInput
 
@@ -50,6 +51,9 @@ module dftbp_splinepolyrep
 
     !> Nr. of neighbours for the two body repulsive
     integer, allocatable :: nNeighTwoBody_(:)
+
+    !> Optional Chimes repulsive calculator
+    type(TChimesRep), allocatable :: chimesRep_
 
     !> Whether repulsive must be calculated for a helical system
     logical :: isHelical_
@@ -78,6 +82,7 @@ contains
     type(TSplinePolyRepInput), intent(inout) :: input
 
     call move_alloc(input%twoBodyCont, this%twoBodyCont_)
+    call move_alloc(input%chimesRep, this%chimesRep_)
     allocate(this%nNeighTwoBody_(input%nAtom))
     this%isHelical_ = input%isHelical
 
@@ -94,6 +99,9 @@ contains
     real(dp) :: cutOff
 
     cutOff = getCutOff(this%twoBodyCont_)
+    if (allocated(this%chimesRep_)) then
+      cutOff = max(cutOff, this%chimesRep_%getRCutOff())
+    end if
 
   end function TSplinePolyRep_getRCutOff
 
@@ -108,7 +116,9 @@ contains
     real(dp), intent(in) :: latVecs(:,:)
 
     ! Lattice vectors are not needed
-    continue
+    if (allocated(this%chimesRep_)) then
+      call this%chimesRep_%updateLatVecs(latVecs)
+    end if
 
   end subroutine TSplinePolyRep_updateLatVecs
 
@@ -136,6 +146,9 @@ contains
 
     ! count neighbours for repulsive interactions between atoms
     call getNrOfNeighboursForAll(this%nNeighTwoBody_, neighbourList, this%getRCutoff())
+    if (allocated(this%chimesRep_)) then
+      call this%chimesRep_%updateCoords(coords, species, img2CentCell, neighbourList)
+    end if
 
   end subroutine TSplinePolyRep_updateCoords
 
@@ -168,12 +181,22 @@ contains
     !> atoms in the central cell (or device region if transport)
     integer, optional, intent(in) :: iAtInCentralRegion(:)
 
+    real(dp) :: energyChimes
+    real(dp), allocatable :: energyPerAtomChimes(:)
+
     call getTwoBodyEnergy_(Eatom, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
         & species, this%twoBodyCont_, img2CentCell)
     if (present(iAtInCentralRegion)) then
       Etotal = sum(Eatom(iAtInCentralRegion))
     else
       Etotal = sum(Eatom)
+    end if
+    if (allocated(this%chimesRep_)) then
+      allocate(energyPerAtomChimes(size(Eatom)))
+      call this%chimesRep_%getEnergy(coords, species, img2CentCell, neighbourList,&
+          & energyPerAtomChimes, energyChimes)
+      Eatom(:) = Eatom + energyPerAtomChimes
+      Etotal = Etotal + energyChimes
     end if
 
   end subroutine TSplinePolyRep_getEnergy
@@ -200,8 +223,15 @@ contains
     !> Gradient for each atom. Shape: [3, nAtom]
     real(dp), intent(out) :: grads(:,:)
 
+    real(dp), allocatable :: chimesGrads(:,:)
+
     call getTwoBodyGradients_(grads, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
         & species, this%twoBodyCont_, img2CentCell, this%isHelical_)
+    if (allocated(this%chimesRep_)) then
+      allocate(chimesGrads, mold=grads)
+      call this%chimesRep_%getGradients(coords, species, img2CentCell, neighbourList, chimesGrads)
+      grads(:,:) = grads + chimesGrads
+    end if
 
   end subroutine TSplinePolyRep_getGradients
 
@@ -231,8 +261,15 @@ contains
     !> stress tensor
     real(dp), intent(out) :: stress(:,:)
 
+    real(dp) :: chimesStress(3, 3)
+
     call getTwoBodyStress_(stress, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
         & species, img2CentCell, this%twoBodyCont_, cellVol)
+    if (allocated(this%chimesRep_)) then
+      call this%chimesRep_%getStress(coords, species, img2CentCell, neighbourList, cellVol,&
+          & chimesStress)
+      stress(:,:) = stress + chimesStress
+    end if
 
   end subroutine TSplinePolyRep_getStress
 

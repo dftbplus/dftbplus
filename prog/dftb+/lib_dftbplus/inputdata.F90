@@ -41,6 +41,7 @@ module dftbp_inputdata
 #:endif
   use dftbp_poisson, only : TPoissonInfo
   use dftbp_h5correction, only : TH5CorrectionInput
+  use dftbp_chimesrep, only : TChimesRepInput
   implicit none
   private
   save
@@ -520,6 +521,9 @@ module dftbp_inputdata
 
     !> Write cavity information as COSMO file
     logical :: tWriteCosmoFile = .false.
+
+    !> Whether ChIMES correction for repulsives should be applied.
+    type(TChimesRepInput), allocatable :: chimesRepInput
 
   end type TControl
 

@@ -151,6 +151,10 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+if(WITH_CHIMES)
+  enable_language(CXX)
+endif()
+
 # Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
 
 if(WITH_MPI)
@@ -188,6 +192,14 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
+# ChIMES currently can only be integrated as a submodule
+if(WITH_CHIMES)
+  set(CHIMES_GIT_REPOSITORY "https://github.com/aradi/chimes_calculator.git")
+  set(CHIMES_GIT_TAG "9995769d9ef3c0e5a6839ab44f9d406cc6c8f00c")  # do not change manually!
+  dftbp_config_hybrid_dependency(Chimes Chimes::Chimes "Submodule" "QUIET"
+  external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")
+endif()
+
 # FyTest currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")
@@ -195,6 +207,7 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   dftbp_config_hybrid_dependency(Fytest FyTest::FyTest "Submodule" "QUIET"
   external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
 endif()
+
 
 #
 # Add internal components

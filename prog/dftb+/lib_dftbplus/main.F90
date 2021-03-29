@@ -598,9 +598,9 @@ contains
 
     if (this%tLatticeChanged) then
       call handleLatticeChange(this%latVec, this%scc, this%tStress, this%extPressure,&
-          & this%cutOff%mCutOff, this%dispersion, this%solvation, this%cm5Cont, this%recVec,&
-          & this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs, this%cellVec,&
-          & this%rCellVec)
+          & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
+          & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
+          & this%cellVec, this%rCellVec)
     end if
 
     if (this%tCoordsChanged) then
@@ -1514,8 +1514,8 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
-      & solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs,&
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, repulsive,&
+      & dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs,&
       & cellVecs, rCellVecs)
 
     !> lattice vectors
@@ -1532,6 +1532,9 @@ contains
 
     !> Maximum distance for interactions
     real(dp), intent(inout) :: mCutOff
+
+    !> Repulsive interaction
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1576,6 +1579,9 @@ contains
     if (allocated(sccCalc)) then
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
+    end if
+    if (allocated(repulsive)) then
+      call repulsive%updateLatVecs(latVecs)
     end if
     if (allocated(dispersion)) then
       call dispersion%updateLatVecs(latVecs)

@@ -29,7 +29,9 @@ Possible choices for OPTEXT:
   RESTRICTED -- download optional components with stricter license than the
       LGPLv3 license of DFTB+ (typically GPL). The distribution of the compiled
       code will be restricted beyond the LGPL license and governed by the
-      strictest license of the included optional components (typically GPLv3).
+      strictest license of the included optional components (typically GPLv3)
+      or even forbidden in case of conflicting licenses (as with GPLv2). In
+      that case the binary is restricted to your personal use, only.
 
   ALL -- download all optional external components.
 
@@ -38,7 +40,8 @@ Possible choices for OPTEXT:
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
-  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
+  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED,
+           resulting binary can only be distributed under GPL license]
 
   gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
