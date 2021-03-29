@@ -30,6 +30,7 @@ module dftbp_linresp
   use dftbp_linrespgrad
   use dftbp_arpack, only : withArpack
   use dftbp_linresptypes
+  use dftbp_solvation, only : TSolvation
   implicit none
   private
 
@@ -238,7 +239,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, excEnergy, allExcEnergies)
+      & taggedWriter, excEnergy, allExcEnergies, solvation)
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
@@ -297,12 +298,15 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
+    !> Solvation model
+    class(TSolvation), intent(in), optional :: solvation
+
     if (withArpack) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, excEnergy, allExcEnergies)
+          & fdTagged, taggedWriter, excEnergy, allExcEnergies, solvation=solvation)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
@@ -314,7 +318,7 @@ contains
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & rhoSqr, occNatural, naturalOrbs, solvation)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -395,6 +399,9 @@ contains
     !> matrix in the excited state
     real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
+    !> Solvation model
+    class(TSolvation), intent(in), optional :: solvation
+
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
 
     if (withArpack) then
@@ -412,12 +419,12 @@ contains
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
             & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs, solvation=solvation)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
             & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr)
+            & excgradient, derivator, rhoSqr, solvation=solvation)
       end if
 
     else

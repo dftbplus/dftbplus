@@ -28,6 +28,7 @@ module dftbp_pprpa
   use dftbp_transcharges
   use dftbp_densedescr
   use dftbp_fileid
+  use dftbp_solvation, only : TSolvation
   implicit none
   private
 
@@ -66,7 +67,7 @@ contains
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
   subroutine ppRPAenergies(RPA, denseDesc, grndEigVecs, grndEigVal, sccCalc, SSqr, species0, rnel,&
-      & iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, err)
+      & iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, solvation, err)
 
     !> Container for RPA calculation data
     type(TppRPAcal), allocatable, intent(in) :: RPA
@@ -110,13 +111,16 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
+    !> Solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
 
     logical :: tSpin
 
     real(dp), allocatable :: stimc(:,:,:)
-    real(dp), allocatable :: gamma_eri(:,:)
+    real(dp), allocatable :: gamma_eri(:,:), solvMat(:,:)
 
     character, allocatable :: symmetries(:)
 
@@ -211,6 +215,14 @@ contains
 
     ! ground state coulombic interactions
     call sccCalc%getAtomicGammaMatU(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
+
+    ! If solvated, add the electrostatics from the solvent cavity
+    if (allocated(solvation)) then
+      ALLOCATE(solvMat(nAtom, nAtom))
+      call solvation%getAtomicSolvationMat(solvMat)
+      gamma_eri(:,:) = gamma_eri + solvMat
+      DEALLOCATE(solvMat)
+    end if
 
     ! excitation energies  output file
     open(newUnit=fdExc, file=excitationsOut, position="rewind", status="replace")

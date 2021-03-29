@@ -45,6 +45,10 @@ module dftbp_solvation
 
     !> Returns shifts per atom
     procedure(getShifts), deferred :: getShifts
+
+    !> Returns atom resolved matrix of solvent electrostatic contributions
+    procedure(getAtomicSolvationMat), deferred :: getAtomicSolvationMat
+
   end type TSolvation
 
   abstract interface
@@ -190,6 +194,20 @@ module dftbp_solvation
       !> Shift per shell
       real(dp), intent(out) :: shiftPerShell(:,:)
     end subroutine getShifts
+
+
+    !> Returns atom resolved matrix of solvent electrostatic contributions
+    subroutine getAtomicSolvationMat(this, solvationMat)
+      import :: TSolvation, dp
+
+      !> Data structure
+      class(TSolvation), intent(in) :: this
+
+      !> Resulting electrostatic matrix for solvent interaction
+      real(dp), intent(out) :: solvationMat(:,:)
+
+    end subroutine getAtomicSolvationMat
+
   end interface
 
 end module dftbp_solvation

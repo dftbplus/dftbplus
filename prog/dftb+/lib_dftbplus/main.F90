@@ -1111,7 +1111,7 @@ contains
             & this%img2CentCell, this%tWriteAutotest, this%tCasidaForces, this%tLinRespZVect,&
             & this%tPrintExcitedEigvecs, this%tPrintEigvecsTxt, this%nonSccDeriv,&
             & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal, this%rhoSqrReal,&
-            & this%excitedDerivs, this%dQAtomEx, this%occNatural)
+            & this%excitedDerivs, this%dQAtomEx, this%occNatural, this%solvation)
       else
         call calculateLinRespExcitations_RS(env, this%linearResponse, this%parallelKS,&
             & this%scc, this%qOutput, this%q0, this%over, this%eigvecsReal, this%eigen(:,1,:),&
@@ -1134,7 +1134,8 @@ contains
       end if
       call ppRPAenergies(this%ppRPA, this%denseDesc, this%eigvecsReal, this%eigen(:,1,:),&
           & this%scc, this%SSqrReal, this%species0, this%nEl(1), this%neighbourList%iNeighbour,&
-          & this%img2CentCell, this%orb, this%tWriteAutotest, autotestTag, this%taggedWriter)
+          & this%img2CentCell, this%orb, this%tWriteAutotest, autotestTag, this%taggedWriter,&
+          & this%solvation)
     end if
 
     if (this%isXlbomd) then
@@ -3977,7 +3978,7 @@ contains
       & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
       & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, excitedDerivs,&
-      & dQAtomEx, occNatural)
+      & dQAtomEx, occNatural, solvation)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4090,6 +4091,9 @@ contains
     !> natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
 
+    !> Solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     real(dp), allocatable :: dQAtom(:,:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
@@ -4134,7 +4138,7 @@ contains
       call linResp_calcExcitations(linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work,&
           & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, tWriteAutotest, fdAutotest, taggedWriter,&
-          & dftbEnergy%Eexcited, energies)
+          & dftbEnergy%Eexcited, energies, solvation=solvation)
     end if
     dftbEnergy%Etotal = dftbEnergy%Etotal + dftbEnergy%Eexcited
     dftbEnergy%EMermin = dftbEnergy%EMermin + dftbEnergy%Eexcited

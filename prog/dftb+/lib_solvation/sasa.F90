@@ -144,6 +144,9 @@ module dftbp_sasa
     !> Returns shifts per atom
     procedure :: getShifts
 
+    !> Returns the matrix for solvent screening
+    procedure :: getAtomicSolvationMat
+
   end type TSASACont
 
 
@@ -471,6 +474,20 @@ contains
     shiftPerShell(:,:) = 0.0_dp
 
   end subroutine getShifts
+
+
+  !> Routine for returning atom resolved matrix of solvent electrostatic contributions
+  subroutine getAtomicSolvationMat(this, solvationMat)
+
+    !> Data structure
+    class(TSASACont), intent(in) :: this
+
+    !> Resulting electrostatic matrix for solvent interaction
+    real(dp), intent(out) :: solvationMat(:,:)
+
+    solvationMat(:,:) = 0.0_dp
+
+  end subroutine getAtomicSolvationMat
 
 
   !> Calculate solvent accessible surface area for every atom

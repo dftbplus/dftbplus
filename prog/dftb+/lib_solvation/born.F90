@@ -22,6 +22,7 @@ module dftbp_born
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
+  use dftbp_message, only : error
   implicit none
   private
 
@@ -187,6 +188,10 @@ module dftbp_born
 
     !> Query if object is actually an analytical linearized Poisson Boltzmann model
     procedure :: isALPB
+
+    !> Returns the matrix for solvent screening
+    procedure :: getAtomicSolvationMat
+
   end type TGeneralizedBorn
 
 
@@ -657,6 +662,36 @@ contains
     shiftPerAtom(:) = shiftPerAtom + this%shift
 
   end subroutine getShifts
+
+
+  !> Routine for returning atom resolved matrix of solvent electrostatic contributions
+  subroutine getAtomicSolvationMat(this, solvationMat)
+
+    !> Data structure
+    class(TGeneralizedBorn), intent(in) :: this
+
+    !> Resulting electrostatic matrix for solvent interaction
+    real(dp), intent(out) :: solvationMat(:,:)
+
+    real(dp), allocatable :: diagonal(:)
+    integer :: iAt, nAtom
+
+    if (allocated(this%cm5)) then
+      call error("CM5 charges not currently supported for return of solvation matrix")
+    end if
+
+    solvationMat(:,:) = this%bornMat
+
+    if (allocated(this%sasaCont) .and. allocated(this%hBondStrength)) then
+      nAtom = size(solvationMat, dim=1)
+      allocate(diagonal(nAtom))
+      diagonal(:) = 2.0_dp * this%sasaCont%sasa * this%hBondStrength
+      do iAt = 1, nAtom
+        solvationMat(iAt, iAt) = solvationMat(iAt, iAt) + diagonal(iAt)
+      end do
+    end if
+
+  end subroutine getAtomicSolvationMat
 
 
   !> Calculate Born radii for a given geometry
