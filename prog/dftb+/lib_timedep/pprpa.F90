@@ -112,7 +112,7 @@ contains
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> Solvation model
-    class(TSolvation), intent(in), optional :: solvation
+    class(TSolvation), intent(in), allocatable :: solvation
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
@@ -217,7 +217,7 @@ contains
     call sccCalc%getAtomicGammaMatU(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
 
     ! If solvated, add the electrostatics from the solvent cavity
-    if (present(solvation)) then
+    if (allocated(solvation)) then
       ALLOCATE(solvMat(nAtom, nAtom))
       call solvation%getAtomicSolvationMat(solvMat)
       gamma_eri(:,:) = gamma_eri + solvMat
