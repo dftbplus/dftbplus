@@ -10,13 +10,10 @@
 !> Implements a repulsive correction using the ChIMES force field
 module dftbp_chimesrep
   use dftbp_accuracy, only : dp
-  use dftbp_chimes, only : TChimesCalc
+  use dftbp_chimes, only : TChimesCalc, TChimesCalc_init
   use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree, Hartree__kcal_mol
   use dftbp_periodic, only : TNeighbourList
   use dftbp_repulsive, only : TRepulsive
-#:if WITH_CHIMES
-  use dftbp_chimes, only : TChimesCalc_init
-#:endif
   implicit none
 
   private

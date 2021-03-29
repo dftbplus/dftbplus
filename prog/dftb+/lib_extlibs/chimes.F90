@@ -16,10 +16,7 @@ module dftbp_chimes
 
   private
   public :: withChimes
-  public :: TChimesCalc
-#:if WITH_CHIMES
-  public :: TChimesCalc_init
-#:endif
+  public :: TChimesCalc, TChimesCalc_init
 
 
   !> Whether the code was built with ChIMES support
@@ -31,6 +28,15 @@ module dftbp_chimes
   !> Dummy placeholder type
   type :: TChimesCalc
   end type TChimesCalc
+
+#:endif
+
+contains
+
+#:if not WITH_CHIMES
+
+  subroutine TChimesCalc_init()
+  end subroutine TChimesCalc_init
 
 #:endif
 

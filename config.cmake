@@ -34,9 +34,7 @@ option(WITH_MBD "Whether DFTB+ should be built with many-body-dispersion support
 
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
-option(WITH_CHIMES "Whether repulsives via the ChIMES library should be enabled" FALSE)
-# NOTE: Due to the license of the ChIMES calculator, the combined code can not be distributed!
-# You can use it for your personal purposes, though.
+option(WITH_CHIMES "Whether repulsives via the ChIMES library should be enabled" TRUE)
 
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
