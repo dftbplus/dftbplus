@@ -1153,6 +1153,8 @@ module dftbp_reksvar
 
         if (this%t3rd) then
           call error("3rd order scc is not compatible with force calculation in REKS")
+        else if (this%tAllocate) then
+          call error("Calculation of net charge per atom is not compatible with force calculation in REKS")
         end if
 
         if (this%Lstate > 0) then
