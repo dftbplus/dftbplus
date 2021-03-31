@@ -6835,7 +6835,7 @@ contains
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock)
+          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=reks%qNetAtomL(:,iL))
 
     end do
 
