@@ -986,11 +986,7 @@ contains
     allocate(lrGamma(nAtom, nAtom))
     ! To be changed if RS branch is moved
     lrGamma(:,:) = 0.0_dp
-    print *,'Total number trans', nxov, 'nmatup', nmatup, 'memdim', memDim
-    do ii = 1,nmatup
-       jj = getIA(win(ii),3)
-       print *,ii,getIA(win(ii),1),' -> ',getIA(win(ii),2),jj,wIJ(ii)*27.21140
-    enddo
+
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
@@ -1010,7 +1006,6 @@ contains
 
       if (prevSubSpaceDim > 0) then
 
-        print *,'do the full thing', prevSubSpaceDim, subSpaceDim
         !extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
           call omegatvec(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
@@ -1029,29 +1024,30 @@ contains
         end do
 
       else
-         print *,'call of initmat',subSpaceDim
+
         call setupInitMatFast_TN(transChrg, subSpaceDim, wij, sym, win, &
             & nmatup, iAtomStart, stimc, grndEigVecs, filling, getia, iaTrans, gammaMat, lrGamma, &
             & species0, spinW, tSpin, vP, vM, mP, mM)
 
 !!$        do ii = 1, subSpaceDim
-!!$           vTmp = 0.0_dp
+!!$           vTmp(:)  = 0.0_dp
 !!$           vTmp(ii) = 1.0_dp
-!!$           call omegatvec(tSpin, vTmp, wTmp, wij, sym, win, nmatup, iAtomStart, stimc,&
-!!$            & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
-!!$            & .true., transChrg)           
-!!$           matTmp(:,ii) = wTmp(:)
+!!$           call omegatvec(tSpin, vTmp, vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
+!!$             & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
+!!$             & .true., transChrg)
+!!$           vTmp(:)  = 0.0_dp
+!!$           vTmp(ii) = 1.0_dp          
+!!$           call multAmBVecFast_TN(tSpin, win, nmatup, filling, getia, wij, vTmp, vM(:,ii))
 !!$        enddo
-!!$        do ii = 1, nxov
-!!$           do jj = 1, subSpaceDim
-!!$              !!if(abs(matTmp(ii,jj)-vP(ii,jj)) .gt. 1.d-5) then
-!!$                 write (*,'(a,2x,i3,2x,i3,2x,f10.6,2x,f10.6)') 'Compxx ',ii,jj,matTmp(ii,jj),vP(ii,jj)
-!!$              !!endif
-!!$           enddo
-!!$        enddo
-!!$        stop
-
-
+!!$        do ii = 1, subSpaceDim
+!!$           do jj = ii, subSpaceDim 
+!!$              mP(ii,jj) = vP(ii,jj)
+!!$              mP(jj,ii) = mP(ii,jj)
+!!$              mM(ii,jj) = vM(ii,jj)
+!!$              mM(jj,ii) = mM(ii,jj)
+!!$           end do
+!!$        end do
+        
       end if
 
       call calcMatrixSqrt_TN(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)

@@ -420,13 +420,9 @@ contains
 
   end subroutine wtdn
 
-  !> Scale excitation energies by differences in occupations between filled and empty states
-  !> and return square root of this quantity, needed for finite temperature spectra
+  !> Square root of differences in occupations between filled and empty states
   !> We need occupations per spin channel ([0:1]) also for closed shell systems
-  subroutine wtdn_tmp(wij, occNr, win, nmatup, nmat, getia, tSpin, wn_ij)
-
-    !> K-S energies
-    real(dp), intent(in) :: wij(:)
+  subroutine wtdn_tmp(occNr, win, nmatup, nmat, getia, tSpin, n_ij)
 
     !> occupation of states
     real(dp), intent(in) :: occNr(:,:)
@@ -447,7 +443,7 @@ contains
     logical, intent(in) :: tSpin
 
     !> resulting scaled matrix
-    real(dp), intent(out) :: wn_ij(:)
+    real(dp), intent(out) :: n_ij(:)
 
     integer :: ia, ii, jj, ss
     logical :: updwn
@@ -465,7 +461,7 @@ contains
       if(.not. tSpin) then
          docc_ij = docc_ij / 2.0_dp
       endif
-      wn_ij(ia) = sqrt(wij(ia) * docc_ij)
+      n_ij(ia) = sqrt(docc_ij)
     end do
     !$OMP  END PARALLEL DO
 
@@ -546,7 +542,7 @@ contains
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
-    real(dp) :: sqrOccWia(size(wij))
+    real(dp) :: sqrOccIA(size(wij))
     logical :: updwn
     real(dp) :: vout_ons(size(vin))
     real(dp) :: vTmp(size(vin))
@@ -558,18 +554,18 @@ contains
 
     vout = 0.0_dp
 
-    call wtdn_tmp(wij, occNr, win, nmatup, nmat, getia, spin, sqrOccWia)
+    call wtdn_tmp(occNr, win, nmatup, nmat, getia, spin, sqrOccIA)
  
     if(tAplusB) then
-       vTmp(:nmat) = vin(:nmat)
+       vTmp(:) = vin(:) 
     else
-       vTmp(:nmat) = vin(:nmat) * sqrOccWia(:nmat) 
+       vTmp(:) = vin(:) * sqrt(wij(:))
     endif
 
     ! product charges with the v*wn product, i.e. Q * v*wn
     oTmp(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getia, win, vTmp,&
-        & oTmp)
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getia, win, &
+        & vTmp * sqrOccIA, oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -580,16 +576,16 @@ contains
         ! 4 * wn * (g * Q)
         vOut(:) = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, gTmp, vOut)
-        vOut(:) = 4.0_dp * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA(:) * vOut(:)
 
       else
 
-        otmp = 2.0_dp * otmp * spinW(species0)
+        otmp = otmp * spinW(species0)
 
-        ! 2 * wn * (o * Q)
+        ! 4 * wn * (o * Q)
         vOut = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, oTmp, vOut)
-        vOut(:) = 2.0_dp * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA(:) * vOut(:)
 
 
       end if
@@ -609,7 +605,7 @@ contains
         qij(:) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
 
         ! singlet gamma part (S)
-        vout(ia) = 2.0_dp * dot_product(qij, gtmp)
+        vout(ia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
 
         ! magnetization part (T1)
         if (updwn) then
@@ -622,7 +618,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      otmp = 2.0_dp * otmp * spinW(species0)
+      otmp = otmp * spinW(species0)
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
       !$OMP& SCHEDULE(RUNTIME)
@@ -636,7 +632,7 @@ contains
         else
           fact =-1.0_dp
         end if
-        vout(ia) = vout(ia) + fact * dot_product(qij, otmp)
+        vout(ia) = vout(ia) + 2.0_dp * sqrOccIA(ia) * fact * dot_product(qij, otmp)
 
       end do
       !$OMP  END PARALLEL DO
@@ -644,26 +640,27 @@ contains
     end if
 
     if (allocated(onsMEs)) then
-      call onsiteEner(spin, sym, sqrOccWia, win, nmatup, iAtomStart, getia, species0, stimc,&
+      call onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
           & grndEigVecs, onsMEs, orb, vin, vout_ons)
       vout(:) = vout + vout_ons
     end if
 
-    vout(:) = vout(:) + ((wij(:) / sqrOccWia(:))**2) * vTmp(:) 
- 
+    vout(:) = vout(:) + wij(:) * vTmp(:)
+
     if(.not. tAplusB) then
-       vout(:) = vout(:) * sqrOccWia(:)
+       vout(:) = vout(:) * sqrt(wij(:))
     endif
 
   end subroutine omegatvec
 
 
-  subroutine onsiteEner(spin, sym, wnij, win, nmatup, iAtomStart, getia, species0, stimc,&
+  subroutine onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
       & grndEigVecs, ons_en, orb, vin, vout)
 
     logical, intent(in) :: spin
     character, intent(in) :: sym
-    real(dp), intent(in) :: wnij(:)
+    real(dp), intent(in) :: wij(:)
+    real(dp), intent(in) :: sqrOccIA(:)
     integer, intent(in) :: win(:)
     integer, intent(in) :: nmatup
     integer, intent(in) :: iAtomStart(:)
@@ -684,6 +681,8 @@ contains
     integer :: nmat, nAtom, nOrb
     integer :: ia, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin, nSpin
     real(dp) :: degeneracy, partTrace
+    ! somewhat ugly, but fast small arrays on stack:
+    real(dp) :: wnij(size(wij))   
 
     nmat = size(vin)
     nAtom = size(species0)
@@ -691,6 +690,12 @@ contains
 
     vout(:) = 0.0_dp
     otmp(:,:,:,:)  = 0.0_dp
+
+    if(Spin) then
+       wnij(:) = sqrt(wij(:)) * sqrOccIA(:)
+    else
+       wnij(:) = sqrt(wij(:)) * sqrOccIA(:) * sqrt(2.0_dp)
+    endif
 
     fact = 1.0_dp
     if (.not.Spin) then
@@ -714,12 +719,14 @@ contains
             sindx = [1, 2]
           end if
           do iSpin = 1, 2
+             !! wij * sqrOcc 
             otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
                 & * wnij(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
           end do
         else
           ! closed shell
           otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + 0.5_dp &
+               !! wij * sqrOcc * sqrt(2)
               & * qq_ij(:nOrb, :nOrb) * wnij(ia) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
@@ -1457,16 +1464,12 @@ contains
     real(dp), intent(out) :: vOut(:)
 
     integer :: nMat
-    ! somewhat ugly, but fast small arrays on stack:
-    real(dp) :: sqrOccWia(size(wIA))
 
     nMat = size(vin) 
     vOut(:) = 0.0_dp
 
-    call wtdn_tmp(wIA, occNr, win, nMatUp, nMat, getIA, tSpin, sqrOccWia)
-
-    ! orb. energy difference diagonal contribution, amounts to wIA/nIA
-    vOut(:) = vOut(:) + ((wIA(:) / sqrOccWia(:))**2) * vIn(:) 
+    ! orb. energy difference diagonal contribution
+    vOut(:) = vOut(:) + wIA(:) * vIn(:) 
 
   end subroutine multAmBVecFast_TN
 
@@ -1502,7 +1505,7 @@ contains
     real(dp) :: fact
     logical :: tRangeSep
     ! somewhat ugly, but fast small arrays on stack:
-    real(dp) :: sqrOccWia(size(wIJ))
+    real(dp) :: sqrOccIA(size(wIJ))
 
     tRangeSep = .false. 
     nMat = size(vP, dim=1) ! also known as nXov
@@ -1523,6 +1526,8 @@ contains
 
     oTmp(:) = 0.0_dp
 
+    call wtdn_tmp(occNr, win, nmatup, nMat, getIA, tSpin, sqrOccIA)
+
     !-----------spin-unpolarized systems--------------
     if(.not. tSpin) then 
 
@@ -1531,12 +1536,13 @@ contains
         ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
         do jb = 1, initDim 
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = qTr(:) * sqrOccIA(jb)
 
           call hemv(oTmp, gamma, qTr)
 
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-            vP(ia,jb) = 4.0_dp * dot_product(qTr, oTmp)
+            vP(ia,jb) = 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
 
         end do
@@ -1546,10 +1552,10 @@ contains
         ! full range triplets contribution: 2 * sum_A q^ia_A M_A q^jb_A
         do jb = 1, initDim
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          oTmp(:) = 2.0_dp * qTr(:) * spinW(species0)
+          oTmp(:) = qTr(:) * sqrOccIA(jb) * spinW(species0)
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-            vP(ia,jb) = vP(ia,jb) + 2.0_dp * dot_product(qTr, oTmp)
+            vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
         end do
 
@@ -1559,6 +1565,7 @@ contains
 
       do jb = 1, initDim
         qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+        qTr(:) = qTr(:) * sqrOccIA(jb)
 
         call hemv(gTmp, gamma, qTr)
 
@@ -1566,7 +1573,7 @@ contains
 
         do ia = 1, nMat
           qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          vP(ia,jb) = 2.0_dp * dot_product(qTr, gTmp)
+          vP(ia,jb) = 2.0_dp * sqrOccIA(ia) * dot_product(qTr, gTmp)
         end do
 
         ss = getIA(win(jb), 3)
@@ -1593,19 +1600,16 @@ contains
              fact =-1.0_dp
           end if
 
-          vP(ia,jb) = vP(ia,jb) + fact * dot_product(qTr, oTmp)
+          vP(ia,jb) = vP(ia,jb) + fact * sqrOccIA(ia) * dot_product(qTr, oTmp)
         end do
 
       end do
 
     end if
 
-    call wtdn_tmp(wIJ, occNr, win, nmatup, nMat, getIA, tSpin, sqrOccWia)
-
     do jb = 1, initDim
-      print *,jb,getIA(win(jb),1),' -> ',getIA(win(jb),2),getIA(win(jb),3),((wIJ(jb) / sqrOccWia(jb))**2) *27.21140
-      vP(jb,jb) = vP(jb,jb) + (wIJ(jb) / sqrOccWia(jb))**2  
-      vM(jb,jb) = vM(jb,jb) + (wIJ(jb) / sqrOccWia(jb))**2  
+      vP(jb,jb) = vP(jb,jb) + wIJ(jb) 
+      vM(jb,jb) = vM(jb,jb) + wIJ(jb)
     end do
 
     do ii = 1, initDim
