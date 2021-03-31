@@ -459,6 +459,9 @@ module dftbp_initprogram
     !> Do we need to show Mulliken charges?
     logical :: tPrintMulliken
 
+    !> Logical to determine whether to calculate net charge per atom (qNetAtom)
+    logical :: tAllocate
+
     !> Do we need to show net atomic charges?
     logical :: tNetAtomCharges
 
@@ -3475,7 +3478,6 @@ contains
     integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
-    logical :: tAllocate
 
     ! Charge arrays may have already been initialised
     @:ASSERT(size(this%species0) == this%nAtom)
@@ -3497,17 +3499,17 @@ contains
       this%qDiff(:,:,:) = 0.0_dp
     endif
 
-    tAllocate = .false.
+    this%tAllocate = .false.
   #:if WITH_MBD
     if (allocated(this%dispersion)) then
       select type (o=>this%dispersion)
       type is (TDispMbd)
-        tAllocate = .true.
+        this%tAllocate = .true.
       end select
     end if
   #:endif
-    tAllocate = tAllocate .or. this%tNetAtomCharges
-    if (tAllocate) then
+    this%tAllocate = this%tAllocate .or. this%tNetAtomCharges
+    if (this%tAllocate) then
       if (.not. allocated(this%qNetAtom)) then
         allocate(this%qNetAtom(this%nAtom))
       endif
