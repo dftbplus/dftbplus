@@ -6831,11 +6831,20 @@ contains
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
       end if
 
-      ! reks%qOutputL has (my_qm) component
+      ! reks%qOutputL & reks%qNetAtomL has (my_qm) component
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
           & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=reks%qNetAtomL(:,iL))
+
+      ! Get correct net charge per atom
+      ! Note that qNetAtomL does not have spin dependency so it does not
+      ! correspond to (my_qm) or (my_ud) component
+      if (iL > reks%Lpaired) then
+        if (mod(iL,2) == 0) then
+          reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+        end if
+      end if
 
     end do
 
