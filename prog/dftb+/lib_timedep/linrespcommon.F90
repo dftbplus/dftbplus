@@ -1428,86 +1428,6 @@ contains
 
   end subroutine orthonormalizeVectors_TN
 
-!!$  !> Calculate the product of the matrix A+B and a vector. A,B as usual in linear response TD-DFT.
-!!$  subroutine multApBVecFast_TN((transChrg, initDim, wIJ, sym, win, iAtomStart,&
-!!$      & sTimesGrndEigVecs, grndEigVecs, getIA, iaTrans, gamma, lrGamma, species0, spinW, &
-!!$      & tSpin, vIn, vOut)
-!!$    type(TTransCharges), intent(in) :: transChrg
-!!$    integer, intent(in) :: initDim
-!!$    real(dp), intent(in) :: wIJ(:)
-!!$    character, intent(in) :: sym
-!!$    integer, intent(in) :: win(:)
-!!$    integer, intent(in) :: iAtomStart(:)
-!!$    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
-!!$    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
-!!$    integer,  intent(in) :: getIA(:,:)
-!!$    integer, intent(in) :: iaTrans(:,:,:)
-!!$    integer, intent(in) :: species0(:)
-!!$    real(dp), intent(in) :: spinW(:)
-!!$    logical, intent(in) :: tSpin
-!!$    real(dp), intent(out) :: vP(:,:), vM(:,:)
-!!$    real(dp), intent(out) :: mP(:,:), mM(:,:)
-!!$
-!!$    integer :: izpAlpha, nMat, nAtom
-!!$    integer :: ia, jb, ii, jj
-!!$    real(dp), allocatable :: oTmp(:), qTr(:)
-!!$    logical :: tRangeSep 
-!!$
-!!$    tRangeSep = .false. 
-!!$    nMat = size(vP, dim=1) ! also known as nXov
-!!$    nAtom = size(gamma, dim=1)
-!!$
-!!$    gTmp(:) = 0.0_dp  !used to be oTmp before optimization
-!!$
-!!$    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIA, wnIJ)
-!!$
-!!$    !----only spin unpolarized case for now-------------------------------
-!!$
-!!$    if (sym == 'S') then
-!!$      !full range coupling matrix contribution
-!!$      do ia = 1, nMat
-!!$        !call hemv(gTmp, gamma, tQov(:,ia))
-!!$        !oTmp(:) = oTmp + vin(ia) * gTmp
-!!$        gTmp(:) = gTmp + tQov(:,ia) * vin(ia) !gTmp=sum_jb q_B^jb * vin_jb
-!!$      end do
-!!$
-!!$      call hemv(oTmp, gamma, gTmp)
-!!$
-!!$      do ia= 1, nMat
-!!$        !call indXov(win, ia, getIA, ii, jj)
-!!$        !lUpDwn = (win(ia) <= nMatUp)
-!!$        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-!!$        vOut(ia) = 4.0 * dot_product(tQov(:,ia), oTmp)
-!!$        ! Check: prefactor! need 4.0 * for symmetry reduced sum?
-!!$      end do
-!!$
-!!$    else
-!!$      do ia = 1, nMat
-!!$        !call indXov(win, ia, getIA, ii, jj)
-!!$        !lUpDwn = (win(ia) <= nMatUp)
-!!$        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-!!$        oTmp(:) = oTmp + vin(ia) * tQov(:,ia)
-!!$      end do
-!!$
-!!$      do ia = 1, nMat
-!!$        vOut(ia) = 0.0_dp
-!!$        !call indXov(win, ia, getIA, ii, jj)
-!!$        !lUpDwn = (win(ia) <= nMatUp)
-!!$        !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-!!$        do alpha = 1, nAtom
-!!$          izpAlpha = species0(alpha)
-!!$          tmp2 = 2.0_dp * (spinW(izpAlpha)) !== 2*magnetization
-!!$          vOut(ia) = vOut(ia) + oTmp(alpha) * tmp2 * tQov(alpha,ia)
-!!$        end do
-!!$      end do
-!!$
-!!$    end if
-!!$
-!!$
-!!$    vOut(:) = vOut(:) + wIJ(1:nMat) * vin(1:nMat)
-!!$
-!!$  end subroutine multApBVecFast_TN
-
 
   !> Calculate the product of A-B and a vector.
   subroutine multAmBVecFast_TN(tSpin, win, nMatUp, occNr, getIA, wIA, vIn, vOut)
@@ -1554,12 +1474,13 @@ contains
   !> Generates initial matrices Mm and Mp without calculating full Mat Vec product,
   !> not required for init. space.
   !> Use precalculated transition charges
-  subroutine setupInitMatFast_TN(transChrg, initDim, wIJ, sym, win, iAtomStart,&
-      & sTimesGrndEigVecs, grndEigVecs, getIA, iaTrans, gamma, lrGamma, species0, spinW, &
+  subroutine setupInitMatFast_TN(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
+      & sTimesGrndEigVecs, grndEigVecs, occNr, getIA, iaTrans, gamma, lrGamma, species0, spinW, &
       & tSpin, vP, vM, mP, mM)
     type(TTransCharges), intent(in) :: transChrg
-    integer, intent(in) :: initDim
+    integer, intent(in) :: initDim, nmatup
     real(dp), intent(in) :: wIJ(:)
+    real(dp), intent(in) :: occNr(:,:)
     character, intent(in) :: sym
     integer, intent(in) :: win(:)
     integer, intent(in) :: iAtomStart(:)
@@ -1570,20 +1491,30 @@ contains
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: spinW(:)
     logical, intent(in) :: tSpin
+    logical :: updwn
     real(dp), intent(out) :: vP(:,:), vM(:,:)
     real(dp), intent(out) :: mP(:,:), mM(:,:)
 
     integer :: izpAlpha, nMat, nAtom
-    integer :: ia, jb, ii, jj
-    real(dp), allocatable :: oTmp(:), qTr(:)
-    logical :: tRangeSep 
+    integer :: ia, jb, ii, jj, ss, tt
+    real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
+    real(dp) :: fact
+    logical :: tRangeSep
+    ! somewhat ugly, but fast small arrays on stack:
+    real(dp) :: sqrOccWia(size(wIJ))
 
     tRangeSep = .false. 
     nMat = size(vP, dim=1) ! also known as nXov
     nAtom = size(gamma, dim=1)
 
+    allocate(gTmp(nAtom))
     allocate(oTmp(nAtom))
     allocate(qTr(nAtom))
+
+    print *,'Size in init', initDim, size(vP, dim=1), size(vP, dim=2), size(mP, dim=1), size(mP, dim=2)
+
+
 
     vP(:,:) = 0.0_dp
     vM(:,:) = 0.0_dp
@@ -1592,19 +1523,27 @@ contains
 
     oTmp(:) = 0.0_dp
 
-    if(.not. tSpin) then !-----------spin-unpolarized systems--------------
+    !-----------spin-unpolarized systems--------------
+    if(.not. tSpin) then 
 
       if (sym == 'S') then
-        ! full range coupling matrix contribution: 4* sum_A q^ia_A sum_B gamma_AB q^jb_B
+
+        ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
         do jb = 1, initDim 
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+
           call hemv(oTmp, gamma, qTr)
+
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
             vP(ia,jb) = 4.0_dp * dot_product(qTr, oTmp)
           end do
+
         end do
+
       else
+
+        ! full range triplets contribution: 2 * sum_A q^ia_A M_A q^jb_A
         do jb = 1, initDim
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           oTmp(:) = 2.0_dp * qTr(:) * spinW(species0)
@@ -1613,13 +1552,60 @@ contains
             vP(ia,jb) = vP(ia,jb) + 2.0_dp * dot_product(qTr, oTmp)
           end do
         end do
+
       end if
-    
+    !--------------spin-polarized systems--------
+    else 
+
+      do jb = 1, initDim
+        qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+
+        call hemv(gTmp, gamma, qTr)
+
+        oTmp(:) = qTr(:)
+
+        do ia = 1, nMat
+          qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          vP(ia,jb) = 2.0_dp * dot_product(qTr, gTmp)
+        end do
+
+        ss = getIA(win(jb), 3)
+        
+
+        updwn = (win(jb) <= nmatup)
+        
+        if (updwn) then
+          fact = 1.0_dp
+        else
+          fact =-1.0_dp
+        end if
+
+        oTmp(:)  =  fact * 2.0_dp * spinW(species0) * oTmp(:)
+
+        do ia = 1, nMat
+          qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+
+          tt = getIA(win(ia), 3)
+          updwn = (win(ia) <= nmatup)
+          if (updwn) then
+             fact = 1.0_dp
+          else
+             fact =-1.0_dp
+          end if
+
+          vP(ia,jb) = vP(ia,jb) + fact * dot_product(qTr, oTmp)
+        end do
+
+      end do
+
     end if
 
+    call wtdn_tmp(wIJ, occNr, win, nmatup, nMat, getIA, tSpin, sqrOccWia)
+
     do jb = 1, initDim
-      vP(jb,jb) = vP(jb,jb) + wIJ(jb)  !orb. energy difference diagonal contribution
-      vM(jb,jb) = vM(jb,jb) + wIJ(jb)
+      print *,jb,getIA(win(jb),1),' -> ',getIA(win(jb),2),getIA(win(jb),3),((wIJ(jb) / sqrOccWia(jb))**2) *27.21140
+      vP(jb,jb) = vP(jb,jb) + (wIJ(jb) / sqrOccWia(jb))**2  
+      vM(jb,jb) = vM(jb,jb) + (wIJ(jb) / sqrOccWia(jb))**2  
     end do
 
     do ii = 1, initDim
@@ -1635,5 +1621,7 @@ contains
     deallocate(qTr)
 
   end subroutine setupInitMatFast_TN
+
+ 
 
 end module dftbp_linrespcommon

@@ -939,7 +939,8 @@ contains
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
     real(dp), allocatable :: dummyM(:,:), workArray(:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
-    real(dp), allocatable :: gqvTmp(:,:), tQov(:,:), tQoo(:,:), tQvv(:,:), qIJ(:), lrGamma(:,:)
+    real(dp), allocatable :: lrGamma(:,:)
+    real(dp), allocatable :: matTmp(:,:), vTmp(:), wTmp(:)
     real(dp), parameter   :: convThreshold = 0.0001_dp
     real(dp) :: dummyReal
 
@@ -978,27 +979,18 @@ contains
     allocate(workArray(3 * memDim + 1))
     allocate(vecNorm(2 * memDim))
 
-    ! Work array for faster implementation of (A+-B)*v. Make optional later!
-    print *,'The sizes: ',nxov, nxoo, nxvv
-    allocate(gqvTmp(nAtom, max(nxov, nxoo, nxvv)))
-    allocate(tQov(nAtom, nxov))
-    allocate(tQoo(nAtom, nxoo))
-    allocate(tQvv(nAtom, nxvv))
-    allocate(qIJ(nAtom))
+    allocate(matTmp(memDim,memDim))
+    allocate(vTmp(nxov))
+    allocate(wTmp(nxov))
+
     allocate(lrGamma(nAtom, nAtom))
     ! To be changed if RS branch is moved
     lrGamma(:,:) = 0.0_dp
-
-    ! Precalculate transition charges (to be removed)
-    do ia = 1, nxov
-      tQov(:,ia) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
-    end do
-    do ij = 1, nxoo
-      tQoo(:,ij) = transChrg%qTransIJ(ij, iAtomStart, stimc, grndEigVecs, getij)
-    end do
-    do ab = 1, nxvv
-      tQvv(:,ab) = transChrg%qTransAB(ab, iAtomStart, stimc, grndEigVecs, getab)
-    end do
+    print *,'Total number trans', nxov, 'nmatup', nmatup, 'memdim', memDim
+    do ii = 1,nmatup
+       jj = getIA(win(ii),3)
+       print *,ii,getIA(win(ii),1),' -> ',getIA(win(ii),2),jj,wIJ(ii)*27.21140
+    enddo
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
@@ -1018,15 +1010,12 @@ contains
 
       if (prevSubSpaceDim > 0) then
 
+        print *,'do the full thing', prevSubSpaceDim, subSpaceDim
         !extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
-           call omegatvec(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
+          call omegatvec(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
             & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
             & .true., transChrg)
-
-!!$          call multApBVecFast_TN(vecB(:,ii), wij, sym, win, nmatup, homo, nOcc, nVir, filling, &
-!!$              & getia, gammaMat, lrGamma, species0, spinW, iaTrans, gqvTmp, tQov, tQoo, tQvv,&
-!!$              & vP(:,ii))
           call multAmBVecFast_TN(tSpin, win, nmatup, filling, getia, wij, vecB(:,ii), vM(:,ii))
         end do
 
@@ -1040,10 +1029,28 @@ contains
         end do
 
       else
-
+         print *,'call of initmat',subSpaceDim
         call setupInitMatFast_TN(transChrg, subSpaceDim, wij, sym, win, &
-            & iAtomStart, stimc, grndEigVecs, getia, iaTrans, gammaMat, lrGamma, species0,&
-            & spinW, tSpin, vP, vM, mP, mM)
+            & nmatup, iAtomStart, stimc, grndEigVecs, filling, getia, iaTrans, gammaMat, lrGamma, &
+            & species0, spinW, tSpin, vP, vM, mP, mM)
+
+!!$        do ii = 1, subSpaceDim
+!!$           vTmp = 0.0_dp
+!!$           vTmp(ii) = 1.0_dp
+!!$           call omegatvec(tSpin, vTmp, wTmp, wij, sym, win, nmatup, iAtomStart, stimc,&
+!!$            & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
+!!$            & .true., transChrg)           
+!!$           matTmp(:,ii) = wTmp(:)
+!!$        enddo
+!!$        do ii = 1, nxov
+!!$           do jj = 1, subSpaceDim
+!!$              !!if(abs(matTmp(ii,jj)-vP(ii,jj)) .gt. 1.d-5) then
+!!$                 write (*,'(a,2x,i3,2x,i3,2x,f10.6,2x,f10.6)') 'Compxx ',ii,jj,matTmp(ii,jj),vP(ii,jj)
+!!$              !!endif
+!!$           enddo
+!!$        enddo
+!!$        stop
+
 
       end if
 
