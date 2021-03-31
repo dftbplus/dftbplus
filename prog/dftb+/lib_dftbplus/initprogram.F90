@@ -3509,7 +3509,7 @@ contains
     end if
   #:endif
     this%tAllocate = this%tAllocate .or. this%tNetAtomCharges
-    if (this%tAllocate) then
+    if (this%tAllocate .and. .not.allocated(this%reks)) then
       if (.not. allocated(this%qNetAtom)) then
         allocate(this%qNetAtom(this%nAtom))
       endif
