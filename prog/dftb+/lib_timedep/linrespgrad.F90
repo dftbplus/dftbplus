@@ -42,13 +42,19 @@ module dftbp_linrespgrad
   character(*), parameter :: transDipOut = "TDP.DAT"
 
 
-  ! ARPACK related variables
+  ! Solver related variables
 
   !> Tolerance for ARPACK solver.
   real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
 
+  !> Treshold for Stratmann solver
+  real(dp), parameter :: CONV_TRESH_STRAT = 0.000001_dp
+
   !> Maximal allowed iteration in the ARPACK solver.
   integer, parameter :: MAX_AR_ITER = 300
+
+  !> Initial subspace for Stratmann solver
+  integer, parameter :: FAC_INI_STRAT = 20
 
   !> Names of output files
   character(*), parameter :: arpackOut = "ARPACK.DAT"
@@ -185,7 +191,7 @@ contains
     integer :: nStat
 
     !> control variables
-    logical :: tZVector, tCoeffs, tTradip, tUseArpack
+    logical :: tZVector, tCoeffs, tTradip
 
     !> printing data
     logical :: tMulliken
@@ -196,8 +202,6 @@ contains
     !> transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
 
-    tUseArpack = .false.
-    !tUseArpack = .true.
     if (withArpack) then
 
       ! ARPACK library variables
@@ -502,7 +506,7 @@ contains
     do isym = 1, size(symmetries)
 
       sym = symmetries(isym)
-      if (withArpack .and. tUseArpack) then
+      if (withArpack .and. this%tUseArpack) then
         call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd,&
             & iAtomStart, stimc, grndEigVecs, filling, getia, gammaMat, species0, this%spinW,&
             & transChrg, this%fdArnoldiDiagnosis, eval, evec, this%onSiteMatrixElements, orb)
@@ -511,7 +515,6 @@ contains
             & nxoo, nxvv, iAtomStart, stimc, grndEigVecs, filling, getia, getij, getab, gammaMat, &
             & species0, this%spinW, transChrg, eval, evec, this%onSiteMatrixElements, orb, nocc_ud,&
             & nvir_ud, iaTrans)
-        !!call error("No suitable eigensolver was compiled with this binary")
       end if
 
       ! Excitation oscillator strengths for resulting states
@@ -794,7 +797,7 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-      call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
+      call actionAplusB(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getia, gammaMat,&
           & species0, spinW, onsMEs, orb, .false., transChrg)
 
@@ -836,7 +839,7 @@ contains
       write(fdArnoldiDiagnosis,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
-        call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
+        call actionAplusB(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
             & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
             & .false., transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
@@ -940,29 +943,30 @@ contains
     real(dp), allocatable :: dummyM(:,:), workArray(:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp), allocatable :: lrGamma(:,:)
-    real(dp), allocatable :: matTmp(:,:), vTmp(:), wTmp(:)
-    real(dp), parameter   :: convThreshold = 0.0001_dp
     real(dp) :: dummyReal
 
-    integer :: nExc, nAtom, initExc, info, dummyInt, newVec
+    integer :: nExc, nAtom, info, dummyInt, newVec
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
-    integer :: ii, jj, ia, ij, ab, nOcc, nVir, homo
+    integer :: ii, jj, ia, ij, ab
+    character(lc) :: tmpStr
 
     logical :: didConverge
 
+    if (allocated(onsMEs)) then
+      write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonalizer.'
+      call error(tmpStr)
+    endif
+
+    ! Number of excited states to solve for
     nExc = size(eval)
     nAtom = size(gammaMat, dim=1)
     @:ASSERT(all(shape(evec) == [ nxov, nexc ]))
-    nOcc = nocc_ud(1)
-    nVir = nvir_ud(1)
-    homo = nOcc
 
-    initExc = min(20 * nExc, nxov)
-
-    ! initial allocations
-    ! start with lowest excitations. Inital number somewhat arbritary.
-    subSpaceDim = min(initExc, nxov)
-    memDim = min(subSpaceDim + 6 * nExc, nxov) ! memory available for subspace calcs.
+    ! Inital subSpaceDim somewhat arbritary
+    ! Low dimension leads to need to increase memory later 
+    subSpaceDim = min(FAC_INI_STRAT * nExc, nxov)
+    ! Memory available for subspace calcs
+    memDim = min(subSpaceDim + 6 * nExc, nxov) 
     workDim = 3 * memDim + 1
     allocate(vecB(nxov, memDim))
     allocate(vP(nxov, memDim)) 
@@ -979,24 +983,15 @@ contains
     allocate(workArray(3 * memDim + 1))
     allocate(vecNorm(2 * memDim))
 
-    allocate(matTmp(memDim,memDim))
-    allocate(vTmp(nxov))
-    allocate(wTmp(nxov))
-
     allocate(lrGamma(nAtom, nAtom))
     ! To be changed if RS branch is moved
     lrGamma(:,:) = 0.0_dp
-
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
     do ii = 1, subSpaceDim
       vecB(ii, ii) = 1.0
     end do
-
-    ! Could calc. init. matrix here, Due to special form of bs, matrix multiplication handles a lot
-    ! of zeros.
-    ! Add this later!
 
     prevSubSpaceDim = 0
     didConverge = .false.
@@ -1006,12 +1001,12 @@ contains
 
       if (prevSubSpaceDim > 0) then
 
-        !extend subspace matrices:
+        ! Extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
-          call omegatvec(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
+          call actionAplusB(tSpin, vecB(:,ii), vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
             & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
             & .true., transChrg)
-          call multAmBVecFast_TN(tSpin, win, nmatup, filling, getia, wij, vecB(:,ii), vM(:,ii))
+          call actionAminusB(tSpin, win, nmatup, filling, getia, wij, vecB(:,ii), vM(:,ii))
         end do
 
         do ii = prevSubSpaceDim + 1, subSpaceDim
@@ -1024,30 +1019,13 @@ contains
         end do
 
       else
-
-        call setupInitMatFast_TN(transChrg, subSpaceDim, wij, sym, win, &
+       
+        ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
+        ! Specific routine for this task is more effective
+        call intialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
             & nmatup, iAtomStart, stimc, grndEigVecs, filling, getia, iaTrans, gammaMat, lrGamma, &
             & species0, spinW, tSpin, vP, vM, mP, mM)
 
-!!$        do ii = 1, subSpaceDim
-!!$           vTmp(:)  = 0.0_dp
-!!$           vTmp(ii) = 1.0_dp
-!!$           call omegatvec(tSpin, vTmp, vP(:,ii), wij, sym, win, nmatup, iAtomStart, stimc,&
-!!$             & grndEigVecs, filling, getia, gammaMat, species0, spinW, onsMEs, orb, &
-!!$             & .true., transChrg)
-!!$           vTmp(:)  = 0.0_dp
-!!$           vTmp(ii) = 1.0_dp          
-!!$           call multAmBVecFast_TN(tSpin, win, nmatup, filling, getia, wij, vTmp, vM(:,ii))
-!!$        enddo
-!!$        do ii = 1, subSpaceDim
-!!$           do jj = ii, subSpaceDim 
-!!$              mP(ii,jj) = vP(ii,jj)
-!!$              mP(jj,ii) = mP(ii,jj)
-!!$              mM(ii,jj) = vM(ii,jj)
-!!$              mM(jj,ii) = mM(ii,jj)
-!!$           end do
-!!$        end do
-        
       end if
 
       call calcMatrixSqrt_TN(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
@@ -1056,7 +1034,7 @@ contains
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
           & 0.0_dp, mH, memDim)
 
-      ! diagonalize in subspace
+      ! Diagonalize in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
 
       ! This yields T=(A-B)^(-1/2)|X+Y>.
@@ -1067,11 +1045,10 @@ contains
           & evecR, memDim)
       call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp,&
           & evecL, memDim)
-      ! check if dsymm can actually be used
 
       ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
-      ! EV problem
-      do ii = 1, nExc ! only use first nExc vectors
+      ! EV problem, only use first nExc vectors
+      do ii = 1, nExc 
         dummyReal = sqrt(sqrt(evalInt(ii)))
         evecR(:,ii) = evecR(:,ii) / dummyReal
         evecL(:,ii) = evecL(:,ii) * dummyReal
@@ -1079,22 +1056,8 @@ contains
 
       !see if more memory is needed to save extended basis. If so increase amount of memory.
       if (subSpaceDim + 2 * nExc > memDim) then
-        call TN_incSize(memDim, vecB)
-        call TN_incSize(memDim, vP)
-        call TN_incSize(memDim, vM)
-        call TN_incSizeMatBoth(memDim, mP)
-        call TN_incSizeMatBoth(memDim, mM)
-        call TN_incSizeMatBoth(memDim, mH)
-        call TN_incSizeMatBoth(memDim, mMsqrt)
-        call TN_incSizeMatBoth(memDim, mMsqrtInv)
-        call TN_incSizeMatBoth(memDim, dummyM)
-        call TN_incSize(memDim, evalInt)
-        call TN_incSize(workDim, workArray)
-        call TN_incSizeMatSwapped(memDim, evecL)
-        call TN_incSizeMatSwapped(memDim, evecR)
-        call TN_incSize(2 * memDim, vecNorm)
-        call TN_incSize(memDim)
-        call TN_incSize(workDim)
+        call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
+             &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
       end if
 
       ! Calculate the residual vectors
@@ -1122,7 +1085,7 @@ contains
       didConverge = .true.
       do ii = subSpaceDim + 1, subSpaceDim + nExc
         vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-        if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
+        if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
           didConverge = .false.
         end if
       end do
@@ -1130,25 +1093,23 @@ contains
       if (didConverge) then
         do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
           vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-          if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
+          if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
             didConverge = .false.
           end if
         end do
       end if
 
       if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nXov)) then
-        print *, 'Error: Linear Response calculation in subspace did not converge!'
-        stop
+        write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!'
+        call error(tmpStr)
       end if
 
       ! if converged then exit loop:
       if (didConverge) then
-        ! do some wrapup, e.g.:
-        write (*,'(A,I4)')&
-            & 'Linear Response calculation converged. Required no. of basis vectors: ', subSpaceDim
         eval(:) = evalInt(1:nExc)
         ! Calc. F_I
         evec = matmul(vecB, Mh(:,1:nExc))
+!!$     X+Y vectors currently not needed
 !!$        ! Calc. X+Y
 !!$        vecXpY = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
 !!$        ! Calc. X-Y for exc. nStat, will be used in force calculation
@@ -1166,7 +1127,49 @@ contains
       ! only include new vectors if they add meaningful residue component
       newVec = 0
       do ii = 1, nExc
-        if (vecNorm(ii) .gt. convThreshold) then
+        if (vecNorm(ii) .gt. CONV_TRESH_STRAT) then
+          didConverge = .false.
+        end if
+      end do
+
+      if (didConverge) then
+        do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
+          vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+          if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
+            didConverge = .false.
+          end if
+        end do
+      end if
+
+      if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nXov)) then
+        write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!'
+        call error(tmpStr)
+      end if
+
+      ! if converged then exit loop:
+      if (didConverge) then
+        eval(:) = evalInt(1:nExc)
+        ! Calc. F_I
+        evec = matmul(vecB, Mh(:,1:nExc))
+!!$     X+Y vectors currently not needed
+!!$        ! Calc. X+Y
+!!$        vecXpY = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+!!$        ! Calc. X-Y for exc. nStat, will be used in force calculation
+!!$        if (nStat > 0) then
+!!$          vecXmY(:) = 0.0_dp
+!!$          do ii = 1, subSpaceDim
+!!$            vecXmY(:) = vecXmY + evecL(ii,nStat) * vecB(:,ii)
+!!$          end do
+!!$        end if
+
+        exit solveLinResp ! terminate diag. routine
+      end if
+
+      ! Otherwise calculate new basis vectors and extend subspace with them
+      ! only include new vectors if they add meaningful residue component
+      newVec = 0
+      do ii = 1, nExc
+        if (vecNorm(ii) .gt. CONV_TRESH_STRAT) then
           newVec = newVec + 1
           dummyReal = sqrt(evalInt(ii))
           info = subSpaceDim + ii
@@ -1178,7 +1181,7 @@ contains
       end do
 
       do ii = 1, nExc
-        if (vecNorm(nExc+ii) .gt. convThreshold) then
+        if (vecNorm(nExc+ii) .gt. CONV_TRESH_STRAT) then
           newVec = newVec + 1
           info = subSpaceDim + nExc + ii
           dummyInt = subSpaceDim + newVec
@@ -1191,7 +1194,8 @@ contains
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
 
-      call orthonormalizeVectors_TN(prevSubSpaceDim + 1, subSpaceDim, vecB) !create orthogonal basis
+      ! create orthogonal basis
+      call orthonormalizeVectors_TN(prevSubSpaceDim + 1, subSpaceDim, vecB) 
 
     end do solveLinResp
 

@@ -472,7 +472,7 @@ contains
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
-  subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
+  subroutine actionAplusB(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
       & occNr, getia, gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg)
 
     !> logical spin polarization
@@ -651,7 +651,7 @@ contains
        vout(:) = vout(:) * sqrt(wij(:))
     endif
 
-  end subroutine omegatvec
+  end subroutine actionAplusB 
 
 
   subroutine onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
@@ -1382,6 +1382,7 @@ contains
 
   end subroutine TN_incSizeMatBoth
 
+  !> Same routine exists in rs_linresp and will be removed 
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
   subroutine calcMatrixSqrt_TN(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
 
@@ -1399,6 +1400,7 @@ contains
     dummyM(:,:) = matIn(1:spaceDim,1:spaceDim)
 
     call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
+
     !calc. sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
@@ -1406,6 +1408,7 @@ contains
 
     call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
         & spaceDim, 0.0_dp, matOut, memDim)
+
     !calc. inv. of sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
@@ -1437,7 +1440,7 @@ contains
 
 
   !> Calculate the product of A-B and a vector.
-  subroutine multAmBVecFast_TN(tSpin, win, nMatUp, occNr, getIA, wIA, vIn, vOut)
+  subroutine actionAminusB(tSpin, win, nMatUp, occNr, getIA, wIA, vIn, vOut)
 
     !> logical spin polarization
     logical, intent(in) :: tSpin
@@ -1471,13 +1474,13 @@ contains
     ! orb. energy difference diagonal contribution
     vOut(:) = vOut(:) + wIA(:) * vIn(:) 
 
-  end subroutine multAmBVecFast_TN
+  end subroutine actionAminusB
 
 
   !> Generates initial matrices Mm and Mp without calculating full Mat Vec product,
   !> not required for init. space.
   !> Use precalculated transition charges
-  subroutine setupInitMatFast_TN(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
+  subroutine intialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
       & sTimesGrndEigVecs, grndEigVecs, occNr, getIA, iaTrans, gamma, lrGamma, species0, spinW, &
       & tSpin, vP, vM, mP, mM)
     type(TTransCharges), intent(in) :: transChrg
@@ -1514,10 +1517,6 @@ contains
     allocate(gTmp(nAtom))
     allocate(oTmp(nAtom))
     allocate(qTr(nAtom))
-
-    print *,'Size in init', initDim, size(vP, dim=1), size(vP, dim=2), size(mP, dim=1), size(mP, dim=2)
-
-
 
     vP(:,:) = 0.0_dp
     vM(:,:) = 0.0_dp
@@ -1624,8 +1623,38 @@ contains
     deallocate(oTmp)
     deallocate(qTr)
 
-  end subroutine setupInitMatFast_TN
+  end subroutine intialSubSpaceMatrixApmB
 
- 
+  !> Encapsulate memory extension for Stratmann solver 
+  subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
+       &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
+
+    integer, intent(inout) :: memDim
+    integer, intent(inout) :: workDim
+    real(dp), allocatable :: vecB(:,:)
+    real(dp), allocatable :: vP(:,:), vM(:,:)
+    real(dp), allocatable :: mP(:,:), mM(:,:), mH(:,:), mMsqrt(:,:), mMsqrtInv(:,:)
+    real(dp), allocatable :: dummyM(:,:), evalInt(:), workArray(:)
+    real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:) 
+
+
+    call TN_incSize(memDim, vecB)
+    call TN_incSize(memDim, vP)
+    call TN_incSize(memDim, vM)
+    call TN_incSizeMatBoth(memDim, mP)
+    call TN_incSizeMatBoth(memDim, mM)
+    call TN_incSizeMatBoth(memDim, mH)
+    call TN_incSizeMatBoth(memDim, mMsqrt)
+    call TN_incSizeMatBoth(memDim, mMsqrtInv)
+    call TN_incSizeMatBoth(memDim, dummyM)
+    call TN_incSize(memDim, evalInt)
+    call TN_incSize(workDim, workArray)
+    call TN_incSizeMatSwapped(memDim, evecL)
+    call TN_incSizeMatSwapped(memDim, evecR)
+    call TN_incSize(2 * memDim, vecNorm)
+    call TN_incSize(memDim)
+    call TN_incSize(workDim)    
+
+  end subroutine incMemStratmann
 
 end module dftbp_linrespcommon

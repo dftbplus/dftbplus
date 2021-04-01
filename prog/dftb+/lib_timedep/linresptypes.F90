@@ -96,6 +96,9 @@ module dftbp_linresptypes
 
     ! ARPACK related
 
+    !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
+    logical :: tUseArpack = .true. 
+
     !> write state of Arnoldi solver to disc
     logical :: tArnoldi
 

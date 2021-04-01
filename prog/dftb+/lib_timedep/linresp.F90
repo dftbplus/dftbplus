@@ -100,6 +100,9 @@ module dftbp_linresp
     !> dipole strengths to excited states
     logical :: tTradip
 
+    !> RPA solver is Arpack (or Stratmann if .false.)
+    logical :: tUseArpack
+
     !> print state of Arnoldi solver
     logical :: tArnoldi
 
@@ -139,6 +142,7 @@ contains
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
     this%tinit = .false.
+    this%tUseArpack = ini%tUseArpack
     if (withArpack) then
 
       this%nExc = ini%nExc
