@@ -3652,7 +3652,7 @@ contains
       this%totalForce(:,:) = 0.0_dp
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, skOverCont, this%qq, q0, &
-          & pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep, this%deltaRho)
+          & repulsive, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep, this%deltaRho)
     end if
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
@@ -3668,7 +3668,7 @@ contains
     end if
 
     call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-        & neighbourList, pRepCont, iAtInCentralRegion)
+        & neighbourList, repulsive, iAtInCentralRegion)
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential, this%chargePerShell,&
@@ -3727,7 +3727,7 @@ contains
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
-          & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep,&
+          & skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim, 0, env, rangeSep,&
           & this%deltaRho)
     end if
 
@@ -3860,6 +3860,8 @@ contains
         call error("Coordinates and velocities were not set externally.")
       end if
 
+    end if
+
     if (this%tIons) then
       call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
           &neighbourList, nNeighbourSK, iSquare)
@@ -3974,7 +3976,7 @@ contains
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv, neighbourList,&  !F_1
           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb, skHamCont, &
-          & skOverCont, this%qq, q0, pRepCont, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
+          & skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim, iStep, env, rangeSep,&
           & this%deltaRho)
     end if
 
