@@ -44,7 +44,7 @@ program test_ehrenfest
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: gradients(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom), velos_store(3, nAtom)
+  real(dp) :: forces(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom), velos_store(3, nAtom)
   real(dp) :: norm, fielddir(3), angFreq, envelope, field(3), time
   real(dp) :: time0 = 0.0_dp, time1 = 6.0_dp ! fs
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
@@ -120,10 +120,10 @@ program test_ehrenfest
   call dftbp%getEnergy(merminEnergy)
 
   ! get ground state forces
-  call dftbp%getGradients(gradients)
+  call dftbp%getGradients(forces) ! forces are actually gradients here (minus sign included)
   call dftbp%getAtomicMasses(atomMasses)
   do idim = 1, 3
-    accel(idim,:) = -gradients(idim,:)/atomMasses(:)
+    accel(idim,:) = -forces(idim,:)/atomMasses(:) !minus sign, bc forces are gradients
   end do
 
   velos(:,:) = 0.5_dp * accel * timestep
@@ -133,9 +133,9 @@ program test_ehrenfest
   call dftbp%initializeTimeProp(timestep, .true., .true.)
 
   ! get forces after initialization (forces for 1st step of dynamics)
-  call dftbp%getTdGradients(gradients)
+  call dftbp%getTdForces(forces)
   do idim = 1, 3
-    accel(idim,:) = -gradients(idim,:)/atomMasses(:)
+    accel(idim,:) = forces(idim,:)/atomMasses(:)
   end do
 
   do istep = 1, nsteps
@@ -157,10 +157,10 @@ program test_ehrenfest
     call dftbp%setTdCoordsAndVelos(coords, velos)
     call dftbp%setTdElectricField(field)
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-        & coord=coords, force=gradients) ! minus sign for force
+        & coord=coords, force=forces)
 
     do idim = 1, 3
-      accel(idim,:) = gradients(idim,:)/atomMasses(:) ! no minus sign
+      accel(idim,:) = forces(idim,:)/atomMasses(:)
     end do
 
   end do
@@ -174,6 +174,6 @@ program test_ehrenfest
 
   ! Write file for internal test system
   call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges,&
-       & tdCoords=coords, tdForces=gradients)
+       & tdCoords=coords, tdForces=forces)
 
 end program test_ehrenfest

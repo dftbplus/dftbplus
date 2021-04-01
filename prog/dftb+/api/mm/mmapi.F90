@@ -108,7 +108,7 @@ module dftbp_mmapi
     !> Set electric field for current propagation step of electrons and nuclei
     procedure :: setTdCoordsAndVelos => TDftbPlus_setTdCoordsAndVelos
     !> Set electric field for current propagation step of electrons and nuclei
-    procedure :: getTdGradients => TDftbPlus_getTdGradients
+    procedure :: getTdForces => TDftbPlus_getTdForces
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
@@ -763,17 +763,17 @@ contains
   end subroutine TDftbPlus_setTdCoordsAndVelos
 
 
-  subroutine TDftbPlus_getTdGradients(this, gradients)
+  subroutine TDftbPlus_getTdForces(this, forces)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> forces (3, nAtom)
-    real(dp), intent(out) :: gradients(:,:)
+    real(dp), intent(out) :: forces(:,:)
 
-    call getTdGradients(this%main, gradients)
+    call getTdForces(this%main, forces)
 
-  end subroutine TDftbPlus_getTdGradients
+  end subroutine TDftbPlus_getTdForces
 
 
 end module dftbp_mmapi
