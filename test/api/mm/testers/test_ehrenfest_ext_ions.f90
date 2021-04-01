@@ -44,7 +44,7 @@ program test_ehrenfest
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: gradients(3, nAtom), atomMasses(nAtom), accel(3, nAtom), prev_accel(3, nAtom), velos(3, nAtom) 
+  real(dp) :: gradients(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom), velos_store(3, nAtom)
   real(dp) :: norm, fielddir(3), angFreq, envelope, field(3), time
   real(dp) :: time0 = 0.0_dp, time1 = 6.0_dp ! fs
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
@@ -125,14 +125,10 @@ program test_ehrenfest
   do idim = 1, 3
     accel(idim,:) = -gradients(idim,:)/atomMasses(:)
   end do
-  prev_accel(:,:) = accel
 
-  ! Euler step from 1st VV step
-  ! Ensures good initialization and puts velocity and coords on common time step
-  velos(:,:) = - 0.5_dp * accel * timestep
-  coords(:,:) = coords + velos * timestep + 0.5_dp * accel * timestep**2
-  ! This re-initializes the VVerlet propagator with coordNew
-  velos(:,:) = velos + 0.5_dp * accel * timestep
+  velos(:,:) = 0.5_dp * accel * timestep
+  coords(:,:) = coords + velos * timestep
+  velos_store(:,:) = velos
 
   call dftbp%initializeTimeProp(timestep, .true., .true.)
 
@@ -153,10 +149,10 @@ program test_ehrenfest
     end if
     field = fstrength * 1.0e10_dp * V_m__au * envelope * aimag(exp(imag*time*angFreq) * fielddir)
 
-    ! evolve nuclear positions
-    coords(:,:) = coords + timestep * velos + 0.5_dp * timestep**2 * accel
-    velos(:,:) = velos + 0.5_dp * (accel + prev_accel) * timestep
-    prev_accel(:,:) = accel
+    ! evolve nuclear positions (using Velocity Verlet exactly as implemented in DFTB+)
+    velos(:,:) = velos_store + 0.5 * accel * timestep
+    velos_store(:,:) = velos + 0.5 * accel * timestep
+    coords(:,:) = coords + timestep * velos_store
 
     call dftbp%setTdCoordsAndVelos(coords, velos)
     call dftbp%setTdElectricField(field)

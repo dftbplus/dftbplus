@@ -2791,14 +2791,13 @@ contains
     end if
 
     ! Euler step from 1st VV step
-    ! Ensures good initialization and puts velocity and coords on common time step
-    this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
+    ! Velocities should actually be v(t+0.5*dt), not v(t),
+    ! like this: this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
     coordNew(:,:) = coord
-    coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
-        & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
-    ! This re-initializes the VVerlet propagator with coordNew
-    this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
+    coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) &
+        & + this%movedVelo(:,:) * this%dt
 
+    ! This re-initializes the VVerlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
       call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
           & tHalfVelocities=.true.)
