@@ -19,23 +19,23 @@
 #:include "common.fypp"
 
 module libnegf_int
-  use libnegf_vars
+  use dftbp_negfvars
 #:if WITH_MPI
-  use libnegf, only : negf_mpi_init
+  use dftbp_negf, only : negf_mpi_init
   use dftbp_mpifx
 #:endif
-  use libnegf, only : getel, lnParams, pass_DM, Tnegf
-  use libnegf, only : kb, units, convertHeatCurrent, convertHeatConductance
-  use libnegf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
-  use libnegf, only : DELTA_SQ, DELTA_W, DELTA_MINGO 
-  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
-  use libnegf, only : compute_phonon_current, thermal_conductance 
-  use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
-  use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
-  use libnegf, only : init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch
-  use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
-  use libnegf, only : set_ldos_indexes, set_tun_indexes, set_params, writememinfo, writepeakinfo
-  use libnegf, only : dns2csr, csr2dns, nzdrop, printcsr
+  use dftbp_negf, only : getel, lnParams, pass_DM, Tnegf
+  use dftbp_negf, only : kb, units, convertHeatCurrent, convertHeatConductance
+  use dftbp_negf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use dftbp_negf, only : DELTA_SQ, DELTA_W, DELTA_MINGO 
+  use dftbp_negf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use dftbp_negf, only : compute_phonon_current, thermal_conductance 
+  use dftbp_negf, only : create, create_scratch, destroy, set_readoldDMsgf
+  use dftbp_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use dftbp_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch
+  use dftbp_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
+  use dftbp_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_tun_indexes, set_params
+  use dftbp_negf, only : writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
   use dftbp_accuracy
   use dftbp_message
   use dftbp_globalenv, only : stdOut, tIoProc

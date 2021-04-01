@@ -370,6 +370,7 @@ contains
       else if (info <= n) then
         write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, diagonal ',&
             & 'element ', i6, ' did not converge to zero.')") info
+        call error(error_string)
       else
         write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv,', &
             & ' non-positive definite overlap! Minor ',i6,' responsible.')") info - n

@@ -31,9 +31,7 @@ module dftbp_timeprop
   use dftbp_lapack
   use dftbp_spin
   use dftbp_forces
-  use dftbp_repulsive
   use dftbp_slakocont
-  use dftbp_repcont
   use dftbp_thermostat
   use dftbp_mdintegrator
   use dftbp_dummytherm
@@ -44,7 +42,7 @@ module dftbp_timeprop
   use dftbp_nonscc
   use dftbp_dftbplusu, only : TDftbU
   use dftbp_energytypes, only : TEnergies, TEnergies_init
-  use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
+  use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
   use dftbp_populations
@@ -53,7 +51,7 @@ module dftbp_timeprop
   use dftbp_dispiface
   use dftbp_dispersions
   use dftbp_environment
-  use dftbp_repcont
+  use dftbp_repulsive, only : TRepulsive
   use dftbp_timer
   use dftbp_taggedoutput
   use dftbp_hamiltonian
@@ -595,7 +593,7 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, referenceN0, over, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
+      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
       & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll,&
       & onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
       & electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
@@ -658,7 +656,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -743,7 +741,7 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-            & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
+            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
             & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
             & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
@@ -752,7 +750,7 @@ contains
     else
       call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-          & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
+          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
           & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
           & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
@@ -764,7 +762,7 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, eigvecsReal, ham, H0, q0, referenceN0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
+      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
       & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
       & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
@@ -824,7 +822,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -910,7 +908,7 @@ contains
     call initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
+       & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
        & rCellVec, cellVec, speciesAll, electronicSolver)
 
@@ -929,7 +927,7 @@ contains
       call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, rangeSep, pRepCont,&
+       & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
 
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
@@ -1052,7 +1050,7 @@ contains
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> dispersion data and calculations
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -2964,7 +2962,7 @@ contains
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
       & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho)
+      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -3024,7 +3022,7 @@ contains
     real(dp), intent(inout) :: q0(:,:,:)
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
@@ -3093,7 +3091,7 @@ contains
     call ud2qm(rhoPrim)
 
     derivs(:,:) = 0.0_dp
-    repulsiveDerivs(:,:) = 0.0_dp
+
 
     call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
         & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
@@ -3101,8 +3099,12 @@ contains
     call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
         & img2CentCell)
-    call getERepDeriv(repulsiveDerivs, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
-        & this%speciesAll, pRepCont, img2CentCell)
+    if (allocated(repulsive)) then
+      call repulsive%getGradients(coordAll, this%speciesAll, img2CentCell, neighbourList,&
+          & repulsiveDerivs)
+    else
+      repulsiveDerivs(:,:) = 0.0_dp
+    end if
 
     if (this%isRangeSep) then
       call error("Ehrenfest forces not implemented yet with range separated calculations.")
@@ -3120,7 +3122,8 @@ contains
 
     totalDeriv(:,:) = repulsiveDerivs + derivs
     if (allocated(this%dispersion)) then
-      call this%dispersion%addGradients(totalDeriv)
+      call this%dispersion%addGradients(env, neighbourList, this%speciesAll, coordAll,  &
+          & img2CentCell, totalDeriv)
     end if
 
     totalForce(:,:) = - totalDeriv
@@ -3278,7 +3281,7 @@ contains
 
   !> Calculates repulsive and dispersion energies
   subroutine  getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
-      & neighbourList, pRepCont, iAtInCentralRegion)
+      & neighbourList, repulsive, iAtInCentralRegion)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3299,15 +3302,19 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Repulsive interaction data
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)
 
-    ! using here nNeighbourSK instead of nNeighbourRep
-    call calcRepulsiveEnergy(coordAll, this%speciesAll, img2CentCell, nNeighbourSK, neighbourList,&
-        & pRepCont, energy%atomRep, energy%Erep, iAtInCentralRegion)
-
+    if (allocated(repulsive)) then
+      call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
+      call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
+          & energy%atomRep, energy%Erep, iAtInCentralRegion=iAtInCentralRegion)
+    else
+      energy%atomRep(:) = 0.0_dp
+      energy%Erep = 0.0_dp
+    end if
     if (allocated(this%dispersion)) then
       call calcDispersionEnergy(this%dispersion, energy%atomDisp, energy%eDisp, iAtInCentralRegion)
     else
@@ -3414,7 +3421,7 @@ contains
   subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, rangeSep, referenceN0, q0, pRepCont, iAtInCentralRegion, &
+       & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
        & rCellVec, cellVec, speciesAll, electronicSolver)
     !> ElecDynamics instance
@@ -3469,7 +3476,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3734,7 +3741,7 @@ contains
   subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, rangeSep, pRepCont,&
+       & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3779,7 +3786,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3853,8 +3860,6 @@ contains
         call error("Coordinates and velocities were not set externally.")
       end if
 
-    end if
-
     if (this%tIons) then
       call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
           &neighbourList, nNeighbourSK, iSquare)
@@ -3863,7 +3868,7 @@ contains
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-          & neighbourList, pRepCont, iAtInCentralRegion)
+          & neighbourList, repulsive, iAtInCentralRegion)
     end if
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb, iSquare,&

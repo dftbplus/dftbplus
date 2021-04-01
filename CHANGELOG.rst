@@ -11,13 +11,24 @@ Unreleased
 Added
 -----
 
+- Conductor like screening model (COSMO)
+  implicit solvation model for SCC calculations
+
+- Printout of cavity information as a cosmo file
+
+- Extended syntax for selecting atoms in HSD input
 
 Changed
 -------
 
+- DFT-D4 can now be evaluated self-consistently within the SCC procedure
+
 
 Fixed
 -----
+
+- Fix bug in binary eigenvector output in non-MPI builds (only eigenvectors
+  belonging to the the first k-point and spin channel were stored)
 
 
 20.2.1 (2020-12-07)
@@ -139,7 +150,7 @@ Changed
 - Poisson solver available without libNEGF enabled compilation
 
 - Parser input can now be set according to the code release version (20.1)
-  
+
 
 Fixed
 -----

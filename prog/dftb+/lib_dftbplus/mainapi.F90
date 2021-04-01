@@ -349,7 +349,7 @@ contains
 
     !> dftb+ environment
     type(TEnvironment), intent(in) :: env
- 
+
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
@@ -442,7 +442,7 @@ contains
           & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
           & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
           & main%onSiteElements, main%refExtPot, main%solvation,&
-          & main%rangeSep, main%referenceN0, main%q0, main%pRepCont, main%iAtInCentralRegion,&
+          & main%rangeSep, main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion,&
           & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
           & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
     else
@@ -491,7 +491,7 @@ contains
            & main%skHamCont, main%skOverCont, main%ham,main%over, env, main%coord, main%q0,&
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
            & main%onSiteElements, main%refExtPot, main%solvation,&
-           & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
            & main%electronicSolver, main%qDepExtPot)
 
       if (present(dipole)) then

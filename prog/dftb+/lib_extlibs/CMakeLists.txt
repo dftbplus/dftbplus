@@ -3,6 +3,7 @@ set(curdir "lib_extlibs")
 set(sources-fpp
   ${curdir}/arpack.F90
   ${curdir}/blas.F90
+  ${curdir}/ddcosmo.F90
   ${curdir}/dftd4refs.F90
   ${curdir}/elsiiface.F90
   ${curdir}/lapack.F90
@@ -24,9 +25,7 @@ endif(WITH_SOCKETS)
 
 if(WITH_TRANSPORT)
   list(APPEND sources-fpp
-    ${curdir}/libnegf_vars.F90
-    ${curdir}/matconv.F90
-    ${curdir}/negf_int.F90)
+    ${curdir}/negf.F90)
 endif()
 
 if(WITH_GPU)

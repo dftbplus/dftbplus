@@ -36,6 +36,7 @@ add_subdirectory(lib_reks)
 add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
 add_subdirectory(lib_solvation)
+add_subdirectory(lib_transport)
 if(WITH_API)
   add_subdirectory(api/mm)
 endif()
@@ -48,6 +49,9 @@ dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "${ALL-SOURCES-FPP}" all-
 add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES-C})
 
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
+
+# Link ddCOSMO implementation
+target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:ddcosmo_objlib>)
 
 if(WITH_SOCKETS)
   target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
@@ -71,6 +75,9 @@ endif()
 
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+target_include_directories(dftbplus PUBLIC
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddcosmo_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(dftbplus PRIVATE ${projectdir}/external/dftd4refs)
 

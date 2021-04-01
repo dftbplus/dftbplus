@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Necessary parameters to perform DFT-D4 calculations.
+!> Necessary parameters to perform DFT-D4 calculations
 module dftbp_dftd4param
   use dftbp_assert
   use dftbp_accuracy, only : dp
@@ -17,53 +17,54 @@ module dftbp_dftd4param
   use dftbp_dftd4refs
   implicit none
 
-  public :: TDftD4Calculator, TDispDftD4Inp, initializeCalculator
+  public :: TDftD4Calc, TDispDftD4Inp, TDftD4Calculator_init
+  public :: TDftD4Ref, TDftD4Ref_init
   public :: getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   public :: getChemicalHardness, getEffectiveNuclearCharge, getSqrtZr4r2
   private
 
   !> Element-specific electronegativity for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   interface getEeqChi
     module procedure getEeqChiSymbol
     module procedure getEeqChiNumber
   end interface getEeqChi
 
   !> Element-specific chemical hardnesses for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   interface getEeqGam
     module procedure :: getEeqGamSymbol
     module procedure :: getEeqGamNumber
   end interface getEeqGam
 
   !> Element-specific CN scaling constant for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   interface getEeqKcn
     module procedure :: getEeqKcnSymbol
     module procedure :: getEeqKcnNumber
   end interface getEeqKcn
 
-  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4.
+  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4
   interface getEeqRad
     module procedure :: getEeqRadSymbol
     module procedure :: getEeqRadNumber
   end interface getEeqRad
 
   !> Element-specific chemical hardnesses for the charge scaling function used to extrapolate the C6
-  !> coefficients in DFT-D4.
+  !> coefficients in DFT-D4
   interface getChemicalHardness
     module procedure :: getChemicalHardnessSymbol
     module procedure :: getChemicalHardnessNumber
   end interface getChemicalHardness
 
   !> Effective nuclear charges from the def2-ECPs used for calculating the reference
-  !> polarizibilities for DFT-D4.
+  !> polarizibilities for DFT-D4
   interface getEffectiveNuclearCharge
     module procedure :: getEffectiveNuclearChargeSymbol
     module procedure :: getEffectiveNuclearChargeNumber
   end interface getEffectiveNuclearCharge
 
-  !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
+  !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values
   interface getSqrtZr4r2
     module procedure :: getSqrtZr4r2Symbol
     module procedure :: getSqrtZr4r2Number
@@ -83,48 +84,51 @@ module dftbp_dftd4param
   integer, parameter :: imagFrequencies = 23
 
 
-  !> Damping parameters for DFT-D4 calculation.
+  !> Damping parameters for DFT-D4 calculation
   type :: TDispDftD4Inp
 
-    !> Scaling parameter for dipole-dipole coefficients.
+    !> Scaling parameter for dipole-dipole coefficients
     real(dp) :: s6 = 1.0_dp
 
-    !> Scaling parameter for dipole-quadrupole coefficients.
+    !> Scaling parameter for dipole-quadrupole coefficients
     real(dp) :: s8
 
-    !> Scaling parameter for quadrupole-quadrupole coefficients.
+    !> Scaling parameter for quadrupole-quadrupole coefficients
     real(dp) :: s10 = 0.0_dp
 
-    !> Scaling parameter for non-additive triple dipole coefficients.
+    !> Scaling parameter for non-additive triple dipole coefficients
     real(dp) :: s9
 
-    !> Scaling parameter for <r4>/<r2> expectation value based critical radii.
+    !> Scaling parameter for <r4>/<r2> expectation value based critical radii
     real(dp) :: a1
 
-    !> Constant offset of critical radii.
+    !> Constant offset of critical radii
     real(dp) :: a2
 
     !> Exponent of for the zero-damping function used for non-addititive triple dipole
-    !> contributions.
+    !> contributions
     real(dp) :: alpha = 16.0_dp
 
-    !> Cutoff radius for dispersion interactions.
+    !> Cutoff radius for dispersion interactions
     real(dp) :: cutoffInter = 64.0_dp
 
-    !> Cutoff radius for three-body interactions.
+    !> Cutoff radius for three-body interactions
     real(dp) :: cutoffThree = 40.0_dp
 
-    !> Gaussian weighting factor for interpolation of dispersion coefficients.
+    !> Gaussian weighting factor for interpolation of dispersion coefficients
     real(dp) :: weightingFactor = 6.0_dp
 
-    !> Maximum charge scaling height for partial charge extrapolation.
+    !> Maximum charge scaling height for partial charge extrapolation
     real(dp) :: chargeScale = 3.0_dp
 
-    !> Charge scaling steepness for partial charge extrapolation.
+    !> Charge scaling steepness for partial charge extrapolation
     real(dp) :: chargeSteepness = 2.0_dp
 
+    !> Dispersion is evaluated self-consistent
+    logical :: selfConsistent = .false.
+
     !> Input for EEQ charge model
-    type(TEeqInput) :: eeqInput
+    type(TEeqInput), allocatable :: eeqInput
 
     !> Coordination number specific input
     type(TCNInput) :: cnInput
@@ -135,44 +139,68 @@ module dftbp_dftd4param
   end type TDispDftD4Inp
 
 
-  !> Dispersion calculator containing all important data for DFT-D4 calculations
-  type :: TDftD4Calculator
+  !> DFT-D4 reference systems
+  type :: TDftD4Ref
 
-    !> Scaling parameter for dipole-dipole coefficients.
+    !> Number of reference systems per species
+    integer, allocatable :: nRef(:)
+
+    !> Number of weighting functions per reference system and species
+    integer, allocatable :: countNumber(:, :)
+
+    !> Coordination number per reference system and species
+    real(dp), allocatable :: cn(:, :)
+
+    !> Partial charge per reference system and species
+    real(dp), allocatable :: charge(:, :)
+
+    !> Dynamic polarizibility per reference system and species
+    real(dp), allocatable :: referenceAlpha(:, :, :)
+
+    !> C6 coefficients for each reference system and species pair
+    real(dp), allocatable :: c6(:, :, :, :)
+
+  end type TDftD4Ref
+
+
+  !> Dispersion calculator containing all important data for DFT-D4 calculations
+  type :: TDftD4Calc
+
+    !> Scaling parameter for dipole-dipole coefficients
     real(dp) :: s6 = 1.0_dp
 
-    !> Scaling parameter for dipole-quadrupole coefficients.
+    !> Scaling parameter for dipole-quadrupole coefficients
     real(dp) :: s8
 
-    !> Scaling parameter for quadrupole-quadrupole coefficients.
+    !> Scaling parameter for quadrupole-quadrupole coefficients
     real(dp) :: s10 = 0.0_dp
 
-    !> Scaling parameter for non-additive triple dipole coefficients.
+    !> Scaling parameter for non-additive triple dipole coefficients
     real(dp) :: s9
 
-    !> Scaling parameter for <r4>/<r2> expectation value based critical radii.
+    !> Scaling parameter for <r4>/<r2> expectation value based critical radii
     real(dp) :: a1
 
-    !> Constant offset of critical radii.
+    !> Constant offset of critical radii
     real(dp) :: a2
 
     !> Exponent of for the zero-damping function used for non-addititive
-    !> triple dipole contributions.
+    !> triple dipole contributions
     real(dp) :: alpha = 16.0_dp
 
-    !> Gaussian weighting factor for interpolation of dispersion coefficients.
+    !> Gaussian weighting factor for interpolation of dispersion coefficients
     real(dp) :: wf
 
-    !> Maximum charge scaling height for partial charge extrapolation.
+    !> Maximum charge scaling height for partial charge extrapolation
     real(dp) :: ga
 
-    !> Charge scaling steepness for partial charge extrapolation.
+    !> Charge scaling steepness for partial charge extrapolation
     real(dp) :: gc
 
-    !> Cutoff radius for dispersion interactions.
+    !> Cutoff radius for dispersion interactions
     real(dp) :: cutoffInter
 
-    !> Cutoff radius for three-body interactions.
+    !> Cutoff radius for three-body interactions
     real(dp) :: cutoffThree
 
     !> Number of distinct species
@@ -182,34 +210,16 @@ module dftbp_dftd4param
     real(dp), allocatable :: sqrtZr4r2(:)
 
     !> Chemical hardnesses for charge scaling function
-    real(dp), allocatable :: chemicalHardness(:)
+    real(dp), allocatable :: eta(:)
 
     !> Effective nuclear charge for charge scaling function
-    real(dp), allocatable :: effectiveNuclearCharge(:)
+    real(dp), allocatable :: zEff(:)
 
-    !> Number of reference systems per species
-    integer, allocatable :: numberOfReferences(:)
-
-    !> Number of weighting functions per reference system and species
-    integer, allocatable :: countNumber(:, :)
-
-    !> Coordination number per reference system and species
-    real(dp), allocatable :: referenceCN(:, :)
-
-    !> Partial charge per reference system and species
-    real(dp), allocatable :: referenceCharge(:, :)
-
-    !> Dynamic polarizibility per reference system and species
-    real(dp), allocatable :: referenceAlpha(:, :, :)
-
-    !> C6 coefficients for each reference system and species pair
-    real(dp), allocatable :: referenceC6(:, :, :, :)
-
-  end type TDftD4Calculator
+  end type TDftD4Calc
 
 
   !> Element-specific electronegativity for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   real(dp), parameter :: eeqChi(maxElementEeq) = [&
     & 1.23695041_dp, 1.26590957_dp, 0.54341808_dp, 0.99666991_dp, 1.26691604_dp, &
     & 1.40028282_dp, 1.55819364_dp, 1.56866440_dp, 1.57540015_dp, 1.15056627_dp, &
@@ -231,7 +241,7 @@ module dftbp_dftd4param
     & 1.27465977_dp]
 
   !> Element-specific chemical hardnesses for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   real(dp), parameter :: eeqGam(maxElementEeq) = [&
     &-0.35015861_dp, 1.04121227_dp, 0.09281243_dp, 0.09412380_dp, 0.26629137_dp, &
     & 0.19408787_dp, 0.05317918_dp, 0.03151644_dp, 0.32275132_dp, 1.30996037_dp, &
@@ -253,7 +263,7 @@ module dftbp_dftd4param
     & 0.10500484_dp]
 
   !> Element-specific CN scaling constant for the electronegativity equilibration charges used in
-  !> DFT-D4.
+  !> DFT-D4
   real(dp), parameter :: eeqKcn(maxElementEeq) = [&
     & 0.04916110_dp, 0.10937243_dp,-0.12349591_dp,-0.02665108_dp,-0.02631658_dp, &
     & 0.06005196_dp, 0.09279548_dp, 0.11689703_dp, 0.15704746_dp, 0.07987901_dp, &
@@ -274,7 +284,7 @@ module dftbp_dftd4param
     &-0.00894298_dp,-0.05864876_dp,-0.01817842_dp, 0.07721851_dp, 0.07936083_dp, &
     & 0.05849285_dp]
 
-  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4.
+  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4
   real(dp), parameter :: eeqRad(maxElementEeq) = [&
     & 0.55159092_dp, 0.66205886_dp, 0.90529132_dp, 1.51710827_dp, 2.86070364_dp, &
     & 1.88862966_dp, 1.32250290_dp, 1.23166285_dp, 1.77503721_dp, 1.11955204_dp, &
@@ -296,7 +306,7 @@ module dftbp_dftd4param
     & 2.82773085_dp]
 
   !> Element-specific chemical hardnesses for the charge scaling function used to extrapolate the C6
-  !> coefficients in DFT-D4.
+  !> coefficients in DFT-D4
   real(dp), parameter :: chemicalHardness(maxElementD4) = [ &
     & 0.47259288_dp, 0.92203391_dp, 0.17452888_dp, 0.25700733_dp, 0.33949086_dp, &
     & 0.42195412_dp, 0.50438193_dp, 0.58691863_dp, 0.66931351_dp, 0.75191607_dp, &
@@ -324,7 +334,7 @@ module dftbp_dftd4param
     & 0.00000000_dp, 0.00000000_dp, 0.00000000_dp]
 
   !> Effective nuclear charges from the def2-ECPs used for calculating the reference
-  !> polarizibilities for DFT-D4.
+  !> polarizibilities for DFT-D4
   real(dp), parameter :: effectiveNuclearCharge(maxElementD4) = [ &
     &   1,                                                 2,  & ! H-He
     &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
@@ -338,7 +348,7 @@ module dftbp_dftd4param
     &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26] ! Rf-Og
 
 
-  !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
+  !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values
   real(dp), parameter :: r4r2(maxElementD4) = [ &
     &  8.0589_dp, 3.4698_dp, & ! H,He
     & 29.0974_dp,14.8517_dp,11.8799_dp, 7.8715_dp, &
@@ -370,9 +380,11 @@ module dftbp_dftd4param
   real(dp), parameter :: sqrtZr4r2(maxElementD4) = &
     &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, maxElementD4)]))
 
+
 contains
 
-  !> charge scaling function
+
+  !> Charge scaling function
   pure elemental function zetaScale(a, c, qref, qmod) result(zeta)
     real(dp),intent(in) :: qmod, qref
     real(dp),intent(in) :: a, c
@@ -387,16 +399,16 @@ contains
   end function zetaScale
 
 
-  !> numerical Casimir--Polder integration using trapezoidal rule
+  !> Numerical Casimir--Polder integration using trapezoidal rule
   pure function numIntegration(pol) result(trapzd)
 
-    !> polarizabilities at imaginary frequencies
+    !> Polarizabilities at imaginary frequencies
     real(dp), intent(in) :: pol(imagFrequencies)
 
-    !> resulting integral
+    !> Resulting integral
     real(dp) :: trapzd
 
-    real(dp),parameter  :: freq(imagFrequencies) = [ &
+    real(dp), parameter  :: freq(imagFrequencies) = [ &
       & 0.000001_dp, 0.050000_dp, 0.100000_dp, 0.200000_dp, 0.300000_dp, &
       & 0.400000_dp, 0.500000_dp, 0.600000_dp, 0.700000_dp, 0.800000_dp, &
       & 0.900000_dp, 1.000000_dp, 1.200000_dp, 1.400000_dp, 1.600000_dp, &
@@ -404,7 +416,7 @@ contains
       & 5.000000_dp, 7.500000_dp, 10.00000_dp ]
 
     !  just precalculate all weights and get the job done
-    real(dp),parameter :: weights(imagFrequencies) = 0.5_dp * [ &
+    real(dp), parameter :: weights(imagFrequencies) = 0.5_dp * [ &
       & (freq (2) - freq (1)),  &
       & (freq (2) - freq (1)) + (freq (3) - freq (2)), &
       & (freq (3) - freq (2)) + (freq (4) - freq (3)), &
@@ -434,10 +446,10 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input)
+  subroutine TDftD4Calculator_init(this, input)
 
     !> Calculator
-    type(TDftD4Calculator), intent(inout) :: calculator
+    type(TDftD4Calc), intent(inout) :: this
 
     !> Input
     type(TDispDftD4Inp), intent(in) :: input
@@ -451,39 +463,72 @@ contains
     real(dp), parameter :: thopi = 3.0_dp/pi
 
     nSpecies = size(input%izp)
-    calculator%nSpecies = nSpecies
+    this%nSpecies = nSpecies
 
-    calculator%sqrtZr4r2 = getSqrtZr4r2(input%izp)
-    calculator%ChemicalHardness = getChemicalHardness(input%izp)
-    calculator%EffectiveNuclearCharge = getEffectiveNuclearCharge(input%izp)
+    allocate(this%sqrtZr4r2(nSpecies))
+    allocate(this%eta(nSpecies))
+    allocate(this%zEff(nSpecies))
+    do iSp1 = 1, nSpecies
+      this%sqrtZr4r2(iSp1) = getSqrtZr4r2(input%izp(iSp1))
+      this%eta(iSp1) = input%chargeSteepness*getChemicalHardness(input%izp(iSp1))
+      this%zEff(iSp1) = getEffectiveNuclearCharge(input%izp(iSp1))
+    end do
 
-    calculator%s6 = input%s6
-    calculator%s8 = input%s8
-    calculator%s10 = input%s10
-    calculator%s9 = input%s9
-    calculator%a1 = input%a1
-    calculator%a2 = input%a2
-    calculator%alpha = input%alpha
+    this%s6 = input%s6
+    this%s8 = input%s8
+    this%s10 = input%s10
+    this%s9 = input%s9
+    this%a1 = input%a1
+    this%a2 = input%a2
+    this%alpha = input%alpha
 
-    calculator%cutoffInter = input%cutoffInter
-    calculator%cutoffThree = input%cutoffThree
+    this%cutoffInter = input%cutoffInter
+    this%cutoffThree = input%cutoffThree
 
-    calculator%wf = input%weightingFactor
-    calculator%ga = input%chargeScale
-    calculator%gc = input%chargeSteepness
+    this%wf = input%weightingFactor
+    this%ga = input%chargeScale
+    this%gc = input%chargeSteepness
 
-    allocate(calculator%numberOfReferences(nSpecies), &
-        & calculator%countNumber(maxReferences, nSpecies))
-    calculator%numberOfReferences(:) = 0
-    calculator%countNumber(:, :) = 0
-    allocate(calculator%referenceCN(maxReferences, nSpecies), &
-        & calculator%referenceCharge(maxReferences, nSpecies), &
-        & calculator%referenceAlpha(imagFrequencies, maxReferences, nSpecies), &
-        & calculator%referenceC6(maxReferences, maxReferences, nSpecies, nSpecies))
-    calculator%referenceCN(:, :) = 0.0_dp
-    calculator%referenceCharge(:, :) = 0.0_dp
-    calculator%referenceAlpha(:, :, :) = 0.0_dp
-    calculator%referenceC6(:, :, :, :) = 0.0_dp
+  end subroutine TDftD4Calculator_init
+
+
+  !> Initialize DFT-D4 reference systems
+  subroutine TDftD4Ref_init(this, izp, ga, gc)
+
+    !> Instance of the reference systems
+    type(TDftD4Ref), intent(out) :: this
+
+    !> Atomic numbers for each species
+    integer, intent(in) :: izp(:)
+
+    !> Maximum charge scaling height for partial charge extrapolation
+    real(dp), intent(in) :: ga
+
+    !> Charge scaling steepness for partial charge extrapolation
+    real(dp), intent(in) :: gc
+
+    integer :: nSpecies
+    integer :: iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
+    integer :: cncount(0:18)
+    real(dp) :: alpha(imagFrequencies), zEff1, c6, eta1
+    real(dp) :: tmp_hq(maxReferences, maxElementD4)
+
+    real(dp), parameter :: thopi = 3.0_dp/pi
+
+    nSpecies = size(izp)
+
+    allocate(this%nRef(nSpecies), &
+        & this%countNumber(maxReferences, nSpecies))
+    this%nRef(:) = 0
+    this%countNumber(:, :) = 0
+    allocate(this%cn(maxReferences, nSpecies), &
+        & this%charge(maxReferences, nSpecies), &
+        & this%referenceAlpha(imagFrequencies, maxReferences, nSpecies), &
+        & this%c6(maxReferences, maxReferences, nSpecies, nSpecies))
+    this%cn(:, :) = 0.0_dp
+    this%charge(:, :) = 0.0_dp
+    this%referenceAlpha(:, :, :) = 0.0_dp
+    this%c6(:, :, :, :) = 0.0_dp
 
     tmp_hq(:,:) = clsh
 
@@ -493,49 +538,46 @@ contains
     do iSp1 = 1, nSpecies
       cncount(:) = 0
       cncount(0) = 1
-      iZp1 = input%izp(iSp1)
-      calculator%numberOfReferences(iSp1) = refn(iZp1)
-      do iRef1 = 1, calculator%numberOfReferences(iSp1)
-        calculator%referenceCharge(iRef1, iSp1) = clsq(iRef1, iZp1)
+      iZp1 = izp(iSp1)
+      this%nRef(iSp1) = refn(iZp1)
+      do iRef1 = 1, this%nRef(iSp1)
+        this%charge(iRef1, iSp1) = clsq(iRef1, iZp1)
         iSec = refsys(iRef1,iZp1)
-        eta1 = calculator%gc * getChemicalHardness(iSec)
+        eta1 = gc * getChemicalHardness(iSec)
         zEff1 = getEffectiveNuclearCharge(iSec)
         alpha = sscale(iSec) * secaiw(:,iSec) &
-          & * zetaScale(calculator%ga, eta1, zEff1, tmp_hq(iRef1,iZp1) + zEff1)
+          & * zetaScale(ga, eta1, zEff1, tmp_hq(iRef1,iZp1) + zEff1)
         iCN = nint(refcn(iRef1,iZp1))
-        calculator%referenceCN(iRef1,iSp1) = refcovcn(iRef1,iZp1)
+        this%cn(iRef1,iSp1) = refcovcn(iRef1,iZp1)
         cncount(iCN) = cncount(iCN) + 1
-        calculator%referenceAlpha(:,iRef1,iSp1) = &
+        this%referenceAlpha(:,iRef1,iSp1) = &
           & max(0.0_dp, ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
       end do
       ! setup the number of Gaussian functions for the weighting in countNumber
-      do iRef1 = 1, calculator%numberOfReferences(iSp1)
+      do iRef1 = 1, this%nRef(iSp1)
         iCN = cncount(nint(refcn(iRef1,iZp1)))
-        calculator%countNumber(iRef1,iSp1) = iCN * (iCN + 1) / 2
+        this%countNumber(iRef1,iSp1) = iCN * (iCN + 1) / 2
       end do
     end do
 
     ! integrate C6 coefficients
-    !$OMP PARALLEL DEFAULT(NONE) &
-    !$OMP PRIVATE(iSp1, iSp2, iRef1, iRef2, alpha, c6) SHARED(calculator, nSpecies)
-    !$OMP DO SCHEDULE(RUNTIME)
+    !$omp parallel do default(none) schedule(runtime) shared(this, nSpecies) &
+    !$omp private(iSp1, iSp2, iRef1, iRef2, alpha, c6)
     do iSp1 = 1, nSpecies
       do iSp2 = 1, iSp1
-        do iRef1 = 1, calculator%numberOfReferences(iSp1)
-          do iRef2 = 1, calculator%numberOfReferences(iSp2)
-            alpha = calculator%referenceAlpha(:,iRef1,iSp1)&
-              & * calculator%referenceAlpha(:,iRef2,iSp2)
+        do iRef1 = 1, this%nRef(iSp1)
+          do iRef2 = 1, this%nRef(iSp2)
+            alpha = this%referenceAlpha(:,iRef1,iSp1)&
+              & * this%referenceAlpha(:,iRef2,iSp2)
             c6 = thopi * numIntegration(alpha)
-            calculator%referenceC6(iRef2,iRef1,iSp2,iSp1) = c6
-            calculator%referenceC6(iRef1,iRef2,iSp1,iSp2) = c6
+            this%c6(iRef2,iRef1,iSp2,iSp1) = c6
+            this%c6(iRef1,iRef2,iSp1,iSp2) = c6
           end do
         end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
 
-  end subroutine initializeCalculator
+  end subroutine TDftD4Ref_init
 
 
   !> Get electronegativity for species with a given symbol
@@ -544,7 +586,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> electronegativity
+    !> Electronegativity
     real(dp) :: chi
 
     chi = getEeqChi(symbolToNumber(symbol))
@@ -558,7 +600,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> electronegativity
+    !> Electronegativity
     real(dp) :: chi
 
     if (number > 0 .and. number <= size(eeqChi, dim=1)) then
@@ -576,7 +618,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> hardness
+    !> Hardness
     real(dp) :: gam
 
     gam = getEeqGam(symbolToNumber(symbol))
@@ -590,7 +632,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> hardness
+    !> Hardness
     real(dp) :: gam
 
     if (number > 0 .and. number <= size(eeqGam, dim=1)) then
@@ -640,7 +682,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> charge width
+    !> Charge width
     real(dp) :: rad
 
     rad = getEeqRad(symbolToNumber(symbol))

@@ -64,7 +64,7 @@ module dftbp_parser
   use dftbp_arpack, only : withArpack
   use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
   implicit none
@@ -509,7 +509,7 @@ contains
       ctrl%tForces = .true.
       call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
+      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
           & ctrl%indMovedAtom)
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
@@ -529,7 +529,7 @@ contains
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
-      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
+      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
           & ctrl%indMovedAtom)
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
@@ -853,7 +853,7 @@ contains
     end if
     call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
         &multiple=.true.)
-    call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
+    call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
         & ctrl%indMovedAtom)
 
     ctrl%nrMoved = size(ctrl%indMovedAtom)
@@ -1097,7 +1097,7 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertByMul(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
@@ -2957,7 +2957,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "ChargePerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
@@ -3017,7 +3017,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "SpinPerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
@@ -4108,7 +4108,10 @@ contains
     select case(char(buffer))
     case default
       call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
+    case ("selfconsistent")
+      input%selfConsistent = .true.
     case ("eeq")
+      allocate(input%eeqInput)
       allocate(d4Chi(geo%nSpecies))
       d4Chi(:) = getEeqChi(geo%speciesNames)
       allocate(d4Gam(geo%nSpecies))
@@ -4729,7 +4732,7 @@ contains
         do iReg = 1, nReg
           call getItem1(children, iReg, child2)
           call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-          call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+          call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
           call append(ctrl%iAtInRegion, pTmpI1)
           call getChildValue(child2, "ShellResolved", &
               & ctrl%tShellResInRegion(iReg), .false., child=child3)
@@ -4818,6 +4821,14 @@ contains
     end if
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
+
+    if (allocated(ctrl%solvInp)) then
+      call getChildValue(node, "writeCosmoFile", ctrl%tWriteCosmoFile, &
+          & allocated(ctrl%solvInp%cosmoInp), child=child)
+      if (ctrl%tWriteCosmoFile .and. .not.allocated(ctrl%solvInp%cosmoInp)) then
+        call detailedError(child, "Cosmo file can only be written for Cosmo calculations")
+      end if
+    end if
 
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
@@ -5185,7 +5196,7 @@ contains
       call convertByMul(char(modifier), energyUnits, child, input%omega)
       call getChildValue(value1, "Phase", input%phase, 0.0_dp)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
 
       input%nExcitedAtom = size(input%indExcitedAtom)
@@ -5210,7 +5221,7 @@ contains
       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
 
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
       input%nExcitedAtom = size(input%indExcitedAtom)
       if (input%nExcitedAtom == 0) then
@@ -5273,7 +5284,7 @@ contains
     call getChildValue(node, "IonDynamics", input%tIons, .false.)
     if (input%tIons) then
       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indMovedAtom)
 
       input%nMovedAtom = size(input%indMovedAtom)
@@ -6330,7 +6341,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child3)
         call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child4, tmpI1)
+        call getSelectedAtomIndices(child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
         call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
         ! If not defined, use common unit modifier defined after Coupling
         if (len(modifier2)==0) then
@@ -6779,11 +6790,9 @@ contains
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child2, tmpI1,&
-          & iShift=idxdevice(1)-1, maxRange=(idxdevice(2)-idxdevice(1)+1))
-      if (any(tmpI1<idxdevice(1)) .or. any(tmpI1>idxdevice(2))) then
-        call error("Atoms in PDOS regions must be within the device range")
-      end if
+      call getSelectedAtomIndices(child2, char(buffer), geo%speciesNames,&
+          & geo%species(idxdevice(1) : idxdevice(2)), tmpI1,&
+          & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geo%nAtom])
       iAtInRegion(iReg)%data = tmpI1
       call getChildValue(child, "ShellResolved", tShellResInRegion(iReg), .false., child=child2)
       if (tShellResInRegion(iReg)) then
@@ -6906,7 +6915,7 @@ contains
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child,&
+      call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
         call detailedError(child, "Atom region contains atom(s) which have&
