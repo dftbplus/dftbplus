@@ -174,6 +174,6 @@ program test_ehrenfest
 
   ! Write file for internal test system
   call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges,&
-       & tdCoords=coords, tdForces=-gradients)
+       & tdCoords=coords, tdForces=gradients)
 
 end program test_ehrenfest
