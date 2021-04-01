@@ -29,6 +29,8 @@ module dftbp_chimesrep
   end type TChimesRepInput
 
 
+#:if WITH_CHIMES
+
   !> Contains the necessary data to query the ChiIMES force field
   type, extends(TRepulsive) :: TChimesRep
     private
@@ -60,9 +62,17 @@ module dftbp_chimesrep
 
   end type TChimesRep
 
+#:else
+
+  type :: TChimesRep
+  end type TChimesRep
+
+#:endif
+
 
 contains
 
+#:if WITH_CHIMES
 
   !> Initialises polynomial repulsive
   subroutine TChimesRep_init(this, input, speciesNames, species0)
@@ -81,7 +91,7 @@ contains
 
     integer :: nAtom
 
-    call TChimesCalc_init(this%chimesCalc_, input%chimesFile, 0)
+    call TChimesCalc_init(this%chimesCalc_, input%chimesFile, 1)
     nAtom = size(species0)
     allocate(this%energyPerAtom_(nAtom), source=0.0_dp)
     allocate(this%gradients_(3, nAtom), source=0.0_dp)
@@ -276,6 +286,14 @@ contains
     stress(:,:) = this%stress_
 
   end subroutine TChimesRep_getStress
+
+#:else
+
+  !> Dummy initializer in case code was compiled without ChIMES
+  subroutine TChimesRep_init()
+  end subroutine TChimesRep_init
+
+#:endif
 
 
 end module dftbp_chimesrep

@@ -82,7 +82,9 @@ contains
     type(TSplinePolyRepInput), intent(inout) :: input
 
     call move_alloc(input%twoBodyCont, this%twoBodyCont_)
-    call move_alloc(input%chimesRep, this%chimesRep_)
+    #:if WITH_CHIMES
+      call move_alloc(input%chimesRep, this%chimesRep_)
+    #:endif
     allocate(this%nNeighTwoBody_(input%nAtom))
     this%isHelical_ = input%isHelical
 
@@ -99,9 +101,11 @@ contains
     real(dp) :: cutOff
 
     cutOff = getCutOff(this%twoBodyCont_)
-    if (allocated(this%chimesRep_)) then
-      cutOff = max(cutOff, this%chimesRep_%getRCutOff())
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        cutOff = max(cutOff, this%chimesRep_%getRCutOff())
+      end if
+    #:endif
 
   end function TSplinePolyRep_getRCutOff
 
@@ -116,9 +120,11 @@ contains
     real(dp), intent(in) :: latVecs(:,:)
 
     ! Lattice vectors are not needed
-    if (allocated(this%chimesRep_)) then
-      call this%chimesRep_%updateLatVecs(latVecs)
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        call this%chimesRep_%updateLatVecs(latVecs)
+      end if
+    #:endif
 
   end subroutine TSplinePolyRep_updateLatVecs
 
@@ -146,9 +152,11 @@ contains
 
     ! count neighbours for repulsive interactions between atoms
     call getNrOfNeighboursForAll(this%nNeighTwoBody_, neighbourList, this%getRCutoff())
-    if (allocated(this%chimesRep_)) then
-      call this%chimesRep_%updateCoords(coords, species, img2CentCell, neighbourList)
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        call this%chimesRep_%updateCoords(coords, species, img2CentCell, neighbourList)
+      end if
+    #:endif
 
   end subroutine TSplinePolyRep_updateCoords
 
@@ -191,13 +199,15 @@ contains
     else
       Etotal = sum(Eatom)
     end if
-    if (allocated(this%chimesRep_)) then
-      allocate(energyPerAtomChimes(size(Eatom)))
-      call this%chimesRep_%getEnergy(coords, species, img2CentCell, neighbourList,&
-          & energyPerAtomChimes, energyChimes)
-      Eatom(:) = Eatom + energyPerAtomChimes
-      Etotal = Etotal + energyChimes
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        allocate(energyPerAtomChimes(size(Eatom)))
+        call this%chimesRep_%getEnergy(coords, species, img2CentCell, neighbourList,&
+            & energyPerAtomChimes, energyChimes)
+        Eatom(:) = Eatom + energyPerAtomChimes
+        Etotal = Etotal + energyChimes
+      end if
+    #:endif
 
   end subroutine TSplinePolyRep_getEnergy
 
@@ -227,11 +237,13 @@ contains
 
     call getTwoBodyGradients_(grads, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
         & species, this%twoBodyCont_, img2CentCell, this%isHelical_)
-    if (allocated(this%chimesRep_)) then
-      allocate(chimesGrads, mold=grads)
-      call this%chimesRep_%getGradients(coords, species, img2CentCell, neighbourList, chimesGrads)
-      grads(:,:) = grads + chimesGrads
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        allocate(chimesGrads, mold=grads)
+        call this%chimesRep_%getGradients(coords, species, img2CentCell, neighbourList, chimesGrads)
+        grads(:,:) = grads + chimesGrads
+      end if
+    #:endif
 
   end subroutine TSplinePolyRep_getGradients
 
@@ -265,11 +277,13 @@ contains
 
     call getTwoBodyStress_(stress, coords, this%nNeighTwoBody_, neighbourList%iNeighbour,&
         & species, img2CentCell, this%twoBodyCont_, cellVol)
-    if (allocated(this%chimesRep_)) then
-      call this%chimesRep_%getStress(coords, species, img2CentCell, neighbourList, cellVol,&
-          & chimesStress)
-      stress(:,:) = stress + chimesStress
-    end if
+    #:if WITH_CHIMES
+      if (allocated(this%chimesRep_)) then
+        call this%chimesRep_%getStress(coords, species, img2CentCell, neighbourList, cellVol,&
+            & chimesStress)
+        stress(:,:) = stress + chimesStress
+      end if
+    #:endif
 
   end subroutine TSplinePolyRep_getStress
 

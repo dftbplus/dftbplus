@@ -67,7 +67,6 @@ module dftbp_parser
   use dftbp_negfvars
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
-  use dftbp_chimes, only : withChimes
   use dftbp_chimesrep, only : TChimesRepInput
   implicit none
   private
@@ -7468,9 +7467,14 @@ contains
     if (.not. associated(chimes)) then
       return
     end if
-    allocate(chimesRepInput)
-    call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
-    chimesRepInput%chimesFile = unquote(char(buffer))
+    #:if WITH_CHIMES
+      allocate(chimesRepInput)
+      call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
+      chimesRepInput%chimesFile = unquote(char(buffer))
+    #:else
+      call detailedError(chimes, "ChIMES repuslive correction requested, but code was compiled&
+          & without ChIMES support")
+    #:endif
 
   end subroutine parseChimes
 

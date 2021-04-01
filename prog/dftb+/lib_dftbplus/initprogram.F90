@@ -5640,10 +5640,12 @@ contains
     input%nAtom = nAtom
     input%isHelical = isHelical
     input%twoBodyCont = twoBodyCont
-    if (allocated(chimesRepInput)) then
-      allocate(input%chimesRep)
-      call TChimesRep_init(input%chimesRep, chimesRepInput, speciesNames, species0)
-    end if
+    #:if WITH_CHIMES
+      if (allocated(chimesRepInput)) then
+        allocate(input%chimesRep)
+        call TChimesRep_init(input%chimesRep, chimesRepInput, speciesNames, species0)
+      end if
+    #:endif
 
     allocate(splinePolyRep)
     call TSplinePolyRep_init(splinePolyRep, input)
