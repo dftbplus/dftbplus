@@ -731,7 +731,7 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -764,14 +764,6 @@ contains
               & this%sccTol, tConverged, iSccIter, this%minSccIter, this%maxSccIter, iGeoStep,&
               & tStopScc, this%eigvecsReal, this%reks)
         end if
-
-        if (allocated(this%dispersion) .and. .not. tConverged) then
-          call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
-              & this%species0, tConverged)
-          call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
-              & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-        end if
-        call sumEnergies(this%dftbEnergy(1))
 
         call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
@@ -6860,7 +6852,7 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0, referenceN0, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6974,11 +6966,21 @@ contains
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
+    !> Has the calculation converged>
+    logical, intent(in) :: tConverged
+
+    !> species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> reference n_0 charges for each atom
+    real(dp), intent(in) :: referenceN0(:,:)
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     real(dp), allocatable :: tmpHamSp(:,:)
     real(dp), allocatable :: tmpEn(:)
+    real(dp), allocatable :: tmpNetAtomChrg(:)
 
     integer, pointer :: pSpecies0(:)
     integer :: sparseSize, nAtom, nSpin, iL, tmpL, rsL
@@ -6991,6 +6993,9 @@ contains
     allocate(tmpHamSp(sparseSize,1))
     if (reks%isRangeSep) then
       allocate(tmpEn(reks%Lmax))
+    end if
+    if (allocated(dispersion)) then
+      allocate(tmpNetAtomChrg(nAtom))
     end if
 
     ! Calculate contribution to Hamiltonian except rangeseparated part
@@ -7117,6 +7122,19 @@ contains
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
           & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+      if (allocated(dispersion)) then
+        ! For dftd4 dispersion, update charges
+        call dispersion%updateCharges(env, pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL),&
+            & q0, img2CentCell, orb)
+        ! For MBD/TS dispersion, update onsite charges
+        ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
+        tmpNetAtomChrg(:) = reks%qNetAtomL(:,iL)
+        call dispersion%updateOnsiteCharges(tmpNetAtomChrg, orb, referenceN0,&
+            & species0, tConverged)
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
+            & iAtInCentralRegion)
+      end if
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
@@ -7129,6 +7147,7 @@ contains
       if (reks%isRangeSep) then
         reks%enLfock(iL) = energy%Efock
       end if
+      ! TODO : add reks%enLdisp
       reks%enLtot(iL) = energy%Etotal
 
       ! REKS is not affected by filling, so TS becomes 0
