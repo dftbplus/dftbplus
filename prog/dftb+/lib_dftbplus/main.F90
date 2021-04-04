@@ -6994,7 +6994,7 @@ contains
     if (reks%isRangeSep) then
       allocate(tmpEn(reks%Lmax))
     end if
-    if (allocated(dispersion)) then
+    if (reks%tAllocate) then
       allocate(tmpNetAtomChrg(nAtom))
     end if
 
@@ -7129,7 +7129,9 @@ contains
             & q0, img2CentCell, orb)
         ! For MBD/TS dispersion, update onsite charges
         ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
-        tmpNetAtomChrg(:) = reks%qNetAtomL(:,iL)
+        if (reks%tAllocate) then
+          tmpNetAtomChrg(:) = reks%qNetAtomL(:,iL)
+        end if
         call dispersion%updateOnsiteCharges(tmpNetAtomChrg, orb, referenceN0,&
             & species0, tConverged)
         call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
