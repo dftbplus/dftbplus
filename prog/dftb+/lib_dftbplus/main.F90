@@ -7149,7 +7149,9 @@ contains
       if (reks%isRangeSep) then
         reks%enLfock(iL) = energy%Efock
       end if
-      ! TODO : add reks%enLdisp
+      if (reks%isDispersion) then
+        reks%enLdisp(iL) = energy%Edisp
+      end if
       reks%enLtot(iL) = energy%Etotal
 
       ! REKS is not affected by filling, so TS becomes 0

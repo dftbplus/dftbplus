@@ -2453,7 +2453,8 @@ contains
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
           & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
-          & this%isRangeSep, this%tAllocate, this%tForces, this%tPeriodic, this%tStress, this%tDipole)
+          & this%isRangeSep, allocated(this%dispersion), this%tAllocate, this%tForces,&
+          & this%tPeriodic, this%tStress, this%tDipole)
     end if
 
     call this%initDetArrays()
@@ -5182,7 +5183,8 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, tAllocate, tForces, tPeriodic, tStress, tDipole)
+      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, tAllocate, tForces,&
+      & tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks
@@ -5223,6 +5225,9 @@ contains
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
 
+    !> Whether to run a dispersion calculation
+    logical, intent(in) :: isDispersion
+
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical, intent(in) :: tAllocate
 
@@ -5253,7 +5258,8 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tAllocate, tForces, tPeriodic, tStress, tDipole)
+            & blurWidths, is3rd, isRangeSep, isDispersion, tAllocate, tForces,&
+            & tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&

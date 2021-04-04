@@ -228,6 +228,9 @@ module dftbp_reksvar
     !> Whether to run a range separated calculation
     logical :: isRangeSep
 
+    !> Whether to run a dispersion calculation
+    logical :: isDispersion
+
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical :: tAllocate
 
@@ -327,6 +330,9 @@ module dftbp_reksvar
 
     !> Long-range corrected energy for each microstate
     real(dp), allocatable :: enLfock(:)
+
+    !> charge-dependent dispersion energy for each microstate
+    real(dp), allocatable :: enLdisp(:)
 
     !> total energy for each microstate
     real(dp), allocatable :: enLtot(:)
@@ -541,8 +547,8 @@ module dftbp_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
-      & blurWidths, t3rd, isRangeSep, tAllocate, tForces, tPeriodic, tStress, tDipole)
+  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
+      & t3rd, isRangeSep, isDispersion, tAllocate, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -576,6 +582,9 @@ module dftbp_reksvar
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
+
+    !> Whether to run a dispersion calculation
+    logical, intent(in) :: isDispersion
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical, intent(in) :: tAllocate
@@ -657,6 +666,7 @@ module dftbp_reksvar
 
     this%t3rd = t3rd
     this%isRangeSep = isRangeSep
+    this%isDispersion = isDispersion
     this%tAllocate = tAllocate
 
     this%tForces = tForces
@@ -737,6 +747,10 @@ module dftbp_reksvar
 
     if (this%isRangeSep) then
       allocate(this%enLfock(Lmax))
+    end if
+
+    if (this%isDispersion) then
+      allocate(this%enLdisp(Lmax))
     end if
 
     allocate(this%enLtot(Lmax))
@@ -927,6 +941,10 @@ module dftbp_reksvar
 
     if (this%isRangeSep) then
       this%enLfock(:) = 0.0_dp
+    end if
+
+    if (this%isDispersion) then
+      this%enLdisp(:) = 0.0_dp
     end if
 
     this%enLtot(:) = 0.0_dp
