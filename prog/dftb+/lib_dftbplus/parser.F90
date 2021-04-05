@@ -438,6 +438,12 @@ contains
       continue
     case ("steepestdescent")
 
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
+      end if
+      #:endif
+
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
       #:if WITH_TRANSPORT
@@ -448,6 +454,12 @@ contains
 
     case ("conjugategradient")
 
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
+      end if
+      #:endif
+
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
       #:if WITH_TRANSPORT
@@ -457,6 +469,12 @@ contains
       #:endif
 
     case("gdiis")
+
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
+      end if
+      #:endif
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
@@ -469,6 +487,12 @@ contains
       #:endif
 
     case ("lbfgs")
+
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
+      end if
+      #:endif
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
 
@@ -493,6 +517,12 @@ contains
 
     case ("fire")
 
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
+      end if
+      #:endif
+
       ctrl%iGeoOpt = geoOptTypes%fire
       #:if WITH_TRANSPORT
       call commonGeoOptions(node, ctrl, geom, transpar, .false.)
@@ -504,6 +534,12 @@ contains
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
+
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with secondDerivatives")
+      end if
+      #:endif
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
@@ -522,6 +558,13 @@ contains
 
     case ("velocityverlet")
       ! molecular dynamics
+
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with geometry molecular&
+            & dynamics")
+      end if
+      #:endif
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
@@ -730,6 +773,13 @@ contains
 
     case ("socket")
       ! external socket control of the run (once initialised from input)
+
+      #:if WITH_TRANSPORT
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailederror(node, "transportOnly solver cannot be used with socket control")
+      end if
+      #:endif
+
     #:if WITH_SOCKETS
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
@@ -2443,12 +2493,8 @@ contains
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
     case ("transportonly")
-      if (ctrl%isGeoOpt .or. ctrl%tMD) then
-        call detailederror(node, "transportonly cannot be used with relaxations or md")
-      end if
       if (tp%defined .and. .not.tp%taskUpload) then
-        call detailederror(node, "transportonly cannot be used when "// &
-            &  "task = contactHamiltonian")
+        call detailederror(node, "transportonly cannot be used when task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
       ctrl%solver%isolver = electronicSolverTypes%OnlyTransport
@@ -4708,7 +4754,7 @@ contains
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
     logical :: tPipekDense
-    logical :: tWriteBandDatDef, tHaveEigenDecomposition
+    logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
 
     tHaveEigenDecomposition = .false.
     if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
@@ -4716,6 +4762,7 @@ contains
         & electronicSolverTypes%elpa])) then
       tHaveEigenDecomposition = .true.
     end if
+    tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
 
     if (tHaveEigenDecomposition) then
 
@@ -4807,30 +4854,39 @@ contains
 
     end if
 
-    ! Is this compatible with Poisson solver use?
-    call readElectrostaticPotential(node, geo, ctrl)
+    if (tHaveDensityMatrix) then
 
-    call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
-    if (ctrl%tPrintMulliken) then
-      call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
-      call getChild(node, "CM5", child, requested=.false.)
-      if (associated(child)) then
-        allocate(ctrl%cm5Input)
-        call readCM5(child, ctrl%cm5Input, geo)
+      ! Is this compatible with Poisson solver use?
+      call readElectrostaticPotential(node, geo, ctrl)
+
+      call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
+      if (ctrl%tPrintMulliken) then
+        call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
+        call getChild(node, "CM5", child, requested=.false.)
+        if (associated(child)) then
+          allocate(ctrl%cm5Input)
+          call readCM5(child, ctrl%cm5Input, geo)
+        end if
       end if
-    end if
-    call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
-        &.false.)
+      call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, .false.)
 
-    if (allocated(ctrl%solvInp)) then
-      call getChildValue(node, "writeCosmoFile", ctrl%tWriteCosmoFile, &
-          & allocated(ctrl%solvInp%cosmoInp), child=child)
-      if (ctrl%tWriteCosmoFile .and. .not.allocated(ctrl%solvInp%cosmoInp)) then
-        call detailedError(child, "Cosmo file can only be written for Cosmo calculations")
+      if (allocated(ctrl%solvInp)) then
+        call getChildValue(node, "writeCosmoFile", ctrl%tWriteCosmoFile, &
+            & allocated(ctrl%solvInp%cosmoInp), child=child)
+        if (ctrl%tWriteCosmoFile .and. .not.allocated(ctrl%solvInp%cosmoInp)) then
+          call detailedError(child, "Cosmo file can only be written for Cosmo calculations")
+        end if
       end if
-    end if
 
-    call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+      call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+
+    else
+
+      ctrl%tPrintMulliken = .false.
+      ctrl%tAtomicEnergy = .false.
+      ctrl%tPrintForces = .false.
+
+    end if
 
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
