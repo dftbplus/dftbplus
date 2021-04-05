@@ -481,7 +481,7 @@ contains
   #:block DEBUG_CODE
 
     if (tqBlock) then
-      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+      @:ASSERT(all(shape(qBlock) >= [orb%mOrb,orb%mOrb,nAtom,nSpin]))
     end if
 
     if (tqiBlock) then
