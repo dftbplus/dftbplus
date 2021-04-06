@@ -722,7 +722,7 @@ contains
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
-            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%reks)
+            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
         call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
@@ -731,7 +731,7 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, tConverged, this%species0, this%referenceN0, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -3438,7 +3438,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), optional :: qNetAtom(:)
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     integer :: iSpin
 
@@ -3464,7 +3464,7 @@ contains
       end do
     end if
 
-    if (present(qNetAtom)) then
+    if (allocated(qNetAtom)) then
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
@@ -6768,7 +6768,7 @@ contains
   !> Calculate Mulliken population for each microstate from sparse density matrix.
   subroutine getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, &
       & img2CentCell, iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlock, &
-      & qiBlock, reks)
+      & qiBlock, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6806,6 +6806,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
@@ -6827,14 +6830,20 @@ contains
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=reks%qNetAtomL(:,iL))
+          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=qNetAtom)
 
       ! Get correct net charge per atom
       ! Note that qNetAtomL does not have spin dependency so it does not
-      ! correspond to (my_qm) or (my_ud) component
-      if (iL > reks%Lpaired) then
-        if (mod(iL,2) == 0) then
-          reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+      ! correspond to (my_qm) or (my_ud) representation
+      if (reks%tAllocate) then
+        if (iL > reks%Lpaired) then
+          if (mod(iL,2) == 0) then
+            reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+          else
+            reks%qNetAtomL(:,iL) = qNetAtom
+          end if
+        else
+          reks%qNetAtomL(:,iL) = qNetAtom
         end if
       end if
 
@@ -6852,7 +6861,8 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0, referenceN0, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
+      & referenceN0, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6975,12 +6985,14 @@ contains
     !> reference n_0 charges for each atom
     real(dp), intent(in) :: referenceN0(:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     real(dp), allocatable :: tmpHamSp(:,:)
     real(dp), allocatable :: tmpEn(:)
-    real(dp), allocatable :: tmpNetAtomChrg(:)
 
     integer, pointer :: pSpecies0(:)
     integer :: sparseSize, nAtom, nSpin, iL, tmpL, rsL
@@ -6993,9 +7005,6 @@ contains
     allocate(tmpHamSp(sparseSize,1))
     if (reks%isRangeSep) then
       allocate(tmpEn(reks%Lmax))
-    end if
-    if (reks%tAllocate) then
-      allocate(tmpNetAtomChrg(nAtom))
     end if
 
     ! Calculate contribution to Hamiltonian except rangeseparated part
@@ -7130,9 +7139,9 @@ contains
         ! For MBD/TS dispersion, update onsite charges
         ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
         if (reks%tAllocate) then
-          tmpNetAtomChrg(:) = reks%qNetAtomL(:,iL)
+          qNetAtom(:) = reks%qNetAtomL(:,iL)
         end if
-        call dispersion%updateOnsiteCharges(tmpNetAtomChrg, orb, referenceN0,&
+        call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0,&
             & species0, tConverged)
         call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
             & iAtInCentralRegion)
