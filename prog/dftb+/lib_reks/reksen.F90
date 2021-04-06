@@ -144,12 +144,17 @@ module dftbp_reksen
 
     energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
         & energy%e3rd + energy%Efock
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+    energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
 
     ! Compute the total energy for SA-REKS states
     do ist = 1, this%nstates
       this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
+
+!    if (abs(energy%Etotal - this%energy(this%rstate)) >= epsilon(1.0_dp)) then
+    if (abs(energy%Etotal - this%energy(this%rstate)) >= 1.0e-8_dp) then
+      call error("Wrong energy contribution for target SA-REKS state")
+    end if
 
     ! In this step Eavg becomes the energy of averaged state
     ! From this energy we can check the variational principle
@@ -414,8 +419,13 @@ module dftbp_reksen
 
       energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
           & energy%e3rd + energy%Efock
-      energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+      energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
       energy%Eexcited = 0.0_dp
+
+!      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > epsilon(1.0_dp)) then
+      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > 1.0e-8_dp) then
+        call error("Wrong energy contribution for target microstate")
+      end if
 
     end if
 
