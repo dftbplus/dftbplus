@@ -3551,16 +3551,16 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+            & this%qiBlockIn, this%deltaRhoIn, this%nAtom)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl))
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion),&
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
               & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
         end if
       end if
