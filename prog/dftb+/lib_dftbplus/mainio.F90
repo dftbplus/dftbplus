@@ -4042,13 +4042,13 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, reks)
+  subroutine printReksSccInfo(iSccIter, Eavg, diffTotal, sccErrorQ, reks)
 
     !> Iteration count
     integer, intent(in) :: iSccIter
 
-    !> total energy
-    real(dp), intent(in) :: Etotal
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     !> Difference in total energy between this iteration and the last
     real(dp), intent(in) :: diffTotal
@@ -4063,7 +4063,7 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Etotal,&
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Eavg,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")

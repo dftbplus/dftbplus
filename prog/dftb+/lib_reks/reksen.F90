@@ -138,20 +138,24 @@ module dftbp_reksen
     if (this%isRangeSep) then
       energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
+    if (this%isDispersion) then
+      energy%Edisp = sum(this%weightL(this%rstate,:)*this%enLdisp(:))
+    end if
 
     energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
         & energy%e3rd + energy%Efock
+    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
 
     ! Compute the total energy for SA-REKS states
     do ist = 1, this%nstates
       this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
 
-    ! In this step Etotal becomes the energy of averaged state, not individual states
+    ! In this step Eavg becomes the energy of averaged state
     ! From this energy we can check the variational principle
-    energy%Etotal = 0.0_dp
+    energy%Eavg = 0.0_dp
     do ist = 1, this%SAstates
-      energy%Etotal = energy%Etotal + this%SAweight(ist) * this%energy(ist)
+      energy%Eavg = energy%Eavg + this%SAweight(ist) * this%energy(ist)
     end do
 
   end subroutine calcSaReksEnergy

@@ -765,8 +765,8 @@ contains
               & tStopScc, this%eigvecsReal, this%reks)
         end if
 
-        call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
+        call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
+        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, diffElec, sccErrorQ,&
             & this%reks)
 
         if (tConverged .or. tStopScc) then
