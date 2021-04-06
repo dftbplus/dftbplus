@@ -5224,7 +5224,7 @@ contains
       write(fd, *)
     end do lpSpinPrint3_REKS
 
-    call setReksTargetEnergy(reks, energy, cellVol, pressure, TS)
+    call setReksTargetEnergy(reks, energy, cellVol, pressure)
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
     if (tSCC) then

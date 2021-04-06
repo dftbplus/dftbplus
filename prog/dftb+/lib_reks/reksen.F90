@@ -371,7 +371,7 @@ module dftbp_reksen
 
 
   !> Set correct final energy values for target state or microstate
-  subroutine setReksTargetEnergy(this, energy, cellVol, pressure, TS)
+  subroutine setReksTargetEnergy(this, energy, cellVol, pressure)
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: this
@@ -384,9 +384,6 @@ module dftbp_reksen
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     ! get correct energy values
     if (this%Lstate == 0) then
@@ -411,16 +408,21 @@ module dftbp_reksen
       if (this%isRangeSep) then
         energy%Efock = this%enLfock(this%Lstate)
       end if
+      if (this%isDispersion) then
+        energy%Edisp = this%enLdisp(this%Lstate)
+      end if
 
       energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
           & energy%e3rd + energy%Efock
-      energy%Etotal = this%enLtot(this%Lstate)
+      energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
       energy%Eexcited = 0.0_dp
 
     end if
 
-    energy%EMermin = energy%Etotal - sum(TS)
-    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    ! REKS is not affected by filling, so TS becomes 0
+    energy%EMermin = energy%Etotal
+    ! extrapolated to 0 K
+    energy%Ezero = energy%Etotal
     energy%EGibbs = energy%EMermin + cellVol * pressure
     energy%EForceRelated = energy%EGibbs
 
