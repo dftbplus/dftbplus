@@ -777,6 +777,8 @@ contains
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
               & this%eigvecsReal, this%electronicSolver, this%eigen, this%qOutput, this%q0,&
               & this%tDipole, dipoleTmp, this%reks)
+          call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+              & this%tDipole, this%reks, isSingleState=.true.)
 
           call getReksEnProperties(this%eigvecsReal, this%coord0, this%reks)
 
@@ -1184,6 +1186,8 @@ contains
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%over, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
+        call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+            & this%tDipole, this%reks, isSingleState=.false.)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
@@ -7322,6 +7326,45 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+
+
+  !> Set correct dipole moment according to type of REKS calculation
+  subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
+
+    !> resulting temporary dipole moment
+    real(dp), allocatable, intent(in) :: dipoleTmp(:)
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:,:)
+
+    !> Which state is being calculated in the determinant loop?
+    integer, intent(in) :: iDet
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> calculate a single-state REKS?
+    logical, intent(in) :: isSingleState
+
+    ! Set correct dipole moment to this%dipoleMoment
+    if (tDipole) then
+      if (isSingleState) then
+        ! For single-state REKS case, see getStateInteraction routine.
+        if (reks%Efunction == 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      else
+        ! (SI)-SA-REKS case, see getReksGradProperties routine.
+        if (reks%Efunction > 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      end if
+    end if
+
+  end subroutine assignDipoleMoment
 
 
 end module dftbp_main
