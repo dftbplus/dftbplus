@@ -410,6 +410,7 @@ contains
     ! range of default atoms to move
     character(mc) :: atomsRange
 
+    character(mc) :: modeName
     logical :: isMaxStepNeeded
 
     atomsRange = "1:-1"
@@ -433,16 +434,14 @@ contains
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
     case ("")
+      modeName = ""
       continue
     case ("none")
+      modeName = ""
       continue
     case ("steepestdescent")
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
-      end if
-      #:endif
+      modeName = "geometry relaxation"
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
@@ -454,11 +453,7 @@ contains
 
     case ("conjugategradient")
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
-      end if
-      #:endif
+      modeName = "geometry relaxation"
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -470,11 +465,7 @@ contains
 
     case("gdiis")
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
-      end if
-      #:endif
+      modeName = "geometry relaxation"
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
@@ -488,11 +479,7 @@ contains
 
     case ("lbfgs")
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
-      end if
-      #:endif
+      modeName = "geometry relaxation"
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
 
@@ -517,11 +504,7 @@ contains
 
     case ("fire")
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry relaxation")
-      end if
-      #:endif
+      modeName = "geometry relaxation"
 
       ctrl%iGeoOpt = geoOptTypes%fire
       #:if WITH_TRANSPORT
@@ -535,11 +518,7 @@ contains
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with secondDerivatives")
-      end if
-      #:endif
+      modeName = "second derivatives"
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
@@ -559,12 +538,7 @@ contains
     case ("velocityverlet")
       ! molecular dynamics
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with geometry molecular&
-            & dynamics")
-      end if
-      #:endif
+      modeName = "molecular dynamics"
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
@@ -774,11 +748,7 @@ contains
     case ("socket")
       ! external socket control of the run (once initialised from input)
 
-      #:if WITH_TRANSPORT
-      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
-        call detailederror(node, "transportOnly solver cannot be used with socket control")
-      end if
-      #:endif
+      modeName = "socket control"
 
     #:if WITH_SOCKETS
       ctrl%tForces = .true.
@@ -833,6 +803,12 @@ contains
       call detailedError(parent, "Invalid driver '" // char(buffer) // "'")
 
     end select driver
+
+  #:if WITH_TRANSPORT
+    if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport .and. trim(modeName) /= "") then
+      call detailederror(node, "transportOnly solver cannot be used with "//trim(modeName))
+    end if
+  #:endif
 
   end subroutine readDriver
 
