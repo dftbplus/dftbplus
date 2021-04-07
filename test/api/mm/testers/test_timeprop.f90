@@ -102,12 +102,12 @@ program test_timeprop
 
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
-  
-  call dftbp%initializeTimeProp(timestep, .true.)
 
-  do istep = 0, nsteps
+  call dftbp%initializeTimeProp(timestep, .false., .false.)
+
+  do istep = 1, nsteps
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
-  end do 
+  end do
 
   print "(A,F15.10)", 'Final SCC Energy:', energy
   print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)

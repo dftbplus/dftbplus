@@ -1216,7 +1216,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized
+    logical :: tInitialized, tGeoOptRequiresEgy
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -2679,6 +2679,7 @@ contains
       else
         strTmp = ""
       end if
+      tGeoOptRequiresEgy = .true.
       select case (input%ctrl%iGeoOpt)
       case (geoOptTypes%steepestDesc)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
@@ -2686,13 +2687,19 @@ contains
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
       case (geoOptTypes%diis)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case (geoOptTypes%fire)
         write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case default
         call error("Unknown optimisation mode")
       end select
+      if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
+        call warning("This geometry optimisation method requires force related energies for&
+            & accurate minimisation.")
+      end if
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
@@ -3551,16 +3558,16 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+            & this%qiBlockIn, this%deltaRhoIn, this%nAtom)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl))
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion),&
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
               & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
         end if
       end if

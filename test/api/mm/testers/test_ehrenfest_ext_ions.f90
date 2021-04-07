@@ -44,14 +44,14 @@ program test_ehrenfest
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: force(3, nAtom)
+  real(dp) :: forces(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom), velos_store(3, nAtom)
   real(dp) :: norm, fielddir(3), angFreq, envelope, field(3), time
   real(dp) :: time0 = 0.0_dp, time1 = 6.0_dp ! fs
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
-  type(fnode), pointer :: pPerturb, pLaser
+  type(fnode), pointer :: pPerturb, pLaser, pAnalysis
 
   character(:), allocatable :: DftbVersion
-  integer :: major, minor, patch, istep, ii
+  integer :: major, minor, patch, istep, ii, idim
 
 
   call getDftbPlusBuild(DftbVersion)
@@ -83,6 +83,9 @@ program test_ehrenfest
   call setChildValue(pType2Files, "Separator", "-")
   call setChildValue(pType2Files, "Suffix", ".skf")
 
+  call setChild(pRoot, "Analysis", pAnalysis)
+  call setChildValue(pAnalysis, "CalculateForces", .true.)
+
   !  set up electron dynamics options
   call setChild(pRoot, "ElectronDynamics", pElecDyn)
   call setChildValue(pElecDyn, "Steps", nsteps)
@@ -106,7 +109,6 @@ program test_ehrenfest
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 
-  
   ! initialise the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
@@ -116,10 +118,28 @@ program test_ehrenfest
 
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
-  
-  call dftbp%initializeTimeProp(timestep, .true., .false.)
+
+  ! get ground state forces
+  call dftbp%getGradients(forces) ! forces are actually gradients here (minus sign included)
+  call dftbp%getAtomicMasses(atomMasses)
+  do idim = 1, 3
+    accel(idim,:) = -forces(idim,:)/atomMasses(:) !minus sign, bc forces are gradients
+  end do
+
+  velos(:,:) = 0.5_dp * accel * timestep
+  coords(:,:) = coords + velos * timestep
+  velos_store(:,:) = velos
+
+  call dftbp%initializeTimeProp(timestep, .true., .true.)
+
+  ! get forces after initialization (forces for 1st step of dynamics)
+  call dftbp%getTdForces(forces)
+  do idim = 1, 3
+    accel(idim,:) = forces(idim,:)/atomMasses(:)
+  end do
 
   do istep = 1, nsteps
+
     ! calculate field at present timestep
     time = istep * timestep
     if (time >= time0 .and. time <= time1) then
@@ -128,10 +148,22 @@ program test_ehrenfest
       envelope = 0.0_dp
     end if
     field = fstrength * 1.0e10_dp * V_m__au * envelope * aimag(exp(imag*time*angFreq) * fielddir)
+
+    ! evolve nuclear positions (using Velocity Verlet exactly as implemented in DFTB+)
+    velos(:,:) = velos_store + 0.5 * accel * timestep
+    velos_store(:,:) = velos + 0.5 * accel * timestep
+    coords(:,:) = coords + timestep * velos_store
+
+    call dftbp%setTdCoordsAndVelos(coords, velos)
     call dftbp%setTdElectricField(field)
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-         & coord=coords, force=force)
-  end do 
+        & coord=coords, force=forces)
+
+    do idim = 1, 3
+      accel(idim,:) = forces(idim,:)/atomMasses(:)
+    end do
+
+  end do
 
   print "(A,F15.10)", 'Final SCC Energy:', energy
   print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
@@ -142,6 +174,6 @@ program test_ehrenfest
 
   ! Write file for internal test system
   call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges,&
-       & tdCoords=coords, tdForces=force)
+       & tdCoords=coords, tdForces=forces)
 
 end program test_ehrenfest
