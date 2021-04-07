@@ -3001,8 +3001,10 @@ contains
         write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
             & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
-      if (electronicSolver%providesFreeEnergy) then
+      if (electronicSolver%providesElectronEntropy) then
         write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
+      end if
+      if (electronicSolver%providesFreeEnergy) then
         if (electronicSolver%providesBandEnergy) then
           write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
               & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
