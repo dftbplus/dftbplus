@@ -161,7 +161,7 @@ contains
 
     if (.not. associated(this%hsdTree)) then
       print *, 'ERROR: input has not been created yet!'
-      stop
+      error stop
     end if
     call getChild(this%hsdTree, rootTag, root)
 
@@ -231,7 +231,7 @@ contains
 
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
       write (*, *) "Nr. of species and nr. of specified elements do not match."
-      stop
+      error stop
     end if
 
   end subroutine TDftbPlusAtomList_addToInpData
@@ -391,6 +391,13 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        error stop
+      end if
+    end if
+
     call setExternalPotential(this%main, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
@@ -413,6 +420,13 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        error stop
+      end if
+    end if
+
     call setExternalCharges(this%main, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
@@ -431,6 +445,13 @@ contains
     type(TQDepExtPotProxy) :: extPotProxy
 
     call this%checkInit()
+
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        error stop
+      end if
+    end if
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
@@ -561,7 +582,7 @@ contains
 
     if (.not. this%tInit) then
       write(stdOut, "(A)") "Error: Received uninitialized TDftbPlus instance"
-      stop
+      error stop
     end if
 
   end subroutine TDftbPlus_checkInit
@@ -727,8 +748,8 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-        & coordOut = coord, force=force, occ=occ)
+    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy,&
+        & atomNetCharges=atomNetCharges, coordOut = coord, force=force, occ=occ)
 
   end subroutine TDftbPlus_doOneTdStep
 
@@ -741,6 +762,13 @@ contains
 
     ! electric field components
     real(dp), intent(in) :: field(3)
+
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
+        error stop
+      end if
+    end if
 
     call setTdElectricField(this%main, field)
 
