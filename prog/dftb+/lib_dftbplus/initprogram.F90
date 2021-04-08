@@ -4297,6 +4297,22 @@ contains
       call this%allocateDenseMatrices(env)
     end if
 
+    if (this%tPrintEigVecs .and. .not. this%electronicSolver%providesEigenvals) then
+      call error("Eigenvectors are not available with this solver, so cannot be written to disc")
+    end if
+
+    if (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
+      if (this%tForces) then
+        call error("TransportOnly calculations cannot evaluate forces")
+      end if
+      if (this%tMulliken) then
+        call error("TransportOnly calculations cannot evaluate charges")
+      end if
+      if (this%tAtomicEnergy) then
+        call error("TransportOnly calculations cannot evaluate atom energies")
+      end if
+    end if
+
     if (this%isLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
