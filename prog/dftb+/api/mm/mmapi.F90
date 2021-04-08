@@ -160,8 +160,7 @@ contains
     type(fnode), pointer, intent(out) :: root
 
     if (.not. associated(this%hsdTree)) then
-      print *, 'ERROR: input has not been created yet!'
-      error stop
+      call error("Input has not been created yet!")
     end if
     call getChild(this%hsdTree, rootTag, root)
 
@@ -230,8 +229,7 @@ contains
     geo%species(1:geo%nAtom) = instance%species(1:geo%nAtom)
 
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
-      write (*, *) "Nr. of species and nr. of specified elements do not match."
-      error stop
+      call error("Nr. of species and nr. of specified elements do not match.")
     end if
 
   end subroutine TDftbPlusAtomList_addToInpData
@@ -393,8 +391,7 @@ contains
 
     if (allocated(this%main%solvation)) then
       if (this%main%solvation%isEFieldModified()) then
-        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
-        error stop
+        call error("External fields currently unsupported for this solvent model")
       end if
     end if
 
@@ -422,8 +419,7 @@ contains
 
     if (allocated(this%main%solvation)) then
       if (this%main%solvation%isEFieldModified()) then
-        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
-        error stop
+        call error("External fields currently unsupported for this solvent model")
       end if
     end if
 
@@ -448,8 +444,7 @@ contains
 
     if (allocated(this%main%solvation)) then
       if (this%main%solvation%isEFieldModified()) then
-        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
-        error stop
+        call error("External fields currently unsupported for this solvent model")
       end if
     end if
 
@@ -581,8 +576,7 @@ contains
     class(TDftbPlus), intent(in) :: this
 
     if (.not. this%tInit) then
-      write(stdOut, "(A)") "Error: Received uninitialized TDftbPlus instance"
-      error stop
+      call error("Received uninitialized TDftbPlus instance")
     end if
 
   end subroutine TDftbPlus_checkInit
@@ -765,8 +759,7 @@ contains
 
     if (allocated(this%main%solvation)) then
       if (this%main%solvation%isEFieldModified()) then
-        write(stdOut, "(A)") "Error: External fields currently unsupported for this solvent model"
-        error stop
+        call error("External fields currently unsupported for this solvent model")
       end if
     end if
 
