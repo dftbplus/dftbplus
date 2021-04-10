@@ -124,7 +124,7 @@ module dftbp_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, mdOut, resultsTag, hessianOut
+  public :: autotestTag, userOut, bandOut, derivEBandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_SCALAPACK
@@ -138,8 +138,11 @@ module dftbp_initprogram
   !> Detailed user output
   character(*), parameter :: userOut = "detailed.out"
 
-  !> band structure and filling information
+  !> File for band structure and filling information
   character(*), parameter :: bandOut = "band.out"
+
+  !> File for derivatives of band structure
+  character(*), parameter :: derivEBandOut = "dE_band.out"
 
   !> File accumulating data during an MD run
   character(*), parameter :: mdOut = "md.out"
@@ -512,6 +515,21 @@ module dftbp_initprogram
 
     !> Static polarisability
     logical :: isPolarisability = .false.
+
+    !> Electric static polarisability
+    real(dp), allocatable :: polarisability(:,:)
+
+    !> Number of electrons  at the Fermi energy
+    real(dp), allocatable :: neFermi(:)
+
+    !> Derivatives of the Fermi energy [spin, perturbation]
+    real(dp), allocatable :: dEfdE(:,:)
+
+    !> Derivatives of the DFTB eigenvalues with respect to perturbation
+    real(dp), allocatable :: dEidE(:,:,:,:)
+
+    !> Derivatives of Mulliken charges with respect to perturbation
+    real(dp), allocatable :: dqOut(:,:,:,:)
 
     !> use commands from socket communication to control the run
     logical :: tSocket
@@ -2141,6 +2159,16 @@ contains
         call error("Dispersion (particularly charge dependent) not currently implemented for&
             & perturbation")
       end if
+
+      allocate(this%polarisability(3,3))
+      this%polarisability(:,:) = 0.0_dp
+      if (input%ctrl%tWriteBandDat) then
+        allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+        this%dEidE(:,:,:,:) = 0.0_dp
+      end if
+      allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
+      this%dqOut(:,:,:,:) = 0.0_dp
+
     else
       this%isPolarisability = .false.
     end if
@@ -4179,6 +4207,9 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
+      if (this%isDFTBPT) then
+        call initOutputFile(derivEBandOut)
+      end if
     end if
     if (this%tDerivs) then
       call initOutputFile(hessianOut)

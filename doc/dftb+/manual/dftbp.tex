@@ -4392,7 +4392,8 @@ geometries are supported for perturbation. REKS calculations are not currently
 supported.
 
 In the case of degenerate single particle levels, the reported level derivatives
-for those states are ordered in increasing value.
+(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
+value.
 
 \begin{ptable}
   \kw{Static} & l & & \is{Yes} & \\
@@ -5304,6 +5305,15 @@ for the energies.
 
 See the \dptools{} package for utilities for converting the data in this file
 into band-structures and density of states information suitable for plotting.
+
+\subsection{dE\_band.out}
+\label{sec:dftbp.bandout}
+\index{dE\_band.out}
+
+If perturbation calculations of electric field polarizability
+(p.~\pref{sec:dftbp.perturbation}) is enabled and \is{WriteBandOut} = \is{Yes},
+this file contains the derivatives of the band energies in electron volts /
+a.u.\ for each field direction, k-point and spin channel.
 
 \section{detailed.out}
 \label{sec:dftbp.detailedout}

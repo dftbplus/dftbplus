@@ -180,6 +180,12 @@ module dftbp_taggedoutput
     !> Derivatives of ground state single particle eigenvalues wrt. k
     character(lenLabel) :: dEigenDE = 'dEidEfield'
 
+    !> Number of electrons at the Fermi energy
+    character(lenLabel) :: neFermi = 'neFermi'
+
+    !> Derivative of the Fermi energy with respect to electric field
+    character(lenLabel) :: dEfdE = 'dEfdE'
+
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 

@@ -103,7 +103,7 @@ module dftbp_main
 #:endif
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
-      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
+      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
   use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_staticperturb, only : staticPerturWrtE
   implicit none
@@ -372,9 +372,21 @@ contains
             & this%sccTol, this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec,&
             & this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
             & this%onSiteElements, this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC,&
-            & this%pChrgMixer, this%taggedWriter, this%tWriteAutotest, autotestTag,&
-            & this%tWriteResultsTag, resultsTag, this%tWriteDetailedOut, userOut,&
-            & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%tPeriodic)
+            & this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+            & this%tPeriodic, this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+        if (this%tWriteBandDat) then
+          call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
+        end if
+      end if
+
+    end if
+
+    if (env%tGlobalLead) then
+      if (this%tWriteDetailedOut) then
+        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+            & this%neFermi, this%dEfdE)
+
+        close(this%fdDetailedOut)
       end if
     end if
 
@@ -404,13 +416,15 @@ contains
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
-          & localisation, this%esp, this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray)
+          & localisation, this%esp, this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray,&
+          & this%polarisability, this%dEidE)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
-          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont)
+          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
