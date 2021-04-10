@@ -811,12 +811,25 @@ module phonons_libnegfint
   !end subroutine negf_init_csr
 
 
-  subroutine write_file(negf, pTot, pSKRes, filename, kpoints, kWeights)
+  !> Write the transmission or local dos to a file
+  subroutine write_file(negf, pTot, pKRes, filename, kpoints, kWeights)
+
+    !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
+
+    !> Total data to be written
     real(dp), intent(in) :: pTot(:,:)
-    real(dp), allocatable, intent(in) :: pSKRes(:,:,:)
+
+    !> k-point resolved data, if allocated
+    real(dp), allocatable, intent(in) :: pKRes(:,:,:)
+
+    !> file to print out to
     character(*), intent(in) :: filename
+
+    !> k-points for the system
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
     integer :: ii, jj, iK, nK, fu
@@ -847,11 +860,11 @@ module phonons_libnegfint
                                                                       & kWeights(iK) 
       end do
       write(fu,*)
-      do ii=1,size(pSKRes(:,:,1),1)
+      do ii=1,size(pKRes(:,:,1),1)
         write(fu,'(f20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
-        do jj=1,size(pSKRes(:,:,1),2)
+        do jj=1,size(pKRes(:,:,1),2)
           do iK = 1,nK
-            write(fu,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iK)
+            write(fu,'(es20.8)',ADVANCE='NO') pKRes(ii,jj, iK)
           enddo
           write(fu,*)
         enddo
@@ -860,6 +873,7 @@ module phonons_libnegfint
     end if
 
   end subroutine write_file
+
   !----------------------------------------------------------------------------
   ! DEBUG routine dumping H and S on file in Matlab format
   !----------------------------------------------------------------------------
