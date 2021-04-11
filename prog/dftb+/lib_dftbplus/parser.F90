@@ -4832,7 +4832,7 @@ contains
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
-        call getChildValue(child, "Static", ctrl%isStaticEPerturbation, .true.)
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
       else
         ctrl%isDFTBPT = .false.
       end if

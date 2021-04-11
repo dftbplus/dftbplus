@@ -517,7 +517,7 @@ module dftbp_initprogram
     logical :: isDFTBPT = .false.
 
     !> Static polarisability
-    logical :: isPolarisability = .false.
+    logical :: isStatEResp = .false.
 
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:)
@@ -2135,7 +2135,7 @@ contains
 
     this%isDFTBPT = input%ctrl%isDFTBPT
     if (this%isDFTBPT) then
-      this%isPolarisability = input%ctrl%isStaticEPerturbation
+      this%isStatEResp = input%ctrl%isStatEPerturb
       if (this%tNegf) then
         call error("Currently the perturbation expresions for NEGF are not implemented")
       end if
@@ -2179,7 +2179,7 @@ contains
       this%dqOut(:,:,:,:) = 0.0_dp
 
     else
-      this%isPolarisability = .false.
+      this%isStatEResp = .false.
     end if
 
     if (allocated(this%solvation)) then

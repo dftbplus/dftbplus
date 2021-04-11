@@ -210,7 +210,7 @@ module dftbp_inputdata
     logical :: isDFTBPT = .false.
 
     !> Is this is a static electric field perturbation calculation
-    logical :: isStaticEPerturbation = .false.
+    logical :: isStatEPerturb = .false.
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.

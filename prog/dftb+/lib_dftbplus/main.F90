@@ -367,7 +367,7 @@ contains
   #:endif
 
     if (this%isDFTBPT) then
-      if (this%isPolarisability .and. .not.(this%tPeriodic .or. this%tNegf)) then
+      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
         call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%speciesName, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
