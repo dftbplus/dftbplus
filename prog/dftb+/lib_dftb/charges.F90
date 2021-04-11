@@ -39,7 +39,7 @@ contains
     !> Reference populations.
     real(dp), intent(in), optional :: q0(:,:,:)
 
-    !> Charge per orbital (qOrb .
+    !> Charge per atomic orbital. Shape [qOrb, nAtom].
     real(dp), target, intent(out), optional :: dQ(:,:)
 
     !> Summed charge per atom.

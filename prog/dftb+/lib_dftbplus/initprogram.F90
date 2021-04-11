@@ -127,6 +127,9 @@ module dftbp_initprogram
   public :: autotestTag, userOut, bandOut, derivEBandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
+#:if WITH_TRANSPORT
+  public :: overrideContactCharges
+#:endif
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
@@ -454,7 +457,7 @@ module dftbp_initprogram
     logical :: tMulliken
 
     !> Electrostatic potentials if requested
-    type(TElStatPotentials), allocatable :: esp
+    type(TElStatPotentials), allocatable :: electrostatPot
 
     !> Calculate localised orbitals?
     logical :: tLocalise
@@ -1237,7 +1240,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized
+    logical :: tInitialized, tGeoOptRequiresEgy
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -2109,9 +2112,15 @@ contains
       if (.not.this%tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
-      allocate(this%esp)
-      call TElStatPotentials_init(this%esp, input%ctrl%elStatPotentialsInp, this%tEField .or.&
-          & this%tExtChrg)
+      if (allocated(this%solvation)) then
+        if (this%solvation%isEFieldModified()) then
+          call error("Electrostatic potentials not currently available in the presence of a solvent&
+              & which modifies the electrostatics")
+        end if
+      end if
+      allocate(this%electrostatPot)
+      call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp, this%tEField&
+          & .or. this%tExtChrg)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2171,6 +2180,12 @@ contains
 
     else
       this%isPolarisability = .false.
+    end if
+
+    if (allocated(this%solvation)) then
+      if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
+        call error('External fields are not currently compatible with this implicit solvent.')
+      end if
     end if
 
     if (this%isLinResp) then
@@ -2540,6 +2555,7 @@ contains
       allocate(this%iAtInCentralRegion(this%nAtom))
       ! for storage of the electrostatic potential in the contact
       allocate(this%potential%coulombShell(this%orb%mShell,this%nAtom,1))
+      this%potential%coulombShell(:,:,:) = 0.0_dp
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
     end if
@@ -2748,6 +2764,7 @@ contains
       else
         strTmp = ""
       end if
+      tGeoOptRequiresEgy = .true.
       select case (input%ctrl%iGeoOpt)
       case (geoOptTypes%steepestDesc)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
@@ -2755,13 +2772,19 @@ contains
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
       case (geoOptTypes%diis)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case (geoOptTypes%fire)
         write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case default
         call error("Unknown optimisation mode")
       end select
+      if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
+        call warning("This geometry optimisation method requires force related energies for&
+            & accurate minimisation.")
+      end if
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
@@ -3352,7 +3375,7 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%solvation)
 
     end if
 
@@ -3620,19 +3643,27 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, this%nAtom)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl))
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
-              & magnetisation=this%nEl(1)-this%nEl(2))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
+              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
         end if
       end if
+
+    #:if WITH_TRANSPORT
+      if (this%tUpload) then
+        call overrideContactCharges(this%qInput, this%chargeUp, this%transpar, this%qBlockIn,&
+            & this%blockUp)
+      end if
+    #:endif
+
     endif
 
     if (.not. allocated(this%reks)) then
@@ -4226,8 +4257,8 @@ contains
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
-    if (allocated(this%esp)) then
-      call initOutputFile(this%esp%espOutFile)
+    if (allocated(this%electrostatPot)) then
+      call initOutputFile(this%electrostatPot%espOutFile)
     end if
 
   end subroutine initOutputFiles
@@ -4339,6 +4370,22 @@ contains
     end if
     if (this%tLargeDenseMatrices) then
       call this%allocateDenseMatrices(env)
+    end if
+
+    if (this%tPrintEigVecs .and. .not. this%electronicSolver%providesEigenvals) then
+      call error("Eigenvectors are not available with this solver, so cannot be written to disc")
+    end if
+
+    if (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
+      if (this%tForces) then
+        call error("TransportOnly calculations cannot evaluate forces")
+      end if
+      if (this%tMulliken) then
+        call error("TransportOnly calculations cannot evaluate charges")
+      end if
+      if (this%tAtomicEnergy) then
+        call error("TransportOnly calculations cannot evaluate atom energies")
+      end if
     end if
 
     if (this%isLinResp) then
@@ -5719,6 +5766,48 @@ contains
     end if
 
   end subroutine getBufferedCholesky_
+
+
+  #:if WITH_TRANSPORT
+
+  !> Replace charges with those from the stored contact values
+  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
+
+    !> input charges
+    real(dp), intent(inout) :: qOrb(:,:,:)
+
+    !> uploaded charges
+    real(dp), intent(in) :: qOrbUp(:,:,:)
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> block charges, for example from DFTB+U
+    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
+
+    !> uploaded block charges
+    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
+
+    integer :: ii, iStart, iEnd
+
+    do ii = 1, transpar%ncont
+      iStart = transpar%contacts(ii)%idxrange(1)
+      iEnd = transpar%contacts(ii)%idxrange(2)
+      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
+    end do
+
+    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
+    if (allocated(qBlock)) then
+      do ii = 1, transpar%ncont
+        iStart = transpar%contacts(ii)%idxrange(1)
+        iEnd = transpar%contacts(ii)%idxrange(2)
+        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
+      end do
+    end if
+
+  end subroutine overrideContactCharges
+
+#:endif
 
 
 end module dftbp_initprogram

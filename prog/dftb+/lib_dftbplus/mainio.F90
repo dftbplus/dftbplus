@@ -3079,8 +3079,10 @@ contains
         write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
             & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
-      if (electronicSolver%providesFreeEnergy) then
+      if (electronicSolver%providesElectronEntropy) then
         write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
+      end if
+      if (electronicSolver%providesFreeEnergy) then
         if (electronicSolver%providesBandEnergy) then
           write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
               & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
@@ -3440,7 +3442,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment, deltaDftb)
+      & dipoleMoment, deltaDftb, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3468,6 +3470,9 @@ contains
 
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     if (allocated(dipoleMoment)) then
       if (deltaDftb%isNonAufbau) then
@@ -3504,6 +3509,11 @@ contains
         write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
             & * au__Debye, ' Debye'
         write(fd, *)
+      end if
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
       end if
     end if
 
@@ -3649,7 +3659,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & absEField, qOutput, q0, dipoleMoment)
+      & absEField, qOutput, q0, dipoleMoment, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3708,6 +3718,9 @@ contains
     !> dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3757,6 +3770,11 @@ contains
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
+      end if
     end if
 
   end subroutine writeMdOut2
@@ -3777,7 +3795,8 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
+      & nAtInCentralRegion)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3800,8 +3819,12 @@ contains
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(in), allocatable :: deltaRhoIn(:)
 
+    !> Number of atoms in central region (atoms outside this will have charges suplied from
+    !> elsewhere)
+    integer, intent(in) :: nAtInCentralRegion
 
-    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn)
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
+        & nAtInCentralRegion)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else

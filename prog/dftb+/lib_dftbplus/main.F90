@@ -104,6 +104,9 @@ module dftbp_main
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
       & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
+#:if WITH_TRANSPORT
+  use dftbp_initprogram, only : overrideContactCharges
+#:endif
   use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_staticperturb, only : staticPerturWrtE
   implicit none
@@ -257,7 +260,7 @@ contains
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
       end if
 
       if (this%tForces) then
@@ -302,7 +305,7 @@ contains
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs,&
-            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb)
+            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb, this%solvation)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs)
@@ -416,8 +419,8 @@ contains
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
-          & localisation, this%esp, this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray,&
-          & this%polarisability, this%dEidE)
+          & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
+          & this%lCurrArray, this%polarisability, this%dEidE)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
@@ -1033,7 +1036,7 @@ contains
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-                & this%qiBlockIn, this%deltaRhoIn)
+                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
           end if
         end if
 
@@ -1177,7 +1180,7 @@ contains
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%over, this%orb,&
           & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell)
+          & this%img2CentCell, this%solvation)
     #:endblock DEBUG_CODE
     end if
 
@@ -1298,12 +1301,12 @@ contains
       end if
     end if
 
-    if (this%tSccCalc .and. allocated(this%esp)&
+    if (this%tSccCalc .and. allocated(this%electrostatPot)&
         & .and. (.not. (this%isGeoOpt .or. this%tMD)&
         & .or. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep, this%nGeoSteps,&
         & this%restartFreq))) then
-      call this%esp%evaluate(env, this%scc, this%EField)
-      call writeEsp(this%esp, env, iGeoStep, this%nGeoSteps)
+      call this%electrostatPot%evaluate(env, this%scc, this%EField)
+      call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
 
   end subroutine processGeometry
@@ -1474,7 +1477,7 @@ contains
             & this%tEField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%absEField,&
-            & this%qOutput, this%q0, this%dipoleMoment)
+            & this%qOutput, this%q0, this%dipoleMoment, this%solvation)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -2007,48 +2010,6 @@ contains
     end if
 
   end subroutine initSccLoop
-
-
-#:if WITH_TRANSPORT
-
-  !> Replace charges with those from the stored contact values
-  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
-
-    !> input charges
-    real(dp), intent(inout) :: qOrb(:,:,:)
-
-    !> uploaded charges
-    real(dp), intent(in) :: qOrbUp(:,:,:)
-
-    !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
-
-    !> block charges, for example from DFTB+U
-    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
-
-    !> uploaded block charges
-    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
-
-    integer :: ii, iStart, iEnd
-
-    do ii = 1, transpar%ncont
-      iStart = transpar%contacts(ii)%idxrange(1)
-      iEnd = transpar%contacts(ii)%idxrange(2)
-      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
-    end do
-
-    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
-    if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont
-        iStart = transpar%contacts(ii)%idxrange(1)
-        iEnd = transpar%contacts(ii)%idxrange(2)
-        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
-      end do
-    end if
-
-  end subroutine overrideContactCharges
-
-#:endif
 
 
   !> Transform the hamiltonian from QM to UD representation
@@ -4517,7 +4478,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, solvation)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4548,6 +4509,9 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
     integer :: nAtom, sparseSize, iAt, ii
@@ -4581,6 +4545,11 @@ contains
       write(stdOut, "(F12.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
+    if (allocated(solvation)) then
+      if (solvation%isEFieldModified()) then
+        write(stdOut, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+      end if
+    end if
 
   end subroutine checkDipoleViaHellmannFeynman
 
