@@ -20,68 +20,10 @@ module dftbp_stress
   implicit none
   
   private
-  public :: getRepulsiveStress, getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
+
+  public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 
 contains
-
-
-  !> The stress tensor contribution from the repulsive energy term
-  subroutine getRepulsiveStress(st, coords, nNeighbourRep, iNeighbours, species, img2CentCell,&
-      & repCont, cellVol)
-
-    !> stress tensor
-    real(dp), intent(out) :: st(:,:)
-
-    !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in) :: coords(:,:)
-
-    !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourRep(:)
-
-    !> Index of neighbours for a given atom.
-    integer, intent(in) :: iNeighbours(0:,:)
-
-    !> Species of atoms in the central cell.
-    integer, intent(in) :: species(:)
-
-    !> indexing array for periodic image atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Container for repulsive potentials.
-    type(TRepCont), intent(in) :: repCont
-
-    !> cell volume.
-    real(dp), intent(in) :: cellVol
-
-    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, nAtom
-    real(dp) :: vect(3), intermed(3), prefac
-
-    @:ASSERT(all(shape(st) == [3, 3]))
-
-    nAtom = size(nNeighbourRep)
-    st(:,:) = 0.0_dp
-
-    do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbourRep(iAt1)
-        iAt2 = iNeighbours(iNeigh,iAt1)
-        iAt2f = img2CentCell(iAt2)
-        vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
-        if (iAt1 == iAt2f) then
-          prefac = 0.5_dp
-        else
-          prefac = 1.0_dp
-        end if
-        do ii = 1, 3
-          st(:, ii) = st(:, ii) - prefac * intermed(:) * vect(ii)
-        end do
-      end do
-    end do
-
-    st = st / cellVol
-
-  end subroutine getRepulsiveStress
-
 
   !> The kinetic contribution to the stress tensor
   subroutine getKineticStress(st, mass, species, velo, cellVol)

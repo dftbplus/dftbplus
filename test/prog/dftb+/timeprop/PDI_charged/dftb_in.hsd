@@ -44,7 +44,7 @@ C N O H
  }
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.0E-10 # abnormally tight tollerance used for accuracy
+  SCCTolerance = 1.0E-10 # abnormally tight tolerance used for accuracy
   SlaterKosterFiles = Type2FileNames {
        Separator = "-"
        Suffix = ".skf"

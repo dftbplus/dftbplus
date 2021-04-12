@@ -12,6 +12,7 @@ module dftbp_solvinput
   use dftbp_accuracy, only : dp
   use dftbp_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, &
     writeGeneralizedBornInfo
+  use dftbp_cosmo, only : TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
   use dftbp_message, only : error
   use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation, only : TSolvation
@@ -27,6 +28,9 @@ module dftbp_solvinput
     !> Generalized Born input data
     type(TGBInput), allocatable :: GBInp
 
+    !> Generalized Born input data
+    type(TCosmoInput), allocatable :: cosmoInp
+
     !> Solvent accessible surface area input data
     type(TSASAInput), allocatable :: SASAInp
 
@@ -36,6 +40,7 @@ module dftbp_solvinput
   !> Wrapper to create a solvation model from its respective input
   interface createSolvationModel
     module procedure :: createGeneralizedBornModel
+    module procedure :: createCosmoModel
     module procedure :: createSASAModel
   end interface
 
@@ -61,6 +66,10 @@ contains
         write(unit, '(a)') "generalized Born model"
       end if
       call writeGeneralizedBornInfo(unit, solvation)
+
+    type is(TCosmo)
+      write(unit, '(a)') "conductor like screening model"
+      call writeCosmoInfo(unit, solvation)
 
     type is(TSASACont)
       write(unit, '(a)') "surface area model"
@@ -105,6 +114,38 @@ contains
     call move_alloc(model, solvation)
 
   end subroutine createGeneralizedBornModel
+
+
+  !> Wrapper to create a conductor like screening model
+  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, latVecs)
+
+    !> Generic solvation model
+    class(TSolvation), allocatable, intent(out) :: solvation
+
+    !> Input to setup the solvation model
+    type(TCosmoInput), intent(in) :: input
+
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Lattice vectors, if the system is periodic
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+    type(TCosmo), allocatable :: model
+
+    allocate(model)
+
+    call TCosmo_init(model, input, nAtom, species0, speciesNames, latVecs)
+
+    call move_alloc(model, solvation)
+
+  end subroutine createCosmoModel
 
 
   !> Wrapper to create a generalized Born model

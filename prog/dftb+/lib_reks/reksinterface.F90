@@ -26,12 +26,12 @@ module dftbp_reksinterface
   use dftbp_periodic, only : TNeighbourList
   use dftbp_populations, only : mulliken
   use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_repcont, only : TRepCont
-  use dftbp_repulsive, only : getERepDeriv
+  !use dftbp_repcont, only : TRepCont
+  use dftbp_repulsive, only : TRepulsive
   use dftbp_scc, only : TScc
   use dftbp_slakocont, only : TSlakoCont
   use dftbp_sparse2dense, only : packHS
-  use dftbp_stress, only : getBlockStress, getRepulsiveStress
+  use dftbp_stress, only : getBlockStress
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon, only : getTwoIndices
   use dftbp_rekscpeqn, only : cggrad
@@ -179,8 +179,8 @@ module dftbp_reksinterface
 
   !> Calculate SI-SA-REKS state gradient by solving CP-REKS equations
   subroutine getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
-      & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
-      & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
+      & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, &
+      & orb, nonSccDeriv, skHamCont, skOverCont, repulsive, coord, coord0, &
       & species, q0, eigenvecs, chrgForces, over, spinW, derivs, tWriteTagged, &
       & autotestTag, taggedWriter, this)
 
@@ -205,9 +205,6 @@ module dftbp_reksinterface
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
-    integer, intent(in) :: nNeighbourRep(:)
-
     !> Index for atomic blocks in sparse data
     integer, intent(in) :: iSparseStart(:,:)
 
@@ -227,7 +224,7 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -281,8 +278,8 @@ module dftbp_reksinterface
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
-        & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, &
-        & nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, species, q0, &
+        & nNeighbourSK, iSparseStart, img2CentCell, orb, &
+        & nonSccDeriv, skHamCont, skOverCont, repulsive, coord, species, q0, &
         & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
     if (this%Efunction == 1) then
@@ -562,8 +559,8 @@ module dftbp_reksinterface
 
   !> Calculates stress tensor and lattice derivatives.
   subroutine getReksStress(env, denseDesc, sccCalc, nonSccDeriv, &
-      & skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, &
-      & nNeighbourRep, species, img2CentCell, iSparseStart, orb, &
+      & skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk, &
+      & species, img2CentCell, iSparseStart, orb, &
       & dispersion, coord, q0, invLatVec, cellVol, totalStress, &
       & totalLatDeriv, intPressure, this)
 
@@ -589,16 +586,13 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
-
-    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
-    integer, intent(in) :: nNeighbourRep(:)
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -714,9 +708,11 @@ module dftbp_reksinterface
         totalStress(:,:) = totalStress + tmpStress
       end if
 
-      tmpStress(:,:) = 0.0_dp
-      call getRepulsiveStress(tmpStress, coord, nNeighbourRep, &
-          & neighbourList%iNeighbour, species, img2CentCell, pRepCont, cellVol)
+      if (allocated(repulsive)) then
+        call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
+      else
+        tmpStress(:,:) = 0.0_dp
+      end if
       totalStress(:,:) = totalStress + tmpStress
 
       intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
@@ -733,8 +729,8 @@ module dftbp_reksinterface
 
   !> Calculate Hellmann-Feynman gradient term of each microstate in REKS
   subroutine getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
-      & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, &
-      & nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, species, q0, &
+      & nNeighbourSK, iSparseStart, img2CentCell, orb, &
+      & nonSccDeriv, skHamCont, skOverCont, repulsive, coord, species, q0, &
       & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
     !> Environment settings
@@ -751,9 +747,6 @@ module dftbp_reksinterface
 
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)
-
-    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
-    integer, intent(in) :: nNeighbourRep(:)
 
     !> Index for atomic blocks in sparse data
     integer, intent(in) :: iSparseStart(:,:)
@@ -774,7 +767,7 @@ module dftbp_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -872,12 +865,15 @@ module dftbp_reksinterface
 
         dispDerivs(:,:) = 0.0_dp
         if (allocated(dispersion)) then
-          call dispersion%addGradients(dispDerivs)
+          call dispersion%addGradients(env, neighbourList, species, coord, img2CentCell, &
+              & dispDerivs)
         end if
 
-        repDerivs(:,:) = 0.0_dp
-        call getERepDeriv(repDerivs, coord, nNeighbourRep, &
-            & neighbourList%iNeighbour, species, pRepCont, img2CentCell)
+        if (allocated(repulsive)) then
+          call repulsive%getGradients(coord, species, img2CentCell, neighbourList, repDerivs)
+        else
+          repDerivs(:,:) = 0.0_dp
+        end if
 
       end if
       derivs(:,:) = derivs + repDerivs + dispDerivs

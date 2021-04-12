@@ -53,7 +53,9 @@ module dftbp_mainio
   use dftbp_message, only : error, warning
   use dftbp_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_cosmo, only : TCosmo
   use dftbp_dispersions, only : TDispersionIface
+  use dftbp_solvation, only : TSolvation
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketComm
 #:endif
@@ -83,6 +85,7 @@ module dftbp_mainio
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
+  public :: printForceNorm, printLatticeForceNorm
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
@@ -90,6 +93,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
+  public :: writeCosmoFile
 
   !> Ground state eigenvectors in text format
   character(*), parameter :: eigvecOut = "eigenvec.out"
@@ -118,6 +122,10 @@ module dftbp_mainio
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
+
+
+  !> Cosmo file name
+  character(len=*), parameter :: cosmoFile = "dftbp.cosmo"
 
 
   interface readEigenvecs
@@ -470,14 +478,14 @@ contains
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
-    integer :: iKS, iSpin
+    integer :: iKS
     integer :: ii, fd
 
     call prepareEigvecFileBin(fd, runId, fileName)
+    ! By construction of parallelKS, iKS runs over (iK, iS) with iK growing faster
     do iKS = 1, parallelKS%nLocalKS
-      iSpin = parallelKS%localKS(2, iKS)
       do ii = 1, size(eigvecs, dim=2)
-        write(fd) eigvecs(:,ii,iSpin)
+        write(fd) eigvecs(:, ii, iKS)
       end do
     end do
     close(fd)
@@ -2102,7 +2110,7 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    real(dp), allocatable :: qOutputUpDown(:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     integer :: fd
 
     open(newunit=fd, file=fileName, action="write", status="replace")
@@ -2156,13 +2164,15 @@ contains
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
-      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-          & dim=1))
-       if (allocated(cm5Cont)) then
-          call taggedWriter%write(fd, tagLabels%qOutAtCM5, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-             & dim=1) + cm5Cont%cm5)
-       end if
+      qDiff = qOutput - q0
+      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown)
+      call taggedWriter%write(fd, tagLabels%qOutAtGross, -sum(qDiff(:,:,1), dim=1))
+      if (size(qDiff, dim=3) > 1) then
+        call taggedWriter%write(fd, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
+      end if
+      if (allocated(cm5Cont)) then
+        call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
+      end if
     end if
 
     close(fd)
@@ -2998,8 +3008,10 @@ contains
         write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
             & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
-      if (electronicSolver%providesFreeEnergy) then
+      if (electronicSolver%providesElectronEntropy) then
         write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
+      end if
+      if (electronicSolver%providesFreeEnergy) then
         if (electronicSolver%providesBandEnergy) then
           write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
               & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
@@ -3359,7 +3371,7 @@ contains
 
   !> Fifth group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment, deltaDftb)
+      & dipoleMoment, deltaDftb, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3387,6 +3399,9 @@ contains
 
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     if (allocated(dipoleMoment)) then
       if (deltaDftb%isNonAufbau) then
@@ -3423,6 +3438,11 @@ contains
         write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
             & * au__Debye, ' Debye'
         write(fd, *)
+      end if
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
       end if
     end if
 
@@ -3481,7 +3501,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & absEField, qOutput, q0, dipoleMoment)
+      & absEField, qOutput, q0, dipoleMoment, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3540,6 +3560,9 @@ contains
     !> dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3589,6 +3612,11 @@ contains
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
+      end if
     end if
 
   end subroutine writeMdOut2
@@ -3609,7 +3637,8 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
+      & nAtInCentralRegion)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3632,8 +3661,12 @@ contains
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(in), allocatable :: deltaRhoIn(:)
 
+    !> Number of atoms in central region (atoms outside this will have charges suplied from
+    !> elsewhere)
+    integer, intent(in) :: nAtInCentralRegion
 
-    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn)
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
+        & nAtInCentralRegion)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else
@@ -4264,6 +4297,17 @@ contains
   end subroutine printMaxForce
 
 
+  !> Writes norm of the force
+  subroutine printForceNorm(forceNorm)
+
+    !> Norm of the force
+    real(dp), intent(in) :: forceNorm
+
+    write(stdOut, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
+
+  end subroutine printForceNorm
+
+
   !> Print maximal lattice force component
   subroutine printMaxLatticeForce(maxLattForce)
 
@@ -4273,6 +4317,17 @@ contains
     write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
   end subroutine printMaxLatticeForce
+
+
+  !> Print norm of lattice force
+  subroutine printLatticeForceNorm(lattForceNorm)
+
+    !> Norm of the lattice force
+    real(dp), intent(in) :: lattForceNorm
+
+    write(stdOut, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
+
+  end subroutine printLatticeForceNorm
 
 
   !> Prints out info about current MD step.
@@ -5276,4 +5331,33 @@ contains
   end subroutine writeReksDetailedOut1
 
 
+  !> Write cavity information as cosmo file
+  subroutine writeCosmoFile(solvation, species0, speciesNames, coords0, energy)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in) :: solvation
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords0(:,:)
+
+    !> Total energy
+    real(dp), intent(in) :: energy
+
+    integer :: unit
+
+    select type(solvation)
+    class is (TCosmo)
+      write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
+      open(file=cosmoFile, newunit=unit)
+      call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
+      close(unit)
+    end select
+
+  end subroutine writeCosmoFile
 end module dftbp_mainio

@@ -30,14 +30,12 @@ if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
 
-find_package(MPI QUIET)
-if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
-  message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
-    "a WITH_MPI=TRUE build")
-elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
-  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} found for a non-MPI build. Your "
-    "build will NOT be MPI-parallelised. Set WITH_MPI=TRUE in order to obtain an MPI-parallelised "
-    "build.")
+if(WITH_MPI)
+  find_package(MPI REQUIRED)
+  if(NOT MPI_FORTRAN_FOUND)
+    message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified "
+      "for a WITH_MPI=TRUE build")
+  endif()
 endif()
 
 if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
@@ -142,6 +140,9 @@ include(GNUInstallDirs)
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
+# Include ddCOSMO library
+add_subdirectory(external/ddcosmo EXCLUDE_FROM_ALL)
+
 if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
@@ -155,12 +156,12 @@ endif()
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
   set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
-  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET" 
+  dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
   # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
   find_package(CustomScalapack REQUIRED)
-  
+
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
   set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
@@ -171,7 +172,7 @@ endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
-  set(MBD_GIT_REPOSITORY "https://github.com/jhrmnn/libmbd.git")
+  set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
   set(MBD_GIT_TAG "82005cbb65bdf5d32ca021848eec8f19da956a77")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
@@ -187,6 +188,13 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
+# FyTest currently can only be integrated as a submodule
+if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
+  set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")
+  set(FYTEST_GIT_TAG "94e05acb31e78da1180845e345e542a1a28577d4")  # do not change manually!
+  dftbp_config_hybrid_dependency(Fytest FyTest::FyTest "Submodule" "QUIET"
+  external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
+endif()
 
 #
 # Add internal components
@@ -210,7 +218,7 @@ endif()
 
 #
 # Export package info
-# 
+#
 if(WITH_API)
   include(CMakePackageConfigHelpers)
 
@@ -222,7 +230,7 @@ if(WITH_API)
     FILE dftbplus-targets.cmake
     NAMESPACE DftbPlus::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/dftbplus")
-  
+
   configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/export/dftbplus-config.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/dftbplus-config.cmake
@@ -248,5 +256,5 @@ if(WITH_API)
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-  
+
 endif()

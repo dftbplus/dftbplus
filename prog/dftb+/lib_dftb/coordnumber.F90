@@ -364,7 +364,7 @@ contains
 
 
   !> get force contributions
-  subroutine addGradients(this, dEdcn, gradients)
+  subroutine addGradients(this, gradients, dEdcn)
 
     !> data structure
     class(TCNCont), intent(inout) :: this
@@ -383,7 +383,7 @@ contains
 
 
   !> get stress tensor contributions
-  subroutine addStress(this, dEdcn, stress)
+  subroutine addStress(this, stress, dEdcn)
 
     !> data structure
     class(TCNCont), intent(inout) :: this

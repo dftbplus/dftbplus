@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module libnegf_vars
+module dftbp_negfvars
   use dftbp_accuracy, only : dp, mc, lc
   use dftbp_commontypes
   use dftbp_wrappedintr
@@ -465,4 +465,4 @@ contains
   end subroutine copyTranspar
 
 
-end module libnegf_vars
+end module dftbp_negfvars

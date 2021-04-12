@@ -441,20 +441,19 @@ contains
           &"Wave functions are real, no imaginary part will be plotted")
       tPlotImag = .false.
     end if
-    call getChildValue(node, "PlottedLevels", buffer, child=field, &
-        &multiple=.true.)
-    call convRangeToInt(char(buffer), node, plottedLevels, nLevel)
+    call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
+    call getSelectedIndices(node, char(buffer), [1, nLevel], plottedLevels)
     if (tPeriodic) then
       call getChildValue(node, "PlottedKPoints", buffer, child=field, &
           &multiple=.true.)
-      call convRangeToInt(char(buffer), node, plottedKPoints, nKPoint)
+      call getSelectedIndices(node, char(buffer), [1, nKPoint], plottedKPoints)
     else
       allocate(plottedKPoints(1))
       plottedKPoints(1) = 1
     end if
     call getChildValue(node, "PlottedSpins", buffer, child=field, &
         &multiple=.true.)
-    call convRangeToInt(char(buffer), node, plottedSpins, nSpin)
+    call getSelectedIndices(node, char(buffer), [1, nSpin], plottedSpins)
 
     !! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)

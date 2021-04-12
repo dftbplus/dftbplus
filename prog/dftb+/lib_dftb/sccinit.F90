@@ -21,7 +21,7 @@ module dftbp_sccinit
   public :: initQFromUsrChrg
 
   !> version number for restart format, please increment if you change the interface.
-  integer, parameter :: restartFormat = 4
+  integer, parameter :: restartFormat = 5
 
 contains
 
@@ -174,8 +174,8 @@ contains
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
-  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho, magnetisation,&
-      & nEl)
+  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
+      & nAtInCentralRegion, magnetisation, nEl)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -201,11 +201,15 @@ contains
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(inout), allocatable :: deltaRho(:)
 
-    !> Nr. of electrons for each spin channel
-    real(dp), intent(in), optional :: nEl
+    !> Number of atoms in central region (atoms outside this will have charges suplied from
+    !> elsewhere)
+    integer, intent(in) :: nAtInCentralRegion
 
     !> magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
+
+    !> Nr. of electrons for each spin channel
+    real(dp), intent(in), optional :: nEl
 
     !> nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
@@ -219,7 +223,7 @@ contains
     !> total charge is present at the top of the file
     real(dp) :: CheckSum(size(qq, dim=3))
 
-    integer :: iOrb, iAtom, iSpin, ii
+    integer :: iOrb, iAtom, iSpin, ii, nAtomInFile
     integer :: fileFormat
     real(dp) :: sumQ
 
@@ -282,17 +286,30 @@ contains
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
     end if
-    if (fileFormat /= restartFormat) then
+    select case(fileFormat)
+    case(4)
+      if (tReadAscii) then
+        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+      else
+        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+      end if
+      nAtomInFile = nAtom
+    case(5)
+      if (tReadAscii) then
+        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
+            & CheckSum
+      else
+        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
+            & CheckSum
+      end if
+    case default
       call error("Incompatible file type for external charge data")
-    end if
-
-    if (tReadAscii) then
-      read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
-    else
-      read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
-    end if
+    end select
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
+    end if
+    if (nAtomInFile > nAtom) then
+      call error("External charge file has more atoms than are present in the system")
     end if
 
     if (iSpin /= nSpin) then
@@ -303,7 +320,7 @@ contains
     qq(:,:,:) = 0.0_dp
 
     do iSpin = 1, nSpin
-      do iAtom = 1, nAtom
+      do iAtom = 1, nAtomInFile
         nOrb = orb%nOrbAtom(iAtom)
         if (tReadAscii) then
           read (file, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
@@ -317,9 +334,9 @@ contains
       end do
     end do
 
-    if (any(abs(CheckSum(:) - sum(sum(qq(:,:,:),dim=1),dim=1))>elecTolMax))then
-      call error("Error during reading external file of charge data - checksum failure, probably&
-          & damaged file")
+    if (any(abs(CheckSum(:) - sum(sum(qq(:,:nAtomInFile,:),dim=1),dim=1))>elecTolMax))then
+      call error("Error during reading external file of charge data - internal checksum failure,&
+          & probably a damaged file")
     end if
     sumQ = sum(qq(:,:,1))
     if (present(nEl)) then
@@ -342,7 +359,7 @@ contains
       qBlock(:,:,:,:) = 0.0_dp
       if (tBlockPresent) then
         do iSpin = 1, nSpin
-          do iAtom = 1, nAtom
+          do iAtom = 1, nAtomInFile
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
@@ -359,7 +376,7 @@ contains
         end do
       end if
       do iSpin = 1, nSpin
-        do iAtom = 1, nAtom
+        do iAtom = 1, nAtomInFile
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             qBlock(ii, ii ,iAtom, iSpin) = qq(ii ,iAtom, iSpin)
@@ -372,7 +389,7 @@ contains
       qiBlock(:,:,:,:) = 0.0_dp
       if (tiBlockPresent) then
         do iSpin = 1, nSpin
-          do iAtom = 1, nAtom
+          do iAtom = 1, nAtomInFile
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
@@ -414,7 +431,8 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, deltaRhoIn)
+  subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, deltaRhoIn,&
+      & nAtInCentralRegion)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
@@ -437,6 +455,10 @@ contains
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(in), allocatable :: deltaRhoIn(:)
 
+    !> Number of atoms in central region (atoms outside this will have charges suplied from
+    !> elsewhere)
+    integer, intent(in) :: nAtInCentralRegion
+
     character(len=120) :: error_string
 
     integer :: nAtom, nOrb, nSpin
@@ -444,11 +466,12 @@ contains
     integer :: iErr, fd
     logical :: tqBlock, tqiBlock, tRho
 
-    nAtom = size(qq, dim=2)
+    nAtom = nAtInCentralRegion
     nSpin = size(qq, dim=3)
 
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
     @:ASSERT(size(qq, dim=1) >= orb%mOrb)
+    @:ASSERT(size(qq, dim=2) >= nAtInCentralRegion)
 
     tqBlock = allocated(qBlock)
     tqiBlock = allocated(qiBlock)
@@ -457,7 +480,7 @@ contains
   #:block DEBUG_CODE
 
     if (tqBlock) then
-      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+      @:ASSERT(all(shape(qBlock) >= [orb%mOrb,orb%mOrb,nAtom,nSpin]))
     end if
 
     if (tqiBlock) then
@@ -486,9 +509,11 @@ contains
     end if
 
     if (tWriteAscii) then
-      write(fd, *, iostat=iErr) tqBlock, tqiBlock, tRho, nSpin, sum(sum(qq, dim=1), dim=1)
+      write(fd, *, iostat=iErr) tqBlock, tqiBlock, tRho, nAtom, nSpin,&
+          & sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     else
-      write(fd, iostat=iErr) tqBlock, tqiBlock, tRho, nSpin, sum(sum(qq, dim=1), dim=1)
+      write(fd, iostat=iErr) tqBlock, tqiBlock, tRho, nAtom,&
+          & nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     end if
 
     if (iErr /= 0) then

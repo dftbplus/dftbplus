@@ -42,7 +42,7 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
 
-    !> Charge per orbital (qOrb .
+    !> Charge per atomic orbital. Shape [qOrb, nAtom].
     real(dp), target, intent(out), optional :: dQ(:,:)
 
 

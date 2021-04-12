@@ -9,14 +9,15 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvparser
+  use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
   use dftbp_accuracy, only : dp, lc
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
   use dftbp_born, only : TGBInput, fgbKernel
-  use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
   use dftbp_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
+  use dftbp_cosmo, only : TCosmoInput, TDomainDecompositionInput
   use dftbp_gbsafile, only : readParamGBSA
   use dftbp_globalenv, only : stdOut
   use dftbp_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
@@ -24,6 +25,8 @@ module dftbp_solvparser
   use dftbp_hsdutils2, only : convertByMul
   use dftbp_lebedev, only : gridSize
   use dftbp_sasa, only : TSASAInput
+  use dftbp_solvdata, only : getVanDerWaalsRadiusD3, getVanDerWaalsRadiusCosmo, &
+      & getVanDerWaalsRadiusBondi
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
   use dftbp_specieslist, only : readSpeciesList
@@ -35,7 +38,10 @@ module dftbp_solvparser
   
   private
   public :: readSolvation
-  public :: readSolvGB, readSolvSASA, readCM5
+  public :: readSolvGB, readSolvSASA, readCM5, readSolvCosmo
+
+
+  real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
 
 
 contains
@@ -65,6 +71,9 @@ contains
     case ("generalizedborn")
       allocate(input%GBInp)
       call readSolvGB(solvModel, geo, input%GBInp)
+    case ("cosmo")
+      allocate(input%cosmoInp)
+      call readSolvCosmo(solvModel, geo, input%cosmoInp)
     case ("sasa")
       allocate(input%SASAInp)
       call readSolvSASA(solvModel, geo, input%SASAInp)
@@ -85,16 +94,11 @@ contains
     type(TGBInput), intent(out) :: input
 
     type(TGBInput), allocatable :: defaults
-    type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, dummy
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, field
     logical :: found, tHBondCorr, tALPB
-    real(dp) :: temperature, shift, conv, alphaALPB
-    real(dp), allocatable :: vdwRadDefault(:)
+    real(dp) :: temperature, shift, alphaALPB
     type(TSolventData) :: solvent
-    real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
-    real(dp), parameter :: referenceMolecularMass = amu__au
-    real(dp), parameter :: idealGasMolVolume = 24.79_dp
-    real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
     real(dp), parameter :: alphaDefault = 0.571412_dp
 
     if (geo%tPeriodic) then
@@ -110,27 +114,7 @@ contains
           & geo%speciesNames, node=child)
 
     else
-      call getChildValue(node, "Solvent", value1, child=child)
-      call getNodeName(value1, buffer)
-      select case(char(buffer))
-      case default
-        call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
-      case('fromname')
-        call getChildValue(value1, "", buffer)
-        call SolventFromName(solvent, unquote(char(buffer)), found)
-        if (.not. found) then
-          call detailedError(value1, "Invalid solvent " // char(buffer))
-        end if
-      case('fromconstants')
-        call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
-        call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
-          & modifier=modifier, child=field)
-        call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
-        call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
-          & child=field)
-        call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
-      end select
-
+      call readSolvent(node, solvent)
     end if
 
     call getChildValue(node, "ALPB", tALPB, .false.)
@@ -168,22 +152,7 @@ contains
     call convertByMul(char(modifier), energyUnits, field, temperature)
 
     ! reference state for free energy calculation
-    call getChildValue(node, "State", state, "gsolv", child=child)
-    select case(tolower(unquote(char(state))))
-    case default
-      call detailedError(child, "Unknown reference state: "//char(state))
-    case("gsolv") ! just the bare shift
-      input%freeEnergyShift = shift
-    case("reference") ! gsolv=reference option in cosmotherm
-      ! RT * ln(ideal gas mol volume) + ln(rho/M)
-      input%freeEnergyShift = shift + temperature &
-          & * (log(idealGasMolVolume * temperature / ambientTemperature) &
-          & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
-    case("mol1bar")
-      ! RT * ln(ideal gas mol volume)
-      input%freeEnergyShift = shift + temperature &
-          & * log(idealGasMolVolume * temperature / ambientTemperature)
-    end select
+    call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
 
     if (allocated(defaults)) then
       call getChildValue(node, "BornScale", input%bornScale, defaults%bornScale)
@@ -202,25 +171,7 @@ contains
       call readCM5(child, input%cm5Input, geo)
     end if
 
-    conv = 1.0_dp
-    allocate(input%vdwRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, "vanDerWaalsRadiiD3", child=child)
-    call getChild(value1, "", dummy, modifier=modifier)
-    call convertByMul(char(modifier), lengthUnits, child, conv)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-    case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
-    case("vanderwaalsradiid3")
-      allocate(vdwRadDefault(geo%nSpecies))
-      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, vdwRadDefault, &
-        & conv=conv)
-      deallocate(vdwRadDefault)
-    case("values")
-      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, conv=conv)
-    end select
-    input%vdwRad(:) = input%vdwRad * conv
+    call readVanDerWaalsRad(node, geo, input%vdwRad)
 
     allocate(input%descreening(geo%nSpecies))
     if (allocated(defaults)) then
@@ -298,6 +249,80 @@ contains
   end subroutine readSolvGB
 
 
+  !> Reads in conductor like screening model settings
+  subroutine readSolvCosmo(node, geo, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the solvation module on exit
+    type(TCosmoInput), intent(out) :: input
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, field
+    real(dp) :: temperature, shift, radScale
+    type(TSolventData) :: solvent
+
+    call readSolvent(node, solvent)
+    input%dielectricConst = solvent%dielectricConstant
+    input%keps = 0.5_dp * (1.0_dp - 1.0_dp/solvent%dielectricConstant)
+
+    ! shift value for the free energy (usually zero)
+    call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, &
+      & child=field)
+    call convertByMul(char(modifier), energyUnits, field, shift)
+
+    ! temperature, influence depends on the reference state
+    call getChildValue(node, "Temperature", temperature, ambientTemperature, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), energyUnits, field, temperature)
+
+    call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
+
+    call readVanDerWaalsRad(node, geo, input%vdwRad)
+    call getChildValue(node, "RadiiScaling", radScale)
+    input%vdwRad(:) = input%vdwRad * radScale
+
+    call readAngularGrid(node, input%gridSize)
+
+    call getChildValue(node, "Solver", value1, "DomainDecomposition", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to solve COSMO equation")
+    case("domaindecomposition")
+      call readDomainDecomposition(value1, input%ddInput)
+    end select
+
+    call getChild(node, "SASA", value1, requested=.false.)
+    if (associated(value1)) then
+      allocate(input%sasaInput)
+      call readSolvSASA(value1, geo, input%sasaInput)
+    end if
+
+  end subroutine readSolvCosmo
+
+
+  subroutine readDomainDecomposition(node, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Input for the domain decomposition algorithm
+    type(TDomainDecompositionInput), intent(out) :: input
+
+    type(fnode), pointer :: child
+
+    call getChildValue(node, "MaxMoment", input%lmax, child=child)
+    call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
+    call getChildValue(node, "Accuracy", input%conv, child=child)
+
+  end subroutine readDomainDecomposition
+
+
   !> Read input data for non-polar surface area solvation model.
   subroutine readSolvSASA(node, geo, input, probeRadDefault, surfaceTensionDefault)
 
@@ -319,8 +344,6 @@ contains
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, field, dummy
     character(lc) :: errorStr
-    integer :: gridPoints
-    real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 
     if (geo%tPeriodic) then
@@ -337,38 +360,9 @@ contains
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
 
-    call getChildValue(node, "AngularGrid", gridPoints, 230, child=child)
-    input%gridSize = 0
-    call bisection(input%gridSize, gridSize, gridPoints)
-    if (input%gridSize == 0) then
-      call detailedError(child, "Illegal number of grid points for numerical integration")
-    end if
-    if (gridSize(input%gridSize) /= gridPoints) then
-      write(errorStr, '(a, *(1x, i0, 1x, a))') &
-          & "No angular integration grid with", gridPoints, &
-          & "points available, using",  gridSize(input%gridSize), "points instead"
-      call detailedWarning(child, trim(errorStr))
-    end if
+    call readAngularGrid(node, input%gridSize, 230)
 
-    conv = 1.0_dp
-    allocate(input%vdwRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, "vanDerWaalsRadiiD3", child=child)
-    call getChild(value1, "", dummy, modifier=modifier)
-    call convertByMul(char(modifier), lengthUnits, child, conv)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-    case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
-    case("vanderwaalsradiid3")
-      allocate(vdwRadDefault(geo%nSpecies))
-      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, vdwRadDefault, &
-          & conv=conv)
-      deallocate(vdwRadDefault)
-    case("values")
-      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, conv=conv)
-    end select
-    input%vdwRad(:) = input%vdwRad * conv
+    call readVanDerWaalsRad(node, geo, input%vdwRad)
 
     allocate(input%surfaceTension(geo%nSpecies))
     if (present(surfaceTensionDefault)) then
@@ -446,6 +440,176 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readCM5
+
+
+  subroutine readSolvent(node, solvent)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Data associated with the solvent
+    type(TSolventData), intent(out) :: solvent
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, field
+    logical :: found
+
+    call getChildValue(node, "Solvent", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
+    case('fromname')
+      call getChildValue(value1, "", buffer)
+      call SolventFromName(solvent, unquote(char(buffer)), found)
+      if (.not. found) then
+        call detailedError(value1, "Invalid solvent " // char(buffer))
+      end if
+    case('fromconstants')
+      call getChildValue(value1, "Epsilon", buffer)
+      if (unquote(char(buffer)) == "Inf") then
+         if (ieee_support_inf(solvent%dielectricConstant)) then
+            solvent%dielectricConstant = ieee_value(solvent%dielectricConstant, ieee_positive_inf)
+         else
+            solvent%dielectricConstant = huge(solvent%dielectricConstant)
+         end if
+      else
+         call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      end if
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
+        & modifier=modifier, child=field)
+      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
+      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
+        & child=field)
+      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
+    end select
+
+  end subroutine readSolvent
+
+
+  !> Reference state for free energy calculation
+  subroutine readReferenceState(node, solvent, temperature, shift, freeEnergyShift)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Data associated with the solvent
+    type(TSolventData), intent(in) :: solvent
+
+    !> Temperature for calculation
+    real(dp), intent(in) :: temperature
+
+    !> Shift to free energy
+    real(dp), intent(in) :: shift
+
+    !> Free energy shift includings state specific terms
+    real(dp), intent(out) :: freeEnergyShift
+
+    type(string) :: state
+    type(fnode), pointer :: child
+    real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
+    real(dp), parameter :: referenceMolecularMass = amu__au
+    real(dp), parameter :: idealGasMolVolume = 24.79_dp
+
+    call getChildValue(node, "State", state, "gsolv", child=child)
+    select case(tolower(unquote(char(state))))
+    case default
+      call detailedError(child, "Unknown reference state: "//char(state))
+    case("gsolv") ! just the bare shift
+      freeEnergyShift = shift
+    case("reference") ! gsolv=reference option in cosmotherm
+      ! RT * ln(ideal gas mol volume) + ln(rho/M)
+      freeEnergyShift = shift + temperature &
+          & * (log(idealGasMolVolume * temperature / ambientTemperature) &
+          & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
+    case("mol1bar")
+      ! RT * ln(ideal gas mol volume)
+      freeEnergyShift = shift + temperature &
+          & * log(idealGasMolVolume * temperature / ambientTemperature)
+    end select
+  end subroutine readReferenceState
+
+
+  subroutine readVanDerWaalsRad(node, geo, vdwRad)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Van-der-Waals Radii
+    real(dp), allocatable, intent(out) :: vdwRad(:)
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, field, dummy
+    real(dp) :: conv
+    real(dp), allocatable :: vdwRadDefault(:)
+
+    conv = 1.0_dp
+    allocate(vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, "vanDerWaalsRadiiD3", child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiicosmo")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusCosmo(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiibondi")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusBondi(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("values")
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, conv=conv)
+    end select
+    vdwRad(:) = vdwRad * conv
+
+  end subroutine readVanDerWaalsRad
+
+
+  subroutine readAngularGrid(node, angGrid, default)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Grid identifer
+    integer, intent(out) :: angGrid
+
+    !> Default grid size
+    integer, intent(in), optional :: default
+
+    type(fnode), pointer :: child
+    character(lc) :: errorStr
+    integer :: gridPoints
+
+    call getChildValue(node, "AngularGrid", gridPoints, default, child=child)
+    angGrid = 0
+    call bisection(angGrid, gridSize, gridPoints)
+    if (angGrid == 0) then
+      call detailedError(child, "Illegal number of grid points for numerical integration")
+    end if
+    if (gridSize(angGrid) /= gridPoints) then
+      write(errorStr, '(a, *(1x, i0, 1x, a))') &
+          & "No angular integration grid with", gridPoints, &
+          & "points available, using",  gridSize(angGrid), "points instead"
+      call detailedWarning(child, trim(errorStr))
+    end if
+
+  end subroutine readAngularGrid
 
 
 end module dftbp_solvparser

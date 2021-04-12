@@ -36,7 +36,7 @@ module dftbp_inputdata
   use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
 #:if WITH_TRANSPORT
-  use libnegf_vars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
+  use dftbp_negfvars
 #:endif
   use dftbp_poisson, only : TPoissonInfo
   use dftbp_h5correction, only : TH5CorrectionInput
@@ -463,7 +463,8 @@ module dftbp_inputdata
 
     !> 3rd order
     real(dp), allocatable :: hubDerivs(:,:)
-    logical :: t3rd, t3rdFull
+    logical :: t3rd = .false.
+    logical :: t3rdFull = .false.
 
 
     !> XLBOMD
@@ -515,6 +516,9 @@ module dftbp_inputdata
     !> Whether Scc should be updated with the output charges (obtained after diagonalization)
     !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
     logical :: updateSccAfterDiag = .true.
+
+    !> Write cavity information as COSMO file
+    logical :: tWriteCosmoFile = .false.
 
   end type TControl
 

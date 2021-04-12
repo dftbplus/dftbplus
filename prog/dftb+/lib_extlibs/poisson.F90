@@ -37,7 +37,7 @@ module dftbp_poisson
 #:endif
   use dftbp_environment, only : TEnvironment, globalTimers
 #:if WITH_TRANSPORT
-  use libnegf_vars, only : TTransPar
+  use dftbp_negfvars, only : TTransPar
 #:endif
   implicit none
 

@@ -11,12 +11,12 @@ module dftbp_helpsetupgeom
   use dftbp_constants
   use dftbp_message
   use dftbp_sorting
-  use dftbp_simplealgebra  
+  use dftbp_simplealgebra
   use dftbp_wrappedintr
   use dftbp_linkedlist
   use dftbp_typegeometry
   use dftbp_f08math
-  use libnegf_vars, only : contactInfo
+  use dftbp_negfvars, only : contactInfo
   implicit none
 
   public :: setupGeometry
@@ -26,24 +26,24 @@ contains
   !> Set up transport structure with contacts
   subroutine setupGeometry(geom, iAtInRegion, contacts, plCutoff, nPLs, printDebug)
 
-    !> Container of the system geometry    
+    !> Container of the system geometry
     type(TGeometry), intent(inout) :: geom
 
     !> Variable size vectors containing atom indices in each region
     type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
-    
+
     !> Contact vector (contact PL repetition)
     type(contactInfo), intent(in),  allocatable :: contacts(:)
-    
+
     !> Slater-Koster cutoff for partitioning
     real(dp), intent(in) :: plCutoff
-    
+
     !> Number of PLs provided
     integer, intent(in) :: nPLs(:)
-    
+
     !> Whether debug infos should be printed
     logical, intent(in) :: printDebug
-   
+
 
     type(TListIntR1) :: PLlist
     integer, allocatable :: contdir(:)
@@ -51,14 +51,14 @@ contains
     real(dp), allocatable :: contVec(:,:)
 
     if (geom%tfracCoord) then
-      call error("setup geometry does not work for fractional coordinates yet")    
+      call error("setup geometry does not work for fractional coordinates yet")
     end if
 
     ! number of contacts
-    ncont = size(iAtInRegion)-1  
+    ncont = size(iAtInRegion)-1
 
     ! this is to keep old code as much as possible
-    allocate(contVec(4,ncont)) 
+    allocate(contVec(4,ncont))
 
     ! get contact directions (positive or negative)
     allocate(contDir(ncont))
@@ -67,7 +67,7 @@ contains
       contVec(4,icont) = contacts(icont)%shiftAccuracy
       contDir(icont) = get_contdir(contVec(:,icont))
     end do
-    
+
     ! 1. Translate or fold cell
     call TranslateAndFold(geom, .true.)
 
@@ -87,10 +87,10 @@ contains
 
     ! 5. Define device PLs
     call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
-  
+
     ! 6. write ordered geometry
     call print_gen(geom, contacts, iAtInRegion, PLlist, plcutoff)
- 
+
     write(stdOut,*)
     write(stdOut,*) "Written processed geometry file 'processed.gen'"
     write(stdOut,*) "Written input lines in 'transport.hsd'"
@@ -110,35 +110,35 @@ contains
 
     allocate(mask(geom%nAtom))
     mask = .true.
-    
+
     do icont = 1, ncont
       do ii = 1, size(iAtInRegion(icont)%data)
         jj = iAtInRegion(icont)%data(ii)
-        if (.not.mask(jj)) then 
-          write(sindx,'(I10)') jj    
-          call error("atom "//adjustl(sindx)//" is found in more than one region")  
-        else 
-          mask(jj) = .false.    
+        if (.not.mask(jj)) then
+          write(sindx,'(I10)') jj
+          call error("atom "//adjustl(sindx)//" is found in more than one region")
+        else
+          mask(jj) = .false.
         end if
       end do
     end do
-  
+
     jj = count(mask)
     if (allocated(iAtInRegion(ncont+1)%data)) then
       deallocate(iAtInRegion(ncont+1)%data)
-    end if 
+    end if
     allocate(iAtInRegion(ncont+1)%data(jj))
-    
-    jj = 0 
+
+    jj = 0
     do ii = 1, geom%nAtom
       if (mask(ii)) then
         jj = jj + 1
         iAtInRegion(ncont+1)%data(jj) = ii
-      end if  
+      end if
     end do
-          
+
   end subroutine assignDeviceAtoms
-  
+
   ! -----------------------------------------------------------------------------------------------
   subroutine sortContacts(geom, iAtInRegion, contDir)
     type(TGeometry), intent(in) :: geom
@@ -152,15 +152,15 @@ contains
     integer :: visitOrder(3)
 
     ncont = size(iAtInRegion)-1
-      
+
     do icont = 1, ncont
-      ! check position of contact w.r.t. device atoms 
+      ! check position of contact w.r.t. device atoms
       ! and decide sign of contact direction
       associate(data=>iAtInRegion(icont)%data, dir=>contDir(icont))
       mean = sum(geom%coords(dir, data))/real(size(data),dp)
       if (mean < minval(geom%coords(dir,iAtInRegion(ncont+1)%data ))) then
         dir = -dir
-      end if   
+      end if
       end associate
 
       allocate(subarray(size(iAtInRegion(icont)%data)))
@@ -191,7 +191,7 @@ contains
       deallocate(subarray,indxs,buffer)
     end do
   end subroutine sortContacts
-  
+
   ! -----------------------------------------------------------------------------------------------!
   subroutine arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
@@ -211,7 +211,7 @@ contains
     do icont = 1, ncont
       write(stdOut, *) "Contact",icont, '"'//trim(contacts(icont)%name)//'"'
       if (nPLs(icont)==2) then
-        associate(data=>iAtInRegion(icont)%data)       
+        associate(data=>iAtInRegion(icont)%data)
         uu = 0.0_dp
         uu(abs(contDir(icont)))=1.0_dp
         vv = contvec(1:3,icont)
@@ -221,22 +221,22 @@ contains
         write(stdOut, *) "Number of PLs:",nPLs(icont)
         write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
         write(stdOut, *) "tolerance:",tol
-        ! check PL size   
-        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        ! check PL size
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont))
         write(stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
         if (mindist<plcutoff) then
-          errmess(1) = "The size of the contact PL is shorter than SK cutoff" 
+          errmess(1) = "The size of the contact PL is shorter than SK cutoff"
           errmess(2) = "Check your input geometry or force SKTruncation"
           errmess(3) = "Alternatively, specify 1 PL and let the code adjust contact size"
           errmess(4) = ""
-          call error(errmess)  
+          call error(errmess)
         end if
-        ! 
+        !
         write(stdOut, *) "check and reorder contact PLs"
         do ii = 1, PLsize
           bestcross = huge(bestcross)
           bestdiff = huge(bestdiff)
-          do jj = PLsize+1, 2*PLsize 
+          do jj = PLsize+1, 2*PLsize
             vec(:) = geom%coords(:,data(jj))-geom%coords(:,data(ii))
             bestcross = min(bestcross, norm2(cross3(vec,uu)))
             bestdiff = min(bestdiff, norm2(vec-vv))
@@ -244,16 +244,16 @@ contains
             if (norm2(cross3(vec,uu))< tol .and. &
                   & (norm2(vec-vv)< tol .or. norm2(vec+vv)<tol) ) then
               exit
-            end if  
+            end if
           end do
           if (bestcross>tol .or. bestdiff>tol) then
              write(stdOut, *) "Atom ",data(ii)
              write(stdOut, *) "Best cross vector:", bestcross*Bohr__AA, '(A)'
              write(stdOut, *) "Best difference:", bestdiff*Bohr__AA, '(A)'
              call error("Atom not found")
-          end if  
+          end if
           call swap(data(PLsize+ii),data(jj))
-        end do  
+        end do
         end associate
         write(stdOut, *) "contact done"
       else if (nPLs(icont)==1) then
@@ -261,7 +261,7 @@ contains
         write(stdOut, *) "PL size:",PLsize
         contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
         write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA, '(A)'
-        ! counting number of added PLs. Factor of 2 is needed to get 
+        ! counting number of added PLs. Factor of 2 is needed to get
         ! always an even total number
         mindist=minDist2ndPL(geom%coords,iAtInRegion(icont)%data,PLsize,contvec(1:3,icont))
         nAddPLs = floor(plcutoff/mindist)*2 + 1
@@ -294,13 +294,13 @@ contains
     end do
 
     contains
- 
+
     subroutine reallocateInt(array, addsize)
       integer, intent(inout), allocatable :: array(:)
       integer, intent(in) :: addsize
 
       integer :: siz
-      integer, allocatable :: tmpdata(:) 
+      integer, allocatable :: tmpdata(:)
 
       siz = size(array)
       allocate(tmpdata(siz))
@@ -316,7 +316,7 @@ contains
       integer, intent(in) :: addsize
 
       integer :: siz
-      real(dp), allocatable :: tmpcoords(:,:) 
+      real(dp), allocatable :: tmpcoords(:,:)
 
       siz = size(array,2)
       allocate(tmpcoords(3,siz))
@@ -328,7 +328,7 @@ contains
     end subroutine reallocateCoords
 
   end subroutine arrangeContactPLs
-  
+
   ! -----------------------------------------------------------------------------------------------
   subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
     type(TGeometry), intent(in) :: geom
@@ -344,12 +344,12 @@ contains
     integer, allocatable :: buffer(:)
     real(dp) :: vec(3)
     logical :: addAllR
-    
+
     ! March from contact 1 in the device. Put atoms within cutoff
-    ! in a list then restart from that list to the next 
+    ! in a list then restart from that list to the next
     call init(PLlist)
     buffer = iAtInRegion(1)%data
-    sizeL = size(buffer)    
+    sizeL = size(buffer)
     ncont = size(iAtInRegion)-1
     sizeD = size(iAtInRegion(ncont+1)%data)
     allocate(mask(sizeD))
@@ -364,18 +364,18 @@ contains
         nc(maxloc(abs(contvec(:,ii)))) = 0
       end do
     end if
-       
+
 
     write(stdOut,*) "Partitioning device into PLs"
     ! put array of contact atoms in the first node of PLlist
     associate(dataD=>iAtInRegion(ncont+1)%data, dataR=>iAtInRegion(2)%data)
-     
-    ! Loop until there are atoms to process      
-    do while (count(mask)>0) 
+
+    ! Loop until there are atoms to process
+    do while (count(mask)>0)
       call init(atomsInPL)
       ! Loop on atoms of current PL
       lpL: do ii = 1, sizeL
-        ! Loop on all other atoms including periodic copies 
+        ! Loop on all other atoms including periodic copies
         do icx = -nc(1), nc(1)
           do icy = -nc(2), nc(2)
             do icz = -nc(3), nc(3)
@@ -383,10 +383,10 @@ contains
                 vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
                 if (allocated(geom%latVecs)) then
                   vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
-                end if 
+                end if
                 if (norm2(vec)<plcutoff .and. mask(jj)) then
                   call append(atomsInPL, dataD(jj))
-                  mask(jj) = .false.   
+                  mask(jj) = .false.
                   ! check distance from contact 2. If d < cutoff all remaining atoms
                   ! will go in the last PL
                   do kk = 1, size(dataR)
@@ -394,21 +394,21 @@ contains
                     if (norm2(vec)<plcutoff) then
                       addAllR=.true.
                       exit lpL
-                    end if      
+                    end if
                   end do
                 end if
-              end do 
+              end do
             end do ! cell z
           end do ! cell y
-        end do ! cell x 
+        end do ! cell x
       end do lpL
       ! Add all remaining atoms
       if (addAllR) then
         do jj = 1, sizeD
           if (mask(jj)) then
             call append(atomsInPL, dataD(jj))
-            mask(jj) = .false.   
-          end if 
+            mask(jj) = .false.
+          end if
         end do
       end if
       ! A. transform list to array and add the array to PLlist
@@ -416,11 +416,11 @@ contains
       allocate(buffer(len(atomsInPL)))
       call asArray(atomsInPL, buffer)
       call destruct(atomsInPL)
-      call append(PLlist, buffer) 
+      call append(PLlist, buffer)
       sizeL = size(buffer)
       if (sizeL==0) then
         call error("Found layer of 0 size")
-      end if  
+      end if
       write(stdOut,*) "* Layer size:",sizeL
     end do
     end associate
@@ -446,16 +446,16 @@ contains
      uu(1) = 0.0_dp
      uu(2) = 1.0_dp
      if (norm2(cross3(vv,uu))<tol) then
-       dir = 2 
+       dir = 2
      end if
      uu(2) = 0.0_dp
      uu(3) = 1.0_dp
      if (norm2(cross3(vv,uu))<tol) then
-       dir = 3 
+       dir = 3
      end if
      if (dir == 0) then
         call error("Cannot find contact direction")
-     end if   
+     end if
 
   end function get_contdir
 
@@ -472,25 +472,25 @@ contains
   ! debug subroutine
   subroutine print_debug(iAtInRegion)
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)
-    
+
     integer :: icont, ncont, PLsize
 
     ncont = size(iAtInRegion) - 1
 
     do icont = 1, ncont
       if (allocated(iAtInRegion(icont)%data)) then
-        PLsize = size(iAtInRegion(icont)%data)/2  
+        PLsize = size(iAtInRegion(icont)%data)/2
         write(stdOut,*) 'Atoms in contact',icont,':'
         write(stdOut,*) iAtInRegion(icont)%data(1:PLsize)
         write(stdOut,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
-        write(stdOut,*) 
+        write(stdOut,*)
       else
         call error("Atom list not allocated")
-      end if    
+      end if
     end do
     write(stdOut,*) 'Atoms in device:'
     write(stdOut,*) iAtInRegion(ncont+1)%data
-    write(stdOut,*) 
+    write(stdOut,*)
 
   end subroutine print_debug
 
@@ -509,7 +509,7 @@ contains
 
   end subroutine translateAndFold
 
-        
+
   ! -----------------------------------------------------------------------------------------------
   subroutine print_gen(geom, contacts, iAtInRegion, PLlist, plCutoff)
     type(TGeometry), intent(in) :: geom
@@ -523,7 +523,7 @@ contains
     character(10) :: sindx
     integer :: ii, jj, kk, icont, ncont, fd1, fd2
 
-    ncont = size(iAtInRegion)-1    
+    ncont = size(iAtInRegion)-1
 
     open(newunit=fd2, file='transport.hsd')
     write(fd2,'(A)') 'Transport{'
@@ -655,7 +655,7 @@ contains
   end subroutine foldCoordToUnitCell
 
   function minDist2ndPL(coord, iAt, PLsize, contvec) result(mindist)
-    
+
     !> Contains the original coordinates on call and the folded ones on return.
     real(dp), intent(in) :: coord(:,:)
 
@@ -680,7 +680,7 @@ contains
     do ii = 1, PLsize
       do jj = 1, PLsize
         mindist = min(mindist,norm2(coord(:,iAt(ii))+vec2-coord(:,iAt(jj))))
-      end do   
+      end do
     end do
 
   end function minDist2ndPL

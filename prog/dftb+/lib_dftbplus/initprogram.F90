@@ -21,7 +21,8 @@ module dftbp_initprogram
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx, only : scalafx_getdescriptor, scalafx_getlocalshape
 #:endif
-  use dftbp_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
+  use dftbp_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts,&
+      & TNEGFInfo
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps, Bohr__nm,&
       & Hartree__kJ_mol, Boltzmann
@@ -70,7 +71,10 @@ module dftbp_initprogram
   use dftbp_h5correction, only : TH5CorrectionInput
   use dftbp_halogenx, only : THalogenX, THalogenX_init
   use dftbp_slakocont, only : TSlakoCont, getCutOff
+  use dftbp_repulsive, only : TRepulsive
+  use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_repcont, only : TRepCont, getCutOff
+  use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_blockpothelper, only : appendBlockReduced
@@ -90,6 +94,7 @@ module dftbp_initprogram
   use dftbp_timeprop, only : TElecDynamics, TElecDynamics_init
   use dftbp_xlbomd, only : TXLBOMD, Xlbomd_init
   use dftbp_etemp, only : fillingTypes
+  use dftbp_transportio, only : readContactShifts
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
   use dftbp_ipisocket, only : ipiSocketCommInp, ipiSocketComm
@@ -108,11 +113,10 @@ module dftbp_initprogram
   use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
-#:if WITH_TRANSPORT    
-  use libnegf_vars, only : TTransPar
-  use negf_int, only : TNegfInt, TNegfInt_init
-  use dftbp_transportio, only : readContactShifts
-  use dftbp_inputdata, only :TNEGFInfo
+  use dftbp_dispdftd4, only : writeDftD4Info
+#:if WITH_TRANSPORT
+  use dftbp_negfvars
+  use dftbp_negfint
 #:endif
   use dftbp_poisson, only : TPoissonInput
   use dftbp_determinants, only : TDftbDeterminants, TDftbDeterminants_init
@@ -131,6 +135,9 @@ module dftbp_initprogram
   public :: autotestTag, userOut, bandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
+#:if WITH_TRANSPORT
+  public :: overrideContactCharges
+#:endif
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
@@ -170,7 +177,6 @@ module dftbp_initprogram
   !> Interaction cutoff distances
   type :: TCutoffs
     real(dp) :: skCutOff
-    real(dp) :: repCutOff
     real(dp) :: lcCutOff
     real(dp) :: mCutOff
   end type TCutoffs
@@ -286,9 +292,6 @@ module dftbp_initprogram
     !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
 
-    !> nr. of neighbours for atoms within Erep interaction distance (usually short)
-    integer, allocatable :: nNeighbourRep(:)
-
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
     integer, allocatable :: nNeighbourLC(:)
@@ -317,14 +320,11 @@ module dftbp_initprogram
     !> Raw overlap hamiltonian data
     type(TSlakoCont) :: skOverCont
 
-    !> Repulsive interaction raw data
-    type(TRepCont) :: pRepCont
+    !> Repulsive (force-field like) interactions
+    class(TRepulsive), allocatable :: repulsive
 
     !> Cut off distances for various types of interaction
     type(TCutoffs) :: cutOff
-
-    !> Cut off distance for repulsive interactions
-    real(dp) :: repCutOff
 
     !> Sparse hamiltonian matrix
     real(dp), allocatable :: ham(:,:)
@@ -462,7 +462,7 @@ module dftbp_initprogram
     logical :: tMulliken
 
     !> Electrostatic potentials if requested
-    type(TElStatPotentials), allocatable :: esp
+    type(TElStatPotentials), allocatable :: electrostatPot
 
     !> Calculate localised orbitals?
     logical :: tLocalise
@@ -670,10 +670,10 @@ module dftbp_initprogram
     type(TListCharLc) :: regionLabels
 
     !> Third order DFTB
-    logical :: t3rd
+    logical :: t3rd = .false.
 
     !> Full 3rd order or only atomic site
-    logical :: t3rdFull
+    logical :: t3rdFull = .false.
 
     !> data structure for 3rd order
     type(TThirdOrder), allocatable :: thirdOrd
@@ -776,6 +776,9 @@ module dftbp_initprogram
 
     !> Charge Model 5 for printout
     type(TChargeModel5), allocatable :: cm5Cont
+
+    !> Write cavity information as cosmo file
+    logical :: tWriteCosmoFile
 
     !> Can stress be calculated?
     logical :: tStress
@@ -965,8 +968,8 @@ module dftbp_initprogram
     !> Synonym for G.F. calculation of density
     logical :: tUpload
 
-    !> Whether contact Hamiltonians are computed
-    logical :: tContCalc
+    !> Whether a contact Hamiltonian is being computed and stored
+    logical :: isAContactCalc
 
     !> Whether Poisson solver is invoked
     logical :: tPoisson
@@ -1003,14 +1006,11 @@ module dftbp_initprogram
     !> Array storing local (bond) currents
     real(dp), allocatable :: lCurrArray(:,:)
 
-    !> Shell-resolved Potential shifts uploaded from contacts
+    !> Shell-resolved electrostatic potential shifts uploaded from contacts
     real(dp), allocatable :: shiftPerLUp(:,:)
 
     !> Orbital-resolved charges uploaded from contacts
     real(dp), allocatable :: chargeUp(:,:,:)
-
-    !> Shell-resolved block potential shifts uploaded from contacts
-    real(dp), allocatable :: shiftBlockUp(:,:,:,:)
 
     !> Block populations uploaded from contacts
     real(dp), allocatable :: blockUp(:,:,:,:)
@@ -1224,7 +1224,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized
+    logical :: tInitialized, tGeoOptRequiresEgy
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1377,7 +1377,7 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      this%pRepCont = input%slako%repCont
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -1430,8 +1430,10 @@ contains
     case(hamiltonianTypes%dftb)
       ! Cut-offs for SlaKo, repulsive
       this%cutOff%skCutOff = max(getCutOff(this%skHamCont), getCutOff(this%skOverCont))
-      this%cutOff%repCutOff = getCutOff(this%pRepCont)
-      this%cutOff%mCutOff = maxval([this%cutOff%skCutOff, this%cutOff%repCutOff])
+      this%cutOff%mCutoff = this%cutOff%skCutOff
+      if (allocated(this%repulsive)) then
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
+      end if
     case(hamiltonianTypes%xtb)
       ! TODO
       call error("xTB calculation currently not supported")
@@ -1486,16 +1488,17 @@ contains
         & .and. .not. this%tSccCalc)
     if (this%tUpload) then
       call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
-          & this%shiftPerLUp, this%chargeUp, this%shiftBlockUp, this%blockUp)
+          & this%shiftPerLUp, this%chargeUp, this%blockUp)
     end if
     call initTransport_(env, input, this%electronicSolver, this%nSpin, this%tempElec, this%tNegf,&
-        & this%tContCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
+        & this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
         & this%tWriteLDOS, this%regionLabelLDOS)
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
     this%tNegf = .false.
     this%tUpload = .false.
+    this%isAContactCalc = .false.
   #:endif
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
@@ -1690,6 +1693,7 @@ contains
     this%tMD = input%ctrl%tMD
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
+    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
     this%tEField = input%ctrl%tEfield
     this%tExtField = this%tEField
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%tExtField .or.&
@@ -1802,8 +1806,13 @@ contains
           & solver.")
     end if
 
-    ! temporary disables for various issues with NEGF
-    if (this%tNegf) then
+  #:if WITH_TRANSPORT
+    ! Check for incompatible options if this is a transport calculation
+    if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
+      if (allocated(this%dispersion)) then
+        call error ("Dispersion interactions are not currently available for transport&
+            & calculations")
+      end if
       if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
@@ -1812,13 +1821,14 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
-    #:if WITH_TRANSPORT
-      if (this%isRangeSep .and. this%transpar%nCont > 0) then
-        call error("Range separated calculations do not work with transport calculations yet")
+      if (this%t3rdFull .or. this%t3rd) then
+        call error ("Third order DFTB is not currently available for transport calculations")
       end if
-    #:endif
+      if (this%isRangeSep) then
+        call error("Range separated calculations do not yet work with transport calculations")
+      end if
     end if
-
+  #:endif
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
@@ -2031,6 +2041,14 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName)
         end if
+      else if (allocated(input%ctrl%solvInp%CosmoInp)) then
+        if (this%tPeriodic) then
+          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName, this%latVec)
+        else
+          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName)
+        end if
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
@@ -2078,9 +2096,15 @@ contains
       if (.not.this%tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
-      allocate(this%esp)
-      call TElStatPotentials_init(this%esp, input%ctrl%elStatPotentialsInp, this%tEField .or.&
-          & this%tExtChrg)
+      if (allocated(this%solvation)) then
+        if (this%solvation%isEFieldModified()) then
+          call error("Electrostatic potentials not currently available in the presence of a solvent&
+              & which modifies the electrostatics")
+        end if
+      end if
+      allocate(this%electrostatPot)
+      call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp, this%tEField&
+          & .or. this%tExtChrg)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2091,6 +2115,13 @@ contains
     if (this%tLocalise .and. (this%nSpin > 2 .or. this%t2Component)) then
       call error("Localisation of electronic states currently unsupported for non-collinear and&
           & spin orbit calculations")
+    end if
+
+    if (allocated(this%solvation)) then
+      if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
+        call error('External fields are not currently compatible with this implicit solvent.')
+      end if
+
     end if
 
     if (this%isLinResp) then
@@ -2378,7 +2409,6 @@ contains
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    allocate(this%nNeighbourRep(this%nAtom))
     if (this%isRangeSep) then
       allocate(this%nNeighbourLC(this%nAtom))
     end if
@@ -2456,9 +2486,12 @@ contains
       call checkTransportRanges(this%nAtom, input%transpar)
     end if
 
-    if (this%tContCalc) then
+    if (this%isAContactCalc) then
       ! geometry is reduced to contacts only
       allocate(this%iAtInCentralRegion(this%nAtom))
+      ! for storage of the electrostatic potential in the contact
+      allocate(this%potential%coulombShell(this%orb%mShell,this%nAtom,1))
+      this%potential%coulombShell(:,:,:) = 0.0_dp
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
     end if
@@ -2667,6 +2700,7 @@ contains
       else
         strTmp = ""
       end if
+      tGeoOptRequiresEgy = .true.
       select case (input%ctrl%iGeoOpt)
       case (geoOptTypes%steepestDesc)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
@@ -2674,13 +2708,19 @@ contains
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
       case (geoOptTypes%diis)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case (geoOptTypes%fire)
         write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
+        tGeoOptRequiresEgy = .false.
       case default
         call error("Unknown optimisation mode")
       end select
+      if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
+        call warning("This geometry optimisation method requires force related energies for&
+            & accurate minimisation.")
+      end if
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
@@ -2836,7 +2876,7 @@ contains
       end if
     end if
 
-    if (this%tSccCalc .and. .not.this%tRestartNoSC) then
+    if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
       if (this%tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
@@ -2918,7 +2958,7 @@ contains
       type is (TSimpleDftD3)
         write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
-        write(stdOut, "(A)") "Using DFT-D4 dispersion corrections"
+        call writeDftD4Info(stdOut, o)
     #:if WITH_MBD
       type is (TDispMbd)
         call writeMbdInfo(input%ctrl%dispInp%mbd)
@@ -3271,7 +3311,7 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%solvation)
 
     end if
 
@@ -3539,19 +3579,27 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, this%nAtom)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl))
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
-              & magnetisation=this%nEl(1)-this%nEl(2))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
+              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
         end if
       end if
+
+    #:if WITH_TRANSPORT
+      if (this%tUpload) then
+        call overrideContactCharges(this%qInput, this%chargeUp, this%transpar, this%qBlockIn,&
+            & this%blockUp)
+      end if
+    #:endif
+
     endif
 
     if (.not. allocated(this%reks)) then
@@ -4001,7 +4049,8 @@ contains
 
 #:if WITH_TRANSPORT
 
-  subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, tContCalc,&
+  !> Initialise a transport calculation
+  subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, isAContactCalc,&
       & mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
     type(TEnvironment), intent(inout) :: env
     type(TInputData), intent(in) :: input
@@ -4009,7 +4058,7 @@ contains
     integer, intent(in) :: nSpin
     real(dp), intent(in) :: tempElec
     logical, intent(in) :: tNegf
-    logical, intent(out) :: tContCalc
+    logical, intent(out) :: isAContactCalc
     real(dp), allocatable, intent(out) :: mu(:,:)
     type(TNegfInt), intent(out) :: negfInt
     type(TNegfInfo), intent(out) :: ginfo
@@ -4022,8 +4071,8 @@ contains
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
 
-    ! contact calculation in case some contact is computed
-    tContCalc = (input%transpar%taskContInd /= 0)
+    ! Its a contact calculation in the case that some contact is computed
+    isAContactCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <= 2) then
       nSpinChannels = nSpin
@@ -4141,8 +4190,8 @@ contains
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
-    if (allocated(this%esp)) then
-      call initOutputFile(this%esp%espOutFile)
+    if (allocated(this%electrostatPot)) then
+      call initOutputFile(this%electrostatPot%espOutFile)
     end if
 
   end subroutine initOutputFiles
@@ -4256,6 +4305,22 @@ contains
       call this%allocateDenseMatrices(env)
     end if
 
+    if (this%tPrintEigVecs .and. .not. this%electronicSolver%providesEigenvals) then
+      call error("Eigenvectors are not available with this solver, so cannot be written to disc")
+    end if
+
+    if (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
+      if (this%tForces) then
+        call error("TransportOnly calculations cannot evaluate forces")
+      end if
+      if (this%tMulliken) then
+        call error("TransportOnly calculations cannot evaluate charges")
+      end if
+      if (this%tAtomicEnergy) then
+        call error("TransportOnly calculations cannot evaluate atom energies")
+      end if
+    end if
+
     if (this%isLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
@@ -4318,13 +4383,28 @@ contains
 
   ! initialize arrays for tranpsport
   subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
-      & shiftBlockUp, blockUp)
+      & blockUp)
+
+    !> Transport calculation parameters
     type(TTransPar), intent(inout) :: transpar
+
+    !> Data structure for atomic orbitals
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> Are block charges expected for the contact?
     logical, intent(in) :: hasBlockCharges
-    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:), chargeUp(:,:,:)
-    real(dp), allocatable, intent(out) :: shiftBlockUp(:,:,:,:), blockUp(:,:,:,:)
+
+    !> Electrostatic shifts from contact(s)
+    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+
+    !> Uploaded charges from contact(s)
+    real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+
+    !> Block charges from contact(s), if present
+    real(dp), allocatable, intent(out) :: blockUp(:,:,:,:)
 
     !> Format for two values with units
     character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
@@ -4335,10 +4415,9 @@ contains
     allocate(shiftPerLUp(orb%mShell, nAtom))
     allocate(chargeUp(orb%mOrb, nAtom, nSpin))
     if (hasBlockCharges) then
-      allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
     end if
-    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
+    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, blockUp)
 
   end subroutine initUploadArrays_
 
@@ -5587,6 +5666,26 @@ contains
   end subroutine initSccCalculator_
 
 
+  !> Initializes the repulsive interactions
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+    integer, intent(in) :: nAtom
+    logical, intent(in) :: isHelical
+    type(TRepCont), intent(in) :: twoBodyCont
+    class(TRepulsive), allocatable, intent(out) :: repulsive
+
+    type(TSplinePolyRepInput) :: input
+    type(TSplinePolyRep), allocatable :: splinePolyRep
+
+    input%nAtom = nAtom
+    input%isHelical = isHelical
+    input%twoBodyCont = twoBodyCont
+    allocate(splinePolyRep)
+    call TSplinePolyRep_init(splinePolyRep, input)
+    call move_alloc(splinePolyRep, repulsive)
+
+  end subroutine initSplinePolyRepulsive_
+
+
   ! Decides how many Cholesky-decompositions should be buffered
   subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
     logical, intent(in) :: tRealHS
@@ -5600,6 +5699,48 @@ contains
     end if
 
   end subroutine getBufferedCholesky_
+
+
+  #:if WITH_TRANSPORT
+
+  !> Replace charges with those from the stored contact values
+  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
+
+    !> input charges
+    real(dp), intent(inout) :: qOrb(:,:,:)
+
+    !> uploaded charges
+    real(dp), intent(in) :: qOrbUp(:,:,:)
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> block charges, for example from DFTB+U
+    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
+
+    !> uploaded block charges
+    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
+
+    integer :: ii, iStart, iEnd
+
+    do ii = 1, transpar%ncont
+      iStart = transpar%contacts(ii)%idxrange(1)
+      iEnd = transpar%contacts(ii)%idxrange(2)
+      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
+    end do
+
+    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
+    if (allocated(qBlock)) then
+      do ii = 1, transpar%ncont
+        iStart = transpar%contacts(ii)%idxrange(1)
+        iEnd = transpar%contacts(ii)%idxrange(2)
+        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
+      end do
+    end if
+
+  end subroutine overrideContactCharges
+
+#:endif
 
 
 end module dftbp_initprogram

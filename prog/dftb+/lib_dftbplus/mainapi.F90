@@ -15,6 +15,7 @@ module dftbp_mainapi
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_timeprop, only : initializeDynamics, doTdStep
 #:if WITH_SCALAPACK
   use dftbp_initprogram, only : getDenseDescBlacs
 #:endif
@@ -34,6 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
 
 contains
@@ -347,7 +349,7 @@ contains
 
     !> dftb+ environment
     type(TEnvironment), intent(in) :: env
- 
+
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
@@ -403,6 +405,168 @@ contains
   end subroutine updateDataDependentOnSpeciesOrdering
 
 
+  !> After calculation of the ground state, this subroutine initializes the variables
+  !> and the initial step of the propagators for electron and nuclear dynamics
+  subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
+
+    !> dftb+ environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> time step
+    real(dp), intent(in) :: dt
+
+    !> field will be provided through the API?
+    logical, intent(in) :: tdFieldThroughAPI
+
+    !> coords and velocities will be provided at each step through the API?
+    logical, intent(in) :: tdCoordsAndVelosThroughAPI
+
+    if (allocated(main%electronDynamics)) then
+      main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
+      if (tdCoordsAndVelosThroughAPI) then
+        if (main%electronDynamics%tIons) then
+          main%electronDynamics%tdCoordsAndVelosThroughAPI = tdCoordsAndVelosThroughAPI
+        else
+          call error("Setting coordinates and velocities at each step is allowed only for&
+              & simulations with ion dynamics enabled")
+        end if
+      end if
+
+      main%electronDynamics%dt = dt
+      main%electronDynamics%iCall = 1
+      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
+          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
+          & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
+          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+          & main%onSiteElements, main%refExtPot, main%solvation,&
+          & main%rangeSep, main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion,&
+          & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
+          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
+    else
+      call error("Electron dynamics not enabled, please initialize the calculator&
+          & including the ElectronDynamics block")
+    end if
+
+  end subroutine initializeTimeProp
+
+
+  !> After calling initializeTimeProp, this subroutine performs one timestep of
+  !> electron and nuclear (if IonDynamics enabled) dynamics.
+  subroutine doOneTdStep(env, main, iStep, dipole, energy, atomNetCharges,&
+      & coordOut, force, occ)
+
+    !> dftb+ environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> present step of dynamics
+    integer, intent(in) :: iStep
+
+    !> Dipole moment
+    real(dp), optional, intent(out) :: dipole(:,:)
+
+    !> total energy
+    real(dp), optional, intent(out) :: energy
+
+    !> Negative gross charge
+    real(dp), optional, intent(out) :: atomNetCharges(:,:)
+
+    !> atomic coordinates
+    real(dp), optional, intent(out) :: coordOut(:,:)
+
+    !> forces (3, nAtom)
+    real(dp), optional, intent(out) :: force(:,:)
+
+    !> molecular orbital projected populations
+    real(dp), optional, intent(out) :: occ(:)
+
+    if (main%electronDynamics%tPropagatorsInitialized) then
+      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
+           & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
+           & main%skHamCont, main%skOverCont, main%ham,main%over, env, main%coord, main%q0,&
+           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+           & main%onSiteElements, main%refExtPot, main%solvation,&
+           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+           & main%electronicSolver, main%qDepExtPot)
+
+      if (present(dipole)) then
+        dipole(:,:) = main%electronDynamics%dipole
+      end if
+      if (present(energy)) then
+        energy = main%electronDynamics%energy%eSCC
+      end if
+      if (present(atomNetCharges)) then
+        atomNetCharges(:,:) = main%electronDynamics%deltaQ
+      end if
+      if (present(coordOut)) then
+        coordOut(:,:) = main%coord0
+      end if
+      if (present(force)) then
+        force(:,:) = main%electronDynamics%totalForce
+      end if
+      if (present(occ)) then
+        occ(:) = main%electronDynamics%occ
+      end if
+    else
+      call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
+          & first.")
+    end if
+
+  end subroutine doOneTdStep
+
+
+  !> sets electric field for td propagation
+  subroutine setTdElectricField(main, field)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    ! electric field components
+    real(dp), intent(in) :: field(3)
+
+    main%electronDynamics%presentField(:) = field
+    main%electronDynamics%tdFieldIsSet = .true.
+
+  end subroutine setTdElectricField
+
+
+  !> sets coordinates and velos for td propagation
+  subroutine setTdCoordsAndVelos(main, coords, velos)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    ! coordinates
+    real(dp), intent(in) :: coords(3, main%nAtom)
+
+    ! velocities
+    real(dp), intent(in) :: velos(3, main%nAtom)
+
+    main%electronDynamics%coordNew(:,:) = coords
+    main%electronDynamics%movedVelo(:,:) = velos(:, main%electronDynamics%indMovedAtom)
+    main%electronDynamics%tdCoordsAndVelosAreSet = .true.
+
+  end subroutine setTdCoordsAndVelos
+
+
+  !> gets atomic forces from td propagation
+  subroutine getTdForces(main, forces)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: forces(:,:)
+
+    forces(:,:) = main%electronDynamics%totalForce
+  end subroutine getTdForces
+
+
   !> Obtains mass for each atom in the system
   subroutine getAtomicMasses(main, outMass)
 
@@ -414,7 +578,6 @@ contains
     outMass = main%mass
 
   end subroutine getAtomicMasses
-
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

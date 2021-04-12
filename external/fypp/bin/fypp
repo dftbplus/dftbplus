@@ -2180,7 +2180,7 @@ class Evaluator:
         lpar = varexpr.startswith('(')
         rpar = varexpr.endswith(')')
         if lpar != rpar:
-            msg = "unbalanced paranthesis around variable varexpr(s) in '{0}'"\
+            msg = "unbalanced parenthesis around variable varexpr(s) in '{0}'"\
                 .format(varexpr)
             raise FyppFatalError(msg, None, None)
         if lpar:

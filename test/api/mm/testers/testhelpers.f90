@@ -20,7 +20,7 @@ contains
 
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, atomMasses)
+      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces, atomMasses)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -36,6 +36,21 @@ contains
 
     !> Gradients on external charges.
     real(dp), optional, intent(in) :: extChargeGradients(:,:)
+
+    !> Time-dependent dipole moment
+    real(dp), optional, intent(in) :: tdDipole(:,:)
+
+    !> Time-dependent total energy
+    real(dp), optional, intent(in) :: tdEnergy
+
+    !> Time-dependent negative gross charge
+    real(dp), optional, intent(in) :: tdCharges(:,:)
+
+    !> Time-dependent coordinates in Ehrenfest dynamics
+    real(dp), optional, intent(in) :: tdCoords(:,:)
+
+    !> Time-dependent Ehrenfest forces
+    real(dp), optional, intent(in) :: tdForces(:,:)
 
     !> Atomic masses
     real(dp), optional, intent(in) :: atomMasses(:)
@@ -61,9 +76,25 @@ contains
     if(present(stressTensor)) then
       call taggedWriter%write(autotestTag, tagLabels%stressTot, stressTensor)
     end if
+    if (present(tdEnergy)) then
+      call taggedWriter%write(autotestTag, tagLabels%tdenergy, tdEnergy)
+    end if
+    if (present(tdDipole)) then
+      call taggedWriter%write(autotestTag, tagLabels%tddipole, tdDipole)
+    end if
+    if (present(tdCharges)) then
+      call taggedWriter%write(autotestTag, tagLabels%tdcharges, tdCharges)
+    end if
+    if (present(tdCoords)) then
+      call taggedWriter%write(autotestTag, tagLabels%ehrencoords, tdCoords)
+    end if
+    if (present(tdForces)) then
+      call taggedWriter%write(autotestTag, tagLabels%ehrenforces, tdForces)
+    end if
     if(present(atomMasses)) then
       call taggedWriter%write(autotestTag, tagLabels%atomMass, atomMasses)
     end if
+
     close(autotestTag)
 
   end subroutine writeAutotestTag

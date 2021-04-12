@@ -18,9 +18,6 @@
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
-  CACHE STRING "Build type independent Fortran compiler flags")
-
 set(Fortran_FLAGS_RELEASE "-O2 -ip"
   CACHE STRING "Fortran compiler flags for Release build")
 

@@ -67,7 +67,7 @@ Driver = {}
 
 Hamiltonian = DFTB {
     SCC = Yes
-    SCCTolerance = 1.0E-10 # abnormally tight tollerance used for accuracy
+    SCCTolerance = 1.0E-10 # abnormally tight tolerance used for accuracy
     MaxAngularMomentum = {
         C = "p"
     }
