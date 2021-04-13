@@ -15,7 +15,7 @@ module dftbp_transportio
   use dftbp_message, only : error
   use dftbp_orbitals, only : TOrbitals
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_negfvars, only : TTransPar
 #:endif
   implicit none
 

@@ -7,12 +7,10 @@
 
 module dftbp_negfvars
   use dftbp_accuracy, only : dp, mc, lc
-  use dftbp_commontypes
-  use dftbp_wrappedintr
-  use dftbp_xmlf90
+  use dftbp_wrappedintr, only : TWrappedInt1
   implicit none
+  
   private
-
   public :: TNEGFTunDos
   public :: TNEGFGreenDensInfo
   public :: TTransPar

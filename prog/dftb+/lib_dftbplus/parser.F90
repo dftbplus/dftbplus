@@ -73,7 +73,7 @@ module dftbp_parser
   use dftbp_arpack, only : withArpack
   use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh, ContactInfo
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
 #:if WITH_DFTD3

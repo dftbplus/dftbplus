@@ -34,7 +34,7 @@ module dftbp_main
   use dftbp_globalenv, only : stdOut, withMpi
   use dftbp_environment, only : TEnvironment, globalTimers
   use dftbp_densedescr, only : TDenseDescr
-  use dftbp_inputdata
+  use dftbp_inputdata, only : TNEGFInfo
   use dftbp_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_nonscc, only : TNonSccDiff, buildS, buildH0
   use dftbp_eigenvects, only : diagDenseMtx
@@ -78,7 +78,7 @@ module dftbp_main
   use dftbp_linresptypes, only : TLinResp
   use dftbp_pprpa, only : ppRPAenergies
 #:if WITH_ARPACK
-  use dftbp_rs_linearresponse, only : linRespCalcExcitationsRS
+  use dftbp_rslinresp, only : linRespCalcExcitationsRS
 #:endif
   use dftbp_mainio, only : writeRealEigvecs, writecplxeigvecs, readeigenvecs, printMaxForce,&
       & printmaxlatticeforce, printrekssccheader, printsccheader, printmdinfo, writemdout2,&

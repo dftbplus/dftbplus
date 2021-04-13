@@ -26,7 +26,6 @@ module dftbp_reksinterface
   use dftbp_periodic, only : TNeighbourList
   use dftbp_populations, only : mulliken
   use dftbp_rangeseparated, only : TRangeSepFunc
-  !use dftbp_repcont, only : TRepCont
   use dftbp_repulsive, only : TRepulsive
   use dftbp_scc, only : TScc
   use dftbp_slakocont, only : TSlakoCont

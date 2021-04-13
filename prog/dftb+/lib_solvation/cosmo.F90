@@ -16,7 +16,10 @@ module dftbp_cosmo
   use dftbp_commontypes, only : TOrbitals
   use dftbp_constants, only : pi, Hartree__eV, Bohr__AA
   use dftbp_environment, only : TEnvironment
-  use dftbp_extlibs_ddcosmo
+  use dftbp_extlibs_ddcosmo, only : TDomainDecompositionInput, TDomainDecomposition, jacobi_diis,&
+      & lx, lstarx, ldm1x, hnorm
+  use ddcosmo_core, only : ddupdate, TDomainDecomposition_init, wghpot, intrhs, fdoka, fdokb,&
+      & fdoga
   use dftbp_lebedev, only : getAngGrid, gridSize
   use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList

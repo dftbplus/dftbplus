@@ -9,7 +9,7 @@
 
 !> Interface to LIBNEGF for DFTB+
 module dftbp_negfint
-  use dftbp_negfvars
+  use dftbp_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo, TElph
   use dftbp_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use dftbp_negf, only : negf_mpi_init, negf_cart_init
@@ -23,28 +23,26 @@ module dftbp_negfint
   use dftbp_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
   use dftbp_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch
   use dftbp_negf, only : writememinfo, writepeakinfo, printcsr
-  use dftbp_accuracy
-  use dftbp_environment
-  use dftbp_constants
-  use dftbp_matconv
-  use dftbp_sparse2dense
-  use dftbp_densedescr
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_environment, only : TEnvironment
+  use dftbp_constants, only : Hartree__eV, pi
+  use dftbp_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
+  use dftbp_sparse2dense, only : blockSymmetrizeHS, unpackHS
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_formatout
+  use dftbp_formatout, only : writeXYZFormat
   use dftbp_globalenv, only : stdOut, tIOproc
-  use dftbp_message
+  use dftbp_message, only : error, warning
   use dftbp_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_linkedlist
   use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_assert
-  use dftbp_eigensolver
+  use dftbp_eigensolver, only : heev
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : mpifx_comm, MPI_SUM, mpifx_reduceip, mpifx_allreduceip
 #:endif
   implicit none
 
   private
-
   public :: TNegfInt, TNegfInt_init, TNegfInt_final
 
 

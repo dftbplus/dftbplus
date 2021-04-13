@@ -25,13 +25,9 @@ module dftbp_timeprop
   use dftbp_densitymatrix, only : makeDensityMatrix
   use dftbp_blasroutines, only : mc, sc, lc, gemm, her2k
   use dftbp_lapackroutines, only : matinv, gesv 
-  use dftbp_populations
   use dftbp_bondpops, only : addPairWiseBondInfo
-  use dftbp_blas
-  use dftbp_lapack
   use dftbp_spin, only : ud2qm, qm2ud
   use dftbp_forces, only : derivative_shift
-  !use dftbp_repulsive, only : getERepDeriv
   use dftbp_slakocont, only : TSlakoCont
   use dftbp_thermostat, only : TThermostat
   use dftbp_mdintegrator, only : TMDIntegrator, reset, init, state, next
@@ -49,10 +45,7 @@ module dftbp_timeprop
   use dftbp_solvation, only : TSolvation
   use dftbp_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_eigenvects, only : diagDenseMtx
-  use dftbp_sk
-  use dftbp_dispiface
   use dftbp_dispersions, only : TDispersionIface
-  use dftbp_environment
   use dftbp_repulsive, only : TRepulsive
   use dftbp_timer, only : TTimer
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels

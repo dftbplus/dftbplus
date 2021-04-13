@@ -74,7 +74,6 @@ module dftbp_initprogram
   use dftbp_repulsive, only : TRepulsive
   use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_repcont, only : TRepCont, getCutOff
-  use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_blockpothelper, only : appendBlockReduced
@@ -115,8 +114,8 @@ module dftbp_initprogram
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_dispdftd4, only : writeDftD4Info
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
-  use dftbp_negfint
+  use dftbp_negfvars, only : TTransPar
+  use dftbp_negfint, only : TNegfInt, TNegfInt_init
 #:endif
   use dftbp_poisson, only : TPoissonInput
   use dftbp_determinants, only : TDftbDeterminants, TDftbDeterminants_init

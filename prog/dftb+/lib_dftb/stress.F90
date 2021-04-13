@@ -20,7 +20,6 @@ module dftbp_stress
   implicit none
   
   private
-
   public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 
 contains

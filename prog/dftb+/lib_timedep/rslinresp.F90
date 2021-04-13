@@ -10,7 +10,7 @@
 !> This module heavily relies on the linresp module by Dominguez et al.
 !> and the rangesep module by Lusker et al.
 !> Periodic systems and 3rd order calculations are not supported so far.
-module dftbp_rs_linearresponse
+module dftbp_rslinresp
   use dftbp_assert
   use dftbp_slakoCont, only : TSlakoCont, getMIntegrals, getSKIntegrals
   use dftbp_shortgammafuncs, only : expGammaPrime
@@ -3276,4 +3276,4 @@ contains
 
   end subroutine chargeTestRS
 
-end module dftbp_rs_linearresponse
+end module dftbp_rslinresp

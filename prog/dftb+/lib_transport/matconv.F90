@@ -17,13 +17,13 @@
 !> createEquivCSR routines.
 module dftbp_matconv
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals
   use libnegf, only: r_CSR, z_CSR, r_DNS, z_DNS, create, destroy
   implicit none
+  
   private
-
   public :: init,   destruct
   public :: foldToCSR, unfoldFromCSR
 
