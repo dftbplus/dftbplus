@@ -12,7 +12,7 @@ module dftbp_staticperturb
   use dftbp_accuracy, only : dp, mc
   use dftbp_constants, only : Hartree__eV, quaternionName
   use dftbp_globalenv, only : stdOut
-  use dftbp_message, only : error
+  use dftbp_message, only : error, warning
   use dftbp_commontypes, only : TOrbitals
   use dftbp_potentials, only : TPotentials, TPotentials_init
   use dftbp_scc, only : TScc
@@ -57,10 +57,10 @@ contains
   !> Static (frequency independent) perturbation at dq=0
   subroutine staticPerturWrtE(env, parallelKS, filling, eigvals, eigVecsReal, eigVecsCplx, ham,&
       & over, orb, nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc,&
-      & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-      & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
-      & onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight, iCellVec,&
-      & cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEfdE)
+      & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
+      & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU,&
+      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight,&
+      & iCellVec, cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEfdE)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -124,6 +124,9 @@ contains
 
     !> Tolerance for SCC convergence
     real(dp), intent(in) :: sccTol
+
+    !> Use converged derivatives of charges
+    logical, intent(in) :: isSccConvRequired
 
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
@@ -213,7 +216,6 @@ contains
 
     integer :: ii, jj, iGlob, jGlob, iEmpty, iFilled
     integer :: iSCCIter
-    logical :: tStopSCC
 
     ! matrices for derivatives of terms in hamiltonian and outputs
     real(dp), allocatable :: dHam(:,:), idHam(:,:)
@@ -437,9 +439,7 @@ contains
         write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
       end if
 
-      iSCCIter = 1
-      tStopSCC = .false.
-      lpSCC: do while (iSCCiter <= maxSccIter)
+      lpSCC: do iSCCIter = 1, maxSccIter
 
         dPotential%intAtom(:,:) = 0.0_dp
         dPotential%intShell(:,:,:) = 0.0_dp
@@ -737,9 +737,14 @@ contains
 
         end if
 
-        iSCCIter = iSCCIter +1
-
       end do lpSCC
+
+      if (tSccCalc .and. .not.tConverged) then
+        call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        if (isSccConvRequired) then
+          call env%shutdown()
+        end if
+      end if
 
       if (tMetallic) then
         write(stdOut,*)

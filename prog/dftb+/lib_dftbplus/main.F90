@@ -372,11 +372,12 @@ contains
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%speciesName, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
             & this%iSparseStart, this%img2CentCell, this%coord, this%scc, this%maxSccIter,&
-            & this%sccTol, this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec,&
-            & this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
-            & this%onSiteElements, this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC,&
-            & this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
-            & this%tPeriodic, this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+            & this%sccTol, this%isSccConvRequired, this%nMixElements, this%nIneqOrb,&
+            & this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd,&
+            & this%dftbU, this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite,&
+            & this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight,&
+            & this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability, this%dEidE,&
+            & this%dqOut, this%neFermi, this%dEfdE)
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
@@ -3547,7 +3548,7 @@ contains
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
 
-    !> Has the calculation converged>
+    !> Has the calculation converged
     logical, intent(out) :: tConverged
 
     !> Are there orbital potentials present
