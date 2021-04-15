@@ -1100,6 +1100,20 @@ contains
       call this%scc%finishSccLoop(env)
     end if
 
+    if (allocated(this%dispersion)) then
+      if (.not.this%dispersion%energyAvailable()) then
+        call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
+    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
+        & .and. .not. this%tRestartNoSC) then
+      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+      if (this%isSccConvRequired) then
+        call env%shutdown()
+      end if
+    end if
+
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
     if (this%isLinResp) then
@@ -1256,20 +1270,6 @@ contains
           & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
           & this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol,&
           & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
-    end if
-
-    if (allocated(this%dispersion)) then
-      if (.not.this%dispersion%energyAvailable()) then
-        call warning("Dispersion contributions are not included in the energy")
-      end if
-    end if
-
-    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
-        & .and. .not. this%tRestartNoSC) then
-      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (this%isSccConvRequired) then
-        call env%shutdown()
-      end if
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
