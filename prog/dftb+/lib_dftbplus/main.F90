@@ -782,7 +782,7 @@ contains
 
           call getReksEnProperties(this%eigvecsReal, this%coord0, this%reks)
 
-          if (this%tWriteDetailedOut) then
+          if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
@@ -794,7 +794,7 @@ contains
                 & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
                 & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
                 & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-                & allocated(this%thirdOrd), this%isRangeSep)
+                & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
             call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -1063,7 +1063,7 @@ contains
             & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
             & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-            & allocated(this%thirdOrd), this%isRangeSep)
+            & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
       else
         call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
             & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
