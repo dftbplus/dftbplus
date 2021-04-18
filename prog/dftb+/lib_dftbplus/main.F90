@@ -1039,7 +1039,7 @@ contains
 
     end if REKS_SCC
 
-    if (allocated(this%dispersion)) then
+    if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
