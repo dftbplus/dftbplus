@@ -1165,6 +1165,10 @@ module dftbp_reksvar
         call error("Too small shift value in REKS")
       end if
 
+      if (this%tAllocate .and. this%isDispersion) then
+        call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
+      end if
+
       ! REKS gradient requirements
 
       if (this%tForces) then
