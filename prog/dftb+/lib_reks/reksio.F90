@@ -45,8 +45,8 @@ module dftbp_reksio
 
     integer :: iL
 
-    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
-        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
+    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,10x,A,9x,A,10x,A,8x,A)') &
+        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Disp", "Total"
     do iL = 1, this%Lmax
       write(stdOut,'(I3,7(f13.8))',advance="no") iL, this%enLnonSCC(iL), &
           & this%enLscc(iL), this%enLspin(iL)
@@ -60,7 +60,13 @@ module dftbp_reksio
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      write(stdOut,'(2(f13.8))') Erep, this%enLtot(iL)
+      write(stdOut,'(1(f13.8))',advance="no") Erep
+      if (this%isDispersion) then
+        write(stdOut,'(1(f13.8))',advance="no") this%enLdisp(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      write(stdOut,'(1(f13.8))') this%enLtot(iL)
     end do
 
   end subroutine printReksMicrostates
