@@ -12,10 +12,10 @@
 module dftbp_molecularorbital
 
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_slater
-  use dftbp_simplealgebra
+  use dftbp_accuracy, only : dp
+  use dftbp_typegeometry, only : TGeometry
+  use dftbp_slater, only : TSlaterOrbital, RealTessY, getValue, init
+  use dftbp_simplealgebra, only : invert33
   use dftbp_periodic, only: getCellTranslations, foldCoordToUnitCell
 
   implicit none
@@ -44,6 +44,7 @@ module dftbp_molecularorbital
 
     !> Occupation for each orb.
     real(dp), allocatable :: occupations(:)
+
   end type TSpeciesBasis
 
 
@@ -436,7 +437,7 @@ contains
                   allZero = .false.
                   call getValue(stos(iOrb), xx, val)
                   do iM = -iL, iL
-                    atomAllOrbVal(ind, iCell) = val *RealTessY(iL, iM, diff, xx)
+                    atomAllOrbVal(ind, iCell) = val * RealTessY(iL, iM, diff, xx)
                     ind = ind + 1
                   end do
                 else

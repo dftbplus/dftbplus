@@ -9,24 +9,26 @@
 
 !> Contains the routines for initialising waveplot.
 module dftbp_initwaveplot
+
   use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_xmlutils
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
   use xmlf90_flib_dom
   use dftbp_linkedlist
-  use dftbp_charmanip
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_typegeometryhsd
-  use dftbp_message
-  use dftbp_fileid
-  use dftbp_molecularorbital
-  use dftbp_gridcache
-  use dftbp_unitconversion
-  use dftbp_slater
+  use dftbp_globalenv, only : stdOut
+  use dftbp_hsdparser, only : parseHSD, dumpHSD
+  use dftbp_xmlutils, only : removeChildNodes
+  use dftbp_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
+      & getSelectedIndices, detailedError, detailedWarning
+  use dftbp_hsdutils2, only : getModifierIndex, readHSDAsXML, warnUnprocessedNodes
+  use dftbp_charmanip, only : i2c, unquote
+  use dftbp_accuracy, only : dp
+  use dftbp_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
+      & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
+  use dftbp_message, only : warning, error
+  use dftbp_fileid, only : getFileId
+  use dftbp_molecularorbital, only : TMolecularOrbital, TSpeciesBasis
+  use dftbp_gridcache, only : TGridCache, init
+  use dftbp_unitconversion, only : lengthUnits
+
   implicit none
 
   private

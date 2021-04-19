@@ -11,18 +11,17 @@
 program waveplot
 
   use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_initwaveplot
-  use dftbp_accuracy
-  use dftbp_charmanip
-  use dftbp_fileid
-  use dftbp_typegeometry
-  use dftbp_fileid
-  use dftbp_gridcache
-  use dftbp_molecularorbital
-  use dftbp_simplealgebra
   use dftbp_linkedlist
-  use dftbp_periodic
+  use dftbp_globalenv, only : stdOut
+  use dftbp_initwaveplot, only : TProgramVariables, TProgramVariables_init
+  use dftbp_accuracy, only : dp
+  use dftbp_charmanip, only : i2c
+  use dftbp_typegeometry, only : TGeometry
+  use dftbp_fileid, only : getFileId
+  use dftbp_gridcache, only : next
+  use dftbp_molecularorbital, only : getValue
+  use dftbp_simplealgebra, only : invert33
+  use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
 
 #:if WITH_MPI
   use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
@@ -35,28 +34,45 @@ program waveplot
   !> Container of program variables
   type(TProgramVariables), target :: wp
 
-  character(len=80) :: comments(2), fileName
+  !> Pointer to real-valued grid
   real(dp), pointer :: gridValReal(:,:,:)
+
+  !> Pointer to complex-valued grid
   complex(dp), pointer :: gridValCmpl(:,:,:)
-  real(dp), allocatable :: buffer(:,:,:), totChrg(:,:,:), atomicChrg(:,:,:,:)
-  real(dp), allocatable :: spinUp(:,:,:)
+
+  !> Arrays holding the volumetric data
+  real(dp), allocatable :: buffer(:,:,:), totChrg(:,:,:), atomicChrg(:,:,:,:), spinUp(:,:,:)
+
+  !> Occupation of orbitals
   real(dp), allocatable :: orbitalOcc(:,:)
+
+  !> Array holding temporary coordinate information
   real(dp), allocatable :: coords(:,:)
-  real(dp) :: shift(3)
+
+  !> Array holding temporary species information
   integer, allocatable :: species(:)
-  integer :: nBox
+
+  !> Summation of all grid points
   real(dp) :: sumTotChrg, sumChrg, sumAtomicChrg
+
+  !> Indices of current level, K-point and spin
   integer :: levelIndex(3)
-  integer :: iLevel, iKPoint, iSpin, iSpinOld
-  integer :: iAtom, iSpecies, iAng, mAng, ind
-  logical :: tFinished, tPlotLevel
-  real(dp) :: invBoxVecs(3,3), recVecs2p(3,3)
-  real(dp) :: cellMiddle(3), boxMiddle(3), frac(3), cubeCorner(3), coord(3)
-  real(dp) :: mDist, dist
-  real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
-  integer :: i1, i2, i3, iCell
+
+  !> Onedimensional real-valued list of coordinate arrays
   type(TListRealR1) :: coordList
+
+  !> Onedimensional integer-valued list of atomic species indices
   type(TListInt) :: speciesList
+
+  !> Auxiliary variables
+  integer :: i1, i2, i3
+  integer :: iCell, iLevel, iKPoint, iSpin, iSpinOld, iAtom, iSpecies, iAng, mAng, ind, nBox
+  logical :: tFinished, tPlotLevel
+  character(len=80) :: comments(2), fileName
+  real(dp) :: mDist, dist
+  real(dp) :: cellMiddle(3), boxMiddle(3), frac(3), cubeCorner(3), coord(3), shift(3)
+  real(dp) :: invBoxVecs(3,3), recVecs2p(3,3)
+  real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
 
 #:if WITH_MPI
   !> MPI environment
@@ -155,8 +171,8 @@ program waveplot
       write (comments(2), 9989) wp%xml%identity
 9989  format('Calc-Id:',I11,', atomdens')
       fileName = "wp-atomdens.cube"
-      call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin, buffer,&
-          & fileName, comments, wp%opt%repeatBox)
+      call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+          & buffer, fileName, comments, wp%opt%repeatBox)
       write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     end if
   end if
