@@ -38,7 +38,7 @@ module dftbp_initwaveplot
 
 
   !> Data type containing variables from detailed.xml
-  type TXml
+  type TInput
 
     !> Geometry instance
     type(TGeometry) :: geo
@@ -55,7 +55,7 @@ module dftbp_initwaveplot
     !> Occupations
     real(dp), allocatable :: occupations(:,:,:)
 
-  end type TXml
+  end type TInput
 
 
   !> Data type containing variables from the Option block
@@ -194,7 +194,7 @@ module dftbp_initwaveplot
   type TProgramVariables
 
     !> Data of detailed.xml
-    type(TXml) :: xml
+    type(TInput) :: input
 
     !> Data of eigenvec.bin
     type(TEig) :: eig
@@ -299,15 +299,15 @@ contains
     call destroyNode(tmp)
 
     nKPoint = size(kPointsWeights, dim=2)
-    nSpin = size(this%xml%occupations, dim=3)
-    this%eig%nState = size(this%xml%occupations, dim=1)
+    nSpin = size(this%input%occupations, dim=3)
+    this%eig%nState = size(this%input%occupations, dim=1)
 
     !! Read basis
     call getChild(root, "Basis", tmp)
-    call readBasis(this, tmp, this%xml%geo%speciesNames)
+    call readBasis(this, tmp, this%input%geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
-    call checkEigenvecs(eigVecBin, this%xml%identity)
+    call checkEigenvecs(eigVecBin, this%input%identity)
 
     !! Read options
     call getChild(root, "Options", tmp)
@@ -339,13 +339,13 @@ contains
     !! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
-    call init(this%loc%molOrb, this%xml%geo, this%basis%basis)
+    call init(this%loc%molOrb, this%input%geo, this%basis%basis)
 
-    call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%xml%nOrb,&
+    call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
         & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&
         & nPoints=this%opt%nPoints, tVerbose=this%opt%tVerbose, eigVecBin=eigVecBin,&
         & gridVec=this%loc%gridVec, origin=this%opt%gridOrigin,&
-        & kPointCoords=kPointsWeights(1:3, :), tReal=this%xml%tRealHam, molorb=this%loc%pMolOrb)
+        & kPointCoords=kPointsWeights(1:3, :), tReal=this%input%tRealHam, molorb=this%loc%pMolOrb)
 
   end subroutine TProgramVariables_init
 
@@ -380,18 +380,18 @@ contains
     !> Auxiliary variables
     integer :: iSpin, iKpoint
 
-    call getChildValue(detailed, "Identity", this%xml%identity)
+    call getChildValue(detailed, "Identity", this%input%identity)
     call getChild(detailed, "Geometry", tmp)
-    call readGeometry(this, tmp)
+    call readGeometry(this%input%geo, tmp)
 
-    call getChildValue(detailed, "Real", this%xml%tRealHam)
+    call getChildValue(detailed, "Real", this%input%tRealHam)
     call getChildValue(detailed, "NrOfKPoints", nKPoint)
     call getChildValue(detailed, "NrOfSpins", nSpin)
     call getChildValue(detailed, "NrOfStates", nState)
-    call getChildValue(detailed, "NrOfOrbitals", this%xml%nOrb)
+    call getChildValue(detailed, "NrOfOrbitals", this%input%nOrb)
 
     allocate(kPointsWeights(4, nKPoint))
-    allocate(this%xml%occupations(nState, nKPoint, nSpin))
+    allocate(this%input%occupations(nState, nKPoint, nSpin))
 
     call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
 
@@ -400,11 +400,11 @@ contains
       do iSpin = 1, nSpin
         call getChild(occ, "spin" // i2c(iSpin), spin)
         do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%xml%occupations(:, iKpoint, iSpin))
+          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
         end do
       end do
       do iKpoint = 1, nKPoint
-        this%xml%occupations(:, iKpoint, :) = this%xml%occupations(:, iKpoint, :)&
+        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
             & * kPointsWeights(4, iKpoint)
       end do
     else
@@ -412,11 +412,11 @@ contains
       do iSpin = 1, nSpin
         call getChild(occ, "spin" // i2c(iSpin), spin)
         do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%xml%occupations(:, iKpoint, iSpin))
+          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
         end do
       end do
       do iKpoint = 1, nKPoint
-        this%xml%occupations(:, iKpoint, :) = this%xml%occupations(:, iKpoint, :)&
+        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
             & * kPointsWeights(4, iKpoint)
       end do
     end if
@@ -425,10 +425,10 @@ contains
 
 
   !> Read in the geometry stored as xml in internal or gen format.
-  subroutine readGeometry(this, geonode)
+  subroutine readGeometry(geo, geonode)
 
-    !> Container of program variables
-    type(TProgramVariables), intent(inout) :: this
+    !> Geometry instance
+    type(TGeometry), intent(out) :: geo
 
     !> Node containing the geometry
     type(fnode), pointer :: geonode
@@ -444,19 +444,19 @@ contains
 
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(child, this%xml%geo)
+      call readTGeometryGen(child, geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, this%xml%geo)
+      call writeTGeometryHSD(geonode, geo)
     case ("xyzformat")
-      call readTGeometryXyz(child, this%xml%geo)
+      call readTGeometryXyz(child, geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, this%xml%geo)
+      call writeTGeometryHSD(geonode, geo)
     case ("vaspformat")
-      call readTGeometryVasp(child, this%xml%geo)
+      call readTGeometryVasp(child, geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, this%xml%geo)
+      call writeTGeometryHSD(geonode, geo)
     case default
-      call readTGeometryHSD(geonode, this%xml%geo)
+      call readTGeometryHSD(geonode, geo)
     end select
 
   end subroutine readGeometry
@@ -514,8 +514,8 @@ contains
     real(dp) :: minEdge
 
     !! Warning, if processed input is read in, but eigenvectors are different
-    call getChildValue(node, "Identity", curId, this%xml%identity)
-    if (curId /= this%xml%identity) then
+    call getChildValue(node, "Identity", curId, this%input%identity)
+    if (curId /= this%input%identity) then
       call warning(warnId)
     end if
 
@@ -540,7 +540,7 @@ contains
     call getChildValue(node, "RealComponent", this%opt%tPlotReal, .false.)
     call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
 
-    if (this%opt%tPlotImag .and. this%xml%tRealHam) then
+    if (this%opt%tPlotImag .and. this%input%tRealHam) then
       call detailedWarning(field, "Wave functions are real, no imaginary part will be plotted")
       this%opt%tPlotImag = .false.
     end if
@@ -548,7 +548,7 @@ contains
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
     call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels)
 
-    if (this%xml%geo%tPeriodic) then
+    if (this%input%geo%tPeriodic) then
       call getChildValue(node, "PlottedKPoints", buffer, child=field, multiple=.true.)
       call getSelectedIndices(node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
     else
@@ -568,7 +568,7 @@ contains
               & .and. any(this%opt%plottedKPoints == iKPoint)&
               & .and. any(this%opt%plottedSpins == iSpin)
           if ((.not. tFound) .and. this%opt%tCalcTotChrg) then
-            tFound = this%xml%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
+            tFound = this%input%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
           end if
           if (tFound) then
             call append(indexBuffer, [iLevel, iKPoint, iSpin])
@@ -603,16 +603,16 @@ contains
     select case (char(buffer))
     case ("unitcell")
       !! Unit cell for the periodic case, smallest possible cuboid for cluster
-      if (this%xml%geo%tPeriodic) then
+      if (this%input%geo%tPeriodic) then
         this%opt%origin(:) = [0.0_dp, 0.0_dp, 0.0_dp]
-        this%opt%boxVecs(:,:) = this%xml%geo%latVecs(:,:)
+        this%opt%boxVecs(:,:) = this%input%geo%latVecs(:,:)
       else
         call getChildValue(value, "MinEdgeLength", minEdge, child=field, default=1.0_dp)
         if (minEdge < 0.0_dp) then
           call detailedError(field, "Minimal edge length must be positive")
         end if
-        this%opt%origin = minval(this%xml%geo%coords, dim=2)
-        tmpvec = maxval(this%xml%geo%coords, dim=2) - this%opt%origin
+        this%opt%origin = minval(this%input%geo%coords, dim=2)
+        tmpvec = maxval(this%input%geo%coords, dim=2) - this%opt%origin
         do ii = 1, 3
           if (tmpvec(ii) < minEdge) then
             this%opt%origin(ii) = this%opt%origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
@@ -631,16 +631,16 @@ contains
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
       end if
-      allocate(mcutoffs(this%xml%geo%nSpecies))
-      do iSpecies = 1 , this%xml%geo%nSpecies
+      allocate(mcutoffs(this%input%geo%nSpecies))
+      do iSpecies = 1 , this%input%geo%nSpecies
         mcutoffs(iSpecies) = maxval(this%basis%basis(iSpecies)%cutoffs)
       end do
-      minvals = this%xml%geo%coords(:,1)
-      maxvals = this%xml%geo%coords(:,1)
-      do iAtom = 1, this%xml%geo%nAtom
-        iSpecies = this%xml%geo%species(iAtom)
-        maxvals(:) = max(maxvals, this%xml%geo%coords(:, iAtom) + mcutoffs(iSpecies))
-        minvals(:) = min(minvals, this%xml%geo%coords(:, iAtom) - mcutoffs(iSpecies))
+      minvals = this%input%geo%coords(:,1)
+      maxvals = this%input%geo%coords(:,1)
+      do iAtom = 1, this%input%geo%nAtom
+        iSpecies = this%input%geo%species(iAtom)
+        maxvals(:) = max(maxvals, this%input%geo%coords(:, iAtom) + mcutoffs(iSpecies))
+        minvals(:) = min(minvals, this%input%geo%coords(:, iAtom) - mcutoffs(iSpecies))
       end do
       this%opt%origin(:) = minvals(:)
       tmpvec(:) = maxvals(:) - minvals(:)
@@ -689,7 +689,7 @@ contains
 
     call getChildValue(node, "ShiftGrid", tShiftGrid, default=.true.)
 
-    if (this%xml%geo%tPeriodic) then
+    if (this%input%geo%tPeriodic) then
       call getChildValue(node, "FoldAtomsToUnitCell", this%opt%tFoldCoords, default=.false.)
       call getChildValue(node, "FillBoxWithAtoms", this%opt%tFillBox, default=.false.)
       this%opt%tFoldCoords = this%opt%tFoldCoords .or. this%opt%tFillBox

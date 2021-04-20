@@ -107,28 +107,28 @@ program waveplot
     ! If tFillBox is off, coordinates must be repeated here. Otherwise the part for filling with
     ! atoms will do that.
     if (.not. wp%opt%tFillBox) then
-      allocate(coords(3, size(wp%xml%geo%coords)))
-      allocate(species(size(wp%xml%geo%species)))
-      coords(:,:) = wp%xml%geo%coords(:,:)
-      species(:) = wp%xml%geo%species(:)
-      deallocate(wp%xml%geo%coords)
-      deallocate(wp%xml%geo%species)
-      allocate(wp%xml%geo%coords(3, nBox * wp%xml%geo%nAtom))
-      allocate(wp%xml%geo%species(nBox * wp%xml%geo%nAtom))
+      allocate(coords(3, size(wp%input%geo%coords)))
+      allocate(species(size(wp%input%geo%species)))
+      coords(:,:) = wp%input%geo%coords(:,:)
+      species(:) = wp%input%geo%species(:)
+      deallocate(wp%input%geo%coords)
+      deallocate(wp%input%geo%species)
+      allocate(wp%input%geo%coords(3, nBox * wp%input%geo%nAtom))
+      allocate(wp%input%geo%species(nBox * wp%input%geo%nAtom))
       ind = 0
       do i1 = 0, wp%opt%repeatBox(1) - 1
         do i2 = 0, wp%opt%repeatBox(2) - 1
           do i3 = 0, wp%opt%repeatBox(3) - 1
             shift(:) = matmul(wp%opt%boxVecs, real([i1, i2, i3], dp))
-            do iAtom = 1, wp%xml%geo%nAtom
-              wp%xml%geo%coords(:,ind+iAtom) = coords(:,iAtom) + shift(:)
+            do iAtom = 1, wp%input%geo%nAtom
+              wp%input%geo%coords(:,ind+iAtom) = coords(:,iAtom) + shift(:)
             end do
-            wp%xml%geo%species(ind+1:ind+wp%xml%geo%nAtom) = species(:)
-            ind = ind + wp%xml%geo%nAtom
+            wp%input%geo%species(ind+1:ind+wp%input%geo%nAtom) = species(:)
+            ind = ind + wp%input%geo%nAtom
           end do
         end do
       end do
-      wp%xml%geo%nAtom = nBox * wp%xml%geo%nAtom
+      wp%input%geo%nAtom = nBox * wp%input%geo%nAtom
     end if
     do i1 = 1, 3
       wp%opt%boxVecs(:,i1) = wp%opt%boxVecs(:,i1) * real(wp%opt%repeatBox(i1), dp)
@@ -149,10 +149,10 @@ program waveplot
   ! orbitals with the same angular momentum.
   if (wp%opt%tCalcAtomDens) then
     allocate(atomicChrg(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3), 1))
-    allocate(orbitalOcc(wp%xml%nOrb, 1))
+    allocate(orbitalOcc(wp%input%nOrb, 1))
     ind = 1
-    do iAtom = 1, wp%xml%geo%nAtom
-      iSpecies = wp%xml%geo%species(iAtom)
+    do iAtom = 1, wp%input%geo%nAtom
+      iSpecies = wp%input%geo%species(iAtom)
       do iAng = 1, size(wp%basis%basis(iSpecies)%angMoms)
         mAng = 2 * wp%basis%basis(iSpecies)%angMoms(iAng) + 1
         orbitalOcc(ind:ind + mAng - 1,1) = wp%basis%basis(iSpecies)%occupations(iAng)&
@@ -168,10 +168,10 @@ program waveplot
       write(stdout, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
     end if
     if (wp%opt%tPlotAtomDens) then
-      write (comments(2), 9989) wp%xml%identity
+      write (comments(2), 9989) wp%input%identity
 9989  format('Calc-Id:',I11,', atomdens')
       fileName = "wp-atomdens.cube"
-      call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+      call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
           & buffer, fileName, comments, wp%opt%repeatBox)
       write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     end if
@@ -185,20 +185,21 @@ program waveplot
   ! Fold in coordinates
   if (wp%opt%tFoldCoords) then
     call invert33(invBoxVecs, wp%opt%boxVecs)
-    call invert33(recVecs2p, wp%xml%geo%latVecs)
+    call invert33(recVecs2p, wp%input%geo%latVecs)
     recVecs2p = reshape(recVecs2p, [3, 3], order=[2, 1])
-    call foldCoordToUnitCell(wp%xml%geo%coords(:,:), wp%xml%geo%latVecs, recVecs2p)
+    call foldCoordToUnitCell(wp%input%geo%coords(:,:), wp%input%geo%latVecs, recVecs2p)
   end if
 
   ! Fill the box with atoms
   if (wp%opt%tFillBox) then
     ! Shifting plotted region by integer lattice vectors, to have its center as close to the center
     ! of the lattice unit cell as possible.
-    cellMiddle(:) = 0.5_dp * sum(wp%xml%geo%latVecs, dim=2)
+    cellMiddle(:) = 0.5_dp * sum(wp%input%geo%latVecs, dim=2)
     boxMiddle(:) = wp%opt%origin(:) + 0.5_dp * sum(wp%opt%boxVecs, dim=2)
     frac(:) = matmul(boxMiddle - cellMiddle, recVecs2p)
-    wp%opt%origin(:) = wp%opt%origin(:) - matmul(wp%xml%geo%latVecs, real(anint(frac), dp))
-    wp%opt%gridOrigin(:) = wp%opt%gridOrigin(:) - matmul(wp%xml%geo%latVecs, real(anint(frac), dp))
+    wp%opt%origin(:) = wp%opt%origin(:) - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
+    wp%opt%gridOrigin(:) = wp%opt%gridOrigin(:)&
+        & - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
     ! We need all cells around, which could contain atoms in the sphere, drawn from the center of
     ! the unit cell, containing the entire plotted region
     mDist = 0.0_dp
@@ -212,27 +213,27 @@ program waveplot
         end do
       end do
     end do
-    call getCellTranslations(cellVec, rCellVec, wp%xml%geo%latVecs, recVecs2p, mDist)
+    call getCellTranslations(cellVec, rCellVec, wp%input%geo%latVecs, recVecs2p, mDist)
     ! Check all atoms in the shifted cells, if they fall in the plotted region
     call init(coordList)
     call init(speciesList)
     do iCell = 1, size(rCellVec, dim=2)
-      do iAtom = 1, wp%xml%geo%nAtom
-        coord(:) = wp%xml%geo%coords(:,iAtom) + rCellVec(:,iCell)
+      do iAtom = 1, wp%input%geo%nAtom
+        coord(:) = wp%input%geo%coords(:,iAtom) + rCellVec(:,iCell)
         frac(:) = matmul(invBoxVecs, coord - wp%opt%origin)
         if (all(frac > -1e-04_dp) .and. all(frac < 1.0_dp + 1e-04_dp)) then
           call append(coordList, coord)
-          call append(speciesList, wp%xml%geo%species(iAtom))
+          call append(speciesList, wp%input%geo%species(iAtom))
         end if
       end do
     end do
-    deallocate(wp%xml%geo%coords)
-    deallocate(wp%xml%geo%species)
-    wp%xml%geo%nAtom = len(coordList)
-    allocate(wp%xml%geo%coords(3, wp%xml%geo%nAtom))
-    allocate(wp%xml%geo%species(wp%xml%geo%nAtom))
-    call asArray(coordList, wp%xml%geo%coords)
-    call asArray(speciesList, wp%xml%geo%species)
+    deallocate(wp%input%geo%coords)
+    deallocate(wp%input%geo%species)
+    wp%input%geo%nAtom = len(coordList)
+    allocate(wp%input%geo%coords(3, wp%input%geo%nAtom))
+    allocate(wp%input%geo%species(wp%input%geo%nAtom))
+    call asArray(coordList, wp%input%geo%coords)
+    call asArray(speciesList, wp%input%geo%species)
     deallocate(cellVec)
     deallocate(rCellVec)
   end if
@@ -242,7 +243,7 @@ program waveplot
   tFinished = .false.
   lpStates: do while (.not. tFinished)
     ! Get the next grid and its parameters
-    if (wp%xml%tRealHam) then
+    if (wp%input%tRealHam) then
       call next(wp%loc%grid, gridValReal, levelIndex, tFinished)
     else
       call next(wp%loc%grid, gridValCmpl, levelIndex, tFinished)
@@ -262,63 +263,64 @@ program waveplot
         &.and. any(wp%opt%plottedKPoints == iKPoint) .and. any(wp%opt%plottedLevels == iLevel)
     if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or. wp%opt%tPlotChrgDiff)))&
         & then
-      if (wp%xml%tRealHam) then
+      if (wp%input%tRealHam) then
         buffer = gridValReal**2
       else
         buffer = abs(gridValCmpl)**2
       end if
       if (wp%opt%tCalcTotChrg) then
-        totChrg(:,:,:) = totChrg(:,:,:) + wp%xml%occupations(iLevel, iKPoint, iSpin) * buffer(:,:,:)
+        totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin)&
+            & * buffer(:,:,:)
       end if
       sumChrg = sum(buffer) * wp%loc%gridVol
       if (wp%opt%tVerbose) then
         write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
-            & wp%xml%occupations(iLevel, iKPoint, iSpin)
+            & wp%input%occupations(iLevel, iKPoint, iSpin)
       end if
     end if
 
     ! Build and dump desired properties of the current level
     if (tPlotLevel) then
       if (wp%opt%tPlotChrg) then
-        write (comments(2), 9990) wp%xml%identity, iSpin, iKPoint, iLevel
+        write (comments(2), 9990) wp%input%identity, iSpin, iKPoint, iLevel
 9990    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', abs2')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-abs2.cube"
-        call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
         write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotChrgDiff) then
         buffer = buffer - (sumChrg / sumAtomicChrg) * atomicChrg(:,:,:,1)
-        write (comments(2), 9995) wp%xml%identity, iSpin, iKPoint, iLevel
+        write (comments(2), 9995) wp%input%identity, iSpin, iKPoint, iLevel
 9995    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', abs2diff')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) //&
             & "-abs2diff.cube"
-        call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
         write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotReal) then
-        if (wp%xml%tRealHam) then
+        if (wp%input%tRealHam) then
           buffer = gridValReal
         else
           buffer = real(gridValCmpl, dp)
         end if
-        write (comments(2), 9991) wp%xml%identity, iSpin, iKPoint, iLevel
+        write (comments(2), 9991) wp%input%identity, iSpin, iKPoint, iLevel
 9991    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', real')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-real.cube"
-        call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
         write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotImag) then
         buffer = aimag(gridValCmpl)
-        write (comments(2), 9992) wp%xml%identity, iSpin, iKPoint, iLevel
+        write (comments(2), 9992) wp%input%identity, iSpin, iKPoint, iLevel
 9992    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', imag')
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-imag.cube"
-        call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
         write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
@@ -330,10 +332,10 @@ program waveplot
     sumTotChrg = sum(totChrg) * wp%loc%gridVol
   end if
   if (wp%opt%tPlotTotChrg) then
-    write (comments(2), 9993) wp%xml%identity
+    write (comments(2), 9993) wp%input%identity
 9993 format('Calc-Id:',I11,', abs2')
     fileName = "wp-abs2.cube"
-    call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
         & totChrg, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     if (wp%opt%tVerbose) then
@@ -344,22 +346,22 @@ program waveplot
   ! Dump total charge difference
   if (wp%opt%tPlotTotDiff) then
     buffer = totChrg - (sumTotChrg / sumAtomicChrg) * atomicChrg(:,:,:,1)
-    write (comments(2), 9994) wp%xml%identity
+    write (comments(2), 9994) wp%input%identity
 9994 format('Calc-Id:',I11,', abs2diff')
     fileName = 'wp-abs2diff.cube'
-    call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin, buffer,&
-        & fileName, comments, wp%opt%repeatBox)
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        & buffer, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
   ! Dump spin polarisation
   if (wp%opt%tPlotTotSpin) then
     buffer = 2.0_dp * spinUp - totChrg
-    write (comments(2), 9996) wp%xml%identity
+    write (comments(2), 9996) wp%input%identity
 9996 format('Calc-Id:',I11,', spinpol')
     fileName = 'wp-spinpol.cube'
-    call writeCubeFile(wp%xml%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin, buffer,&
-        & fileName, comments, wp%opt%repeatBox)
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+        & buffer, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
