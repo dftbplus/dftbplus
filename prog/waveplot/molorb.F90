@@ -10,12 +10,14 @@
 !> Contains routines to calculate the value of one or more molecular orbitals composed from STOs on
 !> an equidistant grid.
 module dftbp_molecularorbital
+
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_slater
-  use dftbp_simplealgebra
+  use dftbp_accuracy, only : dp
+  use dftbp_typegeometry, only : TGeometry
+  use dftbp_slater, only : TSlaterOrbital, RealTessY, getValue, init
+  use dftbp_simplealgebra, only : invert33
   use dftbp_periodic, only: getCellTranslations, foldCoordToUnitCell
+
   implicit none
 
   private
@@ -42,6 +44,7 @@ module dftbp_molecularorbital
 
     !> Occupation for each orb.
     real(dp), allocatable :: occupations(:)
+
   end type TSpeciesBasis
 
 
@@ -174,10 +177,9 @@ contains
       allocate(this%recVecs2p(3,3))
       this%latVecs(:,:) = geometry%latVecs(:,:)
       call invert33(this%recVecs2p, this%latVecs)
-      this%recVecs2p = reshape(this%recVecs2p, (/3, 3/), order=(/2, 1/))
+      this%recVecs2p = reshape(this%recVecs2p, [3, 3], order=[2, 1])
       mCutoff = maxval(this%cutoffs)
-      call getCellTranslations(this%cellVec, rCellVec, this%latVecs, &
-          &this%recVecs2p, mCutoff)
+      call getCellTranslations(this%cellVec, rCellVec, this%latVecs, this%recVecs2p, mCutoff)
       this%nCell = size(this%cellVec,dim=2)
     else
       allocate(this%latVecs(3,0))
@@ -196,7 +198,7 @@ contains
       call foldCoordToUnitCell(this%coords(:,:,1), this%latVecs, this%recVecs2p)
       do ii = 2, this%nCell
         do jj = 1, this%nAtom
-          this%coords(:,jj, ii) = this%coords(:,jj,1) + rCellVec(:,ii)
+          this%coords(:, jj, ii) = this%coords(:, jj, 1) + rCellVec(:, ii)
         end do
       end do
     end if
@@ -207,8 +209,8 @@ contains
 
 
   !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_real(this, origin, gridVecs, &
-      &eigVecsReal, valueOnGrid, addDensities)
+  subroutine MolecularOrbital_getValue_real(this, origin, gridVecs, eigVecsReal, valueOnGrid,&
+      & addDensities)
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
@@ -236,9 +238,9 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(origin) == 3)
-    @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(gridVecs) == [3, 3]))
     @:ASSERT(size(eigVecsReal, dim=1) == this%nOrb)
-    @:ASSERT(all(shape(valueOnGrid) > (/ 1, 1, 1, 0 /)))
+    @:ASSERT(all(shape(valueOnGrid) > [1, 1, 1, 0]))
     @:ASSERT(size(eigVecsReal, dim=2) == size(valueOnGrid, dim=4))
 
     if (present(addDensities)) then
@@ -247,18 +249,17 @@ contains
       tAddDensities = .false.
     end if
 
-    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
-        &this%nAtom, this%nOrb, this%coords, this%species, this%cutoffs, &
-        &this%iStos, this%angMoms, this%stos, this%tPeriodic, .true., &
-        &this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell, &
-        &this%cellVec, tAddDensities, valueOnGrid, valueCmpl)
+    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
+        & this%coords, this%species, this%cutoffs, this%iStos, this%angMoms, this%stos,&
+        & this%tPeriodic, .true., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
+        & this%cellVec, tAddDensities, valueOnGrid, valueCmpl)
 
   end subroutine MolecularOrbital_getValue_real
 
 
   !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_cmpl(this, origin, gridVecs, &
-      &eigVecsCmpl, kPoints, kIndexes, valueOnGrid)
+  subroutine MolecularOrbital_getValue_cmpl(this, origin, gridVecs, eigVecsCmpl, kPoints, kIndexes,&
+      & valueOnGrid)
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
@@ -287,9 +288,9 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(origin) == 3)
-    @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(gridVecs) == [3, 3]))
     @:ASSERT(size(eigVecsCmpl, dim=1) == this%nOrb)
-    @:ASSERT(all(shape(valueOnGrid) > (/ 0, 0, 0, 0 /)))
+    @:ASSERT(all(shape(valueOnGrid) > [0, 0, 0, 0]))
     @:ASSERT(size(eigVecsCmpl, dim=2) == size(valueOnGrid, dim=4))
     @:ASSERT(size(kPoints, dim=1) == 3)
     @:ASSERT(size(kPoints, dim=2) > 0)
@@ -297,11 +298,10 @@ contains
     @:ASSERT(maxval(kIndexes) <= size(kPoints, dim=2))
     @:ASSERT(minval(kIndexes) > 0)
 
-    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
-        &this%nAtom, this%nOrb, this%coords, this%species, this%cutoffs, &
-        &this%iStos, this%angMoms, this%stos, this%tPeriodic, .false., &
-        &this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell, &
-        &this%cellVec, tAddDensities, valueReal, valueOnGrid)
+    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
+        & this%coords, this%species, this%cutoffs, this%iStos, this%angMoms, this%stos,&
+        & this%tPeriodic, .false., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
+        & this%cellVec, tAddDensities, valueReal, valueOnGrid)
 
   end subroutine MolecularOrbital_getValue_cmpl
 
@@ -309,10 +309,9 @@ contains
   !> Returns the values of several molecular orbitals on grids.
   !> Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
   !> various parameters.
-  subroutine local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
-      &nAtom, nOrb, coords, species, cutoffs, iStos, angMoms, stos, tPeriodic, &
-      &tReal, latVecs, recVecs2p, kPoints, kIndexes, nCell, cellVec, &
-      &tAddDensities, valueReal, valueCmpl)
+  subroutine local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, nAtom, nOrb, coords,&
+      & species, cutoffs, iStos, angMoms, stos, tPeriodic, tReal, latVecs, recVecs2p, kPoints,&
+      & kIndexes, nCell, cellVec, tAddDensities, valueReal, valueCmpl)
 
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
@@ -438,7 +437,7 @@ contains
                   allZero = .false.
                   call getValue(stos(iOrb), xx, val)
                   do iM = -iL, iL
-                    atomAllOrbVal(ind, iCell) = val *RealTessY(iL, iM, diff, xx)
+                    atomAllOrbVal(ind, iCell) = val * RealTessY(iL, iM, diff, xx)
                     ind = ind + 1
                   end do
                 else
@@ -477,8 +476,7 @@ contains
             end if
             atomOrbValReal(:) = sum(atomAllOrbVal, dim=2)
             do iEig = 1, nPoints(4)
-              valueReal(i1, i2, i3, iEig) = dot_product( &
-                  & atomOrbValReal(nonZeroIndices), &
+              valueReal(i1, i2, i3, iEig) = dot_product(atomOrbValReal(nonZeroIndices),&
                   & eigVecsReal(nonZeroIndices, iEig))
             end do
           else
@@ -488,14 +486,11 @@ contains
                 ind = kIndexes(iEig)
                 atomOrbValCmpl(nonZeroIndices) = (0.0_dp, 0.0_dp)
                 do iCell = 1, nCell
-                  atomOrbValCmpl(nonZeroIndices) = &
-                      & atomOrbValCmpl(nonZeroIndices) &
-                      & + atomAllOrbVal(nonZeroIndices, iCell) &
-                      & * phases(iCell, ind)
+                  atomOrbValCmpl(nonZeroIndices) = atomOrbValCmpl(nonZeroIndices)&
+                      & + atomAllOrbVal(nonZeroIndices, iCell) * phases(iCell, ind)
                 end do
               end if
-              valueCmpl(i1, i2, i3, iEig) = dot_product( &
-                  & atomOrbValCmpl(nonZeroIndices), &
+              valueCmpl(i1, i2, i3, iEig) = dot_product(atomOrbValCmpl(nonZeroIndices),&
                   & eigVecsCmpl(nonZeroIndices, iEig))
             end do
           end if
