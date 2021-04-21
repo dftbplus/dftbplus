@@ -232,7 +232,7 @@ module dftbp_reksvar
     logical :: isDispersion
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
-    logical :: tAllocate
+    logical :: isQNetAllocated
 
     !> Do we need forces?
     logical :: tForces
@@ -548,7 +548,7 @@ module dftbp_reksvar
 
   !> Initialize REKS data from REKS input
   subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
-      & t3rd, isRangeSep, isDispersion, tAllocate, tForces, tPeriodic, tStress, tDipole)
+      & t3rd, isRangeSep, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -587,7 +587,7 @@ module dftbp_reksvar
     logical, intent(in) :: isDispersion
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
-    logical, intent(in) :: tAllocate
+    logical, intent(in) :: isQNetAllocated
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -667,7 +667,7 @@ module dftbp_reksvar
     this%t3rd = t3rd
     this%isRangeSep = isRangeSep
     this%isDispersion = isDispersion
-    this%tAllocate = tAllocate
+    this%isQNetAllocated = isQNetAllocated
 
     this%tForces = tForces
     this%tPeriodic = tPeriodic
@@ -718,7 +718,7 @@ module dftbp_reksvar
     allocate(this%qOutputL(mOrb,nAtom,nSpin,Lmax))
     allocate(this%chargePerShellL(mShell,nAtom,nSpin,Lmax))
 
-    if (this%tAllocate) then
+    if (this%isQNetAllocated) then
       allocate(this%qNetAtomL(nAtom,Lmax))
     end if
 
@@ -912,7 +912,7 @@ module dftbp_reksvar
     this%qOutputL(:,:,:,:) = 0.0_dp
     this%chargePerShellL(:,:,:,:) = 0.0_dp
 
-    if (this%tAllocate) then
+    if (this%isQNetAllocated) then
       this%qNetAtomL(:,:) = 0.0_dp
     end if
 
@@ -1165,7 +1165,7 @@ module dftbp_reksvar
         call error("Too small shift value in REKS")
       end if
 
-      if (this%tAllocate .and. this%isDispersion) then
+      if (this%isQNetAllocated .and. this%isDispersion) then
         call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
       end if
 
@@ -1175,7 +1175,7 @@ module dftbp_reksvar
 
         if (this%t3rd) then
           call error("3rd order scc is not compatible with force calculation in REKS")
-        else if (this%tAllocate) then
+        else if (this%isQNetAllocated) then
           call error("Calculation of net charge per atom is not compatible with force calculation in REKS")
         end if
 

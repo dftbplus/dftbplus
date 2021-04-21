@@ -6839,7 +6839,7 @@ contains
       ! Get correct net charge per atom
       ! Note that qNetAtomL does not have spin dependency so it does not
       ! correspond to (my_qm) or (my_ud) representation
-      if (reks%tAllocate) then
+      if (reks%isQNetAllocated) then
         if (iL > reks%Lpaired) then
           if (mod(iL,2) == 0) then
             reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
@@ -7142,7 +7142,7 @@ contains
             & q0, img2CentCell, orb)
         ! For MBD/TS dispersion, update onsite charges
         ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
-        if (reks%tAllocate) then
+        if (reks%isQNetAllocated) then
           qNetAtom(:) = reks%qNetAtomL(:,iL)
         end if
         call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0,&

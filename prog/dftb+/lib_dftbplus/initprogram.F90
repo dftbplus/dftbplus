@@ -460,7 +460,7 @@ module dftbp_initprogram
     logical :: tPrintMulliken
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
-    logical :: tAllocate
+    logical :: isQNetAllocated
 
     !> Do we need to show net atomic charges?
     logical :: tNetAtomCharges
@@ -2453,7 +2453,7 @@ contains
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
           & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
-          & this%isRangeSep, allocated(this%dispersion), this%tAllocate, this%tForces,&
+          & this%isRangeSep, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
           & this%tPeriodic, this%tStress, this%tDipole)
     end if
 
@@ -3500,17 +3500,17 @@ contains
       this%qDiff(:,:,:) = 0.0_dp
     endif
 
-    this%tAllocate = .false.
+    this%isQNetAllocated = .false.
   #:if WITH_MBD
     if (allocated(this%dispersion)) then
       select type (o=>this%dispersion)
       type is (TDispMbd)
-        this%tAllocate = .true.
+        this%isQNetAllocated = .true.
       end select
     end if
   #:endif
-    this%tAllocate = this%tAllocate .or. this%tNetAtomCharges
-    if (this%tAllocate) then
+    this%isQNetAllocated = this%isQNetAllocated .or. this%tNetAtomCharges
+    if (this%isQNetAllocated) then
       if (.not. allocated(this%qNetAtom)) then
         allocate(this%qNetAtom(this%nAtom))
       endif
@@ -5183,7 +5183,7 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, tAllocate, tForces,&
+      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
       & tPeriodic, tStress, tDipole)
 
     !> data type for REKS
@@ -5229,7 +5229,7 @@ contains
     logical, intent(in) :: isDispersion
 
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
-    logical, intent(in) :: tAllocate
+    logical, intent(in) :: isQNetAllocated
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -5258,7 +5258,7 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, isDispersion, tAllocate, tForces,&
+            & blurWidths, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
             & tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
