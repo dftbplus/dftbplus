@@ -4828,6 +4828,15 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ! electric field polarisability of system
+      call getChild(node, "Polarisability", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+      else
+        ctrl%isDFTBPT = .false.
+      end if
+
     end if
 
     if (tHaveDensityMatrix) then
@@ -4863,6 +4872,9 @@ contains
       ctrl%tPrintForces = .false.
 
     end if
+
+
+
 
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)

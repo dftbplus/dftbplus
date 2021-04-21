@@ -124,7 +124,7 @@ module dftbp_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, mdOut, resultsTag, hessianOut
+  public :: autotestTag, userOut, bandOut, derivEBandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_TRANSPORT
@@ -141,8 +141,11 @@ module dftbp_initprogram
   !> Detailed user output
   character(*), parameter :: userOut = "detailed.out"
 
-  !> band structure and filling information
+  !> File for band structure and filling information
   character(*), parameter :: bandOut = "band.out"
+
+  !> File for derivatives of band structure
+  character(*), parameter :: derivEBandOut = "dE_band.out"
 
   !> File accumulating data during an MD run
   character(*), parameter :: mdOut = "md.out"
@@ -509,6 +512,27 @@ module dftbp_initprogram
 
     !> Pipek-Mezey localisation calculator
     type(TPipekMezey), allocatable :: pipekMezey
+
+    !> Density functional tight binding perturbation theory
+    logical :: isDFTBPT = .false.
+
+    !> Static polarisability
+    logical :: isStatEResp = .false.
+
+    !> Electric static polarisability
+    real(dp), allocatable :: polarisability(:,:)
+
+    !> Number of electrons  at the Fermi energy
+    real(dp), allocatable :: neFermi(:)
+
+    !> Derivatives of the Fermi energy [spin, perturbation]
+    real(dp), allocatable :: dEfdE(:,:)
+
+    !> Derivatives of the DFTB eigenvalues with respect to perturbation
+    real(dp), allocatable :: dEidE(:,:,:,:)
+
+    !> Derivatives of Mulliken charges with respect to perturbation
+    real(dp), allocatable :: dqOut(:,:,:,:)
 
     !> use commands from socket communication to control the run
     logical :: tSocket
@@ -2109,11 +2133,59 @@ contains
           & spin orbit calculations")
     end if
 
+    this%isDFTBPT = input%ctrl%isDFTBPT
+    if (this%isDFTBPT) then
+      this%isStatEResp = input%ctrl%isStatEPerturb
+      if (this%tNegf) then
+        call error("Currently the perturbation expresions for NEGF are not implemented")
+      end if
+      if (.not. this%electronicSolver%providesEigenvals) then
+        call error("Perturbation expression for polarisability require eigenvalues and&
+            & eigenvectors")
+      end if
+      if (this%tPeriodic) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%tHelical) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%t3rd) then
+        call error("Only full 3rd order currently supported for perturbation")
+      end if
+      if (allocated(this%reks)) then
+        call error("REKS not currently supported for perturbation")
+      end if
+      if (this%tFixEf) then
+        call error("Perturbation for fixed Fermi energy is not currently supported")
+      end if
+      if (this%deltaDftb%isNonAufbau) then
+        call error("Delta-DFTB not currently supported for perturbation")
+      end if
+      if (allocated(this%solvation)) then
+        call error("Solvation not currently implemented for perturbation")
+      end if
+      if (allocated(this%dispersion)) then
+        call error("Dispersion (particularly charge dependent) not currently implemented for&
+            & perturbation")
+      end if
+
+      allocate(this%polarisability(3,3))
+      this%polarisability(:,:) = 0.0_dp
+      if (input%ctrl%tWriteBandDat) then
+        allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+        this%dEidE(:,:,:,:) = 0.0_dp
+      end if
+      allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
+      this%dqOut(:,:,:,:) = 0.0_dp
+
+    else
+      this%isStatEResp = .false.
+    end if
+
     if (allocated(this%solvation)) then
       if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
         call error('External fields are not currently compatible with this implicit solvent.')
       end if
-
     end if
 
     if (this%isLinResp) then
@@ -4166,6 +4238,9 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
+      if (this%isDFTBPT) then
+        call initOutputFile(derivEBandOut)
+      end if
     end if
     if (this%tDerivs) then
       call initOutputFile(hessianOut)
@@ -4238,7 +4313,7 @@ contains
       end if
     end if
 
-    call init(this%potential, this%orb, this%nAtom, this%nSpin)
+    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin)
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)

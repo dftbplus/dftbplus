@@ -203,7 +203,14 @@ module dftbp_inputdata
     !> Localise electronic states
     logical :: tLocalise   = .false.
 
+    !> Input data for Pipek-Mezey localisation
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
+
+    !> Is a perturbation expression in use
+    logical :: isDFTBPT = .false.
+
+    !> Is this is a static electric field perturbation calculation
+    logical :: isStatEPerturb = .false.
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.

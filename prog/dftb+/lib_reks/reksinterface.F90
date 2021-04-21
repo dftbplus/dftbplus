@@ -659,7 +659,7 @@ module dftbp_reksinterface
         end if
 
         ! this%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
         call sccCalc%updateShifts(env, orb, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
@@ -829,7 +829,7 @@ module dftbp_reksinterface
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
       if (this%tExtChrg) then

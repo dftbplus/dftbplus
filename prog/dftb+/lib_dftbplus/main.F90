@@ -103,11 +103,12 @@ module dftbp_main
 #:endif
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
-      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
+      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
 #:if WITH_TRANSPORT
   use dftbp_initprogram, only : overrideContactCharges
 #:endif
   use dftbp_blockpothelper, only : appendBlockReduced
+  use dftbp_staticperturb, only : staticPerturWrtE
   implicit none
 
   private
@@ -365,6 +366,34 @@ contains
 
   #:endif
 
+    if (this%isDFTBPT) then
+      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
+        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
+            & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
+            & this%speciesName, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
+            & this%iSparseStart, this%img2CentCell, this%coord, this%scc, this%maxSccIter,&
+            & this%sccTol, this%isSccConvRequired, this%nMixElements, this%nIneqOrb,&
+            & this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd,&
+            & this%dftbU, this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite,&
+            & this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight,&
+            & this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability, this%dEidE,&
+            & this%dqOut, this%neFermi, this%dEfdE)
+        if (this%tWriteBandDat) then
+          call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
+        end if
+      end if
+
+    end if
+
+    if (env%tGlobalLead) then
+      if (this%tWriteDetailedOut) then
+        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+            & this%neFermi, this%dEfdE)
+
+        close(this%fdDetailedOut)
+      end if
+    end if
+
     if (allocated(this%pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
       if (withMpi) then
@@ -392,13 +421,14 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
           & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
-          & this%lCurrArray)
+          & this%lCurrArray, this%polarisability, this%dEidE)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
-          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont)
+          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -844,7 +874,7 @@ contains
 
           if (allocated(this%onSiteElements) .and. (iSCCIter > 1 .or. this%tReadChrg)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockIn,&
-                & this%qiBlockIn, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockIn, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
         end if
@@ -948,7 +978,7 @@ contains
 
           if (allocated(this%onSiteElements)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockOut,&
-                & this%qiBlockOut, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockOut, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
           this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
@@ -3518,7 +3548,7 @@ contains
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
 
-    !> Has the calculation converged>
+    !> Has the calculation converged
     logical, intent(out) :: tConverged
 
     !> Are there orbital potentials present
@@ -7065,12 +7095,12 @@ contains
       end if
 
       ! Calculate correct charge contribution for each microstate
-      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
       if (allocated(thirdOrd)) then
-        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
+        call thirdOrd%updateCharges(pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL), q0,&
+            & img2CentCell, orb)
       end if
 
       call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&

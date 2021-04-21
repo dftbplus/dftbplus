@@ -18,6 +18,9 @@ Added
 
 - Extended syntax for selecting atoms in HSD input
 
+- Static coupled perturbed response for homogeneous electric fields (evaluating
+  molecular electric polarisability)
+
 Changed
 -------
 

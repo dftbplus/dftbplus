@@ -66,11 +66,11 @@ module dftbp_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
-  public :: writeHessianOut
+  public :: writeDerivBandOut, writeHessianOut
   public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
-  public :: writeDetailedOut7
+  public :: writeDetailedOut7, writeDetailedOut8
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -1899,7 +1899,8 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
       & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray)
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray,&
+      & polarisability, dEidE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1964,6 +1965,12 @@ contains
     !> Array containing bond currents as (Jvalues, atom)
     !> This array is for testing only since it misses info
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
+
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivatives of eigenvalues wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2036,6 +2043,14 @@ contains
       call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
     end if
 
+    if (allocated(polarisability)) then
+      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+    end if
+
+    if (allocated(dEidE)) then
+      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+    end if
+
     close(fd)
 
   end subroutine writeAutotestTag
@@ -2044,7 +2059,7 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, cm5Cont)
+      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2100,13 +2115,28 @@ contains
     !> Charge model 5 to correct atomic gross charges
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
 
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivatives of eigenvalues wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
+
+    !> Derivative of Mulliken charges wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
+
+    !> Electrons at the Fermi energy (if metallic and evaluated)
+    real(dp), allocatable, intent(in) :: neFermi(:)
+
+    !> Derivative of the Fermi energy with respect to electric field
+    real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     integer :: fd
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
     if (electronicSolver%elecChemPotAvailable) then
@@ -2166,6 +2196,24 @@ contains
       if (allocated(cm5Cont)) then
         call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
       end if
+    end if
+
+    if (allocated(polarisability)) then
+      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+    end if
+    if (allocated(dEidE)) then
+      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+    end if
+    if (allocated(dqOut)) then
+      call taggedWriter%write(fd, tagLabels%dqdEPerturb, sum(dqOut, dim = 1))
+    end if
+
+    if (allocated(neFermi)) then
+      call taggedWriter%write(fd, tagLabels%neFermi, neFermi)
+    end if
+
+    if (allocated(dEfdE)) then
+      call taggedWriter%write(fd, tagLabels%dEfdE, dEfdE)
     end if
 
     close(fd)
@@ -2320,6 +2368,38 @@ contains
     close(fd)
 
   end subroutine writeBandOut
+
+
+  !> Write the derivative band structure data out
+  subroutine writeDerivBandOut(fileName, dEigen, kWeight)
+
+    !> Name of file to write to
+    character(*), intent(in) :: fileName
+
+    !> Eigenvalues for states, k-points and spin indices
+    real(dp), intent(in) :: dEigen(:,:,:,:)
+
+    !> Weights of the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    integer :: iSpin, iK, iEgy, fd, iCart
+
+    open(newunit=fd, file=fileName, action="write", status="replace")
+    do iCart = 1, 3
+      do iSpin = 1, size(dEigen, dim=3)
+        do iK = 1, size(dEigen, dim=2)
+          write(fd, *) 'DIR ', quaternionName(iCart+1), ' KPT ', iK, ' SPIN ', iSpin,&
+              & ' KWEIGHT ', kWeight(iK)
+          do iEgy = 1, size(dEigen, dim=1)
+            write(fd, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin, iCart)
+          end do
+          write(fd,*)
+        end do
+      end do
+    end do
+    close(fd)
+
+  end subroutine writeDerivBandOut
 
 
   !> Write the second derivative matrix
@@ -2557,7 +2637,7 @@ contains
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
 
-    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom
@@ -2567,8 +2647,6 @@ contains
 
     nAtom = size(q0, dim=2)
 
-    qInputUpDown = qInput
-    call qm2ud(qInputUpDown)
     qOutputUpDown = qOutput
     call qm2ud(qOutputUpDown)
     if (allocated(qBlockOut)) then
@@ -2891,7 +2969,7 @@ contains
   end subroutine writeDetailedOut2Dets
 
 
-  !> First group of data to go to detailed.out
+  !> Third group of data to go to detailed.out
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
       & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
@@ -3125,7 +3203,7 @@ contains
   end subroutine writeDetailedOut3
 
 
-  !> Second group of data for detailed.out
+  !> Fourth group of data for detailed.out
   subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
       & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
@@ -3268,7 +3346,7 @@ contains
   end subroutine writeDetailedOut4
 
 
-  !> Third group of data for detailed.out
+  !> Fifth group of data for detailed.out
   subroutine writeDetailedOut5(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
       & totalLatDeriv, energy, tempElec, pressure, cellPressure, tempIon)
 
@@ -3341,7 +3419,7 @@ contains
   end subroutine writeDetailedOut5
 
 
-  !> Fourth group of data for detailed.out
+  !> Sixth group of data for detailed.out
   subroutine writeDetailedOut6(fd, energy, tempIon)
 
     !> File ID
@@ -3362,7 +3440,7 @@ contains
   end subroutine writeDetailedOut6
 
 
-  !> Fifth group of data for detailed.out
+  !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
       & dipoleMoment, deltaDftb, solvation)
 
@@ -3463,10 +3541,97 @@ contains
       end if
     end if
     write(fd,*)
-    close(fd)
 
   end subroutine writeDetailedOut7
 
+
+  !> Eighth group of data for detailed.out
+  subroutine writeDetailedOut8(fd, orb, polarisability, dqOut, neFermi, dEfdE)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivative of Mulliken charges wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
+
+    !> Electrons at the Fermi energy (if metallic and evaluated)
+    real(dp), allocatable, intent(in) :: neFermi(:)
+
+    !> Derivative of the Fermi energy with respect to electric field
+    real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
+    integer :: iCart, iAt, nAtom, iS, nSpin
+
+    if (allocated(dqOut)) then
+      nAtom = size(dqOut, dim=2)
+      nSpin = size(dqOut, dim=3)
+      do iCart = 1, 3
+        write(fd,"(A)")'Atomic charge derivatives (a.u.), d q / d E_' //&
+            & trim(quaternionName(iCart+1)) //':'
+        select case(nSpin)
+        case(1)
+          do iAt = 1, nAtom
+            write(fd,"(I4,1X,4E20.12)")iAt, sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))
+          end do
+        case(2)
+          do iAt = 1, nAtom
+            write(fd,"(I4,1X,A,4E20.12)")iAt, 'u',&
+                & 0.5_dp*(sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))&
+                & + sum(dqOut(:orb%nOrbAtom(iAt), iAt, 2, iCart)))
+            write(fd,"(5X,A,4E20.12)")'d',&
+                & 0.5_dp*(sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))&
+                & - sum(dqOut(:orb%nOrbAtom(iAt), iAt, 2, iCart)))
+          end do
+        case(4)
+          do iAt = 1, nAtom
+            do iS = 1, nSpin
+              if (iS == 1) then
+                write(fd,"(I4,1X,A,4E20.12)")iAt, quaternionName(iS),&
+                    & sum(dqOut(:orb%nOrbAtom(iAt), iAt, iS, iCart))
+              else
+                write(fd,"(5X,A,4E20.12)")quaternionName(iS),&
+                    & sum(dqOut(:orb%nOrbAtom(iAt), iAt, iS, iCart))
+              end if
+            end do
+          end do
+        end select
+        write(fd,*)
+      end do
+    end if
+
+    if (allocated(neFermi)) then
+      write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
+      if (size(neFermi)==2) then
+        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+      else
+        write(fd,"(F12.8)")neFermi
+      end if
+    end if
+
+    if (allocated(dEfdE)) then
+      write(fd,"(A)")'Derivative of Fermi energy with respect to electric field'
+      do iCart = 1, 3
+        write(fd,"(1X,A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
+            & dEfdE(:,iCart)
+      end do
+    end if
+
+    if (allocated(polarisability)) then
+      write(fd,*)
+      write(fd,"(A)")'Static electric polarisability (a.u.)'
+      do iCart = 1, 3
+        write(fd,"(3E20.12)")polarisability(:, iCart)
+      end do
+      write(fd,*)
+    end if
+
+  end subroutine writeDetailedOut8
 
   !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)

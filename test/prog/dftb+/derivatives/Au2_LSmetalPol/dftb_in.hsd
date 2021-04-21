@@ -1,0 +1,51 @@
+geometry = genformat {
+    2  C
+ Au
+    1 1    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    2 1    0.1461739267E+01    0.1461739267E+01    0.1461739267E+01
+}
+
+Hamiltonian = Dftb {
+    Scc = yes
+    SccTolerance = 1e-10
+    ShellResolvedSCC = Yes
+    MaxAngularMomentum = {
+        Au = d
+    }
+    Filling = Fermi {
+        Temperature [K] = 1000
+    }
+    SlaterKosterFiles = {
+        Au-Au = "Au-Au.skf"
+    }
+    SpinOrbit = {
+        Au [eV] = {0.0 0.5 1.5}
+    }
+    # If you want to test polarisability numerically
+    #ElectricField = {
+    #    External = {
+    #        Strength = 5E-6
+    #        Direction = 1 0 0
+    #    }
+    #}
+}
+
+Analysis{
+    Polarisability = {
+        Static = Yes
+    }
+}
+
+Parallel = {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 9
+}
