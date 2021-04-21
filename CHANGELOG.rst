@@ -23,6 +23,8 @@ Changed
 
 - DFT-D4 can now be evaluated self-consistently within the SCC procedure
 
+- Self-consistent DFT-D4 with REKS
+
 
 Fixed
 -----
