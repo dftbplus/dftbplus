@@ -202,7 +202,7 @@ module dftbp_coulomb
   integer, parameter :: iterChunkSize_ = 1000
 
   ! Boundary conditions the module can handle
-  integer, parameter :: implementedBoundaryConds_(*) = [&
+  integer, parameter :: implementedBoundaryConds_(2) = [&
       & boundaryConditions%cluster, boundaryConditions%pbc3d]
 
 

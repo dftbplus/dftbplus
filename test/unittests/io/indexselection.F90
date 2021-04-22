@@ -16,8 +16,8 @@
 
   #:block TEST_FIXTURE("atomSelection")
 
-    character(2), parameter :: speciesNames(*) = [character(2) :: "Si", "C"]
-    integer, parameter :: species(*) = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+    character(2), parameter :: speciesNames(2) = [character(2) :: "Si", "C"]
+    integer, parameter :: species(16) = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
     integer, parameter :: nAtom = size(species)
     integer, parameter :: fullRange(2) = [1, nAtom]
     logical :: selected(nAtom)

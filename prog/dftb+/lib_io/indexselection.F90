@@ -185,7 +185,16 @@ contains
     if (present(speciesNames)) then
       @:ASSERT(size(species) == nSelectable)
       selection%species = species
-      selection%speciesNames = tolower(speciesNames)
+      ! Workaround: nvfortran 21.2
+      ! Code for array assignment via elemental function segfaults on execution
+      ! selection%speciesNames = tolower(speciesNames)
+      block
+        integer :: ii
+        allocate(selection%speciesNames, mold=speciesNames)
+        do ii = 1, size(speciesNames)
+          selection%speciesNames(ii) = tolower(speciesNames(ii))
+        end do
+      end block
     end if
 
     selection%backwardIndexing = all(selection%indexRange >= 0)

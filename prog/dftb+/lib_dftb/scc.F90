@@ -196,7 +196,7 @@ module dftbp_scc
 
 
   ! Boundary conditions the module can handle
-  integer, parameter :: implementedBoundaryConds_(*) =&
+  integer, parameter :: implementedBoundaryConds_(2) =&
       & [boundaryConditions%cluster, boundaryConditions%pbc3d]
 
 
