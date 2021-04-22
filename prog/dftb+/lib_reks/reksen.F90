@@ -138,20 +138,29 @@ module dftbp_reksen
     if (this%isRangeSep) then
       energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
+    if (this%isDispersion) then
+      energy%Edisp = sum(this%weightL(this%rstate,:)*this%enLdisp(:))
+    end if
 
     energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
         & energy%e3rd + energy%Efock
+    energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
 
     ! Compute the total energy for SA-REKS states
     do ist = 1, this%nstates
       this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
 
-    ! In this step Etotal becomes the energy of averaged state, not individual states
+!    if (abs(energy%Etotal - this%energy(this%rstate)) >= epsilon(1.0_dp)) then
+    if (abs(energy%Etotal - this%energy(this%rstate)) >= 1.0e-8_dp) then
+      call error("Wrong energy contribution for target SA-REKS state")
+    end if
+
+    ! In this step Eavg becomes the energy of averaged state
     ! From this energy we can check the variational principle
-    energy%Etotal = 0.0_dp
+    energy%Eavg = 0.0_dp
     do ist = 1, this%SAstates
-      energy%Etotal = energy%Etotal + this%SAweight(ist) * this%energy(ist)
+      energy%Eavg = energy%Eavg + this%SAweight(ist) * this%energy(ist)
     end do
 
   end subroutine calcSaReksEnergy
@@ -367,7 +376,7 @@ module dftbp_reksen
 
 
   !> Set correct final energy values for target state or microstate
-  subroutine setReksTargetEnergy(this, energy, cellVol, pressure, TS)
+  subroutine setReksTargetEnergy(this, energy, cellVol, pressure)
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: this
@@ -380,9 +389,6 @@ module dftbp_reksen
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     ! get correct energy values
     if (this%Lstate == 0) then
@@ -407,16 +413,26 @@ module dftbp_reksen
       if (this%isRangeSep) then
         energy%Efock = this%enLfock(this%Lstate)
       end if
+      if (this%isDispersion) then
+        energy%Edisp = this%enLdisp(this%Lstate)
+      end if
 
       energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
           & energy%e3rd + energy%Efock
-      energy%Etotal = this%enLtot(this%Lstate)
+      energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
       energy%Eexcited = 0.0_dp
+
+!      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > epsilon(1.0_dp)) then
+      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > 1.0e-8_dp) then
+        call error("Wrong energy contribution for target microstate")
+      end if
 
     end if
 
-    energy%EMermin = energy%Etotal - sum(TS)
-    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    ! REKS is not affected by filling, so TS becomes 0
+    energy%EMermin = energy%Etotal
+    ! extrapolated to 0 K
+    energy%Ezero = energy%Etotal
     energy%EGibbs = energy%EMermin + cellVol * pressure
     energy%EForceRelated = energy%EGibbs
 

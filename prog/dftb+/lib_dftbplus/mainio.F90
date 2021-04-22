@@ -4230,13 +4230,13 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, reks)
+  subroutine printReksSccInfo(iSccIter, Eavg, diffTotal, sccErrorQ, reks)
 
     !> Iteration count
     integer, intent(in) :: iSccIter
 
-    !> total energy
-    real(dp), intent(in) :: Etotal
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     !> Difference in total energy between this iteration and the last
     real(dp), intent(in) :: diffTotal
@@ -4251,7 +4251,7 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Etotal,&
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Eavg,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -5161,7 +5161,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5259,6 +5259,9 @@ contains
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
 
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
@@ -5331,6 +5334,7 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
+
       if (reks%nstates > 1) then
         write(fd, "(1X,A)") "SA-REKS optimizes the averaged state, not individual states."
         write(fd, "(1X,A)") "These charges are not from individual states."
@@ -5344,6 +5348,7 @@ contains
         end if
         write(fd, *)
       end if
+
       write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
           & - qOutput(:, iAtInCentralRegion(:), 1))
       write(fd, "(/,A)") " Atomic gross charges (e)"
@@ -5353,6 +5358,18 @@ contains
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
+
+      if (present(qNetAtom)) then
+        write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
+        write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qNetAtom(iAt),&
+              & (1.0_dp - qNetAtom(iAt) / sum(q0(:, iAt, 1)))
+        end do
+        write(fd, *)
+      end if
+
     end if
 
     lpSpinPrint2_REKS: do iSpin = 1, 1
@@ -5412,7 +5429,7 @@ contains
       write(fd, *)
     end do lpSpinPrint3_REKS
 
-    call setReksTargetEnergy(reks, energy, cellVol, pressure, TS)
+    call setReksTargetEnergy(reks, energy, cellVol, pressure)
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
     if (tSCC) then

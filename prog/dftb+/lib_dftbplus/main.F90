@@ -756,7 +756,7 @@ contains
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
-            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%reks)
+            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
         call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
@@ -765,7 +765,7 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -799,16 +799,8 @@ contains
               & tStopScc, this%eigvecsReal, this%reks)
         end if
 
-        if (allocated(this%dispersion) .and. .not. tConverged) then
-          call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
-              & this%species0, tConverged)
-          call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
-              & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-        end if
-        call sumEnergies(this%dftbEnergy(1))
-
-        call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
+        call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
+        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, diffElec, sccErrorQ,&
             & this%reks)
 
         if (tConverged .or. tStopScc) then
@@ -819,10 +811,13 @@ contains
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
               & this%eigvecsReal, this%electronicSolver, this%eigen, this%qOutput, this%q0,&
               & this%tDipole, dipoleTmp, this%reks)
+          call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+              & this%tDipole, this%reks, isSingleState=.true.)
 
-          call getReksEnProperties(this%eigvecsReal, this%coord0, this%reks)
+          call getReksEnProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
+              & this%img2CentCell, this%iSparseStart, this%eigvecsReal, this%coord0, this%reks)
 
-          if (this%tWriteDetailedOut) then
+          if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
@@ -834,7 +829,7 @@ contains
                 & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
                 & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
                 & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-                & allocated(this%thirdOrd), this%isRangeSep)
+                & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
             call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -1079,7 +1074,7 @@ contains
 
     end if REKS_SCC
 
-    if (allocated(this%dispersion)) then
+    if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
@@ -1103,7 +1098,7 @@ contains
             & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
             & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-            & allocated(this%thirdOrd), this%isRangeSep)
+            & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
       else
         call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
             & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
@@ -1240,6 +1235,8 @@ contains
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%over, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
+        call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+            & this%tDipole, this%reks, isSingleState=.false.)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
@@ -3438,7 +3435,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), optional :: qNetAtom(:)
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     integer :: iSpin
 
@@ -3464,7 +3461,7 @@ contains
       end do
     end if
 
-    if (present(qNetAtom)) then
+    if (allocated(qNetAtom)) then
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
@@ -6776,7 +6773,7 @@ contains
   !> Calculate Mulliken population for each microstate from sparse density matrix.
   subroutine getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, &
       & img2CentCell, iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlock, &
-      & qiBlock, reks)
+      & qiBlock, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6814,6 +6811,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
@@ -6831,11 +6831,26 @@ contains
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
       end if
 
-      ! reks%qOutputL has (my_qm) component
+      ! reks%qOutputL & reks%qNetAtomL has (my_qm) component
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock)
+          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=qNetAtom)
+
+      ! Get correct net charge per atom
+      ! Note that qNetAtomL does not have spin dependency so it does not
+      ! correspond to (my_qm) or (my_ud) representation
+      if (reks%isQNetAllocated) then
+        if (iL > reks%Lpaired) then
+          if (mod(iL,2) == 0) then
+            reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+          else
+            reks%qNetAtomL(:,iL) = qNetAtom
+          end if
+        else
+          reks%qNetAtomL(:,iL) = qNetAtom
+        end if
+      end if
 
     end do
 
@@ -6851,7 +6866,8 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
+      & referenceN0, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6964,6 +6980,18 @@ contains
 
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Has the calculation converged>
+    logical, intent(in) :: tConverged
+
+    !> species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> reference n_0 charges for each atom
+    real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
@@ -7108,6 +7136,21 @@ contains
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
           & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+      if (allocated(dispersion)) then
+        ! For dftd4 dispersion, update charges
+        call dispersion%updateCharges(env, pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL),&
+            & q0, img2CentCell, orb)
+        ! For MBD/TS dispersion, update onsite charges
+        ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
+        if (reks%isQNetAllocated) then
+          qNetAtom(:) = reks%qNetAtomL(:,iL)
+        end if
+        call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0,&
+            & species0, tConverged)
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
+            & iAtInCentralRegion)
+      end if
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
@@ -7119,6 +7162,9 @@ contains
       end if
       if (reks%isRangeSep) then
         reks%enLfock(iL) = energy%Efock
+      end if
+      if (reks%isDispersion) then
+        reks%enLdisp(iL) = energy%Edisp
       end if
       reks%enLtot(iL) = energy%Etotal
 
@@ -7281,6 +7327,45 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+
+
+  !> Set correct dipole moment according to type of REKS calculation
+  subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
+
+    !> resulting temporary dipole moment
+    real(dp), allocatable, intent(in) :: dipoleTmp(:)
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:,:)
+
+    !> Which state is being calculated in the determinant loop?
+    integer, intent(in) :: iDet
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> calculate a single-state REKS?
+    logical, intent(in) :: isSingleState
+
+    ! Set correct dipole moment to this%dipoleMoment
+    if (tDipole) then
+      if (isSingleState) then
+        ! For single-state REKS case, see getStateInteraction routine.
+        if (reks%Efunction == 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      else
+        ! (SI)-SA-REKS case, see getReksGradProperties routine.
+        if (reks%Efunction > 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      end if
+    end if
+
+  end subroutine assignDipoleMoment
 
 
 end module dftbp_main
