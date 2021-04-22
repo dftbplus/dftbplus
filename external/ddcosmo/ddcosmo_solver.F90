@@ -25,6 +25,32 @@ module ddcosmo_solver
 
   integer, parameter :: dp = selected_real_kind(15)
 
+  abstract interface
+    subroutine lx_interface(ddCosmo, n, x, y)
+      import :: TDomainDecomposition, dp
+      type(TDomainDecomposition), intent(in) :: ddCosmo
+      integer, intent(in) :: n
+      real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+      real(dp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    end subroutine lx_interface
+
+    pure subroutine ldm1x_interface(ddCosmo, n, x, y)
+      import :: TDomainDecomposition, dp
+      type(TDomainDecomposition), intent(in) :: ddCosmo
+      integer, intent(in) :: n
+      real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+      real(dp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+    end subroutine ldm1x_interface
+
+    function hnorm_interface(ddCosmo, n, x) result(hnorm)
+      import :: TDomainDecomposition, dp
+      type(TDomainDecomposition), intent(in) :: ddCosmo
+      integer, intent(in) :: n
+      real(dp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+      real(dp) :: hnorm
+    end function hnorm_interface
+  end interface
+
 
 contains
 
@@ -76,15 +102,15 @@ contains
 
     !> External, subroutine to compute the required matrix-vector multiplication
     !  format: subroutine matvec(n, x, y)
-    procedure(lx) :: matvec
+    procedure(lx_interface) :: matvec
 
     !> External, subroutine to apply the inverse diagonal matrix to a vector.
     !  format: subroutine dm1vec(n, x, y)
-    procedure(ldm1x) :: dm1vec
+    procedure(ldm1x_interface) :: dm1vec
 
     !> External, optional function to compute the norm of a vector.
     !> Format: real(dp) function u_norm(n, x)
-    procedure(hnorm), optional :: u_norm
+    procedure(hnorm_interface), optional :: u_norm
 
     integer :: it, nmat, istatus, lenb
     real(dp) :: rms_norm, max_norm, tol_max
