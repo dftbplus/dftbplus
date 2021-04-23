@@ -190,7 +190,7 @@ contains
       ! selection%speciesNames = tolower(speciesNames)
       block
         integer :: ii
-        allocate(selection%speciesNames, mold=speciesNames)
+        allocate(selection%speciesNames(size(speciesNames)))
         do ii = 1, size(speciesNames)
           selection%speciesNames(ii) = tolower(speciesNames(ii))
         end do
