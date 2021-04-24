@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains computer environment settings
 module dftbp_environment
   use dftbp_globalenv, only : shutdown, stdOut
   use dftbp_timerarray
   use dftbp_fileregistry
-
+  use dftbp_status, only : TStatus
 #:if WITH_MPI
   use dftbp_mpienv
 #:endif
@@ -239,7 +240,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, status)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -256,7 +257,11 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, status)
+    @:PROPAGATE_ERROR(status)
 
   end subroutine TEnvironment_initBlacs
 
