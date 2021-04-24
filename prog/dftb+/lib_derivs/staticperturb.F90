@@ -206,7 +206,7 @@ contains
     real(dp) :: maxFill
 
     integer, allocatable :: nFilled(:,:), nEmpty(:,:)
-    real(dp), allocatable :: dEiTmp(:,:,:)
+    real(dp), allocatable :: dEiTmp(:,:,:), dEfdETmp(:)
 
     integer :: ii
 
@@ -272,6 +272,7 @@ contains
     if (nSpin == 4) then
       allocate(idHam(size(ham,dim=1),nSpin))
       allocate(idRho(size(ham,dim=1),nSpin))
+      idHam(:,:) = 0.0_dp
     end if
 
     if (allocated(rangeSep)) then
@@ -363,6 +364,7 @@ contains
       end if
       allocate(neFermi(size(Ef)))
       allocate(dEfdE(size(Ef),3))
+      allocate(dEfdETmp(size(Ef)))
 
       do iS = 1, nIndepHam
         neFermi(iS) = 0.0_dp
@@ -404,10 +406,13 @@ contains
           & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut(:,:,:,iCart), rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
-          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdE(:,iCart), Ef, dHam, idHam,&
+          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
 
+      if (allocated(dEfdE)) then
+        dEfdE(:,iCart) = dEfdETmp
+      end if
       if (allocated(dEiTmp)) then
         dEi(:,:,:,iCart) = dEiTmp
       end if
@@ -592,7 +597,7 @@ contains
     !> ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
-    real(dp), intent(inout) :: dEfdE(:)
+    real(dp), intent(inout), allocatable :: dEfdE(:)
 
     real(dp), allocatable, intent(inout) :: dqBlockIn(:,:,:,:)
     real(dp), allocatable, intent(inout) :: dqBlockOut(:,:,:,:)

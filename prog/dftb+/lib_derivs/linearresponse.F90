@@ -464,7 +464,7 @@ contains
     real(dp), intent(in) :: dHam(:,:)
 
     !> Derivative of the imaginary part of the hamiltonian
-    real(dp), intent(in), allocatable :: idHam(:,:)
+    real(dp), intent(inout), allocatable :: idHam(:,:)
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -509,7 +509,7 @@ contains
     real(dp), intent(out) :: dRhoSparse(:,:)
 
     !> returning imaginary part of dRhoSparse on exit
-    real(dp), intent(out), allocatable :: idRhoSparse(:,:)
+    real(dp), intent(inout), allocatable :: idRhoSparse(:,:)
 
     !> k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -735,7 +735,6 @@ contains
         & transpose(conjg(eigvecsTransformed(:, :nFilled(1)))) )&
         & + matmul(eigvecsTransformed(:, :nFilled(1)),&
         & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
-
 
   #:endif
 
