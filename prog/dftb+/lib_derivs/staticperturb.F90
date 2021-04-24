@@ -364,6 +364,7 @@ contains
       end if
       allocate(neFermi(size(Ef)))
       allocate(dEfdE(size(Ef),3))
+      dEfdE(:,:) = 0.0_dp
       allocate(dEfdETmp(size(Ef)))
 
       do iS = 1, nIndepHam
@@ -401,6 +402,10 @@ contains
       call total_shift(dPotential%extShell, dPotential%extAtom, orb, species)
       call total_shift(dPotential%extBlock, dPotential%extShell, orb, species)
 
+      if (allocated(dEfdETmp)) then
+        dEfdETmp(:) = 0.0_dp
+      end if
+      dEiTmp(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
           & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
           & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
