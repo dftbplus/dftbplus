@@ -18,9 +18,6 @@ module dftbp_linearresponse
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_parallelks, only : TParallelKS
-#:if WITH_MPI
-  use dftbp_mpifx
-#:endif
 #:if WITH_SCALAPACK
   use dftbp_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
   use dftbp_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs
@@ -45,7 +42,7 @@ contains
   !> q=0, k=0
   subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC, transform,&
+      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
@@ -102,9 +99,6 @@ contains
     !> returning dRhoSparse on exit
     real(dp), intent(out) :: dRhoSparse(:)
 
-    !> Cartesian direction of perturbation
-    integer, intent(in) :: iCart
-
     !> Derivative of rho as a square matrix, if needed
     real(dp), pointer :: dRhoSqr(:,:,:)
 
@@ -127,10 +121,10 @@ contains
   #:endif
 
     !> Derivative of single particle eigenvalues
-    real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: dEi(:,:,:)
 
     !> Optional derivatives of single particle wavefunctions
-    real(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: dPsi(:,:,:)
 
   #:if WITH_SCALAPACK
     integer :: iGlob, jGlob
@@ -148,10 +142,10 @@ contains
     iS = parallelKS%localKS(2, iKS)
 
     if (allocated(dEi)) then
-      dEi(:, iK, iS, iCart) = 0.0_dp
+      dEi(:, iK, iS) = 0.0_dp
     end if
     if (allocated(dPsi)) then
-      dPsi(:, :, iS, iCart) = 0.0_dp
+      dPsi(:, :, iS) = 0.0_dp
     end if
 
     workLocal(:,:) = 0.0_dp
@@ -207,7 +201,7 @@ contains
               & env%blacs%orbitalGrid%nrow)
           if (iGlob == jGlob) then
             !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
-            dEi(iGlob, iK, iS, iCart) = workLocal(ii,jj)
+            dEi(iGlob, iK, iS) = workLocal(ii,jj)
           end if
         end do
       end do
@@ -237,7 +231,7 @@ contains
         & dRho, denseDesc%blacsOrbSqr)
 
     if (allocated(dPsi)) then
-      dPsi(:, :, iS, iCart) = workLocal
+      dPsi(:, :, iS) = workLocal
     end if
 
     ! Form derivative of occupied density matrix
@@ -275,7 +269,7 @@ contains
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
     if (allocated(dEi)) then
       do ii = 1, nOrb
-        dEi(ii, iK, iS, iCart) = workLocal(ii,ii)
+        dEi(ii, iK, iS) = workLocal(ii,ii)
       end do
     end if
 
@@ -302,7 +296,7 @@ contains
         & matmul(eigvecsTransformed(:, nEmpty(iS):), workLocal(nEmpty(iS):, :nFilled(iS)))
 
     if (allocated(dPsi)) then
-      dPsi(:, :, iS, iCart) = workLocal
+      dPsi(:, :, iS) = workLocal
     end if
 
     ! zero the uncalculated virtual states
@@ -457,7 +451,7 @@ contains
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
   subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
-      & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, iCart, transform,&
+      & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
@@ -532,9 +526,6 @@ contains
     !> spin/kpoint channel
     integer, intent(in) :: iKS
 
-    !> Cartesian direction of perturbation
-    integer, intent(in) :: iCart
-
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
@@ -544,10 +535,10 @@ contains
   #:endif
 
     !> Derivative of single particle eigenvalues
-    real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: dEi(:,:,:)
 
     !> Optional derivatives of single particle wavefunctions
-    complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:,:)
+    complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, iGlob, jGlob
@@ -565,10 +556,10 @@ contains
     iS = parallelKS%localKS(2, iKS)
 
     if (allocated(dEi)) then
-      dEi(:, iK, iS, iCart) = 0.0_dp
+      dEi(:, iK, iS) = 0.0_dp
     end if
     if (allocated(dPsi)) then
-      dPsi(:, :, iK, iS, iCart) = cmplx(0,0,dp)
+      dPsi(:, :, iK, iS) = cmplx(0,0,dp)
     end if
 
     workLocal(:,:) = cmplx(0,0,dp)
@@ -636,7 +627,7 @@ contains
           iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
               & env%blacs%orbitalGrid%nrow)
           if (iGlob == jGlob) then
-            dEi(iGlob, iK, iS, iCart) = real(workLocal(ii,jj),dp)
+            dEi(iGlob, iK, iS) = real(workLocal(ii,jj),dp)
           end if
         end do
       end do
@@ -674,7 +665,7 @@ contains
         & dRho, denseDesc%blacsOrbSqr)
 
     if (allocated(dPsi)) then
-      dPsi(:, :, iK, iS, iCart) = workLocal
+      dPsi(:, :, iK, iS) = workLocal
     end if
 
     ! Form derivative of occupied density matrix
@@ -704,7 +695,7 @@ contains
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
     if (allocated(dEi)) then
       do ii = 1, nOrb
-        dEi(ii, iK, iS, iCart) = real(workLocal(ii,ii),dp)
+        dEi(ii, iK, iS) = real(workLocal(ii,ii),dp)
       end do
     end if
 
@@ -733,7 +724,7 @@ contains
         & matmul(eigvecsTransformed(:, nEmpty(1):), workLocal(nEmpty(1):, :nFilled(1)))
 
     if (allocated(dPsi)) then
-      dPsi(:, :, iK, iS, iCart) = workLocal
+      dPsi(:, :, iK, iS) = workLocal
     end if
 
     ! zero the uncalculated virtual states

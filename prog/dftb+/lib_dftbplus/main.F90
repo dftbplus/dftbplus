@@ -6703,7 +6703,7 @@ contains
     real(dp), intent(inout) :: work(:,:)
 
     !> Dense density matrix if needed
-    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
