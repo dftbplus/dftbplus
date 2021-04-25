@@ -108,7 +108,7 @@ module dftbp_main
   use dftbp_initprogram, only : overrideContactCharges
 #:endif
   use dftbp_blockpothelper, only : appendBlockReduced
-  use dftbp_staticperturb, only : staticPerturWrtE
+  use dftbp_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   implicit none
 
   private
@@ -381,6 +381,15 @@ contains
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
+        call polarizabilityKernel(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
+            & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
+            & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
+            & this%img2CentCell, this%scc, this%maxSccIter, this%sccTol,&
+            & this%isSccConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
+            & this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU,&
+            & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%rangeSep,&
+            & this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec,&
+            & this%cellVec, this%tPeriodic)
       end if
 
     end if

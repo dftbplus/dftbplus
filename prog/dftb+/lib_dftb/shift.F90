@@ -17,10 +17,10 @@ module dftbp_shift
   implicit none
 
   private
-  public :: add_shift, total_shift
+  public :: add_shift, total_shift, add_onsite_pot
 
 
-  !> add shifts to a given Hamiltonian
+  !> Add shifts to a given Hamiltonian
   interface add_shift
     module procedure add_shift_atom
     module procedure add_shift_lshell
@@ -33,6 +33,11 @@ module dftbp_shift
     module procedure addatom_shell
     module procedure addshell_block
   end interface total_shift
+
+  !> Add onsite only shift to a given Hamiltonian
+  interface add_onsite_pot
+    module procedure add_onsite_atom
+  end interface add_onsite_pot
 
 contains
 
@@ -68,6 +73,7 @@ contains
     !> Shift to add at atom sites
     integer, intent(in) :: img2CentCell(:)
 
+    !> Atom resolved potential
     real(dp), intent(in) :: shift(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
@@ -138,6 +144,7 @@ contains
     !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shell resolved potential
     real(dp), intent(in) :: shift(:,:,:)
 
     integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
@@ -216,6 +223,7 @@ contains
     !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
     integer, intent(in) :: img2CentCell(:)
 
+    !> Block resolved potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
@@ -338,5 +346,44 @@ contains
     end do
 
   end subroutine addshell_block
+
+
+  !> Add in on-site atomic shift (potential is only dependent on number of atom in structure)
+  subroutine add_onsite_atom(ham, over, species, orb, iPair, nAtom, shift)
+
+    !> The resulting Hamiltonian contribution.
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> The overlap matrix.
+    real(dp), intent(in) :: over(:)
+
+    !> List of the species of each atom.
+    integer, intent(in) :: species(:)
+
+    !> Contains Information about the atomic orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Indexing array for the Hamiltonian.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index mapping atoms onto the central cell atoms.
+    integer, intent(in) :: nAtom
+
+    !> Atom resolved potential.
+    real(dp), intent(in) :: shift(:,:)
+
+    integer :: iAt, iOrig, iSp, nOrb, iSpin
+
+    do iSpin = 1, size(ham,dim=2)
+      do iAt = 1, nAtom
+        iSp = species(iAt)
+        nOrb = orb%nOrbSpecies(iSp)
+        iOrig = iPair(0, iAt)
+        ham(iOrig+1:iOrig+nOrb*nOrb,iSpin) = ham(iOrig+1:iOrig+nOrb*nOrb,iSpin)&
+            & + over(iOrig+1:iOrig+nOrb*nOrb) * shift(iAt,iSpin)
+      end do
+    end do
+
+  end subroutine add_onsite_atom
 
 end module dftbp_shift
