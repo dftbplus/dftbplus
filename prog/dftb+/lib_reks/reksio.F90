@@ -180,18 +180,20 @@ module dftbp_reksio
           end if
         end do
 
-!        write(stdOut,*) "AVG state"
-!        write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
-!        write(stdOut,'(3(f15.8))')
-!        do ist = 1, this%nstates
-!          write(stdOut,*) ist, "st state (SA-REKS)"
-!          write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
-!          if (ist == this%nstates) then
-!            write(stdOut,"(A)") repeat("-", 50)
-!          else
-!            write(stdOut,'(3(f15.8))')
-!          end if
-!        end do
+        if (this%Plevel >= 2) then
+          write(stdOut,*) "AVG state"
+          write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
+          write(stdOut,'(3(f15.8))')
+          do ist = 1, this%nstates
+            write(stdOut,*) ist, "st state (SA-REKS)"
+            write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
+            if (ist == this%nstates) then
+              write(stdOut,"(A)") repeat("-", 50)
+            else
+              write(stdOut,'(3(f15.8))')
+            end if
+          end do
+        end if
 
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf
