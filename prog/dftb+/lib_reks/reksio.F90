@@ -181,7 +181,7 @@ module dftbp_reksio
         end do
 
         if (this%Plevel >= 2) then
-          write(stdOut,*) "AVG state"
+          write(stdOut,"(12X,A)") "AVG state"
           write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
           write(stdOut,'(3(f15.8))')
           do ist = 1, this%nstates
