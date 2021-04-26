@@ -33,7 +33,7 @@ module dftbp_dispuffdata
 
   !> Values are in AA and kcal/mol
   !>
-  type(TUFF), parameter :: database(103) = [&
+  type(TUFF), parameter :: database(*) = [&
       & TUFF("h ", 2.886_dp, 0.044_dp), TUFF("he", 2.362_dp, 0.056_dp),&
       & TUFF("li", 2.451_dp, 0.025_dp), TUFF("be", 2.745_dp, 0.085_dp),&
       & TUFF("b ", 4.083_dp, 0.180_dp), TUFF("c ", 3.851_dp, 0.105_dp),&
