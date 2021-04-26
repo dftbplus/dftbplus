@@ -343,6 +343,7 @@ contains
     call this%logger%write(forces, 5, '(f12.6)')
 
     ! transmit stress
+    ! The (virial) stress tensor is symmetric, so no transpose needed.
     call writebuffer(this%socket, reshape(stress, [9]))
     call this%logger%write('ipisocket%send: write to socket: stress', 3)
     call this%logger%write(stress, 4, '(f12.6)')
