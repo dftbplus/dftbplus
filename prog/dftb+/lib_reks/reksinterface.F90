@@ -905,6 +905,8 @@ module dftbp_reksinterface
             & neighbourList%iNeighbour, nNeighbourSK)
       end if
 
+      ! TODO : this part should be modified after merging selfconsistent
+      !      : MBD/TS or dftd4 gradients
       if (iL == 1) then
 
         dispDerivs(:,:) = 0.0_dp

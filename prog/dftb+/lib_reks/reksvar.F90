@@ -1165,18 +1165,12 @@ module dftbp_reksvar
         call error("Too small shift value in REKS")
       end if
 
-      if (this%isQNetAllocated .and. this%isDispersion) then
-        call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
-      end if
-
       ! REKS gradient requirements
 
       if (this%tForces) then
 
         if (this%t3rd) then
           call error("3rd order scc is not compatible with force calculation in REKS")
-        else if (this%isQNetAllocated) then
-          call error("Calculation of net charge per atom is not compatible with force calculation in REKS")
         end if
 
         if (this%Lstate > 0) then
