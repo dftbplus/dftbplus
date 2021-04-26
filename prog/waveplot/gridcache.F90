@@ -11,13 +11,15 @@
 !> This object is responsible for reading in the eigenvectors from a specified file and passing the
 !> appropriate eigenvectors to the molecule orbital calculator.
 module dftbp_gridcache
+
   use dftbp_assert
   use dftbp_globalenv, only : stdOut
-  use dftbp_constants
-  use dftbp_accuracy
-  use dftbp_fileid
-  use dftbp_message
-  use dftbp_molecularorbital
+  use dftbp_constants, only : pi
+  use dftbp_accuracy, only : dp
+  use dftbp_fileid, only : getFileId
+  use dftbp_message, only : error
+  use dftbp_molecularorbital, only : TMolecularOrbital, init, getValue
+
   implicit none
 
   private
@@ -25,7 +27,7 @@ module dftbp_gridcache
 
 
   !> Contains the data for a grid cache
-  type TgridCache
+  type TGridCache
 
     !> Molecular orbital calculator
     type(TMolecularOrbital), pointer :: molorb
@@ -95,6 +97,7 @@ module dftbp_gridcache
 
     !> Initialised?
     logical :: tInitialised = .false.
+
   end type TgridCache
 
 
@@ -118,9 +121,8 @@ contains
 
   !> Initialises a GridCache instance
   !> Caveat: Level index is not allowed to contain duplicate entries!
-  subroutine GridCache_init(sf, levelIndex, nOrb, nAllLevel, &
-      &nAllKPoint, nAllSpin, nCached, nPoints, tVerbose, eigvecbin, gridVec, &
-      &origin, kPointCoords, tReal, molorb)
+  subroutine GridCache_init(sf, levelIndex, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
+      & nPoints, tVerbose, eigvecbin, gridVec, origin, kPointCoords, tReal, molorb)
 
     !> The structure to initialise
     type(TgridCache), intent(inout) :: sf
@@ -180,10 +182,10 @@ contains
     @:ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
     @:ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
     @:ASSERT(associated(molorb))
-    @:ASSERT(all(shape(gridVec) == (/3, 3/)))
+    @:ASSERT(all(shape(gridVec) == [3, 3]))
     @:ASSERT(size(origin) == 3)
     @:ASSERT(size(nPoints) == 3)
-    @:ASSERT(all(shape(kPointCoords) == (/ 3, nAllKPoint /)))
+    @:ASSERT(all(shape(kPointCoords) == [3, nAllKPoint]))
 
     sf%molorb => molorb
     sf%gridVec(:,:) = gridVec(:,:)
@@ -212,7 +214,7 @@ contains
     do iSpin = 1, nAllSpin
       do iKPoint = 1, nAllKPoint
         do iLevel = 1, nAllLevel
-          curVec = (/ iLevel, iKPoint, iSpin /)
+          curVec = [iLevel, iKPoint, iSpin]
           tFound = .false.
           lpLevelIndex: do ii = 1, size(levelIndex, dim=2)
             tFound = all(levelIndex(:,ii) == curVec)
@@ -336,8 +338,7 @@ contains
         tmp = mod(sf%nReadEigVec - 1, sf%nAllLevel * sf%nAllKPoint)
         iKPoint = tmp / sf%nAllLevel + 1
         iLevel = mod(tmp, sf%nAllLevel) + 1
-        if (all((/ iLevel, iKPoint, iSpin/) &
-            &== sf%levelIndex(:,iStartAbs+ind-1))) then
+        if (all([iLevel, iKPoint, iSpin] == sf%levelIndex(:,iStartAbs+ind-1))) then
           ind = ind + 1
           if (sf%tVerbose) then
             write(stdout, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
@@ -351,13 +352,11 @@ contains
       end if
       if (sf%tReal) then
         eigReal => sf%eigenvecReal(:, :iEnd)
-        call getValue(sf%molorb, sf%origin, sf%gridVec, eigReal, &
-            &sf%gridCacheReal(:,:,:,:iEnd))
+        call getValue(sf%molorb, sf%origin, sf%gridVec, eigReal, sf%gridCacheReal(:,:,:,:iEnd))
       else
         eigCmpl => sf%eigenvecCmpl(:, :iEnd)
-        call getValue(sf%molorb, sf%origin, sf%gridVec, eigCmpl, &
-            &sf%kPoints, sf%levelIndex(2, iStartAbs:iEndAbs), &
-            &sf%gridCacheCmpl(:,:,:,:iEnd))
+        call getValue(sf%molorb, sf%origin, sf%gridVec, eigCmpl, sf%kPoints,&
+            & sf%levelIndex(2, iStartAbs:iEndAbs), sf%gridCacheCmpl(:,:,:,:iEnd))
       end if
     end if
 

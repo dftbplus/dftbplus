@@ -23,7 +23,7 @@ module dftbp_onsitecorrection
 contains
 
   !> Add the block shift due to onsite matrix element contributions
-  subroutine addOnsShift(potential, iPotential, qBlock, qiBlock, q0, onsMEs, species, orb)
+  subroutine addOnsShift(potential, iPotential, qBlock, qiBlock, onsMEs, species, orb, q0)
 
     !> resulting onsite matrix elements
     real(dp), intent(inout) :: potential(:,:,:,:)
@@ -37,9 +37,6 @@ contains
     !> Block charges (imaginary part)
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
-    !> reference charges
-    real(dp), intent(in) :: q0(:,:,:)
-
     !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in) :: onsMEs(:,:,:,:)
 
@@ -48,6 +45,9 @@ contains
 
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> reference charges
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
     real(dp), allocatable :: tmpME(:,:,:), tmpBlock(:,:)
@@ -71,10 +71,12 @@ contains
         tmpBlock(:,:) = 0.0_dp
         ! extract the relevant charge parts
         tmpBlock(:nOrb, :nOrb) = qBlock(:nOrb, :nOrb, iAt, iSpin)
-        ! diagonal adjusted by reference charges
-        do iOrb = 1, nOrb
-          tmpBlock(iOrb, iOrb) = tmpBlock(iOrb, iOrb) - q0(iOrb, iAt, iSpin)
-        end do
+        if (present(q0)) then
+          ! diagonal adjusted by reference charges
+          do iOrb = 1, nOrb
+            tmpBlock(iOrb, iOrb) = tmpBlock(iOrb, iOrb) - q0(iOrb, iAt, iSpin)
+          end do
+        end if
 
         ! (lambda_ss \pm lambda_st) Delta P^\pm, note that ss' is already zero
         tmpBlock(:nOrb,:nOrb) = tmpBlock(:nOrb,:nOrb) *&
@@ -201,7 +203,7 @@ contains
       allocate(iShift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
       iShift(:,:,:,:) = 0.0_dp
     end if
-    call addOnsShift(shift, iShift, qBlock, qiBlock, q0, onsMEs, species, orb)
+    call addOnsShift(shift, iShift, qBlock, qiBlock, onsMEs, species, orb, q0)
     Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
     if (allocated(qiBlock)) then
       Eons(:) = Eons(:) + 0.5_dp*sum(sum(sum(iShift(:,:,:,:)*qiBlock(:,:,:,:),dim=1),dim=1),dim=2)

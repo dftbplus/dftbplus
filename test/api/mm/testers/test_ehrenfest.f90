@@ -117,9 +117,9 @@ program test_ehrenfest
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
   
-  call dftbp%initializeTimeProp(timestep, .true.)
+  call dftbp%initializeTimeProp(timestep, .true., .false.)
 
-  do istep = 0, nsteps
+  do istep = 1, nsteps
     ! calculate field at present timestep
     time = istep * timestep
     if (time >= time0 .and. time <= time1) then

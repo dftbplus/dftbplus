@@ -80,6 +80,9 @@ reks/C2H4_read_mo                      #? not WITH_MPI
 reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
+reks/CNH4+_dftd4                       #? not WITH_MPI
+reks/CNH4+_dftd4_sc                    #? not WITH_MPI
+reks/CNH4+_dftd4_sc_rangesep           #? not WITH_MPI
 reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
 reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
 reks/PSB3_2SSR                         #? not WITH_MPI
@@ -126,6 +129,16 @@ solvers/Si32C32_k_elpaSparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and M
 solvers/Si32C32_elpaSparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 
 derivatives/Si_2_Delta                 #? MPI_PROCS <= 1
+
+derivatives/CH3nonsccPol               #? MPI_PROCS <= 1
+derivatives/CH3sccPol                  #? MPI_PROCS <= 1
+derivatives/CH3spin3rdOnsPol           #? MPI_PROCS <= 1
+derivatives/CH3_U_noncol               #? MPI_PROCS <= 1
+derivatives/Au2_LSmetalPol             #? MPI_PROCS <= 2
+derivatives/C18H12_rangesepPol         #? not WITH_MPI
+derivatives/C60                        #? MPI_PROCS <= 4
+derivatives/C60+                       #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 2 == 0) and LONG_TEST
+
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1

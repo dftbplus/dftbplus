@@ -45,8 +45,8 @@ module dftbp_reksio
 
     integer :: iL
 
-    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
-        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
+    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,10x,A,9x,A,10x,A,8x,A)') &
+        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Disp", "Total"
     do iL = 1, this%Lmax
       write(stdOut,'(I3,7(f13.8))',advance="no") iL, this%enLnonSCC(iL), &
           & this%enLscc(iL), this%enLspin(iL)
@@ -60,7 +60,13 @@ module dftbp_reksio
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      write(stdOut,'(2(f13.8))') Erep, this%enLtot(iL)
+      write(stdOut,'(1(f13.8))',advance="no") Erep
+      if (this%isDispersion) then
+        write(stdOut,'(1(f13.8))',advance="no") this%enLdisp(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      write(stdOut,'(1(f13.8))') this%enLtot(iL)
     end do
 
   end subroutine printReksMicrostates
@@ -144,6 +150,7 @@ module dftbp_reksio
     real(dp), intent(in) :: derivs(:,:)
 
     integer :: ist, ia, ib, nstHalf
+    character(3), parameter :: ordinals(6) = ['1st', '2nd', '3rd', '4th', '5th', '6th']
 
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
@@ -165,7 +172,7 @@ module dftbp_reksio
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
         do ist = 1, this%nstates
-          write(stdOut,*) ist, "st state (SSR)"
+          write(stdOut,'(12X,A)') ordinals(ist) // " state (SSR)"
           write(stdOut,'(3(f15.8))') this%SSRgrad(:,:,ist)
           if (ist == this%nstates) then
             write(stdOut,"(A)") repeat("-", 50)
@@ -174,18 +181,20 @@ module dftbp_reksio
           end if
         end do
 
-!        write(stdOut,*) "AVG state"
-!        write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
-!        write(stdOut,'(3(f15.8))')
-!        do ist = 1, this%nstates
-!          write(stdOut,*) ist, "st state (SA-REKS)"
-!          write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
-!          if (ist == this%nstates) then
-!            write(stdOut,"(A)") repeat("-", 50)
-!          else
-!            write(stdOut,'(3(f15.8))')
-!          end if
-!        end do
+        if (this%Plevel >= 2) then
+          write(stdOut,"(12X,A)") "Averaged state"
+          write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
+          write(stdOut,'(3(f15.8))')
+          do ist = 1, this%nstates
+            write(stdOut,'(10X,A)') ordinals(ist) // " state (SA-REKS)"
+            write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
+            if (ist == this%nstates) then
+              write(stdOut,"(A)") repeat("-", 50)
+            else
+              write(stdOut,'(3(f15.8))')
+            end if
+          end do
+        end if
 
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf

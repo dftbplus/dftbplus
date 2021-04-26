@@ -123,7 +123,26 @@ module dftbp_reksinterface
 
   !> get the energy-related properties; unrelaxed density matrix,
   !> dipole integral, transition dipole, oscillator strength
-  subroutine getReksEnProperties(eigenvecs, coord0, this)
+  subroutine getReksEnProperties(env, denseDesc, neighbourList, nNeighbourSK,&
+      & img2CentCell, iSparseStart, eigenvecs, coord0, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:,:)
@@ -134,13 +153,15 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    real(dp), allocatable :: rhoL(:,:)
     real(dp), allocatable :: dipoleInt(:,:,:)
 
-    integer :: ist, nstHalf, nOrb
+    integer :: tmpL, ist, nstHalf, nOrb
 
     nOrb = size(eigenvecs,dim=1)
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
+    allocate(rhoL(nOrb,nOrb))
     allocate(dipoleInt(nOrb,nOrb,3))
 
     ! Get the unrelaxed density matrix for SA-REKS or SSR state
@@ -150,7 +171,35 @@ module dftbp_reksinterface
     ! gradient. Therefore, we can easily guess the behavior of the states.
     if (this%nstates > 1) then
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, this%rhoSqrL, &
+      ! Find proper index for up+down in rhoSqrL when TargetMicrostate is used.
+      if (.not. this%tSSR) then
+        if (this%Lstate > 0) then
+
+          if (this%Lstate <= this%Lpaired) then
+            tmpL = this%Lstate
+          else
+            if (mod(this%Lstate,2) == 1) then
+              tmpL = this%Lstate
+            else
+              tmpL = this%Lstate - 1
+            end if
+          end if
+
+          if (this%tForces) then
+            rhoL(:,:) = this%rhoSqrL(:,:,1,tmpL)
+          else
+            rhoL(:,:) = 0.0_dp
+            call env%globalTimer%startTimer(globalTimers%sparseToDense)
+            call unpackHS(rhoL, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour, &
+                & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+            call blockSymmetrizeHS(rhoL, denseDesc%iAtomStart)
+          end if
+
+        end if
+      end if
+
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
           & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm)
@@ -659,7 +708,7 @@ module dftbp_reksinterface
         end if
 
         ! this%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
         call sccCalc%updateShifts(env, orb, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
@@ -829,7 +878,7 @@ module dftbp_reksinterface
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
       if (this%tExtChrg) then

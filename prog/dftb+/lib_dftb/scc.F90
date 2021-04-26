@@ -379,7 +379,7 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
+  subroutine updateCharges(this, env, qOrbital, orb, species, q0)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -390,14 +390,14 @@ contains
     !> Orbital resolved charges. Shape: [mOrb, nAtom, nSpin].
     real(dp), intent(in) :: qOrbital(:,:,:)
 
-    !> Reference charge distribution (neutral atoms). Shape: [mOrb, nAtom, nSpin]
-    real(dp), intent(in) :: q0(:,:,:)
-
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms (should not change during run). Shape: [nSpecies]
     integer, intent(in) :: species(:)
+
+    !> Reference charge distribution (neutral atoms). Shape: [mOrb, nAtom, nSpin]
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     @:ASSERT(this%tInitialised)
 
@@ -407,10 +407,10 @@ contains
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
       call this%shortGamma%updateCharges(orb, species, this%deltaQShell)
-      call this%coulomb%updateCharges(env, qOrbital, q0, orb, species, this%deltaQ,&
-          & this%deltaQAtom, this%deltaQShell)
+      call this%coulomb%updateCharges(env, qOrbital, orb, species, this%deltaQ, this%deltaQAtom,&
+          & this%deltaQShell)
     case (elstatTypes%poisson)
-      call this%poisson%updateCharges(env, qOrbital(:,:,1), q0(:,:,1))
+      call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
     end select
 
   end subroutine updateCharges

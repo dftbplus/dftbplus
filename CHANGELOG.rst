@@ -18,10 +18,15 @@ Added
 
 - Extended syntax for selecting atoms in HSD input
 
+- Static coupled perturbed response for homogeneous electric fields (evaluating
+  molecular electric polarisability)
+
 Changed
 -------
 
 - DFT-D4 can now be evaluated self-consistently within the SCC procedure
+
+- Self-consistent DFT-D4 with REKS
 
 
 Fixed
