@@ -150,6 +150,7 @@ module dftbp_reksio
     real(dp), intent(in) :: derivs(:,:)
 
     integer :: ist, ia, ib, nstHalf
+    character(3), parameter :: ordinals(6) = ['1st', '2nd', '3rd', '4th', '5th', '6th']
 
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
@@ -171,7 +172,7 @@ module dftbp_reksio
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
         do ist = 1, this%nstates
-          write(stdOut,*) ist, "st state (SSR)"
+          write(stdOut,'(12X,A)') ordinals(ist) // " state (SSR)"
           write(stdOut,'(3(f15.8))') this%SSRgrad(:,:,ist)
           if (ist == this%nstates) then
             write(stdOut,"(A)") repeat("-", 50)
@@ -181,11 +182,11 @@ module dftbp_reksio
         end do
 
         if (this%Plevel >= 2) then
-          write(stdOut,"(12X,A)") "AVG state"
+          write(stdOut,"(12X,A)") "Averaged state"
           write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
           write(stdOut,'(3(f15.8))')
           do ist = 1, this%nstates
-            write(stdOut,*) ist, "st state (SA-REKS)"
+            write(stdOut,'(10X,A)') ordinals(ist) // " state (SA-REKS)"
             write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
             if (ist == this%nstates) then
               write(stdOut,"(A)") repeat("-", 50)
