@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -233,7 +233,7 @@ contains
 
     ! lattice vector data
     call readbuffer(this%socket, commsBuffer2)
-    cell(:,:) = transpose(reshape(commsBuffer2, [3, 3])) ! eae32
+    cell(:,:) = transpose(reshape(commsBuffer2, [3, 3]))
 
     call this%logger%write('ipisocket%receive: read from socket: cell', 3)
     call this%logger%write(cell, 4, '(f12.6)')
