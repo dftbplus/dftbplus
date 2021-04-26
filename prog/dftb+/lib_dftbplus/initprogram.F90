@@ -2021,7 +2021,7 @@ contains
         allocate(dftd4)
         if (allocated(this%reks)) then
           if (input%ctrl%dispInp%dftd4%selfConsistent .and. this%tForces) then
-            call error("Calculation of selfconsistent dftd4 is not compatible with force calculation in REKS")
+            call error("Calculation of self-consistent dftd4 is not currently compatible with force calculation in REKS")
           end if
         end if
         if (this%tPeriodic) then
@@ -2037,7 +2037,7 @@ contains
         else if (allocated(this%reks)) then
           call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
           if (this%tForces) then
-            call error("Calculation of selfconsistent MBD/TS is not compatible with force calculation in REKS")
+            call error("Calculation of self-consistent MBD/TS is not currently compatible with force calculation in REKS")
           end if
         end if
         allocate (mbd)
