@@ -2019,6 +2019,11 @@ contains
         call move_alloc(sdftd3, this%dispersion)
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
+        if (allocated(this%reks)) then
+          if (input%ctrl%dispInp%dftd4%selfConsistent .and. this%tForces) then
+            call error("Calculation of self-consistent dftd4 is not currently compatible with force calculation in REKS")
+          end if
+        end if
         if (this%tPeriodic) then
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName, this%latVec)
         else
@@ -2029,6 +2034,11 @@ contains
       else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
           call error("MBD model not currently supported for Casida linear response")
+        else if (allocated(this%reks)) then
+          call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
+          if (this%tForces) then
+            call error("Calculation of self-consistent MBD/TS is not currently compatible with force calculation in REKS")
+          end if
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
