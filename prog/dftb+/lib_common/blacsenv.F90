@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains BLACS environmental settings.
 module dftbp_blacsenv
-  use dftbp_mpienv
-  use dftbp_message
-  use dftbp_scalapackfx
+  use dftbp_mpienv, only : TMpiEnv
+  use dftbp_scalapackfx, only : blacsgrid
   use dftbp_assert
+  use dftbp_status, only : TStatus
   implicit none
   private
 
@@ -43,7 +44,7 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom)
+  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, status)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
@@ -63,6 +64,9 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
     integer, allocatable :: gridMap(:,:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
     character(200) :: buffer
@@ -76,7 +80,7 @@ contains
     if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
-      call error(buffer)
+      @:RAISE_ERROR(status, -1, trim(buffer))
     end if
     call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)

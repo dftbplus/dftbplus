@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-
+#:include 'error.fypp'
 
 !> Global variables and initialization for the main program.
 module dftbp_initprogram
@@ -120,6 +120,7 @@ module dftbp_initprogram
   use dftbp_determinants
   use dftbp_boundarycond, only : boundaryConditions
   use dftbp_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+  use dftbp_status, only : TStatus
   implicit none
 
   private
@@ -1244,6 +1245,7 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tInitialized, tGeoOptRequiresEgy
+    type(TStatus) :: status
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1353,7 +1355,13 @@ contains
 
   #:if WITH_SCALAPACK
     call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
-        & this%t2Component, env)
+        & this%t2Component, env, status)
+    if (status%hasError()) then
+      if (status%code == -1) then
+        call warning("Insufficent atoms for this number of MPI processors")
+      end if
+      call error(status%message)
+    end if
   #:endif
     call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
 
@@ -4544,7 +4552,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env)
+  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, status)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4564,6 +4572,9 @@ contains
     !> Computing enviroment data
     type(TEnvironment), intent(inout) :: env
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
     integer :: sizeHS
 
     if (t2Component) then
@@ -4571,7 +4582,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, status)
+    @:PROPAGATE_ERROR(status)
 
   end subroutine initScalapack
 
