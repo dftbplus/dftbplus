@@ -94,7 +94,7 @@ module dftbp_linresptypes
     !> Should the density matrix be stored to disc?
     logical :: tWriteDensityMatrix
 
-    ! ARPACK related
+    ! ARPACK/Stratmann related
 
     !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
     logical :: tUseArpack = .true. 
@@ -107,6 +107,9 @@ module dftbp_linresptypes
 
     !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
     integer :: fdArnoldiDiagnosis = -1
+
+    !> subspace dimension factor Stratmann diagonalizer
+    integer :: subSpaceFactorStratmann
 
     !> Is the data structure initialised?
     logical :: tInit = .false.

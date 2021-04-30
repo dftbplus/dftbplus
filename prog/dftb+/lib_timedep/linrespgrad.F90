@@ -48,13 +48,10 @@ module dftbp_linrespgrad
   real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
 
   !> Treshold for Stratmann solver
-  real(dp), parameter :: CONV_TRESH_STRAT = 0.000001_dp
+  real(dp), parameter :: CONV_TRESH_STRAT = epsilon(1.0_rsp)
 
   !> Maximal allowed iteration in the ARPACK solver.
   integer, parameter :: MAX_AR_ITER = 300
-
-  !> Initial subspace for Stratmann solver
-  integer, parameter :: FAC_INI_STRAT = 20
 
   !> Names of output files
   character(*), parameter :: arpackOut = "ARPACK.DAT"
@@ -511,10 +508,10 @@ contains
             & iAtomStart, stimc, grndEigVecs, filling, getia, gammaMat, species0, this%spinW,&
             & transChrg, this%fdArnoldiDiagnosis, eval, evec, this%onSiteMatrixElements, orb)
       else
-        call buildAndDiagExcMatrixStratmann(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd,&
-            & nxoo, nxvv, iAtomStart, stimc, grndEigVecs, filling, getia, getij, getab, gammaMat, &
-            & species0, this%spinW, transChrg, eval, evec, this%onSiteMatrixElements, orb, nocc_ud,&
-            & nvir_ud, iaTrans)
+        call buildAndDiagExcMatrixStratmann(tSpin, this%subSpaceFactorStratmann, wij(:nxov_rd),   &
+            & sym, win, nxov_ud(1), nxov_rd, nxoo, nxvv, iAtomStart, stimc, grndEigVecs, filling, &
+            & getia, getij, getab, gammaMat, species0, this%spinW, transChrg, eval, evec,         &
+            & this%onSiteMatrixElements, orb, nocc_ud, nvir_ud, iaTrans)
       end if
 
       ! Excitation oscillator strengths for resulting states
@@ -668,8 +665,23 @@ contains
 
   end subroutine LinRespGrad_old
 
-
-  !> Builds and diagonalizes the excitation matrix via iterative technique.
+  !> Solves the RPA equations in their hermitian form (valid for local functionals) at finite T
+  !> 
+  !>  [A  B] X   =    [C  0] X
+  !>                w 
+  !>  [B  A] Y   =    [0 -C] Y
+  !>  
+  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !>  World Scientific, 1995, Part I, p. 155.)
+  !>
+  !> The hermitian EV problem is given by \Omega F = w^2 F, with
+  !>  S = -C (A-B)^{-1} C, \Omega = - S^{-1/2} (A+B) S^{-1/2} and F = (X+Y) * sqrt(w/wia)
+  !>
+  !> In this routine \Omega is diagonalized by the iterative ARPACK diagonalizer.
+  !> The code deals with closed shell systems by diagonalizing dedicated singlet/triplet 
+  !> submatrices. 
+  !> See Dominguez JCTC 9 4901 (2013) 
+  !>  
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
       & grndEigVecs, filling, getia, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
       & eval, evec, onsMEs, orb)
@@ -722,10 +734,10 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    !> resulting eigenvalues for transitions
+    !> resulting eigenvalues for transitions (w^2)
     real(dp), intent(out) :: eval(:)
 
-    !> eigenvectors for transitions
+    !> eigenvectors for transitions (F)
     real(dp), intent(out) :: evec(:,:)
 
     !> onsite corrections if in use
@@ -851,12 +863,29 @@ contains
 
   end subroutine buildAndDiagExcMatrixArpack
 
-  subroutine buildAndDiagExcMatrixStratmann(tSpin, wij, sym, win, nmatup, nxov, nxoo, nxvv, &
-      & iAtomStart, stimc, grndEigVecs, filling, getia, getij, getab, gammaMat, species0, spinW, &
-      & transChrg, eval, evec, onsMEs, orb, nocc_ud, nvir_ud, iaTrans)
+  !> Solves the RPA equations in their standard form at finite T
+  !> 
+  !>  [A  B] X   =    [C  0] X
+  !>                w 
+  !>  [B  A] Y   =    [0 -C] Y
+  !>  
+  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !>  World Scientific, 1995, Part I, p. 155.)
+  !>
+  !> The RPA eqs are diagonalized by the Stratmann algorithm (JCP 109 8218 (1998).
+  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) 
+  !>
+  !> Returns w^2 and F = (X+Y) * sqrt(w/wia) (to be consistent with ARPACK diagonalizer)
+  !> 
+  subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nmatup, nxov, &
+      & nxoo, nxvv, iAtomStart, stimc, grndEigVecs, filling, getia, getij, getab, gammaMat,     &
+      & species0, spinW, transChrg, eval, evec, onsMEs, orb, nocc_ud, nvir_ud, iaTrans)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
+
+    !> initial subspace is this factor times number of excited states 
+    integer :: subSpaceFactor
 
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
@@ -912,10 +941,10 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    !> resulting eigenvalues for transitions
+    !> resulting eigenvalues for transitions (actually w^2)
     real(dp), intent(out) :: eval(:)
 
-    !> eigenvectors for transitions
+    !> eigenvectors for transitions 
     real(dp), intent(out) :: evec(:,:)
 
     !> onsite corrections if in use
@@ -962,9 +991,13 @@ contains
     nAtom = size(gammaMat, dim=1)
     @:ASSERT(all(shape(evec) == [ nxov, nexc ]))
 
-    ! Inital subSpaceDim somewhat arbritary
-    ! Low dimension leads to need to increase memory later 
-    subSpaceDim = min(FAC_INI_STRAT * nExc, nxov)
+    ! Small subSpaceDim is faster but leads to convergence problems
+    ! if large number of excited states is needed
+    if (subSpaceFactor < 2) then
+      write(tmpStr,'(A)') 'SubSpaceStratmann must be larger than one.'
+      call error(tmpStr)
+    endif
+    subSpaceDim = min(subSpaceFactor * nExc, nxov)
     ! Memory available for subspace calcs
     memDim = min(subSpaceDim + 6 * nExc, nxov) 
     workDim = 3 * memDim + 1
@@ -1036,6 +1069,10 @@ contains
 
       ! Diagonalize in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
+      if (info) then
+        write(tmpStr,'(A)') 'TDDFT diagonalization. Increase SubSpaceStratmann.'
+        call error(tmpStr)
+      endif
 
       ! This yields T=(A-B)^(-1/2)|X+Y>.
       ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
