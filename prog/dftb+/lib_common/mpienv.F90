@@ -126,7 +126,7 @@ contains
   end subroutine TMpiEnv_init
 
 
-  !> Finalizes the communicators allocated here
+  !> Finalises the communicators in the structure supplied here
   subroutine TMpiEnv_final(this)
 
     !>  Initialised instance.

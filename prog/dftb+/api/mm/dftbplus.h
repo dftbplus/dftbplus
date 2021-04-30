@@ -116,10 +116,10 @@ void dftbp_init(DftbPlus *instance, const char *outputfilename);
  * \param[inout] instance  Handler of DFTB+ instance.
  *
  * \param[in] outputfilename  Name of the file, where the DFTB+ screen output should be written.
- *     If you pass NULL, it will be written to standard output. If you pass any other file, it will
- *     be open, and the file will be written there. Pass "/dev/null" to suppress output.
+ *     If you pass NULL, it will be written to standard output. If you pass any other file name as a C string, it will
+ *     be opened, and the output will be written there. Pass "/dev/null" to suppress output.
  *
- * \param[in] mpiComm  MPI-communicator id. You must convert your MPI-communicator with the
+ * \param[in] mpiComm  MPI-communicator id. Before calling, you must convert your MPI-communicator with the
  *     mpi_comm_c2f() function to a Fortran MPI-communicator id.
  */
 void dftbp_init_mpi(DftbPlus *instance, const char *outputfilename, int mpiComm);
