@@ -99,8 +99,8 @@ program test_mpisubgrids
       nAtom =3
     end if
 
-    call TDftbPlus_init(dftbp, mpiComm=groupComm)
-    !call TDftbPlus_init(dftbp, outputUnit=devNull, mpiComm=groupComm)
+    call TDftbPlus_init(dftbp, mpiComm=groupComm, devNull=devNull)
+    !call TDftbPlus_init(dftbp, outputUnit=devNull, mpiComm=groupComm, devNull=devNull)
 
     if (doSi2) then
       call dftbp%getInputFromFile("dftb_in.Si2.hsd", input)
