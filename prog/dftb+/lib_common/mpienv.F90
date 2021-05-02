@@ -44,8 +44,11 @@ module dftbp_mpienv
     !> Group index of the current process (starts with 0)
     integer :: myGroup
 
-    !> Global rank of the processes in the given group
-    integer, allocatable :: groupMembers(:)
+    !> Rank of the processes in the given group (with respect of globalComm)
+    integer, allocatable :: groupMembersGlobal(:)
+
+    !> Rank of the processes in the given group (with respect of MPI_COMM_WORLD)
+    integer, allocatable :: groupMembersWorld(:)
 
     !> Whether current process is the global lead
     logical :: tGlobalLead
@@ -165,6 +168,7 @@ contains
 
     integer :: myRank, myGroup
     character(lc) :: tmpStr
+    type(mpifx_comm) :: mpiCommWorld
 
     this%groupSize = this%globalComm%size / this%nGroup
     if (this%nGroup * this%groupSize /= this%globalComm%size) then
@@ -176,8 +180,13 @@ contains
     this%myGroup = this%globalComm%rank / this%groupSize
     myRank = mod(this%globalComm%rank, this%groupSize)
     call this%globalComm%split(this%myGroup, myRank, this%groupComm)
-    allocate(this%groupMembers(this%groupSize))
-    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembers)
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
 
     myGroup = myRank
     myRank = this%myGroup
@@ -199,7 +208,7 @@ contains
     !> Environment instance
     type(TMpiEnv), intent(inout) :: this
 
-    type(mpifx_comm) :: cartComm
+    type(mpifx_comm) :: cartComm, mpiCommWorld
 
     call negf_cart_init(this%globalComm, this%nGroup, cartComm, this%groupComm, this%interGroupComm)
     if (this%globalComm%lead .neqv. cartComm%lead) then
@@ -210,8 +219,13 @@ contains
     this%groupSize = this%groupComm%size
     this%myGroup = this%interGroupComm%rank
 
-    allocate(this%groupMembers(this%groupSize))
-    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembers)
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
 
   end subroutine setup_subgrids_negf
 

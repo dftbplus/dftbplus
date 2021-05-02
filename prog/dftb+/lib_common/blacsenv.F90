@@ -82,7 +82,7 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(status, -1, trim(buffer))
     end if
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
 
     ! Create atom grid for each processor group
@@ -90,7 +90,8 @@ contains
     maxProcColMax = (nAtom - 1) / colBlock + 1
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%atomGrid%initmappedgrids(gridMap)
 
     this%rowBlockSize = rowBlock
