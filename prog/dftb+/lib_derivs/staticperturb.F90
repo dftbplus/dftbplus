@@ -221,7 +221,8 @@ contains
     ! derivative of potentials
     type(TPotentials) :: dPotential
 
-    logical :: tSccCalc, tMetallic
+    logical :: tSccCalc
+    logical, allocatable :: tMetallic(:,:)
 
     real(dp), allocatable :: dPsiReal(:,:,:)
     complex(dp), allocatable :: dPsiCmplx(:,:,:,:)
@@ -338,8 +339,8 @@ contains
       end do
     end do
 
-    ! should really check for each spin channel separately:
-    tMetallic = (.not.all(nFilled == nEmpty -1))
+    allocate(tMetallic(nIndepHam, nKpts))
+    tMetallic(:,:) = .not.(nFilled == nEmpty -1)
 
     ! if derivatives of valence wavefunctions needed. Note these will have an arbitrary set of
     ! global phases
@@ -349,13 +350,13 @@ contains
     !   allocate(dPsiCmplx(size(eigvecsCplx,dim=1), size(eigvecsCplx,dim=2), nKpts, nIndepHam, 3))
     ! end if
 
-    if (tMetallic) then
+    if (any(tMetallic)) then
       write(stdOut,*)'Metallic system'
     else
       write(stdOut,*)'Non-metallic system'
     end if
 
-    if (tMetallic) then
+    if (any(tMetallic)) then
       ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
       ! at q=0 in metals
       if (allocated(neFermi)) then
@@ -422,7 +423,7 @@ contains
         dEi(:,:,:,iCart) = dEiTmp
       end if
 
-      if (tMetallic) then
+      if (any(tMetallic)) then
         write(stdOut,*)
         write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
             & dEfdE(:,iCart)
@@ -602,7 +603,8 @@ contains
     type(TPotentials) :: dPotential
     real(dp), allocatable :: dPotOnsite(:,:)
 
-    logical :: tSccCalc, tMetallic
+    logical :: tSccCalc
+    logical, allocatable :: tMetallic(:,:)
 
     real(dp), allocatable :: dPsiReal(:,:,:)
     complex(dp), allocatable :: dPsiCmplx(:,:,:,:)
@@ -722,8 +724,8 @@ contains
       end do
     end do
 
-    ! should really check for each spin channel separately:
-    tMetallic = (.not.all(nFilled == nEmpty -1))
+    allocate(tMetallic(nIndepHam, nKpts))
+    tMetallic(:,:) = .not.(nFilled == nEmpty -1)
 
     ! if derivatives of valence wavefunctions needed. Note these will have an arbitrary set of
     ! global phases
@@ -733,13 +735,13 @@ contains
     !   allocate(dPsiCmplx(size(eigvecsCplx,dim=1), size(eigvecsCplx,dim=2), nKpts, nIndepHam, 3))
     ! end if
 
-    if (tMetallic) then
+    if (any(tMetallic)) then
       write(stdOut,*)'Metallic system'
     else
       write(stdOut,*)'Non-metallic system'
     end if
 
-    if (tMetallic) then
+    if (any(tMetallic)) then
       ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
       ! at q=0 in metals
       allocate(neFermi(size(Ef)))
@@ -910,7 +912,7 @@ contains
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> Is there a finite density of states at the Fermi energy
-    logical, intent(in) :: tMetallic
+    logical, intent(in) :: tMetallic(:,:)
 
     !> Number of electrons at the Fermi energy (if metallic)
     real(dp), allocatable, intent(inout) :: neFermi(:)
@@ -1047,7 +1049,7 @@ contains
       allocate(atomPot(nAtom, nSpin))
     end if
 
-    if (tMetallic .and. allocated(idHam)) then
+    if (any(tMetallic) .and. allocated(idHam)) then
       allocate(idRhoExtra(size(over),nSpin))
     end if
 
@@ -1191,24 +1193,25 @@ contains
       #:endif
 
         dRhoExtra(:,:) = 0.0_dp
-        if (tMetallic) then
+        if (allocated(idRhoExtra)) then
+          idRhoExtra(:,:) = 0.0_dp
+        end if
+        if (any(tMetallic)) then
           ! correct for Fermi level shift for q=0 fields
-
+          dEfdE(:) = 0.0_dp
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
+
+            if (.not.tMetallic(iS,iK)) then
+              cycle
+            end if
 
             dqOut(:,:,iS) = 0.0_dp
             call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
-            dEfdE(iS) = -sum(dqOut(:, :, iS))
-            if (abs(dEfdE(iS)) > epsilon(0.0_dp) .and. abs(neFermi(iS)) >  epsilon(0.0_dp))&
-                & then
-              dEfdE(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
-            else
-              dEfdE(iS) = 0.0_dp
-            end if
+            dEfdE(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
 
             if (abs(dEfdE(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
