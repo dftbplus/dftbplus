@@ -1027,8 +1027,7 @@ contains
     real(dp) :: dqPerShell(orb%mShell, nAtom, nSpin)
 
     integer :: iAt, iKS, iK, iS, iSh, iSp
-    real(dp) :: dRhoExtra(size(over),nSpin)
-    real(dp), allocatable :: idRhoExtra(:,:)
+    real(dp), allocatable :: dRhoExtra(:,:), idRhoExtra(:,:)
     real(dp) :: dqDiffRed(nMixElements)
 
   #:if WITH_SCALAPACK
@@ -1049,8 +1048,12 @@ contains
       allocate(atomPot(nAtom, nSpin))
     end if
 
-    if (any(tMetallic) .and. allocated(idHam)) then
-      allocate(idRhoExtra(size(over),nSpin))
+
+    if (any(tMetallic)) then
+      allocate(dRhoExtra(size(over),nSpin))
+      if (allocated(idHam)) then
+        allocate(idRhoExtra(size(over),nSpin))
+      end if
     end if
 
     if (tSccCalc) then
@@ -1192,13 +1195,13 @@ contains
         call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
       #:endif
 
-        dRhoExtra(:,:) = 0.0_dp
-        if (allocated(idRhoExtra)) then
-          idRhoExtra(:,:) = 0.0_dp
-        end if
         if (any(tMetallic)) then
           ! correct for Fermi level shift for q=0 fields
           dEfdE(:) = 0.0_dp
+          dRhoExtra(:,:) = 0.0_dp
+          if (allocated(idRhoExtra)) then
+            idRhoExtra(:,:) = 0.0_dp
+          end if
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
