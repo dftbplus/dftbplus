@@ -56,7 +56,7 @@ contains
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
       & onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight, iCellVec,&
-      & cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEfdE)
+      & cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEf)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -196,7 +196,7 @@ contains
     real(dp), allocatable, intent(inout) :: neFermi(:)
 
     !> Derivative of the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: dEfdE(:,:)
+    real(dp), allocatable, intent(inout) :: dEf(:,:)
 
     integer :: iS, iK, iAt, iCart, iLev
 
@@ -206,13 +206,12 @@ contains
     real(dp) :: maxFill
 
     integer, allocatable :: nFilled(:,:), nEmpty(:,:)
-    real(dp), allocatable :: dEiTmp(:,:,:), dEfdETmp(:)
+    real(dp), allocatable :: dEiTmp(:,:,:), dEfTmp(:)
 
     integer :: ii
 
     ! matrices for derivatives of terms in hamiltonian and outputs
-    real(dp), allocatable :: dHam(:,:), idHam(:,:), idRho(:,:)
-    real(dp) :: drho(size(over),size(ham, dim=2))
+    real(dp), allocatable :: dHam(:,:), idHam(:,:), dRho(:,:), idRho(:,:)
     real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
 
     real(dp), allocatable :: dqBlockIn(:,:,:,:), SSqrReal(:,:)
@@ -247,50 +246,10 @@ contains
     write(stdOut,*)'Perturbation calculation of electric polarisability'
     write(stdOut,*)
 
-    nSpin = size(ham, dim=2)
-    select case(nSpin)
-    case(1,4)
-      nIndepHam = 1
-    case(2)
-      nIndepHam = 2
-    end select
-    select case(nSpin)
-    case(1)
-      maxFill = 2.0_dp
-    case(2,4)
-      maxFill = 1.0_dp
-    end select
-
-    nOrbs = size(filling,dim=1)
-    nKpts = size(filling,dim=2)
-
-    allocate(transform(nIndepHam))
-    do ii = 1, nIndepHam
-      call TRotateDegen_init(transform(ii))
-    end do
-
-    allocate(dHam(size(ham,dim=1),nSpin))
-    if (nSpin == 4) then
-      allocate(idHam(size(ham,dim=1),nSpin))
-      allocate(idRho(size(ham,dim=1),nSpin))
-      idHam(:,:) = 0.0_dp
-    end if
-
-    if (allocated(rangeSep)) then
-      allocate(SSqrReal(nOrbs, nOrbs))
-      SSqrReal(:,:) = 0.0_dp
-    #:if not WITH_SCALAPACK
-      call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-          & iSparseStart, img2CentCell)
-    #:endif
-      allocate(dRhoOut(nOrbs * nOrbs * nSpin))
-      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(:nOrbs*nOrbs*nSpin)
-      allocate(dRhoIn(nOrbs * nOrbs * nSpin))
-      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(:nOrbs*nOrbs*nSpin)
-    else
-      dRhoInSqr => null()
-      dRhoOutSqr => null()
-    end if
+    call init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled, nEmpty,&
+        & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
+        & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
+        & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
 
     tSccCalc = allocated(sccCalc)
 
@@ -299,48 +258,15 @@ contains
       allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
     end if
 
-    call TPotentials_init(dPotential,orb,nAtom,nSpin)
-
-    allocate(nFilled(nIndepHam, nKpts))
-    allocate(nEmpty(nIndepHam, nKpts))
-
     ! If derivatives of eigenvalues are needed
     if (allocated(dEi)) then
       dEi(:,:,:,:) = 0.0_dp
-      allocate(dEiTmp(nOrbs,nKPts,nIndepHam))
+      allocate(dEiTmp(nOrbs, nKPts, nIndepHam))
     end if
-
-    nFilled(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKPts
-        do iLev = 1, nOrbs
-          if ( filling(iLev,iK,iS) < epsilon(1.0) ) then
-            nFilled(iS,iK) = iLev - 1
-            exit
-          end if
-        end do
-        if (nFilled(iS, iK) < 0) then
-          nFilled(iS, iK) = nOrbs
-        end if
-      end do
-    end do
-    nEmpty(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKpts
-        do iLev = 1, nOrbs
-          if ( abs( filling(iLev,iK,iS) - maxFill ) > epsilon(1.0)) then
-            nEmpty(iS, iK) = iLev
-            exit
-          end if
-        end do
-        if (nEmpty(iS, iK) < 0) then
-          nEmpty(iS, iK) = 1
-        end if
-      end do
-    end do
-
-    allocate(tMetallic(nIndepHam, nKpts))
-    tMetallic(:,:) = .not.(nFilled == nEmpty -1)
+    if (any(tMetallic)) then
+      allocate(dEf(nIndepHam, 3))
+      allocate(dEfTmp(nIndepHam))
+    end if
 
     ! if derivatives of valence wavefunctions needed. Note these will have an arbitrary set of
     ! global phases
@@ -349,36 +275,6 @@ contains
     ! else
     !   allocate(dPsiCmplx(size(eigvecsCplx,dim=1), size(eigvecsCplx,dim=2), nKpts, nIndepHam, 3))
     ! end if
-
-    if (any(tMetallic)) then
-      write(stdOut,*)'Metallic system'
-    else
-      write(stdOut,*)'Non-metallic system'
-    end if
-
-    if (any(tMetallic)) then
-      ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
-      ! at q=0 in metals
-      if (allocated(neFermi)) then
-        deallocate(neFermi)
-        deallocate(dEfdE)
-      end if
-      allocate(neFermi(size(Ef)))
-      allocate(dEfdE(size(Ef),3))
-      dEfdE(:,:) = 0.0_dp
-      allocate(dEfdETmp(size(Ef)))
-
-      do iS = 1, nIndepHam
-        neFermi(iS) = 0.0_dp
-        do iK = 1, nKpts
-          do ii = nEmpty(iS, iK), nFilled(iS, iK)
-            neFermi(iS) = neFermi(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), tempElec)
-          end do
-        end do
-        neFermi(iS) = maxFill * neFermi(iS)
-      end do
-      write(stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
-    end if
 
     dqOut(:,:,:,:) = 0.0_dp
 
@@ -403,8 +299,8 @@ contains
       call total_shift(dPotential%extShell, dPotential%extAtom, orb, species)
       call total_shift(dPotential%extBlock, dPotential%extShell, orb, species)
 
-      if (allocated(dEfdETmp)) then
-        dEfdETmp(:) = 0.0_dp
+      if (allocated(dEfTmp)) then
+        dEfTmp(:) = 0.0_dp
       end if
       dEiTmp(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
@@ -412,12 +308,12 @@ contains
           & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut(:,:,:,iCart), rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
-          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef, dHam, idHam,&
+          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfTmp, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
 
-      if (allocated(dEfdE)) then
-        dEfdE(:,iCart) = dEfdETmp
+      if (allocated(dEf)) then
+        dEf(:,iCart) = dEfTmp
       end if
       if (allocated(dEiTmp)) then
         dEi(:,:,:,iCart) = dEiTmp
@@ -426,7 +322,7 @@ contains
       if (any(tMetallic)) then
         write(stdOut,*)
         write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
-            & dEfdE(:,iCart)
+            & dEf(:,iCart)
         write(stdOut,*)
       end if
 
@@ -589,11 +485,10 @@ contains
     real(dp) :: maxFill
 
     integer, allocatable :: nFilled(:,:), nEmpty(:,:)
-    real(dp), allocatable :: dEiTmp(:,:,:)
+    real(dp), allocatable :: dEi(:,:,:)
 
     ! matrices for derivatives of terms in hamiltonian and outputs
-    real(dp), allocatable :: dHam(:,:), idHam(:,:), idRho(:,:)
-    real(dp) :: drho(size(over),size(ham, dim=2))
+    real(dp), allocatable :: dHam(:,:), idHam(:,:), dRho(:,:), idRho(:,:)
     real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
 
     real(dp), allocatable :: dqBlockIn(:,:,:,:), SSqrReal(:,:)
@@ -619,7 +514,7 @@ contains
     !> For transformation in the  case of degeneracies
     type(TRotateDegen), allocatable :: transform(:)
 
-    real(dp), allocatable :: neFermi(:), dEfdE(:), dqOut(:,:,:)
+    real(dp), allocatable :: neFermi(:), dEf(:), dqOut(:,:,:)
 
     if (tPeriodic) then
       call error("Not currently implemented for periodic systems")
@@ -633,52 +528,16 @@ contains
     write(stdOut,*)'Perturbation calculation of atomic polarisability kernel'
     write(stdOut,*)
 
-    nSpin = size(ham, dim=2)
-    select case(nSpin)
-    case(1,4)
-      nIndepHam = 1
-    case(2)
-      nIndepHam = 2
-    end select
-    select case(nSpin)
-    case(1)
-      maxFill = 2.0_dp
-    case(2,4)
-      maxFill = 1.0_dp
-    end select
-
-    nOrbs = size(filling,dim=1)
-    nKpts = size(filling,dim=2)
+    call init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled, nEmpty,&
+        & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
+        & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
+        & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
 
     allocate(dqOut(orb%mOrb, nAtom, nSpin))
     allocate(dqNetAtom(nAtom))
-
-    allocate(transform(nIndepHam))
-    do ii = 1, nIndepHam
-      call TRotateDegen_init(transform(ii))
-    end do
-
-    allocate(dHam(size(ham,dim=1),nSpin))
-    if (nSpin == 4) then
-      allocate(idHam(size(ham,dim=1),nSpin))
-      allocate(idRho(size(ham,dim=1),nSpin))
-      idHam(:,:) = 0.0_dp
-    end if
-
-    if (allocated(rangeSep)) then
-      allocate(SSqrReal(nOrbs, nOrbs))
-      SSqrReal(:,:) = 0.0_dp
-    #:if not WITH_SCALAPACK
-      call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-          & iSparseStart, img2CentCell)
-    #:endif
-      allocate(dRhoOut(nOrbs * nOrbs * nSpin))
-      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(:nOrbs*nOrbs*nSpin)
-      allocate(dRhoIn(nOrbs * nOrbs * nSpin))
-      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(:nOrbs*nOrbs*nSpin)
-    else
-      dRhoInSqr => null()
-      dRhoOutSqr => null()
+    allocate(dEi(nOrbs, nKpts, nSpin))
+    if (any(tMetallic)) then
+      allocate(dEf(nIndepHam))
     end if
 
     tSccCalc = allocated(sccCalc)
@@ -688,44 +547,8 @@ contains
       allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
     end if
 
-    call TPotentials_init(dPotential,orb,nAtom,nSpin)
     allocate(dPotOnsite(nAtom,nSpin))
     dPotOnsite(:,:) = 0.0_dp
-
-    allocate(nFilled(nIndepHam, nKpts))
-    allocate(nEmpty(nIndepHam, nKpts))
-
-    nFilled(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKPts
-        do iLev = 1, nOrbs
-          if ( filling(iLev,iK,iS) < epsilon(1.0) ) then
-            nFilled(iS,iK) = iLev - 1
-            exit
-          end if
-        end do
-        if (nFilled(iS, iK) < 0) then
-          nFilled(iS, iK) = nOrbs
-        end if
-      end do
-    end do
-    nEmpty(:,:) = -1
-    do iS = 1, nIndepHam
-      do iK = 1, nKpts
-        do iLev = 1, nOrbs
-          if ( abs( filling(iLev,iK,iS) - maxFill ) > epsilon(1.0)) then
-            nEmpty(iS, iK) = iLev
-            exit
-          end if
-        end do
-        if (nEmpty(iS, iK) < 0) then
-          nEmpty(iS, iK) = 1
-        end if
-      end do
-    end do
-
-    allocate(tMetallic(nIndepHam, nKpts))
-    tMetallic(:,:) = .not.(nFilled == nEmpty -1)
 
     ! if derivatives of valence wavefunctions needed. Note these will have an arbitrary set of
     ! global phases
@@ -734,31 +557,6 @@ contains
     ! else
     !   allocate(dPsiCmplx(size(eigvecsCplx,dim=1), size(eigvecsCplx,dim=2), nKpts, nIndepHam, 3))
     ! end if
-
-    if (any(tMetallic)) then
-      write(stdOut,*)'Metallic system'
-    else
-      write(stdOut,*)'Non-metallic system'
-    end if
-
-    if (any(tMetallic)) then
-      ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
-      ! at q=0 in metals
-      allocate(neFermi(size(Ef)))
-      allocate(dEfdE(size(Ef)))
-      dEfdE(:) = 0.0_dp
-
-      do iS = 1, nIndepHam
-        neFermi(iS) = 0.0_dp
-        do iK = 1, nKpts
-          do ii = nEmpty(iS, iK), nFilled(iS, iK)
-            neFermi(iS) = neFermi(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), tempElec)
-          end do
-        end do
-        neFermi(iS) = maxFill * neFermi(iS)
-      end do
-      write(stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
-    end if
 
     iAtLoop: do iAt = 1, nAtom
 
@@ -779,13 +577,13 @@ contains
       call total_shift(dPotential%extShell, dPotential%extAtom, orb, species)
       call total_shift(dPotential%extBlock, dPotential%extShell, orb, species)
 
-      dEiTmp(:,:,:) = 0.0_dp
+      dEi(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
           & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
           & isSccConvRequired, 1, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut, rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
-          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdE, Ef, dHam, idHam,&
+          & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, dPotOnsite)
 
@@ -809,13 +607,13 @@ contains
       call total_shift(dPotential%extShell, dPotential%extAtom, orb, species)
       call total_shift(dPotential%extBlock, dPotential%extShell, orb, species)
 
-      dEiTmp(:,:,:) = 0.0_dp
+      dEi(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
           & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
           & isSccConvRequired, 1, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut, rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
-          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdE, Ef, dHam, idHam,&
+          & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
 
@@ -836,7 +634,7 @@ contains
       & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
       & rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
-      & eigVals, transform, dEi, dEfdE, Ef, dHam, idHam,  dRho, idRho, tempElec, tMetallic,&
+      & eigVals, transform, dEi, dEf, Ef, dHam, idHam,  dRho, idRho, tempElec, tMetallic,&
       & neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
       & dPsiReal, dPsiCmplx, dOnsitePotential)
 
@@ -942,7 +740,10 @@ contains
     real(dp), target, allocatable, intent(inout) :: dRhoOut(:)
 
     !> delta density matrix for rangeseparated calculations
-    real(dp), pointer :: dRhoOutSqr(:,:,:), dRhoInSqr(:,:,:)
+    real(dp), pointer :: dRhoOutSqr(:,:,:)
+
+    !> delta density matrix for rangeseparated calculations
+    real(dp), pointer :: dRhoInSqr(:,:,:)
 
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -964,6 +765,7 @@ contains
     !> Derivatives of Mulliken charges, if required
     real(dp), intent(inout) :: dqIn(:,:,:)
 
+    !> Number of spin channels
     integer, intent(in) :: nSpin
 
     !> Electron temperature
@@ -981,7 +783,8 @@ contains
     !> ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
-    real(dp), intent(inout), allocatable :: dEfdE(:)
+    !> Derivative of the Fermi energy
+    real(dp), intent(inout), allocatable :: dEf(:)
 
     real(dp), allocatable, intent(inout) :: dqBlockIn(:,:,:,:)
     real(dp), allocatable, intent(inout) :: dqBlockOut(:,:,:,:)
@@ -1197,7 +1000,7 @@ contains
 
         if (any(tMetallic)) then
           ! correct for Fermi level shift for q=0 fields
-          dEfdE(:) = 0.0_dp
+          dEf(:) = 0.0_dp
           dRhoExtra(:,:) = 0.0_dp
           if (allocated(idRhoExtra)) then
             idRhoExtra(:,:) = 0.0_dp
@@ -1214,16 +1017,16 @@ contains
             call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
-            dEfdE(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
+            dEf(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
 
-            if (abs(dEfdE(iS)) > 10.0_dp*epsilon(1.0_dp)) then
+            if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
 
               if (allocated(eigVecsReal)) then
 
                 ! real case, no k-points
                 call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
-                    & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEfdE, Ef,&
+                    & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
                     & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals,&
                     & dRhoOutSqr&
                     #:if WITH_SCALAPACK
@@ -1236,7 +1039,7 @@ contains
                 ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                     & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
-                    & img2CentCell, iSparseStart, dEfdE, Ef, nFilled(:,iK), nEmpty(:,iK),&
+                    & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
                     & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
                     #:if WITH_SCALAPACK
                     &, desc&
@@ -1384,5 +1187,228 @@ contains
       end if
 
   end subroutine response
+
+
+  !> Initialise variables for perturbation
+  subroutine init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled,&
+      & nEmpty, dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
+      & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
+      & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
+
+    !> Number of orbitals
+    integer, intent(out) :: nOrbs
+
+    !> Number of k-points
+    integer, intent(out) :: nKpts
+
+    !> Number of spin channels
+    integer, intent(out) :: nSpin
+
+    !> Number of separate hamiltonians
+    integer, intent(out) :: nIndepHam
+
+    !> Maximum occupation of single particle states
+    real(dp), intent(out) :: maxFill
+
+    !> Filling of un-perturbed system
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Hamiltonian
+    real(dp), intent(in) :: ham(:,:)
+
+    !> Number of (partly) filled states in each [nIndepHam,kpt]
+    integer, intent(out), allocatable :: nFilled(:,:)
+
+    !> First (partly) empty state in each [nIndepHam,kpt]
+    integer, intent(out), allocatable :: nEmpty(:,:)
+
+    !> Derivative of hamiltonian
+    real(dp), intent(out), allocatable :: dHam(:,:)
+
+    !> Derivative of sparse density matrix
+    real(dp), intent(out), allocatable :: dRho(:,:)
+
+    !> Imaginary part of derivative of hamiltonian
+    real(dp), intent(out), allocatable :: idHam(:,:)
+
+    !> Imaginary part of derivative of sparse density matrix
+    real(dp), intent(out), allocatable :: idRho(:,:)
+
+    !> For orbital transformations in the  case of degeneracies
+    type(TRotateDegen), intent(out), allocatable :: transform(:)
+
+    !> Data for range-separated calculation
+    type(TRangeSepFunc), allocatable, intent(in) :: rangeSep
+
+    !> Square matrix for overlap (if needed in range separated calculation)
+    real(dp), allocatable, intent(out) :: sSqrReal(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Derivative of density matrix
+    real(dp), target, allocatable, intent(out) :: dRhoIn(:)
+
+    !> Derivative of density matrix
+    real(dp), target, allocatable, intent(out) :: dRhoOut(:)
+
+    !> delta density matrix for rangeseparated calculations
+    real(dp), pointer :: dRhoInSqr(:,:,:)
+
+    !> delta density matrix for rangeseparated calculations
+    real(dp), pointer :: dRhoOutSqr(:,:,:)
+
+    ! derivative of potentials
+    type(TPotentials), intent(out) :: dPotential
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of central cell atoms
+    integer, intent(in) :: nAtom
+
+    !> Is there a finite density of states at the Fermi energy
+    logical, allocatable, intent(out) :: tMetallic(:,:)
+
+    !> Number of electrons at the Fermi energy (if metallic)
+    real(dp), allocatable, intent(inout) :: neFermi(:)
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Fermi level(s)
+    real(dp), intent(in) :: Ef(:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    integer :: iS, iK, iLev, ii
+
+    nOrbs = size(filling,dim=1)
+    nKpts = size(filling,dim=2)
+    nSpin = size(ham,dim=2)
+
+    select case(nSpin)
+    case(1,4)
+      nIndepHam = 1
+    case(2)
+      nIndepHam = 2
+    end select
+    select case(nSpin)
+    case(1)
+      maxFill = 2.0_dp
+    case(2,4)
+      maxFill = 1.0_dp
+    end select
+
+    allocate(nFilled(nIndepHam, nKpts))
+    allocate(nEmpty(nIndepHam, nKpts))
+    nFilled(:,:) = -1
+    do iS = 1, nIndepHam
+      do iK = 1, nKPts
+        do iLev = 1, nOrbs
+          if ( filling(iLev,iK,iS) < epsilon(1.0) ) then
+            ! assumes Fermi filling, so above this is empty
+            nFilled(iS,iK) = iLev - 1
+            exit
+          end if
+        end do
+        ! check if channel is fully filled
+        if (nFilled(iS, iK) < 0) then
+          nFilled(iS, iK) = nOrbs
+        end if
+      end do
+    end do
+    nEmpty(:,:) = -1
+    do iS = 1, nIndepHam
+      do iK = 1, nKpts
+        do iLev = 1, nOrbs
+          if ( abs( filling(iLev,iK,iS) - maxFill ) > epsilon(1.0)) then
+            ! assumes Fermi filling, so this is filled
+            nEmpty(iS, iK) = iLev
+            exit
+          end if
+        end do
+        !> Check is channel is empty
+        if (nEmpty(iS, iK) < 0) then
+          nEmpty(iS, iK) = 1
+        end if
+      end do
+    end do
+
+    allocate(dHam(size(ham,dim=1),nSpin))
+    allocate(dRho(size(ham,dim=1),nSpin))
+    if (nSpin == 4) then
+      allocate(idHam(size(ham,dim=1),nSpin))
+      allocate(idRho(size(ham,dim=1),nSpin))
+      idHam(:,:) = 0.0_dp
+    end if
+
+    allocate(transform(nIndepHam))
+    do iS = 1, nIndepHam
+      call TRotateDegen_init(transform(iS))
+    end do
+
+    if (allocated(rangeSep)) then
+      allocate(sSqrReal(nOrbs, nOrbs))
+      sSqrReal(:,:) = 0.0_dp
+    #:if not WITH_SCALAPACK
+      call unpackHS(sSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+          & iSparseStart, img2CentCell)
+    #:endif
+      allocate(dRhoOut(nOrbs * nOrbs * nSpin))
+      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(:nOrbs*nOrbs*nSpin)
+      allocate(dRhoIn(nOrbs * nOrbs * nSpin))
+      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(:nOrbs*nOrbs*nSpin)
+    else
+      dRhoInSqr => null()
+      dRhoOutSqr => null()
+    end if
+
+    call TPotentials_init(dPotential, orb, nAtom, nSpin)
+
+    allocate(tMetallic(nIndepHam, nKpts))
+    tMetallic(:,:) = .not.(nFilled == nEmpty -1)
+    if (any(tMetallic)) then
+      write(stdOut,*)'Metallic system'
+      ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
+      ! at q=0 in metals
+      if (allocated(neFermi)) then
+        deallocate(neFermi)
+      end if
+      allocate(neFermi(nIndepHam))
+      do iS = 1, nIndepHam
+        neFermi(iS) = 0.0_dp
+        do iK = 1, nKpts
+          do ii = nEmpty(iS, iK), nFilled(iS, iK)
+            neFermi(iS) = neFermi(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), tempElec)
+          end do
+        end do
+      end do
+      neFermi(:) = maxFill * neFermi
+      write(stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
+    else
+      write(stdOut,*)'Non-metallic system'
+    end if
+
+  end subroutine init_perturbation
 
 end module dftbp_staticperturb
