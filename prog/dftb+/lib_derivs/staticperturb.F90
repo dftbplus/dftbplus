@@ -351,10 +351,10 @@ contains
   !> Polarizability kernel
   subroutine polarizabilityKernel(env, parallelKS, filling, eigvals, eigVecsReal, eigVecsCplx, ham,&
       & over, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-      & img2CentCell, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
-      & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
-      & onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight, iCellVec,&
-      & cellVec, tPeriodic)
+      & img2CentCell, isRespKernelRPA, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
+      & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU,&
+      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight,&
+      & iCellVec, cellVec, tPeriodic)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -406,6 +406,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), intent(inout), allocatable :: sccCalc
+
+    !> Should the kernel be evaluated at the RPA level (non-SCC) or self-consistent
+    logical, intent(in) :: isRespKernelRPA
 
     !> maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
@@ -516,6 +519,14 @@ contains
 
     real(dp), allocatable :: neFermi(:), dEf(:), dqOut(:,:,:)
 
+    integer :: nIter
+
+    if (isRespKernelRPA) then
+      nIter = 1
+    else
+      nIter = maxSccIter
+    end if
+
     call init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled, nEmpty,&
         & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
         & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
@@ -580,7 +591,7 @@ contains
       dEi(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
           & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
-          & isSccConvRequired, 1, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
+          & isSccConvRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut, rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
           & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
@@ -617,7 +628,7 @@ contains
       dEi(:,:,:) = 0.0_dp
       call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
           & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
-          & isSccConvRequired, 1, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
+          & isSccConvRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
           & dqOut, rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
           & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&

@@ -388,7 +388,7 @@ contains
         call polarizabilityKernel(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
-            & this%img2CentCell, this%scc, this%maxSccIter, this%sccTol,&
+            & this%img2CentCell, this%isRespKernelRPA, this%scc, this%maxSccIter, this%sccTol,&
             & this%isSccConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
             & this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU,&
             & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%rangeSep,&

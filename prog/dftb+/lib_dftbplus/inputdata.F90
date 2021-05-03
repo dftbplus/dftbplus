@@ -212,8 +212,11 @@ module dftbp_inputdata
     !> Is this is a static electric field perturbation calculation
     logical :: isStatEPerturb = .false.
 
-    !> Is the response kernel (and fronteer eigenvalue derivatives) calculated by perturbation
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
     logical :: isRespKernelPert
+
+    !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
+    logical :: isRespKernelRPA
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.

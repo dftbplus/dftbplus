@@ -523,8 +523,11 @@ module dftbp_initprogram
     !> Static polarisability
     logical :: isStatEResp = .false.
 
-    !> Is the response kernel (and fronteer eigenvalue derivatives) calculated by perturbation
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
     logical :: isRespKernelPert
+
+    !> Should the response Kernel use RPA (non-SCC) or self-consistent
+    logical :: isRespKernelRPA
 
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:)
@@ -2161,6 +2164,14 @@ contains
     if (this%isDFTBPT) then
       this%isStatEResp = input%ctrl%isStatEPerturb
       this%isRespKernelPert = input%ctrl%isRespKernelPert
+      if (this%isRespKernelPert) then
+        this%isRespKernelRPA = input%ctrl%isRespKernelRPA
+        if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
+          call error("RPA option only relevant for SCC calculations of response kernel")
+        end if
+      else
+        this%isRespKernelRPA = .false.
+      end if
       if (this%tNegf) then
         call error("Currently the perturbation expresions for NEGF are not implemented")
       end if

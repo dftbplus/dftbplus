@@ -4828,17 +4828,22 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ctrl%isDFTBPT = .false.
       ! electric field polarisability of system
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
-        call getChildValue(child, "Static", ctrl%isStatEPerturb, .false.)
-        call getChildValue(child, "ResponseKernel", ctrl%isRespKernelPert, .false.)
-        if (.not.any([ctrl%isStatEPerturb, ctrl%isRespKernelPert])) then
-          call detailedError(child, "No response case chosen")
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+      end if
+      call getChild(node, "ResponseKernel", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        ctrl%isRespKernelPert = .true.
+        if (ctrl%tSCC) then
+          call getChildValue(child, "RPA", ctrl%isRespKernelRPA, .false.)
+        else
+          ctrl%isRespKernelRPA = .true.
         end if
-      else
-        ctrl%isDFTBPT = .false.
       end if
 
     end if
