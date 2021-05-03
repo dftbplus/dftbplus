@@ -4832,7 +4832,11 @@ contains
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
-        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .false.)
+        call getChildValue(child, "ResponseKernel", ctrl%isRespKernelPert, .false.)
+        if (.not.any([ctrl%isStatEPerturb, ctrl%isRespKernelPert])) then
+          call detailedError(child, "No response case chosen")
+        end if
       else
         ctrl%isDFTBPT = .false.
       end if

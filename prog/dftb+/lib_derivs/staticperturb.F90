@@ -516,8 +516,13 @@ contains
 
     real(dp), allocatable :: neFermi(:), dEf(:), dqOut(:,:,:)
 
-    if (tPeriodic) then
-      call error("Not currently implemented for periodic systems")
+    call init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled, nEmpty,&
+        & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
+        & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
+        & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
+
+    if (tPeriodic .and. nSpin <4) then
+      call error("Response is not currently implemented for periodic systems")
     end if
 
     if (tFixEf) then
@@ -527,11 +532,6 @@ contains
     write(stdOut,*)
     write(stdOut,*)'Perturbation calculation of atomic polarisability kernel'
     write(stdOut,*)
-
-    call init_perturbation(nOrbs, nKpts, nSpin, nIndepHam, maxFill, filling, ham, nFilled, nEmpty,&
-        & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
-        & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
-        & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
 
     allocate(dqOut(orb%mOrb, nAtom, nSpin))
     allocate(dqNetAtom(nAtom))
@@ -587,6 +587,13 @@ contains
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, dPotOnsite)
 
+      write(stdOut,*)'Frontier orbital derivatives'
+      do iS = 1, nIndepHam
+        do iK = 1, nKpts
+          write(stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
+        end do
+      end do
+
       call getOnsitePopulation(dRho(:,1), orb, iSparseStart, dqNetAtom)
       write(stdOut,*)'Mulliken and On site (net) charge derivatives for onsite potential'
       do jAt = 1, nAtom
@@ -616,6 +623,13 @@ contains
           & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
           & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
+
+      write(stdOut,*)'Frontier orbital derivatives'
+      do iS = 1, nIndepHam
+        do iK = 1, nKpts
+          write(stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
+        end do
+      end do
 
       call getOnsitePopulation(dRho(:,1), orb, iSparseStart, dqNetAtom)
       write(stdOut,*)'Mulliken and On site (net) charge derivatives'
@@ -956,6 +970,7 @@ contains
             iS = parallelKS%localKS(2, iKS)
 
             if (allocated(dRhoOut)) then
+              ! range separated
               ! replace with case that will get updated in dRhoStaticReal
               dRhoOutSqr(:,:,iS) = dRhoInSqr(:,:,iS)
             end if
@@ -977,8 +992,8 @@ contains
             iK = parallelKS%localKS(1, iKS)
 
             call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
-                & img2CentCell, denseDesc, parallelKS, nFilled(:, iK), nEmpty(:, iK), eigvecsCplx,&
-                & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
+                & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
+                & tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
                 & transform(iKS), &
                 #:if WITH_SCALAPACK
                 & desc,&
@@ -1035,12 +1050,11 @@ contains
                     &)
 
               elseif (nSpin > 2) then
-
                 ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                     & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
-                    & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
-                    & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+                    & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
+                    & denseDesc, tempElec, eigVals&
                     #:if WITH_SCALAPACK
                     &, desc&
                     #:endif
@@ -1056,6 +1070,14 @@ contains
             end if
 
           end do
+
+          if (nSpin > 2) then
+            ! adjustment from Pauli to charge/spin
+            dRhoExtra(:,:) = 2.0_dp * dRhoExtra
+            if (allocated(idRhoExtra)) then
+              idRhoExtra(:,:) = 2.0_dp * idRhoExtra
+            end if
+          end if
 
           #:if WITH_SCALAPACK
           ! Add up and distribute density matrix contribution from each group
@@ -1362,9 +1384,9 @@ contains
       idHam(:,:) = 0.0_dp
     end if
 
-    allocate(transform(nIndepHam))
-    do iS = 1, nIndepHam
-      call TRotateDegen_init(transform(iS))
+    allocate(transform(nIndepHam*nKpts))
+    do ii = 1, nIndepHam * nKpts
+      call TRotateDegen_init(transform(ii))
     end do
 
     if (allocated(rangeSep)) then

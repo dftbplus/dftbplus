@@ -523,6 +523,9 @@ module dftbp_initprogram
     !> Static polarisability
     logical :: isStatEResp = .false.
 
+    !> Is the response kernel (and fronteer eigenvalue derivatives) calculated by perturbation
+    logical :: isRespKernelPert
+
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:)
 
@@ -2157,6 +2160,7 @@ contains
     this%isDFTBPT = input%ctrl%isDFTBPT
     if (this%isDFTBPT) then
       this%isStatEResp = input%ctrl%isStatEPerturb
+      this%isRespKernelPert = input%ctrl%isRespKernelPert
       if (this%tNegf) then
         call error("Currently the perturbation expresions for NEGF are not implemented")
       end if
@@ -2164,11 +2168,12 @@ contains
         call error("Perturbation expression for polarisability require eigenvalues and&
             & eigenvectors")
       end if
-      if (this%tPeriodic) then
-        call error("Currently the perturbation expresions periodic systems are not implemented")
+      if (this%tPeriodic .and. .not.this%t2Component) then
+        write(*,*)this%tPeriodic, this%t2Component
+        call error("Currently the perturbation expresions for periodic systems are not implemented")
       end if
       if (this%tHelical) then
-        call error("Currently the perturbation expresions periodic systems are not implemented")
+        call error("Currently the perturbation expresions helical systems are not implemented")
       end if
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")
@@ -4260,7 +4265,9 @@ contains
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
       if (this%isDFTBPT) then
-        call initOutputFile(derivEBandOut)
+        if (this%isStatEResp) then
+          call initOutputFile(derivEBandOut)
+        end if
       end if
     end if
     if (this%tDerivs) then

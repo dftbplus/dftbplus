@@ -367,7 +367,7 @@ contains
   #:endif
 
     if (this%isDFTBPT) then
-      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
+      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tHelical .or. this%tNegf)) then
         call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
@@ -381,6 +381,10 @@ contains
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
+      end if
+
+      if (this%isRespKernelPert .and. (.not.(this%tHelical .or. this%tNegf) .or.&
+          & (this%tPeriodic.and.this%nSpin>2))) then
         call polarizabilityKernel(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&

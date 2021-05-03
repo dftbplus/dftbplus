@@ -494,10 +494,10 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     !> Last (partly) filled level in each spin channel
-    integer, intent(in) :: nFilled(:)
+    integer, intent(in) :: nFilled(:,:)
 
     !> First (partly) empty level in each spin channel
-    integer, intent(in) :: nEmpty(:)
+    integer, intent(in) :: nEmpty(:,:)
 
     !> Electron temperature
     real(dp), intent(in) :: tempElec
@@ -637,14 +637,14 @@ contains
     do jj = 1, size(workLocal,dim=2)
       jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
           & env%blacs%orbitalGrid%ncol)
-      if (jGlob > nFilled(1)) then
+      if (jGlob > nFilled(iS, iK)) then
         workLocal(:, jj) = 0.0_dp
         cycle
       end if
       do ii = 1, size(workLocal,dim=1)
         iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
             & env%blacs%orbitalGrid%nrow)
-        if (iGlob < nEmpty(1)) then
+        if (iGlob < nEmpty(iS, iK)) then
           workLocal(ii, :) = 0.0_dp
           cycle
         end if
@@ -670,7 +670,7 @@ contains
 
     ! Form derivative of occupied density matrix
     call pblasfx_pgemm(dRho, denseDesc%blacsOrbSqr,eigvecsTransformed, denseDesc%blacsOrbSqr,&
-        & workLocal, denseDesc%blacsOrbSqr, transb="C", kk=nFilled(iS))
+        & workLocal, denseDesc%blacsOrbSqr, transb="C", kk=nFilled(iS, iK))
     dRho(:,:) = workLocal
     ! and hermitize
     call pblasfx_ptranc(workLocal, denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
@@ -703,8 +703,8 @@ contains
 
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
     ! weighting the elements
-    do iFilled = 1, nFilled(1)
-      do iEmpty = nEmpty(1), nOrb
+    do iFilled = 1, nFilled(iS, iK)
+      do iEmpty = nEmpty(iS, iK), nOrb
         if (.not.transform%degenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
           workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
               & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
@@ -720,21 +720,21 @@ contains
     call transform%applyUnitary(eigvecsTransformed)
 
     ! calculate the derivatives of the eigenvectors
-    workLocal(:, :nFilled(1)) =&
-        & matmul(eigvecsTransformed(:, nEmpty(1):), workLocal(nEmpty(1):, :nFilled(1)))
+    workLocal(:, :nFilled(iS, iK)) =&
+        & matmul(eigvecsTransformed(:,nEmpty(iS, iK):), workLocal(nEmpty(iS, iK):,:nFilled(iS, iK)))
 
     if (allocated(dPsi)) then
       dPsi(:, :, iK, iS) = workLocal
     end if
 
     ! zero the uncalculated virtual states
-    workLocal(:, nFilled(1)+1:) = 0.0_dp
+    workLocal(:, nFilled(iS, iK)+1:) = 0.0_dp
 
     ! form the derivative of the density matrix
-    dRho(:,:) = matmul(workLocal(:, :nFilled(1)),&
-        & transpose(conjg(eigvecsTransformed(:, :nFilled(1)))) )&
-        & + matmul(eigvecsTransformed(:, :nFilled(1)),&
-        & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
+    dRho(:,:) = matmul(workLocal(:, :nFilled(iS, iK)),&
+        & transpose(conjg(eigvecsTransformed(:, :nFilled(iS, iK)))) )&
+        & + matmul(eigvecsTransformed(:, :nFilled(iS, iK)),&
+        & transpose(conjg(workLocal(:, :nFilled(iS, iK)))) )
 
   #:endif
 
@@ -824,10 +824,10 @@ contains
     real(dp), intent(in) :: Ef(:)
 
     !> Last (partly) filled level in each spin channel
-    integer, intent(in) :: nFilled(:)
+    integer, intent(in) :: nFilled(:,:)
 
     !> First (partly) empty level in each spin channel
-    integer, intent(in) :: nEmpty(:)
+    integer, intent(in) :: nEmpty(:,:)
 
     !> ground state eigenvectors
     complex(dp), intent(in) :: eigVecsCplx(:,:,:)
@@ -871,7 +871,7 @@ contains
     do jj = 1, size(workLocal,dim=2)
       jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
           & env%blacs%orbitalGrid%ncol)
-      if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
+      if (jGlob >= nEmpty(iS,iK) .and. jGlob <= nFilled(iS,iK)) then
         workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
             & deltamn(eigVals(jGlob, iK, iS), Ef(iS), tempElec) * dEfdE(iS)
       end if
@@ -886,19 +886,15 @@ contains
         & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
   #:else
 
-    do iFilled = nEmpty(1), nFilled(1)
+    do iFilled = nEmpty(iS,iK), nFilled(iS,iK)
       workLocal(:, iFilled) = eigVecsCplx(:, iFilled, 1) * &
           & deltamn(eigvals(iFilled, 1, 1), Ef(1), tempElec) * dEfdE(1)
     end do
 
-    workLocal(:, :) = matmul(workLocal(:, nEmpty(1):nFilled(1)),&
-        & transpose(conjg(eigVecsCplx(:, nEmpty(1):nFilled(1), 1))))
+    workLocal(:, :) = matmul(workLocal(:, nEmpty(iS,iK):nFilled(iS,iK)),&
+        & transpose(conjg(eigVecsCplx(:, nEmpty(iS,iK):nFilled(iS,iK), 1))))
 
   #:endif
-
-    if (allocated(idRhoExtra)) then
-      idRhoExtra(:,:) = 0.0_dp
-    end if
 
     ! pack extra term into density matrix
   #:if WITH_SCALAPACK
@@ -920,12 +916,6 @@ contains
     end if
 
   #:endif
-
-    ! adjustment from Pauli to charge/spin
-    dRhoExtra(:,:) = 2.0_dp * dRhoExtra
-    if (allocated(idRhoExtra)) then
-      idRhoExtra(:,:) = 2.0_dp * idRhoExtra
-    end if
 
   end subroutine dRhoFermiChangeStaticPauli
 
