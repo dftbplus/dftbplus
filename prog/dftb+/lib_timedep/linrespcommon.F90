@@ -620,7 +620,7 @@ contains
         else
           fact =-1.0_dp
         end if
-        otmp(:) = otmp(:) + fact * vin(ia) * qij(:)
+        otmp(:) = otmp(:) + fact * sqrOccIA(ia) * vTmp(ia) * qij(:)
 
       end do
       !$OMP  END PARALLEL DO
@@ -643,6 +643,7 @@ contains
 
       end do
       !$OMP  END PARALLEL DO
+      
 
     end if
 
@@ -874,6 +875,7 @@ contains
           end if
 
           vP(ia,jb) = vP(ia,jb) + fact * sqrOccIA(ia) * dot_product(qTr, oTmp)
+
         end do
 
       end do

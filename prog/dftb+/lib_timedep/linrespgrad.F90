@@ -748,7 +748,7 @@ contains
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma
-    integer :: iparam(11), ipntr(11)
+    integer :: iparam(11), ipntr(11), ii
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
     logical :: rvec
