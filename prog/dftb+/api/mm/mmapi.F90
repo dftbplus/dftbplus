@@ -241,7 +241,7 @@ contains
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
   !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
   !>
-  subroutine TDftbPlus_init(this, outputUnit, mpiComm)
+  subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
     !> Instance
     type(TDftbPlus), intent(out) :: this
@@ -252,6 +252,10 @@ contains
     !> MPI-communicator to use
     integer, intent(in), optional :: mpiComm
 
+    !> Unit of the null device (you must open the null device and pass its unit number, if you open
+    !> multiple TDftbPlus instances within an MPI-process)
+    integer, intent(in), optional :: devNull
+
     integer :: stdOut
 
     if (present(outputUnit)) then
@@ -260,7 +264,7 @@ contains
       stdOut = output_unit
     end if
 
-    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
+    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
     allocate(this%env)
     allocate(this%main)
     call TEnvironment_init(this%env)

@@ -17,7 +17,7 @@ module dftbp_blacsenv
   implicit none
   private
 
-  public :: TBlacsEnv, TBlacsEnv_init
+  public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 
 
   !> Contains various BLACS related settings
@@ -82,7 +82,7 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(status, -1, trim(buffer))
     end if
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
 
     ! Create atom grid for each processor group
@@ -90,13 +90,26 @@ contains
     maxProcColMax = (nAtom - 1) / colBlock + 1
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%atomGrid%initmappedgrids(gridMap)
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
 
   end subroutine TBlacsEnv_init
+
+
+  !> Finalizes the initialized grids.
+  subroutine TBlacsEnv_final(this)
+
+    !> Initialized instance.
+    type(TBlacsEnv), intent(out) :: this
+
+    call this%orbitalGrid%destruct()
+    call this%atomGrid%destruct()
+
+  end subroutine TBlacsEnv_final
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

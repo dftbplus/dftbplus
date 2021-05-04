@@ -16,6 +16,7 @@ module dftbp_environment
   use dftbp_status, only : TStatus
 #:if WITH_MPI
   use dftbp_mpienv
+  use dftbp_globalenv, only : globalMpiComm
 #:endif
 
 #:if WITH_SCALAPACK
@@ -53,13 +54,22 @@ module dftbp_environment
     type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
+
     !> Global mpi settings
     type(TMpiEnv), public :: mpi
+
+    !> Whether MPI environment had been initialised
+    logical :: mpiInitialised = .false.
+
   #:endif
 
   #:if WITH_SCALAPACK
+
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
+
+    !> Whether BLACS environment had been initialised
+    logical :: blacsInitialised = .false.
   #:endif
 
   #:if WITH_GPU
@@ -172,11 +182,26 @@ contains
       call this%globalTimer%writeTimings()
     end if
     call this%fileFinalizer%closeAll()
+
+    #:if WITH_SCALAPACK
+      if (this%blacsInitialised) then
+        call TBlacsEnv_final(this%blacs)
+        this%blacsInitialised = .false.
+      end if
+    #:endif
+
+    #:if WITH_MPI
+      if (this%mpiInitialised) then
+        call TMpiEnv_final(this%mpi)
+        this%mpiInitialised = .false.
+      end if
+    #:endif
+
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-    
-  
+
+
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -227,10 +252,11 @@ contains
     integer, intent(in) :: nGroup
 
     ! MPI settings
-    call TMpiEnv_init(this%mpi, nGroup)
+    call TMpiEnv_init(this%mpi, globalMpiComm=globalMpiComm, nGroup=nGroup)
     this%tGlobalLead = this%mpi%tGlobalLead
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
+    this%mpiInitialised = .true.
 
   end subroutine TEnvironment_initMpi
 
@@ -262,6 +288,7 @@ contains
 
     call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, status)
     @:PROPAGATE_ERROR(status)
+    this%blacsInitialised = .true.
 
   end subroutine TEnvironment_initBlacs
 
