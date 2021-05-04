@@ -2179,12 +2179,12 @@ contains
         call error("Perturbation expression for polarisability require eigenvalues and&
             & eigenvectors")
       end if
-      if (this%tPeriodic .and. .not.this%t2Component) then
-        write(*,*)this%tPeriodic, this%t2Component
-        call error("Currently the perturbation expresions for periodic systems are not implemented")
+      if (this%tPeriodic .and. this%isStatEResp) then
+        call error("Currently the electric field perturbation expresions for periodic systems are&
+            & not implemented")
       end if
       if (this%tHelical) then
-        call error("Currently the perturbation expresions helical systems are not implemented")
+        call error("Currently the perturbation expresions for helical systems are not implemented")
       end if
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")

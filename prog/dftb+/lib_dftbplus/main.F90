@@ -383,8 +383,7 @@ contains
         end if
       end if
 
-      if (this%isRespKernelPert .and. (.not.(this%tHelical .or. this%tNegf) .or.&
-          & (this%tPeriodic.and.this%nSpin>2))) then
+      if (this%isRespKernelPert .and. .not.(this%tHelical .or. this%tNegf)) then
         call polarizabilityKernel(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
             & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
@@ -393,7 +392,7 @@ contains
             & this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU,&
             & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%rangeSep,&
             & this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec,&
-            & this%cellVec, this%tPeriodic)
+            & this%cellVec)
       end if
 
     end if

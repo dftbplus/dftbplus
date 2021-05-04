@@ -33,6 +33,7 @@ module dftbp_staticperturb
   use dftbp_parallelks, only : TParallelKS
   use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_linearresponse, only : dRhoStaticReal, dRhoFermiChangeStaticReal
+  use dftbp_linearresponse, only : dRhoStaticCmplx, dRhoFermiChangeStaticCmplx
   use dftbp_linearresponse, only : dRhoStaticPauli, dRhoFermiChangeStaticPauli
 #:if WITH_MPI
   use dftbp_mpifx, only : mpifx_allreduceip, MPI_SUM
@@ -354,7 +355,7 @@ contains
       & img2CentCell, isRespKernelRPA, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
       & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU,&
       & iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight,&
-      & iCellVec, cellVec, tPeriodic)
+      & iCellVec, cellVec)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -478,9 +479,6 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
-    !> Is this a periodic geometry
-    logical, intent(in) :: tPeriodic
-
     integer :: ii, iS, iK, iAt, jAt, iLev
     integer :: nSpin, nKpts, nOrbs, nIndepHam
 
@@ -531,10 +529,6 @@ contains
         & dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal, over, neighbourList,&
         & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn, dRhoInSqr,&
         & dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef, kWeight)
-
-    if (tPeriodic .and. nSpin <4) then
-      call error("Response is not currently implemented for periodic systems")
-    end if
 
     if (tFixEf) then
       call error("Perturbation expressions not currently implemented for fixed Fermi energy")
@@ -1015,7 +1009,19 @@ contains
 
         else
 
-          call error("Shouldn't be here")
+          do iKS = 1, parallelKS%nLocalKS
+
+            iK = parallelKS%localKS(1, iKS)
+
+            call dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
+                & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
+                & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS), &
+                #:if WITH_SCALAPACK
+                & desc,&
+                #:endif
+                & dEi, dPsiCmplx)
+
+          end do
 
         end if
 
@@ -1049,7 +1055,6 @@ contains
               ! Fermi level changes, so need to correct for the change in the number of charges
 
               if (allocated(eigVecsReal)) then
-
                 ! real case, no k-points
                 call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
                     & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
@@ -1059,7 +1064,6 @@ contains
                     &, desc&
                     #:endif
                     &)
-
               elseif (nSpin > 2) then
                 ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
@@ -1070,12 +1074,15 @@ contains
                     &, desc&
                     #:endif
                     &)
-
               else
-
-                ! k-points
-                call error("Not added yet")
-
+                ! Complex case with k-points
+                call dRhoFermiChangeStaticCmplx(dRhoExtra, env, parallelKS, iKS, kPoint, kWeight,&
+                    & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart,&
+                    & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+                    #:if WITH_SCALAPACK
+                    &, desc&
+                    #:endif
+                    &)
               end if
 
             end if

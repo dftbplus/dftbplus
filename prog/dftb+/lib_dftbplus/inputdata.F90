@@ -213,7 +213,7 @@ module dftbp_inputdata
     logical :: isStatEPerturb = .false.
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isRespKernelPert
+    logical :: isRespKernelPert = .false.
 
     !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
     logical :: isRespKernelRPA

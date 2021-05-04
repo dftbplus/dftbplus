@@ -20,18 +20,22 @@ module dftbp_linearresponse
   use dftbp_parallelks, only : TParallelKS
 #:if WITH_SCALAPACK
   use dftbp_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
+  use dftbp_sparse2dense, only : unpackHSCplxBlacs, packRhoCplxBlacs
   use dftbp_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs
   use dftbp_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm, pblasfx_ptranc
   use dftbp_scalapackfx, only : pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g
 #:else
   use dftbp_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
+  use dftbp_sparse2dense, only : packHS, iPackHS
   use dftbp_blasroutines, only : hemm, symm
 #:endif
 
   implicit none
 
   private
-  public :: dRhoStaticReal, dRhoFermiChangeStaticReal, dRhoStaticPauli, dRhoFermiChangeStaticPauli
+  public :: dRhoStaticReal, dRhoFermiChangeStaticReal
+  public :: dRhoStaticCmplx, dRhoFermiChangeStaticCmplx
+  public :: dRhoStaticPauli, dRhoFermiChangeStaticPauli
 
   !> small complex value for frequency dependent cases
   complex(dp), parameter :: eta = (0.0_dp,1.0E-8_dp)
@@ -167,7 +171,7 @@ contains
         & workLocal, denseDesc%blacsOrbSqr, transa="T")
 
     eigvecsTransformed = eigVecsReal(:,:,iKS)
-    call transform%generateUnitary(env, worklocal, eigvals(:,1,iS), eigVecsTransformed, denseDesc,&
+    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
         & isTransformed)
     ! now have states orthogonalised agains the operator in degenerate cases, |c~>
 
@@ -449,6 +453,429 @@ contains
 
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
+  subroutine dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
+      & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
+      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
+    #:if WITH_SCALAPACK
+      & desc,&
+    #:endif
+      & dEi, dPsi)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Derivative of the hamiltonian
+    real(dp), intent(in) :: dHam(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> ground state eigenvectors
+    complex(dp), intent(in) :: eigVecsCplx(:,:,:)
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+    !> Fermi level(s)
+    real(dp), intent(in) :: Ef(:)
+
+    !> Last (partly) filled level in each spin channel
+    integer, intent(in) :: nFilled(:,:)
+
+    !> First (partly) empty level in each spin channel
+    integer, intent(in) :: nEmpty(:,:)
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> returning dRhoSparse on exit
+    real(dp), intent(out) :: dRhoSparse(:,:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> spin/kpoint channel
+    integer, intent(in) :: iKS
+
+    !> Transformation structure for degenerate orbitals
+    type(TRotateDegen), intent(inout) :: transform
+
+  #:if WITH_SCALAPACK
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(DLEN_)
+  #:endif
+
+    !> Derivative of single particle eigenvalues
+    real(dp), allocatable, intent(inout) :: dEi(:,:,:)
+
+    !> Optional derivatives of single particle wavefunctions
+    complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
+
+  #:if WITH_SCALAPACK
+    integer :: jj, iGlob, jGlob
+  #:else
+    integer :: iFilled, iEmpty, nOrb
+  #:endif
+
+    integer :: ii, iK, iS
+    complex(dp) :: workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
+    complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
+    complex(dp), allocatable :: eigVecsTransformed(:,:)
+    logical :: isTransformed
+
+    iK = parallelKS%localKS(1, iKS)
+    iS = parallelKS%localKS(2, iKS)
+
+    if (allocated(dEi)) then
+      dEi(:, iK, iS) = 0.0_dp
+    end if
+    if (allocated(dPsi)) then
+      dPsi(:, :, iK, iS) = cmplx(0,0,dp)
+    end if
+
+    workLocal(:,:) = cmplx(0,0,dp)
+    dRho(:,:) = cmplx(0,0,dp)
+
+  #:if WITH_SCALAPACK
+
+    ! dH in square form
+    call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+        & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+
+    ! dH times c_i
+    call pblasfx_phemm(workLocal, denseDesc%blacsOrbSqr, eigVecsCplx(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr)
+
+    ! c_i times dH times c_i
+    call pblasfx_pgemm(eigVecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
+        & workLocal, denseDesc%blacsOrbSqr, transa="C")
+
+    eigvecsTransformed = eigVecsCplx(:,:,iKS)
+    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
+        & isTransformed)
+    ! now have states orthogonalised agains the operator in degenerate cases, |c~>
+
+    if (isTransformed) then
+      ! re-form |c~> H' <c~| with the transformed vectors
+
+      dRho(:,:) = 0.0_dp
+      workLocal(:,:) = 0.0_dp
+
+      ! dH in square form
+      call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+
+      ! dH times c_i
+      call pblasfx_phemm(workLocal, denseDesc%blacsOrbSqr, eigVecsTransformed,&
+          & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr)
+
+      ! c_i times dH times c_i
+      call pblasfx_pgemm(eigVecsTransformed, denseDesc%blacsOrbSqr, dRho,&
+          & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
+
+    end if
+
+    ! derivative of eigenvalues stored in diagonal of matrix workLocal, from <c|h'|c>
+    if (allocated(dEi)) then
+      do jj = 1, size(workLocal,dim=2)
+        jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+            & env%blacs%orbitalGrid%ncol)
+        do ii = 1, size(workLocal,dim=1)
+          iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+              & env%blacs%orbitalGrid%nrow)
+          if (iGlob == jGlob) then
+            dEi(iGlob, iK, iS) = real(workLocal(ii,jj),dp)
+          end if
+        end do
+      end do
+    end if
+
+    ! weight matrix with inverse of energy differences
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      if (jGlob > nFilled(iS, iK)) then
+        workLocal(:, jj) = 0.0_dp
+        cycle
+      end if
+      do ii = 1, size(workLocal,dim=1)
+        iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+        if (iGlob < nEmpty(iS, iK)) then
+          workLocal(ii, :) = 0.0_dp
+          cycle
+        end if
+        if (abs(eigvals(jGlob,iK,iS) - eigvals(iGlob,iK,iS)) < epsilon(0.0_dp)&
+            & .and. iGlob /= jGlob) then
+          ! degenerate, so no contribution
+          workLocal(ii,jj) = 0.0_dp
+        else
+          workLocal(ii, jj) = workLocal(ii, jj) * &
+              & invDiff(eigvals(jGlob,iK,iS),eigvals(iGlob,iK,iS),Ef(iS),tempElec)&
+              & * theta(eigvals(jGlob,iK,iS),eigvals(iGlob,iK,iS),tempElec)
+        end if
+      end do
+    end do
+
+    ! Derivatives of states
+    call pblasfx_pgemm(eigvecsTransformed, denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr,&
+        & dRho, denseDesc%blacsOrbSqr)
+
+    if (allocated(dPsi)) then
+      dPsi(:, :, iK, iS) = workLocal
+    end if
+
+    ! Form derivative of occupied density matrix
+    call pblasfx_pgemm(dRho, denseDesc%blacsOrbSqr,eigvecsTransformed, denseDesc%blacsOrbSqr,&
+        & workLocal, denseDesc%blacsOrbSqr, transb="C", kk=nFilled(iS, iK))
+    dRho(:,:) = workLocal
+    ! and hermitize
+    call pblasfx_ptranc(workLocal, denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
+        & beta=(1.0_dp,0.0_dp))
+
+  #:else
+
+    ! serial case
+    nOrb = size(dRho, dim = 1)
+
+    call unpackHS(dRho, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+        & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+
+    ! form |c> H' <c|
+    call hemm(workLocal, 'l', dRho, eigVecsCplx(:,:,iKS))
+    workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
+
+    ! orthogonalise degenerate states against perturbation
+    call transform%generateUnitary(workLocal, eigvals(:,iK,iS))
+    call transform%degenerateTransform(workLocal)
+
+    ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
+    if (allocated(dEi)) then
+      do ii = 1, nOrb
+        dEi(ii, iK, iS) = real(workLocal(ii,ii),dp)
+      end do
+    end if
+
+    ! static case
+
+    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
+    ! weighting the elements
+    do iFilled = 1, nFilled(iS, iK)
+      do iEmpty = nEmpty(iS, iK), nOrb
+        if (.not.transform%degenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
+          workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+              & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
+              & *theta(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), tempElec)
+        else
+          ! rotation should already have set these elements to zero
+          workLocal(iEmpty, iFilled) = 0.0_dp
+        end if
+      end do
+    end do
+
+    eigvecsTransformed = eigVecsCplx(:,:,iKS)
+    call transform%applyUnitary(eigvecsTransformed)
+
+    ! calculate the derivatives of the eigenvectors
+    workLocal(:, :nFilled(iS, iK)) =&
+        & matmul(eigvecsTransformed(:,nEmpty(iS, iK):), workLocal(nEmpty(iS, iK):,:nFilled(iS, iK)))
+
+    if (allocated(dPsi)) then
+      dPsi(:, :, iK, iS) = workLocal
+    end if
+
+    ! zero the uncalculated virtual states
+    workLocal(:, nFilled(iS, iK)+1:) = 0.0_dp
+
+    ! form the derivative of the density matrix
+    dRho(:,:) = matmul(workLocal(:, :nFilled(iS, iK)),&
+        & transpose(conjg(eigvecsTransformed(:, :nFilled(iS, iK)))) )&
+        & + matmul(eigvecsTransformed(:, :nFilled(iS, iK)),&
+        & transpose(conjg(workLocal(:, :nFilled(iS, iK)))) )
+
+  #:endif
+
+    dRhoSparse(:,:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+    call packRhoCplxBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+        & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+        & img2CentCell, dRhoSparse(:,iS))
+  #:else
+    call packHS(dRhoSparse(:,iS), dRho, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+        & img2CentCell)
+  #:endif
+
+  end subroutine dRhoStaticCmplx
+
+
+    !> Calculate the change in the density matrix due to shift in the Fermi energy
+  subroutine dRhoFermiChangeStaticCmplx(dRhoExtra, env, parallelKS, iKS, kPoint, kWeight, iCellVec,&
+      & cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEfdE, Ef, nFilled,&
+      & nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+    #:if WITH_SCALAPACK
+      &, desc&
+    #:endif
+      &)
+
+    !> Additional contribution to the density matrix to cancel effect of Fermi energy change
+    real(dp), intent(inout) :: dRhoExtra(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> spin/kpoint channel
+    integer, intent(in) :: iKS
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Fermi level derivative
+    real(dp), intent(in) :: dEfdE(:)
+
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    !> Last (partly) filled level in each spin channel
+    integer, intent(in) :: nFilled(:,:)
+
+    !> First (partly) empty level in each spin channel
+    integer, intent(in) :: nEmpty(:,:)
+
+    !> ground state eigenvectors
+    complex(dp), intent(in) :: eigVecsCplx(:,:,:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+  #:if WITH_SCALAPACK
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(DLEN_)
+  #:endif
+
+  #:if WITH_SCALAPACK
+    integer :: jj, jGlob
+  #:else
+    integer :: iFilled
+  #:endif
+    integer :: iK, iS
+    complex(dp) :: workLocal(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+  #:if WITH_SCALAPACK
+    complex(dp) :: workLocal2(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+    complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+  #:endif
+
+    workLocal(:,:) = cmplx(0,0,dp)
+
+    iK = parallelKS%localKS(1, iKS)
+    iS = parallelKS%localKS(2, iKS)
+
+  #:if WITH_SCALAPACK
+
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      if (jGlob >= nEmpty(iS,iK) .and. jGlob <= nFilled(iS,iK)) then
+        workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
+            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), tempElec) * dEfdE(iS)
+      end if
+    end do
+
+    workLocal3(:,:) = eigVecsCplx(:,:,iKS)
+    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr, workLocal3,&
+        & denseDesc%blacsOrbSqr, workLocal2, denseDesc%blacsOrbSqr, transb="C")
+    workLocal(:,:) = workLocal2
+    ! Hermitian symmetry
+    call pblasfx_ptranc(workLocal2, denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr,&
+        & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
+  #:else
+
+    do iFilled = nEmpty(iS,iK), nFilled(iS,iK)
+      workLocal(:, iFilled) = eigVecsCplx(:, iFilled, 1) * &
+          & deltamn(eigvals(iFilled, 1, 1), Ef(1), tempElec) * dEfdE(1)
+    end do
+
+    workLocal(:, :) = matmul(workLocal(:, nEmpty(iS,iK):nFilled(iS,iK)),&
+        & transpose(conjg(eigVecsCplx(:, nEmpty(iS,iK):nFilled(iS,iK), 1))))
+
+  #:endif
+
+    ! pack extra term into density matrix
+  #:if WITH_SCALAPACK
+    call packRhoCplxBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+        & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+        & img2CentCell, dRhoExtra(:,iS))
+  #:else
+    call packHS(dRhoExtra(:,iS), workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+        & img2CentCell)
+  #:endif
+
+  end subroutine dRhoFermiChangeStaticCmplx
+
+
+  !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
   subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
@@ -587,7 +1014,7 @@ contains
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
 
     eigvecsTransformed = eigVecsCplx(:,:,iKS)
-    call transform%generateUnitary(env, worklocal, eigvals(:,1,iS), eigVecsTransformed, denseDesc,&
+    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
         & isTransformed)
     ! now have states orthogonalised agains the operator in degenerate cases, |c~>
 
@@ -716,7 +1143,7 @@ contains
       end do
     end do
 
-    eigvecsTransformed = eigVecsCplx(:,:,iS)
+    eigvecsTransformed = eigVecsCplx(:,:,iKS)
     call transform%applyUnitary(eigvecsTransformed)
 
     ! calculate the derivatives of the eigenvectors
@@ -748,24 +1175,26 @@ contains
       call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
           & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, dRhoSparse, idRhoSparse)
-      else
-        call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, dRhoSparse)
-      end if
+    else
+      call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, dRhoSparse)
+    end if
   #:else
-      call packHSPauli(dRhoSparse, dRho, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      if (allocated(idRhoSparse)) then
-        call packHSPauliImag(idRhoSparse, dRho, neighbourlist%iNeighbour, nNeighbourSK,&
-            & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      end if
+    call packHS(dRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+        & img2CentCell)
+    if (allocated(idRhoSparse)) then
+      call ipackHS(idRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell)
+    end if
   #:endif
 
-      ! adjustment from Pauli to charge/spin
-      dRhoSparse(:,:) = 2.0_dp * dRhoSparse
+    ! adjustment from Pauli to charge/spin
+    dRhoSparse(:,:) = 2.0_dp * dRhoSparse
 
-    end subroutine dRhoStaticPauli
+  end subroutine dRhoStaticPauli
 
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy
@@ -908,11 +1337,13 @@ contains
           & img2CentCell, dRhoExtra)
     end if
   #:else
-    call packHSPauli(dRhoExtra, workLocal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    call packHS(dRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+        & img2CentCell)
     if (allocated(idRhoExtra)) then
-      call packHSPauliImag(idRhoExtra, workLocal, neighbourlist%iNeighbour, nNeighbourSK,&
-          & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call ipackHS(idRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+        & img2CentCell)
     end if
 
   #:endif
