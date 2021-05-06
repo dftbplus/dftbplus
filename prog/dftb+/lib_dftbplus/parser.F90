@@ -4618,7 +4618,7 @@ contains
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
       call getChildValue(child, "UseArpack", ctrl%lrespini%tUseArpack, default=.true.)
-      call getChildValue(child, "SubSpaceStratmann", ctrl%lrespini%subSpaceFactorStratmann, 2)
+      call getChildValue(child, "SubSpaceStratmann", ctrl%lrespini%subSpaceFactorStratmann, 20)
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)

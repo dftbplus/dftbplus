@@ -2772,6 +2772,15 @@ contains
       #:endif
     endif
 
+    if(this%isLinResp) then
+       if(input%ctrl%lrespini%tUseArpack) then
+          write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
+       else
+          write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+       end if
+    end if
+
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
         select case (iMixer)
@@ -4908,6 +4917,16 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
+
+    if (input%ctrl%lrespini%tUseArpack) then
+      if (input%ctrl%lrespini%subSpaceFactorStratmann /= 20) then
+        call warning("Casida: SubSpaceStratmann without function for Arpack diagonalization!")
+      end if
+    else 
+      if (input%ctrl%lrespini%tArnoldi .or. input%ctrl%lrespini%tDiagnoseArnoldi) then
+        call warning("Casida: Arpack options without function for Stratmann diagonalizer.")
+      end if
+    end if 
 
   end subroutine ensureLinRespConditions
 

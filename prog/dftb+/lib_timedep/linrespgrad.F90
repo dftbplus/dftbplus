@@ -999,7 +999,7 @@ contains
     endif
     subSpaceDim = min(subSpaceFactor * nExc, nxov)
     ! Memory available for subspace calcs
-    memDim = min(subSpaceDim + 6 * nExc, nxov) 
+    memDim = min(subSpaceDim + 6 * nExc, nxov)
     workDim = 3 * memDim + 1
     allocate(vecB(nxov, memDim))
     allocate(vP(nxov, memDim)) 
@@ -1023,7 +1023,7 @@ contains
     ! set initial bs
     vecB(:,:) = 0.0_dp
     do ii = 1, subSpaceDim
-      vecB(ii, ii) = 1.0
+      vecB(ii, ii) = 1.0_dp
     end do
 
     prevSubSpaceDim = 0
@@ -1069,7 +1069,7 @@ contains
 
       ! Diagonalize in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
-      if (info) then
+      if (info /= 0) then
         write(tmpStr,'(A)') 'TDDFT diagonalization. Increase SubSpaceStratmann.'
         call error(tmpStr)
       endif

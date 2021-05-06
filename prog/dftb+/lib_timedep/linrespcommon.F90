@@ -472,9 +472,11 @@ contains
   !> For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt 
   !> (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
   !>
-  !> For the standard RPA, (A+B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
+  !> For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
+  !> Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
+  !> occupations n_is, correct for finite T. 
   !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
@@ -533,26 +535,26 @@ contains
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> whether (A+B)v or sqrt(1/S)(A+B)sqrt(1/S)v should be returned
+    !> whether (A+B)v or (Omega)v should be returned
     logical, intent(in) :: tAplusB
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nmat, natom, ia
+    integer :: nmat, natom, ia, ss
 
+    ! This OMP directive seems strange, no ii,jj used. 
   #:if WITH_OMP
     integer :: ii, jj
   #:endif
 
-    real(dp) :: fact
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
     real(dp) :: sqrOccIA(size(wij))
-    logical :: updwn
     real(dp) :: vout_ons(size(vin))
     real(dp) :: vTmp(size(vin))
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
 
     @:ASSERT(size(vin) == size(vout))
 
@@ -561,6 +563,7 @@ contains
 
     vout = 0.0_dp
 
+    ! Compute sqrt(n_as-n_is)
     call wtdn_tmp(occNr, win, nmatup, nmat, getia, spin, sqrOccIA)
  
     if(tAplusB) then
@@ -603,11 +606,9 @@ contains
 
       otmp(:) = 0.0_dp
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
-
-        updwn = (win(ia) <= nmatup)
 
         qij(:) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
 
@@ -615,31 +616,24 @@ contains
         vout(ia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
 
         ! magnetization part (T1)
-        if (updwn) then
-          fact = 1.0_dp
-        else
-          fact =-1.0_dp
-        end if
-        otmp(:) = otmp(:) + fact * sqrOccIA(ia) * vTmp(ia) * qij(:)
+        ss = getIA(win(ia), 3)
+
+        otmp(:) = otmp(:) + spinFactor(ss) * sqrOccIA(ia) * vTmp(ia) * qij(:)
 
       end do
       !$OMP  END PARALLEL DO
 
       otmp = otmp * spinW(species0)
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
         qij(:) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
 
-        updwn = (win(ia) <= nmatup)
-        if (updwn) then
-          fact = 1.0_dp
-        else
-          fact =-1.0_dp
-        end if
-        vout(ia) = vout(ia) + 2.0_dp * sqrOccIA(ia) * fact * dot_product(qij, otmp)
+        ss = getIA(win(ia), 3)
+
+        vout(ia) = vout(ia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
 
       end do
       !$OMP  END PARALLEL DO
@@ -780,8 +774,7 @@ contains
     integer :: ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
-    real(dp) :: fact
-    logical :: tRangeSep, updwn
+    logical :: tRangeSep
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: sqrOccIA(size(wIJ))
 
@@ -827,10 +820,12 @@ contains
         do jb = 1, initDim
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           oTmp(:) = qTr(:) * sqrOccIA(jb) * spinW(species0)
+
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
             vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
+
         end do
 
       end if
@@ -852,30 +847,12 @@ contains
 
         ss = getIA(win(jb), 3)
         
-
-        updwn = (win(jb) <= nmatup)
-        
-        if (updwn) then
-          fact = 1.0_dp
-        else
-          fact =-1.0_dp
-        end if
-
-        oTmp(:)  =  fact * 2.0_dp * spinW(species0) * oTmp(:)
+        oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp(:)
 
         do ia = 1, nMat
           qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-
           tt = getIA(win(ia), 3)
-          updwn = (win(ia) <= nmatup)
-          if (updwn) then
-             fact = 1.0_dp
-          else
-             fact =-1.0_dp
-          end if
-
-          vP(ia,jb) = vP(ia,jb) + fact * sqrOccIA(ia) * dot_product(qTr, oTmp)
-
+          vP(ia,jb) = vP(ia,jb) + spinFactor(tt) * sqrOccIA(ia) * dot_product(qTr, oTmp)
         end do
 
       end do
@@ -1575,6 +1552,7 @@ contains
     real(dp), allocatable :: temp(:,:)
     dim1 = size(vec, dim=1)
     allocate(temp(dim1, 3 * sizeIn))
+    temp(:,:) = 0.0_dp
     ! Check: would be nice if temp could become memory for vec, see if possible in fortran
     temp(:,1:sizeIn) = vec
     call move_alloc(temp, vec)
@@ -1590,6 +1568,7 @@ contains
 
     real(dp), allocatable :: temp(:)
     allocate(temp(3 * sizeIn))
+    temp(:) = 0.0_dp
     ! Check: would be nice if temp could become memory for vec, see if possible in fortran
     temp(1:sizeIn) = vec
     call move_alloc(temp, vec)
@@ -1607,6 +1586,7 @@ contains
     real(dp), allocatable :: temp(:,:)
     dim1 = size(vec, dim=2)
     allocate(temp(3 * sizeIn, dim1))
+    temp(:,:) = 0.0_dp
     ! Check: would be nice if temo could become memory for vec, see if possible in fortran
     temp(1:sizeIn,:) = vec
     call move_alloc(temp, vec)
@@ -1623,6 +1603,7 @@ contains
     real(dp), allocatable :: temp(:,:)
 
     allocate(temp(3 * sizeIn, 2 * sizeIn))
+    temp(:,:) = 0.0_dp
     ! Check: would be nice if temo could become memory for vec, see if possible in fortran
     temp(1:sizeIn, 1:sizeIn) = vec
     call move_alloc(temp, vec)
@@ -1696,7 +1677,6 @@ contains
     real(dp), allocatable :: mP(:,:), mM(:,:), mH(:,:), mMsqrt(:,:), mMsqrtInv(:,:)
     real(dp), allocatable :: dummyM(:,:), evalInt(:), workArray(:)
     real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:) 
-
 
     call TN_incSize(memDim, vecB)
     call TN_incSize(memDim, vP)
