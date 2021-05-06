@@ -667,6 +667,9 @@ module dftbp_initprogram
     !> Nr. of external charges
     integer :: nExtChrg
 
+    !> External potential at an atomic site
+    type(TExtSitePot), allocatable :: extSitePotential
+
     !> external electric field
     logical :: tEField
 
@@ -1728,7 +1731,10 @@ contains
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
     this%tEField = input%ctrl%tEfield
-    this%tExtField = this%tEField
+    if (input%ctrl%isExtSitePotential) then
+      allocate(this%extSitePotential)
+    end if
+    this%tExtField = this%tEField .or. allocated(this%extSitePotential)
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%tExtField .or.&
         & this%tFixEf .or. this%isRangeSep
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
@@ -2632,6 +2638,14 @@ contains
       this%pCoord0Out => this%coord0
     end if
 
+    if (allocated(this%extSitePotential)) then
+      this%extSitePotential%strength = input%ctrl%sitePotentialStrength
+      if (input%ctrl%iSitePotential < 1 .or.&
+          & input%ctrl%iSitePotential > size(this%iAtInCentralRegion)) then
+        call error("Site potential on an unphysical atom")
+      end if
+      this%extSitePotential%iSite = input%ctrl%iSitePotential
+    end if
 
     ! Projection of eigenstates onto specific regions of the system
     this%tProjEigenvecs = input%ctrl%tProjEigenvecs

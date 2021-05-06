@@ -1007,6 +1007,12 @@ contains
 
           end do
 
+          ! adjustment from Pauli to charge/spin
+          dRho(:,:) = 2.0_dp * dRho
+          if (allocated(idRho)) then
+            idRho(:,:) = 2.0_dp * idRho
+          end if
+
         else
 
           do iKS = 1, parallelKS%nLocalKS

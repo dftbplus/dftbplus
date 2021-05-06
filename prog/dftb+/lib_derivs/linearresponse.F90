@@ -507,7 +507,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> returning dRhoSparse on exit
-    real(dp), intent(out) :: dRhoSparse(:,:)
+    real(dp), intent(inout) :: dRhoSparse(:,:)
 
     !> k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -722,8 +722,6 @@ contains
 
   #:endif
 
-    dRhoSparse(:,:) = 0.0_dp
-
   #:if WITH_SCALAPACK
     call packRhoCplxBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
         & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
@@ -737,7 +735,7 @@ contains
   end subroutine dRhoStaticCmplx
 
 
-    !> Calculate the change in the density matrix due to shift in the Fermi energy
+  !> Calculate the change in the density matrix due to shift in the Fermi energy
   subroutine dRhoFermiChangeStaticCmplx(dRhoExtra, env, parallelKS, iKS, kPoint, kWeight, iCellVec,&
       & cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEfdE, Ef, nFilled,&
       & nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
@@ -933,7 +931,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> returning dRhoSparse on exit
-    real(dp), intent(out) :: dRhoSparse(:,:)
+    real(dp), intent(inout) :: dRhoSparse(:,:)
 
     !> returning imaginary part of dRhoSparse on exit
     real(dp), intent(inout), allocatable :: idRhoSparse(:,:)
@@ -1165,11 +1163,6 @@ contains
 
   #:endif
 
-    dRhoSparse(:,:) = 0.0_dp
-    if (allocated(idRhoSparse)) then
-      idRhoSparse(:,:) = 0.0_dp
-    end if
-
   #:if WITH_SCALAPACK
     if (allocated(idRhoSparse)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
@@ -1190,9 +1183,6 @@ contains
           & img2CentCell)
     end if
   #:endif
-
-    ! adjustment from Pauli to charge/spin
-    dRhoSparse(:,:) = 2.0_dp * dRhoSparse
 
   end subroutine dRhoStaticPauli
 

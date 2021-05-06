@@ -2125,7 +2125,7 @@ contains
   end subroutine readSpinPolarisation
 
 
-  ! External electric field
+  ! External field
   subroutine readExternal(node, ctrl, geo)
 
     !> Relevant node in input tree
@@ -2266,6 +2266,17 @@ contains
       ctrl%nExtChrg = 0
     end if
     call destroyNodeList(children)
+
+    call getChild(node, "Site",child, requested=.false.)
+    if (associated(child)) then
+      ctrl%isExtSitePotential = .true.
+      call getChildValue(child, "Strength", ctrl%sitePotentialStrength, modifier=modifier,&
+          & child=child2)
+      call convertByMul(char(modifier), EFieldUnits, child2, ctrl%sitePotentialStrength)
+      call getChildValue(child, "Atom", ctrl%iSitePotential)
+    else
+      ctrl%isExtSitePotential = .false.
+    end if
 
   end subroutine readExternal
 

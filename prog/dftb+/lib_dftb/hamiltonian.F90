@@ -13,7 +13,7 @@ module dftbp_hamiltonian
   use dftbp_assert
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
-  use dftbp_potentials, only : TPotentials
+  use dftbp_potentials, only : TPotentials, TExtSitePot
   use dftbp_shift, only : add_shift, total_shift
   use dftbp_spin, only : getSpinShift
   use dftbp_spinorbit, only : getDualSpinOrbitShift
@@ -29,7 +29,7 @@ module dftbp_hamiltonian
 
   private
   public :: resetExternalPotentials, getSccHamiltonian, mergeExternalPotentials
-  public :: setUpExternalElectricField, resetInternalPotentials, addChargePotentials
+  public :: setUpExternalField, resetInternalPotentials, addChargePotentials
   public :: addBlockChargePotentials, TRefExtPot
 
   !> Container for external potentials
@@ -89,11 +89,11 @@ contains
   end subroutine mergeExternalPotentials
 
 
-  !> Sets up electric external field
-  subroutine setUpExternalElectricField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength,&
-      & EFieldVector, EFieldOmega, EFieldPhase, neighbourList, nNeighbourSK, iCellVec,&
-      & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, extAtomPot, extPotGrad, EField,&
-      & absEField)
+  !> Sets up an external field (usually electric)
+  subroutine setUpExternalField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength, EFieldVector,&
+      & EFieldOmega, EFieldPhase, neighbourList, nNeighbourSK, iCellVec, img2CentCell, cellVec,&
+      & deltaT, iGeoStep, coord0Fold, coord, extAtomPot, extPotGrad, EField, absEField,&
+      & extSitePotential)
 
     !> Whether electric field should be considered at all
     logical, intent(in) :: tEfield
@@ -155,6 +155,9 @@ contains
     !> Magnitude of the field
     real(dp), intent(out) :: absEField
 
+    !> External potential at an atomic site
+    type(TExtSitePot), allocatable, intent(inout) :: extSitePotential
+
     integer :: nAtom
     integer :: iAt1, iAt2, iNeigh
     character(lc) :: tmpStr
@@ -162,43 +165,49 @@ contains
     if (.not. tEField) then
       EField(:) = 0.0_dp
       absEField = 0.0_dp
-      return
     end if
 
-    nAtom = size(nNeighbourSK)
-
-    Efield(:) = EFieldStrength * EfieldVector
-    if (tTimeDepEField) then
-      Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
+    if (allocated(extSitePotential)) then
+      extAtomPot(extSitePotential%iSite) = extAtomPot(extSitePotential%iSite)&
+          & + extSitePotential%strength
     end if
-    absEfield = sqrt(sum(Efield**2))
-    if (tPeriodic) then
-      do iAt1 = 1, nAtom
-        do iNeigh = 1, nNeighbourSK(iAt1)
-          iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
-          ! overlap between atom in central cell and non-central cell
-          if (iCellVec(iAt2) /= 0) then
-            ! component of electric field projects onto vector between cells
-            if (abs(dot_product(cellVec(:, iCellVec(iAt2)), EfieldVector)) > epsilon(1.0_dp)) then
-              write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
-                  & img2CentCell(iAt2), ' crosses the saw-tooth discontinuity in the electric&
-                  & field.'
-              call error(tmpStr)
+
+    if (tEField) then
+      nAtom = size(nNeighbourSK)
+
+      Efield(:) = EFieldStrength * EfieldVector
+      if (tTimeDepEField) then
+        Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
+      end if
+      absEfield = sqrt(sum(Efield**2))
+      if (tPeriodic) then
+        do iAt1 = 1, nAtom
+          do iNeigh = 1, nNeighbourSK(iAt1)
+            iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
+            ! overlap between atom in central cell and non-central cell
+            if (iCellVec(iAt2) /= 0) then
+              ! component of electric field projects onto vector between cells
+              if (abs(dot_product(cellVec(:, iCellVec(iAt2)), EfieldVector)) > epsilon(1.0_dp)) then
+                write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
+                    & img2CentCell(iAt2), ' crosses the saw-tooth discontinuity in the electric&
+                    & field.'
+                call error(tmpStr)
+              end if
             end if
-          end if
+          end do
         end do
-      end do
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord0Fold(:, iAt1), Efield)
-      end do
-    else
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord(:, iAt1), Efield)
-      end do
+        do iAt1 = 1, nAtom
+          extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord0Fold(:, iAt1), Efield)
+        end do
+      else
+        do iAt1 = 1, nAtom
+          extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord(:, iAt1), Efield)
+        end do
+      end if
+      extPotGrad(:,:) = extPotGrad + spread(EField, 2, nAtom)
     end if
-    extPotGrad(:,:) = extPotGrad + spread(EField, 2, nAtom)
 
-  end subroutine setUpExternalElectricField
+  end subroutine setUpExternalField
 
 
   !> Reset internal potential related quantities

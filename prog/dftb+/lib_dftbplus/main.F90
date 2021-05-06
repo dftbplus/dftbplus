@@ -716,11 +716,11 @@ contains
       call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
     end if
 
-    call setUpExternalElectricField(this%tEField, this%tTDEField, this%tPeriodic,&
-        & this%EFieldStrength, this%EFieldVector, this%EFieldOmega, this%EFieldPhase,&
-        & this%neighbourList, this%nNeighbourSk, this%iCellVec, this%img2CentCell, this%cellVec,&
-        & this%deltaT, iGeoStep, this%coord0Fold, this%coord, this%potential%extAtom(:,1),&
-        & this%potential%extGrad, this%EField, this%absEField)
+    call setUpExternalField(this%tEField, this%tTDEField, this%tPeriodic, this%EFieldStrength,&
+        & this%EFieldVector, this%EFieldOmega, this%EFieldPhase, this%neighbourList,&
+        & this%nNeighbourSk, this%iCellVec, this%img2CentCell, this%cellVec, this%deltaT, iGeoStep,&
+        & this%coord0Fold, this%coord, this%potential%extAtom(:,1), this%potential%extGrad,&
+        & this%EField, this%absEField, this%extSitePotential)
 
     call mergeExternalPotentials(this%orb, this%species, this%potential)
 
@@ -777,7 +777,8 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom,&
+            & this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&

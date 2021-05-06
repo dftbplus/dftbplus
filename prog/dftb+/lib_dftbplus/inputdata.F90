@@ -390,6 +390,14 @@ module dftbp_inputdata
     !> finite charge width if needed
     real(dp), allocatable :: extChrgBlurWidth(:)
 
+    !> Is an externally applied site potential present
+    logical :: isExtSitePotential
+
+    !> Strength of site potential if present
+    real(dp) :: sitePotentialStrength
+
+    !> Which atom it applies to
+    integer :: iSitePotential
 
     !> External homogeneous electric field
     logical :: tEField = .false.

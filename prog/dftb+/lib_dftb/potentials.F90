@@ -14,7 +14,7 @@ module dftbp_potentials
   use dftbp_commontypes
   implicit none
 
-  public :: TPotentials, TPotentials_init
+  public :: TPotentials, TPotentials_init, TExtSitePot
 
   private
 
@@ -61,6 +61,17 @@ module dftbp_potentials
 
   end type TPotentials
 
+
+  !> External potential applied to an atomic site
+  type TExtSitePot
+
+    !> Atomic site
+    integer :: iSite
+
+    !> Strength of potential
+    real(dp) :: Strength
+
+  end type TExtSitePot
 
 contains
 
