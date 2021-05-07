@@ -643,7 +643,7 @@ contains
 
     if (allocated(onsMEs)) then
       call onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
-          & grndEigVecs, onsMEs, orb, vin, vout_ons)
+          & grndEigVecs, onsMEs, orb, vTmp, vout_ons)
       vout(:) = vout + vout_ons
     end if
 
@@ -905,8 +905,6 @@ contains
     integer :: nmat, nAtom, nOrb
     integer :: ia, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin, nSpin
     real(dp) :: degeneracy, partTrace
-    ! somewhat ugly, but fast small arrays on stack:
-    real(dp) :: wnij(size(wij))   
 
     nmat = size(vin)
     nAtom = size(species0)
@@ -914,12 +912,6 @@ contains
 
     vout(:) = 0.0_dp
     otmp(:,:,:,:)  = 0.0_dp
-
-    if(Spin) then
-       wnij(:) = sqrt(wij(:)) * sqrOccIA(:)
-    else
-       wnij(:) = sqrt(wij(:)) * sqrOccIA(:) * sqrt(2.0_dp)
-    endif
 
     fact = 1.0_dp
     if (.not.Spin) then
@@ -943,15 +935,13 @@ contains
             sindx = [1, 2]
           end if
           do iSpin = 1, 2
-             !! wij * sqrOcc 
             otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
-                & * wnij(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
+                & * sqrOccIA(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
           end do
         else
           ! closed shell
-          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + 0.5_dp &
-               !! wij * sqrOcc * sqrt(2)
-              & * qq_ij(:nOrb, :nOrb) * wnij(ia) * vin(ia)&
+          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + &
+              & qq_ij(:nOrb, :nOrb) * sqrOccIA(ia) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
       end do
@@ -977,7 +967,7 @@ contains
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
-        vout(ia) = vout(ia) + 4.0_dp * wnij(ia) *&
+        vout(ia) = vout(ia) + 4.0_dp * sqrOccIA(ia) *&
             & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
       end do
     end do
