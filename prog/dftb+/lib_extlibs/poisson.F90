@@ -7,6 +7,8 @@
 
 #:include "common.fypp"
 
+#:assert not (WITH_POISSON and INSTANCE_SAFE_BUILD)
+
 !> Interface to libPoisson routines
 !>
 !> NOTE: THIS MODULE IS NOT MULTI-INSTANCE SAFE

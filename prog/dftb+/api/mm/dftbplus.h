@@ -99,6 +99,15 @@ void dftbp_api(int *major, int *minor, int *patch);
 
 
 /**
+ * Returns whether library was built with instance safe components only.
+ *
+ * Instance safe API support the creation of multiple concurrent DFTB+ instances within one process.
+ *
+ * \return  Whether API is instance safe
+ */
+_Bool dftbp_is_instance_safe();
+
+/**
  * Initializes a DFTB+ calculator.
  *
  * \param[inout] instance  Handler of DFTB+ instance.

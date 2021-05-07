@@ -45,6 +45,14 @@ option(WITH_API "Whether public API should be included and the DFTB+ library ins
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
 
+option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instances" FALSE)
+# Turn this on, if you want to create multiple concurrent DFTB+ instances **within one process** via
+# the API. This option will ensure that only components without writable global variables are
+# included in the build, so that multiple instances can safely coexist. There are components
+# (e.g. Poisson, DFTD-D3, ARPACK) which can not be included if this option is on. Note, this option
+# is not relevant for the standalone DFTB+ binary, only for the API (if WITH_API had been turned
+# on).
+
 option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
 
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)

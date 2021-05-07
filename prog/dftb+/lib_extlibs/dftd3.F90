@@ -5,6 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
+
+#:assert not (WITH_DFTD3 and INSTANCE_SAFE_BUILD)
+
 !> Exporting the functionality we use from the library dftd3.
 module dftbp_dftd3
   use dftd3_api

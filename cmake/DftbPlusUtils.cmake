@@ -111,6 +111,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
   endif()
 
+  if(INSTANCE_SAFE_BUILD)
+    list(APPEND _fyppflags -DINSTANCE_SAFE_BUILD)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
@@ -184,8 +188,24 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
-  if(WITH_API AND WITH_POISSON)
-    message(FATAL_ERROR "Poisson solver can not be used via the API")
+  if(INSTANCE_SAFE_BUILD)
+    
+    if(WITH_POISSON)
+      message(FATAL_ERROR "Instance safe build with Poisson-solver is not supported")
+    endif()
+
+    if(WITH_TRANSPORT)
+      message(FATAL_ERROR "Instance safe build with transport (libNEGF) is not supported")
+    endif()
+
+    if(WITH_ARPACK)
+      message(FATAL_ERROR "Instance safe build with ARPACK is not supported")
+    endif()
+
+    if(WITH_DFTD3)
+      message(FATAL_ERROR "Instance safe build with D3 dispersion is not supported")
+    endif()
+
   endif()
 
   # Note: The consistency check below will / can not be executed in multi-config mode

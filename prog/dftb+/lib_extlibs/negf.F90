@@ -6,6 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 #:include "common.fypp"
 
+#:assert not INSTANCE_SAFE_BUILD
+
+
 !> Interfaces to libNEGF
 module dftbp_negf
   use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, kb, units

@@ -10,6 +10,7 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_accuracy, only : dp
+  use dftbp_globalenv, only : instanceSafeBuild
   use dftbp_linkedlist, only : TListString, append, init, destruct
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
@@ -56,6 +57,17 @@ contains
     patch = ${APIPATCH}$
 
   end subroutine c_DftbPlus_api
+
+
+  !> Queries, whether library is instance safe (allowing for concurrent DFTB+ instances)
+  function c_DftbPlus_is_instance_safe() result(instSafe) bind(C, name='dftbp_is_instance_safe')
+
+    !> Whether library was built ensuring instance safety (multiple instances supported)
+    logical(c_bool) :: instSafe
+
+    instSafe = instanceSafeBuild
+
+  end function c_DftbPlus_is_instance_safe
 
 
   !> Initialises a DFTB+ calculation with output sent to to some location

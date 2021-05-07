@@ -12,10 +12,7 @@
 #! Default values for all preprocessor variables
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-#:if not defined('DEBUG')
-  #:set DEBUG = 0
-#:endif
-
+#:set DEBUG = getvar('DEBUG', 0)
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MPI = defined('WITH_MPI')
@@ -33,6 +30,7 @@
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
+#:set INSTANCE_SAFE_BUILD = defined('INSTANCE_SAFE_BUILD')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
