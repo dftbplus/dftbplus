@@ -155,7 +155,7 @@ endif()
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "5b4341686aebe1dc14c3b6d27f36d760024d3530")  # do not change manually!
+  set(MPIFX_GIT_TAG "8c959ff1a4563269481bd9a9a54bf306ab7fc6c6")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
