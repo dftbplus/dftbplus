@@ -99,6 +99,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_TRANSPORT)
   endif()
 
+  if(WITH_POISSON)
+    list(APPEND _fyppflags -DWITH_POISSON)
+  endif()
+
   if(WITH_C_EXECUTABLES)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
@@ -178,6 +182,10 @@ function (dftbp_ensure_config_consistency)
 
   if(WITH_GPU AND WITH_MPI)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
+  endif()
+
+  if(WITH_API AND WITH_POISSON)
+    message(FATAL_ERROR "Poisson solver can not be used via the API")
   endif()
 
   # Note: The consistency check below will / can not be executed in multi-config mode

@@ -28,9 +28,10 @@
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
 #:set WITH_ARPACK = defined('WITH_ARPACK')
 #:set WITH_PLUMED = defined('WITH_PLUMED')
+#:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
+#:set WITH_POISSON = defined('WITH_POISSON')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
-#:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
 
 
@@ -56,6 +57,33 @@
 #:enddef DEBUG_CODE
 
 #:endif
+
+
+#! Adds a code block depending on the availability of an optional build component.
+#!
+#! Wraps code accessing routines or methods of an optional build component. The progamming
+#! logic outside of the wrapped code must ensure, that the wrapped block is never reached if the
+#! optional component is not available. (In debug mode the wrapped code will be replaced with an
+#! error-call if the component is not available.)
+#!
+#! Args:
+#!     name (str): Name of the external component
+#!     available (bool): Whether the external component is available
+#!     code (str): Code to wrap
+#!
+#:def REQUIRES_COMPONENT(name, available, code)
+  #:if available
+    $:code
+  #:else
+    #:if DEBUG > 0
+      block
+        use dftbp_message, only : error
+        call error("Internal error: trying to execute code of the non-existent component '${name}$'")
+      end block
+    #:endif
+  #:endif
+#:enddef REQUIRES_COMPONENT
+
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

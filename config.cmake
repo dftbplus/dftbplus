@@ -21,6 +21,11 @@ option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-lib
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
 
+option(WITH_POISSON "Whether the Poisson-solver should be included" ${WITH_TRANSPORT})
+# The Poisson-solver is mostly used in transport calculations only. Enable this option
+# if you want to use it in a non-transport build. Note, the Poisson-solver is not
+# multi-instance safe and is therefore not allowed, if WITH_API (see below) is on.
+
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
