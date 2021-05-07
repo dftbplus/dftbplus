@@ -29,6 +29,8 @@ Changed
 
 - Self-consistent DFT-D4 with REKS
 
+- Upgraded to libMBD 0.12.1 (TS-forces are calculated analytically)
+
 
 Fixed
 -----
