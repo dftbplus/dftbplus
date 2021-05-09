@@ -43,7 +43,6 @@ module dftbp_staticperturb
 #:else
   use dftbp_sparse2dense, only : unpackHS
 #:endif
-
   implicit none
 
   private
@@ -355,7 +354,7 @@ contains
       & img2CentCell, isRespKernelRPA, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
       & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU,&
       & iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight,&
-      & iCellVec, cellVec)
+      & iCellVec, cellVec, isHelical, coord)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -479,6 +478,12 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
+
     integer :: ii, iS, iK, iAt, jAt, iLev
     integer :: nSpin, nKpts, nOrbs, nIndepHam
 
@@ -590,7 +595,8 @@ contains
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
           & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
-          & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, dPotOnsite)
+          & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, dPotOnsite, isHelical,&
+          & coord)
 
       write(stdOut,*)'Frontier orbital derivatives'
       do iS = 1, nIndepHam
@@ -627,7 +633,8 @@ contains
           & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
           & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam,&
           & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
-          & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
+          & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, isHelical=isHelical,&
+          & coord=coord)
 
       write(stdOut,*)'Frontier orbital derivatives'
       do iS = 1, nIndepHam
@@ -655,7 +662,7 @@ contains
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
       & eigVals, transform, dEi, dEf, Ef, dHam, idHam,  dRho, idRho, tempElec, tMetallic,&
       & neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
-      & dPsiReal, dPsiCmplx, dOnsitePotential)
+      & dPsiReal, dPsiCmplx, dOnsitePotential, isHelical, coord)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -840,6 +847,12 @@ contains
     !> Onsite (only) potential
     real(dp), intent(in), optional :: dOnsitePotential(:,:)
 
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
+
     logical :: tSccCalc, tConverged
     integer :: iSccIter
     real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
@@ -983,11 +996,11 @@ contains
             call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
                 & denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal, eigVals, Ef,&
                 & tempElec, orb, drho(:,iS), dRhoOutSqr, rangeSep, over, nNeighbourLC,&
-                & transform(iKS), &
+                & transform(iKS), species,&
                 #:if WITH_SCALAPACK
                 & desc,&
                 #:endif
-                & dEi, dPsiReal)
+                & dEi, dPsiReal, isHelical, coord)
           end do
 
         elseif (nSpin > 2) then
@@ -999,11 +1012,11 @@ contains
             call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
                 & tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
-                & transform(iKS), &
+                & transform(iKS), species,&
                 #:if WITH_SCALAPACK
                 & desc,&
                 #:endif
-                & dEi, dPsiCmplx)
+                & dEi, dPsiCmplx, isHelical, coord)
 
           end do
 
@@ -1021,11 +1034,12 @@ contains
 
             call dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
-                & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS), &
+                & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS),&
+                & species,&
                 #:if WITH_SCALAPACK
                 & desc,&
                 #:endif
-                & dEi, dPsiCmplx)
+                & dEi, dPsiCmplx, isHelical, coord)
 
           end do
 
@@ -1065,30 +1079,31 @@ contains
                 call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
                     & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
                     & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals,&
-                    & dRhoOutSqr&
+                    & dRhoOutSqr, species&
                     #:if WITH_SCALAPACK
                     &, desc&
                     #:endif
-                    &)
+                    &, isHelical, coord)
               elseif (nSpin > 2) then
                 ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                     & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                     & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
-                    & denseDesc, tempElec, eigVals&
+                    & denseDesc, tempElec, eigVals, species&
                     #:if WITH_SCALAPACK
                     &, desc&
                     #:endif
-                    &)
+                    &, isHelical, coord)
               else
                 ! Complex case with k-points
                 call dRhoFermiChangeStaticCmplx(dRhoExtra, env, parallelKS, iKS, kPoint, kWeight,&
                     & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart,&
-                    & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+                    & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals,&
+                    & species&
                     #:if WITH_SCALAPACK
                     &, desc&
                     #:endif
-                    &)
+                    &, isHelical, coord)
               end if
 
             end if
@@ -1226,9 +1241,10 @@ contains
       end do lpSCC
 
       if (tSccCalc .and. .not.tConverged .and. maxSccIter > 1) then
-        call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
         if (isSccConvRequired) then
-          call env%shutdown()
+          call error("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        else
+          call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
         end if
       end if
 

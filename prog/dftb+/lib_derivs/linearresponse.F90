@@ -18,15 +18,19 @@ module dftbp_linearresponse
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_parallelks, only : TParallelKS
+  use dftbp_message, only : error
 #:if WITH_SCALAPACK
   use dftbp_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
   use dftbp_sparse2dense, only : unpackHSCplxBlacs, packRhoCplxBlacs
   use dftbp_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs
+  use dftbp_sparse2dense, only : unpackHSHelicalRealBlacs, packRhoHelicalRealBlacs
+  use dftbp_sparse2dense, only : unpackHSHelicalCplxBlacs, packRhoHelicalCplxBlacs
   use dftbp_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm, pblasfx_ptranc
   use dftbp_scalapackfx, only : pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g
 #:else
   use dftbp_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
   use dftbp_sparse2dense, only : packHS, iPackHS
+  use dftbp_sparse2dense, only : unpackHelicalHS, packHelicalHS
   use dftbp_blasroutines, only : hemm, symm
 #:endif
 
@@ -46,11 +50,11 @@ contains
   !> q=0, k=0
   subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform,&
+      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi)
+      & dEi, dPsi, isHelical, coord)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -119,6 +123,9 @@ contains
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -129,6 +136,12 @@ contains
 
     !> Optional derivatives of single particle wavefunctions
     real(dp), allocatable, intent(inout) :: dPsi(:,:,:)
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: iGlob, jGlob
@@ -141,6 +154,14 @@ contains
     real(dp), allocatable :: dRho(:,:)
     real(dp), allocatable :: eigVecsTransformed(:,:)
     logical :: isTransformed
+
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -159,8 +180,13 @@ contains
   #:if WITH_SCALAPACK
 
     ! dH in square form
-    call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-        & iSparseStart, img2CentCell, denseDesc, workLocal)
+    if (isHelical_) then
+      call unpackHSHelicalRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour,&
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, workLocal)
+    else
+      call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          & iSparseStart, img2CentCell, denseDesc, workLocal)
+    end if
 
     ! dH times c_i
     call pblasfx_psymm(workLocal, denseDesc%blacsOrbSqr, eigVecsReal(:,:,iKS),&
@@ -182,8 +208,13 @@ contains
       workLocal(:,:) = 0.0_dp
 
       ! dH in square form
-      call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-          & iSparseStart, img2CentCell, denseDesc, workLocal)
+      if (isHelical_) then
+        call unpackHSHelicalRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, workLocal)
+      else
+        call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, denseDesc, workLocal)
+      end if
 
       ! dH times c_i
       call pblasfx_psymm(workLocal, denseDesc%blacsOrbSqr, eigVecsTransformed,&
@@ -252,12 +283,21 @@ contains
     nOrb = size(dRho, dim = 1)
 
     ! dH matrix in square form
-    call unpackHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    if (isHelical_) then
+      call unpackHelicalHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+    else
+      call unpackHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+          & iSparseStart, img2CentCell)
+    end if
 
     if (allocated(rangeSep)) then
-      call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      if (isHelical_) then
+        call error("Helical range separation not currently possible")
+      else
+        call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      end if
       call rangeSep%addLRHamiltonian(env, dRhoSqr(:,:,iS), over, neighbourList%iNeighbour,&
           & nNeighbourLC, denseDesc%iAtomStart, iSparseStart, orb, dRho, workLocal)
     end if
@@ -314,11 +354,21 @@ contains
 
     dRhoSparse(:) = 0.0_dp
   #:if WITH_SCALAPACK
-    call packRhoRealBlacs(env%blacs, denseDesc, dRho, neighbourList%iNeighbour, nNeighbourSK,&
-        & orb%mOrb, iSparseStart, img2CentCell, dRhoSparse)
+    if (isHelical_) then
+      call packRhoHelicalRealBlacs(env%blacs, denseDesc, dRho, neighbourList%iNeighbour,&
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, dRhoSparse)
+    else
+      call packRhoRealBlacs(env%blacs, denseDesc, dRho, neighbourList%iNeighbour, nNeighbourSK,&
+          & orb%mOrb, iSparseStart, img2CentCell, dRhoSparse)
+    end if
   #:else
-    call packHS(dRhoSparse, dRho, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    if (isHelical_) then
+      call packHelicalHS(dRhoSparse, dRho, neighbourlist%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+    else
+      call packHS(dRhoSparse, dRho, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    end if
   #:endif
 
     if (associated(dRhoSqr)) then
@@ -328,14 +378,15 @@ contains
   end subroutine dRhoStaticReal
 
 
-  !> Calculate the change in the density matrix due to shift in the Fermi energy
+  !> Calculate the change in the density matrix due to shift in the Fermi energy real and q=0
+  !> systems
   subroutine dRhoFermiChangeStaticReal(dRhoExtra, env, parallelKS, iKS, neighbourList,&
       & nNEighbourSK, img2CentCell, iSparseStart, dEfdE, Ef, nFilled, nEmpty, eigVecsReal, orb,&
-      & denseDesc, tempElec, eigVals, dRhoSqr&
+      & denseDesc, tempElec, eigVals, dRhoSqr, species&
     #:if WITH_SCALAPACK
       &, desc&
     #:endif
-      &)
+      &, isHelical, coord)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
     real(dp), intent(inout) :: dRhoExtra(:)
@@ -391,10 +442,19 @@ contains
     !> Derivative of rho as a square matrix, if needed
     real(dp), pointer :: dRhoSqr(:,:,:)
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
   #:endif
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, jGlob
@@ -404,6 +464,13 @@ contains
 
     integer :: nSpin, iS
     real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     iS = parallelKS%localKS(2, iKS)
     nSpin = size(eigVecsReal, dim=3)
@@ -438,11 +505,21 @@ contains
 
     ! pack extra term into density matrix
   #:if WITH_SCALAPACK
-    call packRhoRealBlacs(env%blacs, denseDesc, workReal, neighbourList%iNeighbour, nNeighbourSK,&
-        & orb%mOrb, iSparseStart, img2CentCell, drhoExtra)
+    if (isHelical_) then
+      call packRhoHelicalRealBlacs(env%blacs, denseDesc, workReal, neighbourList%iNeighbour,&
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, dRhoExtra)
+    else
+      call packRhoRealBlacs(env%blacs, denseDesc, workReal, neighbourList%iNeighbour, nNeighbourSK,&
+          & orb%mOrb, iSparseStart, img2CentCell, drhoExtra)
+    end if
   #:else
-    call packHS(drhoExtra, workReal, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    if (isHelical_) then
+      call packHelicalHS(dRhoExtra, workReal, neighbourlist%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+    else
+      call packHS(drhoExtra, workReal, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    end if
   #:endif
 
     if  (associated(dRhoSqr)) then
@@ -453,13 +530,14 @@ contains
 
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
+  !> but with k-points
   subroutine dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
+      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi)
+      & dEi, dPsi, isHelical, coord)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -527,6 +605,9 @@ contains
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -537,6 +618,12 @@ contains
 
     !> Optional derivatives of single particle wavefunctions
     complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, iGlob, jGlob
@@ -549,6 +636,13 @@ contains
     complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
     complex(dp), allocatable :: eigVecsTransformed(:,:)
     logical :: isTransformed
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -566,8 +660,14 @@ contains
   #:if WITH_SCALAPACK
 
     ! dH in square form
-    call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
-        & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+    if (isHelical_) then
+      call unpackHSHelicalCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, orb, species, coord, denseDesc, workLocal)
+    else
+      call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+    end if
 
     ! dH times c_i
     call pblasfx_phemm(workLocal, denseDesc%blacsOrbSqr, eigVecsCplx(:,:,iKS),&
@@ -589,8 +689,14 @@ contains
       workLocal(:,:) = 0.0_dp
 
       ! dH in square form
-      call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+      if (isHelical_) then
+        call unpackHSHelicalCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, orb, species, coord, denseDesc, workLocal)
+      else
+        call unpackHSCplxBlacs(env%blacs, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, workLocal)
+      end if
 
       ! dH times c_i
       call pblasfx_phemm(workLocal, denseDesc%blacsOrbSqr, eigVecsTransformed,&
@@ -665,8 +771,15 @@ contains
     ! serial case
     nOrb = size(dRho, dim = 1)
 
-    call unpackHS(dRho, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-        & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    ! dH in square form
+    if (isHelical_) then
+      call unpackHelicalHS(dRho, dHam(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
+          & orb, species, coord)
+    else
+      call unpackHS(dRho, dHam(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+          & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    end if
 
     ! form |c> H' <c|
     call hemm(workLocal, 'l', dRho, eigVecsCplx(:,:,iKS))
@@ -723,28 +836,41 @@ contains
   #:endif
 
   #:if WITH_SCALAPACK
-    call packRhoCplxBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-        & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-        & img2CentCell, dRhoSparse(:,iS))
+    if (isHelical_) then
+      call packRhoHelicalCplxBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, orb, species, coord, dRhoSparse(:,iS))
+    else
+      call packRhoCplxBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, dRhoSparse(:,iS))
+    end if
   #:else
-    call packHS(dRhoSparse(:,iS), dRho, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-        & img2CentCell)
+    if (isHelical_) then
+      call packHelicalHS(dRhoSparse(:,iS), dRho, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+    else
+      call packHS(dRhoSparse(:,iS), dRho, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell)
+    end if
   #:endif
 
   end subroutine dRhoStaticCmplx
 
 
-  !> Calculate the change in the density matrix due to shift in the Fermi energy
+  !> Calculate the change in the density matrix due to shift in the Fermi energy for q=0 cases with
+  !> k-points
   subroutine dRhoFermiChangeStaticCmplx(dRhoExtra, env, parallelKS, iKS, kPoint, kWeight, iCellVec,&
       & cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEfdE, Ef, nFilled,&
-      & nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+      & nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species&
     #:if WITH_SCALAPACK
       &, desc&
     #:endif
-      &)
+      &, isHelical, coord)
 
-    !> Additional contribution to the density matrix to cancel effect of Fermi energy change
+    !> Additional contribution to the density matrix to cancel effect of Fermi energy change,
     real(dp), intent(inout) :: dRhoExtra(:,:)
 
     !> Environment settings
@@ -807,10 +933,19 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
   #:endif
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, jGlob
@@ -823,6 +958,13 @@ contains
     complex(dp) :: workLocal2(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     workLocal(:,:) = cmplx(0,0,dp)
 
@@ -861,13 +1003,25 @@ contains
 
     ! pack extra term into density matrix
   #:if WITH_SCALAPACK
-    call packRhoCplxBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-        & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-        & img2CentCell, dRhoExtra(:,iS))
+    if (isHelical_) then
+      call packRhoHelicalCplxBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, orb, species, coord, dRhoExtra(:,iS))
+    else
+      call packRhoCplxBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, dRhoExtra(:,iS))
+    end if
   #:else
-    call packHS(dRhoExtra(:,iS), workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-        & img2CentCell)
+    if (isHelical_) then
+      call packHelicalHS(dRhoExtra(:,iS), workLocal, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+    else
+      call packHS(dRhoExtra(:,iS), workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell)
+    end if
   #:endif
 
   end subroutine dRhoFermiChangeStaticCmplx
@@ -877,10 +1031,11 @@ contains
   subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
+      & species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi)
+      & dEi, dPsi, isHelical, coord)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -954,6 +1109,9 @@ contains
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -964,6 +1122,12 @@ contains
 
     !> Optional derivatives of single particle wavefunctions
     complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, iGlob, jGlob
@@ -976,6 +1140,13 @@ contains
     complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
     complex(dp), allocatable :: eigVecsTransformed(:,:)
     logical :: isTransformed
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -994,13 +1165,21 @@ contains
 
     ! dH in square form
     if (allocated(idHam)) then
-      call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-          & workLocal, iorig=idHam)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & workLocal, iorig=idHam)
+      end if
     else
-      call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-          & workLocal)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & workLocal)
+      end if
     end if
 
     ! dH times c_i
@@ -1024,13 +1203,21 @@ contains
 
       ! dH in square form
       if (allocated(idHam)) then
-        call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & workLocal, iorig=idHam)
+        if (isHelical_) then
+          call error("Helical + Pauli not currently possible")
+        else
+          call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+              & workLocal, iorig=idHam)
+        end if
       else
-        call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & workLocal)
+        if (isHelical_) then
+          call error("Helical + Pauli not currently possible")
+        else
+          call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+              & workLocal)
+        end if
       end if
 
       ! dH times c_i
@@ -1106,8 +1293,12 @@ contains
     ! serial case
     nOrb = size(dRho, dim = 1)
 
-    call unpackHPauli(dHam, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
-        & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, dRho, idHam)
+    if (isHelical_) then
+      call error("Helical + Pauli not currently possible")
+    else
+      call unpackHPauli(dHam, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
+          & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, dRho, idHam)
+    end if
 
     ! form |c> H' <c|
     call hemm(workLocal, 'l', dRho, eigVecsCplx(:,:,iKS))
@@ -1165,36 +1356,53 @@ contains
 
   #:if WITH_SCALAPACK
     if (allocated(idRhoSparse)) then
-      call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, dRhoSparse, idRhoSparse)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, dRhoSparse, idRhoSparse)
+      end if
     else
-      call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, dRhoSparse)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, dRhoSparse)
+      end if
     end if
   #:else
-    call packHS(dRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-        & img2CentCell)
-    if (allocated(idRhoSparse)) then
-      call ipackHS(idRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+    if (isHelical_) then
+      call error("Helical + Pauli not currently possible")
+    else
+      call packHS(dRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
           & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell)
+    end if
+    if (allocated(idRhoSparse)) then
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call ipackHS(idRhoSparse, dRho, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell)
+      end if
     end if
   #:endif
 
   end subroutine dRhoStaticPauli
 
 
-  !> Calculate the change in the density matrix due to shift in the Fermi energy
+  !> Calculate the change in the density matrix due to shift in the Fermi energy for q=0
+  !> perturbations
   subroutine dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
       & kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEfdE,&
-      & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+      & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species&
     #:if WITH_SCALAPACK
       &, desc&
     #:endif
-      &)
+      &, isHelical, coord)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
     real(dp), intent(inout) :: dRhoExtra(:,:)
@@ -1263,10 +1471,19 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
   #:endif
+
+    !> Is the geometry helical
+    logical, intent(in), optional :: isHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), intent(in), optional :: coord(:,:)
 
   #:if WITH_SCALAPACK
     integer :: jj, jGlob
@@ -1279,6 +1496,13 @@ contains
     complex(dp) :: workLocal2(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
+    logical :: isHelical_
+
+    if (present(isHelical)) then
+      isHelical_ = isHelical
+    else
+      isHelical_ = .false.
+    end if
 
     workLocal(:,:) = cmplx(0,0,dp)
 
@@ -1318,22 +1542,38 @@ contains
     ! pack extra term into density matrix
   #:if WITH_SCALAPACK
     if (allocated(idRhoExtra)) then
-      call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, dRhoExtra, idRhoExtra)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, dRhoExtra, idRhoExtra)
+      end if
     else
-      call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, dRhoExtra)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, dRhoExtra)
+      end if
     end if
   #:else
-    call packHS(dRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-        & img2CentCell)
+    if (isHelical_) then
+      call error("Helical + Pauli not currently possible")
+    else
+      call packHS(dRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell)
+    end if
     if (allocated(idRhoExtra)) then
-      call ipackHS(idRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-        & img2CentCell)
+      if (isHelical_) then
+        call error("Helical + Pauli not currently possible")
+      else
+        call ipackHS(idRhoExtra, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell)
+      end if
     end if
 
   #:endif

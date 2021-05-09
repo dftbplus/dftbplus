@@ -2189,9 +2189,6 @@ contains
         call error("Currently the electric field perturbation expresions for periodic systems are&
             & not implemented")
       end if
-      if (this%tHelical) then
-        call error("Currently the perturbation expresions for helical systems are not implemented")
-      end if
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")
       end if
