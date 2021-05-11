@@ -1534,8 +1534,10 @@ contains
     if (this%tSccCalc) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
-        call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
-            & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
       else
         call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
             & this%uniqHubbU, shortGammaDamp, shortGammaInput)
@@ -5673,6 +5675,8 @@ contains
   end subroutine initCoulombInput_
 
 
+#:if WITH_POISSON
+
   ! Initializes a Poisson solver
   subroutine initPoissonInput_(input, nAtom, nType, species0, coord0, tPeriodic, latVec, orb,&
       & hubbU, poissonInput, shiftPerLUp)
@@ -5715,6 +5719,8 @@ contains
   #:endif
 
   end subroutine initPoissonInput_
+
+#:endif
 
 
   ! Initializes the scc calculator

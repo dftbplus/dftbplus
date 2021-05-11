@@ -21,6 +21,11 @@ option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-lib
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
 
+option(WITH_POISSON "Whether the Poisson-solver should be included" ${WITH_TRANSPORT})
+# The Poisson-solver is mostly used in transport calculations only. Enable this option
+# if you want to use it in a non-transport build. Note, the Poisson-solver is not
+# multi-instance safe and is therefore not allowed, if WITH_API (see below) is on.
+
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
@@ -39,6 +44,14 @@ option(WITH_API "Whether public API should be included and the DFTB+ library ins
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
+
+option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instances" FALSE)
+# Turn this on, if you want to create multiple concurrent DFTB+ instances **within one process** via
+# the API. This option will ensure that only components without writable global variables are
+# included in the build, so that multiple instances can safely coexist. There are components
+# (e.g. Poisson, DFTD-D3, ARPACK) which can not be included if this option is on. Note, this option
+# is not relevant for the standalone DFTB+ binary, only for the API (if WITH_API had been turned
+# on).
 
 option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
 
