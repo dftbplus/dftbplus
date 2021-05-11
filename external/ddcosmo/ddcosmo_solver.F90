@@ -460,7 +460,7 @@ contains
     ! initialize
     y(:, :) = 0.0_dp
 
-    !$omp parallel do default(none) schedule(runtime) shared(ddCosmo, y) &
+    !$omp parallel do default(none) schedule(runtime) shared(ddCosmo, x, y) &
     !$omp private(iat, pot, basloc, vplm, vcos, vsin)
     ! loop over spheres
     do iat = 1, ddCosmo%nat
