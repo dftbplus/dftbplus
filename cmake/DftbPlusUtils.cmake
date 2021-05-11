@@ -191,7 +191,7 @@ function (dftbp_ensure_config_consistency)
   if(INSTANCE_SAFE_BUILD)
     
     if(WITH_POISSON)
-      message(FATAL_ERROR "Instance safe build with Poisson-solver is not supported")
+      message(FATAL_ERROR "Instance safe build with the Poisson solver is not supported")
     endif()
 
     if(WITH_TRANSPORT)
