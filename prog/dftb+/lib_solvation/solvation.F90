@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -45,6 +45,9 @@ module dftbp_solvation
 
     !> Returns shifts per atom
     procedure(getShifts), deferred :: getShifts
+
+    !> Does the solvent model modify the electrostatics
+    procedure(isEFieldModified), deferred :: isEFieldModified
   end type TSolvation
 
   abstract interface
@@ -190,6 +193,19 @@ module dftbp_solvation
       !> Shift per shell
       real(dp), intent(out) :: shiftPerShell(:,:)
     end subroutine getShifts
+
+    !> Is the electrostic field modified by this solvent model?
+    function isEFieldModified(this) result(isChanged)
+      import :: TSolvation
+
+      !> Data structure
+      class(TSolvation), intent(in) :: this
+
+      !> Has the solvent model changed the electrostatic environment
+      logical :: isChanged
+
+    end function isEFieldModified
+
   end interface
 
 end module dftbp_solvation

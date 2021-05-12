@@ -64,6 +64,7 @@ def main():
     _replace_in_registered_files(rootdir, version, shortversion)
     _replace_in_dftbplus_parser(rootdir, shortversion)
     _replace_in_changelog(rootdir, version)
+    _warn_about_manual_changes()
 
 
 def _parse_arguments():
@@ -160,18 +161,12 @@ def _replace_in_changelog(rootdir, version):
     fp.close()
 
 
-def _warn_about_parser_version(shortversion):
-    '''Warn about changes needed in getParserVersion'''
+def _warn_about_manual_changes():
+    '''Warn about changes which must be made manually'''
 
     txt = """
-
-Make sure to update getParserVersion() in prog/dftb+/lib_dftbplus/parser.F90
-manually by adding the block
-
-    case("{shortversion}")
-      parserVersion = N
-
-with N being the current parser version.""".format(shortversion=shortversion)
+Make sure to check that the table in doc/dftb+/manual/releases.tex has been
+updated."""
     print(txt)
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -46,7 +46,9 @@ module dftbp_mainio
   use dftbp_message
   use dftbp_reks
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_cosmo, only : TCosmo
   use dftbp_dispersions, only : TDispersionIface
+  use dftbp_solvation, only : TSolvation
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -64,11 +66,11 @@ module dftbp_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
-  public :: writeHessianOut
+  public :: writeDerivBandOut, writeHessianOut
   public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
-  public :: writeDetailedOut7
+  public :: writeDetailedOut7, writeDetailedOut8
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -76,6 +78,7 @@ module dftbp_mainio
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
+  public :: printForceNorm, printLatticeForceNorm
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
@@ -83,6 +86,7 @@ module dftbp_mainio
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
+  public :: writeCosmoFile
 
   !> Ground state eigenvectors in text format
   character(*), parameter :: eigvecOut = "eigenvec.out"
@@ -111,6 +115,10 @@ module dftbp_mainio
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
+
+
+  !> Cosmo file name
+  character(len=*), parameter :: cosmoFile = "dftbp.cosmo"
 
 
   interface readEigenvecs
@@ -463,14 +471,14 @@ contains
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
-    integer :: iKS, iSpin
+    integer :: iKS
     integer :: ii, fd
 
     call prepareEigvecFileBin(fd, runId, fileName)
+    ! By construction of parallelKS, iKS runs over (iK, iS) with iK growing faster
     do iKS = 1, parallelKS%nLocalKS
-      iSpin = parallelKS%localKS(2, iKS)
       do ii = 1, size(eigvecs, dim=2)
-        write(fd) eigvecs(:,ii,iSpin)
+        write(fd) eigvecs(:, ii, iKS)
       end do
     end do
     close(fd)
@@ -1891,7 +1899,8 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
       & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray)
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray,&
+      & polarisability, dEidE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1956,6 +1965,12 @@ contains
     !> Array containing bond currents as (Jvalues, atom)
     !> This array is for testing only since it misses info
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
+
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivatives of eigenvalues wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2028,6 +2043,14 @@ contains
       call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
     end if
 
+    if (allocated(polarisability)) then
+      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+    end if
+
+    if (allocated(dEidE)) then
+      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+    end if
+
     close(fd)
 
   end subroutine writeAutotestTag
@@ -2036,7 +2059,7 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, cm5Cont)
+      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2092,13 +2115,28 @@ contains
     !> Charge model 5 to correct atomic gross charges
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
 
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivatives of eigenvalues wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
+
+    !> Derivative of Mulliken charges wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
+
+    !> Electrons at the Fermi energy (if metallic and evaluated)
+    real(dp), allocatable, intent(in) :: neFermi(:)
+
+    !> Derivative of the Fermi energy with respect to electric field
+    real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    real(dp), allocatable :: qOutputUpDown(:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     integer :: fd
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
     if (electronicSolver%elecChemPotAvailable) then
@@ -2149,13 +2187,33 @@ contains
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
-      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-          & dim=1))
-       if (allocated(cm5Cont)) then
-          call taggedWriter%write(fd, tagLabels%qOutAtCM5, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
-             & dim=1) + cm5Cont%cm5)
-       end if
+      qDiff = qOutput - q0
+      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown)
+      call taggedWriter%write(fd, tagLabels%qOutAtGross, -sum(qDiff(:,:,1), dim=1))
+      if (size(qDiff, dim=3) > 1) then
+        call taggedWriter%write(fd, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
+      end if
+      if (allocated(cm5Cont)) then
+        call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
+      end if
+    end if
+
+    if (allocated(polarisability)) then
+      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+    end if
+    if (allocated(dEidE)) then
+      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+    end if
+    if (allocated(dqOut)) then
+      call taggedWriter%write(fd, tagLabels%dqdEPerturb, sum(dqOut, dim = 1))
+    end if
+
+    if (allocated(neFermi)) then
+      call taggedWriter%write(fd, tagLabels%neFermi, neFermi)
+    end if
+
+    if (allocated(dEfdE)) then
+      call taggedWriter%write(fd, tagLabels%dEfdE, dEfdE)
     end if
 
     close(fd)
@@ -2310,6 +2368,38 @@ contains
     close(fd)
 
   end subroutine writeBandOut
+
+
+  !> Write the derivative band structure data out
+  subroutine writeDerivBandOut(fileName, dEigen, kWeight)
+
+    !> Name of file to write to
+    character(*), intent(in) :: fileName
+
+    !> Eigenvalues for states, k-points and spin indices
+    real(dp), intent(in) :: dEigen(:,:,:,:)
+
+    !> Weights of the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    integer :: iSpin, iK, iEgy, fd, iCart
+
+    open(newunit=fd, file=fileName, action="write", status="replace")
+    do iCart = 1, 3
+      do iSpin = 1, size(dEigen, dim=3)
+        do iK = 1, size(dEigen, dim=2)
+          write(fd, *) 'DIR ', quaternionName(iCart+1), ' KPT ', iK, ' SPIN ', iSpin,&
+              & ' KWEIGHT ', kWeight(iK)
+          do iEgy = 1, size(dEigen, dim=1)
+            write(fd, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin, iCart)
+          end do
+          write(fd,*)
+        end do
+      end do
+    end do
+    close(fd)
+
+  end subroutine writeDerivBandOut
 
 
   !> Write the second derivative matrix
@@ -2547,7 +2637,7 @@ contains
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
 
-    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom
@@ -2557,8 +2647,6 @@ contains
 
     nAtom = size(q0, dim=2)
 
-    qInputUpDown = qInput
-    call qm2ud(qInputUpDown)
     qOutputUpDown = qOutput
     call qm2ud(qOutputUpDown)
     if (allocated(qBlockOut)) then
@@ -2881,7 +2969,7 @@ contains
   end subroutine writeDetailedOut2Dets
 
 
-  !> First group of data to go to detailed.out
+  !> Third group of data to go to detailed.out
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
       & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
@@ -2991,8 +3079,10 @@ contains
         write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
             & Hartree__eV * energy%Eband(iSpin), 'eV'
       end if
-      if (electronicSolver%providesFreeEnergy) then
+      if (electronicSolver%providesElectronEntropy) then
         write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
+      end if
+      if (electronicSolver%providesFreeEnergy) then
         if (electronicSolver%providesBandEnergy) then
           write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
               & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
@@ -3113,7 +3203,7 @@ contains
   end subroutine writeDetailedOut3
 
 
-  !> Second group of data for detailed.out
+  !> Fourth group of data for detailed.out
   subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
       & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
@@ -3256,7 +3346,7 @@ contains
   end subroutine writeDetailedOut4
 
 
-  !> Third group of data for detailed.out
+  !> Fifth group of data for detailed.out
   subroutine writeDetailedOut5(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
       & totalLatDeriv, energy, tempElec, pressure, cellPressure, tempIon)
 
@@ -3329,7 +3419,7 @@ contains
   end subroutine writeDetailedOut5
 
 
-  !> Fourth group of data for detailed.out
+  !> Sixth group of data for detailed.out
   subroutine writeDetailedOut6(fd, energy, tempIon)
 
     !> File ID
@@ -3350,9 +3440,9 @@ contains
   end subroutine writeDetailedOut6
 
 
-  !> Fifth group of data for detailed.out
+  !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment, deltaDftb)
+      & dipoleMoment, deltaDftb, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3380,6 +3470,9 @@ contains
 
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     if (allocated(dipoleMoment)) then
       if (deltaDftb%isNonAufbau) then
@@ -3417,6 +3510,11 @@ contains
             & * au__Debye, ' Debye'
         write(fd, *)
       end if
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
+      end if
     end if
 
     if (tEfield) then
@@ -3443,10 +3541,97 @@ contains
       end if
     end if
     write(fd,*)
-    close(fd)
 
   end subroutine writeDetailedOut7
 
+
+  !> Eighth group of data for detailed.out
+  subroutine writeDetailedOut8(fd, orb, polarisability, dqOut, neFermi, dEfdE)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Static electric polarisability
+    real(dp), intent(in), allocatable :: polarisability(:,:)
+
+    !> Derivative of Mulliken charges wrt to electric field, if required
+    real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
+
+    !> Electrons at the Fermi energy (if metallic and evaluated)
+    real(dp), allocatable, intent(in) :: neFermi(:)
+
+    !> Derivative of the Fermi energy with respect to electric field
+    real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
+    integer :: iCart, iAt, nAtom, iS, nSpin
+
+    if (allocated(dqOut)) then
+      nAtom = size(dqOut, dim=2)
+      nSpin = size(dqOut, dim=3)
+      do iCart = 1, 3
+        write(fd,"(A)")'Atomic charge derivatives (a.u.), d q / d E_' //&
+            & trim(quaternionName(iCart+1)) //':'
+        select case(nSpin)
+        case(1)
+          do iAt = 1, nAtom
+            write(fd,"(I4,1X,4E20.12)")iAt, sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))
+          end do
+        case(2)
+          do iAt = 1, nAtom
+            write(fd,"(I4,1X,A,4E20.12)")iAt, 'u',&
+                & 0.5_dp*(sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))&
+                & + sum(dqOut(:orb%nOrbAtom(iAt), iAt, 2, iCart)))
+            write(fd,"(5X,A,4E20.12)")'d',&
+                & 0.5_dp*(sum(dqOut(:orb%nOrbAtom(iAt), iAt, 1, iCart))&
+                & - sum(dqOut(:orb%nOrbAtom(iAt), iAt, 2, iCart)))
+          end do
+        case(4)
+          do iAt = 1, nAtom
+            do iS = 1, nSpin
+              if (iS == 1) then
+                write(fd,"(I4,1X,A,4E20.12)")iAt, quaternionName(iS),&
+                    & sum(dqOut(:orb%nOrbAtom(iAt), iAt, iS, iCart))
+              else
+                write(fd,"(5X,A,4E20.12)")quaternionName(iS),&
+                    & sum(dqOut(:orb%nOrbAtom(iAt), iAt, iS, iCart))
+              end if
+            end do
+          end do
+        end select
+        write(fd,*)
+      end do
+    end if
+
+    if (allocated(neFermi)) then
+      write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
+      if (size(neFermi)==2) then
+        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+      else
+        write(fd,"(F12.8)")neFermi
+      end if
+    end if
+
+    if (allocated(dEfdE)) then
+      write(fd,"(A)")'Derivative of Fermi energy with respect to electric field'
+      do iCart = 1, 3
+        write(fd,"(1X,A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
+            & dEfdE(:,iCart)
+      end do
+    end if
+
+    if (allocated(polarisability)) then
+      write(fd,*)
+      write(fd,"(A)")'Static electric polarisability (a.u.)'
+      do iCart = 1, 3
+        write(fd,"(3E20.12)")polarisability(:, iCart)
+      end do
+      write(fd,*)
+    end if
+
+  end subroutine writeDetailedOut8
 
   !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
@@ -3474,7 +3659,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & absEField, qOutput, q0, dipoleMoment)
+      & absEField, qOutput, q0, dipoleMoment, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3533,6 +3718,9 @@ contains
     !> dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3582,6 +3770,11 @@ contains
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
+      if (allocated(solvation)) then
+        if (solvation%isEFieldModified()) then
+          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+        end if
+      end if
     end if
 
   end subroutine writeMdOut2
@@ -3602,7 +3795,8 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
+      & nAtInCentralRegion)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3625,8 +3819,12 @@ contains
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(in), allocatable :: deltaRhoIn(:)
 
+    !> Number of atoms in central region (atoms outside this will have charges suplied from
+    !> elsewhere)
+    integer, intent(in) :: nAtInCentralRegion
 
-    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn)
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
+        & nAtInCentralRegion)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else
@@ -4032,13 +4230,13 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, reks)
+  subroutine printReksSccInfo(iSccIter, Eavg, diffTotal, sccErrorQ, reks)
 
     !> Iteration count
     integer, intent(in) :: iSccIter
 
-    !> total energy
-    real(dp), intent(in) :: Etotal
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     !> Difference in total energy between this iteration and the last
     real(dp), intent(in) :: diffTotal
@@ -4053,7 +4251,7 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Etotal,&
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Eavg,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -4257,6 +4455,17 @@ contains
   end subroutine printMaxForce
 
 
+  !> Writes norm of the force
+  subroutine printForceNorm(forceNorm)
+
+    !> Norm of the force
+    real(dp), intent(in) :: forceNorm
+
+    write(stdOut, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
+
+  end subroutine printForceNorm
+
+
   !> Print maximal lattice force component
   subroutine printMaxLatticeForce(maxLattForce)
 
@@ -4266,6 +4475,17 @@ contains
     write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
   end subroutine printMaxLatticeForce
+
+
+  !> Print norm of lattice force
+  subroutine printLatticeForceNorm(lattForceNorm)
+
+    !> Norm of the lattice force
+    real(dp), intent(in) :: lattForceNorm
+
+    write(stdOut, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
+
+  end subroutine printLatticeForceNorm
 
 
   !> Prints out info about current MD step.
@@ -4941,7 +5161,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5039,6 +5259,9 @@ contains
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
 
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
@@ -5111,6 +5334,7 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
+
       if (reks%nstates > 1) then
         write(fd, "(1X,A)") "SA-REKS optimizes the averaged state, not individual states."
         write(fd, "(1X,A)") "These charges are not from individual states."
@@ -5124,6 +5348,7 @@ contains
         end if
         write(fd, *)
       end if
+
       write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
           & - qOutput(:, iAtInCentralRegion(:), 1))
       write(fd, "(/,A)") " Atomic gross charges (e)"
@@ -5133,6 +5358,18 @@ contains
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
+
+      if (present(qNetAtom)) then
+        write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
+        write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qNetAtom(iAt),&
+              & (1.0_dp - qNetAtom(iAt) / sum(q0(:, iAt, 1)))
+        end do
+        write(fd, *)
+      end if
+
     end if
 
     lpSpinPrint2_REKS: do iSpin = 1, 1
@@ -5192,7 +5429,7 @@ contains
       write(fd, *)
     end do lpSpinPrint3_REKS
 
-    call setReksTargetEnergy(reks, energy, cellVol, pressure, TS)
+    call setReksTargetEnergy(reks, energy, cellVol, pressure)
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
     if (tSCC) then
@@ -5269,4 +5506,33 @@ contains
   end subroutine writeReksDetailedOut1
 
 
+  !> Write cavity information as cosmo file
+  subroutine writeCosmoFile(solvation, species0, speciesNames, coords0, energy)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in) :: solvation
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords0(:,:)
+
+    !> Total energy
+    real(dp), intent(in) :: energy
+
+    integer :: unit
+
+    select type(solvation)
+    class is (TCosmo)
+      write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
+      open(file=cosmoFile, newunit=unit)
+      call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
+      close(unit)
+    end select
+
+  end subroutine writeCosmoFile
 end module dftbp_mainio

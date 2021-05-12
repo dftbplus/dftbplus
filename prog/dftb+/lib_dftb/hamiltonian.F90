@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,14 +17,12 @@ module dftbp_hamiltonian
   use dftbp_shift, only : add_shift, total_shift
   use dftbp_spin, only : getSpinShift
   use dftbp_spinorbit, only : getDualSpinOrbitShift
-  use dftbp_dftbplusu, only : getDftbUShift
+  use dftbp_dftbplusu, only : TDftbU
   use dftbp_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
-  use dftbp_elstattypes
-  use poisson_init
   use dftbp_dispersions, only : TDispersionIface
 
   implicit none
@@ -235,10 +233,10 @@ contains
   end subroutine resetInternalPotentials
 
 
-  !> Add potentials coming from point charges.
-  subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-      & tPoisson, tUpload, shiftPerLUp, dispersion)
+  !> Add potentials coming from electrostatics (in various boundary conditions and models), possibly
+  !> spin, and where relevant dispersion
+  subroutine addChargePotentials(env, sccCalc, updateScc, qInput, q0, chargePerShell, orb, species,&
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -246,6 +244,9 @@ contains
     !> SCC module internal variables
     type(TScc), intent(inout) :: sccCalc
 
+    !> Whether the charges in the scc calculator should be updated before obtaining the potential
+    logical, intent(in) :: updateScc
+    
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
 
@@ -279,27 +280,16 @@ contains
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
-    !> electrostatic solver (poisson or gamma-functional)
-    integer, intent(in) :: electrostatics
-
-    !> whether Poisson is solved (used with tPoissonTwice)
-    logical, intent(in) :: tPoisson
-
-    !> whether contacts are uploaded
-    logical, intent(in) :: tUpload
-
-    !> uploded potential per shell per atom
-    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
-
     !> Dispersion interactions object
-    class(TDispersionIface), allocatable, intent(in) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
+    ! Is this a contact calculation, if so, purely the Coulomb electrostatics should also be stored
+    logical :: isAContactCalc
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -308,46 +298,22 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call sccCalc%updateCharges(env, qInput, q0, orb, species)
+    if (updateScc) then
+      call sccCalc%updateCharges(env, qInput, orb, species, q0)
+    end if
+    call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+    call sccCalc%getShiftPerAtom(atomPot(:,1))
+    call sccCalc%getShiftPerL(shellPot(:,:,1))
 
-    select case(electrostatics)
-
-    case(elstatTypes%gammaFunc)
-
-      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-      call sccCalc%getShiftPerAtom(atomPot(:,1))
-      call sccCalc%getShiftPerL(shellPot(:,:,1))
-
-    case(elstatTypes%poisson)
-
-      ! NOTE: charge-magnetization representation is used
-      !       iSpin=1 stores total charge
-      ! Logic of calls order:
-      ! shiftPerLUp      is 0.0 on the device region,
-      ! poiss_getshift() updates only the device region
-      if (tPoisson) then
-        if (tUpload) then
-          shellPot(:,:,1) = shiftPerLUp
-        else
-          ! Potentials for non-existing angular momenta must be 0 for later summations
-          shellPot(:,:,1) = 0.0_dp
-        end if
-        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(env, shellPot(:,:,1))
-        if (.not.allocated(shellPotBk)) then
-          allocate(shellPotBk(orb%mShell, nAtom))
-        end if
-        shellPotBk = shellPot(:,:,1)
-      else
-        shellPot(:,:,1) = shellPotBk
-      end if
-      atomPot(:,:) = 0.0_dp
-      call sccCalc%setShiftPerAtom(atomPot(:,1))
-      call sccCalc%setShiftPerL(shellPot(:,:,1))
-
-    end select
+    if (allocated(potential%coulombShell)) then
+      ! need to retain the just electrostatic contributions to the potential for a contact
+      ! calculation or similar
+      potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
+      call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
+    end if
 
     if (allocated(dispersion)) then
+      call dispersion%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call dispersion%addPotential(atomPot(:,1))
     end if
 
@@ -380,8 +346,7 @@ contains
 
 
   !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
-      &, UJ, nUJ, iUJ, niUJ, potential)
+  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam, species, orb, potential)
 
     !> block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
@@ -390,7 +355,7 @@ contains
     real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
 
     !> is this a +U calculation
-    logical, intent(in) :: tDftbU
+    type(TDftbU), intent(in), allocatable :: dftbU
 
     !> does the hamiltonian have an imaginary part in real space?
     logical, intent(in) :: tImHam
@@ -401,32 +366,15 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> choice of +U functional
-    integer, intent(in) :: nDftbUFunc
-
-    !> prefactor for +U potential
-    real(dp), allocatable, intent(in) :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
-
-    if (tDFTBU) then
+    if (allocated(dftbU)) then
       if (tImHam) then
-        call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
-            & species,orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+        call dftbU%getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn,&
+            & qiBlockIn, species,orb)
       else
-        call getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb, nDFTBUfunc, UJ, nUJ,&
-            & niUJ, iUJ)
+        call dftbU%getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb)
       end if
       potential%intBlock = potential%intBlock + potential%orbitalBlock
     end if

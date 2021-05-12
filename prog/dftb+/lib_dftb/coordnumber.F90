@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -364,7 +364,7 @@ contains
 
 
   !> get force contributions
-  subroutine addGradients(this, dEdcn, gradients)
+  subroutine addGradients(this, gradients, dEdcn)
 
     !> data structure
     class(TCNCont), intent(inout) :: this
@@ -383,7 +383,7 @@ contains
 
 
   !> get stress tensor contributions
-  subroutine addStress(this, dEdcn, stress)
+  subroutine addStress(this, stress, dEdcn)
 
     !> data structure
     class(TCNCont), intent(inout) :: this

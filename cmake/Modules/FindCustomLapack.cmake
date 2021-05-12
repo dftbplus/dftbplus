@@ -1,6 +1,6 @@
 # Distributed under the OSI-approved BSD 2-Clause License.
 #
-# Copyright (C) 2020 DFTB+ developers group
+# Copyright (C) 2021 DFTB+ developers group
 #
 
 #[=======================================================================[.rst:
@@ -112,9 +112,15 @@ else()
   set(Lapack_FOUND ${CUSTOMLAPACK_FOUND})
 
 
-  if(LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
-
-    add_library(LAPACK::LAPACK INTERFACE IMPORTED)
+  # Ugly workaround: CMake's built-in LAPACK finder sometimes creates a LAPACK:LAPACK target
+  # (e.g. on MacOS) which does not contain all entries from ${LAPACK_LIBRARIES}. It is, therefore,
+  # added it here once more explicitely. If things worked correctly, this branch
+  #
+  #if (LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
+  if(LAPACK_FOUND)
+    if (NOT TARGET LAPACK::LAPACK)
+      add_library(LAPACK::LAPACK INTERFACE IMPORTED)
+    endif()
     if(NOT "${LAPACK_LIBRARY}" STREQUAL "NONE")
       target_link_libraries(LAPACK::LAPACK INTERFACE "${LAPACK_LIBRARY}")
     endif()

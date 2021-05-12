@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,6 +37,9 @@ module dftbp_dispiface
 
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
+
+    !> Updates with changed charges for the instance.
+    procedure :: updateCharges
 
     !> Updates charges for dispersion models that make use of charges
     procedure :: updateOnsiteCharges
@@ -104,14 +107,33 @@ module dftbp_dispiface
 
 
     !> get force contributions
-    subroutine addGradientsIface(this, gradients)
-      import :: TDispersionIface, dp
+    subroutine addGradientsIface(this, env, neigh, img2CentCell, coords, species0, &
+        & gradients, stat)
+      import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
       class(TDispersionIface), intent(inout) :: this
 
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
+
+      !> list of neighbours to atoms
+      type(TNeighbourList), intent(in) :: neigh
+
+      !> image to central cell atom index
+      integer, intent(in) :: img2CentCell(:)
+
+      !> atomic coordinates
+      real(dp), intent(in) :: coords(:,:)
+
+      !> central cell chemical species
+      integer, intent(in) :: species0(:)
+
       !> gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
+
+      !> Status of operation
+      integer, intent(out), optional :: stat
     end subroutine addGradientsIface
 
 
@@ -190,5 +212,36 @@ contains
     energyAvailable = .true.
 
   end function energyAvailable
+
+
+  !> Updates with changed charges for the instance.
+  subroutine updateCharges(this, env, species, neigh, qq, q0, img2CentCell, orb)
+
+    !> Data structure
+    class(TDispersionIface), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Orbital charges.
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Reference orbital charges.
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Mapping on atoms in central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  end subroutine updateCharges
+
 
 end module dftbp_dispiface

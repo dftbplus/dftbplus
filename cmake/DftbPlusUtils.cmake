@@ -99,12 +99,20 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_TRANSPORT)
   endif()
 
+  if(WITH_POISSON)
+    list(APPEND _fyppflags -DWITH_POISSON)
+  endif()
+
   if(WITH_C_EXECUTABLES)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
 
   if(BUILD_SHARED_LIBS)
     list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
+  endif()
+
+  if(INSTANCE_SAFE_BUILD)
+    list(APPEND _fyppflags -DINSTANCE_SAFE_BUILD)
   endif()
 
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
@@ -180,6 +188,26 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
+  if(INSTANCE_SAFE_BUILD)
+    
+    if(WITH_POISSON)
+      message(FATAL_ERROR "Instance safe build with the Poisson solver is not supported")
+    endif()
+
+    if(WITH_TRANSPORT)
+      message(FATAL_ERROR "Instance safe build with transport (libNEGF) is not supported")
+    endif()
+
+    if(WITH_ARPACK)
+      message(FATAL_ERROR "Instance safe build with ARPACK is not supported")
+    endif()
+
+    if(WITH_DFTD3)
+      message(FATAL_ERROR "Instance safe build with D3 dispersion is not supported")
+    endif()
+
+  endif()
+
   # Note: The consistency check below will / can not be executed in multi-config mode
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND CMAKE_BUILD_TYPE)
     string(TOUPPER "${CMAKE_BUILD_TYPE}" _buildtype)
@@ -191,7 +219,7 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
   endif()
 
   # Make sure Intel has the proper flag
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel" AND CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 18.0)
     if(CMAKE_BUILD_TYPE)
       set(_buildtypes "${CMAKE_BUILD_TYPE}")
     else()
@@ -200,7 +228,6 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
     foreach(_buildtype IN LISTS _buildtypes)
       string(TOUPPER "${_buildtype}" _buildtype_upper)
       set(_flags "${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${_buildtype_upper}}")
-      message(STATUS "FLAGS: ${_flags}")
       string(FIND "${_flags} "  "-standard-semantics" pos1)
       string(FIND "${_flags}" "realloc_lhs" pos2)
       string(FIND "${_flags}" "norealloc_lhs" pos3)
@@ -508,14 +535,14 @@ endfunction()
 # Variables:
 #     <UPPER_PACKAGE_NAME>_SOURCE_DIR, <UPPER_PACKAGE_NAME>_BINARY_DIR:
 #         Source and binary directories for the build (to pass to add_subdirectory())
-# 
+#
 macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts subdir subdiropts
     git_repository git_tag)
 
   set(_allowed_methods "submodule;find;fetch")
   string(TOLOWER "${package}" _package_lower)
   string(TOUPPER "${package}" _package_upper)
-  
+
   foreach(_config_method IN ITEMS ${config_methods})
 
     string(TOLOWER "${_config_method}" _config_lower)
@@ -535,7 +562,7 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
       endif()
 
     elseif("${_config_lower}" STREQUAL "submodule")
-      
+
       if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/origin/CMakeLists.txt
           AND GIT_WORKING_COPY)
         message(STATUS "${package}: Downloading via git submodule update")

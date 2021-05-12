@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2020  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -44,7 +44,7 @@ void init_collective_variables(double *mermin_energy_total, double **gradients_t
 
 
 void update_collective_variables(int natom, double mermin_energy, double *gradients,
-    double *stress_tensor, double *gross_charges, double *mermin_energy_total, 
+    double *stress_tensor, double *gross_charges, double *mermin_energy_total,
     double *gradients_total, double *stress_tensor_total, double *gross_charges_total)
 {
   int ii;
@@ -66,6 +66,7 @@ int main()
 {
   DftbPlus calculator;
   DftbPlusInput input;
+  DftbPlusAtomList dummyAtomList;
 
   /* Coordinates in row major format, atomic units */
   double coords_si2[3 * NR_OF_ATOMS_SI2] = {
@@ -98,12 +99,18 @@ int main()
   int natom, natom0;
   int si2, ii, ij;
   int major, minor, patch;
+  _Bool instsafe;
+
+  dummyAtomList.pDftbPlusAtomList = NULL;
 
   dftbp_api(&major, &minor, &patch);
   printf("API version %d.%d.%d\n", major, minor, patch);
 
+  instsafe = dftbp_is_instance_safe();
+  printf(instsafe ? "API is instance safe\n" : "API is NOT instance safe\n");
+
   /* Collective variables will hold the summed up results of multiple test runs */
-  init_collective_variables(&mermin_energy_total, &gradients_total, 
+  init_collective_variables(&mermin_energy_total, &gradients_total,
                          &stress_tensor_total, &gross_charges_total);
 
   /* Dummy loop to test subsequent initializations / finalizations of the DFTB+ object */
@@ -124,7 +131,7 @@ int main()
     } else {
       dftbp_get_input_from_file(&calculator, "dftb_in.H2O.hsd", &input);
     }
-    dftbp_process_input(&calculator, &input);
+    dftbp_process_input(&calculator, &input, &dummyAtomList);
 
     /* Check whether the calculator was initialized with the correct nr. of atoms */
     natom = dftbp_get_nr_atoms(&calculator);
@@ -171,9 +178,9 @@ int main()
     stress_tensor = (double *) calloc(9, sizeof(double));
     if(si2) {
       dftbp_get_stress_tensor(&calculator, stress_tensor);
-      printf("Obtained diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n", 
+      printf("Obtained diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n",
            stress_tensor[0], stress_tensor[4], stress_tensor[8]);
-      printf("Expected diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n", 
+      printf("Expected diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n",
 	     -0.0001163360, -0.0001080554, -0.0001614502);
     } else {
       for (ij = 0; ij < 9; ++ij) {
@@ -194,8 +201,8 @@ int main()
 	     0.3314953102, 0.3204992261);
     }
 
-    update_collective_variables(natom0, mermin_energy, gradients, stress_tensor, 
-                                gross_charges, &mermin_energy_total, gradients_total, 
+    update_collective_variables(natom0, mermin_energy, gradients, stress_tensor,
+                                gross_charges, &mermin_energy_total, gradients_total,
                                 stress_tensor_total, gross_charges_total);
 
     /*  Clean up */

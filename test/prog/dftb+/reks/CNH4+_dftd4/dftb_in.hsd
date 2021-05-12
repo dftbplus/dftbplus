@@ -1,0 +1,66 @@
+Geometry = GenFormat {
+6 C
+C N H
+     1   1  -6.6286468000E-01   0.0000000000E+00  -2.1516850000E-01
+     2   2   6.6286468000E-01   0.0000000000E+00  -2.1516850000E-01
+     3   3  -1.2336137800E+00   9.2302252000E-01  -2.1522395000E-01
+     4   3  -1.2336137800E+00  -9.2302252000E-01  -2.1522395000E-01
+     5   3   1.2336137800E+00   9.2302252000E-01  -2.1522395000E-01
+     6   3   1.2336137800E+00  -9.2302252000E-01  -2.1522395000E-01
+}
+
+Hamiltonian = DFTB { 
+  SCC = Yes
+  SCCTolerance = 1e-6
+  MaxSCCIterations = 1000
+  Charge = 1.0
+  SpinConstants = {
+    ShellResolvedSpin = Yes
+    H = { -0.072 }
+    C = { -0.031 -0.025 -0.025 -0.023 }
+    N = { -0.033 -0.027 -0.027 -0.026 }
+  }
+  Dispersion = dftd4{
+    s8 = 1.2916225
+    s9 = 1.0
+    a1 = 0.5965326
+    a2 = 4.8778602
+    ChargeModel = EEQ {}
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+  }
+  SlaterKosterFiles = {
+    N-N = "N-N.skf"
+    N-C = "N-C.skf"
+    N-H = "N-H.skf"
+    C-N = "C-N.skf"
+    C-C = "C-C.skf"
+    C-H = "C-H.skf"
+    H-N = "H-N.skf"
+    H-C = "H-C.skf"
+    H-H = "H-H.skf"
+  }
+}
+
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" "OSS" }
+    StateInteractions = Yes
+  }
+  TargetState = 1
+  FonMaxIter = 30
+  shift = 0.3
+  TransitionDipole = Yes
+  VerbosityLevel = 1
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 9
+}

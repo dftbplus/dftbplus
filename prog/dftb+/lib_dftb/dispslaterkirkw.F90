@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -327,18 +327,39 @@ contains
 
 
   !> Adds the atomic gradients to the provided vector.
-  subroutine addGradients(this, gradients)
+  subroutine addGradients(this, env, neigh, img2CentCell, coords, species0, &
+      & gradients, stat)
 
     !> The data object for dispersion
     class(TDispSlaKirk), intent(inout) :: this
 
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> image to central cell atom index
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
     !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
+
+    !> Status of operation
+    integer, intent(out), optional :: stat
 
     @:ASSERT(this%coordsUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     gradients(:,:) = gradients + this%gradients
+
+    if (present(stat)) stat = 0
 
   end subroutine addGradients
 

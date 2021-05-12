@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -31,7 +31,7 @@ module dftbp_dynneighlist
     !> Cutoff for neighbour generation
     real(dp) :: cutoff
 
-    !> Nr. of atoms 
+    !> Nr. of atoms
     integer :: nAtom
 
     !> Coordinates of atoms (folded into unit cell, if periodic)
@@ -45,10 +45,11 @@ module dftbp_dynneighlist
 
     !> Inverse lattice vectors, if system is periodic
     real(dp), allocatable :: invLatVecs(:,:)
-    
+
   contains
     procedure :: updateLatVecs => TDynNeighList_updateLatVecs
     procedure :: updateCoords => TDynNeighList_updateCoords
+    procedure :: updateCutoff => TDynNeighList_updateCutoff
   end type TDynNeighList
 
 
@@ -88,7 +89,7 @@ module dftbp_dynneighlist
 
     !> Whether iterator has finished
     logical :: tFinished
-    
+
   contains
     procedure :: getNextNeighbours => TNeighIterator_getNextNeighbours
   end type TNeighIterator
@@ -159,6 +160,20 @@ contains
     this%coords0(:,:) = coords
 
   end subroutine TDynNeighList_updateCoords
+
+
+  !> Updates real space cutoff
+  subroutine TDynNeighList_updateCutoff(this, cutoff)
+
+    !> Instance
+    class(TDynNeighList), intent(inout) :: this
+
+    !> New cutoff
+    real(dp), intent(in) :: cutoff
+
+    this%cutoff = cutoff
+
+  end subroutine TDynNeighList_updateCutoff
 
 
   !> Initializes an iterator for the dynamic neighbours of a given atom.

@@ -14,6 +14,7 @@ set(sources-fpp
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
+  ${curdir}/status.F90
   ${curdir}/timer.F90
   ${curdir}/timerarray.F90
   ${curdir}/unitconversion.F90
@@ -23,6 +24,11 @@ if(WITH_MPI)
   list(APPEND sources-fpp
     ${curdir}/blacsenv.F90
     ${curdir}/mpienv.F90)
+endif()
+
+if(WITH_GPU)
+  list(APPEND sources-fpp
+    ${curdir}/gpuenv.F90)
 endif()
 
 

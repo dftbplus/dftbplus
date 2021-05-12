@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,12 +21,17 @@ module dftbp_globalenv
   use dftbp_mpifx
 #:endif
   implicit none
-  private
 
+  private
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
   public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
+  public :: instanceSafeBuild
+  #:if WITH_MPI
+    public :: globalMpiComm
+  #:endif
+
 
   !> Unredirected standard out
   integer, parameter :: stdOut0 = output_unit
@@ -62,12 +67,15 @@ module dftbp_globalenv
   !> Whether code was compiled with many-body dispersion support
   logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
 
+  !> Whether the code had been built with instance safe components only
+  logical, parameter :: instanceSafeBuild = ${FORTRAN_LOGICAL(INSTANCE_SAFE_BUILD)}$
+
 
 
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit)
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit, devNull)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -78,7 +86,11 @@ contains
     !> Customised global standard error
     integer, intent(in), optional :: errorUnit
 
-    integer :: outputUnit0, errorUnit0
+    !> Unit of the null device (needed for follow processes to suppress their output)
+    integer, intent(in), optional :: devNull
+
+
+    integer :: outputUnit0, errorUnit0, devNull0
 
   #:if WITH_MPI
     integer :: mpiComm0
@@ -110,8 +122,13 @@ contains
       stdOut = outputUnit0
       stdErr = errorUnit0
     else
-      open(newunit=stdOut, file="/dev/null", action="write")
-      stdErr = stdOut
+      if (present(devNull)) then
+        devNull0 = devNull
+      else
+        open(newunit=devNull0, file="/dev/null", action="write")
+      end if
+      stdOut = devNull0
+      stdErr = devNull0
     end if
     tIoProc = globalMpiComm%lead
   #:else
@@ -174,7 +191,7 @@ contains
       write(stdErr0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
     end if
   #:endif
-    stop
+    error stop
 
   end subroutine abortProgram
 

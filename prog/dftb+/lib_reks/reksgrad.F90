@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -491,7 +491,6 @@ module dftbp_reksgrad
     end do
 
     ! get total gamma derivative (gamma = 1/R - S)
-    GammaDeriv(:,:,:) = 0.0_dp
     call sccCalc%getGammaDeriv(env, species, iNeighbour, img2CentCell, GammaDeriv)
     do ii = 1, 3
       call symmetrizeHS(GammaDeriv(:,:,ii))

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -145,8 +145,8 @@ contains
     call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
-    call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
-        &child, iMovedAtoms)
+    call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, &
+        & iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
@@ -155,7 +155,7 @@ contains
       tPlotModes = .true.
       call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, &
           &multiple=.true.)
-      call convRangeToInt(char(buffer2), child, modesToPlot, 3 * nMovedAtom)
+      call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
       call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
@@ -353,7 +353,7 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertByMul(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)

@@ -80,6 +80,9 @@ reks/C2H4_read_mo                      #? not WITH_MPI
 reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
+reks/CNH4+_dftd4                       #? not WITH_MPI
+reks/CNH4+_dftd4_sc                    #? not WITH_MPI
+reks/CNH4+_dftd4_sc_rangesep           #? not WITH_MPI
 reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
 reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
 reks/PSB3_2SSR                         #? not WITH_MPI
@@ -126,6 +129,16 @@ solvers/Si32C32_k_elpaSparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and M
 solvers/Si32C32_elpaSparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 
 derivatives/Si_2_Delta                 #? MPI_PROCS <= 1
+
+derivatives/CH3nonsccPol               #? MPI_PROCS <= 1
+derivatives/CH3sccPol                  #? MPI_PROCS <= 1
+derivatives/CH3spin3rdOnsPol           #? MPI_PROCS <= 1
+derivatives/CH3_U_noncol               #? MPI_PROCS <= 1
+derivatives/Au2_LSmetalPol             #? MPI_PROCS <= 2
+derivatives/C18H12_rangesepPol         #? not WITH_MPI
+derivatives/C60                        #? MPI_PROCS <= 4
+derivatives/C60+                       #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 2 == 0) and LONG_TEST
+
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
@@ -155,6 +168,9 @@ dispersion/specieslist_dftd4           #? MPI_PROCS <= 1
 dispersion/charged_dftd4               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4               #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
+dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
+dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 4
+dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
 h-bonds/D3H5_water_dimer               #? WITH_DFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
@@ -193,6 +209,7 @@ solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 solvation/gb_cm5                       #? MPI_PROCS <= 1
 solvation/gb_specieslist               #? MPI_PROCS <= 1
 solvation/gb_p16                       #? MPI_PROCS <= 1
+solvation/gb_inf                       #? MPI_PROCS <= 1
 solvation/gbsa_e35                     #? MPI_PROCS <= 2
 solvation/gbsa_caffeine                #? MPI_PROCS <= 1
 solvation/gbsa_p16                     #? MPI_PROCS <= 1
@@ -202,6 +219,13 @@ solvation/gbsa_param3                  #? MPI_PROCS <= 2
 solvation/alpb_cation                  #? MPI_PROCS <= 1
 solvation/alpb_anion                   #? MPI_PROCS <= 1
 solvation/alpb_p16                     #? MPI_PROCS <= 1
+solvation/cosmo_g1                     #? MPI_PROCS <= 2
+solvation/cosmo_b33                    #? MPI_PROCS <= 2
+solvation/cosmo_i8e                    #? MPI_PROCS <= 2
+solvation/cosmo_444                    #? MPI_PROCS <= 2
+solvation/cosmo_inf                    #? MPI_PROCS <= 1
+solvation/cosmo_quinoline              #? MPI_PROCS <= 1
+solvation/cosmo_nitralin               #? MPI_PROCS <= 2
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -360,11 +384,12 @@ scc/SiC64+V_dynforce                   #? (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
-poisson/CH4-poisson                    #? MPI_PROCS <= 4
+poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4 
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/C-chain+U                    #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
+transport/C-chain+Uspin                #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/SiH-chain_bin                #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4

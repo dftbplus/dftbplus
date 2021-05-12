@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -56,6 +56,9 @@ module dftbp_blasroutines
     module procedure gemv_dble
     #:for suffix, _ in REAL_KIND_PARAMS
       module procedure gemv231_${suffix}$
+    #:endfor
+    #:for suffix, _ in REAL_KIND_PARAMS
+      module procedure gemv242_${suffix}$
     #:endfor
   end interface gemv
 
@@ -701,6 +704,41 @@ contains
 
   #:endfor
 
+  #:for suffix, kind in REAL_KIND_PARAMS
+
+    !> Generalized matrix vector contraction Cij = Aijk * Bk
+    subroutine gemv242_${suffix}$(y, a, x, alpha, beta, trans)
+
+      !> matrix
+      real(r${kind}$p), intent(inout), contiguous, target :: y(:,:)
+
+      !> matrix
+      real(r${kind}$p), intent(in), contiguous, target :: a(:,:,:,:)
+
+      !> matrix
+      real(r${kind}$p), intent(in), contiguous, target :: x(:,:)
+
+      !> optional scaling factor (defaults to 1)
+      real(r${kind}$p), intent(in), optional :: alpha
+
+      !> optional scaling factor (defaults to 0)
+      real(r${kind}$p), intent(in), optional :: beta
+
+      !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
+      character, intent(in), optional :: trans
+
+      real(r${kind}$p), pointer :: pX(:)
+      real(r${kind}$p), pointer :: pY(:)
+      real(r${kind}$p), pointer :: pA(:,:)
+
+      pY(1:size(y)) => y
+      pA(1:size(a, dim=1)*size(a, dim=2), 1:size(a, dim=3)*size(a, dim=4)) => a
+      pX(1:size(x)) => x
+      call gemv(pY, pA, pX, alpha, beta, trans)
+
+    end subroutine gemv242_${suffix}$
+
+  #:endfor
 
   !> real symmetric banded matrix*vector product
   subroutine sbmv_real(y,ba,x,uplo,alpha,beta)

@@ -1,21 +1,26 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
 #:include "error.fypp"
+
 
 !> Contains MPI related environment settings
 module dftbp_mpienv
   use dftbp_accuracy, only : lc
-  use dftbp_mpifx
-  use dftbp_message
+  use dftbp_mpifx, only : mpifx_comm, mpifx_allgather
+  use dftbp_message, only : error
+  #:if WITH_TRANSPORT
+    use dftbp_negf, only : negf_cart_init
+  #:endif
   implicit none
   private
 
-  public :: TMpiEnv, TMpiEnv_init
+  public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final
 
 
   !> Contains MPI related environment settings
@@ -39,8 +44,11 @@ module dftbp_mpienv
     !> Group index of the current process (starts with 0)
     integer :: myGroup
 
-    !> Global rank of the processes in the given group
-    integer, allocatable :: groupMembers(:)
+    !> Rank of the processes in the given group (with respect of globalComm)
+    integer, allocatable :: groupMembersGlobal(:)
+
+    !> Rank of the processes in the given group (with respect of MPI_COMM_WORLD)
+    integer, allocatable :: groupMembersWorld(:)
 
     !> Whether current process is the global lead
     logical :: tGlobalLead
@@ -63,7 +71,7 @@ contains
   ! Example:
   ! globalSize = 10
   ! nGroup = 2
-  ! groupSize = 5 
+  ! groupSize = 5
   !                        rank
   ! globalComm:      0 1 2 3 4 5 6 7 8 9
   ! groupComm:       0 1 2 3 4 0 1 2 3 4
@@ -75,47 +83,41 @@ contains
   ! These are distributed to all other nodes using interGroupComm
   ! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
   ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM 
+  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
   ! ---------------------------------------------------------------
   ! LIBNEGF
   ! Different groups handle different kpoints/spin (iKS)
   ! All procs within a group know densMat(:,:,iKS)
   ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM 
+  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
   ! ---------------------------------------------------------------
-  subroutine TMpiEnv_init(this, nGroup)
+  subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
 
     !> Initialised instance on exit
     type(TMpiEnv), intent(out) :: this
 
+    !> The global MPI communicator (assumed to be MPI_COMM_WORLD if not specified)
+    type(mpifx_comm), optional, intent(in) :: globalMpiComm
+
     !> Number of process groups to create
     integer, intent(in), optional :: nGroup
 
-    character(lc) :: tmpStr
-    integer :: myRank, myGroup
-
-    call this%globalComm%init()
+    if (present(globalMpiComm)) then
+      this%globalComm = globalMpiComm
+    else
+      call this%globalComm%init()
+    end if
     if (present(nGroup)) then
       this%nGroup = nGroup
     else
       this%nGroup = 1
     end if
-    this%groupSize = this%globalComm%size / this%nGroup
-    if (this%nGroup * this%groupSize /= this%globalComm%size) then
-      write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", this%nGroup,&
-          & ") not compatible with number of processes (", this%globalComm%size, ")"
-      call error(tmpStr)
-    end if
 
-    this%myGroup = this%globalComm%rank / this%groupSize
-    myRank = mod(this%globalComm%rank, this%groupSize)
-    call this%globalComm%split(this%myGroup, myRank, this%groupComm)
-    allocate(this%groupMembers(this%groupSize))
-    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembers)
-
-    myGroup = myRank
-    myRank = this%myGroup
-    call this%globalComm%split(myGroup, myRank, this%interGroupComm)
+    #:if WITH_TRANSPORT
+      call setup_subgrids_negf(this)
+    #:else
+      call setup_subgrids_common(this)
+    #:endif
 
     this%tGlobalLead = this%globalComm%lead
     this%tGroupLead = this%groupComm%lead
@@ -125,6 +127,18 @@ contains
     end if
 
   end subroutine TMpiEnv_init
+
+
+  !> Finalises the communicators in the structure supplied here
+  subroutine TMpiEnv_final(this)
+
+    !>  Initialised instance.
+    type(TMpiEnv), intent(inout) :: this
+
+    call this%interGroupComm%free()
+    call this%groupComm%free()
+
+  end subroutine TMpiEnv_final
 
 
   !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
@@ -144,5 +158,77 @@ contains
     end if
 
   end subroutine mpiSerialEnv
+
+
+  !> Sets up subgrids and group communicators used with common (non-NEGF) solvers.
+  subroutine setup_subgrids_common(this)
+
+    !> Environment instance
+    type(TMpiEnv), intent(inout) :: this
+
+    integer :: myRank, myGroup
+    character(lc) :: tmpStr
+    type(mpifx_comm) :: mpiCommWorld
+
+    this%groupSize = this%globalComm%size / this%nGroup
+    if (this%nGroup * this%groupSize /= this%globalComm%size) then
+      write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", this%nGroup,&
+          & ") not compatible with number of processes (", this%globalComm%size, ")"
+      call error(tmpStr)
+    end if
+
+    this%myGroup = this%globalComm%rank / this%groupSize
+    myRank = mod(this%globalComm%rank, this%groupSize)
+    call this%globalComm%split(this%myGroup, myRank, this%groupComm)
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
+
+    myGroup = myRank
+    myRank = this%myGroup
+    call this%globalComm%split(myGroup, myRank, this%interGroupComm)
+
+  end subroutine setup_subgrids_common
+
+
+#:if WITH_TRANSPORT
+
+  !> Sets up subgrids and group communicators used with NEGF solver.
+  !>
+  !> Note: it overrides the global communicator with the Cartesian global handler
+  !> created by libNEGF as libNEGF uses that. At a later stage, the Cartesian
+  !> communicator should be hidden in the libNEGF-DFTB+ interface instead.
+  !>
+  subroutine setup_subgrids_negf(this)
+
+    !> Environment instance
+    type(TMpiEnv), intent(inout) :: this
+
+    type(mpifx_comm) :: cartComm, mpiCommWorld
+
+    call negf_cart_init(this%globalComm, this%nGroup, cartComm, this%groupComm, this%interGroupComm)
+    if (this%globalComm%lead .neqv. cartComm%lead) then
+      call error("Internal error: Lead process mismatch between Cartesian and global communicator")
+    end if
+    this%globalComm = cartComm
+
+    this%groupSize = this%groupComm%size
+    this%myGroup = this%interGroupComm%rank
+
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
+
+  end subroutine setup_subgrids_negf
+
+#:endif
 
 end module dftbp_mpienv

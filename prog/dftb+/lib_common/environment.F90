@@ -1,23 +1,32 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains computer environment settings
 module dftbp_environment
   use dftbp_globalenv, only : shutdown, stdOut
   use dftbp_timerarray
   use dftbp_fileregistry
+  use dftbp_status, only : TStatus
 #:if WITH_MPI
   use dftbp_mpienv
+  use dftbp_globalenv, only : globalMpiComm
 #:endif
+
 #:if WITH_SCALAPACK
   use dftbp_blacsenv
 #:endif
+
+#:if WITH_GPU
+  use dftbp_gpuenv
+#:endif
+
   implicit none
   private
 
@@ -45,12 +54,27 @@ module dftbp_environment
     type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
+
     !> Global mpi settings
     type(TMpiEnv), public :: mpi
+
+    !> Whether MPI environment had been initialised
+    logical :: mpiInitialised = .false.
+
   #:endif
+
   #:if WITH_SCALAPACK
+
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
+
+    !> Whether BLACS environment had been initialised
+    logical :: blacsInitialised = .false.
+  #:endif
+
+  #:if WITH_GPU
+    !> Global GPU settings
+    type(TGpuEnv), public :: gpu
   #:endif
 
     !> Is this calculation called by the API?
@@ -60,11 +84,17 @@ module dftbp_environment
     procedure :: destruct => TEnvironment_destruct
     procedure :: shutdown => TEnvironment_shutdown
     procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
+
   #:if WITH_MPI
     procedure :: initMpi => TEnvironment_initMpi
   #:endif
+
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
+  #:endif
+
+  #:if WITH_GPU
+    procedure :: initGpu => TEnvironment_initGpu
   #:endif
 
   end type TEnvironment
@@ -152,11 +182,26 @@ contains
       call this%globalTimer%writeTimings()
     end if
     call this%fileFinalizer%closeAll()
+
+    #:if WITH_SCALAPACK
+      if (this%blacsInitialised) then
+        call TBlacsEnv_final(this%blacs)
+        this%blacsInitialised = .false.
+      end if
+    #:endif
+
+    #:if WITH_MPI
+      if (this%mpiInitialised) then
+        call TMpiEnv_final(this%mpi)
+        this%mpiInitialised = .false.
+      end if
+    #:endif
+
     flush(stdOut)
 
   end subroutine TEnvironment_destruct
-    
-  
+
+
   !> Gracefully cleans up and shuts down.
   !>
   !> Note: This routine must be collectively called by all processes.
@@ -207,10 +252,11 @@ contains
     integer, intent(in) :: nGroup
 
     ! MPI settings
-    call TMpiEnv_init(this%mpi, nGroup)
+    call TMpiEnv_init(this%mpi, globalMpiComm=globalMpiComm, nGroup=nGroup)
     this%tGlobalLead = this%mpi%tGlobalLead
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
+    this%mpiInitialised = .true.
 
   end subroutine TEnvironment_initMpi
 
@@ -220,7 +266,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, status)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -237,9 +283,29 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, status)
+    @:PROPAGATE_ERROR(status)
+    this%blacsInitialised = .true.
 
   end subroutine TEnvironment_initBlacs
+
+#:endif
+
+
+#:if WITH_GPU
+
+  !> Initialize GPU environment
+  subroutine TEnvironment_initGpu(this)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    call TGpuEnv_init(this%gpu)
+
+  end subroutine TEnvironment_initGpu
 
 #:endif
 

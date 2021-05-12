@@ -1,5 +1,0 @@
-magma_device_info.o: _mod_iso_c_binding 
-magma_device_info.o = magma_device_info.o $(_mod_iso_c_binding) 
-_mod_device_info: magma_device_info.o
-_mod_device_info = $(magma_device_info.o)
-

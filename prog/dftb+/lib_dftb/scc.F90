@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,58 +10,27 @@
 !> Functions and local variables for the SCC calculation.
 module dftbp_scc
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_blasroutines
+  use dftbp_accuracy, only : dp
   use dftbp_charges, only : getSummedCharges
-  use dftbp_chargeconstr
-  use dftbp_commontypes
-  use dftbp_constants
-  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, sumInvR
-  use dftbp_dynneighlist
-  use dftbp_environment
-  use dftbp_fileid
-  use dftbp_externalcharges
-  use dftbp_h5correction
-  use dftbp_message
-#:if WITH_MPI
-  use dftbp_mpifx
-#:endif
-  use dftbp_periodic
-#:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-#:endif
-  use dftbp_shift
-  use dftbp_shortgamma
+  use dftbp_chargeconstr, only : TChrgConstr, TChrgConstr_init
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
+  use dftbp_environment, only : TEnvironment
+  use dftbp_extcharges, only : TExtCharges, TExtCharges_init
+  use dftbp_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
+  use dftbp_message, only : error
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_boundarycond, only : boundaryConditions
+  use dftbp_elstattypes, only : elstatTypes
+  use dftbp_poisson, only : TPoissonInput, TPoisson, TPoisson_init
   implicit none
 
   private
-
-  public :: TSccInp, TScc, initialize
+  public :: TSccInput, TScc, TScc_init
 
 
   !> Data necessary to initialize the SCC module
-  type TSccInp
-
-    !> atomic orbital information
-    type(TOrbitals), pointer :: orb
-
-    !> hubbard U values
-    real(dp), allocatable :: hubbU(:,:)
-
-    !> use damping of short range part
-    logical, allocatable :: tDampedShort(:)
-
-    !> exponent if damping used
-    real(dp) :: dampExp = 0.0_dp
-
-    !> lattice vectors
-    real(dp), allocatable :: latVecs(:,:)
-
-    !> reciprocal lattice vectors
-    real(dp), allocatable :: recVecs(:,:)
-
-    !> cell volume
-    real(dp) :: volume = 0.0_dp
+  type TSccInput
 
     !> external charges
     real(dp), allocatable :: extCharges(:,:)
@@ -75,16 +44,19 @@ module dftbp_scc
     !> third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
 
-    !> H5 correction object
-    type(TH5Corr), allocatable :: h5Correction
+    !> Calculator for short gamma
+    type(TShortGammaInput), allocatable :: shortGammaInput
 
-    !> Coulomb input
-    type(TCoulombInput) :: coulombInput
+    !> Coulomb calculator
+    type(TCoulombInput), allocatable :: coulombInput
 
-    !> Whether shift vector is set externally -> skip internal shift calculation
-    logical :: hasExternalShifts
+    !> Poisson solver for calculating electrostatics (instead of shortGamma + coulombCalc)
+    type(TPoissonInput), allocatable :: poissonInput
 
-  end type TSccInp
+    !> Boundary condition of the system
+    integer :: boundaryCond = boundaryConditions%unknown
+
+  end type TSccInput
 
 
   !> private module variables for SCC
@@ -106,65 +78,26 @@ module dftbp_scc
     !> Max nr. of shells per atom
     integer :: mShell
 
-    !> Maximal number of unique U values
-    integer :: mHubbU
-
     !> Shift vector per atom
     real(dp), allocatable :: shiftPerAtom(:)
 
     !> Shift vector per l-shell
     real(dp), allocatable :: shiftPerL(:,:)
 
-    !> Short range interaction
-    real(dp), allocatable :: shortGamma(:,:,:,:)
-
-    !> CutOff for short range int.
-    real(dp), allocatable :: shortCutOff(:,:,:,:)
-
-    !> Maximal cutoff
-    real(dp) :: cutoff
-
-    !> Nr. of neighbours for short range part of gamma
-    integer, allocatable :: nNeighShort(:,:,:,:)
-
     !> Atomic coordinates
     real(dp), allocatable :: coord(:,:)
 
-    !> lattice vectors
-    real(dp), allocatable :: latVecs(:,:)
-
-    !> reciprocal lattice vectors
-    real(dp), allocatable :: recVecs(:,:)
-
     !> Cell volume
     real(dp) :: volume
-
-    !> Uniq Us per species
-    real(dp), allocatable :: uniqHubbU(:,:)
-
-    !> Nr. of uniq Us per species
-    integer, allocatable :: nHubbU(:)
-
-    !> Mapping L-shell -> uniq U
-    integer, allocatable :: iHubbU(:,:)
 
     !> Negative gross charge
     real(dp), allocatable :: deltaQ(:,:)
 
     !> Negative gross charge per shell
-    real(dp), allocatable :: deltaQPerLShell(:,:)
+    real(dp), allocatable :: deltaQShell(:,:)
 
     !> Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom(:)
-
-    !> Negative gross charge per U
-    real(dp), allocatable :: deltaQUniqU(:,:)
-
-    !> Damped short range? (nSpecies)
-    logical, allocatable :: tDampedShort(:)
-
-    !> Damping exponent
-    real(dp) :: dampExp
 
     !> Is the system periodic?
     logical :: tPeriodic
@@ -182,27 +115,25 @@ module dftbp_scc
     type(TChrgConstr), allocatable :: thirdOrder
 
     !> External charges
-    type(TExtCharge), allocatable :: extCharge
-
-    !> Flag for activating the H5 H-bond correction
-    logical :: tH5
-
-    !> H5 correction object
-    type(TH5Corr), allocatable :: h5Correction
+    type(TExtCharges), allocatable :: extCharges
 
     !> Coulombic interaction container
-    type(TCoulombCont), public :: coulombCont
+    ! TODO(BA): Prevent direct access from REKS and make it private
+    type(TCoulomb), allocatable, public :: coulomb
 
-    !> Whether shift vector is set externally -> skip internal shift calculation
-    logical :: hasExternalShifts
+    !> Calculator for short range gamma interaction
+    type(TShortGamma), allocatable :: shortGamma
+
+    !> Poisson solver for calculating electrostatics (instead of shortGamma + coulomb)
+    type(TPoisson), allocatable :: poisson
+
+    !> Which electrostatic solver should be used?
+    integer :: elstatType
 
   contains
 
     !> Returns a minimal cutoff for the neighbourlist
     procedure :: getCutOff
-
-    !> Returns the currenty used alpha parameter of the Ewald-summation
-    procedure :: getEwaldPar
 
     !> Updates the atom coordinates for the SCC module
     procedure :: updateCoords
@@ -243,15 +174,6 @@ module dftbp_scc
     !> Returns the shift per L contribution of the SCC.
     procedure :: getShiftPerL
 
-    !> set electrostatic shifts (e.g. Poisson solver)
-    procedure :: setShiftPerAtom
-
-    !> set the shifts from outside (e.g. Poisson solver)
-    procedure :: setShiftPerL
-
-    !> Returns the equivalency relations between orbitals of the atoms
-    procedure :: getOrbitalEquiv
-
     !> Calculate the "double counting" force term using linearized XLBOMD form
     procedure :: addForceDcXlbomd
 
@@ -267,146 +189,96 @@ module dftbp_scc
     !> Get Q * inverse R contribution for the point charges
     procedure :: getShiftOfPC
 
+    !> Triggers all instructions which must be done once the SCC-loop had been finished
+    procedure :: finishSccLoop
+
   end type TScc
 
 
-  !> Initialize SCC container from input data
-  interface initialize
-    module procedure Scc_initialize
-  end interface initialize
+  ! Boundary conditions the module can handle
+  integer, parameter :: implementedBoundaryConds_(*) =&
+      & [boundaryConditions%cluster, boundaryConditions%pbc3d]
 
 
 contains
 
 
   !> Initialize SCC container from input data
-  subroutine Scc_initialize(this, env, inp)
+  subroutine TScc_init(this, input, env, orb)
 
     !> Resulting instance
     type(TScc), intent(out) :: this
 
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
     !> Scc input
-    type(TSccInp), intent(in) :: inp
+    type(TSccInput), intent(inout) :: input
 
-    integer :: iSp1, iSp2, iU1, iU2, iL
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
 
     @:ASSERT(.not. this%tInitialised)
+    @:ASSERT(allocated(input%extCharges) .or. .not. allocated(input%blurWidths))
+    @:ASSERT(any(implementedBoundaryConds_ == input%boundaryCond))
+    @:ASSERT(allocated(input%shortGammaInput) .eqv. allocated(input%coulombInput))
+    @:ASSERT(allocated(input%shortGammaInput) .neqv. allocated(input%poissonInput))
 
-    this%nSpecies = size(inp%orb%nOrbSpecies)
-    this%nAtom = size(inp%orb%nOrbAtom)
-    this%mShell = inp%orb%mShell
-    this%mOrb = inp%orb%mOrb
-
-    @:ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
-    @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
-    @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
-
-    if (allocated(inp%latVecs)) then
-      call init(this%coulombCont, inp%coulombInput, env, this%nAtom, &
-          & inp%latVecs, inp%recVecs, inp%volume)
-    else
-      call init(this%coulombCont, inp%coulombInput, env, this%nAtom)
-    end if
+    this%nSpecies = size(orb%nOrbSpecies)
+    this%nAtom = size(orb%nOrbAtom)
+    this%mShell = orb%mShell
+    this%mOrb = orb%mOrb
 
     allocate(this%shiftPerAtom(this%nAtom))
     allocate(this%shiftPerL(this%mShell, this%nAtom))
-    allocate(this%shortGamma(0, 0, 0, 0))
-    this%tPeriodic = allocated(inp%latVecs)
 
-    ! Initialize Hubbard U's
-    allocate(this%uniqHubbU(this%mShell, this%nSpecies))
-    allocate(this%nHubbU(this%nSpecies))
-    allocate(this%iHubbU(this%mShell, this%nSpecies))
-    this%iHubbU(:,:) = 0
-    this%iHubbU(1,:) = 1
-    this%nHubbU(:) = 1
-    this%uniqHubbU(:,:) = 0.0_dp
-    this%uniqHubbU(1,:) = inp%hubbU(1,:)
-    do iSp1 = 1, this%nSpecies
-      do iL = 2, inp%orb%nShell(iSp1)
-        do iU1 = 1, this%nHubbU(iSp1)
-          if (abs(inp%hubbU(iL,iSp1) - this%uniqHubbU(iU1,iSp1)) < MinHubDiff) then
-            this%iHubbU(iL,iSp1) = iU1
-            exit
-          end if
-        end do
-        if (this%iHubbU(iL,iSp1) == 0) then
-          this%nHubbU(iSp1) = this%nHubbU(iSp1) + 1
-          this%uniqHubbU(this%nHubbU(iSp1),iSp1) = inp%hubbU(iL,iSp1)
-          this%iHubbU(iL,iSp1) = this%nHubbU(iSp1)
-        end if
-      end do
-    end do
-    this%mHubbU = maxval(this%nHubbU)
-
-    ! Get cutoff for short range coulomb
-    allocate(this%shortCutOff(this%mHubbU, this%mHubbU, this%nSpecies, this%nSpecies))
-    this%shortCutOff(:,:,:,:) = 0.0_dp
-    do iSp1 = 1, this%nSpecies
-      do iSp2 = iSp1, this%nSpecies
-        do iU1 = 1, this%nHubbU(iSp1)
-          do iU2 = 1, this%nHubbU(iSp2)
-            this%shortCutOff(iU2, iU1, iSp2, iSp1) =&
-                & expGammaCutOff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
-            this%shortCutOff(iU1, iU2, iSp1, iSp2) = this%shortCutOff(iU2, iU1, iSp2, iSp1)
-          end do
-        end do
-      end do
-    end do
-    this%cutoff = maxval(this%shortCutOff)
-
-    if (this%tPeriodic) then
-      this%latVecs = inp%latVecs
-      this%recVecs = inp%recVecs
-      this%volume = inp%volume
+    if (allocated(input%shortGammaInput)) then
+      this%elstatType = elstatTypes%gammaFunc
+    else
+      this%elstatType = elstatTypes%poisson
     end if
 
-    ! Number of neighbours for short range cutoff and real part of Ewald
-    allocate(this%nNeighShort(this%mHubbU, this%mHubbU, this%nSpecies, this%nAtom))
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call initShortGamma_(input%shortGammaInput, orb, this%shortGamma)
+      call initCoulomb_(input%coulombInput, env, this%nAtom, this%coulomb)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call initPoisson_(input%poissonInput, env, orb, this%poisson)
+      #:endblock
+    end select
+
+    this%tPeriodic = (input%boundaryCond == boundaryConditions%pbc3d)
 
     ! Initialise external charges
-    if (allocated(inp%extCharges)) then
-      call this%setExternalCharges(inp%extCharges(1:3,:), inp%extCharges(4,:),&
-          & blurWidths=inp%blurWidths)
+    if (allocated(input%extCharges)) then
+      if (.not. allocated(this%coulomb)) then
+        call error("External charges require Coulomb calculator (Gamma-electrostatics)")
+      end if
+      call this%setExternalCharges(input%extCharges(1:3,:), input%extCharges(4,:),&
+          & blurWidths=input%blurWidths)
     end if
 
-    this%tChrgConstr = allocated(inp%chrgConstraints)
+    this%tChrgConstr = allocated(input%chrgConstraints)
     if (this%tChrgConstr) then
       allocate(this%chrgConstr)
-      call init(this%chrgConstr, inp%chrgConstraints, 2)
+      call TChrgConstr_init(this%chrgConstr, input%chrgConstraints, 2)
     end if
-    this%tThirdOrder = allocated(inp%thirdOrderOn)
+    this%tThirdOrder = allocated(input%thirdOrderOn)
     if (this%tThirdOrder) then
       allocate(this%thirdOrder)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
-      call init(this%thirdOrder, inp%thirdOrderOn / 6.0_dp, 3)
+      call TChrgConstr_init(this%thirdOrder, input%thirdOrderOn / 6.0_dp, 3)
     end if
 
     ! Initialise arrays for charge differences
     allocate(this%deltaQ(this%mOrb, this%nAtom))
-    allocate(this%deltaQPerLShell(this%mShell, this%nAtom))
+    allocate(this%deltaQShell(this%mShell, this%nAtom))
     allocate(this%deltaQAtom(this%nAtom))
-    allocate(this%deltaQUniqU(this%mHubbU, this%nAtom))
-
-    ! Initialise short range damping
-    allocate(this%tDampedShort(this%nSpecies))
-    this%tDampedShort(:) = inp%tDampedShort(:)
-    this%dampExp = inp%dampExp
-
-    ! H5 correction
-    this%tH5 = allocated(inp%h5Correction)
-    if (this%tH5) then
-      this%h5Correction = inp%h5Correction
-    end if
-
-    this%hasExternalShifts = inp%hasExternalShifts
 
     this%tInitialised = .true.
 
-  end subroutine Scc_initialize
+  end subroutine TScc_init
 
 
   !> Returns a minimal cutoff for the neighbourlist, which must be passed to various functions in
@@ -421,34 +293,28 @@ contains
     real(dp) :: cutoff
 
     @:ASSERT(this%tInitialised)
-    cutoff = this%cutoff
+
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      cutoff = this%shortGamma%getCutOff()
+    case default
+      cutoff = 0.0_dp
+    end select
 
   end function getCutOff
 
 
-  !> Returns the currenty used alpha parameter of the Ewald-summation
-  function getEwaldPar(this) result(alpha)
-
-    !> Instance
-    class(TScc), intent(in) :: this
-
-    !> Parameter in the Ewald summation.
-    real(dp) :: alpha
-
-    @:ASSERT(this%tInitialised)
-    alpha = this%coulombCont%alpha
-
-  end function getEwaldPar
-
-
   !> Updates the atom coordinates for the SCC module.
-  subroutine updateCoords(this, env, coord, species, neighList)
+  subroutine updateCoords(this, env, coord0, coord, species, neighList)
 
     !> Instance
     class(TScc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> New unfolded coordinates of the atoms in the central cell
+    real(dp), intent(in) :: coord0(:,:)
 
     !> New coordinates of the atoms
     real(dp), intent(in) :: coord(:,:)
@@ -463,19 +329,20 @@ contains
 
     this%coord = coord
 
-    call this%coulombCont%updateCoords(env, neighList, coord, species)
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%coulomb%updateCoords(env, neighList, coord, species)
+      call this%shortGamma%updateCoords(coord, species, neighList)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        ! Poisson solver needs currently the unfolded central cell coordinates (coord0), because the
+        ! folding can mess up the contact position.
+        call this%poisson%updateCoords(coord0)
+      #:endblock
+    end select
 
-    call updateNNeigh_(this, species, neighList)
-
-    call initGamma_(this, species, neighList%iNeighbour)
-
-    if (allocated(this%extCharge)) then
-      if (this%tPeriodic) then
-        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec,&
-            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
-      else
-        call this%extCharge%setCoordinates(env, this%coord)
-      end if
+    if (allocated(this%extCharges)) then
+      call this%extCharges%setCoordinates(env, coord(:, 1:this%nAtom), this%coulomb)
     end if
 
   end subroutine updateCoords
@@ -499,47 +366,60 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
 
-    call this%coulombCont%updateLatVecs(latVec, recVec, vol)
-
     this%volume = vol
-    this%latVecs(:,:) = latVec
-    this%recVecs(:,:) = recVec
 
-    if (allocated(this%extCharge)) then
-      call this%extCharge%setLatticeVectors(latVec, recVec)
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%coulomb%updateLatVecs(latVec, recVec, vol)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%updateLatVecs(latVec)
+      #:endblock
+    end select
+
+    if (allocated(this%extCharges)) then
+      call this%extCharges%setLatticeVectors(latVec, recVec)
     end if
 
   end subroutine updateLatVecs
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
+  subroutine updateCharges(this, env, qOrbital, orb, species, q0)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
-    !> Orbital resolved charges
+    !> Orbital resolved charges. Shape: [mOrb, nAtom, nSpin].
     real(dp), intent(in) :: qOrbital(:,:,:)
-
-    !> Reference charge distribution (neutral atoms)
-    real(dp), intent(in) :: q0(:,:,:)
 
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-    !> Species of the atoms (should not change during run)
+    !> Species of the atoms (should not change during run). Shape: [nSpecies]
     integer, intent(in) :: species(:)
+
+    !> Reference charge distribution (neutral atoms). Shape: [mOrb, nAtom, nSpin]
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges(species, orb, qOrbital, q0, iHubbU=this%iHubbU, dQ=this%deltaQ, &
-        & dQAtom=this%deltaQAtom, dQShell=this%deltaQPerLShell, dQUniqU=this%deltaQUniqU)
+    call getSummedCharges(species, orb, qOrbital, q0, dQ=this%deltaQ, dQAtom=this%deltaQAtom,&
+        & dQShell=this%deltaQShell)
 
-    call this%coulombCont%updateCharges(env, qOrbital, q0, orb, species, &
-        & this%deltaQ, this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%shortGamma%updateCharges(orb, species, this%deltaQShell)
+      call this%coulomb%updateCharges(env, qOrbital, orb, species, this%deltaQ, this%deltaQAtom,&
+          & this%deltaQShell)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
+      #:endblock
+    end select
 
   end subroutine updateCharges
 
@@ -566,17 +446,26 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(.not. this%hasExternalShifts)
 
-    call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
-
-    call this%coulombCont%updateShifts(env, orb, species, iNeighbour, img2CentCell)
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%coulomb%updateShifts(env, orb, species, iNeighbour, img2CentCell)
+      this%shiftPerAtom(:) = 0.0_dp
+      call this%shortGamma%updateShifts(env, orb, species, iNeighbour, img2CentCell)
+      call this%shortGamma%getShiftPerShell(this%shiftPerL)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        this%shiftPerAtom(:) = 0.0_dp
+        this%shiftPerL(:,:) = 0.0_dp
+        call this%poisson%addPotentials(this%shiftPerL)
+      #:endblock
+    end select
 
     if (this%tChrgConstr) then
-      call buildShift(this%chrgConstr, this%deltaQAtom)
+      call this%chrgConstr%buildShift(this%deltaQAtom)
     end if
     if (this%tThirdOrder) then
-      call buildShift(this%thirdOrder, this%deltaQAtom)
+      call this%thirdOrder%buildShift(this%deltaQAtom)
     end if
 
   end subroutine updateShifts
@@ -597,26 +486,30 @@ contains
     !> Spatial extension of external charge distribution
     real(dp), intent(in), optional :: blurWidths(:)
 
-    if (.not. allocated(this%extCharge)) then
-      allocate(this%extCharge)
-      call TExtCharge_init(this%extCharge, this%nAtom, size(chargeQs), this%tPeriodic)
+    if (.not. allocated(this%extCharges)) then
+      allocate(this%extCharges)
+      call TExtCharges_init(this%extCharges, this%nAtom, size(chargeQs), this%tPeriodic)
     end if
+
+    call this%extCharges%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
 
     if (present(blurWidths)) then
       if (this%tPeriodic .and. any(blurWidths > 1.0e-7_dp)) then
-        if (1.0_dp / maxval(blurWidths) < this%coulombCont%alpha) then
+        if (1.0_dp / maxval(blurWidths) < this%coulomb%alpha) then
           call error("Charge blur widths are too wide compared to the Ewald real space sum")
         end if
       end if
-      call this%extCharge%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
     else
-      call this%extCharge%setExternalCharges(chargeCoords, chargeQs)
+      call this%extCharges%setExternalCharges(chargeCoords, chargeQs)
     end if
 
   end subroutine setExternalCharges
 
 
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+  !>
+  !> Works only, if SCC-instance uses Gamma-electrostatics.
+  !>
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
     !> Instance
@@ -631,29 +524,25 @@ contains
     !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
-
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
-    @:ASSERT(all(this%nHubbU == 1))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
   #:endif
-    gammamat(:,:) = this%coulombCont%invRMat
-    do iAt1 = 1, this%nAtom
-      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma(1, 1, iNeigh, iAt1)
-      end do
-    end do
+
+    gammamat(:,:) = this%coulomb%invRMat
+    call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
   end subroutine getAtomicGammaMatrix
 
 
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
-  subroutine getAtomicGammaMatU(this, gammamat, U_h, species, iNeighbour, img2CentCell)
+  !>
+  !> Works only, if SCC-instance uses Gamma-electrostatics.
+  !>
+  subroutine getAtomicGammaMatU(this, gammamat, hubbU, species, iNeighbour, img2CentCell)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -662,7 +551,7 @@ contains
     real(dp), intent(out) :: gammamat(:,:)
 
     !> ppRPA Hubbard parameters
-    real(dp), intent(in) :: U_h(:)
+    real(dp), intent(in) :: hubbU(:)
 
     !> List of the species for each atom.
     integer,  intent(in) :: species(:)
@@ -673,28 +562,19 @@ contains
     !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
-    integer  :: iAt1, iAt2, iSp1, iSp2, iAt2f, iNeigh
-    real(dp) :: R_ab
+    integer  :: iAt1, iAt2
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
-    @:ASSERT(all(this%nHubbU == 1))
+    @:ASSERT(all(shape(gammamat) == [this%nAtom, this%nAtom]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
     call error("scc:getAtomicGammaMatU does not work with MPI yet")
   #:endif
-    gammamat(:,:) = this%coulombCont%invRMat
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        R_ab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - expGamma(R_ab, U_h(iSp2), U_h(iSp1))
-      end do
-    end do
 
+    gammamat(:,:) = this%coulomb%invRMat
+    call this%shortGamma%addAtomicMatrixCustomU(gammamat, hubbU, species, this%coord, iNeighbour,&
+        & img2CentCell)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, iAt1 - 1
         gammamat(iAt2, iAt1) = gammamat(iAt1, iAt2)
@@ -717,20 +597,21 @@ contains
     @:ASSERT(size(eScc) == this%nAtom)
 
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
-        & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
-
-    if (.not. this%hasExternalShifts) then
-      call this%coulombCont%addEnergy(eScc)
+        & + sum(this%shiftPerL * this%deltaQShell, dim=1))
+    if (this%elstatType == elstatTypes%gammaFunc) then
+      call this%coulomb%addEnergy(eScc)
     end if
 
-    if (allocated(this%extCharge)) then
-      call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
+    if (allocated(this%extCharges)) then
+      call this%extCharges%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
+
     if (this%tChrgConstr) then
-      call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
+      call this%chrgConstr%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
+
     if (this%tThirdOrder) then
-      call addEnergyPerAtom(this%thirdOrder, eScc, this%deltaQAtom)
+      call this%thirdOrder%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
   end subroutine getEnergyPerAtom
@@ -774,20 +655,21 @@ contains
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
-        & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
-
-    if (.not. this%hasExternalShifts) then
-      call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
+        & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQShell), dim=1))
+    if (this%elstatType == elstatTypes%gammaFunc) then
+      call this%coulomb%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
     end if
 
-    if (allocated(this%extCharge)) then
+    if (allocated(this%extCharges)) then
       call error("XLBOMD not working with external charges yet")
       !call addEnergyPerAtom_ExtChrg(this%deltaQAtom, eScc)
     end if
+
     if (this%tChrgConstr) then
       call error("XLBOMD not working with charge constraints yet")
       !call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
     end if
+
     if (this%tThirdOrder) then
       call error("XLBOMD not working with third order yet")
       !call addEnergyPerAtom(this%thirdOrder, eScc, this%deltaQAtom)
@@ -801,10 +683,10 @@ contains
   subroutine addForceDc(this, env, force, species, iNeighbour, img2CentCell, chrgForce)
 
     !> Resulting module variables
-    class(TScc), intent(in) :: this
+    class(TScc), intent(inout) :: this
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> has force contribution added
     real(dp), intent(inout) :: force(:,:)
@@ -822,25 +704,28 @@ contains
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
+    real(dp), allocatable :: tmpDerivs(:,:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == this%nAtom)
-    @:ASSERT(present(chrgForce) .eqv. allocated(this%extCharge))
+    @:ASSERT(present(chrgForce) .eqv. allocated(this%extCharges))
 
-    ! Short-range part of gamma contribution
-    call addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%shortGamma%addGradientsDc(force, species, this%coord, iNeighbour, img2CentCell)
+      call this%coulomb%addGradients(env, this%coord, species, iNeighbour, img2CentCell, force)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        allocate(tmpDerivs, mold=force)
+        call this%poisson%getGradients(env, tmpDerivs)
+        force(:,:) = force + tmpDerivs
+      #:endblock
+    end select
 
-    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
-        & img2CentCell, force)
-
-    if (allocated(this%extCharge)) then
-      if (this%tPeriodic) then
-        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-            & this%volume)
-      else
-        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
-      end if
+    if (allocated(this%extCharges)) then
+      call this%extCharges%addForceDc(env, force, chrgForce, this%coord(:, 1:this%nAtom),&
+          & this%deltaQAtom, this%coulomb)
     end if
 
   end subroutine addForceDc
@@ -868,26 +753,22 @@ contains
     !> Indexing of images of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    real(dp) :: stTmp(3,3)
-
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(st)==(/3,3/)))
 
-    stTmp(:,:) = 0.0_dp
+    select case (this%elstatType)
+    case (elstatTypes%gammaFunc)
+      call this%shortGamma%addStressDc(st, this%coord, species, this%volume, iNeighbour,&
+          & img2CentCell)
+      call this%coulomb%addStress(env, this%coord, species, iNeighbour, img2CentCell, st)
+    case (elstatTypes%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        st(:,:) = 0.0_dp
+      #:endblock
+    end select
 
-    ! Short-range part of gamma contribution
-    call addSTGammaPrime_(stTmp,this,species,iNeighbour,img2CentCell)
-
-    st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
-
-    ! 1/R contribution
-    call this%coulombCont%addStress(env, this%coord, species, iNeighbour, &
-        & img2CentCell, st)
-
-    ! if (tExtChrg_) then
-    ! ????
-    ! end if
+    !! NOTE: no stress contribution from external charges
 
   end subroutine addStressDc
 
@@ -905,17 +786,17 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift(:) = this%shiftPerAtom
-    if (.not. this%hasExternalShifts) then
-      call this%coulombCont%addShiftPerAtom(shift)
+    if (this%elstatType == elstatTypes%gammaFunc) then
+      call this%coulomb%addShiftPerAtom(shift)
     end if
-    if (allocated(this%extCharge)) then
-      call this%extCharge%addShiftPerAtom(shift)
+    if (allocated(this%extCharges)) then
+      call this%extCharges%addShiftPerAtom(shift)
     end if
     if (this%tChrgConstr) then
-      call addShiftPerAtom(this%chrgConstr, shift)
+      call this%chrgConstr%addShiftPerAtom(shift)
     end if
     if (this%tThirdOrder) then
-      call addShiftPerAtom(this%thirdOrder, shift)
+      call this%thirdOrder%addShiftPerAtom(shift)
     end if
 
   end subroutine getShiftPerAtom
@@ -936,89 +817,11 @@ contains
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
 
     shift(:, :) = this%shiftPerL
-    if (.not. this%hasExternalShifts) then
-      call this%coulombCont%addShiftPerShell(shift)
+    if (this%elstatType == elstatTypes%gammaFunc) then
+      call this%coulomb%addShiftPerShell(shift)
     end if
 
   end subroutine getShiftPerL
-
-
-  !> set electrostatic shifts (e.g. Poisson solver)
-  subroutine setShiftPerAtom(this, shift)
-
-    !> Instance
-    class(TScc), intent(inout) :: this
-
-    !> Contains the input shifts: shift(atom).
-    real(dp), intent(in) :: shift(:)
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
-    @:ASSERT(this%hasExternalShifts)
-
-    this%shiftPerAtom(:) = shift
-
-  end subroutine setShiftPerAtom
-
-
-  !> set the shifts from outside (e.g. Poisson solver)
-  subroutine setShiftPerL(this, shift)
-
-    !> Instance
-    class(TScc), intent(inout) :: this
-
-    !> Contains the input shifts (shell, Atom)
-    real(dp), intent(in) :: shift(:,:)
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
-    @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    @:ASSERT(this%hasExternalShifts)
-
-    this%shiftPerL(:, :) = shift
-
-  end subroutine setShiftPerL
-
-  !> Returns the equivalency relations between orbitals of the atoms. If transfering charge between
-  !> the orbitals does not change the electrostatic energy, they are considered equivalent.
-  subroutine getOrbitalEquiv(this, orb, species, equiv)
-
-    !> Resulting module variables
-    class(TScc), intent(in) :: this
-
-    !> Contains information about the atomic orbitals in the system
-    type(TOrbitals), intent(in) :: orb
-
-    !> Type of each atom (nAtom).
-    integer, intent(in) :: species(:)
-
-    !> The vector describing the equivalence on return.
-    integer, intent(out) :: equiv(:,:,:)
-
-    integer :: iAt, iOrb, iS, iSp
-    integer :: nSpin, shift
-
-    nSpin = size(equiv, dim=3)
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(size(species) == this%nAtom)
-    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
-    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, this%nAtom, nSpin /)))
-
-    equiv(:,:,:) = 0
-    shift = 0
-    do iAt = 1, this%nAtom
-      iSp = species(iAt)
-      do iOrb = 1, orb%nOrbSpecies(iSp)
-        equiv(iOrb, iAt, 1) = this%iHubbU(orb%iShellOrb(iOrb, iSp), iSp) + shift
-      end do
-      shift = shift + maxval(this%iHubbU(:, iSp))
-    end do
-    do iS = 2, nSpin
-      equiv(:,:,iS) = equiv(:,:,1)
-    end do
-
-  end subroutine getOrbitalEquiv
 
 
   !> Calculate the "double counting" force term using linearized XLBOMD form.
@@ -1057,24 +860,25 @@ contains
     real(dp), intent(inout) :: force(:,:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
-    real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
+    real(dp), allocatable :: dQOutLShell(:,:)
+
+    if (this%elstatType /= elstatTypes%gammaFunc) then
+      call error("XLBOMD only works with gamma-electrostatics")
+    end if
 
     allocate(dQOut(this%mOrb, this%nAtom))
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutLShell(this%mShell, this%nAtom))
-    allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges(species, orb, qOrbitalOut, q0, iHubbU=this%iHubbU, dQ=dQOut,&
-        & dQAtom=dQOutAtom, dQShell=dQOutLShell, dQUniqU=dQOutUniqU)
+    call getSummedCharges(species, orb, qOrbitalOut, q0, dQ=dQOut, dQAtom=dQOutAtom,&
+        & dQShell=dQOutLShell)
 
-    ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
-        & img2CentCell, force)
+    call this%shortGamma%addGradientsDcXlbomd(this%deltaQShell, dQOutLShell, this%coord, species,&
+        & orb, iNeighbour, img2CentCell, force)
+    call this%coulomb%addGradients(env, this%coord, species, iNeighbour, img2CentCell, force,&
+        & dQOut, dQOutAtom, dQOutLShell)
 
-    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
-        & img2CentCell, force, dQOut, dQOutAtom, dQOutLShell)
-
-    if (allocated(this%extCharge)) then
+    if (allocated(this%extCharges)) then
       call error("XLBOMD with external charges does not work yet!")
     end if
 
@@ -1082,13 +886,13 @@ contains
 
 
   !> Returns potential from DFTB charges
-  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
+  subroutine getInternalElStatPotential(this, pot, env, locations, epsSoften)
 
     !> Instance of SCC calculation
     class(TScc), intent(in) :: this
 
     !> Resulting potentials
-    real(dp), intent(out) :: V(:)
+    real(dp), intent(out) :: pot(:)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1100,18 +904,15 @@ contains
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(all(shape(locations) == [3,size(V)]))
+    @:ASSERT(all(shape(locations) == [3,size(pot)]))
 
-    V(:) = 0.0_dp
-
-    if (this%tPeriodic) then
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-          & this%volume, V, epsSoften=epsSoften)
-    else
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
-          & epsSoften=epsSoften)
+    if (this%elstatType /= elstatTypes%gammaFunc) then
+      call error("getInternalElStatPotential only works with gamma-electrostatics")
     end if
+
+    pot(:) = 0.0_dp
+    call this%coulomb%getPotential(env, locations, this%coord, this%deltaQAtom, pot,&
+        & epsSoften=epsSoften)
 
   end subroutine getInternalElStatPotential
 
@@ -1120,7 +921,7 @@ contains
   subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
 
     !> Instance
-    class(TScc), intent(in) :: this
+    class(TScc), intent(inout) :: this
 
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
@@ -1136,14 +937,9 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    if (allocated(this%extCharge)) then
-      if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec,&
-            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V,&
-            & epsSoften=epsSoften)
-      else
-        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
-      end if
+    if (allocated(this%extCharges)) then
+      call this%extCharges%getElStatPotential(env, locations, V, this%coulomb,&
+          & epsSoften=epsSoften)
     else
       V(:) = 0.0_dp
     end if
@@ -1151,411 +947,8 @@ contains
   end subroutine getExternalElStatPotential
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !> Updates the number of neighbours for the SCC module (local).
-  subroutine updateNNeigh_(this, species, neighList)
-
-    !> Instance
-    type(TScc), intent(inout) :: this
-
-    !> Species for each atom
-    integer, intent(in) :: species(:)
-
-    !> Neighbour list for the atoms in the system.
-    type(TNeighbourList), intent(in) :: neighList
-
-
-    integer :: iAt1, iSp2, iU1, iU2
-
-    this%nNeighShort(:,:,:,:) = 0
-    do iAt1 = 1, this%nAtom
-      do iSp2 = 1, this%nSpecies
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          do iU2 = 1, this%nHubbU(iSp2)
-            this%nNeighShort(iU2, iU1, iSp2, iAt1) =&
-                & getNrOfNeighbours(neighList, this%shortCutOff(iU2, iU1, iSp2, species(iAt1)),&
-                & iAt1)
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine updateNNeigh_
-
-
-  !> Constructs the shift vectors for the SCC contributions.
-  !> The full shift vector must be constructed by adding shiftAtom and shiftShell accordingly.
-  subroutine buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
-
-    !> Resulting module variables
-    type(TScc), intent(inout) :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Contains information about the atomic orbitals in the system
-    type(TOrbitals), intent(in) :: orb
-
-    !> List of the species for each atom.
-    integer, intent(in) :: species(:)
-
-    !> List of surrounding neighbours for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Image of each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    @:ASSERT(this%tInitialised)
-
-    this%shiftPerAtom(:) = 0.0_dp
-
-    call buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
-
-  end subroutine buildShifts_
-
-
-  !> Builds the short range shell resolved part of the shift vector
-  subroutine buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
-
-    !> Resulting module variables
-    type(TScc), intent(inout), target :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Contains information about the atomic orbitals in the system
-    type(TOrbitals), intent(in) :: orb
-
-    !> List of the species for each atom.
-    integer, intent(in) :: species(:)
-
-    !> List of surrounding neighbours for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Image of each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iNeigh, iAt1Start, iAt1End
-
-
-  #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iProc /= -1) then
-      iAt1Start = env%blacs%atomGrid%iproc * this%nAtom / env%blacs%atomGrid%nproc + 1
-      iAt1End = (env%blacs%atomGrid%iproc + 1) * this%nAtom / env%blacs%atomGrid%nproc
-    else
-      ! Do not calculate anything if process is not part of the atomic grid
-      iAt1Start = 0
-      iAt1End = -1
-    end if
-  #:else
-    iAt1Start = 1
-    iAt1End = this%nAtom
-  #:endif
-
-    this%shiftPerL(:,:) = 0.0_dp
-    do iAt1 = iAt1Start, iAt1End
-      iSp1 = species(iAt1)
-      do iSh1 = 1, orb%nShell(iSp1)
-        iU1 = this%iHubbU(iSh1, iSp1)
-        do iNeigh = 0, maxval(this%nNeighShort(:,:,:,iAt1))
-          iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
-          iSp2 = species(iAt2f)
-          do iSh2 = 1, orb%nShell(iSp2)
-            iU2 = this%iHubbU(iSh2, iSp2)
-            this%shiftPerL(iSh1, iAt1) = this%shiftPerL(iSh1, iAt1)&
-                & - this%shortGamma(iU2, iU1, iNeigh, iAt1) * this%deltaQPerLShell(iSh2, iAt2f)
-            if (iAt2f /= iAt1) then
-              this%shiftPerL(iSh2, iAt2f) = this%shiftPerL(iSh2, iAt2f)&
-                  & - this%shortGamma(iU2, iU1, iNeigh, iAt1) * this%deltaQPerLShell(iSh1, iAt1)
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  #:if WITH_SCALAPACK
-    call mpifx_allreduceip(env%mpi%groupComm, this%shiftPerL, MPI_SUM)
-  #:endif
-
-  end subroutine buildShiftPerShell_
-
-
-  !> Calculate the derivative of the short range contributions using the linearized XLBOMD
-  !> formulation with auxiliary charges.
-  subroutine addGammaPrimeXlbomd_(this, dQInUniqU, dQOutUniqU, species, iNeighbour,&
-      & img2CentCell, force)
-
-    !> Resulting module variables
-    type(TScc), intent(in) :: this
-
-    !> Input charges
-    real(dp), intent(in) :: dQInUniqU(:,:)
-
-    !> output charges
-    real(dp), intent(in) :: dQOutUniqU(:,:)
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> neighbours around atoms
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> image to real atom indexing
-    integer, intent(in) :: img2CentCell(:)
-
-    !> term to add force contributions to
-    real(dp), intent(inout) :: force(:,:)
-
-    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
-    real(dp) :: rab, tmpGammaPrime, u1, u2, prefac
-    real(dp) :: contrib(3)
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(size(force,dim=1) == 3)
-    @:ASSERT(size(force,dim=2) == this%nAtom)
-
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2f))
-            u2 = this%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
-              else
-                tmpGammaPrime = expGammaPrime(rab, u2, u1)
-              end if
-              prefac = dQOutUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f)&
-                  & + dQInUniqU(iU1, iAt1) * dQOutUniqU(iU2, iAt2f)&
-                  & - dQInUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f)
-              contrib(:) = prefac * tmpGammaPrime / rab  * (this%coord(:,iAt2) - this%coord(:,iAt1))
-              force(:,iAt1) = force(:,iAt1) + contrib
-              force(:,iAt2f) = force(:,iAt2f) - contrib
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine addGammaPrimeXlbomd_
-
-
-  !> Set up the storage and internal values for the short range part of Gamma.
-  subroutine initGamma_(this, species, iNeighbour)
-
-    !> Resulting module variables
-    type(TScc), intent(inout) :: this
-
-    !> List of the species for each atom.
-    integer, intent(in) :: species(:)
-
-    !> Index of neighbouring atoms for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
-    real(dp) :: rab, u1, u2
-
-    @:ASSERT(this%tInitialised)
-
-    ! Reallocate shortGamma, if it does not contain enough neighbours
-    if (size(this%shortGamma, dim=3) < maxval(this%nNeighShort)+1) then
-      deallocate(this%shortGamma)
-      allocate(this%shortGamma(this%mHubbU, this%mHubbU, 0:maxval(this%nNeighShort),&
-          & this%nAtom))
-    end if
-    this%shortGamma(:,:,:,:) = 0.0_dp
-
-    ! some additional symmetry not used, as the value of gamma for atoms
-    ! interacting with themselves is the same for all atoms of the same species
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iSp2 = species(iAt2)
-        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2))
-            u2 = this%uniqHubbU(iU2, iSp2)
-            if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
-              else
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
-                if (this%tH5) then
-                  call this%h5Correction%scaleShortGamma(&
-                      & this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
-                end if
-              end if
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine initGamma_
-
-
-  !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
-
-    !> Resulting module variables
-    type(TScc), intent(in) :: this
-
-    !> force vector to add the short-range part of gamma contribution
-    real(dp), intent(inout) :: force(:,:)
-
-    !> List of the species for each atom.
-    integer, intent(in) :: species(:)
-
-    !> Index of neighbouring atoms for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Image of each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
-    real(dp) :: rab, tmpGammaPrime, u1, u2
-    real(dp) :: tmpGamma
-
-    @:ASSERT(size(force,dim=1) == 3)
-    @:ASSERT(size(force,dim=2) == this%nAtom)
-    @:ASSERT(this%tInitialised)
-
-    ! some additional symmetry not used
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2f))
-            u2 = this%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
-              else
-                tmpGammaPrime = expGammaPrime(rab, u2, u1)
-                if (this%tH5) then
-                  tmpGamma = expGamma(rab, u2, u1)
-                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
-                      & rab)
-                end if
-              end if
-              do ii = 1,3
-                force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) *&
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1)&
-                    & - this%coord(ii,iAt2))/rab
-                force(ii,iAt2f) = force(ii,iAt2f) + this%deltaQUniqU(iU1,iAt1) *&
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1)&
-                    & - this%coord(ii,iAt2))/rab
-              end do
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine addGammaPrime_
-
-
-  !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addSTGammaPrime_(st, this, species, iNeighbour, img2CentCell)
-
-    !> Stress tensor component to add the short-range part of the gamma contribution
-    real(dp), intent(out) :: st(:,:)
-
-    !> Resulting module variables
-    type(TScc), intent(in) :: this
-
-    !> List of the species for each atom.
-    integer, intent(in) :: species(:)
-
-    !> Index of neighbouring atoms for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Image of each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
-    real(dp) :: rab, tmpGammaPrime, u1, u2
-    real(dp) :: intermed(3), vect(3)
-    ! H5 correction temp. vars
-    real(dp) :: tmpGamma
-    ! H5 correction end
-
-    @:ASSERT(all(shape(st)==(/3,3/)))
-    @:ASSERT(this%tInitialised)
-
-    st(:,:) = 0.0_dp
-    ! some additional symmetry not used
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        vect(:) = this%coord(:,iAt1) - this%coord(:,iAt2)
-        rab = sqrt(sum((vect)**2))
-        intermed(:) = 0.0_dp
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2f))
-            u2 = this%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
-              else
-                tmpGammaPrime = expGammaPrime(rab, u2, u1)
-                if (this%tH5) then
-                  tmpGamma = expGamma(rab, u2, u1)
-                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
-                      & rab)
-                end if
-              end if
-              do ii = 1,3
-                intermed(ii) = intermed(ii) &
-                    & - this%deltaQUniqU(iU1,iAt1) * this%deltaQUniqU(iU2,iAt2f)&
-                    & * tmpGammaPrime*vect(ii)/rab
-              end do
-            end if
-          end do
-        end do
-        if (iAt2f /= iAt1) then
-          do ii = 1, 3
-            do jj = 1, 3
-              st(jj,ii) = st(jj,ii) + (vect(jj)*intermed(ii) + intermed(jj)*vect(ii))
-            end do
-          end do
-        else
-          do ii = 1, 3
-            do jj = 1, 3
-              st(jj,ii) = st(jj,ii) + 0.5_dp * (vect(jj)*intermed(ii) + intermed(jj)*vect(ii))
-            end do
-          end do
-        end if
-      end do
-    end do
-
-    st(:,:) = st(:,:) / this%volume
-
-  end subroutine addSTGammaPrime_
-
-
   !> Calculate gamma integral derivatives in SCC part
-  subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, GammaDeriv)
+  subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, gammaDeriv)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -1574,62 +967,20 @@ contains
 
     !> atom resolved scc gamma derivative, \gamma_{A,B}
     !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
-    real(dp), intent(out) :: GammaDeriv(:,:,:)
+    real(dp), intent(out) :: gammaDeriv(:,:,:)
 
-    real(dp), allocatable :: shortGammaDeriv(:,:,:)
-    real(dp), allocatable :: invRDeriv(:,:,:)
-
-    real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
-    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii
-
-    allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
-    allocate(invRDeriv(this%nAtom,this%nAtom,3))
-
-    ! shortGamma contribution to gamma derivative
-    shortGammaDeriv(:,:,:) = 0.0_dp
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2f))
-            u2 = this%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
-              else
-                tmpGammaPrime = expGammaPrime(rab, u2, u1)
-                if (this%tH5) then
-                  tmpGamma = expGamma(rab, u2, u1)
-                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, &
-                      & tmpGammaPrime, iSp1, iSp2, rab)
-                end if
-              end if
-              do ii = 1,3
-                shortGammaDeriv(iAt2f,iAt1,ii) = -tmpGammaPrime * &
-                    & ( this%coord(ii,iAt1) - this%coord(ii,iAt2) ) / rab
-              end do
-            end if
-          end do
-        end do
-      end do
-    end do
-
-    ! 1/R contribution to gamma derivative
-    invRDeriv(:,:,:) = 0.0_dp
-    if (this%tPeriodic) then
-      call this%coulombCont%addInvRPrimePeriodicMat(env, this%coord,&
-          & this%coulombCont%neighListGen, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-          & this%volume, invRDeriv)
-    else
-      call this%coulombCont%addInvRPrimeClusterMat(env, this%coord, invRDeriv)
+    if (this%elstatType /= elstatTypes%gammaFunc) then
+      call error("getGammaDeriv only works with gamma-electrostatics")
     end if
 
-    GammaDeriv(:,:,:) = invRDeriv + shortGammaDeriv
+    gammaDeriv(:,:,:) = 0.0_dp
+    call this%shortGamma%addDerivativeMatrix(this%coord, species, iNeighbour, img2CentCell,&
+        & gammaDeriv)
+    if (this%tPeriodic) then
+      call this%coulomb%addInvRPrimePeriodicMat(env, this%coord,gammaDeriv)
+    else
+      call this%coulomb%addInvRPrimeClusterMat(env, this%coord, gammaDeriv)
+    end if
 
   end subroutine getGammaDeriv
 
@@ -1643,9 +994,78 @@ contains
     !> (Q * invR) contribution
     real(dp), intent(out) :: QinvR(:)
 
-    call this%extCharge%copyInvRvec(QinvR)
+    call this%extCharges%copyInvRvec(QinvR)
 
   end subroutine getShiftOfPC
+
+
+  !> Triggers all instructions which must be done once the SCC-loop had been finished
+  subroutine finishSccLoop(this, env)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    if (this%elstatType == elstatTypes%poisson) then
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%savePotential(env)
+      #:endblock
+    end if
+
+  end subroutine finishSccLoop
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!  Private routines
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:if WITH_POISSON
+
+  ! Initializes the Poisson solver
+  subroutine initPoisson_(poissonInput, env, orb, poisson)
+    type(TPoissonInput), intent(inout) :: poissonInput
+    type(TEnvironment), intent(inout) :: env
+    type(TOrbitals), intent(in) :: orb
+    type(TPoisson), allocatable, intent(out) :: poisson
+
+    logical :: success
+
+    allocate(poisson)
+    call TPoisson_init(poisson, poissonInput, env, orb, success)
+    if (.not. success) then
+      call error("Poisson solver not initialized")
+    end if
+
+  end subroutine initPoisson_
+
+#:endif
+
+
+  ! Initializes the short gamma calculator
+  subroutine initShortGamma_(shortGammaInput, orb, shortGamma)
+    type(TShortGammaInput), intent(inout) :: shortGammaInput
+    type(TOrbitals), intent(in) :: orb
+    type(TShortGamma), allocatable, intent(out) :: shortGamma
+
+    allocate(shortGamma)
+    call TShortGamma_init(shortGamma, shortGammaInput, orb)
+
+  end subroutine initShortGamma_
+
+
+  ! Initializes the Coulomb calculator
+  subroutine initCoulomb_(coulombInput, env, nAtom, coulomb)
+    type(TCoulombInput), intent(inout) :: coulombInput
+    type(TEnvironment), intent(inout) :: env
+    integer, intent(in) :: nAtom
+    type(TCoulomb), allocatable, intent(out) :: coulomb
+
+    allocate(coulomb)
+    call TCoulomb_init(coulomb, coulombInput, env, nAtom)
+
+  end subroutine initCoulomb_
 
 
 end module dftbp_scc

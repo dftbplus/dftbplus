@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -228,6 +228,12 @@ module dftbp_reksvar
     !> Whether to run a range separated calculation
     logical :: isRangeSep
 
+    !> Whether to run a dispersion calculation
+    logical :: isDispersion
+
+    !> Logical to determine whether to calculate net charge per atom (qNetAtom)
+    logical :: isQNetAllocated
+
     !> Do we need forces?
     logical :: tForces
 
@@ -275,6 +281,9 @@ module dftbp_reksvar
     !> charge per atomic shell for each microstate
     real(dp), allocatable :: chargePerShellL(:,:,:,:)
 
+    !> Net (on-site only contributions) charge per atom for each microstate
+    real(dp), allocatable :: qNetAtomL(:,:)
+
 
     !> internal shell and spin resolved potential for each microstate
     real(dp), allocatable :: intShellL(:,:,:,:)
@@ -321,6 +330,9 @@ module dftbp_reksvar
 
     !> Long-range corrected energy for each microstate
     real(dp), allocatable :: enLfock(:)
+
+    !> charge-dependent dispersion energy for each microstate
+    real(dp), allocatable :: enLdisp(:)
 
     !> total energy for each microstate
     real(dp), allocatable :: enLtot(:)
@@ -535,8 +547,8 @@ module dftbp_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
-      & blurWidths, t3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
+      & t3rd, isRangeSep, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -570,6 +582,12 @@ module dftbp_reksvar
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
+
+    !> Whether to run a dispersion calculation
+    logical, intent(in) :: isDispersion
+
+    !> Logical to determine whether to calculate net charge per atom (qNetAtom)
+    logical, intent(in) :: isQNetAllocated
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -648,6 +666,8 @@ module dftbp_reksvar
 
     this%t3rd = t3rd
     this%isRangeSep = isRangeSep
+    this%isDispersion = isDispersion
+    this%isQNetAllocated = isQNetAllocated
 
     this%tForces = tForces
     this%tPeriodic = tPeriodic
@@ -698,6 +718,10 @@ module dftbp_reksvar
     allocate(this%qOutputL(mOrb,nAtom,nSpin,Lmax))
     allocate(this%chargePerShellL(mShell,nAtom,nSpin,Lmax))
 
+    if (this%isQNetAllocated) then
+      allocate(this%qNetAtomL(nAtom,Lmax))
+    end if
+
     allocate(this%intShellL(mShell,nAtom,nSpin,Lmax))
     allocate(this%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
@@ -723,6 +747,10 @@ module dftbp_reksvar
 
     if (this%isRangeSep) then
       allocate(this%enLfock(Lmax))
+    end if
+
+    if (this%isDispersion) then
+      allocate(this%enLdisp(Lmax))
     end if
 
     allocate(this%enLtot(Lmax))
@@ -884,6 +912,10 @@ module dftbp_reksvar
     this%qOutputL(:,:,:,:) = 0.0_dp
     this%chargePerShellL(:,:,:,:) = 0.0_dp
 
+    if (this%isQNetAllocated) then
+      this%qNetAtomL(:,:) = 0.0_dp
+    end if
+
     this%intShellL(:,:,:,:) = 0.0_dp
     this%intBlockL(:,:,:,:,:) = 0.0_dp
 
@@ -909,6 +941,10 @@ module dftbp_reksvar
 
     if (this%isRangeSep) then
       this%enLfock(:) = 0.0_dp
+    end if
+
+    if (this%isDispersion) then
+      this%enLdisp(:) = 0.0_dp
     end if
 
     this%enLtot(:) = 0.0_dp

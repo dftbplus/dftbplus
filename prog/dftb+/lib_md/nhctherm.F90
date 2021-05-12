@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,10 +17,6 @@ module dftbp_nhctherm
   use dftbp_tempprofile
   use dftbp_message
   implicit none
-
-
-  !> Short string for error returns
-  character(lc) :: lcTmp
 
   private
 
@@ -127,6 +123,10 @@ contains
 
     !> MD time step
     real(dp), intent(in) :: deltaT
+
+    !> Short string for error returns
+    character(lc) :: lcTmp
+
     integer, intent(in) :: npart
     integer, intent(in) :: nys
     integer, intent(in) :: nc

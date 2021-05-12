@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,6 +14,7 @@ module dftbp_inputdata
   use dftbp_accuracy
   use dftbp_typegeometry
   use dftbp_message
+  use dftbp_dftbplusu, only : TDftbUInp
   use dftbp_dispersions, only : TDispersionInp
   use dftbp_linresp, only : TLinrespini
   use dftbp_pprpa, only : TppRPAcal
@@ -36,10 +37,10 @@ module dftbp_inputdata
   use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
-  use poisson_init
-
+  use dftbp_poisson, only : TPoissonInfo
+  use dftbp_h5correction, only : TH5CorrectionInput
   implicit none
   private
   save
@@ -202,7 +203,14 @@ module dftbp_inputdata
     !> Localise electronic states
     logical :: tLocalise   = .false.
 
+    !> Input data for Pipek-Mezey localisation
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
+
+    !> Is a perturbation expression in use
+    logical :: isDFTBPT = .false.
+
+    !> Is this is a static electric field perturbation calculation
+    logical :: isStatEPerturb = .false.
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
@@ -260,7 +268,6 @@ module dftbp_inputdata
 
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
-    logical :: tDFTBU        = .false.
 
     !> Electronic/eigenvalue solver options
     type(TElectronicSolverInp) :: solver
@@ -359,21 +366,8 @@ module dftbp_inputdata
     !> spin-orbit constants
     real(dp), allocatable :: xi(:,:)
 
-
-    !> choice of the DFTB+U functional
-    integer :: DFTBUfunc     = 0
-
-    !> list of U-J for species
-    real(dp), allocatable :: UJ(:,:)
-
-    !> How many U-J for each species
-    integer, allocatable :: nUJ(:)
-
-    !> number of l-values of U-J for each block
-    integer, allocatable :: niUJ(:,:)
-
-    !> l-values of U-J for each block
-    integer, allocatable :: iUJ(:,:,:)
+    !> DFTB+U input, if present
+    type(TDftbUInp), allocatable :: dftbUInp
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable :: onSiteElements(:,:,:,:)
@@ -421,15 +415,7 @@ module dftbp_inputdata
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
-
-    ! H5 correction
-    !> H5 correction On/Off(default) flag
-    logical ::h5SwitchedOn = .false.
-    !> Global parameters - set to -1 to identify they were not initialized
-    real(dp) :: h5RScale = -1.0_dp
-    real(dp) :: h5WScale = -1.0_dp
-    real(dp), allocatable :: h5ElementPara(:)
-    ! H5 correction end
+    type(TH5CorrectionInput), allocatable :: h5Input
 
     !> Halogen X correction
     logical :: tHalogenX = .false.
@@ -485,7 +471,8 @@ module dftbp_inputdata
 
     !> 3rd order
     real(dp), allocatable :: hubDerivs(:,:)
-    logical :: t3rd, t3rdFull
+    logical :: t3rd = .false.
+    logical :: t3rdFull = .false.
 
 
     !> XLBOMD
@@ -533,6 +520,13 @@ module dftbp_inputdata
 
     !> REKS input
     type(TReksInp) :: reksInp
+
+    !> Whether Scc should be updated with the output charges (obtained after diagonalization)
+    !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    logical :: updateSccAfterDiag = .true.
+
+    !> Write cavity information as COSMO file
+    logical :: tWriteCosmoFile = .false.
 
   end type TControl
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,72 +9,55 @@
 
 !> Contains routines for the additional local potential, which should enforce charge constraints.
 !>
-!> Note: this also has the same functional form as 3rd order SCC contributions
+!> Note: this also has the same functional form as onsite 3rd order SCC contributions
 module dftbp_chargeconstr
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
-  private
 
-  public :: TChrgConstr, init
-  public :: buildShift, addShiftPerAtom, addEnergyPerAtom
+  private
+  public :: TChrgConstr, TChrgConstr_init
 
 
   !> Constraint object
   type TChrgConstr
     private
 
-    !> Instance initialised?
-    logical :: tInit = .false.
+    ! Instance initialised?
+    logical :: tInit_ = .false.
 
-    !> Number of atoms
-    integer :: nAtom
+    ! Number of atoms
+    integer :: nAtom_
 
-    !> Exponent of potential
-    integer :: kappa
+    ! Exponent of potential
+    integer :: kappa_
 
-    !> Target charges
-    real(dp), allocatable :: refCharges(:)
+    ! Target charges
+    real(dp), allocatable :: refCharges_(:)
 
-    !> Prefactor for constraint
-    real(dp), allocatable :: prefactors(:)
+    ! Prefactor for constraint
+    real(dp), allocatable :: prefactors_(:)
 
-    !> Potential from constraint
-    real(dp), allocatable :: shift(:)
+    ! Potential from constraint
+    real(dp), allocatable :: shift_(:)
+
+  contains
+
+    procedure :: buildShift
+    procedure :: addShiftPerAtom
+    procedure :: addEnergyPerAtom
+
   end type TChrgConstr
 
-
-  !> Initialise
-  interface init
-    module procedure ChrgConstr_init
-  end interface
-
-
-  !> build the shift
-  interface buildShift
-    module procedure ChrgConstr_buildShift
-  end interface
-
-
-  !> add the shift in
-  interface addShiftPerAtom
-    module procedure ChrgConstr_addShiftPerAtom
-  end interface
-
-
-  !> energy contributions
-  interface addEnergyPerAtom
-    module procedure ChrgConstr_addEnergyPerAtom
-  end interface
 
 contains
 
 
   !> Initializes
-  subroutine ChrgConstr_init(sf, inp, kappa)
+  subroutine TChrgConstr_init(this, inp, kappa)
 
     !> Instance of a constraint
-    type(TChrgConstr), intent(inout) :: sf
+    type(TChrgConstr), intent(out) :: this
 
     !> Array contining reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
@@ -82,61 +65,62 @@ contains
     !> exponent of the local potential to add
     integer, intent(in) :: kappa
 
-    @:ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. this%tInit_)
     @:ASSERT(size(inp, dim=1) > 0)
     @:ASSERT(size(inp, dim=2) == 2)
 
-    sf%nAtom = size(inp, dim=1)
-    allocate(sf%refCharges(sf%nAtom))
-    allocate(sf%prefactors(sf%nAtom))
-    allocate(sf%shift(sf%nAtom))
-    sf%refCharges = inp(:,1)
-    sf%prefactors = inp(:,2)
-    sf%kappa = kappa
-    sf%tInit = .true.
+    this%nAtom_ = size(inp, dim=1)
+    allocate(this%refCharges_(this%nAtom_))
+    allocate(this%prefactors_(this%nAtom_))
+    allocate(this%shift_(this%nAtom_))
+    this%refCharges_ = inp(:,1)
+    this%prefactors_ = inp(:,2)
+    this%kappa_ = kappa
+    this%tInit_ = .true.
 
-  end subroutine ChrgConstr_init
+  end subroutine TChrgConstr_init
 
 
   !> build the shift (potential)
-  subroutine ChrgConstr_buildShift(sf, chargesPerAtom)
+  subroutine buildShift(this, chargesPerAtom)
 
     !> Instance of a constraint
-    type(TChrgConstr), intent(inout) :: sf
+    class(TChrgConstr), intent(inout) :: this
 
     !> Atomic charges
     real(dp), intent(in) :: chargesPerAtom(:)
 
-    @:ASSERT(sf%tInit)
-    @:ASSERT(size(chargesPerAtom) == size(sf%shift))
+    @:ASSERT(this%tInit_)
+    @:ASSERT(size(chargesPerAtom) == size(this%shift_))
 
-    sf%shift = real(sf%kappa, dp) * sf%prefactors * (chargesPerAtom - sf%refCharges)**(sf%kappa - 1)
+    this%shift_(:) = real(this%kappa_, dp) * this%prefactors_&
+        & * (chargesPerAtom - this%refCharges_)**(this%kappa_ - 1)
 
-  end subroutine ChrgConstr_buildShift
+  end subroutine buildShift
 
 
   !> Add the shift onto a supplied vector
-  subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
+  subroutine addShiftPerAtom(this, shiftPerAtom)
 
     !> Instance of a constraint
-    type(TChrgConstr), intent(in) :: sf
+    class(TChrgConstr), intent(in) :: this
 
     !> Shift to append onto
     real(dp), intent(inout) :: shiftPerAtom(:)
 
-    @:ASSERT(sf%tInit)
-    @:ASSERT(size(shiftPerAtom) == sf%nAtom)
+    @:ASSERT(this%tInit_)
+    @:ASSERT(size(shiftPerAtom) == this%nAtom_)
 
-    shiftPerAtom = shiftPerAtom + sf%shift
+    shiftPerAtom(:) = shiftPerAtom + this%shift_
 
-  end subroutine ChrgConstr_addShiftPerAtom
+  end subroutine addShiftPerAtom
 
 
   !> Energy associated with constrain violation
-  subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
+  subroutine addEnergyPerAtom(this, energyPerAtom, chargesPerAtom)
 
     !> Instance of a constraint
-    type(TChrgConstr), intent(in) :: sf
+    class(TChrgConstr), intent(in) :: this
 
     !> Energy per atom from constraint
     real(dp), intent(inout) :: energyPerAtom(:)
@@ -144,12 +128,13 @@ contains
     !> Instance of a constraint
     real(dp), intent(in) :: chargesPerAtom(:)
 
-    @:ASSERT(sf%tInit)
-    @:ASSERT(size(energyPerAtom) == sf%nAtom)
-    @:ASSERT(size(energyPerAtom) == sf%nAtom)
+    @:ASSERT(this%tInit_)
+    @:ASSERT(size(energyPerAtom) == this%nAtom_)
+    @:ASSERT(size(energyPerAtom) == this%nAtom_)
 
-    energyPerAtom = energyPerAtom + sf%shift * (chargesPerAtom - sf%refCharges) / real(sf%kappa, dp)
+    energyPerAtom(:) = energyPerAtom&
+        & + this%shift_ * (chargesPerAtom - this%refCharges_) / real(this%kappa_, dp)
 
-  end subroutine ChrgConstr_addEnergyPerAtom
+  end subroutine addEnergyPerAtom
 
 end module dftbp_chargeconstr

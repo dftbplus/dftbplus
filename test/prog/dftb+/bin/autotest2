@@ -1,7 +1,7 @@
 #!/bin/sh
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -75,7 +75,7 @@ Usage () {
     cat << EOT
 Performs automated tests and check results with tagdiff
 Usage: ${SCRIPTNAME} [options] [test1 test2 .. ]
-Options (default value in paranthesis):
+Options (default value in parenthesis):
     -r templateroot	path to root of test template directories (SCRIPTDIR/..)
     -w workdir		workdir to run the tests (./)
     -P prerun           command to use before executing binary

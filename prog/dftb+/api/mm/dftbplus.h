@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2020  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -13,6 +13,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Type containing the list of atoms and species to be passed to DFTB+.
+ *
+ * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
+ */
+typedef struct DftbPlusAtomList {
+  void *pDftbPlusAtomList;
+} DftbPlusAtomList;
+
 
 /**
  * Type containing the DFTB+ input tree.
@@ -89,6 +99,15 @@ void dftbp_api(int *major, int *minor, int *patch);
 
 
 /**
+ * Returns whether library was built with instance safe components only.
+ *
+ * Instance safe API support the creation of multiple concurrent DFTB+ instances within one process.
+ *
+ * \return  Whether API is instance safe
+ */
+_Bool dftbp_is_instance_safe();
+
+/**
  * Initializes a DFTB+ calculator.
  *
  * \param[inout] instance  Handler of DFTB+ instance.
@@ -101,11 +120,34 @@ void dftbp_init(DftbPlus *instance, const char *outputfilename);
 
 
 /**
+ * Initializes a DFTB+ calculator (MPI-version).
+ *
+ * \param[inout] instance  Handler of DFTB+ instance.
+ *
+ * \param[in] outputfilename  Name of the file, where the DFTB+ screen output should be written.
+ *     If you pass NULL, it will be written to standard output. If you pass any other file name as a
+ *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to
+ *     suppress output.
+ *
+ * \param[in] mpiComm  MPI-communicator id. Before calling, you must convert your MPI-communicator
+ *     with the mpi_comm_c2f() function to a Fortran MPI-communicator id.
+ */
+void dftbp_init_mpi(DftbPlus *instance, const char *outputfilename, int mpiComm);
+
+
+/**
  * Finalizes a DFTB+ calculator
  *
  *  \param[inout] instance  Handler of the DFTB+ instance.
  */
 void dftbp_final(DftbPlus *instance);
+
+
+/**
+ * Obtain no. of atoms and list of species from the MM program
+ */
+void dftbp_get_atom_list(DftbPlusAtomList *atomListHandler, int *nAtomC, int *nSpeciesC,
+                         char *elementC, int *species);
 
 
 /**
@@ -115,7 +157,7 @@ void dftbp_final(DftbPlus *instance);
  *
  * \param[in] filename Name of the file containing the HSD-input for DFTB+.
  *
- * \param[out] input Handler containing the input tree parsed from the input file.
+ * \param[inout] input Handler containing the input tree parsed from the input file.
  */
 void dftbp_get_input_from_file(DftbPlus *instance, const char *filename, DftbPlusInput *input);
 
@@ -128,7 +170,7 @@ void dftbp_get_input_from_file(DftbPlus *instance, const char *filename, DftbPlu
  * \param[inout] input The tree containing the DFTB+ input. On return, it contains the tree
  *     extended by all the default options set by the parser.
  */
-void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
+void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input, DftbPlusAtomList *atomListHandler);
 
 
 /**

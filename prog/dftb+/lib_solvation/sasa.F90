@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -143,6 +143,9 @@ module dftbp_sasa
 
     !> Returns shifts per atom
     procedure :: getShifts
+
+    !> Is the electrostic field modified by this solvent model?
+    procedure :: isEFieldModified
 
   end type TSASACont
 
@@ -624,5 +627,18 @@ contains
 
   end subroutine getSASA
 
+
+  !> Is the electrostic field modified by this solvent model?
+  function isEFieldModified(this) result(isChanged)
+
+    !> Data structure
+    class(TSASACont), intent(in) :: this
+
+    !> Has the solvent model changed the electrostatic environment
+    logical :: isChanged
+
+    isChanged = .false.
+
+  end function isEFieldModified
 
 end module dftbp_sasa

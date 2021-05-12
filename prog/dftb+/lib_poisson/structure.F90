@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -30,7 +37,8 @@ module structure
   integer, public, allocatable, save :: lmax(:)        !(MAXTYP)
   real(dp), public, allocatable, save :: uhubb(:,:)    !(NORB,MAXTYP)
   
-  
+
+  real(dp), public, save :: initlatvecs(3, 3)
   real(kind=dp),  public, save :: boxsiz(3,3), xnullvec(3)
   logical,  public, save :: period
   logical,  public, save :: period_dir(3)
@@ -83,8 +91,9 @@ module structure
   
       ! computes the three sides
       ! side(:) = sqrt(sum(st_latVecs,dim=1)**2)
-  
-      boxsiz(:,:) = transpose(st_latVecs(:,:))
+
+      initlatvecs(:,:) = st_latVecs
+      boxsiz(:,:) = transpose(st_latVecs)
   
       do i = 1, 3 
          if (abs(boxsiz(i,i))<1.0d-4) then

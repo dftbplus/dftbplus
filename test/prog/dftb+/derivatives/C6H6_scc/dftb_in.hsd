@@ -16,14 +16,14 @@ Geometry = GenFormat {
 }
 
 #Driver = ConjugateGRadient {
-#  MaxForceComponent = 1.0E-8 # very tight tollerance.
+#  MaxForceComponent = 1.0E-8 # very tight tolerance.
 #}
 
 Driver = SecondDerivatives {}
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.0E-10 # abnormally tight tollerance used for accuracy
+  SCCTolerance = 1.0E-10 # abnormally tight tolerance used for accuracy
   MaxAngularMomentum = {
     C = "p"
     H = "s"

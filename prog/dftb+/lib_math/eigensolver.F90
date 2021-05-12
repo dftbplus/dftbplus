@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ module dftbp_eigensolver
   use dftbp_blas
   use dftbp_lapack
 #:if WITH_GPU
-  use magma
+  use dftbp_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
   private
@@ -27,10 +27,6 @@ module dftbp_eigensolver
 #:if WITH_GPU
   public :: gpu_gvd
 #:endif
-
-
-  !> Used to return runtime diagnostics
-  character(len=100) :: error_string
 
 
   !> Simple eigensolver for a symmetric/Hermitian matrix
@@ -126,6 +122,8 @@ contains
     integer n, info
     integer :: int_idealwork
     real(rsp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==size(w,dim=1)))
@@ -175,6 +173,8 @@ contains
     integer n, info
     integer :: int_idealwork
     real(rdp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==size(w,dim=1)))
@@ -225,6 +225,8 @@ contains
     integer n, info
     integer :: int_idealwork
     complex(rsp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==size(w,dim=1)))
@@ -276,6 +278,8 @@ contains
     integer n, info
     integer :: int_idealwork
     complex(rdp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==size(w,dim=1)))
@@ -334,6 +338,8 @@ contains
     integer n, lda, info, iitype, ldb
     integer :: int_idealwork
     real(r${VTYPE}$p) :: idealwork(1)
+    character(len=100) :: error_string
+
   @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
   @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     n = size(a,dim=2)
@@ -364,6 +370,7 @@ contains
       else if (info <= n) then
         write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, diagonal ',&
             & 'element ', i6, ' did not converge to zero.')") info
+        call error(error_string)
       else
         write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv,', &
             & ' non-positive definite overlap! Minor ',i6,' responsible.')") info - n
@@ -402,6 +409,7 @@ contains
     real(rsp), allocatable :: rwork(:)
     integer n, info, iitype, int_idealwork
     complex(rsp) :: idealwork(1)
+    character(len=100) :: error_string
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -473,6 +481,7 @@ contains
     real(rdp), allocatable :: rwork(:)
     integer n, info, iitype, int_idealwork
     complex(rdp) :: idealwork(1)
+    character(len=100) :: error_string
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -545,6 +554,8 @@ contains
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rsp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
@@ -617,6 +628,8 @@ contains
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rdp) :: idealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
@@ -691,6 +704,8 @@ contains
     integer, allocatable :: iwork(:)
     complex(rsp) :: idealwork(1)
     real(rsp) :: ridealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
@@ -767,6 +782,8 @@ contains
     integer, allocatable :: iwork(:)
     complex(rdp) :: idealwork(1)
     real(rdp) :: ridealwork(1)
+    character(len=100) :: error_string
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
@@ -865,6 +882,7 @@ contains
     logical :: subspace
     integer :: ii, jj
     character :: uplo_new
+    character(len=100) :: error_string
 
     n = size(a, dim=1)
 
@@ -1079,6 +1097,7 @@ contains
     logical :: subspace
     integer :: ii, jj
     character :: uplo_new
+    character(len=100) :: error_string
 
     n = size(a, dim=1)
 
@@ -1296,6 +1315,7 @@ contains
     logical :: subspace
     integer :: ii, jj
     character :: uplo_new
+    character(len=100) :: error_string
 
     n = size(a, dim=1)
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
@@ -1516,6 +1536,7 @@ contains
     logical :: subspace
     integer :: ii, jj
     character :: uplo_new
+    character(len=100) :: error_string
 
     n = size(a, dim=1)
 
@@ -1703,6 +1724,7 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     real(rsp) :: zTmp(1,1)
+    character(len=100) :: error_string
 
     if (present(z)) then
       jobz = 'v'
@@ -1781,6 +1803,7 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     real(rdp) :: zTmp(1,1)
+    character(len=100) :: error_string
 
     if (present(z)) then
       jobz = 'v'
@@ -1860,6 +1883,7 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     complex(rsp) :: zTmp(1,1)
+    character(len=100) :: error_string
 
     if (present(z)) then
       jobz = 'v'
@@ -1941,6 +1965,7 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     complex(rdp) :: zTmp(1,1)
+    character(len=100) :: error_string
 
     if (present(z)) then
       jobz = 'v'
@@ -2039,6 +2064,7 @@ contains
 
     integer, allocatable :: iwork(:)
     integer :: lwork, liwork, n, info, iitype
+    character(len=100) :: error_string
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2143,6 +2169,7 @@ contains
     integer :: n, lda, info, int_idealwork, ldvl, ldvr
     real(r${VPREC}$p) :: idealwork(1)
     character :: jobvl, jobvr
+    character(len=100) :: error_string
 
     ! If no eigenvectors requested, need a dummy array for lapack call
     real(r${VPREC}$p) :: dummyvl(1,1), dummyvr(1,1)

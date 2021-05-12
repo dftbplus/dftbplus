@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
-!> Contains data type representing the input data for setupgeom 
+!> Contains data type representing the input data for setupgeom
 module dftbp_inputsetup
   use dftbp_assert
   use dftbp_accuracy
@@ -17,8 +17,8 @@ module dftbp_inputsetup
   use dftbp_commontypes
   use dftbp_repcont
   use dftbp_linkedlist
-  use dftbp_wrappedintr 
-  use libnegf_vars
+  use dftbp_wrappedintr
+  use dftbp_negfvars
 
   implicit none
   private

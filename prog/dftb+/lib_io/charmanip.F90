@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -392,7 +392,7 @@ contains
 
 
   !> Returns a lowercase string
-  pure function tolower(str) result(lower)
+  elemental function tolower(str) result(lower)
 
     !> String to convert to lowercase
     character(len=*), intent(in) :: str

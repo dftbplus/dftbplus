@@ -297,38 +297,15 @@ methods are available:
   \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0
-  & \\
+  \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
-  atoms can be specified as a mixture of a list of atoms, ranges of
-  atoms and/or the species of atoms. Index ranges are specified as
-  \verb|start:end| (without white space as one word!), which
-  inclusively selects all atoms between \verb|start| and \verb|end|.
-  \index{Atom list}\index{List of atoms}
-\begin{verbatim}
-  MovedAtoms = 1:6
-  # equivalent to MovedAtoms = { 1 2 3 4 5 6 }
-\end{verbatim}
-  Negative indices can be used to count backwards from the last atom
-  (-1 = last atom, -2 = penultimate atom, etc.):
-\begin{verbatim}
-  MovedAtoms = 1:-1   # Move all atoms including the last
-\end{verbatim}
-  Species names can be used to select all atoms belonging to a given
-  species:
-\begin{verbatim}
-  MovedAtoms = Ga  # select all Ga atoms
-\end{verbatim}
-  Various specifiers can be combined together:
-\begin{verbatim}
-  # Move atoms 1, 2, 3, all Ga atoms, and the last two atoms.
-  MovedAtoms = 1:3 Ga -2:-1
-\end{verbatim}
+  atoms can be specified via index selection expressions, as described
+  in appendix \ref{sec:index_selection}.
 
 \item[\is{MaxForceComponent}]\modif{\modtype{force}} Optimisation is
   stopped, if the force component with the maximal absolute value goes
@@ -557,8 +534,8 @@ frequencies.
 
 \begin{description}
 \item[\is{Atoms}] Index of the atoms for which to calculate the second
-  derivatives. The atoms can be specified via indices, index ranges
-  and species. (See \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+  derivatives. The index selection format is described in appendix \ref{sec:index_selection}.
+
 \item[\is{Delta}] Step size for numerical differentiation of forces to
   get the second derivatives of the energy with respect to atomic
   coordinates.
@@ -592,8 +569,8 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \end{ptable}
 
 \begin{description}
-\item[\is{MovedAtoms}] List of atoms to move during the MD. (See more
-  detailed description on page \pref{sec:dftbp.SteepestDescent}.)
+\item[\is{MovedAtoms}] List of atoms to move during the MD. The atoms can be specified via index
+selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{Steps}] Number of MD steps to perform. In the case of a
   thermostat using a \kwcb{TemperatureProfile} the number of steps is
@@ -1336,12 +1313,12 @@ following properties:
     }
   }
 \end{verbatim}
-  Alternatively you can specify charges individually on atoms or
-  species using the \kw{AtomCharge} keyword. For every \is{AtomCharge}
-  declaration you must provide a charge and the list of atoms,
-  which should be initialised to that charge. (You can use the
-  same format for the list of atoms, as described at the
-  \is{MovedAtoms} keyword in the section for \isl{SteepestDescent}{sec:dftbp.SteepestDescent}):
+
+Alternatively you can specify charges individually for atoms or species using the \kw{AtomCharge}
+keyword. For every \is{AtomCharge} declaration you must provide a charge and the list of atoms,
+which should be initialised to that charge. (The atoms can be specified via index selection
+expressions, as described in appendix \ref{sec:index_selection}.):
+
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
     AtomCharge = {
@@ -1659,8 +1636,9 @@ specified:
   \end{ptable}
   \begin{description}
   \item[\is{Atoms}] Atoms to specify an initial spin value. The atoms
-    can be specified via indices, index ranges and species. (See
-    \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+    can be specified via indices, index ranges and\slash{}or species. (The
+      atoms can be specified via index selection expressions, as described
+      in appendix \ref{sec:index_selection}.)
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
   this \is{InitialSpins} block.
   \end{description}
@@ -1720,9 +1698,9 @@ distribution:
     \kw{SpinPerAtom} & (3r)+ &  & -  & \\
   \end{ptable}
   \begin{description}
-  \item[\is{Atoms}] Atoms to specify an initial spin vector. The atoms
-    can be specified via indices, index ranges and species. (See
-    \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.)
+  \item[\is{Atoms}] Atoms to specify an initial spin vector. The
+    atoms can be specified via index selection expressions, as described
+    in appendix \ref{sec:index_selection}.
   \item[\is{SpinPerAtom}] Initial spin polarisation for each atom in
     this \is{InitialSpins} block.
   \end{description}
@@ -2970,7 +2948,7 @@ can be adjusted in the input.
   \kw{CutoffInter} & r & & 64 & \\
   \kw{CutoffThree} & r & & 40 & \\
   \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
-  \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+  \kw{ChargeModel} & m & & \is{EEQ} or \is{SelfConsistent} & \pref{sec:dftbp.ChargeModel} \\
   \kw{AtomicNumbers} & m & & \cb & \\
 \end{ptable}
 
@@ -3010,8 +2988,11 @@ can be adjusted in the input.
 \subsubsection{DftD4 ChargeModel}
 \label{sec:dftbp.ChargeModel}
 
-This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
-the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
+This implementation of DFT-D4 supports the \is{EEQ\cb} method to initialize
+the charge model with an electronegativity equilibration~(EEQ) model\cite{rappe1991}
+as well as a self-consistent evaluation of the dispersion with \is{SelfConsistent\cb}.
+
+For the electronegativity equilibration model the following parameters are available.
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
@@ -3122,25 +3103,14 @@ CoordinationNumber = Cov {
 Applies the Tkatchenko-Scheffler dispersion model
 \cite{TkatchenkoPRL09,StohrJCP16}.
 
-\textbf{Note:} DFTB+ uses the external libMBD-library to calculate the
-TS-dispersion. Currently, libMBD calculates the gradients for the TS dispersion
-model by finite differences, resulting in long gradient calculation times for
-large systems.
-
 The following keywords can be used with this dispersion model:
 \begin{ptable}
-  \kw{EnergyAccuracy} & r & & 1e-7 & \\
-  \kw{ForceAccuracy} & r & & 1e-6 & \\
   \kw{Damping} & r & & 20.0 & \\
   \kw{RangeSeparation} & & & 0.94 & \\
   \kw{ReferenceSet} & & & "TS" & \\
   \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
-\item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
-  of the dispersion calculation.
-\item[\is{ForceAccuracy}] \modif{\modtype{force}} Specifies the force accuracy
-  of the dispersion calculation.
 \item[\is{Damping}] Damping factor.
 \item[\is{RangeSeparation}] Range separation parameter. The default value is the
   DFTB LDA-value. Note, that various DFTB-parametrisations may require different
@@ -3332,6 +3302,8 @@ systems.
     \kw{MolecularMass} and \kw{Density} only affect the calculation if
     ``reference'' is chosen as state of the solution.
 
+    Available solvent names and associated constants are given in Appendix~\ref{app:solvents}.
+
   \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
     calculations.
 
@@ -3505,6 +3477,152 @@ CM5 {
 }
 \end{verbatim}
 
+
+\subsubsection{Conductor like screening model}
+\label{sec:dftbp.COSMO}
+
+The conductor like screening model (COSMO)\cite{klamt1993} allows to include dielectric screening effects in quantum chemical calculations.
+DFTB+ uses the fast domain decomposition algorithm\cite{lipparini2013} to minimize the overhead of solving the COSMO equations in the SCC iterations.
+
+In the domain decomposition algorithm the solvation energy is given by
+%
+\begin{equation}
+  E_\text{solv} =
+  \frac12 \left(\frac1{\epsilon_\text{in}}-\frac1{\epsilon_\text{out}}\right)
+  \sum^{N_\text{atoms}}_{j=1}
+  \sum^{N_\text{basis}}_{l=0}\sum^{l}_{m=-l}
+  \left[\Psi_j\right]^m_l \left[X_j\right]^m_l
+\end{equation}
+%
+where $N_\text{basis}$ is the maximum degree of the expansion in spherical harmonics,
+$\left[\Psi_j\right]^m_l$ decribes the interaction of the tight-binding Hamiltonian with
+the spherical harmonics and $\left[X_j\right]^m_l$ are the local solution of the
+block sparse COSMO equation
+%
+\begin{equation}
+  LX=g
+\end{equation}
+
+The right-hand-side of the system of equations depends on the solute potential at the cavity by
+%
+\begin{equation}
+  \left[g_j\right]^m_l =
+  \sum^{N_\text{grid}}_{n=1}
+  w_n
+  Y^m_l(\vec y_n)
+  U^j_n
+  \Psi^j_n
+\end{equation}
+%
+where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
+
+
+\begin{ptable}
+  \kw{FreeEnergyShift} & r & & 0.0 Eh & \\
+  \kw{Temperature} & r & & 298.15 K & \\
+  \kw{State} & s & & gsolv & \\
+  \kw{AngularGrid} & i & & & \\
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
+  \kw{RadiiScaling} & r & & & \\
+  \kw{Solver} & m & & \kw{DomainDecomposition} & \\
+  \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
+    by providing the solvent name as string in the \is{FromName\cb} method or
+    by specifying the necessary values with the \is{FromConstants\cb} method.
+    \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
+    the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
+    solvent density in \kw{Density} \modif{\modtype{massdensity}}.
+    \kw{MolecularMass} and \kw{Density} only affect the calculation if
+    ``reference'' is chosen as state of the solution.
+    Setting \kw{Epsilon} to \is{Inf} results in the ideal conductor limit.
+
+    Available solvent names and associated constants are given in Appendix~\ref{app:solvents}.
+
+  \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
+    calculations.
+
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+    Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
+    as state of the solution.
+
+  \item[\is{State}] \modif{\modtype{energy}}
+    Reference state of the solution for free energy calculations.
+    The calculated state shift is added to the free energy shift.
+    Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
+    The reference state ``gsolv'' corresponds to 1\;l of ideal gas and 1\;l of
+    liquid  solution,
+    ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+    solution at infinite dilution,
+    ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
+
+  \item[\is{AngularGrid}]
+    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    The grid size mainly determines the computational cost of solving the
+    COSMO equations, too small grid sizes can lead to significant errors
+    due to missing rotational invariance.
+    Possible values are
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, 230, 266, 302, 350,
+    434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
+    4334, 4802, 5294, 5810.
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+    Alternatively, \is{VanDerWaalsRadiiCosmo\cb} and \is{VanDerWaalsRadiiBondi\cb}
+    can be used to provide van-der-Waals radii. Note that Bondi radii\cite{mantina2009}
+    are only available for main group elements and Cosmo optimized radii default to
+    2.223~AA if no optimized values are available.
+
+  \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
+    Values greater one between 1.3 and 1.5 are recommended when using DFT-D3 van-der-Waals
+    radii, while for Bondi radii usually values between 1.2 and 1.3 are used.
+    Cosmo optimized radius should be used with a scaling factor of unity.
+
+  \item[\is{Solver}] for the COSMO equation. Currently only
+    \is{DomainDecomposition\cb} is implemented (default). If specified
+    explicitely, following parameters can be set:
+
+    \begin{description}
+      \item[\is{MaxMoment}]
+        Maximum moment for spherical harmonic expansion in the ddCOSMO equations.
+        Moments of 6 and higher are recommended.
+      \item[\is{Regularisation}]
+        Regularisation factor for the ddCOSMO equation. A value of 0.2 is recommended
+      \item[\is{Accuracy}]
+        Convergence criteria for the ddCOSMO equations, this value effects the cost
+        of the solver in the self-consistent charge iterations.
+        The convergence thresholds are automatically decreased for the gradient
+        calculations to avoid numerical noise.
+    \end{description}
+\end{description}
+
+Example for a COSMO model
+
+\begin{verbatim}
+Hamiltonian = Dftb {
+  Solvation = Cosmo {
+    Solvent = FromConstants {
+      Epsilon = 80.2
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    FreeEnergyShift [kcal/mol] = 0.0
+    Radii = VanDerWaalsRadiiD3 {}
+    RadiiScaling = 1.55
+    AngularGrid = 110
+    Solver = DomainDecomposition {
+      MaxMoment = 10
+      Accuracy = 1e-8
+      Regularisation = 0.2
+    }
+  }
+}
+\end{verbatim}
 
 \subsubsection{Solvent area model}
 \label{sec:dftbp.SolventAreaModel}
@@ -4055,6 +4173,7 @@ calculation and/or calculate properties.
 \begin{ptable}
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
+  \kw{WriteCosmoFile} & l & & No & \\
   \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
   \kw{WriteNetCharges} & l & MullikenAnalysis = Yes & No & \\
   \kw{ProjectStates} & m & & \cb & \\
@@ -4064,6 +4183,7 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
+  \kw{Polarisability} & m & Molecular system & \cb & \pref{sec:dftbp.perturbation} \\
 \end{ptable}
 
 \begin{description}
@@ -4077,6 +4197,9 @@ calculation and/or calculate properties.
 \item[\is{WriteNetCharges}] If \is{Yes}, the net charges (component of the
   charge associated only with the on-site part of the atomic orbitals, not the
   off-site hybridisation).
+
+\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is written as
+  a cosmo file to dftbp.cosmo. Only works if the solvation model is COSMO.
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
@@ -4108,8 +4231,8 @@ with the following options
   with \is{ShellResolved}, this only allowed, if all the selected atoms are of
   the same type.
 \item[\is{Atoms}] Specification of the atoms over which to make the
-  projection.. Atoms are specified in the same way as \is{MovedAtoms}
-  in section \ref{sec:dftbp.SteepestDescent}.)
+  projection. The atoms can be specified via index selection expressions, as described
+    in appendix \ref{sec:index_selection}.
 \item[\is{Label}] Prefix of the label for the resulting file of data for this region. The default is
   ``region\textit{i}.out'' where {\it i} is the number of the region in the input. In the case that
   \is{ShellResolved} = \is{Yes}, the shell index is appended, so that files with names
@@ -4249,6 +4372,28 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
+\subsubsection{Polarisability}
+\label{sec:dftbp.perturbation}
+
+Evaluates electric polarisability using coupled-perturbed linear
+response. Currently only molecular (i.e.\ not periodic, helical or transport)
+geometries are supported for perturbation. REKS calculations are not currently
+supported.
+
+In the case of degenerate single particle levels, the reported level derivatives
+(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
+value.
+
+\begin{ptable}
+  \kw{Static} & l & & \is{Yes} & \\
+\end{ptable}
+\begin{description}
+\item[\is{Static}] Evaluates static polarisability with respect to cartesian
+  directions of a static uniform electric field. At the moment, if the
+  \is{Polarisability} block is included, this option should be enabled. In a
+  future release, dynamical polarisability at a finite frequency, $\omega$, will
+  be an alternative possibility in this block.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -4562,9 +4707,8 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
   be set. The positions and velocities every \is{WriteFrequency} steps
   will be saved in XYZ format to \verb|tdcoords.xyz|.
 
-\item[\is{MovedAtoms}] List of atoms that will be moved during the
-  dynamics. See \is{MovedAtoms} in section
-  \ref{sec:dftbp.SteepestDescent}.
+\item[\is{MovedAtoms}] List of atoms that will be moved during the dynamics. The atoms can be
+  specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
@@ -4696,8 +4840,8 @@ Apply time-dependent sinusoidal perturbation to the system.
    such that sinusoidal component of the field is described by
    $\sin(\omega t + \phi)$.
 
- \item[\is{ExcitedAtoms}] List of atoms that will be excited by the
-   laser. The format is the same as the \is{MovedAtoms} keyword.
+ \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The atoms can be
+   specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \end{description}
 
@@ -5154,6 +5298,15 @@ for the energies.
 See the \dptools{} package for utilities for converting the data in this file
 into band-structures and density of states information suitable for plotting.
 
+\subsection{dE\_band.out}
+\label{sec:dftbp.bandout}
+\index{dE\_band.out}
+
+If perturbation calculations of electric field polarizability
+(p.~\pref{sec:dftbp.perturbation}) is enabled and \is{WriteBandOut} = \is{Yes},
+this file contains the derivatives of the band energies in electron volts /
+a.u.\ for each field direction, k-point and spin channel.
+
 \section{detailed.out}
 \label{sec:dftbp.detailedout}
 \index{detailed.out}
@@ -5270,6 +5423,25 @@ Only non-comment lines (lines not starting with "\#") are documented:
     contains two numbers (real and imaginary part).
   \end{itemize}
 \end{itemize}
+
+Each column / row of a square dense matrix belongs to an (atom, orbital) index
+pair, with the orbital index running faster. The order of the atoms follows
+their order in the input geometry. The orbitals are ordered by increasing
+magnetic quantum number ($m$) of each atomic angular shell ($l$), using real
+tesserals functions. The angular shells are ordered according to the input to
+the calculation. In most cases this leads to orbitals ordered by increasing
+($l$, $m$), but for non-minimal or reordered basis functions the shell order
+($l$) may not necessarily be in an increasing order. For the usual minimal
+basis, the standard orbital order runs as
+\begin{equation*}
+  s,\, p_y,\, p_z,\, p_x,\, d_{xy},\, d_{yz},\, d_{z^2},\, d_{xz},\,
+  d_{x^2-y^2},\, f_{y(3x^2-y^2)},\, f_{xyz},\, f_{yz^2},\, f_{z^3},\, f_{xz^2},
+  f_{z(x^2-y^2)},\, f_{x(x^2-3y^2)} \text,
+\end{equation*}
+for an atom, where only the orbitals present in the selected basis of the atom
+are considered. In other more general cases, while $m$ is always in increasing
+order for a given shell, $l$ may be reordered, have multiple shells, or be
+lacking particular $l$ values.
 
 The files are produced if requested by \is{WriteHS} = \is{Yes} (see
 section~\ref{kw:dftbp.WriteHS}).

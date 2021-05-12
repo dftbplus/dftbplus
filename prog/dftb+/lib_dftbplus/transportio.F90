@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_transportio
   use dftbp_message
   use dftbp_orbitals
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use dftbp_negfvars
 #:endif
   implicit none
 
@@ -25,7 +25,7 @@ module dftbp_transportio
   public :: readContactShifts
 #:endif
 
-  integer, parameter :: contactFormatVersion = 1
+  integer, parameter :: contactFormatVersion = 2
 
   character(len=*), parameter :: formatFermiWrite = "(1X,A,T20,F22.18,1X,A,F22.18,1X,A)"
   character(len=*), parameter :: formatFermiRead = "(T20, F22.18)"
@@ -115,8 +115,7 @@ contains
 
 
   !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContactShifts(filename, orb, shiftPerL, charges, Ef, blockShift, blockCharges,&
-      & tWriteAscii)
+  subroutine writeContactShifts(filename, orb, shiftPerL, charges, Ef, blockCharges, tWriteAscii)
 
     !> filename where shifts are written
     character(*), intent(in) :: filename
@@ -124,7 +123,7 @@ contains
     !> orbital structure
     type(TOrbitals), intent(in) :: orb
 
-    !> array of shifts per shell and spin
+    !> array of shifts per shell and spin, only the charge related part is written to disc
     real(dp), intent(in) :: shiftPerL(:,:,:)
 
     !> array of charges per shell and spin
@@ -132,9 +131,6 @@ contains
 
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
-
-    !> block shifts (for DFTB+U etc.)
-    real(dp), allocatable, intent(in) :: blockShift(:,:,:,:)
 
     !> block charge populations
     real(dp), allocatable, intent(in) :: blockCharges(:,:,:,:)
@@ -145,8 +141,8 @@ contains
     integer :: fdHS, nAtom, nSpin, iAt, iSp
     logical :: tAsciiFile
 
-    nSpin = size(shiftPerL, dim=3)
-    nAtom = size(shiftPerL, dim=2)
+    nSpin = size(charges, dim=3)
+    nAtom = size(charges, dim=2)
 
     tAsciiFile = .true.
     if (present(tWriteAscii)) then
@@ -162,15 +158,10 @@ contains
 
       write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
       write(fdHS, *) orb%nOrbAtom
-      write(fdHS, *) shiftPerL
+      write(fdHS, *) shiftPerL(:,:,1)
       write(fdHS, *) charges
 
       if (allocated(blockCharges)) then
-        do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS, *) blockShift(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
-          end do
-        end do
         do iSp = 1, nSpin
           do iAt = 1, nAtom
             write(fdHS, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
@@ -196,15 +187,10 @@ contains
 
       write(fdHS) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
       write(fdHS) orb%nOrbAtom
-      write(fdHS) shiftPerL
+      write(fdHS) shiftPerL(:,:,1)
       write(fdHS) charges
 
       if (allocated(blockCharges)) then
-        do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS) blockShift(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
-          end do
-        end do
         do iSp = 1, nSpin
           do iAt = 1, nAtom
             write(fdHS) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
@@ -227,7 +213,7 @@ contains
 #:if WITH_TRANSPORT
 
   !> Read contact potential shifts from file
-  subroutine readContactShifts(shiftPerL, charges, tp, orb, shiftBlockUp, blockUp)
+  subroutine readContactShifts(shiftPerL, charges, tp, orb, blockUp)
 
     !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
@@ -240,9 +226,6 @@ contains
 
     !> atomic orbital parameters
     type(TOrbitals), intent(in) :: orb
-
-    !> uploded block per atom
-    real(dp), allocatable, intent(inout) :: shiftBlockUp(:,:,:,:)
 
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
@@ -260,9 +243,7 @@ contains
     shiftPerL(:,:) = 0.0_dp
     charges(:,:,:) = 0.0_dp
 
-  @:ASSERT(allocated(blockUp) .eqv. allocated(shiftBlockUp))
-    if (allocated(shiftBlockUp)) then
-      shiftblockUp(:,:,:,:) = 0.0_dp
+    if (allocated(blockUp)) then
       blockUp(:,:,:,:) = 0.0_dp
       tBlock = .true.
     end if
@@ -303,9 +284,11 @@ contains
           fileVersion = iBuffer(1)
           select case (fileVersion)
           case (1)
-            ! Same format as old version (apart of the version number)
-            call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp,&
-                & blockUp)
+            ! Same format as old version (apart from the version number)
+            call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+          case(2)
+            ! Format removes the block shifts, as these are re-generated from block charges
+            call readContactShiftData2(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
           case default
             write(buffer, "(I0)") fileVersion
             call error("Unknown contact version number in file shiftcont_" //&
@@ -328,7 +311,7 @@ contains
           end if
 
           rewind(fdH)
-          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp, blockUp)
+          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
 
         case default
 
@@ -355,8 +338,10 @@ contains
         select case (fileVersion)
         case (1)
           ! From version 1, binary format supported, no need to check for earlier versions
-          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp,&
-              & blockUp)
+          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+        case (2)
+          ! Format removes the block shifts, as these are re-generated from block charges
+          call readContactShiftData2(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
         case default
           write(buffer, "(I0)") fileVersion
           call error("Unknown contact version number in file shiftcont_" //&
@@ -372,8 +357,8 @@ contains
   end subroutine readContactShifts
 
 
-  !> Reads in contact shift data (format 1, ascii)
-  subroutine readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp, blockUp)
+  !> Reads in contact shift data (format 1)
+  subroutine readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
 
     !> File handler
     integer, intent(in) :: fdH
@@ -392,9 +377,6 @@ contains
 
     !> Charges for atoms in contacts
     real(dp), intent(inout) :: charges(:,:,:)
-
-    !> uploded block per atom
-    real(dp), allocatable, intent(inout) :: shiftBlockUp(:,:,:,:)
 
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
@@ -450,31 +432,35 @@ contains
       call error("Incompatible orbitals in the upload file!")
     end if
 
-    if (allocated(shiftBlockUp)) then
+    if (allocated(blockUp)) then
       if (tAsciiFile) then
+        ! read unused shifts for the blocks, using the block charge variable as a workspace
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
+            read(fdH, *) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
           end do
         end do
+        ! actually read the block charges that we need
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH, *) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH, *) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       else
+        ! read unused shifts for the blocks, using the block charge variable as a workspace
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
+            read(fdH) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
           end do
         end do
+        ! actually read the block charges that we need
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       end if
@@ -491,15 +477,122 @@ contains
       tp%contacts(iCont)%tFermiSet = .true.
     end if
 
-    !if (nSpin == 1) then
+    ! only the charge related part of the shift is retained
     shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
-    !else
-    !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
-    !endif
 
     charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
 
   end subroutine readContactShiftData1
+
+
+  !> Reads in contact shift data (format 2)
+  subroutine readContactShiftData2(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+
+    !> File handler
+    integer, intent(in) :: fdH
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Transport parameters
+    type(TTransPar), intent(inout) :: tp
+
+    !> Contact to read
+    integer, intent(in) :: iCont
+
+    !> Shifts for atoms in contacts
+    real(dp), intent(inout) :: shiftPerL(:,:)
+
+    !> Charges for atoms in contacts
+    real(dp), intent(inout) :: charges(:,:,:)
+
+    !> uploaded block charges for atoms
+    real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
+
+    real(dp), allocatable :: chargesSt(:,:,:)
+    integer, allocatable :: nOrbAtom(:)
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt
+    integer :: iStart, iEnd, iSpin, nSpin, iAt, ii
+    character(lc) :: strTmp
+    logical :: tAsciiFile
+
+    nSpin = size(charges, dim=3)
+
+    tAsciiFile = .not.tp%tReadBinShift
+
+    if (tAsciiFile) then
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+    else
+      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt
+    end if
+    iStart = tp%contacts(iCont)%idxrange(1)
+    iEnd = tp%contacts(iCont)%idxrange(2)
+    nContAtom = iEnd - iStart + 1
+
+    if (nAtomSt /= nContAtom) then
+      call error("Upload Contacts: Mismatch in number of atoms.")
+    end if
+    if (mShellSt /= orb%mShell) then
+      call error("Upload Contacts: Mismatch in max shell per atom.")
+    end if
+    if (mOrbSt /= orb%mOrb) then
+      call error("Upload Contacts: Mismatch in orbitals per atom.")
+    end if
+    if (nSpinSt /= nSpin) then
+      write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Expected spin channels ',nSpin
+      call error(trim(strTmp))
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+    if (tAsciiFile) then
+      read(fdH, *) nOrbAtom
+      read(fdH, *) shiftPerL(:,iStart:iEnd)
+      read(fdH, *) chargesSt
+    else
+      read(fdH) nOrbAtom
+      read(fdH) shiftPerL(:,iStart:iEnd)
+      read(fdH) chargesSt
+    end if
+
+    if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    if (allocated(blockUp)) then
+      if (tAsciiFile) then
+        ! read the block charges that we need
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH, *) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+          end do
+        end do
+      else
+        ! read the block charges that we need
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+          end do
+        end do
+      end if
+    end if
+
+    if (.not. tp%contacts(iCont)%tFermiSet) then
+      if (tAsciiFile) then
+        do iSpin = 1, nSpin
+          read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
+        end do
+      else
+        read(fdH) tp%contacts(iCont)%eFermi(:nSpin)
+      end if
+      tp%contacts(iCont)%tFermiSet = .true.
+    end if
+
+    charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+
+  end subroutine readContactShiftData2
 
 #:endif
 
