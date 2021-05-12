@@ -9,14 +9,14 @@
 
 !> Module containing various routines for DFTB+U calculations
 !> Intended to be used with SCC switched on !
-module dftbp_dftbplusu
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_fileid
-  use dftbp_commontypes
-  use dftbp_spin
-  use dftbp_sorting, only : heap_sort
+module dftbp_dftb_dftbplusu
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_io_fileid
+  use dftbp_type_commontypes
+  use dftbp_dftb_spin
+  use dftbp_math_sorting, only : heap_sort
   implicit none
   private
 
@@ -650,4 +650,4 @@ contains
 
   end function funcName
 
-end module dftbp_dftbplusu
+end module dftbp_dftb_dftbplusu

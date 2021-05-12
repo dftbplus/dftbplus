@@ -7,10 +7,10 @@
 
 #:include 'common.fypp'
 
-module dftbp_degeneracyfind
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
+module dftbp_math_degeneracy
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
   implicit none
 
   private
@@ -260,4 +260,4 @@ contains
 
   end subroutine degeneracyRanges
   
-end module dftbp_degeneracyfind
+end module dftbp_math_degeneracy

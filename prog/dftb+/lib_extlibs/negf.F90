@@ -7,7 +7,7 @@
 #:include "common.fypp"
 
 !> Interfaces to libNEGF
-module dftbp_negf
+module dftbp_extlibs_negf
   use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, kb, units
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init, negf_cart_init
@@ -28,4 +28,4 @@ module dftbp_negf
 
   public
 
-end module dftbp_negf
+end module dftbp_extlibs_negf

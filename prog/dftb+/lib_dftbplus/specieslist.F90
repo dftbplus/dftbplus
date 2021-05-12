@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Routines to deal with HSD species lists
-module dftbp_specieslist
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : elementSymbol
-  use dftbp_hsdutils, only : getChildValue, getChild
-  use dftbp_xmlf90, only : fnode
+module dftbp_dftbplus_specieslist
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : elementSymbol
+  use dftbp_io_hsdutils, only : getChildValue, getChild
+  use dftbp_extlibs_xmlf90, only : fnode
   implicit none
   private
 
@@ -120,4 +120,4 @@ contains
   end subroutine readSpeciesListInt
 
 
-end module dftbp_specieslist
+end module dftbp_dftbplus_specieslist

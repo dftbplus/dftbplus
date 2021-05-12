@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Contains routines for interpolation and extrapolation
-module dftbp_interpolation
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
+module dftbp_math_interpolation
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_io_message
   implicit none
   private
 
@@ -308,4 +308,4 @@ contains
 
   end function polyInter
 
-end module dftbp_interpolation
+end module dftbp_math_interpolation

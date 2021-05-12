@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains enumeration of force calculation types
-module dftbp_forcetypes
+module dftbp_dftbplus_forcetypes
   implicit none
   private
 
@@ -29,4 +29,4 @@ module dftbp_forcetypes
   !> Container for enumerated force calculation types.
   type(TForceTypesEnum), parameter :: forceTypes = TForceTypesEnum()
 
-end module dftbp_forcetypes
+end module dftbp_dftbplus_forcetypes

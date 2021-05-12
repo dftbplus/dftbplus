@@ -8,38 +8,38 @@
 #:include "common.fypp"
 
 !> Interface to LIBNEGF for DFTB+
-module dftbp_negfint
-  use dftbp_negfvars
-  use dftbp_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
+module dftbp_transport_negfint
+  use dftbp_transport_negfvars
+  use dftbp_extlibs_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
-  use dftbp_negf, only : negf_mpi_init, negf_cart_init
+  use dftbp_extlibs_negf, only : negf_mpi_init, negf_cart_init
 #:endif
-  use dftbp_negf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
-  use dftbp_negf, only : associate_lead_currents, associate_ldos, associate_transmission
-  use dftbp_negf, only : associate_current, compute_current, compute_density_dft, compute_ldos
-  use dftbp_negf, only : create, create_scratch, destroy, set_readoldDMsgf
-  use dftbp_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
-  use dftbp_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
-  use dftbp_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
-  use dftbp_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch
-  use dftbp_negf, only : writememinfo, writepeakinfo, printcsr
-  use dftbp_accuracy
-  use dftbp_environment
-  use dftbp_constants
-  use dftbp_matconv
-  use dftbp_sparse2dense
-  use dftbp_densedescr
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_formatout
-  use dftbp_globalenv, only : stdOut, tIOproc
-  use dftbp_message
-  use dftbp_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_linkedlist
-  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
-  use dftbp_assert
-  use dftbp_eigensolver
+  use dftbp_extlibs_negf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use dftbp_extlibs_negf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use dftbp_extlibs_negf, only : associate_current, compute_current, compute_density_dft, compute_ldos
+  use dftbp_extlibs_negf, only : create, create_scratch, destroy, set_readoldDMsgf
+  use dftbp_extlibs_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use dftbp_extlibs_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
+  use dftbp_extlibs_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
+  use dftbp_extlibs_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch
+  use dftbp_extlibs_negf, only : writememinfo, writepeakinfo, printcsr
+  use dftbp_common_accuracy
+  use dftbp_common_environment
+  use dftbp_common_constants
+  use dftbp_transport_matconv
+  use dftbp_dftb_sparse2dense
+  use dftbp_type_densedescr
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_io_formatout
+  use dftbp_common_globalenv, only : stdOut, tIOproc
+  use dftbp_io_message
+  use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_type_linkedlist
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
+  use dftbp_common_assert
+  use dftbp_math_eigensolver
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
   implicit none
 
@@ -94,7 +94,7 @@ contains
     !> Parameters for the Green's function calculation
     Type(TNEGFGreenDensInfo), intent(in) :: greendens
 
-    !> parameters for tuneling and density of states evaluation
+    !> Parameters for tuneling and density of states evaluation
     Type(TNEGFTunDos), intent(in) :: tundos
 
     !> Electronic temperature
@@ -2414,4 +2414,4 @@ contains
   end subroutine orthogonalization_dev
 
 
-end module dftbp_negfint
+end module dftbp_transport_negfint

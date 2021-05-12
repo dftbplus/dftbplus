@@ -9,18 +9,18 @@
 
 !> Module to wrap around the process of converting from a Hamiltonian and overlap in sparse form
 !> into eigenvectors
-module dftbp_eigenvects
-  use dftbp_environment, only : TEnvironment
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_eigensolver
-  use dftbp_message
+module dftbp_dftbplus_eigenvects
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_math_eigensolver
+  use dftbp_io_message
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_extlibs_scalapackfx
 #:endif
-  use dftbp_elsiiface
-  use dftbp_parallelks
-  use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
+  use dftbp_extlibs_elsiiface
+  use dftbp_type_parallelks
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   implicit none
   private
 
@@ -289,4 +289,4 @@ contains
 
 #:endif
 
-end module dftbp_eigenvects
+end module dftbp_dftbplus_eigenvects

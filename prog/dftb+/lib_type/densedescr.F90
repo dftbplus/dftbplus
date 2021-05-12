@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Module for square dense matrix specification
-module dftbp_densedescr
-  use dftbp_scalapackfx
+module dftbp_type_densedescr
+  use dftbp_extlibs_scalapackfx
   implicit none
   private
 
@@ -43,4 +43,4 @@ module dftbp_densedescr
 
   end type TDenseDescr
 
-end module dftbp_densedescr
+end module dftbp_type_densedescr

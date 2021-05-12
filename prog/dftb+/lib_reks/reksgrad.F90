@@ -15,29 +15,29 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksgrad
+module dftbp_reks_reksgrad
 
 #:if WITH_OMP
   use omp_lib
 #:endif
-  use dftbp_accuracy
-  use dftbp_blasroutines, only : gemm, gemv
-  use dftbp_coulomb, only : addInvRPrime
-  use dftbp_densedescr
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_lapackroutines, only : getrf, getri
-  use dftbp_message
-  use dftbp_nonscc
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_rangeseparated
-  use dftbp_scc
-  use dftbp_schedule
-  use dftbp_slakocont
-  use dftbp_sparse2dense
-  use dftbp_rekscommon
-  use dftbp_reksvar, only : reksTypes
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines, only : gemm, gemv
+  use dftbp_dftb_coulomb, only : addInvRPrime
+  use dftbp_type_densedescr
+  use dftbp_common_environment
+  use dftbp_common_globalenv
+  use dftbp_math_lapackroutines, only : getrf, getri
+  use dftbp_io_message
+  use dftbp_dftb_nonscc
+  use dftbp_type_orbitals
+  use dftbp_dftb_periodic
+  use dftbp_dftb_rangeseparated
+  use dftbp_dftb_scc
+  use dftbp_common_schedule
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_sparse2dense
+  use dftbp_reks_rekscommon
+  use dftbp_reks_reksvar, only : reksTypes
 
   implicit none
 
@@ -5913,4 +5913,4 @@ module dftbp_reksgrad
   end subroutine getOtherSAgrad22_
 
 
-end module dftbp_reksgrad
+end module dftbp_reks_reksgrad

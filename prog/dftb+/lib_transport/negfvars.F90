@@ -5,11 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_negfvars
-  use dftbp_accuracy, only : dp, mc, lc
-  use dftbp_commontypes
-  use dftbp_wrappedintr
-  use dftbp_xmlf90
+module dftbp_transport_negfvars
+  use dftbp_common_accuracy, only : dp, mc, lc
+  use dftbp_type_commontypes
+  use dftbp_type_wrappedintr
+  use dftbp_extlibs_xmlf90
   implicit none
   private
 
@@ -465,4 +465,4 @@ contains
   end subroutine copyTranspar
 
 
-end module dftbp_negfvars
+end module dftbp_transport_negfvars

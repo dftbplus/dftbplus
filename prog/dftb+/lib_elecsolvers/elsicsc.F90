@@ -8,18 +8,18 @@
 #:include 'common.fypp'
 
 !> Contains routines for converting from and to ELSI CSC format.
-module dftbp_elsicsc
+module dftbp_elecsolvers_elsicsc
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_constants, only : pi
-  use dftbp_message, only : error
-  use dftbp_angmomentum, only : rotateZ
-  use dftbp_commontypes, only : TOrbitals
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_common_constants, only : pi
+  use dftbp_io_message, only : error
+  use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   private
 
@@ -1134,4 +1134,4 @@ contains
 
 #:endif
 
-end module dftbp_elsicsc
+end module dftbp_elecsolvers_elsicsc

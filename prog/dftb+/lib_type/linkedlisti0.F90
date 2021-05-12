@@ -8,8 +8,8 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for single integers
-module dftbp_linkedlisti0
-  use dftbp_assert
+module dftbp_type_linkedlisti0
+  use dftbp_common_assert
   implicit none
   private
 
@@ -18,4 +18,4 @@ module dftbp_linkedlisti0
       & ITEM_TYPE='integer',&
       & PADDING='0')
 
-end module dftbp_linkedlisti0
+end module dftbp_type_linkedlisti0

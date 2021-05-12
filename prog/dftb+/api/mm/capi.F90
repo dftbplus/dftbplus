@@ -9,11 +9,11 @@
 module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
-  use dftbp_accuracy, only : dp
-  use dftbp_linkedlist
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_linkedlist
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
-  use dftbp_qdepextpotgenc, only :&
+  use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   implicit none
   private

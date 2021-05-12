@@ -5,12 +5,12 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
-module structure
+module dftbp_poisson_structure
 
-  use dftbp_accuracy, only : dp
-  use gallocation
-  use mpi_poisson
-  use dftbp_globalenv, only : stdOut
+  use dftbp_common_accuracy, only : dp
+  use dftbp_poisson_gallocation
+  use dftbp_poisson_mpi_poisson
+  use dftbp_common_globalenv, only : stdOut
    
   implicit none
   private
@@ -327,5 +327,5 @@ module structure
    end subroutine buildsupercell
    
    
- end module structure
+ end module dftbp_poisson_structure
  

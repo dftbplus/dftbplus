@@ -13,17 +13,17 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksproperty
+module dftbp_reks_reksproperty
 
-  use dftbp_accuracy
-  use dftbp_blasroutines, only : gemm
-  use dftbp_densitymatrix
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_sparse2dense
-  use dftbp_rekscommon
-  use dftbp_reksio
-  use dftbp_reksvar, only : reksTypes
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_dftb_densitymatrix
+  use dftbp_common_globalenv
+  use dftbp_io_message
+  use dftbp_dftb_sparse2dense
+  use dftbp_reks_rekscommon
+  use dftbp_reks_reksio
+  use dftbp_reks_reksvar, only : reksTypes
 
   implicit none
 
@@ -853,4 +853,4 @@ module dftbp_reksproperty
   end subroutine getResponseDML22_
 
 
-end module dftbp_reksproperty
+end module dftbp_reks_reksproperty

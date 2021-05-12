@@ -8,30 +8,30 @@
 #:include 'common.fypp'
 
 !> Contains the interface to the ELSI solvers
-module dftbp_elsisolver
+module dftbp_elecsolvers_elsisolver
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_environment, only : TEnvironment, globalTimers
-  use dftbp_globalenv, only : stdOut
-  use dftbp_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_elsiiface
-  use dftbp_elsicsc
-  use dftbp_densedescr
-  use dftbp_periodic
-  use dftbp_orbitals
-  use dftbp_message, only : error, warning, cleanshutdown
-  use dftbp_commontypes, only : TParallelKS, TOrbitals
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_sparse2dense
-  use dftbp_assert
-  use dftbp_spin, only : ud2qm
-  use dftbp_angmomentum, only : getLOnsite
-  use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use dftbp_potentials, only : TPotentials
-  use dftbp_version, only : TVersion
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_extlibs_elsiiface
+  use dftbp_elecsolvers_elsicsc
+  use dftbp_type_densedescr
+  use dftbp_dftb_periodic
+  use dftbp_type_orbitals
+  use dftbp_io_message, only : error, warning, cleanshutdown
+  use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_sparse2dense
+  use dftbp_common_assert
+  use dftbp_dftb_spin, only : ud2qm
+  use dftbp_math_angmomentum, only : getLOnsite
+  use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_common_version, only : TVersion
   implicit none
   private
 
@@ -2095,4 +2095,4 @@ contains
 
 #:endif
 
-end module dftbp_elsisolver
+end module dftbp_elecsolvers_elsisolver

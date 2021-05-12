@@ -10,12 +10,12 @@
 !> Implements the Extended Lagrangian Born-Oppenheimer MD.
 !> Aradi et al. Extended lagrangian density functional tight-binding molecular dynamics for
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
-module dftbp_xlbomd
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message
-  use dftbp_extlagrangian
+module dftbp_md_xlbomd
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message
+  use dftbp_md_extlagrangian
   implicit none
   private
 
@@ -284,4 +284,4 @@ contains
 
   end subroutine readJacobianKernel
 
-end module dftbp_xlbomd
+end module dftbp_md_xlbomd

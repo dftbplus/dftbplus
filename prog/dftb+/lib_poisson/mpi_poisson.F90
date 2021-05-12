@@ -8,7 +8,7 @@
 
 #:include 'common.fypp'
 
-module mpi_poisson
+module dftbp_poisson_mpi_poisson
 
 #:if WITH_MPI
   use libmpifx_module
@@ -134,4 +134,4 @@ module mpi_poisson
 #:endif
 
 
-end module mpi_poisson
+end module dftbp_poisson_mpi_poisson

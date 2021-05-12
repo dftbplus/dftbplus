@@ -6,17 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
-module dftbp_typegeometryhsd
-  use dftbp_typegeometry
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_tokenreader
-  use dftbp_unitconversion
-  use dftbp_linkedlist
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_simplealgebra, only : invert33, determinant33
-  use dftbp_xmlf90, flib_normalize => normalize
+module dftbp_type_typegeometryhsd
+  use dftbp_type_typegeometry
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_io_tokenreader
+  use dftbp_common_unitconversion
+  use dftbp_type_linkedlist
+  use dftbp_io_charmanip
+  use dftbp_io_message
+  use dftbp_math_simplealgebra, only : invert33, determinant33
+  use dftbp_extlibs_xmlf90, flib_normalize => normalize
   implicit none
   private
 
@@ -760,4 +760,4 @@ contains
   end function nextLine
 
 
-end module dftbp_typegeometryhsd
+end module dftbp_type_typegeometryhsd

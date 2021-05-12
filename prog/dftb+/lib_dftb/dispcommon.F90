@@ -11,16 +11,16 @@
 !> Periodic summation from the following references:
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
-module dftbp_dispcommon
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only : pi
-  use dftbp_environment, only : TEnvironment
-  use dftbp_errorfunction
-  use dftbp_message
-  use dftbp_simplealgebra, only : cross3
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_sorting
+module dftbp_dftb_dispcommon
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_math_errorfunction
+  use dftbp_io_message
+  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_math_sorting
   implicit none
   private
 
@@ -545,4 +545,4 @@ contains
 
   end function getDispReciprocalError
 
-end module dftbp_dispcommon
+end module dftbp_dftb_dispcommon

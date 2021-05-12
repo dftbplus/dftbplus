@@ -15,11 +15,11 @@
 !> Caveat All folding and unfolding routines assume, that the CSR matrices have the same sparsity
 !> structure as the internal sparse matrices. The CSR matrices must be created using the
 !> createEquivCSR routines.
-module dftbp_matconv
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only : pi
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_transport_matconv
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : pi
+  use dftbp_type_commontypes, only : TOrbitals
   use libnegf, only: r_CSR, z_CSR, r_DNS, z_DNS, create, destroy
   implicit none
   private
@@ -876,4 +876,4 @@ contains
   end subroutine zdestroy_DNS
 
 
-end module dftbp_matconv
+end module dftbp_transport_matconv

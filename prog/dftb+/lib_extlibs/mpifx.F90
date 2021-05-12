@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Exporting mpifx functionality if compiled with mpi support, otherwise empty.
-module dftbp_mpifx
+module dftbp_extlibs_mpifx
 #:if WITH_MPI
   use libmpifx_module
 #:endif
   implicit none
   public
 
-end module dftbp_mpifx
+end module dftbp_extlibs_mpifx

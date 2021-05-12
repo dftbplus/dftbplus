@@ -8,20 +8,20 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
-module dftbp_periodic
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only : pi
-  use dftbp_message
-  use dftbp_sorting
-  use dftbp_bisect
-  use dftbp_linkedlist
-  use dftbp_simplealgebra, only : determinant33, invert33
-  use dftbp_commontypes
-  use dftbp_memman
-  use dftbp_latpointiter
-  use dftbp_quaternions, only : rotate3
-  use dftbp_boundarycond, only : zAxis
+module dftbp_dftb_periodic
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : pi
+  use dftbp_io_message
+  use dftbp_math_sorting
+  use dftbp_math_bisect
+  use dftbp_type_linkedlist
+  use dftbp_math_simplealgebra, only : determinant33, invert33
+  use dftbp_type_commontypes
+  use dftbp_common_memman
+  use dftbp_type_latpointiter
+  use dftbp_math_quaternions, only : rotate3
+  use dftbp_dftb_boundarycond, only : zAxis
   implicit none
 
   private
@@ -1235,4 +1235,4 @@ contains
 
   end subroutine cyl2cart_array
 
-end module dftbp_periodic
+end module dftbp_dftb_periodic

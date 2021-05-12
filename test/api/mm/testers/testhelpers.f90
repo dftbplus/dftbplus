@@ -9,8 +9,8 @@
 
 module testhelpers
   use, intrinsic :: iso_c_binding
-  use dftbp_accuracy, only : dp
-  use dftbp_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
   implicit none
   private
 

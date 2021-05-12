@@ -10,24 +10,24 @@
 
 !> excitations energies according to the particle-particle Random Phase Approximation
 !> (doi:10.1063/1.4977928)
-module dftbp_pprpa
-  use dftbp_assert
-  use dftbp_linrespcommon
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_shortgamma
-  use dftbp_accuracy
-  use dftbp_constants, only : Hartree__eV
-  use dftbp_scc, only : TScc
-  use dftbp_blasroutines
-  use dftbp_eigensolver
-  use dftbp_message
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_sorting
-  use dftbp_qm
-  use dftbp_transcharges
-  use dftbp_densedescr
-  use dftbp_fileid
+module dftbp_timedep_pprpa
+  use dftbp_common_assert
+  use dftbp_timedep_linrespcommon
+  use dftbp_type_commontypes
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_shortgamma
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : Hartree__eV
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_math_blasroutines
+  use dftbp_math_eigensolver
+  use dftbp_io_message
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_sorting
+  use dftbp_math_qm
+  use dftbp_timedep_transcharges
+  use dftbp_type_densedescr
+  use dftbp_io_fileid
   implicit none
   private
 
@@ -755,4 +755,4 @@ contains
   end subroutine writeppRPAExcitations
 
 
-end module dftbp_pprpa
+end module dftbp_timedep_pprpa

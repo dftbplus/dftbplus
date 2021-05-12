@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> DFT-D3 dispersion model.
-module dftbp_dispdftd3
-  use dftbp_assert
-  use dftbp_accuracy
+module dftbp_dftb_dispdftd3
+  use dftbp_common_assert
+  use dftbp_common_accuracy
   use dftbp_dispiface
-  use dftbp_dftd3
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_simplealgebra, only : determinant33
-  use dftbp_constants
+  use dftbp_extlibs_dftd3
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_common_constants
   implicit none
   private
 
@@ -397,4 +397,4 @@ contains
 
   end subroutine addHHRepulsion
 
-end module dftbp_dispdftd3
+end module dftbp_dftb_dispdftd3

@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 program dftbplus
-  use dftbp_globalenv
-  use dftbp_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_main, only : runDftbPlus
-  use dftbp_inputdata, only : TInputData
-  use dftbp_formatout, only : printDftbHeader
-  use dftbp_hsdhelpers, only : parseHsdInput
-  use dftbp_initprogram, only : TDftbPlusMain
+  use dftbp_common_globalenv
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_dftbplus_main, only : runDftbPlus
+  use dftbp_dftbplus_inputdata, only : TInputData
+  use dftbp_io_formatout, only : printDftbHeader
+  use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'

@@ -10,12 +10,12 @@
 !> Contains routines to calculate the value of one or more molecular orbitals composed from STOs on
 !> an equidistant grid.
 module dftbp_molecularorbital
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_typegeometry
   use dftbp_slater
-  use dftbp_simplealgebra
-  use dftbp_periodic, only: getCellTranslations, foldCoordToUnitCell
+  use dftbp_math_simplealgebra
+  use dftbp_dftb_periodic, only: getCellTranslations, foldCoordToUnitCell
   implicit none
 
   private

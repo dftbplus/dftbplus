@@ -8,9 +8,9 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list of single strings
-module dftbp_linkedlists0
-  use dftbp_assert
-  use dftbp_xmlf90
+module dftbp_type_linkedlists0
+  use dftbp_common_assert
+  use dftbp_extlibs_xmlf90
   implicit none
   private
 
@@ -20,4 +20,4 @@ module dftbp_linkedlists0
       & NODE_TYPE='type(string)',&
       & PADDING="''", )
 
-end module dftbp_linkedlists0
+end module dftbp_type_linkedlists0

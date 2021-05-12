@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Provides functions to check relations between versions.
-module dftbp_version
+module dftbp_common_version
   implicit none
 
   private
@@ -196,4 +196,4 @@ contains
   end function unequal
 
 
-end module dftbp_version
+end module dftbp_common_version

@@ -16,20 +16,20 @@
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
 !> * Onsite corrections are not included in this version
-module dftbp_linresp
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_fileid
-  use dftbp_scc, only : TScc
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_densedescr
-  use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_linrespgrad
-  use dftbp_arpack, only : withArpack
-  use dftbp_linresptypes
+module dftbp_timedep_linresp
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_type_commontypes
+  use dftbp_dftb_slakocont
+  use dftbp_io_fileid
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_type_densedescr
+  use dftbp_io_taggedoutput, only : TTaggedWriter
+  use dftbp_timedep_linrespgrad
+  use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_timedep_linresptypes
   implicit none
   private
 
@@ -426,4 +426,4 @@ contains
 
   end subroutine LinResp_addGradients
 
-end module dftbp_linresp
+end module dftbp_timedep_linresp

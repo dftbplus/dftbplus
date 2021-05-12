@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a type with basis information
-module dftbp_orbitals
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_constants, only : shellNames
+module dftbp_type_orbitals
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_common_constants, only : shellNames
   implicit none
   private
 
@@ -104,4 +104,4 @@ contains
   end subroutine getShellNames
 
 
-end module dftbp_orbitals
+end module dftbp_type_orbitals

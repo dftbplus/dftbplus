@@ -9,17 +9,17 @@
 
 !> Contains types and functions and subroutines for manipulating linked lists.  Every list must be
 !> initialized with init, and destroyed with destroy.
-module dftbp_linkedlist
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_linkedlisti0
-  use dftbp_linkedlisti1
-  use dftbp_linkedlistr0
-  use dftbp_linkedlistr1
-  use dftbp_linkedlistr2
-  use dftbp_linkedlistmc0
-  use dftbp_linkedlistlc0
-  use dftbp_linkedlists0
+module dftbp_type_linkedlist
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_linkedlisti0
+  use dftbp_type_linkedlisti1
+  use dftbp_type_linkedlistr0
+  use dftbp_type_linkedlistr1
+  use dftbp_type_linkedlistr2
+  use dftbp_type_linkedlistmc0
+  use dftbp_type_linkedlistlc0
+  use dftbp_type_linkedlists0
   implicit none
   private
 
@@ -62,4 +62,4 @@ contains
 
   end function charLc
 
-end module dftbp_linkedlist
+end module dftbp_type_linkedlist

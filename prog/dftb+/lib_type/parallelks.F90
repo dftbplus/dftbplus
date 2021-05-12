@@ -8,8 +8,8 @@
 #:include "common.fypp"
 
 !> Provides data structure for parallelising over k-points and spin.
-module dftbp_parallelks
-  use dftbp_environment
+module dftbp_type_parallelks
+  use dftbp_common_environment
   implicit none
   private
 
@@ -89,4 +89,4 @@ contains
   end subroutine TParallelKS_init
 
 
-end module dftbp_parallelks
+end module dftbp_type_parallelks

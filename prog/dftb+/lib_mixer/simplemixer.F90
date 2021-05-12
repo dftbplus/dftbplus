@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Simple mixer for mixing charges
-module dftbp_simplemixer
-  use dftbp_assert
-  use dftbp_accuracy
+module dftbp_mixer_simplemixer
+  use dftbp_common_assert
+  use dftbp_common_accuracy
   implicit none
 
   private
@@ -97,4 +97,4 @@ contains
 
   end subroutine SimpleMixer_mix
 
-end module dftbp_simplemixer
+end module dftbp_mixer_simplemixer

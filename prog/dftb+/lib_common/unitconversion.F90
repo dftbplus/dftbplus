@@ -7,8 +7,8 @@
 
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
-module dftbp_unitconversion
-  use dftbp_constants
+module dftbp_common_unitconversion
+  use dftbp_common_constants
   implicit none
 
   public
@@ -286,4 +286,4 @@ module dftbp_unitconversion
       & unit("au                  ", 1.0_dp)]
 
 
-end module dftbp_unitconversion
+end module dftbp_common_unitconversion

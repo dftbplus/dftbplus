@@ -8,16 +8,16 @@
 #:include 'common.fypp'
 
 !> Routines to calculate contributions to the stress tensor
-module dftbp_stress
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_repcont
-  use dftbp_schedule
-  use dftbp_environment
+module dftbp_dftb_stress
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_scc
+  use dftbp_type_commontypes
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_repcont
+  use dftbp_common_schedule
+  use dftbp_common_environment
   implicit none
   private
 
@@ -460,4 +460,4 @@ contains
   end subroutine getBlockiStress
 
 
-end module dftbp_stress
+end module dftbp_dftb_stress

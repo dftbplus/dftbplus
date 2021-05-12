@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Routines for calculating the interaction with external charges
-module dftbp_extcharges
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
-  use dftbp_constants, only : pi
-  use dftbp_coulomb, only : TCoulomb
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : foldCoordToUnitCell
+module dftbp_dftb_extcharges
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_constants, only : pi
+  use dftbp_dftb_coulomb, only : TCoulomb
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_periodic, only : foldCoordToUnitCell
   implicit none
 
   private
@@ -318,4 +318,4 @@ contains
   end subroutine copyInvRvec
 
 
-end module dftbp_extcharges
+end module dftbp_dftb_extcharges

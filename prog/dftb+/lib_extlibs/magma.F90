@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> MAGMA GPU interface library
-module dftbp_magma
+module dftbp_extlibs_magma
   use, intrinsic :: iso_c_binding, only : c_int
 #:if WITH_GPU
   use magma, only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
@@ -30,7 +30,7 @@ module dftbp_magma
   interface
 
     !> Initialises magma and queries the nr. of available GPUs.
-    subroutine  getGpusAvailable(nGpu) bind(C, name='dftbp_magma_get_gpus_available')
+    subroutine  getGpusAvailable(nGpu) bind(C, name='dftbp_extlibs_magma_get_gpus_available')
 
       import :: c_int
       implicit none
@@ -42,7 +42,7 @@ module dftbp_magma
 
 
     !> Returns the nr. of GPUs requested by MAGMA.
-    subroutine getGpusRequested(nGpuReq) bind(C, name='dftbp_magma_get_gpus_requested')
+    subroutine getGpusRequested(nGpuReq) bind(C, name='dftbp_extlibs_magma_get_gpus_requested')
 
       import :: c_int
       implicit none
@@ -56,4 +56,4 @@ module dftbp_magma
 
 #:endif
 
-end module dftbp_magma
+end module dftbp_extlibs_magma

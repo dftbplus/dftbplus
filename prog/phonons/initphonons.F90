@@ -8,30 +8,30 @@
 #:include 'common.fypp'
 
 module dftbp_initphonons
-  use dftbp_assert
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_tokenreader
-  use dftbp_xmlutils
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
+  use dftbp_common_assert
+  use dftbp_common_globalenv
+  use dftbp_common_environment
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
+  use dftbp_io_tokenreader
+  use dftbp_io_xmlutils
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
   use xmlf90_flib_dom
-  use dftbp_linkedList
-  use dftbp_charmanip
-  use dftbp_accuracy
-  use dftbp_periodic
-  use dftbp_constants
-  use dftbp_atomicmass
-  use dftbp_typeGeometryhsd
-  use dftbp_message
-  use dftbp_fileId
-  use dftbp_unitconversion
-  use dftbp_linkedlist
-  use dftbp_oldskdata
-  use dftbp_wrappedintr
-  use dftbp_simplealgebra
-  use dftbp_negfvars
+  use dftbp_type_linkedlist
+  use dftbp_io_charmanip
+  use dftbp_common_accuracy
+  use dftbp_dftb_periodic
+  use dftbp_common_constants
+  use dftbp_common_atomicmass
+  use dftbp_type_typegeometryhsd
+  use dftbp_io_message
+  use dftbp_io_fileid
+  use dftbp_common_unitconversion
+  use dftbp_type_linkedlist
+  use dftbp_type_oldskdata
+  use dftbp_type_wrappedintr
+  use dftbp_math_simplealgebra
+  use dftbp_transport_negfvars
   implicit none
   private
 

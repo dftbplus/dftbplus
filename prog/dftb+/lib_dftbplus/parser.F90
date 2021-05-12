@@ -8,65 +8,65 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module dftbp_parser
-  use dftbp_globalenv
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_inputdata
-  use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : getNodeHSDName, parseHSD
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_specieslist, only : readSpeciesList
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_linkedlist
-  use dftbp_unitconversion
-  use dftbp_oldcompat
-  use dftbp_inputconversion
-  use dftbp_lapackroutines, only : matinv
-  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling
-  use dftbp_periodic, only : getCellTranslations, updateNeighbourList
-  use dftbp_coordnumber
-  use dftbp_dispersions
-  use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
-  use dftbp_encharges, only : TEeqInput
-  use dftbp_simplealgebra, only: cross3, determinant33
-  use dftbp_slakocont
-  use dftbp_slakoeqgrid
-  use dftbp_repcont
-  use dftbp_repspline
-  use dftbp_reppoly
-  use dftbp_dftbplusu
-  use dftbp_commontypes
-  use dftbp_oldskdata
-  use dftbp_xmlutils, only : removeChildNodes
-  use dftbp_xmlf90
-  use dftbp_orbitals
-  use dftbp_rangeseparated
-  use dftbp_timeprop
-  use dftbp_forcetypes, only : forceTypes
-  use dftbp_mixer, only : mixerTypes
-  use dftbp_geoopt, only : geoOptTypes
-  use dftbp_halogenx, only : halogenXSpecies1, halogenXSpecies2
+module dftbp_dftbplus_parser
+  use dftbp_common_globalenv
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_dftbplus_inputdata
+  use dftbp_type_typegeometryhsd
+  use dftbp_io_hsdparser, only : getNodeHSDName, parseHSD
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_dftbplus_specieslist, only : readSpeciesList
+  use dftbp_io_charmanip
+  use dftbp_io_message
+  use dftbp_type_linkedlist
+  use dftbp_common_unitconversion
+  use dftbp_dftbplus_oldcompat
+  use dftbp_dftbplus_inputconversion
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling
+  use dftbp_dftb_periodic, only : getCellTranslations, updateNeighbourList
+  use dftbp_dftb_coordnumber
+  use dftbp_dftb_dispersions
+  use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
+  use dftbp_dftb_encharges, only : TEeqInput
+  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_slakoeqgrid
+  use dftbp_dftb_repcont
+  use dftbp_dftb_repspline
+  use dftbp_dftb_reppoly
+  use dftbp_dftb_dftbplusu
+  use dftbp_type_commontypes
+  use dftbp_type_oldskdata
+  use dftbp_io_xmlutils, only : removeChildNodes
+  use dftbp_extlibs_xmlf90
+  use dftbp_type_orbitals
+  use dftbp_dftb_rangeseparated
+  use dftbp_timedep_dynamics
+  use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_mixer_mixer, only : mixerTypes
+  use dftbp_geoopt_geoopt, only : geoOptTypes
+  use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
 #:if WITH_SOCKETS
-  use dftbp_ipisocket, only : IPI_PROTOCOLS
+  use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
-  use dftbp_elsiiface
-  use dftbp_elecsolvers, only : electronicSolverTypes
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_hamiltoniantypes
-  use dftbp_wrappedintr
-  use dftbp_tempprofile, only : identifyTempProfile
-  use dftbp_reks
-  use dftbp_plumed, only : withPlumed
-  use dftbp_arpack, only : withArpack
-  use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
+  use dftbp_extlibs_elsiiface
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_common_hamiltoniantypes
+  use dftbp_type_wrappedintr
+  use dftbp_md_tempprofile, only : identifyTempProfile
+  use dftbp_reks_reks
+  use dftbp_extlibs_plumed, only : withPlumed
+  use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_transport_negfvars
 #:endif
-  use dftbp_solvparser, only : readSolvation, readCM5
+  use dftbp_solvation_solvparser, only : readSolvation, readCM5
   implicit none
   private
 
@@ -7510,4 +7510,4 @@ contains
 
   end function parserVersionFromInputVersion
 
-end module dftbp_parser
+end module dftbp_dftbplus_parser

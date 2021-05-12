@@ -9,7 +9,7 @@
 
 #:block TEST_SUITE("indexselection")
   use dftbp_io_indexselection, only : getIndexSelection, errors
-  use dftbp_status, only : TStatus
+  use dftbp_common_status, only : TStatus
   implicit none
 
 #:contains

@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Constraints on the electronic ground state
-module dftbp_elecconstraints
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_angmomentum, only : getLOperators
+module dftbp_dftb_elecconstraints
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_math_angmomentum, only : getLOperators
   implicit none
   private
 
@@ -432,4 +432,4 @@ contains
 
   end subroutine constrainMj
 
-end module dftbp_elecconstraints
+end module dftbp_dftb_elecconstraints

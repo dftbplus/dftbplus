@@ -21,18 +21,18 @@
 !>
 !> Todo: The generation of the reciprocal lattice vectors should not be done localy, but somewhere
 !> outside, since the Coulomb module does the same.
-module dftbp_dispslaterkirkw
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only : pi
+module dftbp_dftb_dispslaterkirkw
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : pi
   use dftbp_dispiface
-  use dftbp_dispcommon
-  use dftbp_environment, only : TEnvironment
-  use dftbp_lapackroutines, only : matinv
-  use dftbp_message
-  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_simplealgebra, only : determinant33
+  use dftbp_dftb_dispcommon
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_io_message
+  use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_math_simplealgebra, only : determinant33
   implicit none
   private
 
@@ -547,4 +547,4 @@ contains
   end function getDampCutoff_
 
 
-end module dftbp_dispslaterkirkw
+end module dftbp_dftb_dispslaterkirkw

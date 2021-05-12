@@ -9,12 +9,12 @@
 
 !> Removal of translation or rotation related modes
 module dftbp_modeprojection
-  use dftbp_accuracy, only : dp
-  use dftbp_message
-  use dftbp_typegeometry
-  use dftbp_blasroutines, only : herk
-  use dftbp_simplealgebra, only : cross3
-  use dftbp_eigensolver, only : heev
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message
+  use dftbp_type_typegeometry
+  use dftbp_math_blasroutines, only : herk
+  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_math_eigensolver, only : heev
   implicit none
 
   private

@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Calculator for the spline/polynomial repulsive as found in legacy SK-files
-module dftbp_splinepolyrep
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_boundarycond, only : zAxis
-  use dftbp_constants, only : pi
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_quaternions, only : rotate3
-  use dftbp_repcont, only : TRepCont, getCutOff, getEnergy, getEnergyDeriv
-  use dftbp_repulsive, only : TRepulsive
+module dftbp_dftb_splinepolyrep
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_boundarycond, only : zAxis
+  use dftbp_common_constants, only : pi
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_quaternions, only : rotate3
+  use dftbp_dftb_repcont, only : TRepCont, getCutOff, getEnergy, getEnergyDeriv
+  use dftbp_dftb_repulsive, only : TRepulsive
   implicit none
 
   private
@@ -389,4 +389,4 @@ contains
   end subroutine getTwoBodyStress_
 
 
-end module dftbp_splinepolyrep
+end module dftbp_dftb_splinepolyrep

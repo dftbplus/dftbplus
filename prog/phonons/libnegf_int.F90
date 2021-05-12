@@ -19,29 +19,29 @@
 #:include "common.fypp"
 
 module libnegf_int
-  use dftbp_negfvars
+  use dftbp_transport_negfvars
 #:if WITH_MPI
-  use dftbp_negf, only : negf_mpi_init
-  use dftbp_mpifx
+  use dftbp_extlibs_negf, only : negf_mpi_init
+  use dftbp_extlibs_mpifx
 #:endif
-  use dftbp_negf, only : getel, lnParams, pass_DM, Tnegf
-  use dftbp_negf, only : kb, units, convertHeatCurrent, convertHeatConductance
-  use dftbp_negf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
-  use dftbp_negf, only : DELTA_SQ, DELTA_W, DELTA_MINGO 
-  use dftbp_negf, only : associate_lead_currents, associate_ldos, associate_transmission
-  use dftbp_negf, only : compute_phonon_current, thermal_conductance 
-  use dftbp_negf, only : create, create_scratch, destroy, set_readoldDMsgf
-  use dftbp_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
-  use dftbp_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch
-  use dftbp_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
-  use dftbp_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_tun_indexes, set_params
-  use dftbp_negf, only : writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_globalenv, only : stdOut, tIoProc
-  use dftbp_environment
-  use dftbp_matconv
-  use dftbp_commontypes, only : TOrbitals
+  use dftbp_extlibs_negf, only : getel, lnParams, pass_DM, Tnegf
+  use dftbp_extlibs_negf, only : kb, units, convertHeatCurrent, convertHeatConductance
+  use dftbp_extlibs_negf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use dftbp_extlibs_negf, only : DELTA_SQ, DELTA_W, DELTA_MINGO 
+  use dftbp_extlibs_negf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use dftbp_extlibs_negf, only : compute_phonon_current, thermal_conductance 
+  use dftbp_extlibs_negf, only : create, create_scratch, destroy, set_readoldDMsgf
+  use dftbp_extlibs_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use dftbp_extlibs_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch
+  use dftbp_extlibs_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
+  use dftbp_extlibs_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_tun_indexes, set_params
+  use dftbp_extlibs_negf, only : writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_environment
+  use dftbp_transport_matconv
+  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_initphonons, only : TempMin, TempMax, TempStep
   use dftbp_initphonons, only : modeEnum 
 

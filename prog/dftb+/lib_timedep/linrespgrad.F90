@@ -8,27 +8,27 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
-module dftbp_linrespgrad
-  use dftbp_assert
-  use dftbp_arpack
-  use dftbp_linrespcommon
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_shortgammafuncs, only : expGammaPrime
-  use dftbp_accuracy
-  use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc, only : TScc
-  use dftbp_blasroutines
-  use dftbp_eigensolver
-  use dftbp_lapackroutines
-  use dftbp_message
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_sorting
-  use dftbp_qm
-  use dftbp_transcharges
-  use dftbp_linresptypes
-  use dftbp_degeneracyfind
+module dftbp_timedep_linrespgrad
+  use dftbp_common_assert
+  use dftbp_extlibs_arpack
+  use dftbp_timedep_linrespcommon
+  use dftbp_type_commontypes
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_shortgammafuncs, only : expGammaPrime
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : Hartree__eV, au__Debye
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_math_blasroutines
+  use dftbp_math_eigensolver
+  use dftbp_math_lapackroutines
+  use dftbp_io_message
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_sorting
+  use dftbp_math_qm
+  use dftbp_timedep_transcharges
+  use dftbp_timedep_linresptypes
+  use dftbp_math_degeneracy
   implicit none
   private
 
@@ -2478,4 +2478,4 @@ contains
     enddo
 
   end subroutine chargeTest
-end module dftbp_linrespgrad
+end module dftbp_timedep_linrespgrad

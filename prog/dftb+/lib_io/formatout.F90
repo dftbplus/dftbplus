@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for formatted output of data
-module dftbp_formatout
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_constants
-  use dftbp_lapackroutines, only: matinv
-  use dftbp_sparse2dense
+module dftbp_io_formatout
+  use dftbp_common_globalenv
+  use dftbp_common_environment
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_common_constants
+  use dftbp_math_lapackroutines, only: matinv
+  use dftbp_dftb_sparse2dense
   implicit none
   private
 
@@ -602,4 +602,4 @@ contains
 
   end subroutine writeSparse
 
-end module dftbp_formatout
+end module dftbp_io_formatout

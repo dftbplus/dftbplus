@@ -9,7 +9,7 @@
 !! calculation, both for the fortran numerical model and defaults for the various algorithms in the
 !! code.
 !! Not all routines use the string length specifications to set their character string lengths.
-module dftbp_accuracy
+module dftbp_common_accuracy
   implicit none
 
   !> precision of the real data type
@@ -128,4 +128,4 @@ module dftbp_accuracy
   !> Tolerance for electron chemical potential differences being considered equivalent (1E-6 eV)
   real(dp), parameter :: tolEfEquiv = 3.675E-7_dp
 
-end module dftbp_accuracy
+end module dftbp_common_accuracy

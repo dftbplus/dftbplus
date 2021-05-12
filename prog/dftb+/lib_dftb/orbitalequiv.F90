@@ -17,10 +17,10 @@
 !> orbital iOrb on atom iAtom for spin iSpin. Values must be positive integers and continuous. Zeros
 !> in the mapping vector stand for non-existent orbitals.
 !>
-module dftbp_orbitalequiv
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_commontypes
+module dftbp_dftb_orbitalequiv
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_commontypes
   implicit none
   private
 
@@ -177,4 +177,4 @@ contains
 
   end subroutine OrbitalEquiv_expand
 
-end module dftbp_orbitalequiv
+end module dftbp_dftb_orbitalequiv

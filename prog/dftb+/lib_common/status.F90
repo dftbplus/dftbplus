@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Implements a status object to indicate possible errors.
-module dftbp_status
+module dftbp_common_status
   implicit none
 
   private
@@ -95,4 +95,4 @@ contains
   end function isOk
 
 
-end module dftbp_status
+end module dftbp_common_status

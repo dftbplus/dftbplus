@@ -8,10 +8,10 @@
 #:include "common.fypp"
 
 !> Provides data structure for evaluated electrostatic potentials
-module dftbp_elstatpot
-  use dftbp_accuracy
-  use dftbp_scc
-  use dftbp_environment
+module dftbp_dftb_elstatpot
+  use dftbp_common_accuracy
+  use dftbp_dftb_scc
+  use dftbp_common_environment
   implicit none
   private
 
@@ -147,4 +147,4 @@ contains
   end subroutine evaluate
 
 
-end module dftbp_elstatpot
+end module dftbp_dftb_elstatpot

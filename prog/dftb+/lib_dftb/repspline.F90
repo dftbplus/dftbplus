@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by cubic splines.
-module dftbp_repspline
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_bisect
+module dftbp_dftb_repspline
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_math_bisect
   implicit none
   private
 
@@ -253,4 +253,4 @@ contains
 
   end subroutine RepSpline_getEnergyDeriv
 
-end module dftbp_repspline
+end module dftbp_dftb_repspline

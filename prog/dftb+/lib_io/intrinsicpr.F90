@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Module to print data types
-module dftbp_intrinsicpr
-  use dftbp_accuracy
-  use dftbp_globalenv, only : stdOut
+module dftbp_io_intrinsicpr
+  use dftbp_common_accuracy
+  use dftbp_common_globalenv, only : stdOut
 
   private
 
@@ -340,4 +340,4 @@ contains
 
   end subroutine printArrayCharR2
 
-end module dftbp_intrinsicpr
+end module dftbp_io_intrinsicpr

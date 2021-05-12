@@ -10,15 +10,15 @@
 !> Construct Pipek-Mezey localised orbitals, either for molecules/gamma point periodic, or for each
 !> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
 !> each k-point is localised independently.
-module dftbp_pmlocalisation
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_globalenv, only : stdOut
-  use dftbp_blasroutines
-  use dftbp_sparse2dense, only :unpackHS
-  use dftbp_sorting
-  use dftbp_message
-  use dftbp_periodic, only : TNeighbourList
+module dftbp_dftb_pmlocalisation
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_math_blasroutines
+  use dftbp_dftb_sparse2dense, only :unpackHS
+  use dftbp_math_sorting
+  use dftbp_io_message
+  use dftbp_dftb_periodic, only : TNeighbourList
   implicit none
   private
 
@@ -993,4 +993,4 @@ contains
 
   end subroutine PipekMezeyOld_kpoint
 
-end module dftbp_pmlocalisation
+end module dftbp_dftb_pmlocalisation

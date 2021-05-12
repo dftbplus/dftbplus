@@ -9,12 +9,12 @@
 
 !> Routines to make socket contact with an external code and
 !! communicate data back and forward from DFTB+ to the external code.
-module dftbp_ipisocket
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_fsockets
-  use dftbp_logger, only : LogWriter
+module dftbp_io_ipisocket
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_io_message
+  use dftbp_extlibs_fsockets
+  use dftbp_io_logger, only : LogWriter
   implicit none
   private
 
@@ -370,4 +370,4 @@ contains
 
   end subroutine shutdown
 
-end module dftbp_ipisocket
+end module dftbp_io_ipisocket

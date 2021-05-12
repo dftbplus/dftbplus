@@ -8,39 +8,39 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for DFTB
-module dftbp_inputdata
-  use dftbp_hamiltoniantypes
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_message
-  use dftbp_dftbplusu, only : TDftbUInp
-  use dftbp_dispersions, only : TDispersionInp
-  use dftbp_linresp, only : TLinrespini
-  use dftbp_pprpa, only : TppRPAcal
-  use dftbp_slakocont
-  use dftbp_commontypes
-  use dftbp_repcont
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
-  use dftbp_elecsolvers, only : TElectronicSolverInp
-  use dftbp_timeprop
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_xlbomd
+module dftbp_dftbplus_inputdata
+  use dftbp_common_hamiltoniantypes
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_typegeometry
+  use dftbp_io_message
+  use dftbp_dftb_dftbplusu, only : TDftbUInp
+  use dftbp_dftb_dispersions, only : TDispersionInp
+  use dftbp_timedep_linresp, only : TLinrespini
+  use dftbp_timedep_pprpa, only : TppRPAcal
+  use dftbp_dftb_slakocont
+  use dftbp_type_commontypes
+  use dftbp_dftb_repcont
+  use dftbp_type_linkedlist
+  use dftbp_type_wrappedintr
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
+  use dftbp_timedep_dynamics
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_md_xlbomd
 #:if WITH_SOCKETS
-  use dftbp_ipisocket, only : IpiSocketCommInp
+  use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
-  use dftbp_pmlocalisation, only : TPipekMezeyInp
-  use dftbp_elstatpot, only : TElStatPotentialsInp
-  use dftbp_reks
-  use dftbp_cm5, only : TCM5Input
-  use dftbp_solvinput, only : TSolvationInp
+  use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
+  use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
+  use dftbp_reks_reks
+  use dftbp_solvation_cm5, only : TCM5Input
+  use dftbp_solvation_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_transport_negfvars
 #:endif
-  use dftbp_poisson, only : TPoissonInfo
-  use dftbp_h5correction, only : TH5CorrectionInput
+  use dftbp_extlibs_poisson, only : TPoissonInfo
+  use dftbp_dftb_h5correction, only : TH5CorrectionInput
   implicit none
   private
   save
@@ -609,4 +609,4 @@ contains
 
   end subroutine Control_destruct
 
-end module dftbp_inputdata
+end module dftbp_dftbplus_inputdata

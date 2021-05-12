@@ -9,22 +9,22 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
+  use dftbp_common_assert
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_initwaveplot
-  use dftbp_accuracy
-  use dftbp_charmanip
-  use dftbp_fileid
-  use dftbp_typegeometry
-  use dftbp_fileid
+  use dftbp_common_accuracy
+  use dftbp_io_charmanip
+  use dftbp_io_fileid
+  use dftbp_type_typegeometry
+  use dftbp_io_fileid
   use dftbp_gridcache
   use dftbp_molecularorbital
-  use dftbp_simplealgebra
-  use dftbp_linkedlist
-  use dftbp_periodic
+  use dftbp_math_simplealgebra
+  use dftbp_type_linkedlist
+  use dftbp_dftb_periodic
 #:if WITH_MPI
-  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
   use mpi, only : MPI_THREAD_FUNNELED
 #:endif
   implicit none

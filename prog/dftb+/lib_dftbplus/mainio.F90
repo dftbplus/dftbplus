@@ -12,47 +12,47 @@
 #:include 'common.fypp'
 
 !> Various I/O routines for the main program.
-module dftbp_mainio
+module dftbp_dftbplus_mainio
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_extlibs_scalapackfx
 #:endif
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_densedescr
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_orbitals, only : orbitalNames, getShellNames
-  use dftbp_periodic
-  use dftbp_commontypes
-  use dftbp_sparse2dense
-  use dftbp_blasroutines
-  use dftbp_charmanip, only : i2c
-  use dftbp_linkedlist
-  use dftbp_taggedoutput
-  use dftbp_fileid
-  use dftbp_spin, only : qm2ud
-  use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_xmlf90
-  use dftbp_hsdutils, only : writeChildValue
-  use dftbp_mdintegrator, only : TMdIntegrator, state
-  use dftbp_formatout
-  use dftbp_sccinit, only : writeQToFile
-  use dftbp_elstatpot, only : TElStatPotentials
-  use dftbp_message
-  use dftbp_reks
-  use dftbp_cm5, only : TChargeModel5
-  use dftbp_cosmo, only : TCosmo
-  use dftbp_dispersions, only : TDispersionIface
-  use dftbp_solvation, only : TSolvation
+  use dftbp_common_globalenv
+  use dftbp_common_environment
+  use dftbp_type_densedescr
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_type_orbitals, only : orbitalNames, getShellNames
+  use dftbp_dftb_periodic
+  use dftbp_type_commontypes
+  use dftbp_dftb_sparse2dense
+  use dftbp_math_blasroutines
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_type_linkedlist
+  use dftbp_io_taggedoutput
+  use dftbp_io_fileid
+  use dftbp_dftb_spin, only : qm2ud
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_extlibs_xmlf90
+  use dftbp_io_hsdutils, only : writeChildValue
+  use dftbp_md_mdintegrator, only : TMdIntegrator, state
+  use dftbp_io_formatout
+  use dftbp_dftb_sccinit, only : writeQToFile
+  use dftbp_dftb_elstatpot, only : TElStatPotentials
+  use dftbp_io_message
+  use dftbp_reks_reks
+  use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_solvation_cosmo, only : TCosmo
+  use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_solvation_solvation, only : TSolvation
 #:if WITH_SOCKETS
-  use dftbp_ipisocket
+  use dftbp_io_ipisocket
 #:endif
-  use dftbp_determinants
+  use dftbp_dftb_determinants
   implicit none
   private
 
@@ -5353,4 +5353,4 @@ contains
     end select
 
   end subroutine writeCosmoFile
-end module dftbp_mainio
+end module dftbp_dftbplus_mainio

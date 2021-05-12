@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Necessary parameters to perform DFT-D3 calculations.
-module dftbp_dftd3param
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : symbolToNumber
-  use dftbp_dftd4param, only : getSqrtZr4r2
+module dftbp_dftb_dftd3param
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : symbolToNumber
+  use dftbp_dftb_dftd4param, only : getSqrtZr4r2
   implicit none
   private
 
@@ -23118,4 +23118,4 @@ contains
   end subroutine writeCopyC6Code
 
 
-end module dftbp_dftd3param
+end module dftbp_dftb_dftd3param

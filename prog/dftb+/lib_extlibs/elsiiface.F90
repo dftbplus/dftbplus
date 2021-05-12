@@ -10,13 +10,13 @@
 
 !> Interface wrapper for the ELSI library
 !>
-module dftbp_elsiiface
-  use dftbp_accuracy, only : dp
+module dftbp_extlibs_elsiiface
+  use dftbp_common_accuracy, only : dp
 #:if WITH_ELSI
   use elsi
 #:else
   use iso_c_binding, only : r8 => c_double, i4 => c_int32_t
-  use dftbp_message, only : error
+  use dftbp_io_message, only : error
 #:endif
   implicit none
   private
@@ -544,4 +544,4 @@ contains
 
 #:endif
 
-end module dftbp_elsiiface
+end module dftbp_extlibs_elsiiface

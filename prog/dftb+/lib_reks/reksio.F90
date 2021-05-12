@@ -13,14 +13,14 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksio
+module dftbp_reks_reksio
 
-  use dftbp_accuracy
-  use dftbp_constants, only : au__Debye
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_rekscommon, only : getTwoIndices, getSpaceSym
-  use dftbp_reksvar, only : TReksCalc, reksTypes
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : au__Debye
+  use dftbp_common_globalenv
+  use dftbp_io_message
+  use dftbp_reks_rekscommon, only : getTwoIndices, getSpaceSym
+  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -618,4 +618,4 @@ module dftbp_reksio
   end subroutine printReksSSRInfo22_
 
 
-end module dftbp_reksio
+end module dftbp_reks_reksio

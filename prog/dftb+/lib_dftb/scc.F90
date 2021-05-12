@@ -8,21 +8,21 @@
 #:include 'common.fypp'
 
 !> Functions and local variables for the SCC calculation.
-module dftbp_scc
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_charges, only : getSummedCharges
-  use dftbp_chargeconstr, only : TChrgConstr, TChrgConstr_init
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
-  use dftbp_environment, only : TEnvironment
-  use dftbp_extcharges, only : TExtCharges, TExtCharges_init
-  use dftbp_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_boundarycond, only : boundaryConditions
-  use dftbp_elstattypes, only : elstatTypes
-  use dftbp_poisson, only : TPoissonInput, TPoisson, TPoisson_init
+module dftbp_dftb_scc
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
+  use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
+  use dftbp_io_message, only : error
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftbplus_elstattypes, only : elstatTypes
+  use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
   implicit none
 
   private
@@ -1049,4 +1049,4 @@ contains
   end subroutine initCoulomb_
 
 
-end module dftbp_scc
+end module dftbp_dftb_scc

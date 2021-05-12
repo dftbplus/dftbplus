@@ -9,19 +9,19 @@
 
 
 !> Contains range separated related routines.
-module dftbp_rangeseparated
-  use dftbp_accuracy
-  use dftbp_environment
-  use dftbp_assert
-  use dftbp_message
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_slakocont, only : TSlakoCont
-  use dftbp_commontypes
-  use dftbp_sorting
-  use dftbp_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
-  use dftbp_globalenv, only : stdOut
-  use dftbp_f08math
-  use dftbp_blasroutines, only : gemm
+module dftbp_dftb_rangeseparated
+  use dftbp_common_accuracy
+  use dftbp_common_environment
+  use dftbp_common_assert
+  use dftbp_io_message
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_type_commontypes
+  use dftbp_math_sorting
+  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_math_f08math
+  use dftbp_math_blasroutines, only : gemm
   implicit none
   private
 
@@ -55,7 +55,7 @@ module dftbp_rangeseparated
   end type TRangeSepSKTag
 
 
-  !> Range-Sep module structure
+  !> Range-Sep module dftbp_poisson_structure
   type :: TRangeSepFunc
     private
 
@@ -1621,4 +1621,4 @@ contains
 
   end subroutine getLrGammaDeriv
 
-end module dftbp_rangeseparated
+end module dftbp_dftb_rangeseparated

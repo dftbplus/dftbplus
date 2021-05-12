@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Contains a geometry DIIS optimizer interface.
-module dftbp_gdiis
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_diismixer
+module dftbp_geoopt_gdiis
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_mixer_diismixer
   implicit none
 
   private
@@ -136,4 +136,4 @@ contains
 
   end subroutine gDIIS_next
 
-end module dftbp_gdiis
+end module dftbp_geoopt_gdiis

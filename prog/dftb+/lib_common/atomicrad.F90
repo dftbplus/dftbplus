@@ -13,9 +13,9 @@
 !> in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
 !> edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
 !> corrected Nov. 17, 2010 for the 92nd edition.
-module dftbp_atomicrad
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : AA__Bohr, symbolToNumber
+module dftbp_common_atomicrad
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : AA__Bohr, symbolToNumber
   implicit none
   private
 
@@ -83,4 +83,4 @@ contains
   end function getAtomicRadNumber
 
 
-end module dftbp_atomicrad
+end module dftbp_common_atomicrad

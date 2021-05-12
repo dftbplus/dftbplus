@@ -8,37 +8,37 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module dftbp_parsersetup
-  use dftbp_globalenv
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
-  use dftbp_unitconversion
-  use dftbp_periodic
-  use dftbp_simplealgebra, only: cross3, determinant33
-  use dftbp_dispersions
-  use dftbp_slakocont
-  use dftbp_slakoeqgrid
-  use dftbp_repcont
-  use dftbp_repspline
-  use dftbp_reppoly
-  use dftbp_commontypes
-  use dftbp_oldskdata
-  use dftbp_xmlf90
-  use dftbp_wrappedintr
-  use dftbp_negfvars
+module dftbp_dftbplus_parsersetup
+  use dftbp_common_globalenv
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_type_typegeometryhsd
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_io_charmanip
+  use dftbp_io_message
+  use dftbp_type_linkedlist
+  use dftbp_type_wrappedintr
+  use dftbp_common_unitconversion
+  use dftbp_dftb_periodic
+  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_dftb_dispersions
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_slakoeqgrid
+  use dftbp_dftb_repcont
+  use dftbp_dftb_repspline
+  use dftbp_dftb_reppoly
+  use dftbp_type_commontypes
+  use dftbp_type_oldskdata
+  use dftbp_extlibs_xmlf90
+  use dftbp_type_wrappedintr
+  use dftbp_transport_negfvars
   use dftbp_helpsetupgeom
   use dftbp_inputsetup
-  use dftbp_inputconversion
-  use dftbp_oldcompat
+  use dftbp_dftbplus_inputconversion
+  use dftbp_dftbplus_oldcompat
   implicit none
 
   private
@@ -579,4 +579,4 @@ contains
 
   end subroutine SKTruncations
 
-end module dftbp_parsersetup
+end module dftbp_dftbplus_parsersetup

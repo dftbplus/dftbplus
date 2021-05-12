@@ -9,105 +9,105 @@
 #:include 'error.fypp'
 
 !> The main routines for DFTB+
-module dftbp_main
+module dftbp_dftbplus_main
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-  use dftbp_scalafxext
+  use dftbp_extlibs_scalapackfx
+  use dftbp_math_scalafxext
 #:endif
 #:if WITH_SOCKETS
-  use dftbp_ipisocket, only : IpiSocketComm
+  use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
-  use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_assert
-  use dftbp_constants
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_densedescr
-  use dftbp_inputdata
-  use dftbp_hamiltoniantypes
-  use dftbp_nonscc
-  use dftbp_eigenvects
-  use dftbp_repulsive, only : TRepulsive
-  use dftbp_etemp
-  use dftbp_populations
-  use dftbp_densitymatrix
-  use dftbp_forces
-  use dftbp_stress
-  use dftbp_scc
-  use dftbp_hamiltonian
-  use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
-  use dftbp_sccinit
-  use dftbp_onsitecorrection
-  use dftbp_periodic
-  use dftbp_mixer
-  use dftbp_geoopt
-  use dftbp_numderivs2
-  use dftbp_spin
-  use dftbp_dftbplusu
-  use dftbp_mdcommon
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_potentials
-  use dftbp_orbitalequiv
-  use dftbp_parser
-  use dftbp_sparse2dense
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
+  use dftbp_common_assert
+  use dftbp_common_constants
+  use dftbp_common_globalenv
+  use dftbp_common_environment
+  use dftbp_type_densedescr
+  use dftbp_dftbplus_inputdata
+  use dftbp_common_hamiltoniantypes
+  use dftbp_dftb_nonscc
+  use dftbp_dftbplus_eigenvects
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_etemp
+  use dftbp_dftb_populations
+  use dftbp_dftb_densitymatrix
+  use dftbp_dftb_forces
+  use dftbp_dftb_stress
+  use dftbp_dftb_scc
+  use dftbp_dftb_hamiltonian
+  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
+  use dftbp_dftb_sccinit
+  use dftbp_dftb_onsitecorrection
+  use dftbp_dftb_periodic
+  use dftbp_mixer_mixer
+  use dftbp_geoopt_geoopt
+  use dftbp_derivs_numderivs2
+  use dftbp_dftb_spin
+  use dftbp_dftb_dftbplusu
+  use dftbp_md_mdcommon
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_potentials
+  use dftbp_dftb_orbitalequiv
+  use dftbp_dftbplus_parser
+  use dftbp_dftb_sparse2dense
 #:if not WITH_SCALAPACK
-  use dftbp_blasroutines, only : symm, hemm
+  use dftbp_math_blasroutines, only : symm, hemm
 #:endif
-  use dftbp_hsdutils
-  use dftbp_charmanip
-  use dftbp_shift
-  use dftbp_spinorbit
-  use dftbp_angmomentum
-  use dftbp_elecconstraints
-  use dftbp_pmlocalisation, only : TPipekMezey
-  use dftbp_linresp
-  use dftbp_linresptypes
-  use dftbp_pprpa, only : ppRPAenergies
+  use dftbp_io_hsdutils
+  use dftbp_io_charmanip
+  use dftbp_dftb_shift
+  use dftbp_dftb_spinorbit
+  use dftbp_math_angmomentum
+  use dftbp_dftb_elecconstraints
+  use dftbp_dftb_pmlocalisation, only : TPipekMezey
+  use dftbp_timedep_linresp
+  use dftbp_timedep_linresptypes
+  use dftbp_timedep_pprpa, only : ppRPAenergies
 #:if WITH_ARPACK
-  use dftbp_RS_LinearResponse
+  use dftbp_timedep_rslinresp
 #:endif
-  use dftbp_mainio
-  use dftbp_commontypes
-  use dftbp_dispersions, only : TDispersionIface
-  use dftbp_solvation, only : TSolvation
-  use dftbp_cm5, only : TChargeModel5
-  use dftbp_xmlf90
+  use dftbp_dftbplus_mainio
+  use dftbp_type_commontypes
+  use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_extlibs_xmlf90
   use dftbp_thirdorder, only : TThirdOrder
-  use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_simplealgebra
-  use dftbp_message
-  use dftbp_repcont
-  use dftbp_halogenx
-  use dftbp_xlbomd
-  use dftbp_slakocont
-  use dftbp_linkedlist
-  use dftbp_lapackroutines
-  use dftbp_mdcommon
-  use dftbp_mdintegrator
-  use dftbp_tempprofile
-  use dftbp_elstatpot, only : TElStatPotentials
-  use dftbp_elstattypes, only : elstatTypes
-  use dftbp_forcetypes, only : forceTypes
-  use dftbp_timeprop
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_reks
-  use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
-  use dftbp_determinants
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_math_simplealgebra
+  use dftbp_io_message
+  use dftbp_dftb_repcont
+  use dftbp_dftb_halogenx
+  use dftbp_md_xlbomd
+  use dftbp_dftb_slakocont
+  use dftbp_type_linkedlist
+  use dftbp_math_lapackroutines
+  use dftbp_md_mdcommon
+  use dftbp_md_mdintegrator
+  use dftbp_md_tempprofile
+  use dftbp_dftb_elstatpot, only : TElStatPotentials
+  use dftbp_dftbplus_elstattypes, only : elstatTypes
+  use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_timedep_dynamics
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_io_taggedoutput, only : TTaggedWriter
+  use dftbp_reks_reks
+  use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
+  use dftbp_dftb_determinants
 #:if WITH_TRANSPORT
-  use dftbp_negfvars, only : TTransPar
-  use dftbp_negfint
+  use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_transport_negfint
 #:endif
-  use dftbp_transportio
-  use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
+  use dftbp_dftbplus_transportio
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
       & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
 #:if WITH_TRANSPORT
-  use dftbp_initprogram, only : overrideContactCharges
+  use dftbp_dftbplus_initprogram, only : overrideContactCharges
 #:endif
-  use dftbp_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_blockpothelper, only : appendBlockReduced
   implicit none
 
   private
@@ -5567,8 +5567,8 @@ contains
   !> Correct for z folding into central unit cell requiring a twist in helical cases
   pure subroutine helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
 
-    use dftbp_quaternions, only : rotate3
-    use dftbp_boundarycond, only : zAxis
+    use dftbp_math_quaternions, only : rotate3
+    use dftbp_dftb_boundarycond, only : zAxis
 
     !> Derivatives
     real(dp), intent(inout) :: derivs(:,:)
@@ -6562,8 +6562,8 @@ contains
   !> Normalize eigenvectors with unitary transformation
   subroutine renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
 
-    use dftbp_blasroutines, only : gemm
-    use dftbp_eigensolver, only : heev
+    use dftbp_math_blasroutines, only : gemm
+    use dftbp_math_eigensolver, only : heev
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -7253,4 +7253,4 @@ contains
   end subroutine getReksNextInputDensity
 
 
-end module dftbp_main
+end module dftbp_dftbplus_main

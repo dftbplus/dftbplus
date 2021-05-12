@@ -10,13 +10,13 @@
 #:set FLAVOURS = [('Real', 'real', 'real'), ('Cmplx', 'complex', 'cmplx')]
 
 !> Contains routines to calculate matrix determinants
-module dftbp_determinant
-  use dftbp_accuracy
-  use dftbp_assert
-  use dftbp_lapackroutines
+module dftbp_math_determinant
+  use dftbp_common_accuracy
+  use dftbp_common_assert
+  use dftbp_math_lapackroutines
 #:if WITH_SCALAPACK
-  use dftbp_mpifx
-  use dftbp_scalapackfx
+  use dftbp_extlibs_mpifx
+  use dftbp_extlibs_scalapackfx
 #:endif
   implicit none
   private
@@ -196,4 +196,4 @@ contains
 
 #:endfor
 
-end module dftbp_determinant
+end module dftbp_math_determinant

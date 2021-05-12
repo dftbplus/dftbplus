@@ -9,18 +9,18 @@
 
 !> Offers everything which is publicly available when dealing with dispersions.
 !!
-module dftbp_dispersions
+module dftbp_dftb_dispersions
   use dftbp_dispiface
-  use dftbp_dispuff
-  use dftbp_dispuffdata
-  use dftbp_dispslaterkirkw
+  use dftbp_dftb_dispuff
+  use dftbp_dftb_dispuffdata
+  use dftbp_dftb_dispslaterkirkw
 #:if WITH_DFTD3
-  use dftbp_dispdftd3
+  use dftbp_dftb_dispdftd3
 #:endif
-  use dftbp_simpledftd3
-  use dftbp_dispdftd4
+  use dftbp_dftb_simpledftd3
+  use dftbp_dftb_dispdftd4
 #:if WITH_MBD
-  use dftbp_dispmbd
+  use dftbp_dftb_dispmbd
 #:endif
   implicit none
   public
@@ -53,4 +53,4 @@ module dftbp_dispersions
 
   end type TDispersionInp
 
-end module dftbp_dispersions
+end module dftbp_dftb_dispersions

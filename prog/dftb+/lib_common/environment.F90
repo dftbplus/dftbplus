@@ -8,21 +8,21 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module dftbp_environment
-  use dftbp_globalenv, only : shutdown, stdOut
-  use dftbp_timerarray
-  use dftbp_fileregistry
+module dftbp_common_environment
+  use dftbp_common_globalenv, only : shutdown, stdOut
+  use dftbp_common_timerarray
+  use dftbp_common_fileregistry
 
 #:if WITH_MPI
-  use dftbp_mpienv
+  use dftbp_common_mpienv
 #:endif
 
 #:if WITH_SCALAPACK
-  use dftbp_blacsenv
+  use dftbp_common_blacsenv
 #:endif
 
 #:if WITH_GPU
-  use dftbp_gpuenv
+  use dftbp_common_gpuenv
 #:endif
 
   implicit none
@@ -278,4 +278,4 @@ contains
 #:endif
 
 
-end module dftbp_environment
+end module dftbp_common_environment

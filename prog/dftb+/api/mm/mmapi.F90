@@ -10,21 +10,21 @@
 !> Proviedes DFTB+ API for MM-type high level access
 module dftbp_mmapi
   use iso_fortran_env, only : output_unit
-  use dftbp_accuracy
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_message, only: error
-  use dftbp_mainapi
-  use dftbp_parser
-  use dftbp_hsdutils
-  use dftbp_hsdhelpers, only : doPostParseJobs
-  use dftbp_inputdata
-  use dftbp_linkedlist
-  use dftbp_xmlf90
-  use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_charmanip, only : newline
-  use dftbp_initprogram, only: TDftbPlusMain
+  use dftbp_common_accuracy
+  use dftbp_common_globalenv
+  use dftbp_common_environment
+  use dftbp_io_message, only: error
+  use dftbp_dftbplus_mainapi
+  use dftbp_dftbplus_parser
+  use dftbp_io_hsdutils
+  use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
+  use dftbp_dftbplus_inputdata
+  use dftbp_type_linkedlist
+  use dftbp_extlibs_xmlf90
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_io_charmanip, only : newline
+  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   implicit none
   private
 

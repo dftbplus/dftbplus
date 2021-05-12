@@ -8,17 +8,17 @@
 
 #:include "error.fypp"
 
-Module bulkpot
+module dftbp_poisson_bulkpot
   
- use dftbp_accuracy, only : dp
- use dftbp_constants
- use dftbp_globalenv, only : stdOut
- use dftbp_message, only : warning
- use gallocation
- use parameters
- use structure
- use mpi_poisson
- use gewald
+ use dftbp_common_accuracy, only : dp
+ use dftbp_common_constants
+ use dftbp_common_globalenv, only : stdOut
+ use dftbp_io_message, only : warning
+ use dftbp_poisson_gallocation
+ use dftbp_poisson_parameters
+ use dftbp_poisson_structure
+ use dftbp_poisson_mpi_poisson
+ use dftbp_poisson_gewald
 
  implicit none
 
@@ -771,4 +771,4 @@ subroutine set_bulk_rhs(phi_bulk,cont)
 end subroutine set_bulk_rhs
 
 
-end Module bulkpot
+end module dftbp_poisson_bulkpot

@@ -8,9 +8,9 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for real vectors
-module dftbp_linkedlistr1
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
+module dftbp_type_linkedlistr1
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
   private
 
@@ -20,4 +20,4 @@ module dftbp_linkedlistr1
       & ITEM_RANK=1,&
       & PADDING='0.0_dp')
 
-end module dftbp_linkedlistr1
+end module dftbp_type_linkedlistr1

@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains enumerated electrostatic solver types.
-module dftbp_elstattypes
+module dftbp_dftbplus_elstattypes
   implicit none
   private
 
@@ -27,4 +27,4 @@ module dftbp_elstattypes
   !> Enumerated electrostatics solver types.
   type(TElstatTypesEnum), parameter :: elstatTypes = TElstatTypesEnum()
 
-end module dftbp_elstattypes
+end module dftbp_dftbplus_elstattypes

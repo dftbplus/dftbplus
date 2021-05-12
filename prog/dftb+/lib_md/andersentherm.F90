@@ -12,13 +12,13 @@
 !> re-select or per atom reselect of velocities from the Maxwell-Boltzmann
 !> distribution
 !> See Andersen J. Chem. Phys. 72. 2384 (1980)
-module dftbp_andersentherm
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_tempprofile
-  use dftbp_message
+module dftbp_md_andersentherm
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_md_mdcommon
+  use dftbp_math_ranlux
+  use dftbp_md_tempprofile
+  use dftbp_io_message
   implicit none
   private
 
@@ -198,4 +198,4 @@ contains
 
   end subroutine AndersenThermostat_state
 
-end module dftbp_andersentherm
+end module dftbp_md_andersentherm

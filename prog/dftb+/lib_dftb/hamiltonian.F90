@@ -8,22 +8,22 @@
 #:include 'common.fypp'
 
 !> update the SCC hamiltonian
-module dftbp_hamiltonian
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_assert
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_potentials, only : TPotentials
-  use dftbp_shift, only : add_shift, total_shift
-  use dftbp_spin, only : getSpinShift
-  use dftbp_spinorbit, only : getDualSpinOrbitShift
-  use dftbp_dftbplusu, only : TDftbU
-  use dftbp_message, only : error
+module dftbp_dftb_hamiltonian
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_assert
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_dftb_shift, only : add_shift, total_shift
+  use dftbp_dftb_spin, only : getSpinShift
+  use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
+  use dftbp_dftb_dftbplusu, only : TDftbU
+  use dftbp_io_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
-  use dftbp_solvation, only : TSolvation
-  use dftbp_environment, only : TEnvironment
-  use dftbp_scc, only : TScc
-  use dftbp_dispersions, only : TDispersionIface
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_dispersions, only : TDispersionIface
 
   implicit none
 
@@ -443,4 +443,4 @@ contains
   end subroutine getSccHamiltonian
 
 
-end module dftbp_hamiltonian
+end module dftbp_dftb_hamiltonian

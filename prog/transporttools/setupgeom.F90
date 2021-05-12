@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 program setupGeometry 
-  use dftbp_globalenv
-  use dftbp_formatout, only : printDftbHeader
+  use dftbp_common_globalenv
+  use dftbp_io_formatout, only : printDftbHeader
   use dftbp_inputsetup, only : TInputData
-  use dftbp_parsersetup, only : parseHsdInput
+  use dftbp_dftbplus_parsersetup, only : parseHsdInput
 #:if WITH_MPI
-  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
   use mpi, only : MPI_THREAD_FUNNELED, MPI_COMM_WORLD
 #:endif
   implicit none

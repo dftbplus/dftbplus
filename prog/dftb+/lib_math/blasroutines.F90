@@ -12,10 +12,10 @@
 
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
-module dftbp_blasroutines
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_blas
+module dftbp_math_blasroutines
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_extlibs_blas
   implicit none
 
 
@@ -1812,4 +1812,4 @@ contains
 
 #:endfor
 
-end module dftbp_blasroutines
+end module dftbp_math_blasroutines

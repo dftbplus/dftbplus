@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
-module dftbp_reppoly
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_bisect
+module dftbp_dftb_reppoly
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_math_bisect
   implicit none
   private
 
@@ -206,4 +206,4 @@ contains
 
   end subroutine RepPoly_getEnergyDeriv
 
-end module dftbp_reppoly
+end module dftbp_dftb_reppoly

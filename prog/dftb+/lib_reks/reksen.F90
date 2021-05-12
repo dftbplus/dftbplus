@@ -13,22 +13,22 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksen
+module dftbp_reks_reksen
 
-  use dftbp_accuracy
-  use dftbp_blasroutines, only : gemm
-  use dftbp_densedescr
-  use dftbp_eigensolver, only : heev
-  use dftbp_elecsolvers
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_periodic
-  use dftbp_sparse2dense
-  use dftbp_rekscommon
-  use dftbp_reksio
-  use dftbp_reksvar, only : TReksCalc, reksTypes
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_type_densedescr
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_elecsolvers_elecsolvers
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_common_environment
+  use dftbp_common_globalenv
+  use dftbp_io_message
+  use dftbp_dftb_periodic
+  use dftbp_dftb_sparse2dense
+  use dftbp_reks_rekscommon
+  use dftbp_reks_reksio
+  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -1157,4 +1157,4 @@ module dftbp_reksen
   end function getFactor
 
 
-end module dftbp_reksen
+end module dftbp_reks_reksen

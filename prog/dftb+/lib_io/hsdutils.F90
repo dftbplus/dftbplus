@@ -10,18 +10,18 @@
 !> Contains high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 !> Todo: Some more routines for complex numbers?
-module dftbp_hsdutils
-  use dftbp_assert
-  use dftbp_xmlf90
-  use dftbp_tokenreader
-  use dftbp_hsdparser
-  use dftbp_xmlutils
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_linkedlist
-  use dftbp_accuracy
+module dftbp_io_hsdutils
+  use dftbp_common_assert
+  use dftbp_extlibs_xmlf90
+  use dftbp_io_tokenreader
+  use dftbp_io_hsdparser
+  use dftbp_io_xmlutils
+  use dftbp_io_charmanip
+  use dftbp_io_message
+  use dftbp_type_linkedlist
+  use dftbp_common_accuracy
   use dftbp_io_indexselection, only : getIndexSelection
-  use dftbp_status, only : TStatus
+  use dftbp_common_status, only : TStatus
   implicit none
   private
 
@@ -3129,4 +3129,4 @@ contains
 
   end subroutine appendPathAndLine
 
-end module dftbp_hsdutils
+end module dftbp_io_hsdutils

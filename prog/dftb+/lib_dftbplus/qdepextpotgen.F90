@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains the interface for an external population dependent potential.
-module dftbp_qdepextpotgen
-  use dftbp_accuracy, only : dp
+module dftbp_dftbplus_qdepextpotgen
+  use dftbp_common_accuracy, only : dp
   implicit none
   private
 
@@ -100,4 +100,4 @@ module dftbp_qdepextpotgen
   end interface
 
 
-end module dftbp_qdepextpotgen
+end module dftbp_dftbplus_qdepextpotgen

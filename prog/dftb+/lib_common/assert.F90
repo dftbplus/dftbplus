@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Auxiliary subroutines for the ASSERT command
-module dftbp_assert
-  use dftbp_globalenv, only : abortProgram, stdOut
+module dftbp_common_assert
+  use dftbp_common_globalenv, only : abortProgram, stdOut
   implicit none
   private
 
@@ -40,4 +40,4 @@ contains
 
 #:endblock DEBUG_CODE
 
-end module dftbp_assert
+end module dftbp_common_assert

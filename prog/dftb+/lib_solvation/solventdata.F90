@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Constants for commonly known solvents
-module dftbp_solventdata
-  use dftbp_accuracy, only : dp
-  use dftbp_charmanip, only : tolower
-  use dftbp_constants, only : kg__au, AA__Bohr, amu__au
+module dftbp_solvation_solventdata
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_charmanip, only : tolower
+  use dftbp_common_constants, only : kg__au, AA__Bohr, amu__au
   implicit none
   private
 
@@ -76,4 +76,4 @@ contains
   end subroutine solventFromName
 
 
-end module dftbp_solventdata
+end module dftbp_solvation_solventdata

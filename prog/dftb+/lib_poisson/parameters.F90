@@ -5,9 +5,9 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
-Module parameters
+module dftbp_poisson_parameters
   
-  use dftbp_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp
 
   implicit none
   private
@@ -285,4 +285,4 @@ Module parameters
     PoissAcc = Acc
   end subroutine set_accuracy
 
-end module Parameters
+end module dftbp_poisson_parameters

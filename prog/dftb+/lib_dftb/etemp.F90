@@ -12,15 +12,15 @@
 !> To do: Add other methods, including possibly Pederson and Jackson method
 !> PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
 !> interpolation instead of bisection.
-module dftbp_etemp
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, elecTol, elecTolMax, mExpArg
-  use dftbp_errorfunction
-  use dftbp_message
-  use dftbp_hermite
-  use dftbp_sorting
-  use dftbp_constants
-  use dftbp_factorial, only : fact
+module dftbp_dftb_etemp
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg
+  use dftbp_math_errorfunction
+  use dftbp_io_message
+  use dftbp_math_hermite
+  use dftbp_math_sorting
+  use dftbp_common_constants
+  use dftbp_math_factorial, only : fact
   implicit none
   private
 
@@ -566,4 +566,4 @@ contains
 
   end function middleGap
 
-end module dftbp_etemp
+end module dftbp_dftb_etemp

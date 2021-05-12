@@ -8,12 +8,12 @@
 #:include 'common.fypp'
 
 !> Contains routines to convert data (typically delivered by the parser) to the internal form.
-module dftbp_inputconversion
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_commontypes
-  use dftbp_wrappedintr
-  use dftbp_periodic, only : buildSquaredAtomIndex
+module dftbp_dftbplus_inputconversion
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_commontypes
+  use dftbp_type_wrappedintr
+  use dftbp_dftb_periodic, only : buildSquaredAtomIndex
   implicit none
   private
 
@@ -208,4 +208,4 @@ contains
   end subroutine addAtomResolvedRegion
 
 
-end module dftbp_inputconversion
+end module dftbp_dftbplus_inputconversion

@@ -10,9 +10,9 @@
 !> Contains routines for the additional local potential, which should enforce charge constraints.
 !>
 !> Note: this also has the same functional form as onsite 3rd order SCC contributions
-module dftbp_chargeconstr
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
+module dftbp_dftb_chargeconstr
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
@@ -137,4 +137,4 @@ contains
 
   end subroutine addEnergyPerAtom
 
-end module dftbp_chargeconstr
+end module dftbp_dftb_chargeconstr

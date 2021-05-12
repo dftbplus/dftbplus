@@ -7,14 +7,14 @@
 
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
-module dftbp_oldcompat
-  use dftbp_accuracy, only : dp
-  use dftbp_message
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_charmanip
-  use dftbp_xmlutils
-  use dftbp_xmlf90
+module dftbp_dftbplus_oldcompat
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_io_charmanip
+  use dftbp_io_xmlutils
+  use dftbp_extlibs_xmlf90
   implicit none
   private
 
@@ -578,4 +578,4 @@ contains
   end subroutine useDftb3Default
 
 
-end module dftbp_oldcompat
+end module dftbp_dftbplus_oldcompat

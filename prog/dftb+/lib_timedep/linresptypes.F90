@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Data types for linear response routines
-module dftbp_linresptypes
-  use dftbp_accuracy
+module dftbp_timedep_linresptypes
+  use dftbp_common_accuracy
   implicit none
 
   public
@@ -107,4 +107,4 @@ module dftbp_linresptypes
 
   end type TLinResp
   
-end module dftbp_linresptypes
+end module dftbp_timedep_linresptypes

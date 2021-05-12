@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_elecsolvertypes
+module dftbp_elecsolvers_elecsolvertypes
   implicit none
   private
 
@@ -42,4 +42,4 @@ module dftbp_elecsolvertypes
   !> Actual values for elecSolverTypes.
   type(TElecSolverTypesEnum), parameter :: electronicSolverTypes = TElecSolverTypesEnum()
 
-end module dftbp_elecsolvertypes
+end module dftbp_elecsolvers_elecsolvertypes

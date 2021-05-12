@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a list of physical constants for the code
-module dftbp_constants
-  use dftbp_accuracy
+module dftbp_common_constants
+  use dftbp_common_accuracy
 
   !! Natural constants
 
@@ -215,4 +215,4 @@ contains
   end function symbolToNumber
 
 
-end module dftbp_constants
+end module dftbp_common_constants

@@ -8,17 +8,17 @@
 #:include 'common.fypp'
 
 !> Routines for spin orbit coupling
-module dftbp_spinorbit
+module dftbp_dftb_spinorbit
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_extlibs_scalapackfx
 #:endif
-  use dftbp_environment
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : imag
-  use dftbp_angmomentum, only : getLOperators
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_densedescr
+  use dftbp_common_environment
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : imag
+  use dftbp_math_angmomentum, only : getLOperators
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr
   implicit none
   private
 
@@ -352,4 +352,4 @@ contains
   end subroutine getLSOperatorsForSpecies
 
 
-end module dftbp_spinorbit
+end module dftbp_dftb_spinorbit

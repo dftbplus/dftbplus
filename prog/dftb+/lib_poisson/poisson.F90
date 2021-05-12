@@ -8,20 +8,20 @@
 #:include "common.fypp"
 #:include "error.fypp"
 
-module poisson
+module dftbp_poisson_poisson
 
-  use dftbp_constants, only : pi, hartree__eV, Bohr__AA
-  use gallocation
-  use parameters
-  use structure
-  use parcheck
-  use gewald
-  use bulkpot
-  use fancybc
-  use mpi_poisson
-  use dftbp_globalenv, only : stdOut
-  use dftbp_accuracy, only : lc, dp
-  use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
+  use dftbp_poisson_gallocation
+  use dftbp_poisson_parameters
+  use dftbp_poisson_structure
+  use dftbp_poisson_parcheck
+  use dftbp_poisson_gewald
+  use dftbp_poisson_bulkpot
+  use dftbp_poisson_fancybc
+  use dftbp_poisson_mpi_poisson
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_accuracy, only : lc, dp
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   implicit none
   private
 
@@ -497,7 +497,7 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
  select case(SCC_in)
 
  !/////////////////////////////////////////////////////////////////
- case(GetPOT)     !Poisson called in order to calculate potential in SCC
+case(GetPOT)     !Poisson called in order to calculate potential in SCC
  !/////////////////////////////////////////////////////////////////
 
    !**********************************************************************************
@@ -818,20 +818,20 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
     deallocate(bulk,stat=err)
 
  !//////////////////////////////////////////////////////////////////////
- case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient
+case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient
  !//////////////////////////////////////////////////////////////////////
 
    if (id0) call gradient_V(phi_,iparm,fparm,dlx,dly,dlz,grad_V)
 
 
  !////////////////////////////////////////////////////////////////////////
- case(SavePOT)    ! Poisson called in order to save potential and charge density
+case(SavePOT)    ! Poisson called in order to save potential and charge density
  !////////////////////////////////////////////////////////////////////////
 
     if (id0) call save_pot(iparm,fparm,dlx,dly,dlz,phi_,rhs_)
 
  !///////////////////////////////////////////
- case(CLEAN)       ! Deallocate Poisson variables
+case(CLEAN)       ! Deallocate Poisson variables
  !///////////////////////////////////////////
 
    call finalize_mudpack()
@@ -1899,7 +1899,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
  end function booltoint
 
-end module poisson
+end module dftbp_poisson_poisson
 
 
 

@@ -13,13 +13,13 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_rekscommon
+module dftbp_reks_rekscommon
 
-  use dftbp_accuracy
-  use dftbp_blasroutines, only : gemm
-  use dftbp_densedescr
-  use dftbp_message
-  use dftbp_reksvar, only : TReksCalc, reksTypes
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_type_densedescr
+  use dftbp_io_message
+  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -877,4 +877,4 @@ module dftbp_rekscommon
   end subroutine assignFilling22_
 
 
-end module dftbp_rekscommon
+end module dftbp_reks_rekscommon

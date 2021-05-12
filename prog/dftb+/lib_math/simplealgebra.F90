@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Simple algebraic stuff for cases where LAPACK would be overkill
-module dftbp_simplealgebra
-  use dftbp_assert
-  use dftbp_accuracy
+module dftbp_math_simplealgebra
+  use dftbp_common_assert
+  use dftbp_common_accuracy
   implicit none
   private
 
@@ -124,4 +124,4 @@ contains
 
   end subroutine invert33
 
-end module dftbp_simplealgebra
+end module dftbp_math_simplealgebra

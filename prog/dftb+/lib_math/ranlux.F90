@@ -40,9 +40,9 @@
 !>
 !> See M. Luscher, Computer Physics Communications 79 (1994) 100 and F. James, Computer Physics
 !> Communications 79 (1994) 111
-module dftbp_ranlux
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
+module dftbp_math_ranlux
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
@@ -389,4 +389,4 @@ contains
 
   end subroutine Ranlux_getState
 
-end module dftbp_ranlux
+end module dftbp_math_ranlux

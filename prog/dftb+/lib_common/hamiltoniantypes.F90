@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_hamiltoniantypes
+module dftbp_common_hamiltoniantypes
   implicit none
   private
 
@@ -30,4 +30,4 @@ module dftbp_hamiltoniantypes
   !> Actual values for hamiltonianTypes.
   type(THamiltonianTypesEnum), parameter :: hamiltonianTypes = THamiltonianTypesEnum()
 
-end module dftbp_hamiltoniantypes
+end module dftbp_common_hamiltoniantypes

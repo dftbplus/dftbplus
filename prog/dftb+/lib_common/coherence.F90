@@ -23,11 +23,11 @@
   & ('complex(dp)', '', 'C', '0'), ('complex(dp)', '(:)', 'C', '1')]
 
 !> Contains MPI coherence tests across a comm world
-module dftbp_coherence
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_environment
+module dftbp_common_coherence
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_environment
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_extlibs_mpifx
 #:endif
   implicit none
 
@@ -281,4 +281,4 @@ contains
 
 #:endfor
 
-end module dftbp_coherence
+end module dftbp_common_coherence

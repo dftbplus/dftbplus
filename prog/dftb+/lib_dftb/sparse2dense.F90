@@ -10,18 +10,18 @@
 !> Contains subroutines for packing/unpacking Hamiltonian-like matrices between the square and
 !> 1-dimensional representations
 !>
-module dftbp_sparse2dense
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only : pi, imag
-  use dftbp_commontypes
-  use dftbp_memman
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_densedescr
-  use dftbp_angmomentum, only : rotateZ
+module dftbp_dftb_sparse2dense
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants, only : pi, imag
+  use dftbp_type_commontypes
+  use dftbp_common_memman
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_type_densedescr
+  use dftbp_math_angmomentum, only : rotateZ
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-  use dftbp_blacsenv
+  use dftbp_extlibs_scalapackfx
+  use dftbp_common_blacsenv
 #:endif
   implicit none
   private
@@ -3186,4 +3186,4 @@ contains
 
 #:endif
 
-end module dftbp_sparse2dense
+end module dftbp_dftb_sparse2dense

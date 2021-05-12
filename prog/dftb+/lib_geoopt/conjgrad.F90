@@ -9,10 +9,10 @@
 
 !> Function minimization with the standard conjugate gradient technique.  See Numerical Recipes for
 !> details.
-module dftbp_conjgrad
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_linemin
+module dftbp_geoopt_conjgrad
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_geoopt_linemin
   implicit none
 
   private
@@ -325,4 +325,4 @@ contains
 
   end subroutine conjGrad_getMinGrad
 
-end module dftbp_conjgrad
+end module dftbp_geoopt_conjgrad

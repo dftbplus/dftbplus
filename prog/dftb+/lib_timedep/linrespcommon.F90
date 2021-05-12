@@ -8,16 +8,16 @@
 #:include 'common.fypp'
 
 !> Helper routines for the linear response modules.
-module dftbp_linrespcommon
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_blasroutines
-  use dftbp_sorting
-  use dftbp_message
-  use dftbp_commontypes
-  use dftbp_transcharges
-  use dftbp_onsitecorrection, only : getOnsME
-  use dftbp_constants, only: Hartree__eV, au__Debye
+module dftbp_timedep_linrespcommon
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines
+  use dftbp_math_sorting
+  use dftbp_io_message
+  use dftbp_type_commontypes
+  use dftbp_timedep_transcharges
+  use dftbp_dftb_onsitecorrection, only : getOnsME
+  use dftbp_common_constants, only: Hartree__eV, au__Debye
   implicit none
   public
 
@@ -1233,4 +1233,4 @@ contains
 
   end subroutine writeExcMulliken
 
-end module dftbp_linrespcommon
+end module dftbp_timedep_linrespcommon

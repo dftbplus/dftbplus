@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> FIRE optimiser
-module dftbp_fire
-  use dftbp_accuracy, only : dp
+module dftbp_geoopt_fire
+  use dftbp_common_accuracy, only : dp
   implicit none
   private
   public :: TFire, TFire_init
@@ -202,4 +202,4 @@ contains
 
   end function mag
 
-end module dftbp_fire
+end module dftbp_geoopt_fire

@@ -9,8 +9,8 @@
 
 !> Routines to calculate a Slater type orbital (STO)
 module dftbp_slater
-  use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_common_assert
+  use dftbp_common_accuracy
   implicit none
 
   private

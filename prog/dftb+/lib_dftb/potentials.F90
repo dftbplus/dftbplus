@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different shift contributions in the DFTB energy expressions
-module dftbp_potentials
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes
+module dftbp_dftb_potentials
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes
   implicit none
 
   public :: TPotentials, init
@@ -113,4 +113,4 @@ contains
 
   end subroutine Potentials_init
 
-end module dftbp_potentials
+end module dftbp_dftb_potentials

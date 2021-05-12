@@ -13,32 +13,32 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksinterface
+module dftbp_reks_reksinterface
 
-  use dftbp_accuracy
-  use dftbp_densedescr
+  use dftbp_common_accuracy
+  use dftbp_type_densedescr
   use dftbp_dispiface
-  use dftbp_elecsolvers
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_nonscc
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_populations
-  use dftbp_rangeseparated
-  use dftbp_repulsive, only : TRepulsive
-  use dftbp_scc
-  use dftbp_slakocont
-  use dftbp_sparse2dense
-  use dftbp_stress
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_rekscommon
-  use dftbp_rekscpeqn
-  use dftbp_reksen
-  use dftbp_reksgrad
-  use dftbp_reksio
-  use dftbp_reksproperty
-  use dftbp_reksvar
+  use dftbp_elecsolvers_elecsolvers
+  use dftbp_common_environment
+  use dftbp_common_globalenv
+  use dftbp_dftb_nonscc
+  use dftbp_type_orbitals
+  use dftbp_dftb_periodic
+  use dftbp_dftb_populations
+  use dftbp_dftb_rangeseparated
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_scc
+  use dftbp_dftb_slakocont
+  use dftbp_dftb_sparse2dense
+  use dftbp_dftb_stress
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_reks_rekscommon
+  use dftbp_reks_rekscpeqn
+  use dftbp_reks_reksen
+  use dftbp_reks_reksgrad
+  use dftbp_reks_reksio
+  use dftbp_reks_reksproperty
+  use dftbp_reks_reksvar
 
   implicit none
 
@@ -1359,4 +1359,4 @@ module dftbp_reksinterface
   end subroutine getDipoleMoment_
 
 
-end module dftbp_reksinterface
+end module dftbp_reks_reksinterface

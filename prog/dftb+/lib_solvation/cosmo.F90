@@ -7,21 +7,21 @@
 
 #:include 'common.fypp'
 
-module dftbp_cosmo
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemv
-  use dftbp_charges, only : getSummedCharges
-  use dftbp_charmanip, only : tolower
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_constants, only : pi, Hartree__eV, Bohr__AA
-  use dftbp_environment, only : TEnvironment
+module dftbp_solvation_cosmo
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_io_charmanip, only : tolower
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_constants, only : pi, Hartree__eV, Bohr__AA
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_extlibs_ddcosmo
-  use dftbp_lebedev, only : getAngGrid, gridSize
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
-  use dftbp_solvation, only : TSolvation
+  use dftbp_extlibs_lebedev, only : getAngGrid, gridSize
+  use dftbp_io_message, only : error
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
+  use dftbp_solvation_solvation, only : TSolvation
   implicit none
   
   private
@@ -1057,4 +1057,4 @@ contains
   end subroutine writeCosmoFile
 
 
-end module dftbp_cosmo
+end module dftbp_solvation_cosmo

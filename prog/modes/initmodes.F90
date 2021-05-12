@@ -9,22 +9,22 @@
 
 !> Contains the routines for initialising modes.
 module dftbp_initmodes
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_xmlutils
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
+  use dftbp_common_assert
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
+  use dftbp_io_xmlutils
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
   use xmlf90_flib_dom
-  use dftbp_linkedlist
-  use dftbp_charmanip
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_typegeometryhsd
-  use dftbp_message
-  use dftbp_fileid
-  use dftbp_unitconversion
-  use dftbp_oldskdata
+  use dftbp_type_linkedlist
+  use dftbp_io_charmanip
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_type_typegeometryhsd
+  use dftbp_io_message
+  use dftbp_io_fileid
+  use dftbp_common_unitconversion
+  use dftbp_type_oldskdata
   implicit none
   private
 

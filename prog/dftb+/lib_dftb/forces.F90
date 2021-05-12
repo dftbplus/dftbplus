@@ -8,18 +8,18 @@
 #:include 'common.fypp'
 
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
-module dftbp_forces
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_schedule
-  use dftbp_environment
-  use dftbp_constants, only : pi
-  use dftbp_quaternions, only : rotate3
-  use dftbp_boundarycond, only : zAxis
+module dftbp_dftb_forces
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_scc
+  use dftbp_type_commontypes
+  use dftbp_dftb_slakocont
+  use dftbp_common_schedule
+  use dftbp_common_environment
+  use dftbp_common_constants, only : pi
+  use dftbp_math_quaternions, only : rotate3
+  use dftbp_dftb_boundarycond, only : zAxis
   implicit none
 
   private
@@ -815,4 +815,4 @@ contains
 
   end subroutine derivative_iBlock
 
-end module dftbp_forces
+end module dftbp_dftb_forces

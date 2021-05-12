@@ -9,17 +9,17 @@
 #:include 'error.fypp'
 
 !> MBD/TS dispersion model.
-module dftbp_dispmbd
-  use dftbp_accuracy, only: dp, mc, lc
-  use dftbp_assert
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_constants, only: symbolToNumber
+module dftbp_dftb_dispmbd
+  use dftbp_common_accuracy, only: dp, mc, lc
+  use dftbp_common_assert
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_constants, only: symbolToNumber
   use dftbp_dispiface, only: TDispersionIface
-  use dftbp_environment, only: TEnvironment
-  use dftbp_globalenv, only: stdOut
-  use dftbp_periodic, only: TNeighbourList
-  use dftbp_simplealgebra, only: determinant33
-  use dftbp_typegeometry, only: TGeometry
+  use dftbp_common_environment, only: TEnvironment
+  use dftbp_common_globalenv, only: stdOut
+  use dftbp_dftb_periodic, only: TNeighbourList
+  use dftbp_math_simplealgebra, only: determinant33
+  use dftbp_type_typegeometry, only: TGeometry
   use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
 
   implicit none
@@ -413,4 +413,4 @@ contains
   end subroutine mbdPrinter
 
 
-end module dftbp_dispmbd
+end module dftbp_dftb_dispmbd

@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a simple logger which helps to avoid direct write statements.
-module dftbp_logger
-  use dftbp_accuracy, only : dp
-  use dftbp_globalenv, only : stdOut
-  use dftbp_optarg
+module dftbp_io_logger
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_optarg
   implicit none
   private
 
@@ -297,4 +297,4 @@ contains
 
   end subroutine getRowFormat
 
-end module dftbp_logger
+end module dftbp_io_logger

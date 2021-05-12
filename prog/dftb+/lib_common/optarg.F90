@@ -7,8 +7,8 @@
 
 !> Module for filling in optional arguments if suplied to a call, otherwise suplying a default
 !> value.
-module dftbp_optarg
-  use dftbp_accuracy, only : dp
+module dftbp_common_optarg
+  use dftbp_common_accuracy, only : dp
   implicit none
   private
 
@@ -109,4 +109,4 @@ contains
 
   end subroutine getOptionalArgLogical
 
-end module dftbp_optarg
+end module dftbp_common_optarg

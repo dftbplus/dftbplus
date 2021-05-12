@@ -9,16 +9,16 @@
 
 !> Contains data type representing the input data for setupgeom
 module dftbp_inputsetup
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_message
-  use dftbp_slakocont
-  use dftbp_commontypes
-  use dftbp_repcont
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
-  use dftbp_negfvars
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_type_typegeometry
+  use dftbp_io_message
+  use dftbp_dftb_slakocont
+  use dftbp_type_commontypes
+  use dftbp_dftb_repcont
+  use dftbp_type_linkedlist
+  use dftbp_type_wrappedintr
+  use dftbp_transport_negfvars
 
   implicit none
   private

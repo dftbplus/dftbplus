@@ -12,11 +12,11 @@
 !> The dynamic neighbour list does not store the entire neighbour list, but creates it on the fly,
 !> allowing for a low memory footprint for large neighbour lists (at the cost of speed).
 !>
-module dftbp_dynneighlist
-  use dftbp_accuracy
-  use dftbp_assert
-  use dftbp_latpointiter
-  use dftbp_message
+module dftbp_type_dynneighlist
+  use dftbp_common_accuracy
+  use dftbp_common_assert
+  use dftbp_type_latpointiter
+  use dftbp_io_message
   implicit none
   private
 
@@ -294,4 +294,4 @@ contains
   end subroutine TNeighIterator_getNextNeighbours
 
 
-end module dftbp_dynneighlist
+end module dftbp_type_dynneighlist

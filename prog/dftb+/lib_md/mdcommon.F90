@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Common routines for MD calculations
-module dftbp_mdcommon
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_ranlux
+module dftbp_md_mdcommon
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_math_ranlux
   implicit none
   private
 
@@ -253,4 +253,4 @@ contains
 
   end subroutine MaxwellBoltzmann
 
-end module dftbp_mdcommon
+end module dftbp_md_mdcommon

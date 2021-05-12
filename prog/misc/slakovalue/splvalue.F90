@@ -10,14 +10,14 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
-  use dftbp_accuracy
-  use dftbp_globalenv, only : stdOut
-  use dftbp_repspline
-  use dftbp_oldskdata, only : readsplinerep
-  use dftbp_fileid
-  use dftbp_message
+  use dftbp_common_accuracy
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_repspline
+  use dftbp_type_oldskdata, only : readsplinerep
+  use dftbp_io_fileid
+  use dftbp_io_message
 #:if WITH_MPI
-  use dftbp_mpienv
+  use dftbp_common_mpienv
 #:endif
   implicit none
 

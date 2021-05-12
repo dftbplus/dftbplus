@@ -12,11 +12,11 @@
 !> This module contains the repulsive functions. It decides, which one to call for which type
 !> pairs. It can be easily extended to contain different repulsive schemes for different pairs. At
 !> the moment, it handles only repulsive with spline interpolation.
-module dftbp_repcont
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_repspline
-  use dftbp_reppoly
+module dftbp_dftb_repcont
+  use dftbp_common_assert
+  use dftbp_common_accuracy
+  use dftbp_dftb_repspline
+  use dftbp_dftb_reppoly
   implicit none
   private
 
@@ -236,4 +236,4 @@ contains
 
   end subroutine RepCont_getEnergyDeriv
 
-end module dftbp_repcont
+end module dftbp_dftb_repcont

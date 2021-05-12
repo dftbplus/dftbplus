@@ -11,14 +11,14 @@
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
-module dftbp_eigensolver
-  use dftbp_assert
-  use dftbp_message
-  use dftbp_accuracy, only : rsp, rdp
-  use dftbp_blas
-  use dftbp_lapack
+module dftbp_math_eigensolver
+  use dftbp_common_assert
+  use dftbp_io_message
+  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_extlibs_blas
+  use dftbp_extlibs_lapack
 #:if WITH_GPU
-  use dftbp_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
+  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
   private
@@ -2248,4 +2248,4 @@ contains
 
 #:endfor
 
-end module dftbp_eigensolver
+end module dftbp_math_eigensolver

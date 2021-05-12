@@ -13,18 +13,18 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_rekscpeqn
+module dftbp_reks_rekscpeqn
 
-  use dftbp_accuracy
-  use dftbp_blasroutines, only : gemm, gemv
-  use dftbp_densedescr
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_rekscommon
-  use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
+  use dftbp_common_accuracy
+  use dftbp_math_blasroutines, only : gemm, gemv
+  use dftbp_type_densedescr
+  use dftbp_common_environment
+  use dftbp_common_globalenv
+  use dftbp_io_message
+  use dftbp_type_orbitals
+  use dftbp_dftb_periodic
+  use dftbp_reks_rekscommon
+  use dftbp_reks_reksgrad, only : getRmat, getZmat, getQ2mat
 
   implicit none
 
@@ -637,4 +637,4 @@ module dftbp_rekscpeqn
   end subroutine shiftAY2e_
 
 
-end module dftbp_rekscpeqn
+end module dftbp_reks_rekscpeqn

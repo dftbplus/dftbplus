@@ -8,15 +8,15 @@
 #:include "common.fypp"
 
 !> HSD-parsing related helper routines.
-module dftbp_hsdhelpers
-  use dftbp_globalenv, only : stdOut, tIoProc
-  use dftbp_parser
-  use dftbp_hsdparser
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_inputdata
-  use dftbp_message
-  use dftbp_xmlf90, only : fnode, destroyNode
+module dftbp_dftbplus_hsdhelpers
+  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_dftbplus_parser
+  use dftbp_io_hsdparser
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_dftbplus_inputdata
+  use dftbp_io_message
+  use dftbp_extlibs_xmlf90, only : fnode, destroyNode
   implicit none
   private
 
@@ -94,4 +94,4 @@ contains
   end subroutine doPostParseJobs
 
 
-end module dftbp_hsdhelpers
+end module dftbp_dftbplus_hsdhelpers

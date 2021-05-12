@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
-module dftbp_wrappedintr
-  use dftbp_accuracy
+module dftbp_type_wrappedintr
+  use dftbp_common_accuracy
   implicit none
   private
 
@@ -28,4 +28,4 @@ module dftbp_wrappedintr
     logical, allocatable :: data(:)
   end type TWrappedLogical1
 
-end module dftbp_wrappedintr
+end module dftbp_type_wrappedintr

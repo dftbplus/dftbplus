@@ -5,12 +5,12 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
-module fancybc
+module dftbp_poisson_fancybc
 
-  use dftbp_accuracy, only : dp
-  use parameters
-  use bulkpot , only : super_array
-  use mpi_poisson
+  use dftbp_common_accuracy, only : dp
+  use dftbp_poisson_parameters
+  use dftbp_poisson_bulkpot , only : super_array
+  use dftbp_poisson_mpi_poisson
   
   implicit none
   private
@@ -950,4 +950,4 @@ Subroutine mix_bndyc(kbdy,xory,yorz,alfa,gbdy)
 
 end subroutine mix_bndyc
 
-end module fancybc
+end module dftbp_poisson_fancybc

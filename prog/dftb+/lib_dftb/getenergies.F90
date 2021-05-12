@@ -8,34 +8,34 @@
 #:include 'common.fypp'
 
 !> Evaluate energies
-module dftbp_getenergies
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_assert
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_populations
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_potentials, only : TPotentials
-  use dftbp_shift, only : add_shift, total_shift
-  use dftbp_spin, only : getSpinShift
-  use dftbp_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
-  use dftbp_dftbplusu, only : TDftbU
-  use dftbp_message, only : error
+module dftbp_dftb_getenergies
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_assert
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_populations
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_dftb_shift, only : add_shift, total_shift
+  use dftbp_dftb_spin, only : getSpinShift
+  use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
+  use dftbp_dftb_dftbplusu, only : TDftbU
+  use dftbp_io_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
-  use dftbp_environment, only : TEnvironment
-  use dftbp_scc, only : TScc
-  use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_onsitecorrection
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_dftb_onsitecorrection
   use dftbp_dispiface
 #:if WITH_MBD
-  use dftbp_dispmbd, only: TDispMbd
+  use dftbp_dftb_dispmbd, only: TDispMbd
 #:endif
-  use dftbp_solvation, only : TSolvation
-  use dftbp_repcont
-  use dftbp_repulsive
-  use dftbp_reks, only : TReksCalc
-  use dftbp_determinants, only : TDftbDeterminants, determinants
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_dftb_repcont
+  use dftbp_dftb_repulsive
+  use dftbp_reks_reks, only : TReksCalc
+  use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   implicit none
 
   private
@@ -302,4 +302,4 @@ contains
 
   end subroutine sumEnergies
 
-end module dftbp_getenergies
+end module dftbp_dftb_getenergies

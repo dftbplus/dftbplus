@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> contains some miscellaneous quantum mechanics related bits and pieces.
-module dftbp_qm
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, rsp
+module dftbp_math_qm
+  use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp, rsp
 
   implicit none
 
@@ -65,4 +65,4 @@ contains
 
   end subroutine U_real
 
-end module dftbp_qm
+end module dftbp_math_qm

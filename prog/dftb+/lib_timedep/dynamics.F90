@@ -13,55 +13,55 @@
 !> F. J., Frauenheim, T., & Sánchez, C. G.  Journal of Chemical Theory and Computation (2020)
 !> https://doi.org/10.1021/acs.jctc.9b01217
 
-module dftbp_timeprop
-  use dftbp_globalenv
-  use dftbp_commontypes
-  use dftbp_potentials
-  use dftbp_scc
-  use dftbp_shift
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_sparse2dense
-  use dftbp_densitymatrix
-  use dftbp_blasroutines
-  use dftbp_lapackroutines
-  use dftbp_populations
-  use dftbp_bondpops
-  use dftbp_blas
-  use dftbp_lapack
-  use dftbp_spin
-  use dftbp_forces
-  use dftbp_slakocont
-  use dftbp_thermostat
-  use dftbp_mdintegrator
-  use dftbp_dummytherm
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_periodic
-  use dftbp_velocityverlet
-  use dftbp_nonscc
-  use dftbp_dftbplusu, only : TDftbU
-  use dftbp_energytypes, only : TEnergies, TEnergies_init
-  use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
+module dftbp_timedep_dynamics
+  use dftbp_common_globalenv
+  use dftbp_type_commontypes
+  use dftbp_dftb_potentials
+  use dftbp_dftb_scc
+  use dftbp_dftb_shift
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_dftb_sparse2dense
+  use dftbp_dftb_densitymatrix
+  use dftbp_math_blasroutines
+  use dftbp_math_lapackroutines
+  use dftbp_dftb_populations
+  use dftbp_dftb_bondpopulations
+  use dftbp_extlibs_blas
+  use dftbp_extlibs_lapack
+  use dftbp_dftb_spin
+  use dftbp_dftb_forces
+  use dftbp_dftb_slakocont
+  use dftbp_md_thermostat
+  use dftbp_md_mdintegrator
+  use dftbp_md_dummytherm
+  use dftbp_md_mdcommon
+  use dftbp_math_ranlux
+  use dftbp_dftb_periodic
+  use dftbp_md_velocityverlet
+  use dftbp_dftb_nonscc
+  use dftbp_dftb_dftbplusu, only : TDftbU
+  use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
+  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
-  use dftbp_solvation, only : TSolvation
-  use dftbp_populations
-  use dftbp_eigenvects
-  use dftbp_sk
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_dftb_populations
+  use dftbp_dftbplus_eigenvects
+  use dftbp_dftb_sk
   use dftbp_dispiface
-  use dftbp_dispersions
-  use dftbp_environment
-  use dftbp_repulsive, only : TRepulsive
-  use dftbp_timer
-  use dftbp_taggedoutput
-  use dftbp_hamiltonian
-  use dftbp_onsitecorrection
-  use dftbp_message
-  use dftbp_elecsolvers, only : TElectronicSolver
-  use dftbp_simplealgebra
-  use dftbp_RangeSeparated, only : TRangeSepFunc
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_reks, only : TReksCalc
+  use dftbp_dftb_dispersions
+  use dftbp_common_environment
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_common_timer
+  use dftbp_io_taggedoutput
+  use dftbp_dftb_hamiltonian
+  use dftbp_dftb_onsitecorrection
+  use dftbp_io_message
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_math_simplealgebra
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_reks_reks, only : TReksCalc
   implicit none
   private
 
@@ -4070,4 +4070,4 @@ contains
     end if
 
   end subroutine finalizeDynamics
-end module dftbp_timeprop
+end module dftbp_timedep_dynamics

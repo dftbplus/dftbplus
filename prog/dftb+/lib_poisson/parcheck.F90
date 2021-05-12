@@ -8,15 +8,15 @@
 
 #:include "error.fypp"
 
-module parcheck
+module dftbp_poisson_parcheck
 
-  use dftbp_accuracy, only : lc, dp
-  use dftbp_constants
-  use dftbp_message, only : warning
-  use parameters
-  use structure, only : natoms, x, boxsiz, period, period_dir
-  use mpi_poisson, only : id0, numprocs
-  use dftbp_globalenv, only : stdOut
+  use dftbp_common_accuracy, only : lc, dp
+  use dftbp_common_constants
+  use dftbp_io_message, only : warning
+  use dftbp_poisson_parameters
+  use dftbp_poisson_structure, only : natoms, x, boxsiz, period, period_dir
+  use dftbp_poisson_mpi_poisson, only : id0, numprocs
+  use dftbp_common_globalenv, only : stdOut
 
 implicit none
 private
@@ -389,4 +389,4 @@ contains
  end subroutine check_contacts
 
 
-end module parcheck
+end module dftbp_poisson_parcheck
