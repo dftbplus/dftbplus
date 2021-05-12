@@ -121,7 +121,7 @@ set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
 #
 # This list can be used to control how hybrid dependencies (external dependencies which can
 # optionally be built during the build process) are configured. The listed methods are applied in
-# the following order:
+# the specified order. Following methods are available:
 #
 # Submodule: Use the source in external/*/origin and build the dependency as part of the build
 #     process. If the source is not present, try to retrieve it via the 'git submodule' command
