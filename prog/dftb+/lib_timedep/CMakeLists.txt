@@ -11,7 +11,7 @@ set(sources-fpp
 
 if(WITH_ARPACK)
   list(APPEND sources-fpp
-    ${curdir}/rs_linresp.F90)
+  ${curdir}/rslinresp.F90)
 endif(WITH_ARPACK)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
