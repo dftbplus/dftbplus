@@ -18,7 +18,7 @@ program dftbplus
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
-  integer, parameter :: releaseYear = 2020
+  integer, parameter :: releaseYear = 2021
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input

@@ -7,6 +7,8 @@
 
 #:include 'common.fypp'
 
+#:assert not (WITH_ARPACK and INSTANCE_SAFE_BUILD)
+
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
 !> state calculations).
 module dftbp_arpack

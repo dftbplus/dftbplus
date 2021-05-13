@@ -1534,8 +1534,10 @@ contains
     if (this%tSccCalc) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
-        call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
-            & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
       else
         call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
             & this%uniqHubbU, shortGammaDamp, shortGammaInput)
@@ -4669,14 +4671,9 @@ contains
     case ('ts')
       write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
     end select
-    write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
     select case (input%method)
-    case ('ts')
-      write(tmpStr,"(E18.6)") input%ts_f_acc
-      write(stdOut, "(A,T30,A)") '  TSForceAccuracy', trim(adjustl(tmpStr))
-      write(tmpStr, "(E18.6)") input%ts_ene_acc
-      write(stdOut, "(A,T30,A)") '  TSEnergyAccuracy', trim(adjustl(tmpStr))
     case ('mbd-rsscs')
+      write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
       write(tmpStr, "(3(I3,1X))") input%k_grid
       write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
       write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
@@ -5673,6 +5670,8 @@ contains
   end subroutine initCoulombInput_
 
 
+#:if WITH_POISSON
+
   ! Initializes a Poisson solver
   subroutine initPoissonInput_(input, nAtom, nType, species0, coord0, tPeriodic, latVec, orb,&
       & hubbU, poissonInput, shiftPerLUp)
@@ -5715,6 +5714,8 @@ contains
   #:endif
 
   end subroutine initPoissonInput_
+
+#:endif
 
 
   ! Initializes the scc calculator

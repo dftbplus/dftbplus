@@ -3103,25 +3103,14 @@ CoordinationNumber = Cov {
 Applies the Tkatchenko-Scheffler dispersion model
 \cite{TkatchenkoPRL09,StohrJCP16}.
 
-\textbf{Note:} DFTB+ uses the external libMBD-library to calculate the
-TS-dispersion. Currently, libMBD calculates the gradients for the TS dispersion
-model by finite differences, resulting in long gradient calculation times for
-large systems.
-
 The following keywords can be used with this dispersion model:
 \begin{ptable}
-  \kw{EnergyAccuracy} & r & & 1e-7 & \\
-  \kw{ForceAccuracy} & r & & 1e-6 & \\
   \kw{Damping} & r & & 20.0 & \\
   \kw{RangeSeparation} & & & 0.94 & \\
   \kw{ReferenceSet} & & & "TS" & \\
   \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
-\item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
-  of the dispersion calculation.
-\item[\is{ForceAccuracy}] \modif{\modtype{force}} Specifies the force accuracy
-  of the dispersion calculation.
 \item[\is{Damping}] Damping factor.
 \item[\is{RangeSeparation}] Range separation parameter. The default value is the
   DFTB LDA-value. Note, that various DFTB-parametrisations may require different
