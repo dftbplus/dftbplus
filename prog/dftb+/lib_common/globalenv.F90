@@ -27,6 +27,7 @@ module dftbp_globalenv
   public :: abortProgram, shutdown, synchronizeAll
   public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
+  public :: instanceSafeBuild
   #:if WITH_MPI
     public :: globalMpiComm
   #:endif
@@ -65,6 +66,9 @@ module dftbp_globalenv
 
   !> Whether code was compiled with many-body dispersion support
   logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
+
+  !> Whether the code had been built with instance safe components only
+  logical, parameter :: instanceSafeBuild = ${FORTRAN_LOGICAL(INSTANCE_SAFE_BUILD)}$
 
 
 

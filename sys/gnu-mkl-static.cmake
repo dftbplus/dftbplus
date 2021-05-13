@@ -11,6 +11,7 @@
 # Switching on all components compatible with static linking and binary distribution.
 set(WITH_OMP TRUE CACHE BOOL "Whether OpenMP thread parallisation should be enabled" FORCE)
 set(WITH_TRANSPORT TRUE CACHE BOOL "Whether transport via libNEGF should be included." FORCE)
+set(WITH_POISSON TRUE CACHE BOOL "Whether the Poisson-solver should be included" FORCE)
 set(WITH_API TRUE CACHE BOOL "Whether API should be built" FORCE)
 set(WITH_ARPACK TRUE CACHE BOOL
   "Whether the ARPACK library should be included (needed for TD-DFTB)" FORCE)

@@ -18,16 +18,30 @@ software packages as a library.
 Installation
 ============
 
+Obtaining via Conda
+-------------------
 
-Downloading the binary distribution
------------------------------------
+The preferred way of obtaining DFTB+ is to install it via the conda package
+management framework using `Miniconda
+<https://docs.conda.io/en/latest/miniconda.html>`_ or `Anaconda
+<https://www.anaconda.com/products/individual>`_. Make sure to add/enable the
+``conda-forge`` channel in order to be able to access DFTB+. (Please consult the
+conda documentation for how to set-up your conda environment.)
 
-Binary (threaded) distribution of the latest stable release can be found on the
-`stable release page <http://www.dftbplus.org/download/dftb-stable/>`_.
+We provide several build variants (mpi, non-mpi), choose the one suiting your
+needs. For example, by issuing ::
 
-Alternatively, you can also install DFTB+ via the `Anaconda package management
-<https://www.anaconda.com/products/individual>`_ framework. (This feature is
-currently experimental.)
+  conda install 'dftbplus=*=nompi_*'
+
+you obtain the latest stable non-MPI version of DFTB+.
+
+
+Downloading the binary
+----------------------
+
+A non-MPI (OpenMP-threaded) distribution of the latest stable release can be
+found on the `stable release page
+<http://www.dftbplus.org/download/dftb-stable/>`_.
 
 
 Building from source

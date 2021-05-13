@@ -243,7 +243,9 @@ contains
       call initShortGamma_(input%shortGammaInput, orb, this%shortGamma)
       call initCoulomb_(input%coulombInput, env, this%nAtom, this%coulomb)
     case (elstatTypes%poisson)
-      call initPoisson_(input%poissonInput, env, orb, this%poisson)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call initPoisson_(input%poissonInput, env, orb, this%poisson)
+      #:endblock
     end select
 
     this%tPeriodic = (input%boundaryCond == boundaryConditions%pbc3d)
@@ -332,9 +334,11 @@ contains
       call this%coulomb%updateCoords(env, neighList, coord, species)
       call this%shortGamma%updateCoords(coord, species, neighList)
     case (elstatTypes%poisson)
-      ! Poisson solver needs currently the unfolded central cell coordinates (coord0), because the
-      ! folding can mess up the contact position.
-      call this%poisson%updateCoords(coord0)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        ! Poisson solver needs currently the unfolded central cell coordinates (coord0), because the
+        ! folding can mess up the contact position.
+        call this%poisson%updateCoords(coord0)
+      #:endblock
     end select
 
     if (allocated(this%extCharges)) then
@@ -368,7 +372,9 @@ contains
     case (elstatTypes%gammaFunc)
       call this%coulomb%updateLatVecs(latVec, recVec, vol)
     case (elstatTypes%poisson)
-      call this%poisson%updateLatVecs(latVec)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%updateLatVecs(latVec)
+      #:endblock
     end select
 
     if (allocated(this%extCharges)) then
@@ -410,7 +416,9 @@ contains
       call this%coulomb%updateCharges(env, qOrbital, orb, species, this%deltaQ, this%deltaQAtom,&
           & this%deltaQShell)
     case (elstatTypes%poisson)
-      call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
+      #:endblock
     end select
 
   end subroutine updateCharges
@@ -446,9 +454,11 @@ contains
       call this%shortGamma%updateShifts(env, orb, species, iNeighbour, img2CentCell)
       call this%shortGamma%getShiftPerShell(this%shiftPerL)
     case (elstatTypes%poisson)
-      this%shiftPerAtom(:) = 0.0_dp
-      this%shiftPerL(:,:) = 0.0_dp
-      call this%poisson%addPotentials(this%shiftPerL)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        this%shiftPerAtom(:) = 0.0_dp
+        this%shiftPerL(:,:) = 0.0_dp
+        call this%poisson%addPotentials(this%shiftPerL)
+      #:endblock
     end select
 
     if (this%tChrgConstr) then
@@ -706,9 +716,11 @@ contains
       call this%shortGamma%addGradientsDc(force, species, this%coord, iNeighbour, img2CentCell)
       call this%coulomb%addGradients(env, this%coord, species, iNeighbour, img2CentCell, force)
     case (elstatTypes%poisson)
-      allocate(tmpDerivs, mold=force)
-      call this%poisson%getGradients(env, tmpDerivs)
-      force(:,:) = force + tmpDerivs
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        allocate(tmpDerivs, mold=force)
+        call this%poisson%getGradients(env, tmpDerivs)
+        force(:,:) = force + tmpDerivs
+      #:endblock
     end select
 
     if (allocated(this%extCharges)) then
@@ -751,7 +763,9 @@ contains
           & img2CentCell)
       call this%coulomb%addStress(env, this%coord, species, iNeighbour, img2CentCell, st)
     case (elstatTypes%poisson)
-      st(:,:) = 0.0_dp
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        st(:,:) = 0.0_dp
+      #:endblock
     end select
 
     !! NOTE: no stress contribution from external charges
@@ -995,7 +1009,9 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     if (this%elstatType == elstatTypes%poisson) then
-      call this%poisson%savePotential(env)
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        call this%poisson%savePotential(env)
+      #:endblock
     end if
 
   end subroutine finishSccLoop
@@ -1005,6 +1021,7 @@ contains
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+#:if WITH_POISSON
 
   ! Initializes the Poisson solver
   subroutine initPoisson_(poissonInput, env, orb, poisson)
@@ -1022,6 +1039,8 @@ contains
     end if
 
   end subroutine initPoisson_
+
+#:endif
 
 
   ! Initializes the short gamma calculator

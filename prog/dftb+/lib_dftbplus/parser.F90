@@ -62,7 +62,7 @@ module dftbp_parser
   use dftbp_reks
   use dftbp_plumed, only : withPlumed
   use dftbp_arpack, only : withArpack
-  use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
+  use dftbp_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
   use dftbp_negfvars
 #:endif
@@ -108,6 +108,7 @@ module dftbp_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
 
@@ -2044,21 +2045,31 @@ contains
     ! Read in which kind of electrostatics method to use.
     call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
     call getNodeName(value1, buffer)
+
     select case (char(buffer))
+
     case ("gammafunctional")
     #:if WITH_TRANSPORT
       if (tp%taskUpload .and. ctrl%tSCC) then
-        call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
+        call detailedError(value1, "GammaFunctional not available, if you upload contacts in an SCC&
             & calculation.")
       end if
     #:endif
+
     case ("poisson")
-      ctrl%tPoisson = .true.
-    #:if WITH_TRANSPORT
-      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:else
-      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:endif
+      if (.not. withPoisson) then
+        call detailedError(value1, "Poisson not available as binary was built without the Poisson&
+            &-solver")
+      end if
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        ctrl%tPoisson = .true.
+        #:if WITH_TRANSPORT
+          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:else
+          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:endif
+      #:endblock
+
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
@@ -4389,12 +4400,16 @@ contains
     type(fnode), pointer :: child
 
     input%method = 'ts'
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, default=(input%ts_ene_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, default=(input%ts_f_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
+    call getChild(node, "EnergyAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The energy accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
+    call getChild(node, "ForceAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The force accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
     call getChildValue(node, "RangeSeparation", input%ts_sr, default=(input%ts_sr))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
@@ -5812,6 +5827,8 @@ contains
 #:endif
 
 
+#:if WITH_POISSON
+
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
   subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
@@ -6085,6 +6102,9 @@ contains
     end do
 
   end subroutine getPoissonBoundaryConditionOverrides
+
+#:endif
+
 
 #:if WITH_TRANSPORT
   !> Sanity checking of atom ranges and returning contact vector and direction.
@@ -6906,18 +6926,20 @@ contains
       input%ginfo%greendens%PL = input%transpar%PL
     end if
 
-    !! Not orthogonal directions in transport are only allowed if no Poisson
-    if (input%poisson%defined.and.input%transpar%defined) then
-      do ii = 1, input%transpar%ncont
-        ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
-        ! a direction not parallel to any coordinate axis
-        if (input%transpar%contacts(ii)%dir.lt.1 .or. &
-          &input%transpar%contacts(ii)%dir.gt.3 ) then
-          call error("Contact " // i2c(ii) // " not parallel to any &
-            & coordinate axis is not compatible with Poisson solver")
-        end if
-      end do
-    end if
+    #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+      !! Not orthogonal directions in transport are only allowed if no Poisson
+      if (input%poisson%defined.and.input%transpar%defined) then
+        do ii = 1, input%transpar%ncont
+          ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
+          ! a direction not parallel to any coordinate axis
+          if (input%transpar%contacts(ii)%dir.lt.1 .or. &
+            &input%transpar%contacts(ii)%dir.gt.3 ) then
+            call error("Contact " // i2c(ii) // " not parallel to any &
+              & coordinate axis is not compatible with Poisson solver")
+          end if
+        end do
+      end if
+    #:endblock
 
     !! Temporarily not supporting surface green function read/load
     !! for spin polarized, because spin is handled outside of libnegf

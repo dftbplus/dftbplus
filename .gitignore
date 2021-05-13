@@ -11,6 +11,5 @@ build
 custom.cmake
 __pycache__
 .idea
-RELEASE
 tools/dptools/build
 .nfs*
