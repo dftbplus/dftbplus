@@ -9,6 +9,7 @@ extpot              #? not WITH_MPI
 extpot2             #? not WITH_MPI
 timeprop            #? not WITH_MPI
 ehrenfest           #? not WITH_MPI
+ehrenfest_ext_ions  #? not WITH_MPI
 fileinit            #? not WITH_MPI
 fileinitc           #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 qdepextpot          #? not WITH_MPI
@@ -17,3 +18,4 @@ qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
+mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)

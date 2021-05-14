@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -62,7 +62,7 @@ module dftbp_parser
   use dftbp_reks
   use dftbp_plumed, only : withPlumed
   use dftbp_arpack, only : withArpack
-  use dftbp_poisson, only : TPoissonInfo, TPoissonStructure
+  use dftbp_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
 #:if WITH_TRANSPORT
   use dftbp_negfvars
 #:endif
@@ -108,6 +108,7 @@ module dftbp_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
 
@@ -410,6 +411,7 @@ contains
     ! range of default atoms to move
     character(mc) :: atomsRange
 
+    character(mc) :: modeName
     logical :: isMaxStepNeeded
 
     atomsRange = "1:-1"
@@ -433,10 +435,14 @@ contains
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
     case ("")
+      modeName = ""
       continue
     case ("none")
+      modeName = ""
       continue
     case ("steepestdescent")
+
+      modeName = "geometry relaxation"
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
@@ -448,6 +454,8 @@ contains
 
     case ("conjugategradient")
 
+      modeName = "geometry relaxation"
+
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
       #:if WITH_TRANSPORT
@@ -457,6 +465,8 @@ contains
       #:endif
 
     case("gdiis")
+
+      modeName = "geometry relaxation"
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
@@ -469,6 +479,8 @@ contains
       #:endif
 
     case ("lbfgs")
+
+      modeName = "geometry relaxation"
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
 
@@ -493,6 +505,8 @@ contains
 
     case ("fire")
 
+      modeName = "geometry relaxation"
+
       ctrl%iGeoOpt = geoOptTypes%fire
       #:if WITH_TRANSPORT
       call commonGeoOptions(node, ctrl, geom, transpar, .false.)
@@ -504,6 +518,8 @@ contains
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
+
+      modeName = "second derivatives"
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
@@ -522,6 +538,8 @@ contains
 
     case ("velocityverlet")
       ! molecular dynamics
+
+      modeName = "molecular dynamics"
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
@@ -730,6 +748,9 @@ contains
 
     case ("socket")
       ! external socket control of the run (once initialised from input)
+
+      modeName = "socket control"
+
     #:if WITH_SOCKETS
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
@@ -783,6 +804,12 @@ contains
       call detailedError(parent, "Invalid driver '" // char(buffer) // "'")
 
     end select driver
+
+  #:if WITH_TRANSPORT
+    if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport .and. trim(modeName) /= "") then
+      call detailederror(node, "transportOnly solver cannot be used with "//trim(modeName))
+    end if
+  #:endif
 
   end subroutine readDriver
 
@@ -2018,21 +2045,31 @@ contains
     ! Read in which kind of electrostatics method to use.
     call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
     call getNodeName(value1, buffer)
+
     select case (char(buffer))
+
     case ("gammafunctional")
     #:if WITH_TRANSPORT
       if (tp%taskUpload .and. ctrl%tSCC) then
-        call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
+        call detailedError(value1, "GammaFunctional not available, if you upload contacts in an SCC&
             & calculation.")
       end if
     #:endif
+
     case ("poisson")
-      ctrl%tPoisson = .true.
-    #:if WITH_TRANSPORT
-      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:else
-      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:endif
+      if (.not. withPoisson) then
+        call detailedError(value1, "Poisson not available as binary was built without the Poisson&
+            &-solver")
+      end if
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        ctrl%tPoisson = .true.
+        #:if WITH_TRANSPORT
+          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:else
+          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:endif
+      #:endblock
+
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
@@ -2443,12 +2480,8 @@ contains
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
     case ("transportonly")
-      if (ctrl%isGeoOpt .or. ctrl%tMD) then
-        call detailederror(node, "transportonly cannot be used with relaxations or md")
-      end if
       if (tp%defined .and. .not.tp%taskUpload) then
-        call detailederror(node, "transportonly cannot be used when "// &
-            &  "task = contactHamiltonian")
+        call detailederror(node, "transportonly cannot be used when task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
       ctrl%solver%isolver = electronicSolverTypes%OnlyTransport
@@ -4356,12 +4389,16 @@ contains
     type(fnode), pointer :: child
 
     input%method = 'ts'
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, default=(input%ts_ene_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, default=(input%ts_f_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
+    call getChild(node, "EnergyAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The energy accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
+    call getChild(node, "ForceAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The force accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
     call getChildValue(node, "RangeSeparation", input%ts_sr, default=(input%ts_sr))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
@@ -4710,7 +4747,7 @@ contains
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
     logical :: tPipekDense
-    logical :: tWriteBandDatDef, tHaveEigenDecomposition
+    logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
 
     tHaveEigenDecomposition = .false.
     if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
@@ -4718,6 +4755,7 @@ contains
         & electronicSolverTypes%elpa])) then
       tHaveEigenDecomposition = .true.
     end if
+    tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
 
     if (tHaveEigenDecomposition) then
 
@@ -4807,24 +4845,53 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
-    end if
-
-    ! Is this compatible with Poisson solver use?
-    call readElectrostaticPotential(node, geo, ctrl)
-
-    call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
-    if (ctrl%tPrintMulliken) then
-      call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
-      call getChild(node, "CM5", child, requested=.false.)
+      ! electric field polarisability of system
+      call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
-        allocate(ctrl%cm5Input)
-        call readCM5(child, ctrl%cm5Input, geo)
+        ctrl%isDFTBPT = .true.
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+      else
+        ctrl%isDFTBPT = .false.
       end if
-    end if
-    call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
-        &.false.)
 
-    call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+    end if
+
+    if (tHaveDensityMatrix) then
+
+      ! Is this compatible with Poisson solver use?
+      call readElectrostaticPotential(node, geo, ctrl)
+
+      call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
+      if (ctrl%tPrintMulliken) then
+        call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
+        call getChild(node, "CM5", child, requested=.false.)
+        if (associated(child)) then
+          allocate(ctrl%cm5Input)
+          call readCM5(child, ctrl%cm5Input, geo)
+        end if
+      end if
+      call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, .false.)
+
+      if (allocated(ctrl%solvInp)) then
+        call getChildValue(node, "writeCosmoFile", ctrl%tWriteCosmoFile, &
+            & allocated(ctrl%solvInp%cosmoInp), child=child)
+        if (ctrl%tWriteCosmoFile .and. .not.allocated(ctrl%solvInp%cosmoInp)) then
+          call detailedError(child, "Cosmo file can only be written for Cosmo calculations")
+        end if
+      end if
+
+      call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+
+    else
+
+      ctrl%tPrintMulliken = .false.
+      ctrl%tAtomicEnergy = .false.
+      ctrl%tPrintForces = .false.
+
+    end if
+
+
+
 
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
@@ -5742,6 +5809,8 @@ contains
 #:endif
 
 
+#:if WITH_POISSON
+
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
   subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
@@ -6015,6 +6084,9 @@ contains
     end do
 
   end subroutine getPoissonBoundaryConditionOverrides
+
+#:endif
+
 
 #:if WITH_TRANSPORT
   !> Sanity checking of atom ranges and returning contact vector and direction.
@@ -6836,18 +6908,20 @@ contains
       input%ginfo%greendens%PL = input%transpar%PL
     end if
 
-    !! Not orthogonal directions in transport are only allowed if no Poisson
-    if (input%poisson%defined.and.input%transpar%defined) then
-      do ii = 1, input%transpar%ncont
-        ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
-        ! a direction not parallel to any coordinate axis
-        if (input%transpar%contacts(ii)%dir.lt.1 .or. &
-          &input%transpar%contacts(ii)%dir.gt.3 ) then
-          call error("Contact " // i2c(ii) // " not parallel to any &
-            & coordinate axis is not compatible with Poisson solver")
-        end if
-      end do
-    end if
+    #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+      !! Not orthogonal directions in transport are only allowed if no Poisson
+      if (input%poisson%defined.and.input%transpar%defined) then
+        do ii = 1, input%transpar%ncont
+          ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
+          ! a direction not parallel to any coordinate axis
+          if (input%transpar%contacts(ii)%dir.lt.1 .or. &
+            &input%transpar%contacts(ii)%dir.gt.3 ) then
+            call error("Contact " // i2c(ii) // " not parallel to any &
+              & coordinate axis is not compatible with Poisson solver")
+          end if
+        end do
+      end if
+    #:endblock
 
     !! Temporarily not supporting surface green function read/load
     !! for spin polarized, because spin is handled outside of libnegf

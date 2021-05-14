@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -105,12 +105,23 @@ module dftbp_mmapi
     procedure :: doOneTdStep => TDftbPlus_doOneTdStep
     !> Set electric field for current propagation step of electrons and nuclei
     procedure :: setTdElectricField => TDftbPlus_setTdElectricField
+    !> Set electric field for current propagation step of electrons and nuclei
+    procedure :: setTdCoordsAndVelos => TDftbPlus_setTdCoordsAndVelos
+    !> Set electric field for current propagation step of electrons and nuclei
+    procedure :: getTdForces => TDftbPlus_getTdForces
     !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
   end type TDftbPlus
 
+
+#:if not INSTANCE_SAFE_BUILD
+
+  !> Nr. of exisiting instances (if build is not instance safe)
+  integer :: nInstance_ = 0
+
+#:endif
 
 
 contains
@@ -128,7 +139,7 @@ contains
 
 
   !> Returns the DFTB+ API version
-  subroutine getDftbPlusApi(major, minor, patch)
+  subroutine getDftbPlusApi(major, minor, patch, instanceSafe)
 
     !> Major version number
     integer, intent(out) :: major
@@ -139,9 +150,15 @@ contains
     !> patch level for API
     integer, intent(out) :: patch
 
+    !> Whether API is instance safe
+    logical, optional, intent(out) :: instanceSafe
+
     major = ${APIMAJOR}$
     minor = ${APIMINOR}$
     patch = ${APIPATCH}$
+    if (present(instanceSafe)) then
+      instanceSafe = instanceSafeBuild
+    end if
 
   end subroutine getDftbPlusApi
 
@@ -156,8 +173,7 @@ contains
     type(fnode), pointer, intent(out) :: root
 
     if (.not. associated(this%hsdTree)) then
-      print *, 'ERROR: input has not been created yet!'
-      stop
+      call error("Input has not been created yet!")
     end if
     call getChild(this%hsdTree, rootTag, root)
 
@@ -226,8 +242,7 @@ contains
     geo%species(1:geo%nAtom) = instance%species(1:geo%nAtom)
 
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
-      write (*, *) "Nr. of species and nr. of specified elements do not match."
-      stop
+      call error("Nr. of species and nr. of specified elements do not match.")
     end if
 
   end subroutine TDftbPlusAtomList_addToInpData
@@ -239,7 +254,7 @@ contains
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
   !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
   !>
-  subroutine TDftbPlus_init(this, outputUnit, mpiComm)
+  subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
     !> Instance
     type(TDftbPlus), intent(out) :: this
@@ -250,7 +265,18 @@ contains
     !> MPI-communicator to use
     integer, intent(in), optional :: mpiComm
 
+    !> Unit of the null device (you must open the null device and pass its unit number, if you open
+    !> multiple TDftbPlus instances within an MPI-process)
+    integer, intent(in), optional :: devNull
+
     integer :: stdOut
+
+    #:if not INSTANCE_SAFE_BUILD
+      if (nInstance_ /= 0) then
+        call error("This build does not support multiple DFTB+ instances")
+      end if
+      nInstance_ = 1
+    #:endif
 
     if (present(outputUnit)) then
       stdOut = outputUnit
@@ -258,7 +284,7 @@ contains
       stdOut = output_unit
     end if
 
-    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
+    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
     allocate(this%env)
     allocate(this%main)
     call TEnvironment_init(this%env)
@@ -281,6 +307,10 @@ contains
     deallocate(this%main, this%env)
     call destructGlobalEnv()
     this%tInit = .false.
+
+    #:if not INSTANCE_SAFE_BUILD
+      nInstance_ = 0
+    #:endif
 
   end subroutine TDftbPlus_destruct
 
@@ -387,6 +417,12 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        call error("External fields currently unsupported for this solvent model")
+      end if
+    end if
+
     call setExternalPotential(this%main, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
@@ -409,6 +445,12 @@ contains
 
     call this%checkInit()
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        call error("External fields currently unsupported for this solvent model")
+      end if
+    end if
+
     call setExternalCharges(this%main, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
@@ -427,6 +469,12 @@ contains
     type(TQDepExtPotProxy) :: extPotProxy
 
     call this%checkInit()
+
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        call error("External fields currently unsupported for this solvent model")
+      end if
+    end if
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
@@ -556,8 +604,7 @@ contains
     class(TDftbPlus), intent(in) :: this
 
     if (.not. this%tInit) then
-      write(stdOut, "(A)") "Error: Received uninitialized TDftbPlus instance"
-      stop
+      call error("Received uninitialized TDftbPlus instance")
     end if
 
   end subroutine TDftbPlus_checkInit
@@ -677,7 +724,7 @@ contains
 
 
   !> Initialise propagatos for electron and nuclei dynamics
-  subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI)
+  subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
@@ -687,7 +734,10 @@ contains
     !> field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
-    call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI)
+    !> coords and velocities will be provided at each step through the API?
+    logical, intent(in) :: tdCoordsAndVelosThroughAPI
+
+    call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
   end subroutine TDftbPlus_initializeTimeProp
 
@@ -720,8 +770,8 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
-        & coordOut = coord, force=force, occ=occ)
+    call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy,&
+        & atomNetCharges=atomNetCharges, coordOut = coord, force=force, occ=occ)
 
   end subroutine TDftbPlus_doOneTdStep
 
@@ -735,9 +785,44 @@ contains
     ! electric field components
     real(dp), intent(in) :: field(3)
 
+    if (allocated(this%main%solvation)) then
+      if (this%main%solvation%isEFieldModified()) then
+        call error("External fields currently unsupported for this solvent model")
+      end if
+    end if
+
     call setTdElectricField(this%main, field)
 
   end subroutine TDftbPlus_setTdElectricField
+
+
+  subroutine TDftbPlus_setTdCoordsAndVelos(this, coords, velos)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    ! coordinates
+    real(dp), intent(in) :: coords(3, this%main%nAtom)
+
+    ! velocities
+    real(dp), intent(in) :: velos(3, this%main%nAtom)
+
+    call setTdCoordsAndVelos(this%main, coords, velos)
+
+  end subroutine TDftbPlus_setTdCoordsAndVelos
+
+
+  subroutine TDftbPlus_getTdForces(this, forces)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: forces(:,:)
+
+    call getTdForces(this%main, forces)
+
+  end subroutine TDftbPlus_getTdForces
 
 
 end module dftbp_mmapi

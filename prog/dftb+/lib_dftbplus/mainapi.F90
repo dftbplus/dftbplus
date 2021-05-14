@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField
+  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
 
 contains
@@ -349,7 +349,7 @@ contains
 
     !> dftb+ environment
     type(TEnvironment), intent(in) :: env
- 
+
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
@@ -407,7 +407,7 @@ contains
 
   !> After calculation of the ground state, this subroutine initializes the variables
   !> and the initial step of the propagators for electron and nuclear dynamics
-  subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI)
+  subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
     !> dftb+ environment
     type(TEnvironment), intent(inout) :: env
@@ -421,8 +421,20 @@ contains
     !> field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
+    !> coords and velocities will be provided at each step through the API?
+    logical, intent(in) :: tdCoordsAndVelosThroughAPI
+
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
+      if (tdCoordsAndVelosThroughAPI) then
+        if (main%electronDynamics%tIons) then
+          main%electronDynamics%tdCoordsAndVelosThroughAPI = tdCoordsAndVelosThroughAPI
+        else
+          call error("Setting coordinates and velocities at each step is allowed only for&
+              & simulations with ion dynamics enabled")
+        end if
+      end if
+
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
       call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
@@ -430,9 +442,9 @@ contains
           & main%skHamCont, main%skOverCont, main%ham, main%over, env, main%coord, main%H0,&
           & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
           & main%onSiteElements, main%refExtPot, main%solvation,&
-          & main%rangeSep, main%referenceN0, main%q0, main%pRepCont, main%iAtInCentralRegion,&
+          & main%rangeSep, main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion,&
           & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
-          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species)
+          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
     else
       call error("Electron dynamics not enabled, please initialize the calculator&
           & including the ElectronDynamics block")
@@ -479,7 +491,7 @@ contains
            & main%skHamCont, main%skOverCont, main%ham,main%over, env, main%coord, main%q0,&
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
            & main%onSiteElements, main%refExtPot, main%solvation,&
-           & main%rangeSep, main%pRepCont, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
            & main%electronicSolver, main%qDepExtPot)
 
       if (present(dipole)) then
@@ -521,6 +533,38 @@ contains
     main%electronDynamics%tdFieldIsSet = .true.
 
   end subroutine setTdElectricField
+
+
+  !> sets coordinates and velos for td propagation
+  subroutine setTdCoordsAndVelos(main, coords, velos)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    ! coordinates
+    real(dp), intent(in) :: coords(3, main%nAtom)
+
+    ! velocities
+    real(dp), intent(in) :: velos(3, main%nAtom)
+
+    main%electronDynamics%coordNew(:,:) = coords
+    main%electronDynamics%movedVelo(:,:) = velos(:, main%electronDynamics%indMovedAtom)
+    main%electronDynamics%tdCoordsAndVelosAreSet = .true.
+
+  end subroutine setTdCoordsAndVelos
+
+
+  !> gets atomic forces from td propagation
+  subroutine getTdForces(main, forces)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: forces(:,:)
+
+    forces(:,:) = main%electronDynamics%totalForce
+  end subroutine getTdForces
 
 
   !> Obtains mass for each atom in the system

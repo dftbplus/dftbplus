@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -36,7 +36,7 @@ module dftbp_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoSqrL, FONs, &
+  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoL, FONs, &
       & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
       & unrelRhoSqr, unrelTdm)
 
@@ -46,8 +46,8 @@ module dftbp_reksproperty
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
 
-    !> Dense density matrix for each microstate
-    real(dp), intent(in) :: rhoSqrL(:,:,:,:)
+    !> Dense density matrix for target microstate
+    real(dp), intent(in) :: rhoL(:,:)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
@@ -137,16 +137,7 @@ module dftbp_reksproperty
         call symmetrizeHS(rhoX(:,:,1))
       else
         ! find proper index for up+down in rhoSqrL
-        if (Lstate <= Lpaired) then
-          ii = Lstate
-        else
-          if (mod(Lstate,2) == 1) then
-            ii = Lstate
-          else
-            ii = Lstate - 1
-          end if
-        end if
-        rhoX(:,:,1) = rhoSqrL(:,:,1,ii)
+        rhoX(:,:,1) = rhoL
       end if
     end if
 

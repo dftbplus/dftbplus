@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -233,7 +233,8 @@ contains
   end subroutine resetInternalPotentials
 
 
-  !> Add potentials coming from point charges.
+  !> Add potentials coming from electrostatics (in various boundary conditions and models), possibly
+  !> spin, and where relevant dispersion
   subroutine addChargePotentials(env, sccCalc, updateScc, qInput, q0, chargePerShell, orb, species,&
       & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
 
@@ -287,6 +288,8 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
+    ! Is this a contact calculation, if so, purely the Coulomb electrostatics should also be stored
+    logical :: isAContactCalc
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -296,11 +299,18 @@ contains
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
     if (updateScc) then
-      call sccCalc%updateCharges(env, qInput, q0, orb, species)
+      call sccCalc%updateCharges(env, qInput, orb, species, q0)
     end if
     call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
     call sccCalc%getShiftPerAtom(atomPot(:,1))
     call sccCalc%getShiftPerL(shellPot(:,:,1))
+
+    if (allocated(potential%coulombShell)) then
+      ! need to retain the just electrostatic contributions to the potential for a contact
+      ! calculation or similar
+      potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
+      call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
+    end if
 
     if (allocated(dispersion)) then
       call dispersion%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)

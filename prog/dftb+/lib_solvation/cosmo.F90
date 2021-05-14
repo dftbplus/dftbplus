@@ -12,8 +12,9 @@ module dftbp_cosmo
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_charges, only : getSummedCharges
+  use dftbp_charmanip, only : tolower
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_constants, only : pi, Hartree__eV
+  use dftbp_constants, only : pi, Hartree__eV, Bohr__AA
   use dftbp_environment, only : TEnvironment
   use dftbp_extlibs_ddcosmo
   use dftbp_lebedev, only : getAngGrid, gridSize
@@ -36,6 +37,9 @@ module dftbp_cosmo
 
     !> Dielectric constant
     real(dp) :: dielectricConst
+
+    !> dielectric scaling factor on going between inside cavity (vacuum) and outside region
+    real(dp) :: keps
 
     !> Grid for numerical integration of atomic surfaces
     integer :: gridSize
@@ -75,6 +79,9 @@ module dftbp_cosmo
 
     !> Dielectric constant
     real(dp) :: dielectricConst
+
+    !> scaling factor from dielectric inside cavity (vacuum) and outside region
+    real(dp) :: keps
 
     !> Energy shift to the reference system
     real(dp) :: freeEnergyShift
@@ -132,6 +139,12 @@ module dftbp_cosmo
     !> Returns shifts per atom
     procedure :: getShifts
 
+    !> Is the electrostic field modified by this solvent model?
+    procedure :: isEFieldModified
+
+    !> Write cavity information
+    procedure :: writeCosmoFile
+
   end type TCosmo
 
 
@@ -169,6 +182,7 @@ contains
 
     this%nAtom = nAtom
     this%dielectricConst = input%dielectricConst
+    this%keps = input%keps
     this%freeEnergyShift = input%freeEnergyShift
 
     allocate(this%vdwRad(nAtom))
@@ -300,7 +314,6 @@ contains
     real(dp), intent(out) :: energies(:)
 
     integer :: iat
-    real(dp) :: keps
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
@@ -312,9 +325,8 @@ contains
       energies(:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
     do iat = 1, size(energies)
-      energies(iat) = keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
+      energies(iat) = this%keps * dot_product(this%sigma(:, iat), this%psi(:, iat)) &
          & + this%freeEnergyShift / real(this%nAtom, dp) + energies(iat)
     end do
 
@@ -346,7 +358,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     integer :: ii, iat, ig
-    real(dp) :: xx(1), esolv, keps
+    real(dp) :: xx(1), esolv
     real(dp), allocatable :: fx(:, :), zeta(:), ef1(:, :), ef2(:, :)
 
     @:ASSERT(this%tCoordsUpdated)
@@ -356,8 +368,6 @@ contains
     if (allocated(this%sasaCont)) then
       call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
     end if
-
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
 
     allocate(fx(3, this%nAtom), zeta(this%ddCosmo%ncav), &
       & ef1(3, this%ddCosmo%ncav), ef2(3, this%nAtom))
@@ -373,10 +383,10 @@ contains
 
     ! now call the routine that computes the ddcosmo specific contributions
     ! to the forces.
-    call forces(this%ddCosmo, keps, this%phi, this%sigma, this%s, fx)
+    call forces(this%ddCosmo, this%keps, this%phi, this%sigma, this%s, fx)
 
     ! form the "zeta" intermediate
-    call getZeta(this%ddCosmo, keps, this%s, zeta)
+    call getZeta(this%ddCosmo, this%keps, this%s, zeta)
 
     ! 1. solute's electric field at the cav points times zeta:
     !    compute the electric field
@@ -478,7 +488,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    real(dp) :: xx(1, 1), keps
+    real(dp) :: xx(1, 1)
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
@@ -525,7 +535,7 @@ contains
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
-    real(dp) :: xx(1), keps
+    real(dp) :: xx(1)
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
@@ -540,17 +550,29 @@ contains
       shiftPerShell(:,:) = 0.0_dp
     end if
 
-    keps = 0.5_dp * ((this%dielectricConst - 1.0_dp)/this%dielectricConst)
-    shiftPerAtom(:) = keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
+    shiftPerAtom(:) = this%keps * this%sigma(1, :) * sqrt(fourpi) + shiftPerAtom
 
     ! we abuse Phi to store the unpacked and scaled value of s
-    call getZeta(this%ddCosmo, keps, this%s, this%phi)
+    call getZeta(this%ddCosmo, this%keps, this%s, this%phi)
     ! and contract with the Coulomb matrix
     call gemv(shiftPerAtom, this%jmat, this%phi, alpha=-1.0_dp, &
       & beta=1.0_dp, trans='t')
 
   end subroutine getShifts
 
+
+  !> Is the electrostic field modified by this solvent model?
+  function isEFieldModified(this) result(isChanged)
+
+    !> Data structure
+    class(TCosmo), intent(in) :: this
+
+    !> Has the solvent model changed the electrostatic environment
+    logical :: isChanged
+
+    isChanged = .false.
+
+  end function isEFieldModified
 
   !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
   !> surface elements of the cavity (ccav).
@@ -907,6 +929,132 @@ contains
     end do
 
   end subroutine efld
+
+
+  !> Write a COSMO file output
+  subroutine writeCosmoFile(this, unit, species0, speciesNames, coords0, energy)
+
+    !> COSMO container
+    class(TCosmo), intent(in) :: this
+
+    !> Formatted unit for output
+    integer, intent(in) :: unit
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords0(:,:)
+
+    !> Total energy
+    real(dp), intent(in) :: energy
+
+    integer :: ii, ig, iat
+    real(dp) :: dielEnergy
+    real(dp), allocatable :: phi(:), zeta(:), area(:)
+
+    allocate(phi(this%ddCosmo%ncav), zeta(this%ddCosmo%ncav), area(this%ddCosmo%ncav))
+    ! Reset potential on the cavity, note that the potential is expected in e/Å
+    call getPhi(this%chargesPerAtom, this%jmat, phi)
+    ii = 0
+    do iat = 1, this%ddCosmo%nat
+      do ig = 1, this%ddCosmo%ngrid
+        if (this%ddCosmo%ui(ig, iat) > 0.0_dp) then
+          ii = ii + 1
+          ! Calculate surface charge per area
+          zeta(ii) = this%ddCosmo%w(ig) * this%ddCosmo%ui(ig, iat) &
+              & * dot_product(this%ddCosmo%basis(:, ig), this%s(:, iat))
+          ! Save surface area in Ångström²
+          area(ii) = this%ddCosmo%w(ig) * Bohr__AA**2 * this%vdwRad(iat)**2
+        end if
+      end do
+    end do
+
+    ! Dielectric energy is the energy on the dielectric continuum
+    dielEnergy = this%keps * dot_product(zeta, phi)
+
+    write(unit, '(a)') &
+        & "$info", &
+        & "prog.: dftb+"
+
+    write(unit, '(a)') &
+        & "$cosmo"
+    write(unit, '(2x, a:, "=", g0)') &
+        & "epsilon", this%dielectricConst
+
+    write(unit, '(a)') &
+        & "$cosmo_data"
+    write(unit, '(2x, a:, "=", g0)') &
+        & "fepsi", this%keps, &
+        & "area", sum(area)
+
+    write(unit, '(a)') &
+        & "$coord_rad", &
+        & "#atom   x                  y                  z             element  radius [A]"
+    do iat = 1, size(coords0, 2)
+      write(unit, '(i4, 3(1x, f18.14), 2x, a4, 1x, f9.5)') &
+          & iat, coords0(:, iat), trim(tolower(speciesNames(species0(iat)))), &
+          & this%vdwRad(iat)*Bohr__AA
+    end do
+
+    write(unit, '(a)') &
+        & "$coord_car", &
+        & "!BIOSYM archive 3", &
+        & "PBC=OFF", &
+        & "coordinates from COSMO calculation", &
+        & "!DATE"
+    do iat = 1, size(coords0, 2)
+      write(unit, '(a, i0, t5, 3(1x, f14.9), 1x, "COSM 1", 2(6x, a2), 1x, f6.3)') &
+          & trim(speciesNames(species0(iat))), iat, coords0(:, iat)*Bohr__AA, &
+          & tolower(speciesNames(species0(iat))), speciesNames(species0(iat)), 0.0_dp
+    end do
+    write(unit, '(a)') &
+        & "end", "end"
+
+    write(unit, '(a)') &
+        & "$screening_charge"
+    write(unit, '(2x, a:, "=", g0)') &
+        & "cosmo", sum(zeta), &
+        & "correction", 0.0_dp, &
+        & "total", sum(zeta)
+
+    write(unit, '(a)') &
+        & "$cosmo_energy"
+    write(unit, '(2x, a:, "=", f21.10)') &
+        & "Total energy [a.u.]            ", energy, &
+        & "Total energy + OC corr. [a.u.] ", energy, &
+        & "Total energy corrected [a.u.]  ", energy, &
+        & "Dielectric energy [a.u.]       ", dielEnergy, &
+        & "Diel. energy + OC corr. [a.u.] ", dielEnergy
+
+    write(unit, '(a)') &
+        & "$segment_information", &
+        & "# n             - segment number", &
+        & "# atom          - atom associated with segment n", &
+        & "# position      - segment coordinates [a.u.]", &
+        & "# charge        - segment charge (corrected)", &
+        & "# area          - segment area [A**2]", &
+        & "# potential     - solute potential on segment (A length scale)", &
+        & "#", &
+        & "#  n   atom              position (X, Y, Z)                   charge         area        charge/area     potential", &
+        & "#", &
+        & "#"
+
+    ii = 0
+    do iat = 1, this%ddCosmo%nat
+      do ig = 1, this%ddCosmo%ngrid
+        if (this%ddCosmo%ui(ig, iat) > 0.0_dp) then
+          ii = ii + 1
+          write(unit, '(2i5, 7(1x, f14.9))') &
+              & ii, iat, this%ddCosmo%ccav(:, ii), &
+              & zeta(ii), area(ii), zeta(ii)/area(ii), phi(ii)/Bohr__AA
+        end if
+      end do
+    end do
+  end subroutine writeCosmoFile
 
 
 end module dftbp_cosmo

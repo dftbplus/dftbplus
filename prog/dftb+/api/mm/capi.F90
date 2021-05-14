@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,8 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_accuracy, only : dp
-  use dftbp_linkedlist
+  use dftbp_globalenv, only : instanceSafeBuild
+  use dftbp_linkedlist, only : TListString, append, init, destruct
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_qdepextpotgenc, only :&
@@ -58,6 +59,17 @@ contains
   end subroutine c_DftbPlus_api
 
 
+  !> Queries, whether library is instance safe (allowing for concurrent DFTB+ instances)
+  function c_DftbPlus_is_instance_safe() result(instSafe) bind(C, name='dftbp_is_instance_safe')
+
+    !> Whether library was built ensuring instance safety (multiple instances supported)
+    logical(c_bool) :: instSafe
+
+    instSafe = instanceSafeBuild
+
+  end function c_DftbPlus_is_instance_safe
+
+
   !> Initialises a DFTB+ calculation with output sent to to some location
   subroutine c_DftbPlus_init(handler, outputFileName) bind(C, name='dftbp_init')
 
@@ -68,23 +80,35 @@ contains
     type(c_ptr), value, intent(in) :: outputFileName
 
     type(TDftbPlusC), pointer :: instance
-    character(c_char), pointer :: pOutputFileName
-    character(:), allocatable :: fortranFileName
 
     allocate(instance)
-    if (c_associated(outputFileName)) then
-      call c_f_pointer(outputFileName, pOutputFileName)
-      fortranFileName = fortranChar(pOutputFileName)
-      open(newunit=instance%outputUnit, file=fortranFileName, action="write")
-      instance%tOutputOpened = .true.
-    else
-      instance%outputUnit = output_unit
-      instance%tOutputOpened = .false.
-    end if
+    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
     call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit)
     handler%instance = c_loc(instance)
 
   end subroutine c_DftbPlus_init
+
+
+  !> Initialises a DFTB+ calculator (MPI-version)
+  subroutine c_DftbPlus_init_mpi(handler, outputFileName, mpiComm) bind(C, name='dftbp_init_mpi')
+
+    !> DFTB+ handler
+    type(c_DftbPlus), intent(out) :: handler
+
+    !> output location
+    type(c_ptr), value, intent(in) :: outputFileName
+
+    !> MPI-communicator id
+    integer(c_int), value, intent(in) :: mpiComm
+
+    type(TDftbPlusC), pointer :: instance
+
+    allocate(instance)
+    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit, mpiComm=mpiComm)
+    handler%instance = c_loc(instance)
+
+  end subroutine c_DftbPlus_init_mpi
 
 
   !> finalises a DFTB+ instance
@@ -108,9 +132,8 @@ contains
 
 
   !> Obtain number of atoms and list of species from the MM program
-  subroutine c_DftbPlusAtomList_getAtomList(atomListHandler, nAtomC, nSpeciesC, speciesNamesC, speciesC)&
-      & bind(C, name='dftbp_get_atom_list')
-    implicit none
+  subroutine c_DftbPlusAtomList_getAtomList(atomListHandler, nAtomC, nSpeciesC, speciesNamesC,&
+      & speciesC) bind(C, name='dftbp_get_atom_list')
 
     !> handler for the input data structure
     type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
@@ -473,6 +496,28 @@ contains
     fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
 
   end function fortranChar
+
+
+  !> Handles the optional output file name (which should be a NULL-ptr if not present)
+  subroutine handleOutputFileName(outputFileName, outputUnit, tOutputOpened)
+    type(c_ptr), intent(in) :: outputFileName
+    integer, intent(out) :: outputUnit
+    logical, intent(out) :: tOutputOpened
+
+    character(c_char), pointer :: pOutputFileName
+    character(:), allocatable :: fortranFileName
+
+    if (c_associated(outputFileName)) then
+      call c_f_pointer(outputFileName, pOutputFileName)
+      fortranFileName = fortranChar(pOutputFileName)
+      open(newunit=outputUnit, file=fortranFileName, action="write")
+      tOutputOpened = .true.
+    else
+      outputUnit = output_unit
+      tOutputOpened = .false.
+    end if
+
+  end subroutine handleOutputFileName
 
 
 end module dftbp_capi

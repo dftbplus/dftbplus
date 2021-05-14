@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -187,6 +187,9 @@ module dftbp_born
 
     !> Query if object is actually an analytical linearized Poisson Boltzmann model
     procedure :: isALPB
+
+    !> Is the electrostic field modified by this solvent model?
+    procedure :: isEFieldModified
   end type TGeneralizedBorn
 
 
@@ -1140,7 +1143,7 @@ contains
   end subroutine getBornMatrixStillCluster
 
 
-  !> compute Born matrix using Still interaction kernel
+  !> compute Born matrix using P16 interaction kernel
   subroutine getBornMatrixP16Cluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
       & bornMat)
 
@@ -1604,5 +1607,18 @@ contains
 
   end subroutine getADetDeriv
 
+
+  !> Is the electrostic field modified by this solvent model?
+  function isEFieldModified(this) result(isChanged)
+
+    !> Data structure
+    class(TGeneralizedBorn), intent(in) :: this
+
+    !> Has the solvent model changed the electrostatic environment
+    logical :: isChanged
+
+    isChanged = .true.
+
+  end function isEFieldModified
 
 end module dftbp_born

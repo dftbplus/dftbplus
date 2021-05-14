@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -496,8 +496,7 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species, deltaQ, deltaQAtom,&
-      & deltaQPerLShell)
+  subroutine updateCharges(this, env, qOrbital, orb, species, deltaQ, deltaQAtom, deltaQPerLShell)
 
     !> Data structure
     class(TCoulomb), intent(inout) :: this
@@ -507,9 +506,6 @@ contains
 
     !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
-
-    !> Reference charge distribution (neutral atoms)
-    real(dp), intent(in) :: q0(:,:,:)
 
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb

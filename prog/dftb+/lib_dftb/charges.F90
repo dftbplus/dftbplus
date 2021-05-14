@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -30,26 +30,20 @@ contains
     !> Species of each atom.
     integer, intent(in) :: species(:)
 
-
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
-
 
     !> Orbital populations. Shape [iChannels, mOrb, nAtom].
     real(dp), intent(in) :: qOrbital(:,:,:)
 
-
     !> Reference populations.
-    real(dp), intent(in) :: q0(:,:,:)
+    real(dp), intent(in), optional :: q0(:,:,:)
 
-
-    !> Charge per orbital (qOrb .
+    !> Charge per atomic orbital. Shape [qOrb, nAtom].
     real(dp), target, intent(out), optional :: dQ(:,:)
-
 
     !> Summed charge per atom.
     real(dp), intent(out), optional :: dQAtom(:)
-
 
     !> Summed charge per shell.
     real(dp), target, intent(out), optional :: dQShell(:,:)
@@ -66,7 +60,11 @@ contains
       dQWork => dQLocal
     end if
 
-    call getSummedChargesPerOrbital(qOrbital(:,:,1), q0(:,:,1), dQWork)
+    if (present(q0)) then
+      call getSummedChargesPerOrbital(qOrbital(:,:,1), q0(:,:,1), dQWork)
+    else
+      dQWork(:,:) = qOrbital(:,:,1)
+    end if
     if (present(dQAtom)) then
       call getSummedChargesPerAtom(dQWork, dQAtom)
     end if
@@ -78,7 +76,7 @@ contains
 
 
   !> orbital resolved charges
-  subroutine getSummedChargesPerOrbital(qOrbital, q0, deltaQ)
+  pure subroutine getSummedChargesPerOrbital(qOrbital, q0, deltaQ)
 
     !> charges per orbital
     real(dp), intent(in) :: qOrbital(:,:)

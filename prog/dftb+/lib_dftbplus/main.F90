@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -30,7 +30,7 @@ module dftbp_main
   use dftbp_hamiltoniantypes
   use dftbp_nonscc
   use dftbp_eigenvects
-  use dftbp_repulsive
+  use dftbp_repulsive, only : TRepulsive
   use dftbp_etemp
   use dftbp_populations
   use dftbp_densitymatrix
@@ -38,7 +38,7 @@ module dftbp_main
   use dftbp_stress
   use dftbp_scc
   use dftbp_hamiltonian
-  use dftbp_getenergies, only : calcEnergies, calcRepulsiveEnergy, calcDispersionEnergy, sumEnergies
+  use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_periodic
@@ -103,8 +103,12 @@ module dftbp_main
 #:endif
   use dftbp_transportio
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
-      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
+      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
+#:if WITH_TRANSPORT
+  use dftbp_initprogram, only : overrideContactCharges
+#:endif
   use dftbp_blockpothelper, only : appendBlockReduced
+  use dftbp_staticperturb, only : staticPerturWrtE
   implicit none
 
   private
@@ -256,7 +260,7 @@ contains
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn)
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
       end if
 
       if (this%tForces) then
@@ -301,7 +305,7 @@ contains
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs,&
-            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb)
+            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb, this%solvation)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs)
@@ -327,7 +331,7 @@ contains
       call runDynamics(this%electronDynamics, this%eigvecsReal, this%ham, this%H0, this%species,&
           & this%q0, this%referenceN0, this%over, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
-          & this%img2CentCell, this%orb, this%coord0, this%spinW, this%pRepCont, env,&
+          & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
           & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
           & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
@@ -336,11 +340,12 @@ contains
     end if
 
   #:if WITH_TRANSPORT
-    if (this%tContCalc) then
+
+    if (this%isAContactCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
       call writeContactShifts(this%transpar%contacts(this%transpar%taskContInd)%name, this%orb,&
-          & this%potential%intShell, this%qOutput, this%Ef, this%potential%intBlock,&
-          & this%qBlockOut, .not.this%transpar%tWriteBinShift)
+          & this%potential%coulombShell, this%qOutput, this%Ef, this%qBlockOut,&
+          & .not.this%transpar%tWriteBinShift)
     end if
 
     if (this%tLocalCurrents) then
@@ -360,6 +365,34 @@ contains
     end if
 
   #:endif
+
+    if (this%isDFTBPT) then
+      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
+        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
+            & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
+            & this%speciesName, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
+            & this%iSparseStart, this%img2CentCell, this%coord, this%scc, this%maxSccIter,&
+            & this%sccTol, this%isSccConvRequired, this%nMixElements, this%nIneqOrb,&
+            & this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd,&
+            & this%dftbU, this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite,&
+            & this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight,&
+            & this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability, this%dEidE,&
+            & this%dqOut, this%neFermi, this%dEfdE)
+        if (this%tWriteBandDat) then
+          call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
+        end if
+      end if
+
+    end if
+
+    if (env%tGlobalLead) then
+      if (this%tWriteDetailedOut) then
+        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+            & this%neFermi, this%dEfdE)
+
+        close(this%fdDetailedOut)
+      end if
+    end if
 
     if (allocated(this%pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
@@ -387,13 +420,19 @@ contains
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
-          & localisation, this%esp, this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray)
+          & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
+          & this%lCurrArray, this%polarisability, this%dEidE)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
-          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont)
+          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+    end if
+    if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
+      call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
+          & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin)
     end if
     if (this%tWriteDetailedXML) then
       call writeDetailedXml(this%runId, this%speciesName, this%species0, this%pCoord0Out,&
@@ -597,11 +636,11 @@ contains
 
     if (this%tCoordsChanged) then
       call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%dispersion,&
-          & this%solvation, this%thirdOrd, this%rangeSep, this%reks, this%img2CentCell,&
-          & this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold, this%coord,&
-          & this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourRep, this%nNeighbourLC,&
-          & this%ham, this%over, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
+          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%repulsive,&
+          & this%dispersion,this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
+          & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
+          & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC, this%ham,&
+          & this%over, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
           & this%iSparseStart, this%cm5Cont, stat)
         @:HANDLE_ERROR(stat)
     end if
@@ -644,9 +683,12 @@ contains
 
     call this%electronicSolver%updateElectronicTemp(this%tempElec)
 
-    call calcRepulsiveEnergy(this%coord, this%species, this%img2CentCell, this%nNeighbourRep,&
-        & this%neighbourList, this%pRepCont, this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
-        & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep, this%iAtInCentralRegion)
+    if (allocated(this%repulsive)) then
+      call this%repulsive%getEnergy(this%coord, this%species, this%img2CentCell,&
+          & this%neighbourList,this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
+          & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep,&
+          & iAtInCentralRegion=this%iAtInCentralRegion)
+    end if
 
     if (allocated(this%halogenXCorrection)) then
       call this%halogenXCorrection%getEnergies(this%dftbEnergy(&
@@ -659,8 +701,7 @@ contains
     call resetExternalPotentials(this%refExtPot, this%potential)
 
     if (this%tReadShifts) then
-      call readShifts(fShifts, this%orb, this%nAtom, this%nSpin,&
-          & this%potential%extShell)
+      call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
     end if
 
     call setUpExternalElectricField(this%tEField, this%tTDEField, this%tPeriodic,&
@@ -715,7 +756,7 @@ contains
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
-            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%reks)
+            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
         call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
@@ -724,7 +765,7 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -758,16 +799,8 @@ contains
               & tStopScc, this%eigvecsReal, this%reks)
         end if
 
-        if (allocated(this%dispersion) .and. .not. tConverged) then
-          call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
-              & this%species0, tConverged)
-          call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
-              & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-        end if
-        call sumEnergies(this%dftbEnergy(1))
-
-        call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
+        call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
+        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, diffElec, sccErrorQ,&
             & this%reks)
 
         if (tConverged .or. tStopScc) then
@@ -778,10 +811,13 @@ contains
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
               & this%eigvecsReal, this%electronicSolver, this%eigen, this%qOutput, this%q0,&
               & this%tDipole, dipoleTmp, this%reks)
+          call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+              & this%tDipole, this%reks, isSingleState=.true.)
 
-          call getReksEnProperties(this%eigvecsReal, this%coord0, this%reks)
+          call getReksEnProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
+              & this%img2CentCell, this%iSparseStart, this%eigvecsReal, this%coord0, this%reks)
 
-          if (this%tWriteDetailedOut) then
+          if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
@@ -793,7 +829,7 @@ contains
                 & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
                 & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
                 & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-                & allocated(this%thirdOrd), this%isRangeSep)
+                & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
             call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -833,7 +869,7 @@ contains
 
           if (allocated(this%onSiteElements) .and. (iSCCIter > 1 .or. this%tReadChrg)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockIn,&
-                & this%qiBlockIn, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockIn, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
         end if
@@ -937,7 +973,7 @@ contains
 
           if (allocated(this%onSiteElements)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockOut,&
-                & this%qiBlockOut, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockOut, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
           this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
@@ -996,7 +1032,7 @@ contains
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-                & this%qiBlockIn, this%deltaRhoIn)
+                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
           end if
         end if
 
@@ -1038,7 +1074,7 @@ contains
 
     end if REKS_SCC
 
-    if (allocated(this%dispersion)) then
+    if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
@@ -1062,7 +1098,7 @@ contains
             & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
             & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-            & allocated(this%thirdOrd), this%isRangeSep)
+            & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
       else
         call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
             & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
@@ -1087,6 +1123,20 @@ contains
 
     if (allocated(this%scc)) then
       call this%scc%finishSccLoop(env)
+    end if
+
+    if (allocated(this%dispersion)) then
+      if (.not.this%dispersion%energyAvailable()) then
+        call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
+    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
+        & .and. .not. this%tRestartNoSC) then
+      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+      if (this%isSccConvRequired) then
+        call env%shutdown()
+      end if
     end if
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
@@ -1140,7 +1190,7 @@ contains
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%over, this%orb,&
           & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell)
+          & this%img2CentCell, this%solvation)
     #:endblock DEBUG_CODE
     end if
 
@@ -1176,15 +1226,17 @@ contains
       call env%globalTimer%startTimer(globalTimers%forceCalc)
       if (allocated(this%reks)) then
         call getReksGradients(env, this%denseDesc, this%scc, this%rangeSep, this%dispersion,&
-            & this%neighbourList, this%nNeighbourSK, this%nNeighbourRep, this%iSparseStart,&
-            & this%img2CentCell, this%orb, this%nonSccDeriv, this%skHamCont, this%skOverCont,&
-            & this%pRepCont, this%coord, this%coord0, this%species, this%q0, this%eigvecsReal,&
+            & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell,&
+            & this%orb, this%nonSccDeriv, this%skHamCont, this%skOverCont, this%repulsive,&
+            & this%coord, this%coord0, this%species, this%q0, this%eigvecsReal,&
             & this%chrgForces, this%over, this%spinW, this%derivs, this%tWriteAutotest,&
             & autotestTag, this%taggedWriter, this%reks)
         call getReksGradProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%over, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
+        call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+            & this%tDipole, this%reks, isSingleState=.false.)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
@@ -1196,8 +1248,8 @@ contains
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, this%scc, this%tExtField, this%isXlbomd, this%nonSccDeriv,&
             & this%EField, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont,&
-            & this%skOverCont, this%pRepCont, this%neighbourList, this%nNeighbourSk,&
-            & this%nNeighbourRep, this%species, this%img2CentCell, this%iSparseStart, this%orb,&
+            & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
+            & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
             & this%potential, this%coord, this%derivs, this%groundDerivs, this%tripletderivs,&
             & this%mixedderivs, this%iRhoPrim, this%thirdOrd, this%solvation, this%qDepExtPot,&
             & this%chrgForces, this%dispersion, this%rangeSep, this%SSqrReal, this%over,&
@@ -1219,15 +1271,15 @@ contains
         call env%globalTimer%startTimer(globalTimers%stressCalc)
         if (allocated(this%reks)) then
           call getReksStress(env, this%denseDesc, this%scc, this%nonSccDeriv, this%skHamCont,&
-              & this%skOverCont, this%pRepCont, this%neighbourList, this%nNeighbourSk,&
-              & this%nNeighbourRep, this%species, this%img2CentCell, this%iSparseStart, this%orb,&
+              & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
+              & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
               & this%dispersion, this%coord, this%q0, this%invLatVec, this%cellVol,&
               & this%totalStress, this%totalLatDeriv, this%intPressure, this%reks)
         else
           call getStress(env, this%scc, this%thirdOrd, this%tExtField, this%nonSccDeriv,&
               & this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont,&
-              & this%skOverCont, this%pRepCont, this%neighbourList, this%nNeighbourSk,&
-              & this%nNeighbourRep, this%species, this%img2CentCell, this%iSparseStart, this%orb,&
+              & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
+              & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
               & this%potential, this%coord, this%latVec, this%invLatVec, this%cellVol, this%coord0,&
               & this%totalStress, this%totalLatDeriv, this%intPressure, this%iRhoPrim,&
               & this%solvation, this%dispersion, this%halogenXCorrection, this%deltaDftb,&
@@ -1247,26 +1299,12 @@ contains
           & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
     end if
 
-    if (allocated(this%dispersion)) then
-      if (.not.this%dispersion%energyAvailable()) then
-        call warning("Dispersion contributions are not included in the energy")
-      end if
-    end if
-
-    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
-        & .and. .not. this%tRestartNoSC) then
-      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (this%isSccConvRequired) then
-        call env%shutdown()
-      end if
-    end if
-
-    if (this%tSccCalc .and. allocated(this%esp)&
+    if (this%tSccCalc .and. allocated(this%electrostatPot)&
         & .and. (.not. (this%isGeoOpt .or. this%tMD)&
         & .or. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep, this%nGeoSteps,&
         & this%restartFreq))) then
-      call this%esp%evaluate(env, this%scc, this%EField)
-      call writeEsp(this%esp, env, iGeoStep, this%nGeoSteps)
+      call this%electrostatPot%evaluate(env, this%scc, this%EField)
+      call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
 
   end subroutine processGeometry
@@ -1437,7 +1475,7 @@ contains
             & this%tEField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%absEField,&
-            & this%qOutput, this%q0, this%dipoleMoment)
+            & this%qOutput, this%q0, this%dipoleMoment, this%solvation)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -1586,10 +1624,10 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
-      & orb, tPeriodic, tHelical, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
-      & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
-      & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-      & ERhoPrim, iSparseStart, cm5Cont, stat)
+      & orb, tPeriodic, tHelical, sccCalc, repulsive, dispersion, solvation, thirdOrd, rangeSep,&
+      & reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species,&
+      & rCellVec, nNeighbourSK, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
+      & iSparseStart, cm5Cont, stat)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1620,6 +1658,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Repulsive
+    class(TRepulsive), allocatable, intent(inout) :: repulsive
 
     !> Dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1662,9 +1703,6 @@ contains
 
     !> Number of neighbours of each real atom
     integer, intent(out) :: nNeighbourSK(:)
-
-    !> Number of neighbours of each real atom close enough for repulsive interactions
-    integer, intent(out) :: nNeighbourRep(:)
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
@@ -1724,16 +1762,16 @@ contains
     call reallocateSparseArrays(sparseSize, reks, ham, over, H0,&
         & rhoPrim, iHam, iRhoPrim, ERhoPrim)
 
-    ! count neighbours for repulsive interactions between atoms
-    call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, cutoff%repCutOff)
-
     if (allocated(nNeighbourLC)) then
-      ! count neighbours for repulsive interactions between atoms
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
     end if
 
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(env, coord0, coord, species, neighbourList)
+    end if
+
+    if (allocated(repulsive)) then
+      call repulsive%updateCoords(coord, species, img2CentCell, neighbourList)
     end if
 
     if (allocated(dispersion)) then
@@ -1970,48 +2008,6 @@ contains
     end if
 
   end subroutine initSccLoop
-
-
-#:if WITH_TRANSPORT
-
-  !> Replace charges with those from the stored contact values
-  subroutine overrideContactCharges(qOrb, qOrbUp, transpar, qBlock, qBlockUp)
-
-    !> input charges
-    real(dp), intent(inout) :: qOrb(:,:,:)
-
-    !> uploaded charges
-    real(dp), intent(in) :: qOrbUp(:,:,:)
-
-    !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
-
-    !> block charges, for example from DFTB+U
-    real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
-
-    !> uploaded block charges
-    real(dp), allocatable, intent(in) :: qBlockUp(:,:,:,:)
-
-    integer :: ii, iStart, iEnd
-
-    do ii = 1, transpar%ncont
-      iStart = transpar%contacts(ii)%idxrange(1)
-      iEnd = transpar%contacts(ii)%idxrange(2)
-      qOrb(:,iStart:iEnd,:) = qOrbUp(:,iStart:iEnd,:)
-    end do
-
-    @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
-    if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont
-        iStart = transpar%contacts(ii)%idxrange(1)
-        iEnd = transpar%contacts(ii)%idxrange(2)
-        qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
-      end do
-    end if
-
-  end subroutine overrideContactCharges
-
-#:endif
 
 
   !> Transform the hamiltonian from QM to UD representation
@@ -3439,7 +3435,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), optional :: qNetAtom(:)
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     integer :: iSpin
 
@@ -3465,7 +3461,7 @@ contains
       end do
     end if
 
-    if (present(qNetAtom)) then
+    if (allocated(qNetAtom)) then
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
@@ -3549,7 +3545,7 @@ contains
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
 
-    !> Has the calculation converged>
+    !> Has the calculation converged
     logical, intent(out) :: tConverged
 
     !> Are there orbital potentials present
@@ -4480,7 +4476,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, solvation)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4511,6 +4507,9 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
+
+    !> Instance of the solvation model
+    class(TSolvation), intent(in), allocatable :: solvation
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
     integer :: nAtom, sparseSize, iAt, ii
@@ -4544,6 +4543,11 @@ contains
       write(stdOut, "(F12.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
+    if (allocated(solvation)) then
+      if (solvation%isEFieldModified()) then
+        write(stdOut, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
+      end if
+    end if
 
   end subroutine checkDipoleViaHellmannFeynman
 
@@ -5329,8 +5333,8 @@ contains
 
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
-      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
-      & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
+      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
       & chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
       & halogenXCorrection, tHelical, coord0, deltaDftb)
@@ -5372,16 +5376,13 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
-
-    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
-    integer, intent(in) :: nNeighbourRep(:)
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -5566,9 +5567,11 @@ contains
       end if
     end if
 
-
-    call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
-        & img2CentCell, tHelical)
+    if (allocated(repulsive)) then
+      call repulsive%getGradients(coord, species, img2CentCell, neighbourList, tmpDerivs)
+    else
+      tmpDerivs(:,:) = 0.0_dp
+    end if
 
     derivs(:,:) = derivs + tmpDerivs
 
@@ -5676,7 +5679,7 @@ contains
 
   !> Calculates stress tensor and lattice derivatives.
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
-      & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
+      & q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
       & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
       & halogenXCorrection, deltaDftb, tripletStress, mixedStress)
@@ -5715,16 +5718,13 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(TRepCont), intent(in) :: pRepCont
+    class(TRepulsive), allocatable, intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
-
-    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
-    integer, intent(in) :: nNeighbourRep(:)
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -5838,8 +5838,11 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    call getRepulsiveStress(tmpStress, coord, nNeighbourRep, neighbourList%iNeighbour, species,&
-        & img2CentCell, pRepCont, cellVol)
+    if (allocated(repulsive)) then
+      call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
+    else
+      tmpStress(:,:) = 0.0_dp
+    end if
     totalStress(:,:) = totalStress + tmpStress
 
     if(deltaDftb%isNonAufbau) then
@@ -6416,27 +6419,27 @@ contains
 
   end subroutine calcPipekMezeyLocalisation
 
-  
+
   !> Prints information about maximal forces in the system.
   subroutine printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
-    
+
     !> Gradients on atoms ]3, nAtom]
     real(dp), intent(in), allocatable :: derivs(:,:)
-    
+
     !> Lattcie derivatives. Shape: [9]
     real(dp), intent(in) :: constrLatDerivs(:)
-    
+
     !> Whether coordinate optimization is on.
     logical, intent(in) :: tCoordOpt
-    
+
     !> Wheter lattice optimization is on.
     logical, intent(in) :: tLatOpt
-    
+
     !> Indices of moved atoms. Shape [nMovedAtoms].
     integer, intent(in) :: indMovedAtoms(:)
 
     real(dp) :: normedDeriv
-    
+
     if (tCoordOpt) then
       call printMaxForce(maxval(abs(derivs(:, indMovedAtoms))))
       normedDeriv = norm2(derivs(:, indMovedAtoms)) / sqrt(real(size(indMovedAtoms), dp))
@@ -6770,7 +6773,7 @@ contains
   !> Calculate Mulliken population for each microstate from sparse density matrix.
   subroutine getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, &
       & img2CentCell, iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlock, &
-      & qiBlock, reks)
+      & qiBlock, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6808,6 +6811,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
@@ -6825,11 +6831,26 @@ contains
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
       end if
 
-      ! reks%qOutputL has (my_qm) component
+      ! reks%qOutputL & reks%qNetAtomL has (my_qm) component
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock)
+          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=qNetAtom)
+
+      ! Get correct net charge per atom
+      ! Note that qNetAtomL does not have spin dependency so it does not
+      ! correspond to (my_qm) or (my_ud) representation
+      if (reks%isQNetAllocated) then
+        if (iL > reks%Lpaired) then
+          if (mod(iL,2) == 0) then
+            reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+          else
+            reks%qNetAtomL(:,iL) = qNetAtom
+          end if
+        else
+          reks%qNetAtomL(:,iL) = qNetAtom
+        end if
+      end if
 
     end do
 
@@ -6845,7 +6866,8 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
+      & referenceN0, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6958,6 +6980,18 @@ contains
 
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Has the calculation converged>
+    logical, intent(in) :: tConverged
+
+    !> species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> reference n_0 charges for each atom
+    real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
@@ -7089,12 +7123,12 @@ contains
       end if
 
       ! Calculate correct charge contribution for each microstate
-      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
       if (allocated(thirdOrd)) then
-        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
+        call thirdOrd%updateCharges(pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL), q0,&
+            & img2CentCell, orb)
       end if
 
       call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
@@ -7102,6 +7136,21 @@ contains
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
           & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+      if (allocated(dispersion)) then
+        ! For dftd4 dispersion, update charges
+        call dispersion%updateCharges(env, pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL),&
+            & q0, img2CentCell, orb)
+        ! For MBD/TS dispersion, update onsite charges
+        ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
+        if (reks%isQNetAllocated) then
+          qNetAtom(:) = reks%qNetAtomL(:,iL)
+        end if
+        call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0,&
+            & species0, tConverged)
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
+            & iAtInCentralRegion)
+      end if
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
@@ -7113,6 +7162,9 @@ contains
       end if
       if (reks%isRangeSep) then
         reks%enLfock(iL) = energy%Efock
+      end if
+      if (reks%isDispersion) then
+        reks%enLdisp(iL) = energy%Edisp
       end if
       reks%enLtot(iL) = energy%Etotal
 
@@ -7275,6 +7327,45 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+
+
+  !> Set correct dipole moment according to type of REKS calculation
+  subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
+
+    !> resulting temporary dipole moment
+    real(dp), allocatable, intent(in) :: dipoleTmp(:)
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:,:)
+
+    !> Which state is being calculated in the determinant loop?
+    integer, intent(in) :: iDet
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> calculate a single-state REKS?
+    logical, intent(in) :: isSingleState
+
+    ! Set correct dipole moment to this%dipoleMoment
+    if (tDipole) then
+      if (isSingleState) then
+        ! For single-state REKS case, see getStateInteraction routine.
+        if (reks%Efunction == 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      else
+        ! (SI)-SA-REKS case, see getReksGradProperties routine.
+        if (reks%Efunction > 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      end if
+    end if
+
+  end subroutine assignDipoleMoment
 
 
 end module dftbp_main

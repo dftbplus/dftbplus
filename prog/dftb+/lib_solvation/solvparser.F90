@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,11 +9,11 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvparser
+  use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
   use dftbp_accuracy, only : dp
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
   use dftbp_born, only : TGBInput, fgbKernel
-  use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
   use dftbp_constants, only : Boltzmann, lc, amu__au, kg__au, AA__Bohr
@@ -25,6 +25,8 @@ module dftbp_solvparser
   use dftbp_hsdutils2, only : convertByMul
   use dftbp_lebedev, only : gridSize
   use dftbp_sasa, only : TSASAInput
+  use dftbp_solvdata, only : getVanDerWaalsRadiusD3, getVanDerWaalsRadiusCosmo, &
+      & getVanDerWaalsRadiusBondi
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
   use dftbp_specieslist, only : readSpeciesList
@@ -266,6 +268,7 @@ contains
 
     call readSolvent(node, solvent)
     input%dielectricConst = solvent%dielectricConstant
+    input%keps = 0.5_dp * (1.0_dp - 1.0_dp/solvent%dielectricConstant)
 
     ! shift value for the free energy (usually zero)
     call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, &
@@ -463,7 +466,16 @@ contains
         call detailedError(value1, "Invalid solvent " // char(buffer))
       end if
     case('fromconstants')
-      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      call getChildValue(value1, "Epsilon", buffer)
+      if (unquote(char(buffer)) == "Inf") then
+         if (ieee_support_inf(solvent%dielectricConstant)) then
+            solvent%dielectricConstant = ieee_value(solvent%dielectricConstant, ieee_positive_inf)
+         else
+            solvent%dielectricConstant = huge(solvent%dielectricConstant)
+         end if
+      else
+         call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      end if
       call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
         & modifier=modifier, child=field)
       call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
@@ -546,6 +558,18 @@ contains
     case("vanderwaalsradiid3")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiicosmo")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusCosmo(geo%speciesNames)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
+        & conv=conv)
+      deallocate(vdwRadDefault)
+    case("vanderwaalsradiibondi")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusBondi(geo%speciesNames)
       call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
         & conv=conv)
       deallocate(vdwRadDefault)

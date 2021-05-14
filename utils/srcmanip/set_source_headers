@@ -14,7 +14,7 @@ if sys.hexversion < 0x03050000:
 DESCRIPTION = 'Replaces the copyright header in all relevant source files.'
 
 COPYRIGHT = '''DFTB+: general package for performing fast atomistic simulations
-Copyright (C) 2006 - 2020  DFTB+ developers group
+Copyright (C) 2006 - 2021  DFTB+ developers group
 
 See the LICENSE file for terms of usage and distribution.'''
 
@@ -34,16 +34,21 @@ FILE_TYPES = [
     ('prog/**/*.[fF]90', 'fortran'),
     ('prog/**/*.fpp', 'fortran'),
     ('prog/**/*.inc', 'fortran'),
-    ('prog/**/*.h', 'fortran'),
+    ('prog/**/*.h', 'c'),
     ('prog/**/*.fypp', 'fypp'),
     ('prog/**/make.*', 'makefile'),
     ('test/prog/dftb+/bin/*', 'shell'),
+    ('test/prog/modes+/bin/*', 'shell'),
+    ('test/prog/phonons/bin/*', 'shell'),
     ('tools/misc/*', 'python'),
     ('tools/dptools/bin/*', 'python'),
     ('tools/dptools/src/**/*.py', 'python'),
+    ('tools/pythonapi/src/**/*.py', 'python'),
     ('test/tools/dptools/**/*.py', 'python'),
     ('test/api/mm/testers/*.[fF]90', 'fortran'),
     ('test/api/mm/testers/*.[hc]', 'c'),
+    ('test/api/pyapi/**/*.py', 'python'),
+    ('test/unittests/**/*.[fF]90', 'fortran'),
     ('utils/*', 'python'),
     ('utils/build/*.sh', 'shell'),
     ('utils/build/*', 'python'),
