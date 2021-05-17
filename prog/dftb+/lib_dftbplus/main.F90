@@ -80,16 +80,17 @@ module dftbp_main
 #:if WITH_ARPACK
   use dftbp_rslinresp, only : linRespCalcExcitationsRS
 #:endif
-  use dftbp_mainio, only : writeRealEigvecs, writecplxeigvecs, readeigenvecs, printMaxForce,&
-      & printmaxlatticeforce, printrekssccheader, printsccheader, printmdinfo, writemdout2,&
-      & writedetailedout5, writemdout1, opendetailedout, printrekssccinfo,&
-      & writereksdetailedout1, writebandout, writehsandstop, printsccinfo, printblankline,&
-      & writecharges, writedetailedout1, writedetailedout2, writedetailedout3,&
-      & writeeigenvectors, writeprojectedeigenvectors, writecurrentgeometry, writedetailedout4,&
-      & writeesp, printgeostepinfo, writedetailedout2dets, printenergies, printvolume,&
-      & printpressureandfreeenergy, writedetailedout6, writedetailedout7,&
-      & writefinaldriverstatus, writemdout3, writehessianout, writeautotesttag, writeresultstag,&
-      & writedetailedxml, writeCosmoFile, printForceNorm, printLatticeForceNorm
+  use dftbp_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs, printMaxForce,&
+      & printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo, writeMdOut2,&
+      & writeDetailedOut5, writeMdOut1, openDetailedOut, printReksSccInfo,&
+      & writeReksDetailedOut1, writebandout, writehsandstop, printSccInfo, printBlankLine,&
+      & writeCharges, writeDetailedOut1, writeDetailedOut2, writeDetailedOut3,&
+      & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
+      & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
+      & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
+      & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
+      & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
+      & writeDetailedOut8
   use dftbp_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
@@ -124,7 +125,7 @@ module dftbp_main
 #:endif
   use dftbp_transportio, only : readShifts, writeShifts, writeContactShifts
   use dftbp_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
-      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
+      & fShifts, fStopScc, MdOut, userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
 #:if WITH_TRANSPORT
   use dftbp_initprogram, only : overrideContactCharges
 #:endif

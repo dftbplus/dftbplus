@@ -14,13 +14,8 @@ module dftbp_potentials
   use dftbp_commontypes, only : TOrbitals
   implicit none
 
-<<<<<<< HEAD
-  public :: TPotentials, init
-=======
-  public :: TPotentials, TPotentials_init
-
->>>>>>> master
   private
+  public :: TPotentials, TPotentials_init
 
 
   !> data type to store components of the internal and external potential as named variables - makes

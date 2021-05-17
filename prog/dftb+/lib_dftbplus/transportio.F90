@@ -21,9 +21,7 @@ module dftbp_transportio
 
   private
   public :: writeShifts, readShifts, writeContactShifts
-#:if WITH_TRANSPORT
   public :: readContactShifts
-#:endif
 
   integer, parameter :: contactFormatVersion = 2
 
@@ -593,6 +591,11 @@ contains
     charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
 
   end subroutine readContactShiftData2
+
+#:else
+
+  subroutine readContactShifts() 
+  end subroutine readContactShifts
 
 #:endif
 

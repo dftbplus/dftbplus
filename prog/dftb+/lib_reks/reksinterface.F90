@@ -14,7 +14,6 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reksinterface
-
   use dftbp_accuracy, only : dp
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_dispiface, only : TDispersionIface
@@ -29,7 +28,7 @@ module dftbp_reksinterface
   use dftbp_repulsive, only : TRepulsive
   use dftbp_scc, only : TScc
   use dftbp_slakocont, only : TSlakoCont
-  use dftbp_sparse2dense, only : packHS
+  use dftbp_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
   use dftbp_stress, only : getBlockStress
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon, only : getTwoIndices

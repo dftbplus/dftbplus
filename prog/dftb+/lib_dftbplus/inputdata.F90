@@ -48,9 +48,7 @@ module dftbp_inputdata
   public :: TBlacsOpts
   public :: TRangeSepInp
   public :: init, destruct
-#:if WITH_TRANSPORT
   public :: TNEGFInfo
-#:endif
 
 
   !> Contains Blacs specific options.
@@ -545,11 +543,19 @@ module dftbp_inputdata
   end type TSlater
 
 #:if WITH_TRANSPORT
+
   !> container for data needed by libNEGF
   type TNEGFInfo
     type(TNEGFTunDos) :: tundos  !Transport section informations
     type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
   end type TNEGFInfo
+
+#:else
+
+  !> Dummy type replacement
+  type TNegfInfo
+  end type TNegfInfo
+
 #:endif
 
 

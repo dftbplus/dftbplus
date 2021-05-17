@@ -16,7 +16,7 @@
 module dftbp_timeprop
   use dftbp_globalenv, only : stdOut
   use dftbp_commontypes, only : TParallelKS, TOrbitals
-  use dftbp_potentials, only : TPotentials, init
+  use dftbp_potentials, only : TPotentials, TPotentials_init
   use dftbp_scc, only : TScc
   use dftbp_shift, only : total_shift
   use dftbp_accuracy, only : dp

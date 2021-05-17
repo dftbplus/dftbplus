@@ -21,7 +21,7 @@ module dftbp_environment
   use dftbp_globalenv, only : globalMpiComm
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_blacsenv, only : TBlacsEnv, TBlacsEnv_init
+  use dftbp_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
 #:if WITH_GPU
   use dftbp_gpuenv, only : TGpuEnv, TGpuEnv_init

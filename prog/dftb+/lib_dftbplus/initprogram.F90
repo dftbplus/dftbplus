@@ -21,8 +21,10 @@ module dftbp_initprogram
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx, only : scalafx_getdescriptor, scalafx_getlocalshape
 #:endif
-  use dftbp_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts,&
-      & TNEGFInfo
+  use dftbp_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
+#:if WITH_TRANSPORT
+  use dftbp_inputdata, only : TNEGFInfo
+#:endif
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps, Bohr__nm,&
       & Hartree__kJ_mol, Boltzmann
@@ -101,7 +103,7 @@ module dftbp_initprogram
   use dftbp_elstatpot, only : TElStatPotentials, TElStatPotentials_init
   use dftbp_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_energytypes, only : TEnergies, TEnergies_init
-  use dftbp_potentials, only : TPotentials, init
+  use dftbp_potentials, only : TPotentials, TPotentials_init
   use dftbp_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_formatout, only : clearFile
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
