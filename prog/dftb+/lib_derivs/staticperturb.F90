@@ -738,9 +738,9 @@ contains
             & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
 
         if (nSpin > 1) then
-          dHam(:,:) = 2.0_dp * dHam(:,:)
+          dHam(:,:) = 2.0_dp * dHam
           if (allocated(idHam)) then
-            idHam(:,:) = 2.0_dp * idHam(:,:)
+            idHam(:,:) = 2.0_dp * idHam
           end if
         end if
         call qm2ud(dHam)
@@ -897,8 +897,7 @@ contains
             dqDiffRed(:) = dRhoOut - dRhoIn
           else
             dqOutRed(:) = 0.0_dp
-            call OrbitalEquiv_reduce(dqOut(:,:,:), iEqOrbitals, orb,&
-                & dqOutRed(:nIneqMixElements))
+            call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb, dqOutRed(:nIneqMixElements))
             if (allocated(dftbU)) then
               call AppendBlockReduced(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed)
             end if
@@ -918,10 +917,10 @@ contains
                 dRhoIn(:) = dRhoOut
                 call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
               else
-                dqIn(:,:,:) = dqOut(:,:,:)
-                dqInpRed(:) = dqOutRed(:)
+                dqIn(:,:,:) = dqOut
+                dqInpRed(:) = dqOutRed
                 if (allocated(dftbU) .or. allocated(onsMEs)) then
-                  dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
+                  dqBlockIn(:,:,:,:) = dqBlockOut
                 end if
               end if
 
