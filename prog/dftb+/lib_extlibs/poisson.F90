@@ -1,25 +1,28 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include "common.fypp"
 
+#:assert not (WITH_POISSON and INSTANCE_SAFE_BUILD)
+
 !> Interface to libPoisson routines
 !>
 !> NOTE: THIS MODULE IS NOT MULTI-INSTANCE SAFE
 !>
 module dftbp_poisson
+#:if WITH_POISSON
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals
   use dftbp_globalenv, only : stdOut
   use dftbp_message, only : error
-#:if WITH_MPI
-  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
-#:endif
+  #:if WITH_MPI
+    use libmpifx_module, only : mpifx_barrier, mpifx_bcast
+  #:endif
   use poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms, verbose, bufferBox,&
       & deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate,&
       & GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter, numprocs,&
@@ -29,23 +32,28 @@ module dftbp_poisson
       & set_ncont, set_cluster, set_mol_indeces, set_dopoisson, set_poissonbox, set_poissongrid,&
       & set_accuracy, set_verbose, check_biasdir, check_poisson_box, check_parameters,&
       & check_localbc, check_contacts, write_parameters, poiss_getlatvecs
-#:if WITH_MPI
-  use poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
-#:endif
-#:if WITH_TRANSPORT
-  use poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi, set_potentials, set_builtin
-#:endif
+  #:if WITH_MPI
+    use poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
+  #:endif
+  #:if WITH_TRANSPORT
+    use poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi, set_potentials, set_builtin
+  #:endif
   use dftbp_environment, only : TEnvironment, globalTimers
-#:if WITH_TRANSPORT
-  use dftbp_negfvars, only : TTransPar
+  #:if WITH_TRANSPORT
+    use dftbp_negfvars, only : TTransPar
+  #:endif
 #:endif
   implicit none
 
   private
+  public :: withPoisson
   public :: TPoissonInfo, TPoissonStructure
   public :: TPoissonInput, TPoisson, TPoisson_init
 
+  logical, parameter :: withPoisson = ${FORTRAN_LOGICAL(WITH_POISSON)}$
 
+
+#:if WITH_POISSON
 
   !> Contains some part of the Poisson solvers internal data
   !>
@@ -86,9 +94,18 @@ module dftbp_poisson
 
   end type TPoisson
 
+#:else
+
+  type :: TPoisson
+  end type TPoisson
+
+#:endif
+
+
+#:if WITH_POISSON
 
   !> Geometry of the atoms for the Poisson solver
-  type TPoissonStructure
+  type :: TPoissonStructure
 
     !> number of atoms in central cell
     integer :: nAtom
@@ -110,6 +127,15 @@ module dftbp_poisson
 
   end type TPoissonStructure
 
+#:else
+
+  type :: TPoissonStructure
+  end type TPoissonStructure
+
+#:endif
+
+
+#:if WITH_POISSON
 
   !> Information for the Poisson solver
   type TPoissonInfo
@@ -206,6 +232,15 @@ module dftbp_poisson
 
   end type TPoissonInfo
 
+#:else
+
+  type :: TPoissonInfo
+  end type TPoissonInfo
+
+#:endif
+
+
+#:if WITH_POISSON
 
   !> Contains the main input for the Poisson-solver
   type :: TPoissonInput
@@ -232,11 +267,25 @@ module dftbp_poisson
 
   end type TPoissonInput
 
+#:else
+
+  type :: TPoissonInput
+  end type TPoissonInput
+
+#:endif
+
+
+#:if WITH_POISSON
 
   ! Nr. of active Poisson-solver instances
   integer :: nInstances_ = 0
 
+#:endif
+
+
 contains
+
+#:if WITH_POISSON
 
   !> Initialized Poisson solver
   !>
@@ -281,6 +330,15 @@ contains
 
   end subroutine TPoisson_init
 
+#:else
+
+  subroutine TPoisson_init()
+  end subroutine TPoisson_init
+
+#:endif
+
+
+#:if WITH_POISSON
 
   !> Invokes the finalization of the instance.
   subroutine finalize_(this)
@@ -347,7 +405,7 @@ contains
     real(dp), intent(in) :: qOrb(:,:)
 
     !> Orbital resolved reference charges. Shape: [mOrb, nAtom].
-    real(dp), intent(in) :: q0(:,:)
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     call poiss_updcharges_(env, qOrb, q0)
     if (allocated(this%shellPotUpload_)) then
@@ -750,7 +808,7 @@ contains
     real(dp), intent(in) :: q(:,:)
 
     !> reference charges
-    real(dp), intent(in) :: q0(:,:)
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     integer :: nsh, l, i, o, orb
     real(dp) :: Qtmp
@@ -762,19 +820,35 @@ contains
         call error('ERROR in udpcharges size of q')
       end if
 
-      do i = 1, natoms
-        nsh = lmax(izp(i))+1
-        orb=0
-        do l = 1, nsh
-          Qtmp = 0.0_dp
-          do o= 1,2*l-1
-            orb = orb + 1
-            ! - is for negative electron charge density
-            Qtmp = Qtmp + q0(orb,i)-q(orb,i)
+      if (present(q0)) then
+        do i = 1, natoms
+          nsh = lmax(izp(i))+1
+          orb=0
+          do l = 1, nsh
+            Qtmp = 0.0_dp
+            do o= 1,2*l-1
+              orb = orb + 1
+              ! - is for negative electron charge density
+              Qtmp = Qtmp + q0(orb,i,1)-q(orb,i)
+            enddo
+            dQmat(l,i) = Qtmp
           enddo
-          dQmat(l,i) = Qtmp
         enddo
-      enddo
+      else
+        do i = 1, natoms
+          nsh = lmax(izp(i))+1
+          orb=0
+          do l = 1, nsh
+            Qtmp = 0.0_dp
+            do o= 1,2*l-1
+              orb = orb + 1
+              ! - is for negative electron charge density
+              Qtmp = Qtmp -q(orb,i)
+            enddo
+            dQmat(l,i) = Qtmp
+          enddo
+        enddo
+      end if
 
     endif
     call env%globalTimer%stopTimer(globalTimers%poisson)
@@ -833,6 +907,8 @@ contains
     end do
 
   end subroutine checkDensityCutoff_
+
+#:endif
 
 #:endif
 

@@ -3103,25 +3103,14 @@ CoordinationNumber = Cov {
 Applies the Tkatchenko-Scheffler dispersion model
 \cite{TkatchenkoPRL09,StohrJCP16}.
 
-\textbf{Note:} DFTB+ uses the external libMBD-library to calculate the
-TS-dispersion. Currently, libMBD calculates the gradients for the TS dispersion
-model by finite differences, resulting in long gradient calculation times for
-large systems.
-
 The following keywords can be used with this dispersion model:
 \begin{ptable}
-  \kw{EnergyAccuracy} & r & & 1e-7 & \\
-  \kw{ForceAccuracy} & r & & 1e-6 & \\
   \kw{Damping} & r & & 20.0 & \\
   \kw{RangeSeparation} & & & 0.94 & \\
   \kw{ReferenceSet} & & & "TS" & \\
   \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
-\item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
-  of the dispersion calculation.
-\item[\is{ForceAccuracy}] \modif{\modtype{force}} Specifies the force accuracy
-  of the dispersion calculation.
 \item[\is{Damping}] Damping factor.
 \item[\is{RangeSeparation}] Range separation parameter. The default value is the
   DFTB LDA-value. Note, that various DFTB-parametrisations may require different
@@ -4194,6 +4183,7 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
+  \kw{Polarisability} & m & Molecular system & \cb & \pref{sec:dftbp.perturbation} \\
 \end{ptable}
 
 \begin{description}
@@ -4382,6 +4372,28 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
+\subsubsection{Polarisability}
+\label{sec:dftbp.perturbation}
+
+Evaluates electric polarisability using coupled-perturbed linear
+response. Currently only molecular (i.e.\ not periodic, helical or transport)
+geometries are supported for perturbation. REKS calculations are not currently
+supported.
+
+In the case of degenerate single particle levels, the reported level derivatives
+(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
+value.
+
+\begin{ptable}
+  \kw{Static} & l & & \is{Yes} & \\
+\end{ptable}
+\begin{description}
+\item[\is{Static}] Evaluates static polarisability with respect to cartesian
+  directions of a static uniform electric field. At the moment, if the
+  \is{Polarisability} block is included, this option should be enabled. In a
+  future release, dynamical polarisability at a finite frequency, $\omega$, will
+  be an alternative possibility in this block.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -5286,6 +5298,15 @@ for the energies.
 See the \dptools{} package for utilities for converting the data in this file
 into band-structures and density of states information suitable for plotting.
 
+\subsection{dE\_band.out}
+\label{sec:dftbp.bandout}
+\index{dE\_band.out}
+
+If perturbation calculations of electric field polarizability
+(p.~\pref{sec:dftbp.perturbation}) is enabled and \is{WriteBandOut} = \is{Yes},
+this file contains the derivatives of the band energies in electron volts /
+a.u.\ for each field direction, k-point and spin channel.
+
 \section{detailed.out}
 \label{sec:dftbp.detailedout}
 \index{detailed.out}
@@ -5402,6 +5423,25 @@ Only non-comment lines (lines not starting with "\#") are documented:
     contains two numbers (real and imaginary part).
   \end{itemize}
 \end{itemize}
+
+Each column / row of a square dense matrix belongs to an (atom, orbital) index
+pair, with the orbital index running faster. The order of the atoms follows
+their order in the input geometry. The orbitals are ordered by increasing
+magnetic quantum number ($m$) of each atomic angular shell ($l$), using real
+tesserals functions. The angular shells are ordered according to the input to
+the calculation. In most cases this leads to orbitals ordered by increasing
+($l$, $m$), but for non-minimal or reordered basis functions the shell order
+($l$) may not necessarily be in an increasing order. For the usual minimal
+basis, the standard orbital order runs as
+\begin{equation*}
+  s,\, p_y,\, p_z,\, p_x,\, d_{xy},\, d_{yz},\, d_{z^2},\, d_{xz},\,
+  d_{x^2-y^2},\, f_{y(3x^2-y^2)},\, f_{xyz},\, f_{yz^2},\, f_{z^3},\, f_{xz^2},
+  f_{z(x^2-y^2)},\, f_{x(x^2-3y^2)} \text,
+\end{equation*}
+for an atom, where only the orbitals present in the selected basis of the atom
+are considered. In other more general cases, while $m$ is always in increasing
+order for a given shell, $l$ may be reordered, have multiple shells, or be
+lacking particular $l$ values.
 
 The files are produced if requested by \is{WriteHS} = \is{Yes} (see
 section~\ref{kw:dftbp.WriteHS}).

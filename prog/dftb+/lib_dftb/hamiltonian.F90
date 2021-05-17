@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -298,7 +298,7 @@ contains
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
     if (updateScc) then
-      call sccCalc%updateCharges(env, qInput, q0, orb, species)
+      call sccCalc%updateCharges(env, qInput, orb, species, q0)
     end if
     call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
     call sccCalc%getShiftPerAtom(atomPot(:,1))

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,12 @@ module dftbp_potentials
   use dftbp_commontypes, only : TOrbitals
   implicit none
 
+<<<<<<< HEAD
   public :: TPotentials, init
+=======
+  public :: TPotentials, TPotentials_init
+
+>>>>>>> master
   private
 
 
@@ -61,16 +66,11 @@ module dftbp_potentials
   end type TPotentials
 
 
-  !> Initialise the structure
-  interface init
-    module procedure Potentials_init
-  end interface
-
 contains
 
 
   !> Allocates storage for the potential components
-  subroutine Potentials_init(this, orb, nAtom, nSpin)
+  subroutine TPotentials_init(this, orb, nAtom, nSpin)
 
     !> data structure to allocate
     type(TPotentials), intent(out) :: this
@@ -110,6 +110,6 @@ contains
     this%iorbitalBlock = 0.0_dp
     this%tInitialised = .true.
 
-  end subroutine Potentials_init
+  end subroutine TPotentials_init
 
 end module dftbp_potentials

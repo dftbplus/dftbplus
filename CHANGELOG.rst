@@ -8,20 +8,43 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Addded
+------
+
+
+Changed
+-------
+
+
+Fixed
+-----
+
+
+21.1 (2021-05-12)
+=================
+
 Added
 -----
 
-- Conductor like screening model (COSMO)
-  implicit solvation model for SCC calculations
+- Conductor like screening model (COSMO) implicit solvation model for SCC
+  calculations
 
 - Printout of cavity information as a cosmo file
 
 - Extended syntax for selecting atoms in HSD input
 
+- Static coupled perturbed response for homogeneous electric fields (evaluating
+  molecular electric polarisability)
+
+
 Changed
 -------
 
 - DFT-D4 can now be evaluated self-consistently within the SCC procedure
+
+- Self-consistent DFT-D4 with REKS
+
+- Upgraded to libMBD 0.12.1 (TS-forces are calculated analytically)
 
 
 Fixed
@@ -29,6 +52,9 @@ Fixed
 
 - Fix bug in binary eigenvector output in non-MPI builds (only eigenvectors
   belonging to the the first k-point and spin channel were stored)
+
+- Fix transpose of lattice vectors on return from iPI (thanks to Bingqing Cheng
+  and Edgar Engel)
 
 
 20.2.1 (2020-12-07)

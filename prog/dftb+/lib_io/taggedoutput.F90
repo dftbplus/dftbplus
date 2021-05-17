@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -170,6 +170,21 @@ module dftbp_taggedoutput
 
     !> External electric field
     character(lenLabel) :: externField = 'external_efield'
+
+    !> Static electric polarizability from linear response/perturbation
+    character(lenLabel) :: dmudEPerturb = 'staticPolResponse'
+
+    !> Static electric polarizability from linear response/perturbation
+    character(lenLabel) :: dqdEPerturb = 'staticChargeReponse'
+
+    !> Derivatives of ground state single particle eigenvalues wrt. k
+    character(lenLabel) :: dEigenDE = 'dEidEfield'
+
+    !> Number of electrons at the Fermi energy
+    character(lenLabel) :: neFermi = 'neFermi'
+
+    !> Derivative of the Fermi energy with respect to electric field
+    character(lenLabel) :: dEfdE = 'dEfdE'
 
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'

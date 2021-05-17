@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_mpienv
   implicit none
   
   private
-  public :: TMpiEnv, TMpiEnv_init
+  public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final
 
 
   !> Contains MPI related environment settings
@@ -44,8 +44,11 @@ module dftbp_mpienv
     !> Group index of the current process (starts with 0)
     integer :: myGroup
 
-    !> Global rank of the processes in the given group
-    integer, allocatable :: groupMembers(:)
+    !> Rank of the processes in the given group (with respect of globalComm)
+    integer, allocatable :: groupMembersGlobal(:)
+
+    !> Rank of the processes in the given group (with respect of MPI_COMM_WORLD)
+    integer, allocatable :: groupMembersWorld(:)
 
     !> Whether current process is the global lead
     logical :: tGlobalLead
@@ -88,15 +91,22 @@ contains
   ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
   ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
   ! ---------------------------------------------------------------
-  subroutine TMpiEnv_init(this, nGroup)
+  subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
 
     !> Initialised instance on exit
     type(TMpiEnv), intent(out) :: this
 
+    !> The global MPI communicator (assumed to be MPI_COMM_WORLD if not specified)
+    type(mpifx_comm), optional, intent(in) :: globalMpiComm
+
     !> Number of process groups to create
     integer, intent(in), optional :: nGroup
 
-    call this%globalComm%init()
+    if (present(globalMpiComm)) then
+      this%globalComm = globalMpiComm
+    else
+      call this%globalComm%init()
+    end if
     if (present(nGroup)) then
       this%nGroup = nGroup
     else
@@ -117,6 +127,18 @@ contains
     end if
 
   end subroutine TMpiEnv_init
+
+
+  !> Finalises the communicators in the structure supplied here
+  subroutine TMpiEnv_final(this)
+
+    !>  Initialised instance.
+    type(TMpiEnv), intent(inout) :: this
+
+    call this%interGroupComm%free()
+    call this%groupComm%free()
+
+  end subroutine TMpiEnv_final
 
 
   !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
@@ -146,6 +168,7 @@ contains
 
     integer :: myRank, myGroup
     character(lc) :: tmpStr
+    type(mpifx_comm) :: mpiCommWorld
 
     this%groupSize = this%globalComm%size / this%nGroup
     if (this%nGroup * this%groupSize /= this%globalComm%size) then
@@ -157,8 +180,13 @@ contains
     this%myGroup = this%globalComm%rank / this%groupSize
     myRank = mod(this%globalComm%rank, this%groupSize)
     call this%globalComm%split(this%myGroup, myRank, this%groupComm)
-    allocate(this%groupMembers(this%groupSize))
-    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembers)
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
 
     myGroup = myRank
     myRank = this%myGroup
@@ -180,7 +208,7 @@ contains
     !> Environment instance
     type(TMpiEnv), intent(inout) :: this
 
-    type(mpifx_comm) :: cartComm
+    type(mpifx_comm) :: cartComm, mpiCommWorld
 
     call negf_cart_init(this%globalComm, this%nGroup, cartComm, this%groupComm, this%interGroupComm)
     if (this%globalComm%lead .neqv. cartComm%lead) then
@@ -191,8 +219,13 @@ contains
     this%groupSize = this%groupComm%size
     this%myGroup = this%interGroupComm%rank
 
-    allocate(this%groupMembers(this%groupSize))
-    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembers)
+    allocate(this%groupMembersGlobal(this%groupSize))
+    call mpifx_allgather(this%groupComm, this%globalComm%rank, this%groupMembersGlobal)
+
+    ! Make a wrapper around MPI_COMM_WORLD and get group member ids within that descriptor
+    call mpiCommWorld%init()
+    allocate(this%groupMembersWorld(this%groupSize))
+    call mpifx_allgather(this%groupComm, mpiCommWorld%rank, this%groupMembersWorld)
 
   end subroutine setup_subgrids_negf
 

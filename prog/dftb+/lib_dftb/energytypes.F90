@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -83,6 +83,9 @@ module dftbp_energytypes
 
     !> total energy (Erep+Etotal)
     real(dp) :: Etotal = 0.0_dp
+
+    !> Total energy for averaged state in REKS
+    real(dp) :: Eavg = 0.0_dp
 
     !> Total Mermin energy (note that this may be evaluated even when the TS term cannot be set, so
     !> contains the same as Etotal in those cases)
