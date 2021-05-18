@@ -258,3 +258,15 @@ if(WITH_API)
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 endif()
+
+
+#
+# Coverage testing related targets
+#
+if(LCOV_REPORT)
+  find_program(LCOV lcov REQUIRED)
+  find_program(GENHTML genhtml)
+  dftbp_create_lcov_targets("${LCOV}" "${GENHTML}" "${CMAKE_CURRENT_BINARY_DIR}/lcov"
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/prog")
+endif()
