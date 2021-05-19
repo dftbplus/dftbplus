@@ -189,7 +189,7 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   if(INSTANCE_SAFE_BUILD)
-    
+
     if(WITH_POISSON)
       message(FATAL_ERROR "Instance safe build with the Poisson solver is not supported")
     endif()
@@ -411,15 +411,20 @@ endmacro()
 function (dftbp_setup_build_type)
 
   set(default_build_type "RelWithDebInfo")
-  if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Build type: ${default_build_type} (default single-config)")
-    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
-  elseif(CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS
-      "Build type: ${CMAKE_BUILD_TYPE} (manually selected single-config)")
-  else()
+  get_property(_multiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if(_multiConfig)
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;Coverage")
     message(STATUS "Build type: Multi-Config (build type selected at the build step)")
+  else()
+    if(NOT CMAKE_BUILD_TYPE)
+      message(STATUS "Build type: ${default_build_type} (default single-config)")
+      set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type" FORCE)
+      set_property(CACHE CMAKE_BUILD_TYPE PROPERTY HELPSTRING "Choose the type of build")
+      set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        "Debug" "Release" "RelWithDebInfo" "Coverage")
+    else()
+      message(STATUS "Build type: ${CMAKE_BUILD_TYPE} (manually selected single-config)")
+    endif()
   endif()
 
 endfunction()
@@ -606,3 +611,52 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
   unset(_config_lower)
 
 endmacro()
+
+
+# Sets up LCOV-related targets
+#
+# Arguments:
+#   lcov [in]: Name of the lcov program
+#   genhtml [in]: Name of the optional genhtml program (as a result of a find_program)
+#   lcov_output_dir [in]: Where to put the lcov/genhtml generated files
+#   lcov_base_dir [in]: Which directory is the base for the analysis.
+#   lcov_dirs [in]: List of directories to track
+#
+function (dftbp_create_lcov_targets lcov genhtml lcov_output_dir lcov_base_dir lcov_dirs)
+
+  set(lcov_report_dir ${lcov_output_dir}/report)
+
+  set(lcov_diropts)
+  foreach(lcov_dir IN LISTS lcov_dirs)
+    list(APPEND lcov_diropts "--directory" "${lcov_dir}")
+  endforeach()
+
+  add_custom_target(lcov_init
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${lcov_output_dir}
+    COMMAND ${lcov} --zerocounters --base-directory ${lcov_base_dir} ${lcov_diropts}
+    COMMAND ${lcov} --capture --initial --base-directory ${lcov_base_dir} ${lcov_diropts} --output-file ${lcov_output_dir}/lcov.base)
+
+  add_custom_command(TARGET lcov_init POST_BUILD
+    COMMAND ;
+    COMMENT "LCOV data initialized. Run your tests and then build the 'lcov_eval' or the 'lcov_report' target")
+
+  add_custom_target(lcov_eval
+    COMMAND ${lcov} --capture --base-directory ${lcov_base_dir} ${lcov_diropts} --output-file ${lcov_output_dir}/lcov.capture
+    COMMAND ${lcov} --add-tracefile ${lcov_output_dir}/lcov.base --add-tracefile ${lcov_output_dir}/lcov.capture --output-file ${lcov_output_dir}/lcov.total)
+
+  add_custom_command(TARGET lcov_eval POST_BUILD
+    COMMAND ;
+    COMMENT "LCOV total coverage evaluated in ${lcov_output_dir}/lcov.total")
+
+  if (genhtml)
+
+    add_custom_target(lcov_report DEPENDS lcov_eval
+      COMMAND ${GENHTML} ${lcov_output_dir}/lcov.total --legend --output-directory=${lcov_report_dir})
+
+    add_custom_command(TARGET lcov_report POST_BUILD
+      COMMAND ;
+      COMMENT "LCOV report generated in ${lcov_report_dir}/index.html")
+
+  endif()
+
+endfunction()

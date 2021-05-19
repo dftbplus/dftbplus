@@ -131,3 +131,14 @@ set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
 #
 # Fetch: Fetch the source into the build folder and build the dependency as part of the build
 #     process (works also in cases where the source tree is not a Git repository)
+
+
+#
+# Developer settings
+#
+option(LCOV_REPORT "Whether coverage report should be generated via lcov/genhtml" FALSE)
+# Makes only sense for build type 'Coverage'. Requires lcov and and optionally genhtml to be
+# installed on the system. After building the code, you have to build manually the 'lcov_init'
+# target (e.g. `make lcov_init`), then run the tests (e.g. `ctest`) and finally generate the report
+# with the lcov_report target (e.g. `make lcov_report`). If you only need the evaluated coverage
+# data, but no HTML report, build the `lcov_eval` target instead.
