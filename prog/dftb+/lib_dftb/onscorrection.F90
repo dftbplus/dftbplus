@@ -13,7 +13,7 @@ module dftbp_onsitecorrection
   use dftbp_commontypes, only : TOrbitals
   use dftbp_message, only : error
   use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_slakocont
+  !use dftbp_slakocont
   implicit none
   
   private

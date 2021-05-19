@@ -16,14 +16,14 @@ module dftbp_rotatedegen
   use dftbp_message, only : error
   use dftbp_wrappedintr, only : TwrappedReal2, TwrappedCmplx2
 #:if WITH_SCALAPACK
-  use dftbp_environment
-  use libscalapackfx_module
-  use linecomm_module
-  use dftbp_densedescr
+  use dftbp_environment, only : TEnvironment
+  !use libscalapackfx_module
+  use linecomm_module, only : linecomm
+  use dftbp_densedescr, only: TDenseDescr
 #:endif
   implicit none
+  
   private
-
   public :: TRotateDegen, TRotateDegen_init
 
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]

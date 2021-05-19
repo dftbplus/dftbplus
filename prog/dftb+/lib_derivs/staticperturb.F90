@@ -33,12 +33,14 @@ module dftbp_staticperturb
   use dftbp_parallelks, only : TParallelKS
   use dftbp_blockpothelper, only : appendBlockReduced
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_sparse2dense
-  use dftbp_scalapackfx
-  use dftbp_scalafxext
+  use dftbp_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs, packRhoRealBlacs,&
+      & unpackHSRealBlacs, unpackHS
+  use dftbp_scalapackfx, only : DLEN_, CSRC_, NB_, MB_, RSRC_, scalafx_indxl2g, pblasfx_pgemm,&
+      & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_getdescriptor
+  !use dftbp_scalafxext
 #:else
   use dftbp_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
   use dftbp_blasroutines, only : hemm, symm

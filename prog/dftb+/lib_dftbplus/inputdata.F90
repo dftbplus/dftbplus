@@ -36,7 +36,7 @@ module dftbp_inputdata
   use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
   use dftbp_poisson, only : TPoissonInfo
   use dftbp_h5correction, only : TH5CorrectionInput

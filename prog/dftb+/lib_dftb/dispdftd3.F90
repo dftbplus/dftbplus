@@ -17,7 +17,7 @@ module dftbp_dispdftd3
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
-  use dftbp_constants
+  use dftbp_constants, only : kcal_mol__Hartree, AA__Bohr
   implicit none
   
   private
