@@ -24,3 +24,9 @@ target_include_directories(
   "ddcosmo_objlib"
   PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
+if(WITH_OMP)
+  target_link_libraries(
+    "ddcosmo_objlib"
+    PUBLIC OpenMP::OpenMP_Fortran
+  )
+endif()
