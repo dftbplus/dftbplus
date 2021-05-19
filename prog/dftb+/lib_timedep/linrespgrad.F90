@@ -1061,7 +1061,7 @@ contains
 
       end if
 
-      call calcMatrixSqrt_TN(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
+      call calcMatrixSqrtTemporaryCopy(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim,&
           & 0.0_dp, dummyM, memDim)
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
@@ -1232,7 +1232,7 @@ contains
       subSpaceDim = subSpaceDim + newVec
 
       ! create orthogonal basis
-      call orthonormalizeVectors_TN(prevSubSpaceDim + 1, subSpaceDim, vecB) 
+      call orthonormalizeVectorsTemporaryCopy(prevSubSpaceDim + 1, subSpaceDim, vecB) 
 
     end do solveLinResp
 

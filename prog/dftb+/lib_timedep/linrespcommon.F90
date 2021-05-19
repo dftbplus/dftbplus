@@ -1,3 +1,4 @@
+
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
 !  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
@@ -20,12 +21,6 @@ module dftbp_linrespcommon
   use dftbp_constants, only: Hartree__eV, au__Debye
   implicit none
   public
-
-  interface TN_incSize
-    module procedure TN_incSizeInt
-    module procedure TN_incSizeVec
-    module procedure TN_incSizeMat
-  end interface TN_incSize
 
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
@@ -405,7 +400,7 @@ contains
     logical :: updwn
     real(dp) :: docc_ij
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, updwn, docc_ij) SCHEDULE(RUNTIME)
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, ss, updwn, docc_ij) SCHEDULE(RUNTIME)
     do ia = 1, nmat
       call indxov(win, ia, getia, ii, jj, ss)
       updwn = (win(ia) <= nmatup)
@@ -422,7 +417,7 @@ contains
 
   !> Square root of differences in occupations between filled and empty states
   !> We need occupations per spin channel ([0:1]) also for closed shell systems
-  subroutine wtdn_tmp(occNr, win, nmatup, nmat, getia, tSpin, n_ij)
+  subroutine getSqrOcc(occNr, win, nmatup, nmat, getia, tSpin, n_ij)
 
     !> occupation of states
     real(dp), intent(in) :: occNr(:,:)
@@ -465,7 +460,7 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-  end subroutine wtdn_tmp
+  end subroutine getSqrOcc
 
 
   !> Multiplies the excitation supermatrix with a supervector.
@@ -543,11 +538,6 @@ contains
 
     integer :: nmat, natom, ia, ss
 
-    ! This OMP directive seems strange, no ii,jj used. 
-  #:if WITH_OMP
-    integer :: ii, jj
-  #:endif
-
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
@@ -564,12 +554,12 @@ contains
     vout = 0.0_dp
 
     ! Compute sqrt(n_as-n_is)
-    call wtdn_tmp(occNr, win, nmatup, nmat, getia, spin, sqrOccIA)
+    call getSqrOcc(occNr, win, nmatup, nmat, getia, spin, sqrOccIA)
  
     if(tAplusB) then
-       vTmp(:) = vin(:) 
+       vTmp(:) = vin 
     else
-       vTmp(:) = vin(:) * sqrt(wij(:))
+       vTmp(:) = vin * sqrt(wij)
     endif
 
     ! product charges with the v*wn product, i.e. Q * v*wn
@@ -586,7 +576,7 @@ contains
         ! 4 * wn * (g * Q)
         vOut(:) = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, gTmp, vOut)
-        vOut(:) = 4.0_dp * sqrOccIA(:) * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA * vOut
 
       else
 
@@ -595,7 +585,7 @@ contains
         ! 4 * wn * (o * Q)
         vOut = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, oTmp, vOut)
-        vOut(:) = 4.0_dp * sqrOccIA(:) * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA * vOut
 
 
       end if
@@ -618,7 +608,7 @@ contains
         ! magnetization part (T1)
         ss = getIA(win(ia), 3)
 
-        otmp(:) = otmp(:) + spinFactor(ss) * sqrOccIA(ia) * vTmp(ia) * qij(:)
+        otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vTmp(ia) * qij
 
       end do
       !$OMP  END PARALLEL DO
@@ -647,10 +637,10 @@ contains
       vout(:) = vout + vout_ons
     end if
 
-    vout(:) = vout(:) + wij(:) * vTmp(:)
+    vout(:) = vout + wij * vTmp
 
     if(.not. tAplusB) then
-       vout(:) = vout(:) * sqrt(wij(:))
+       vout(:) = vout * sqrt(wij)
     endif
 
   end subroutine actionAplusB 
@@ -692,7 +682,7 @@ contains
     vOut(:) = 0.0_dp
 
     ! orb. energy difference diagonal contribution
-    vOut(:) = vOut(:) + wIA(:) * vIn(:) 
+    vOut(:) = vOut + wIA * vIn 
 
   end subroutine actionAminusB
 
@@ -793,7 +783,7 @@ contains
 
     oTmp(:) = 0.0_dp
 
-    call wtdn_tmp(occNr, win, nmatup, nMat, getIA, tSpin, sqrOccIA)
+    call getSqrOcc(occNr, win, nmatup, nMat, getIA, tSpin, sqrOccIA)
 
     !-----------spin-unpolarized systems--------------
     if(.not. tSpin) then 
@@ -803,7 +793,7 @@ contains
         ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
         do jb = 1, initDim 
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          qTr(:) = qTr(:) * sqrOccIA(jb)
+          qTr(:) = qTr * sqrOccIA(jb)
 
           call hemv(oTmp, gamma, qTr)
 
@@ -819,7 +809,7 @@ contains
         ! full range triplets contribution: 2 * sum_A q^ia_A M_A q^jb_A
         do jb = 1, initDim
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          oTmp(:) = qTr(:) * sqrOccIA(jb) * spinW(species0)
+          oTmp(:) = qTr * sqrOccIA(jb) * spinW(species0)
 
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
@@ -834,11 +824,11 @@ contains
 
       do jb = 1, initDim
         qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-        qTr(:) = qTr(:) * sqrOccIA(jb)
+        qTr(:) = qTr * sqrOccIA(jb)
 
         call hemv(gTmp, gamma, qTr)
 
-        oTmp(:) = qTr(:)
+        oTmp(:) = qTr
 
         do ia = 1, nMat
           qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
@@ -847,7 +837,7 @@ contains
 
         ss = getIA(win(jb), 3)
         
-        oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp(:)
+        oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp
 
         do ia = 1, nMat
           qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
@@ -872,9 +862,6 @@ contains
         mM(jj,ii) = mM(ii,jj)
       end do
     end do
-
-    deallocate(oTmp)
-    deallocate(qTr)
 
   end subroutine intialSubSpaceMatrixApmB
 
@@ -1363,8 +1350,8 @@ contains
               tmp = tmp + MOoverlap(m,aa,stimc,grndEigVecs) * MOoverlap(m,bb,stimc,grndEigVecs)
             end do
           end if
-
-          s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
+ 
+         s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
         end do
       end do
 
@@ -1523,86 +1510,77 @@ contains
 
   end subroutine writeExcMulliken
 
-  !> Set value of sizeIn to new, three times as large, value
-  pure subroutine TN_incSizeInt(sizeIn)
-
-    integer, intent(inout) :: sizeIn
-    sizeIn = 3 * sizeIn
-
-  end subroutine TN_incSizeInt
-
-
-  !> increase size of a NxsizeIn array to 3*sizeIn
-  pure subroutine TN_incSizeMat(sizeIn, vec)
-
-    integer, intent(inout) :: sizeIn
-    real(dp), allocatable, intent(inout) :: vec(:,:)
-
-    integer :: dim1
-    real(dp), allocatable :: temp(:,:)
-    dim1 = size(vec, dim=1)
-    allocate(temp(dim1, 3 * sizeIn))
-    temp(:,:) = 0.0_dp
-    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
-    temp(:,1:sizeIn) = vec
-    call move_alloc(temp, vec)
-
-  end subroutine TN_incSizeMat
-
-
-  !>increase size of a sizeIn array to 3*sizeIn
-  pure subroutine TN_incSizeVec(sizeIn, vec)
+  !> increase dimension of vector from sizeIn to fac*sizeIn
+  pure subroutine incSizeVecTemporaryCopy(sizeIn, fac, vec)
 
     integer, intent(in) :: sizeIn
+    integer, intent(in) :: fac
     real(dp), allocatable, intent(inout) :: vec(:)
 
     real(dp), allocatable :: temp(:)
-    allocate(temp(3 * sizeIn))
+
+    allocate(temp(fac * sizeIn))
     temp(:) = 0.0_dp
-    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
     temp(1:sizeIn) = vec
     call move_alloc(temp, vec)
 
-  end subroutine TN_incSizeVec
+  end subroutine incSizeVecTemporaryCopy
 
-
-  !>increase size of a sizeInxN array to 3*sizeInxN
-  pure subroutine TN_incSizeMatSwapped(sizeIn, vec)
+  !> increase size of (sizeIn,n) array to (fac*sizeIn,n)
+  pure subroutine incSizeMatDimOne(sizeIn, fac, mat)
 
     integer, intent(inout) :: sizeIn
-    real(dp), allocatable, intent(inout) :: vec(:,:)
+    integer, intent(in) :: fac
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    integer :: dim2
+    real(dp), allocatable :: temp(:,:)
+
+    dim2 = size(mat, dim=2)
+    allocate(temp(fac * sizeIn, dim2))
+    temp(:,:) = 0.0_dp
+    temp(1:sizeIn,:) = mat
+    call move_alloc(temp, mat)
+
+  end subroutine incSizeMatDimOne
+
+  !> increase size of (n,sizeIn) array to (n, fac*sizeIn)
+  pure subroutine incSizeMatDimTwo(sizeIn, fac, mat)
+
+    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: fac
+    real(dp), allocatable, intent(inout) :: mat(:,:)
 
     integer :: dim1
     real(dp), allocatable :: temp(:,:)
-    dim1 = size(vec, dim=2)
-    allocate(temp(3 * sizeIn, dim1))
+
+    dim1 = size(mat, dim=1)
+    allocate(temp(dim1, fac * sizeIn))
     temp(:,:) = 0.0_dp
-    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
-    temp(1:sizeIn,:) = vec
-    call move_alloc(temp, vec)
+    temp(:,1:sizeIn) = mat
+    call move_alloc(temp, mat)
 
-  end subroutine TN_incSizeMatSwapped
+  end subroutine incSizeMatDimTwo
 
-
-  !>increase size of a sizeInxsizeIn array
-  pure subroutine TN_incSizeMatBoth(sizeIn, vec)
+  !> increase size of (sizeIn,sizeIn) array to (fac1*sizeIn,fac2*sizeIn)
+  pure subroutine incSizeMatBothDim(sizeIn, fac1, fac2, mat)
 
     integer, intent(inout) :: sizeIn
-    real(dp), allocatable, intent(inout) :: vec(:,:)
+    integer, intent(in) :: fac1, fac2
+    real(dp), allocatable, intent(inout) :: mat(:,:)
 
     real(dp), allocatable :: temp(:,:)
 
-    allocate(temp(3 * sizeIn, 2 * sizeIn))
+    allocate(temp(fac1 * sizeIn, fac2 * sizeIn))
     temp(:,:) = 0.0_dp
-    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
-    temp(1:sizeIn, 1:sizeIn) = vec
-    call move_alloc(temp, vec)
+    temp(1:sizeIn, 1:sizeIn) = mat
+    call move_alloc(temp, mat)
 
-  end subroutine TN_incSizeMatBoth
+  end subroutine incSizeMatBothDim
 
   !> Same routine exists in rs_linresp and will be removed 
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
-  subroutine calcMatrixSqrt_TN(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
+  subroutine calcMatrixSqrtTemporaryCopy(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
 
     real(dp), intent(in) :: matIn(:,:)
     integer, intent(in) :: spaceDim, memDim
@@ -1635,12 +1613,12 @@ contains
     call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
         & spaceDim, 0.0_dp, matInvOut, memDim)
 
-  end subroutine calcMatrixSqrt_TN
+  end subroutine calcMatrixSqrtTemporaryCopy
 
 
   !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
   !> vectors 1:(start-1) are orthonormal yet
-  pure subroutine orthonormalizeVectors_TN(start, end, vec)
+  pure subroutine orthonormalizeVectorsTemporaryCopy(start, end, vec)
     integer, intent(in) :: start
     integer, intent(in) :: end
     real(dp), intent(inout) :: vec(:,:)
@@ -1654,7 +1632,7 @@ contains
       vec(:,ii) = vec(:,ii) / sqrt(dot_product(vec(:,ii), vec(:,ii)))
     end do
 
-  end subroutine orthonormalizeVectors_TN
+  end subroutine orthonormalizeVectorsTemporaryCopy
 
   !> Encapsulate memory extension for Stratmann solver 
   subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
@@ -1666,24 +1644,24 @@ contains
     real(dp), allocatable :: vP(:,:), vM(:,:)
     real(dp), allocatable :: mP(:,:), mM(:,:), mH(:,:), mMsqrt(:,:), mMsqrtInv(:,:)
     real(dp), allocatable :: dummyM(:,:), evalInt(:), workArray(:)
-    real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:) 
+    real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:)
 
-    call TN_incSize(memDim, vecB)
-    call TN_incSize(memDim, vP)
-    call TN_incSize(memDim, vM)
-    call TN_incSizeMatBoth(memDim, mP)
-    call TN_incSizeMatBoth(memDim, mM)
-    call TN_incSizeMatBoth(memDim, mH)
-    call TN_incSizeMatBoth(memDim, mMsqrt)
-    call TN_incSizeMatBoth(memDim, mMsqrtInv)
-    call TN_incSizeMatBoth(memDim, dummyM)
-    call TN_incSize(memDim, evalInt)
-    call TN_incSize(workDim, workArray)
-    call TN_incSizeMatSwapped(memDim, evecL)
-    call TN_incSizeMatSwapped(memDim, evecR)
-    call TN_incSize(2 * memDim, vecNorm)
-    call TN_incSize(memDim)
-    call TN_incSize(workDim)    
+    call incSizeMatDimTwo(memDim, 3, vecB)
+    call incSizeMatDimTwo(memDim, 3, vP)
+    call incSizeMatDimTwo(memDim, 3, vM)
+    call incSizeMatBothDim(memDim, 3, 2, mP)
+    call incSizeMatBothDim(memDim, 3, 2, mM)
+    call incSizeMatBothDim(memDim, 3, 2, mH)
+    call incSizeMatBothDim(memDim, 3, 2, mMsqrt)
+    call incSizeMatBothDim(memDim, 3, 2, mMsqrtInv)
+    call incSizeMatBothDim(memDim, 3, 2, dummyM)
+    call incSizeVecTemporaryCopy(memDim, 3, evalInt)
+    call incSizeVecTemporaryCopy(workDim, 3, workArray)
+    call incSizeMatDimOne(memDim, 3, evecL)
+    call incSizeMatDimOne(memDim, 3, evecR)
+    call incSizeVecTemporaryCopy(2 * memDim, 3, vecNorm)
+    memDim = 3 * memDim
+    workDim = 3 * workDim
 
   end subroutine incMemStratmann
 
