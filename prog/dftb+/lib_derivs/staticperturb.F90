@@ -40,7 +40,6 @@ module dftbp_staticperturb
       & unpackHSRealBlacs, unpackHS
   use dftbp_scalapackfx, only : DLEN_, CSRC_, NB_, MB_, RSRC_, scalafx_indxl2g, pblasfx_pgemm,&
       & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_getdescriptor
-  !use dftbp_scalafxext
 #:else
   use dftbp_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
   use dftbp_blasroutines, only : hemm, symm

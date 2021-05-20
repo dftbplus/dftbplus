@@ -16,7 +16,6 @@ module dftbp_lapackroutines
   use dftbp_assert
   use dftbp_accuracy, only : dp, rdp, rsp
   use dftbp_message, only : error, warning
-  !use dftbp_lapack
   implicit none
 
   private

@@ -17,7 +17,6 @@ module dftbp_rotatedegen
   use dftbp_wrappedintr, only : TwrappedReal2, TwrappedCmplx2
 #:if WITH_SCALAPACK
   use dftbp_environment, only : TEnvironment
-  !use libscalapackfx_module
   use linecomm_module, only : linecomm
   use dftbp_densedescr, only: TDenseDescr
 #:endif

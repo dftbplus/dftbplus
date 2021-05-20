@@ -50,7 +50,6 @@ module dftbp_main
       & setUpExternalElectricField, mergeExternalPotentials, resetExternalPotentials, &
       & addBlockChargePotentials
   use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
-  !use dftbp_sccinit
   use dftbp_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
       & frac2cart, foldCoordToUnitCell, getNrOfNeighboursForAll, getSparseDescriptor,&
