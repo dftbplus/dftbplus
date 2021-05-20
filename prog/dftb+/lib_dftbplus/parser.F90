@@ -4561,7 +4561,7 @@ contains
 
     type(fnode), pointer :: child
     type(fnode), pointer :: child2
-    type(fnode), pointer :: value
+    type(fnode), pointer :: value, value1
     type(string) :: buffer
 
   #:if WITH_ARPACK
@@ -4652,10 +4652,22 @@ contains
       if (allocated(ctrl%rangeSepInp)) then
         call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       end if
-      call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
-      call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
-      call getChildValue(child, "UseArpack", ctrl%lrespini%tUseArpack, default=.true.)
-      call getChildValue(child, "SubSpaceStratmann", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      ctrl%lrespini%tUseArpack = .true.
+      call getChildValue(child, "Diagonalizer", child2, default="")
+      if (associated(child2)) then
+        call getNodeName(child2, buffer)
+        ctrl%lrespini%tUseArpack = .true.
+        select case(char(buffer))
+          case ("arpack")
+            call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
+            call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+          case ("stratmann")
+            ctrl%lrespini%tUseArpack = .false.
+            call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+          case default
+            call detailedError(child2, "Invalid method name.")
+        end select
+      end if
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)

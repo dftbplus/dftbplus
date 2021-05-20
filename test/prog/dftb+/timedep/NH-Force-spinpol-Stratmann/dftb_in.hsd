@@ -42,7 +42,7 @@ ExcitedState {
         NrOfExcitations = 5
         StateOfInterest = 1
         WriteMulliken = Yes
-        UseArpack = No
+        Diagonalizer = Stratmann {}
     }
 }
 
@@ -55,7 +55,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 5
+    ParserVersion = 9
 }
 
 Parallel {

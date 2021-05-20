@@ -43,7 +43,7 @@ ExcitedState {
         StateOfInterest = 0
         WriteTransitions = Yes
         WriteSPTransitions = Yes
-        UseArpack = No
+        Diagonalizer = Stratmann {}
     }
 }
 
@@ -57,7 +57,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 5
+    ParserVersion = 9
 }
 
 Parallel {

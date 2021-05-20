@@ -476,7 +476,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, par
+    type(fnode), pointer :: ch1, ch2, ch3, par, dummy
     logical :: tVal1, tVal2
     type(fnode), pointer :: pTaskType
     type(string) :: buffer
@@ -520,6 +520,20 @@ contains
       call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
     end if
 
+    !! TestArnoldi and WriteStatusArnoldi still appears in dftb_pin.hsd
+    !! Not sure how to apply removeChild correctly
+    call getDescendant(root, "ExcitedState/Casida", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(ch1, "WriteStatusArnoldi", tVal1,default=.false.)
+      call getChildValue(ch1, "TestArnoldi", tVal2,default=.false.)
+      call detailedWarning(ch1, "Keyword moved to Diagonalizer block.")
+      call setUnprocessed(ch1)
+      call setChild(ch1, "Diagonalizer", ch2)
+      call setChild(ch2, "Arpack", ch3)
+      call setChildValue(ch3, "WriteStatusArnoldi", tVal1)
+      call setChildValue(ch3, "TestArnoldi", tVal2)
+    end if
+    
   end subroutine convert_8_9
 
 

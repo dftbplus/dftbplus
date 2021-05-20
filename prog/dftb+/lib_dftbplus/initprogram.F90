@@ -5077,16 +5077,6 @@ contains
       end if
     end if
 
-    if (input%ctrl%lrespini%tUseArpack) then
-      if (input%ctrl%lrespini%subSpaceFactorStratmann /= 20) then
-        call warning("Casida: SubSpaceStratmann without function for Arpack diagonalization!")
-      end if
-    else 
-      if (input%ctrl%lrespini%tArnoldi .or. input%ctrl%lrespini%tDiagnoseArnoldi) then
-        call warning("Casida: Arpack options without function for Stratmann diagonalizer.")
-      end if
-    end if 
-
   end subroutine ensureLinRespConditions
 
 

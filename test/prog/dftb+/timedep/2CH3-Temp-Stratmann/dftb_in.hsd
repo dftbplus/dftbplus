@@ -30,13 +30,14 @@ ExcitedState {
         NrOfExcitations = 10
         StateOfInterest = 0
         Symmetry = Singlet
-        UseArpack = No
-	SubSpaceStratmann = 10
+        Diagonalizer = Stratmann {
+            SubSpaceFactor = 10
+        }
     }
 }
 
 ParserOptions {
-    ParserVersion = 5
+    ParserVersion = 9
 }
 
 Parallel {

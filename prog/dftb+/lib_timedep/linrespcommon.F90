@@ -596,7 +596,7 @@ contains
 
       otmp(:) = 0.0_dp
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,ss,qij) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
 
@@ -615,7 +615,7 @@ contains
 
       otmp = otmp * spinW(species0)
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,ss,qij) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
