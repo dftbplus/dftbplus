@@ -15,17 +15,15 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reksio
 
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : au__Debye
-  use dftbp_globalenv
-  use dftbp_message
+  use dftbp_globalenv, only: stdOut
+  use dftbp_message, only : error
   use dftbp_rekscommon, only : getTwoIndices, getSpaceSym
   use dftbp_reksvar, only : TReksCalc, reksTypes
-
   implicit none
 
   private
-
   public :: printReksMicrostates, printSaReksEnergy
   public :: printReksSAInfo, printReksSSRInfo
   public :: printReksGradInfo

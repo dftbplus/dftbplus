@@ -15,25 +15,23 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reksen
 
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemm
-  use dftbp_densedescr
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_eigensolver, only : heev
-  use dftbp_elecsolvers
+  use dftbp_elecsolvers, only: TElectronicSolver
   use dftbp_energytypes, only : TEnergies
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_periodic
-  use dftbp_sparse2dense
-  use dftbp_rekscommon
-  use dftbp_reksio
+  use dftbp_environment, only : globalTimers, TEnvironment
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message, only : error
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS 
+  use dftbp_rekscommon, only : getTwoIndices, matAO2MO
+  use dftbp_reksio, only : printReksSSRInfo
   use dftbp_reksvar, only : TReksCalc, reksTypes
-
   implicit none
 
   private
-
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs

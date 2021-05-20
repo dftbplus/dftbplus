@@ -9,19 +9,18 @@
 
 !> Read GBSA parametrisation data from file
 module dftbp_gbsafile
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, lc
   use dftbp_born, only : TGBInput
   use dftbp_charmanip, only : newline, whiteSpaces
-  use dftbp_constants, only : lc, amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
-    & symbolToNumber
+  use dftbp_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, symbolToNumber
   use dftbp_hsdutils, only : detailedError, detailedWarning
   use dftbp_message, only : error, warning
   use dftbp_solventdata, only : TSolventData
   use dftbp_tokenreader, only : getNextToken, TOKEN_OK
   use dftbp_xmlf90, only : fnode
   implicit none
+  
   private
-
   public :: readParamGBSA
 
 

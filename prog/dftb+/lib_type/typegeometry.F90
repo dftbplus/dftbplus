@@ -9,11 +9,11 @@
 
 !> data type and associated routines for specifying atomic geometry and boundary conditions
 module dftbp_typegeometry
-  use dftbp_accuracy
-  use dftbp_lapackroutines
+  use dftbp_accuracy, only : dp, mc
+  use dftbp_lapackroutines, only : matinv
   implicit none
+  
   private
-
   public :: TGeometry, normalize
   public :: reduce, setLattice
 

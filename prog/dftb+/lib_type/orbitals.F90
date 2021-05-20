@@ -7,12 +7,12 @@
 
 !> Contains a type with basis information
 module dftbp_orbitals
-  use dftbp_accuracy
-  use dftbp_message
+  use dftbp_accuracy, only : sc
+  use dftbp_message, only : error
   use dftbp_constants, only : shellNames
   implicit none
+  
   private
-
   public :: TOrbitals, getShellNames, orbitalNames
 
 

@@ -11,8 +11,8 @@
 !> details.
 module dftbp_conjgrad
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_linemin
+  use dftbp_accuracy, only : dp
+  use dftbp_linemin, only : TLineMin, TLineMin_init
   implicit none
 
   private

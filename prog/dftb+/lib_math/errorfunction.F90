@@ -17,13 +17,13 @@
 !> b) INTERNAL_ERFC is defined: erf(x) and erfc(x) are internally calculated by the code.
 !>
 module dftbp_errorfunction
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
 #:if INTERNAL_ERFC
   use dftbp_erfcalc, only : erf, erfc
 #:endif
   implicit none
+  
   private
-
   public :: erfwrap, erfcwrap
 
 contains

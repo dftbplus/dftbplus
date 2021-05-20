@@ -13,8 +13,8 @@ module dftbp_solventdata
   use dftbp_charmanip, only : tolower
   use dftbp_constants, only : kg__au, AA__Bohr, amu__au
   implicit none
+  
   private
-
   public :: TSolventData
   public :: SolventFromName
 

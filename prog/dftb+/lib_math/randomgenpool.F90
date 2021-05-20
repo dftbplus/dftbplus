@@ -12,15 +12,15 @@
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
 module dftbp_randomgenpool
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : mpifx_bcast
 #:endif
-  use dftbp_environment
+  use dftbp_environment, only : TEnvironment
   use dftbp_accuracy, only : dp
-  use dftbp_ranlux
+  use dftbp_ranlux, only : TRanlux, init, getRandom
   use dftbp_assert
   implicit none
+  
   private
-
   public :: TRandomGenPool, init
 
 

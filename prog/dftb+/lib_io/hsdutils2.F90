@@ -11,17 +11,20 @@
 !> intrinsic types.
 module dftbp_hsdutils2
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_hsdutils
-  use dftbp_hsdparser
-  use dftbp_xmlutils
+  use dftbp_accuracy, only : dp
+  use dftbp_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
+      & appendPathAndLine
+  use dftbp_hsdparser, only : attrName, attrModifier
+  use dftbp_xmlutils, only : getTagsWithoutAttribute, removeNodes, removeSpace
   use dftbp_unitconversion, only : unit
-  use dftbp_message
-  use dftbp_charmanip
-  use dftbp_xmlf90
+  use dftbp_message, only : error, warning
+  use dftbp_charmanip, only : newline, tolower, i2c
+  use dftbp_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
+      & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
+      & normalize, append_to_string, destroyNodeList, removeAttribute
   implicit none
+  
   private
-
   public :: getUnprocessedNodes, warnUnprocessedNodes,  getModifierIndex
   public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier

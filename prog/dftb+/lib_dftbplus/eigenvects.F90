@@ -12,18 +12,22 @@
 module dftbp_eigenvects
   use dftbp_environment, only : TEnvironment
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_eigensolver
-  use dftbp_message
-#:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_accuracy, only : dp
+  use dftbp_eigensolver, only : hegv, hegvd, gvr
+#:if WITH_GPU
+  use dftbp_eigensolver, only : gpu_gvd
 #:endif
-  use dftbp_elsiiface
-  use dftbp_parallelks
+  use dftbp_message, only : error, cleanShutdown
+#:if WITH_SCALAPACK
+  use dftbp_scalapackfx, only : DLEN_, scalafx_phegv, scalafx_phegvd, scalafx_phegvr,&
+      & scalafx_psygv, scalafx_psygvd, scalafx_psygvr
+#:endif
+  use dftbp_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&
+      & elsi_ev_real, elsi_write_mat_real
   use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   implicit none
+  
   private
-
   public :: diagDenseMtx
 #:if WITH_SCALAPACK
   public :: diagDenseMtxBlacs

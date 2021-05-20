@@ -33,7 +33,7 @@
 !> the given tolerance.
 module dftbp_linemin
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : goldenMeanP1
   implicit none
 

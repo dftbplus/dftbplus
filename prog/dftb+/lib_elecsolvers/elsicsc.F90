@@ -9,9 +9,6 @@
 
 !> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elsicsc
-#:if WITH_MPI
-  use dftbp_mpifx
-#:endif
   use dftbp_accuracy, only : dp
   use dftbp_assert
   use dftbp_environment, only : TEnvironment
@@ -20,9 +17,12 @@ module dftbp_elsicsc
   use dftbp_message, only : error
   use dftbp_angmomentum, only : rotateZ
   use dftbp_commontypes, only : TOrbitals
+#:if WITH_MPI
+  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduce
+#:endif
   implicit none
+  
   private
-
   public :: TElsiCsc, TElsiCsc_init
 
   #:set CONDITIONS = ['', 'Helical']

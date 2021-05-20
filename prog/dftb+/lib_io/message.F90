@@ -10,8 +10,9 @@
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
 module dftbp_message
-  use dftbp_globalenv
+  use dftbp_globalenv, only : stdOut, synchronizeAll, abortProgram
   implicit none
+  
   private
 
 

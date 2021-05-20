@@ -14,8 +14,8 @@ module dftbp_elecconstraints
   use dftbp_commontypes, only : TOrbitals
   use dftbp_angmomentum, only : getLOperators
   implicit none
+  
   private
-
   public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
 
 

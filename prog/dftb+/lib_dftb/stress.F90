@@ -10,17 +10,16 @@
 !> Routines to calculate contributions to the stress tensor
 module dftbp_stress
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_repcont
-  use dftbp_schedule
-  use dftbp_environment
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_repcont, only : TRepCont, getEnergyDeriv
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_environment, only : TEnvironment
   implicit none
+  
   private
-
   public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 
 contains

@@ -7,37 +7,34 @@
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
 module dftbp_typegeometryhsd
-  use dftbp_typegeometry
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_tokenreader
-  use dftbp_unitconversion
-  use dftbp_linkedlist
-  use dftbp_charmanip
-  use dftbp_message
+  use dftbp_typegeometry, only : TGeometry, normalize, reduce, setlattice
+  use dftbp_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
+      & checkError, getFirstTextChild, writeChildValue
+  use dftbp_hsdutils2, only : getModifierIndex, splitModifier, convertByMul
+  use dftbp_tokenreader, only : TOKEN_OK, getNextToken
+  use dftbp_unitconversion, only : dp, lengthUnits, lc, mc, AA__Bohr, pi, angularUnits
+  use dftbp_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
+      & destruct, asArray
+  use dftbp_charmanip, only : i2c, tolower
+  use dftbp_message, only : error
   use dftbp_simplealgebra, only : invert33, determinant33
   use dftbp_xmlf90, flib_normalize => normalize
   implicit none
+  
   private
-
+  !> Types/subroutines from TypeGeometry
+  public :: TGeometry, normalize
+  !> Locally defined subroutines
+  public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
+  public :: readTGeometryXyz, readTGeometryVasp
+  !> makes public subroutines from typegeometry
+  public :: reduce, setlattice
 
   !> Writes the content of a geometry object to a dom tree or to an xml-writer
   interface writeTGeometryHSD
     module procedure writeTGeometryHSD_dom
     module procedure writeTGeometryHSD_xmlf
   end interface
-
-
-  !> Types/subroutines from TypeGeometry
-  public :: TGeometry, normalize
-
-
-  !> Locally defined subroutines
-  public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
-  public :: readTGeometryXyz, readTGeometryVasp
-
-  !> makes public subroutines from typegeometry
-  public :: reduce, setlattice
 
 contains
 

@@ -15,7 +15,7 @@ module dftbp_simpledftd3
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
   use dftbp_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_dftd3param
+  use dftbp_dftd3param, only : TDftD3Ref, init
   use dftbp_dftd4param, only : getSqrtZr4r2
   use dftbp_environment, only : TEnvironment
   use dftbp_dispiface, only : TDispersionIface
@@ -23,8 +23,8 @@ module dftbp_simpledftd3
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33, invert33
   implicit none
+  
   private
-
   public :: TSimpleDftD3, TSimpleDftD3Input, init
 
 

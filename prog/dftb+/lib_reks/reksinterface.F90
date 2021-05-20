@@ -14,36 +14,39 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reksinterface
-
-  use dftbp_accuracy
-  use dftbp_densedescr
-  use dftbp_dispiface
-  use dftbp_elecsolvers
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_nonscc
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_populations
-  use dftbp_rangeseparated
+  use dftbp_accuracy, only : dp
+  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_elecsolvers, only : TElectronicSolver
+  use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_globalenv, only : stdOut
+  use dftbp_nonscc, only : TNonSccDiff
+  use dftbp_orbitals, only : TOrbitals
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_populations, only : mulliken
+  use dftbp_rangeseparated, only : TRangeSepFunc
   use dftbp_repulsive, only : TRepulsive
-  use dftbp_scc
-  use dftbp_slakocont
-  use dftbp_sparse2dense
-  use dftbp_stress
+  use dftbp_scc, only : TScc
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
+  use dftbp_stress, only : getBlockStress
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_rekscommon
-  use dftbp_rekscpeqn
-  use dftbp_reksen
-  use dftbp_reksgrad
-  use dftbp_reksio
-  use dftbp_reksproperty
-  use dftbp_reksvar
-
+  use dftbp_rekscommon, only : getTwoIndices
+  use dftbp_rekscpeqn, only : cggrad
+  use dftbp_reksen, only : adjustEigenval, solveSecularEqn
+  use dftbp_reksgrad, only : weightgradient, ssrshift, sishift, satossrxt, satossrweight,&
+      & addsitorq, ssrshift, lshift, getothersagrad, satossrgradient, getreksnac, rtshift, &
+      & solvezt, getrmat, getzmat, getq2mat, getq1mat, buildsareksvectors, getrdel, getzmat,&
+      & buildinteractionvectors, getq2mat, getq1del, buildlstatevector, getsccspinlrpars,&
+      & gethxckernel, getsuperamatrix, getenergyweighteddensityl, derivative_blockl,&
+      & getg1ilomegarab, getextchrggradients
+  use dftbp_reksio, only : writereksrelaxedcharge, printreksgradinfo, writerekstdp
+  use dftbp_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl, getunrelaxeddensmatandtdp,&
+      & getdipoleintegral, getdipolemomentmatrix, getreksosc
+  use dftbp_reksvar, only : TReksCalc
   implicit none
 
   private
-
   public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress

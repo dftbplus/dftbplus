@@ -9,7 +9,7 @@
 
 !> Data types for linear response routines
 module dftbp_linresptypes
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
 
   public

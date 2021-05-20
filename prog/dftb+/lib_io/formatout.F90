@@ -9,17 +9,17 @@
 
 !> Contains subroutines for formatted output of data
 module dftbp_formatout
-  use dftbp_globalenv
-  use dftbp_environment
+  use dftbp_globalenv, only : stdOut, tIoProc, withMpi
+  use dftbp_environment, only : TEnvironment
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_constants
+  use dftbp_accuracy, only : dp, mc
+  use dftbp_message, only : error
+  use dftbp_constants, only : au__fs, Bohr__AA, pi
   use dftbp_lapackroutines, only: matinv
-  use dftbp_sparse2dense
+  use dftbp_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
   implicit none
+  
   private
-
   public :: clearFile, writeGenFormat, writeXYZFormat
   public :: printDFTBHeader
   public :: writeSparseAsSquare, writeSparse

@@ -15,21 +15,19 @@
 !> * Onsite corrections are not included in this version
 module dftbp_rekscpeqn
 
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemm, gemv
-  use dftbp_densedescr
-  use dftbp_environment
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_rekscommon
+  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_environment, only : TEnvironment
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message, only: error
+  use dftbp_orbitals, only : TOrbitals
+  use dftbp_periodic, only: TNeighbourList
+  use dftbp_rekscommon, only : assignEpsilon, assignIndex
   use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
-
   implicit none
 
   private
-
   public :: CGgrad
 
   contains

@@ -14,13 +14,13 @@
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_lapackroutines
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_lapack
+  use dftbp_accuracy, only : dp, rdp, rsp
+  use dftbp_message, only : error, warning
   implicit none
 
   private
-
+  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
+  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
   !> matrix and X and B are N-by-NRHS matrices
@@ -122,8 +122,7 @@ module dftbp_lapackroutines
   end interface getrs
 
 
-  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
+  
 
 contains
 

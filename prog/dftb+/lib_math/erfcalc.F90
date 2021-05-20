@@ -21,10 +21,9 @@ module dftbp_erfcalc
   !> wp: working precision, sp: real single, dp: real double
   use dftbp_accuracy,  only : wp => dp, sp => rsp, dp => rdp
   implicit none
+  
   private
-
 #:if INTERNAL_ERFC
-
   public :: erf, erfc
 
   !> Evaluate erf()

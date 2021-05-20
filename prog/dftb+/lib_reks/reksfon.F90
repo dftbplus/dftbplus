@@ -15,15 +15,13 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reksfon
 
-  use dftbp_accuracy
-  use dftbp_globalenv
-  use dftbp_message
+  use dftbp_accuracy, only : dp
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message, only : error
   use dftbp_reksvar, only : TReksCalc, reksTypes
-
   implicit none
 
   private
-
   public :: optimizeFons
 
   !> Parameter to distinguish between two asymptotic regimes

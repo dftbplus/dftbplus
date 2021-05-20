@@ -14,12 +14,12 @@
 !> the moment, it handles only repulsive with spline interpolation.
 module dftbp_repcont
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_repspline
-  use dftbp_reppoly
+  use dftbp_accuracy, only : dp
+  use dftbp_repspline, only : TRepSpline, getEnergyDeriv, getEnergy, getCutoff
+  use dftbp_reppoly, only : TRepPoly, getEnergyDeriv, getEnergy, getCutoff
   implicit none
+  
   private
-
   public :: TRepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 

@@ -16,7 +16,6 @@ module dftbp_charges
   implicit none
 
   private
-
   public :: getSummedCharges, getSummedChargesPerOrbital, getSummedChargesPerAtom
   public :: getSummedChargesPerLShell, getSummedChargesPerUniqueU
 

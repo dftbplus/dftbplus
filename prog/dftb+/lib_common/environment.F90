@@ -11,25 +11,24 @@
 !> Contains computer environment settings
 module dftbp_environment
   use dftbp_globalenv, only : shutdown, stdOut
-  use dftbp_timerarray
-  use dftbp_fileregistry
+  use dftbp_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
+  use dftbp_fileregistry, only : TFileRegistry, TFileRegistry_init
+#:if WITH_MPI
+  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init, TMpiEnv_final
+#:endif
   use dftbp_status, only : TStatus
 #:if WITH_MPI
-  use dftbp_mpienv
   use dftbp_globalenv, only : globalMpiComm
 #:endif
-
 #:if WITH_SCALAPACK
-  use dftbp_blacsenv
+  use dftbp_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
-
 #:if WITH_GPU
-  use dftbp_gpuenv
+  use dftbp_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
-
   implicit none
+  
   private
-
   public :: TEnvironment, TEnvironment_init
   public :: globalTimers
 

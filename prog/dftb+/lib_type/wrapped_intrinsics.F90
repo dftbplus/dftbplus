@@ -5,15 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:set FLAVOURS = [('logical','Logical',''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
+  & ('complex', 'Cmplx', '(dp)')]
+
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
 module dftbp_wrappedintr
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
-#:set FLAVOURS = [('logical','Logical',''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
-  & ('complex', 'Cmplx', '(dp)') ]
-
 #:for _, SUFFIX, _ in FLAVOURS
 #:for DIM in [('1'), ('2')]
 

@@ -12,7 +12,6 @@ module dftbp_quaternions
   implicit none
 
   private
-
   public :: quaternionProduct, quaternionInvert, quaternionRotate, quaternionConstruct, rotate3
 
 contains

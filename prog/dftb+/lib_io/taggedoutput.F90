@@ -22,8 +22,8 @@ module dftbp_taggedoutput
   use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: tagLabels
   public :: TTaggedWriter, TTaggedWriter_init
 

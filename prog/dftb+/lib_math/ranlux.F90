@@ -46,6 +46,8 @@ module dftbp_ranlux
   implicit none
 
   private
+  public :: TRanlux
+  public :: init, getRandom, getState
 
 
   !> Internal variables for the luxury pseudorandom generator
@@ -82,10 +84,6 @@ module dftbp_ranlux
   interface getState
     module procedure Ranlux_getState
   end interface getState
-
-  public :: TRanlux
-  public :: init, getRandom, getState
-
 
   !> Maximal luxury level
   integer, parameter :: maxlev = 4

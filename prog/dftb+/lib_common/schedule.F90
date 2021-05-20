@@ -16,13 +16,13 @@
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_schedule
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  use dftbp_environment
-  use dftbp_accuracy
+  use dftbp_environment, only : TEnvironment
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: distributeRangeInChunks, distributeRangeInChunks2
   public :: assembleChunks
 

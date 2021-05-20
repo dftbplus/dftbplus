@@ -11,7 +11,6 @@
 module dftbp_factorial
   use dftbp_assert
   use dftbp_accuracy, only : dp
-
   implicit none
 
 

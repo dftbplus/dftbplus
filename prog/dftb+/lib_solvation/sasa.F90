@@ -22,8 +22,8 @@ module dftbp_sasa
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
+  
   private
-
   public :: TSASACont, TSASAInput, TSASACont_init
   public :: writeSASAContInfo
 

@@ -17,10 +17,10 @@ module dftbp_vdwdata
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   use dftbp_charmanip, only : tolower
-  use dftbp_constants
+  use dftbp_constants, only : AA__Bohr
   implicit none
+  
   private
-
   public :: getVdwData
 
   !> Contains van de Waals data (atomic number, chemical symbol, vdW radius)

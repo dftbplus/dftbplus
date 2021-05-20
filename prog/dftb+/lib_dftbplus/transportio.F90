@@ -9,21 +9,19 @@
 
 module dftbp_transportio
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_globalenv
-  use dftbp_message
-  use dftbp_orbitals
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : Hartree__eV
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message, only : error
+  use dftbp_orbitals, only : TOrbitals
 #:if WITH_TRANSPORT
-  use dftbp_negfvars
+  use dftbp_negfvars, only : TTransPar
 #:endif
   implicit none
 
   private
   public :: writeShifts, readShifts, writeContactShifts
-#:if WITH_TRANSPORT
   public :: readContactShifts
-#:endif
 
   integer, parameter :: contactFormatVersion = 2
 
@@ -593,6 +591,11 @@ contains
     charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
 
   end subroutine readContactShiftData2
+
+#:else
+
+  subroutine readContactShifts() 
+  end subroutine readContactShifts
 
 #:endif
 

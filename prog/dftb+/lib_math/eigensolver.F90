@@ -13,16 +13,15 @@
 !> removed.
 module dftbp_eigensolver
   use dftbp_assert
-  use dftbp_message
+  use dftbp_message, only : error, warning
   use dftbp_accuracy, only : rsp, rdp
-  use dftbp_blas
-  use dftbp_lapack
+  use dftbp_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
 #:if WITH_GPU
   use dftbp_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
+  
   private
-
   public :: heev, hegv, hegvd, gvr, bgv, geev
 #:if WITH_GPU
   public :: gpu_gvd

@@ -16,11 +16,13 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_diismixer
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_lapackroutines, only : gesv
   implicit none
 
   private
+  public :: Tdiismixer
+  public :: init, reset, mix
 
 
   !> Contains the necessary data for an DIIS mixer
@@ -78,9 +80,6 @@ module dftbp_diismixer
   interface mix
     module procedure DIISMixer_mix
   end interface mix
-
-  public :: Tdiismixer
-  public :: init, reset, mix
 
 contains
 

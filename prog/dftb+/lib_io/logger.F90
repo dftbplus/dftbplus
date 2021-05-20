@@ -9,10 +9,10 @@
 module dftbp_logger
   use dftbp_accuracy, only : dp
   use dftbp_globalenv, only : stdOut
-  use dftbp_optarg
+  use dftbp_optarg, only : getOptionalArg
   implicit none
+  
   private
-
   public :: LogWriter, LogWriter_init
 
 

@@ -12,8 +12,8 @@ module dftbp_atomicmass
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : amu__au, symbolToNumber
   implicit none
+  
   private
-
   public :: getAtomicMass
 
 

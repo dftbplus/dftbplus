@@ -10,20 +10,19 @@
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module dftbp_forces
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp 
   use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_schedule
-  use dftbp_environment
+  use dftbp_scc, only : TScc
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_environment, only : TEnvironment
   use dftbp_constants, only : pi
   use dftbp_quaternions, only : rotate3
   use dftbp_boundarycond, only : zAxis
   implicit none
 
   private
-
   public :: derivative_shift
 
   !> forces with shift vectors present

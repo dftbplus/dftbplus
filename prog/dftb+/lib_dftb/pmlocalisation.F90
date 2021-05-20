@@ -14,14 +14,14 @@ module dftbp_pmlocalisation
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_globalenv, only : stdOut
-  use dftbp_blasroutines
+  use dftbp_blasroutines, only : hemv, hemm, symm
   use dftbp_sparse2dense, only :unpackHS
-  use dftbp_sorting
-  use dftbp_message
+  use dftbp_sorting, only : unique, heap_sort
+  use dftbp_message, only : error, warning
   use dftbp_periodic, only : TNeighbourList
   implicit none
+  
   private
-
   public :: TPipekMezeyInp, TPipekMezey, initialise
 
 

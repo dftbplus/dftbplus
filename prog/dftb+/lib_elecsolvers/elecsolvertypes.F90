@@ -7,8 +7,8 @@
 
 module dftbp_elecsolvertypes
   implicit none
+  
   private
-
   public :: electronicSolverTypes
 
 

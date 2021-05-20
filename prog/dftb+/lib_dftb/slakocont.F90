@@ -14,14 +14,13 @@
 !> species. At the moment, it handles only Slater-Koster data tabulated on an equidistant grid.
 module dftbp_slakocont
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_slakoeqgrid
+  use dftbp_accuracy, only : dp
+  use dftbp_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
   implicit none
+  
   private
-
   public :: TSlakoCont, init
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
-
 
   !> A specific Slater-Koster table implementation.
   type TSlaKo_

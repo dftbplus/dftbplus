@@ -12,8 +12,8 @@ module dftbp_dispiface
   use dftbp_periodic, only : TNeighbourList
   use dftbp_commontypes, only : TOrbitals
   implicit none
-  private
   
+  private
   public :: TDispersionIface
 
   !> Interface for classes providing dispersion.

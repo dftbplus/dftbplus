@@ -8,8 +8,8 @@
 !> Contains a file registry which keeps track of eventually open files and closes them.
 module dftbp_fileregistry
   implicit none
+  
   private
-
   public :: TFileRegistry_init, TFileRegistry
 
 

@@ -8,15 +8,14 @@
 #:include 'common.fypp'
 
 module dftbp_onsitecorrection
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_assert
-  use dftbp_commontypes
-  use dftbp_message
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_message, only : error
   use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_slakocont
   implicit none
+  
   private
-
   public :: addOnsShift, getEOns, getOnsME
   public :: ons_getOrbitalEquiv, ons_blockIndx, onsBlock_reduce, onsBlock_expand
 

@@ -14,8 +14,8 @@ module dftbp_solvation
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
   implicit none
+  
   private
-
   public :: TSolvation
 
   !> Generic wrapper of for a solvation model

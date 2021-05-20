@@ -10,13 +10,14 @@
 
 !> Contains BLACS environmental settings.
 module dftbp_blacsenv
-  use dftbp_mpienv, only : TMpiEnv
-  use dftbp_scalapackfx, only : blacsgrid
   use dftbp_assert
+  use dftbp_mpienv, only : TMpiEnv
+  use dftbp_message, only : error
+  use dftbp_scalapackfx, only : blacsgrid
   use dftbp_status, only : TStatus
   implicit none
+  
   private
-
   public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 
 

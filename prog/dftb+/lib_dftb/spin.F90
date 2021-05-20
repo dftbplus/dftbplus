@@ -11,13 +11,12 @@
 !> switched on!
 module dftbp_spin
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_commontypes
-  use dftbp_shift
+  use dftbp_accuracy, only : dp
+  use dftbp_message, only : error
+  use dftbp_commontypes, only : TOrbitals
   implicit none
+  
   private
-
   public :: getEnergySpin, getSpinShift
   public :: Spin_getOrbitalEquiv, ud2qm, qm2ud
 

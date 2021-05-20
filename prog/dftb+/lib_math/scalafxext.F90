@@ -8,11 +8,11 @@
 !> Common mathematical operations built out of multiple scalapack calls
 module dftbp_scalafxext
   use dftbp_accuracy, only : lc, dp
-  use dftbp_scalapackfx
-  use dftbp_message
+  use dftbp_scalapackfx, only : DLEN_, scalafx_ppotrf, scalafx_ppotri
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: psymmatinv, phermatinv
 
 contains

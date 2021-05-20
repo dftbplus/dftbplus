@@ -14,13 +14,15 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_broydenmixer
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
+  use dftbp_accuracy, only : dp
+  use dftbp_message, only : error
   use dftbp_blasroutines, only : ger
-  use dftbp_lapackroutines, only : getrf, getrs, matinv
+  use dftbp_lapackroutines, only : getrf, getrs, matinv 
   implicit none
 
   private
+  public :: TBroydenMixer
+  public :: init, reset, mix, getInverseJacobian
 
 
   !> Contains the necessary data for a Broyden mixer.
@@ -93,9 +95,6 @@ module dftbp_broydenmixer
   interface getInverseJacobian
     module procedure BroydenMixer_getInverseJacobian
   end interface getInverseJacobian
-
-  public :: TBroydenMixer
-  public :: init, reset, mix, getInverseJacobian
 
 contains
 

@@ -14,8 +14,8 @@ module dftbp_specieslist
   use dftbp_hsdutils, only : getChildValue, getChild
   use dftbp_xmlf90, only : fnode
   implicit none
+  
   private
-
   public :: readSpeciesList
 
 

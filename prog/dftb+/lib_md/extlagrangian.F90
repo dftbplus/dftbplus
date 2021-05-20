@@ -11,10 +11,10 @@
 module dftbp_extlagrangian
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_message
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public ::ExtLagrangian, ExtLagrangian_init
   public :: ExtLagrangianInp
 

@@ -23,8 +23,8 @@ module dftbp_born
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
+  
   private
-
   public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
   public :: writeGeneralizedBornInfo, fgbKernel
 

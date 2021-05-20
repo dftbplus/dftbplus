@@ -9,15 +9,17 @@
 !> Note: parserVersion is set in parser.F90
 module dftbp_oldcompat
   use dftbp_accuracy, only : dp
-  use dftbp_message
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_charmanip
-  use dftbp_xmlutils
-  use dftbp_xmlf90
+  use dftbp_message, only : error
+  use dftbp_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
+      & detailedError, getChildren
+  use dftbp_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
+  use dftbp_charmanip, only : i2c
+  use dftbp_xmlutils, only : removeChildNodes
+  use dftbp_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength, getNodeName,&
+      & destroyNode, getItem1, destroyNodeList
   implicit none
+  
   private
-
   public :: convertOldHSD
 
 contains

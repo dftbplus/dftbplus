@@ -14,8 +14,8 @@ module dftbp_sorting
   use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: heap_sort, index_heap_sort, merge_sort, unique
 
 

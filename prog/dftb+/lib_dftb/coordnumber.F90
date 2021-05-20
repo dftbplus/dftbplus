@@ -17,8 +17,8 @@ module dftbp_coordnumber
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TCNCont, TCNInput, cnType, init
   public :: getElectronegativity, getCovalentRadius
 

@@ -7,11 +7,11 @@
 
 !> Module to print data types
 module dftbp_intrinsicpr
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, lc
   use dftbp_globalenv, only : stdOut
+  implicit none
 
   private
-
   public :: printContent
 
 

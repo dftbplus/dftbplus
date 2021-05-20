@@ -17,8 +17,8 @@ module dftbp_solvinput
   use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation, only : TSolvation
   implicit none
+  
   private
-
   public :: TSolvationInp, createSolvationModel, writeSolvationInfo
 
 

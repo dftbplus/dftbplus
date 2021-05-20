@@ -11,8 +11,8 @@
 module dftbp_assert
   use dftbp_globalenv, only : abortProgram, stdOut
   implicit none
+  
   private
-
 #:block DEBUG_CODE
   public :: assertError
 #:endblock DEBUG_CODE

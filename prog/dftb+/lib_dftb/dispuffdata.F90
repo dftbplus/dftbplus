@@ -7,13 +7,13 @@
 
 !> Contains the Van der Waal parameters for the UFF force field.
 module dftbp_dispuffdata
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   use dftbp_charmanip, only : tolower
-  use dftbp_constants
+  use dftbp_constants, only : AA__Bohr, kcal_mol__Hartree
   implicit none
+  
   private
-
   public :: getUffValues
 
 

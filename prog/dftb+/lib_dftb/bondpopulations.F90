@@ -9,6 +9,7 @@
 !> DOI: 10.1039/c7ra07400j can be adapted for DFTB.
 module dftbp_bondpops
   use dftbp_accuracy, only : dp
+  implicit none
 
   private
   public :: addPairWiseBondInfo
@@ -52,7 +53,7 @@ contains
 
     nAtom = size(iSquare) - 1
     !$OMP PARALLEL DO DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:info)&
-    !$OMP& PRIVATE(iOrb1, nOrb1, iNeigh, iOrig, iAt2, iAt2f, iOrb2, nOrb2, tmp)
+    !$OMP& PRIVATE(iOrb1, nOrb1, iNeigh, iOrig, iAt2, iAt2f, iOrb2, nOrb2)
     do iAt1 = 1, nAtom
       iOrb1 = iSquare(iAt1)
       nOrb1 = iSquare(iAt1+1) - iOrb1

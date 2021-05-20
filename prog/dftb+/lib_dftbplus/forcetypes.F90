@@ -8,8 +8,8 @@
 !> Contains enumeration of force calculation types
 module dftbp_forcetypes
   implicit none
+  
   private
-
   public :: forceTypes
 
 

@@ -17,13 +17,13 @@
 !>
 module dftbp_lbfgs
   use, intrinsic :: ieee_arithmetic
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_assert
-  use dftbp_message
+  use dftbp_message, only : error, warning
   use dftbp_linemin, only : TLineMin, TLineMin_init
   implicit none
+  
   private
-
   public :: TLbfgs, TLbfgs_init
 
 

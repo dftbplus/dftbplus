@@ -11,15 +11,15 @@
 !> that data from file.
 module dftbp_oldskdata
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : amu__au
   use dftbp_repspline, only : TRepSplineIn
   use dftbp_reppoly, only : TRepPolyIn
-  use dftbp_message
+  use dftbp_message, only : error
   use dftbp_rangeseparated, only : TRangeSepSKTag
   implicit none
+  
   private
-
   public :: TOldSKData, readFromFile, readSplineRep
 
 

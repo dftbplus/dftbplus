@@ -14,48 +14,55 @@
 !> Various I/O routines for the main program.
 module dftbp_mainio
 #:if WITH_MPI
-  use dftbp_mpifx
+  use dftbp_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx
+  use dftbp_scalapackfx, only : linecomm, pblasfx_phemm, pblasfx_psymm
 #:endif
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_densedescr
+  use dftbp_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_environment, only : TEnvironment
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
+  use dftbp_accuracy, only : dp, mc, sc, lc
+  use dftbp_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
+      & Boltzmann, gfac, spinName, quaternionName
   use dftbp_orbitals, only : orbitalNames, getShellNames
-  use dftbp_periodic
-  use dftbp_commontypes
-  use dftbp_sparse2dense
-  use dftbp_blasroutines
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_sparse2dense, only : unpackHS, unpackSPauli 
+#:if WITH_SCALAPACK
+  use dftbp_sparse2dense, only :unpackSPauliBlacs, unpackHSCplxBlacs, unpackHSRealBlacs
+#:endif
+  use dftbp_blasroutines, only : hemv
   use dftbp_charmanip, only : i2c
-  use dftbp_linkedlist
-  use dftbp_taggedoutput
-  use dftbp_fileid
+  use dftbp_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_spin, only : qm2ud
   use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_energytypes, only : TEnergies
-  use dftbp_xmlf90
+  
+  use dftbp_fileid, only : getFileId 
+  
+  use dftbp_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
+      & xml_EndElement, xml_Close
   use dftbp_hsdutils, only : writeChildValue
   use dftbp_mdintegrator, only : TMdIntegrator, state
-  use dftbp_formatout
+  use dftbp_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_sccinit, only : writeQToFile
   use dftbp_elstatpot, only : TElStatPotentials
-  use dftbp_message
-  use dftbp_reks
+  use dftbp_message, only : error, warning
+  use dftbp_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_cm5, only : TChargeModel5
   use dftbp_cosmo, only : TCosmo
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
 #:if WITH_SOCKETS
-  use dftbp_ipisocket
+  use dftbp_ipisocket, only : IpiSocketComm
 #:endif
-  use dftbp_determinants
+  use dftbp_determinants, only : TDftbDeterminants
   implicit none
+  
   private
-
   public :: writeEigenvectors, writeRealEigvecs, writeCplxEigvecs
 #:if WITH_SCALAPACK
   public :: writeRealEigvecsBinBlacs, writeRealEigvecsTxtBlacs

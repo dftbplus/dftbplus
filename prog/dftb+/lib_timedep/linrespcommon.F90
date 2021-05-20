@@ -10,15 +10,16 @@
 !> Helper routines for the linear response modules.
 module dftbp_linrespcommon
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_blasroutines
-  use dftbp_sorting
-  use dftbp_message
-  use dftbp_commontypes
-  use dftbp_transcharges
+  use dftbp_accuracy, only : dp
+  use dftbp_blasroutines, only : elecTolMax, hemv
+  use dftbp_sorting, only : index_heap_sort
+  use dftbp_message, only : error
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_transcharges, only : TTransCharges, transq
   use dftbp_onsitecorrection, only : getOnsME
   use dftbp_constants, only: Hartree__eV, au__Debye
   implicit none
+  
   public
 
 

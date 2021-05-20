@@ -11,15 +11,14 @@
 !> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
 module dftbp_nhctherm
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_mdcommon
-  use dftbp_ranlux
-  use dftbp_tempprofile
-  use dftbp_message
+  use dftbp_accuracy, only : dp, lc, minTemp
+  use dftbp_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_ranlux, only : TRanlux
+  use dftbp_tempprofile, only : TTempProfile
+  use dftbp_message, only : error
   implicit none
 
   private
-
   public :: TNHCThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

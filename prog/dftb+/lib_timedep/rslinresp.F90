@@ -10,32 +10,29 @@
 !> This module heavily relies on the linresp module by Dominguez et al.
 !> and the rangesep module by Lusker et al.
 !> Periodic systems and 3rd order calculations are not supported so far.
-module dftbp_rs_linearresponse
+module dftbp_rslinresp
   use dftbp_assert
-  use dftbp_arpack
-  use dftbp_commontypes
-  use dftbp_slakoCont
+  use dftbp_slakoCont, only : TSlakoCont, getMIntegrals, getSKIntegrals
   use dftbp_shortgammafuncs, only : expGammaPrime
-  use dftbp_accuracy
-  use dftbp_constants, only: Hartree__eV, au__Debye
-  use dftbp_nonscc, only: TNonSccDiff
-  use dftbp_scc, only: TScc
-  use dftbp_blasroutines
-  use dftbp_eigensolver
-  use dftbp_message
-  use dftbp_taggedOutput, only: TTaggedWriter, tagLabels
-  use dftbp_linresp
-  use dftbp_linrespcommon
-  use dftbp_rangeseparated
-  use dftbp_sorting
-  use dftbp_qm
-  use dftbp_transcharges
+  use dftbp_accuracy, only : dp, rsp, lc
+  use dftbp_constants, only : Hartree__eV, au__Debye
+  use dftbp_nonscc, only : TNonSccDiff
+  use dftbp_scc, only : TScc
+  use dftbp_blasroutines, only : herk, gemm, symm 
+  use dftbp_message, only : error 
+  use dftbp_taggedOutput, only : TTaggedWriter, tagLabels
+  use dftbp_linresp, only : TLinResp
+  use dftbp_linrespcommon, only : TOrbitals, twothird, elecTolMax, excitedDipoleOut, excitedQOut,&
+      & rIndXvv, hemv, indxov, wtdn, indXvv, indXoo, getSPExcitations, calcTransitionDipoles,&
+      & dipselect, rIndXov_array, getExcSpin, writeExcMulliken, writeSPExcitations
+  use dftbp_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
+  use dftbp_sorting, only : index_heap_sort, merge_sort
+  use dftbp_transcharges, only : TTransCharges, transQ, TTransCharges_init
   use dftbp_sk, only: rotateH0
   !!^-- Check: once done, see which modules are actually required
   implicit none
 
   private
-
   public :: linRespCalcExcitationsRS
 
   type :: rs_linresp
@@ -3279,4 +3276,4 @@ contains
 
   end subroutine chargeTestRS
 
-end module dftbp_rs_linearresponse
+end module dftbp_rslinresp

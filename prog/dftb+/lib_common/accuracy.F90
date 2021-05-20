@@ -12,6 +12,8 @@
 module dftbp_accuracy
   implicit none
 
+  public
+  
   !> precision of the real data type
   integer, parameter :: dp = kind(1.0d0)
 

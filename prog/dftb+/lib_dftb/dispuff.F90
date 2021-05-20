@@ -16,21 +16,21 @@
 !> To Do: Take the reciprocal lattice vectors from outside.
 !>
 module dftbp_dispuff
-  use dftbp_accuracy
   use dftbp_assert
-  use dftbp_constants, only: pi
-  use dftbp_dispiface
-  use dftbp_dispcommon
+  use dftbp_accuracy, only : dp, tolDispersion
+  use dftbp_constants, only : pi
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
+      & addDispEGr_per_species
   use dftbp_environment, only : TEnvironment
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TDispUffInp, TDispUff, DispUff_init
-
 
   !> Input structure for the van der Waals initialization.
   type :: TDispUffInp

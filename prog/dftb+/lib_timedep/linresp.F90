@@ -18,21 +18,21 @@
 !> * Onsite corrections are not included in this version
 module dftbp_linresp
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_commontypes
-  use dftbp_slakocont
-  use dftbp_fileid
+  use dftbp_accuracy, only : dp
+  use dftbp_message, only : error
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_slakocont, only : TSlakoCont
+  use dftbp_fileid, only : getFileId 
   use dftbp_scc, only : TScc
   use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_densedescr
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_linrespgrad
   use dftbp_arpack, only : withArpack
-  use dftbp_linresptypes
+  use dftbp_linresptypes, only : TLinResp
+  use dftbp_linrespgrad, only : LinRespGrad_old
   implicit none
+  
   private
-
   public :: TLinresp, TLinrespini
   public :: LinResp_init, linResp_calcExcitations, addGradients
 

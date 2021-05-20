@@ -15,16 +15,14 @@
 !> * Onsite corrections are not included in this version
 module dftbp_rekscommon
 
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemm
-  use dftbp_densedescr
-  use dftbp_message
+  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_message, only: error
   use dftbp_reksvar, only : TReksCalc, reksTypes
-
   implicit none
 
   private
-
   public :: checkGammaPoint
   public :: getTwoIndices
   public :: qm2udL, ud2qmL

@@ -11,12 +11,11 @@
 module dftbp_potentials
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_commontypes
+  use dftbp_commontypes, only : TOrbitals
   implicit none
 
-  public :: TPotentials, TPotentials_init
-
   private
+  public :: TPotentials, TPotentials_init
 
 
   !> data type to store components of the internal and external potential as named variables - makes

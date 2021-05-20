@@ -14,10 +14,10 @@
 !> currently be handled.
 module dftbp_tokenreader
   use dftbp_assert
-  use dftbp_charmanip
+  use dftbp_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
   use dftbp_message, only : error
   use dftbp_accuracy, only : dp
-  use dftbp_xmlf90
+  use dftbp_xmlf90, only : string, assignment(=)
   implicit none
 
   private

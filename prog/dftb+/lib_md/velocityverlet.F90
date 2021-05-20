@@ -10,13 +10,12 @@
 !> Velocity Verlet intergrator.
 module dftbp_velocityverlet
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_thermostat
-  use dftbp_fileid
-  use dftbp_message
+  use dftbp_accuracy, only : dp
+  use dftbp_thermostat, only : TThermostat, state, init, updateVelocities, getInitVelocities
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: TVelocityVerlet
   public :: init, next, rescale, reset, state
 

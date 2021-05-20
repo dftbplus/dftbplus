@@ -8,8 +8,8 @@
 !> Contains enumerated electrostatic solver types.
 module dftbp_elstattypes
   implicit none
+  
   private
-
   public :: elstatTypes
 
 

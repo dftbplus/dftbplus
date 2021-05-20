@@ -23,19 +23,20 @@
 !> outside, since the Coulomb module does the same.
 module dftbp_dispslaterkirkw
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, tolDispDamp, tolDispersion
   use dftbp_constants, only : pi
-  use dftbp_dispiface
-  use dftbp_dispcommon
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
+      &addDispEGr_per_atom
   use dftbp_environment, only : TEnvironment
   use dftbp_lapackroutines, only : matinv
-  use dftbp_message
+  use dftbp_message, only : error
   use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TDispSlaKirkInp, TDispSlaKirk, DispSlaKirk_init
 
 

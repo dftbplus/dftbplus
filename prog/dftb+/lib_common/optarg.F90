@@ -10,8 +10,8 @@
 module dftbp_optarg
   use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: getOptionalArg
 
 

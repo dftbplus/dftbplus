@@ -9,32 +9,55 @@
 
 !> Contains the interface to the ELSI solvers
 module dftbp_elsisolver
-#:if WITH_MPI
-  use dftbp_mpifx
-#:endif
   use dftbp_accuracy, only : dp, lc
   use dftbp_environment, only : TEnvironment, globalTimers
   use dftbp_globalenv, only : stdOut
   use dftbp_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_elsiiface
-  use dftbp_elsicsc
-  use dftbp_densedescr
-  use dftbp_periodic
-  use dftbp_orbitals
+  use dftbp_elsiiface, only : elsi_rw_handle, elsi_handle
+  use dftbp_elsicsc, only : TElsiCsc
+  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_periodic, only : TNeighbourList
   use dftbp_message, only : error, warning, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energytypes, only : TEnergies
   use dftbp_etemp, only : fillingTypes
-  use dftbp_sparse2dense
   use dftbp_assert
   use dftbp_spin, only : ud2qm
   use dftbp_angmomentum, only : getLOnsite
   use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_potentials, only : TPotentials
   use dftbp_version, only : TVersion
-  implicit none
-  private
+#:if WITH_MPI
+  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_sparse2dense, only : unpackHPauliBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
+      & packRhoHelicalCplxBlacs, packRhoCplxBlacs, unpackSPauliBlacs, packRhoPauliBlacs,&
+      & packRhoHelicalRealBlacs, packRhoRealBlacs, unpackHSHelicalCplxBlacs, unpackHSCplxBlacs,&
+      & packRhoHelicalRealBlacs, packRhoRealBlacs, packERhoPauliBlacs
+  use dftbp_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
+      & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&
+      & elsi_set_zero_def, elsi_set_sparsity_mask, elsi_set_blacs, elsi_init_rw, elsi_set_rw_blacs,&
+      & elsi_set_elpa_solver, elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol,&
+      & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_mu_min, elsi_set_pexsi_mu_max,&
+      & elsi_set_pexsi_method, elsi_set_pexsi_n_pole, elsi_set_pexsi_n_mu, elsi_set_pexsi_np_symbo,&
+      & elsi_set_pexsi_delta_e, elsi_set_ntpoly_tol, elsi_set_ntpoly_filter,&
+      & elsi_set_ntpoly_method, elsi_set_spin, elsi_set_kpoint, elsi_set_output,&
+      & elsi_set_output_log, elsi_get_entropy, elsi_get_mu, elsi_get_pexsi_mu_max,&
+      & elsi_get_pexsi_mu_min, elsi_write_mat_real, elsi_finalize_rw, elsi_dm_complex,&
+      & elsi_write_mat_complex, elsi_set_mu_broaden_width, elsi_set_mu_mp_order,&
+      & elsi_set_mu_broaden_scheme, elsi_set_pexsi_temp, elsi_set_csc, elsi_set_rw_csc,&
+      & elsi_write_mat_complex_sparse, elsi_dm_complex_sparse, elsi_get_edm_real_sparse,&
+      & elsi_get_edm_real, elsi_set_rw_mpi, elsi_get_edm_complex, elsi_get_edm_complex_sparse,&
+      & elsi_dm_real, elsi_write_mat_real_sparse, elsi_dm_real_sparse
+  !use dftbp_elsiiface, only : elsi_get_MP_elsi_get_version, elsi_setup_MP_elsi_finalize
+      !& elsi_setup_MP_elsi_reinit, elsi_setup_MP_elsi_init, elsi_setup_MP_elsi_set_mpi_global,&
+      !& elsi_setup_MP_elsi_illcond_check, elsi_setup_MP_elsi_set_mpi
+      
+  use dftbp_elsicsc, only : TElsiCsc_init
+#:endif
 
+  implicit none
+  
+  private
   public :: TElsiSolverInp
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final
 

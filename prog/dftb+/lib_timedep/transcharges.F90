@@ -10,10 +10,10 @@
 !> Helper routines for transition charges between levels.
 module dftbp_transcharges
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   implicit none
+  
   private
-
   public :: TTransCharges, TTransCharges_init
   public :: transq
 

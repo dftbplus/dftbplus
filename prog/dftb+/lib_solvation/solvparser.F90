@@ -10,13 +10,13 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvparser
   use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, lc
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
   use dftbp_born, only : TGBInput, fgbKernel
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
-  use dftbp_constants, only : Boltzmann, lc, amu__au, kg__au, AA__Bohr
+  use dftbp_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
   use dftbp_cosmo, only : TCosmoInput, TDomainDecompositionInput
   use dftbp_gbsafile, only : readParamGBSA
   use dftbp_globalenv, only : stdOut
@@ -35,8 +35,8 @@ module dftbp_solvparser
       & massDensityUnits, inverseLengthUnits
   use dftbp_xmlf90, only : fnode, string, char, getNodeName
   implicit none
+  
   private
-
   public :: readSolvation
   public :: readSolvGB, readSolvSASA, readCM5, readSolvCosmo
 

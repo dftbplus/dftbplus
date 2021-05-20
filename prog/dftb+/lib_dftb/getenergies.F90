@@ -12,7 +12,7 @@ module dftbp_getenergies
   use dftbp_accuracy, only : dp, lc
   use dftbp_assert
   use dftbp_energytypes, only : TEnergies
-  use dftbp_populations
+  use dftbp_populations, only : mulliken
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
   use dftbp_potentials, only : TPotentials
@@ -26,14 +26,14 @@ module dftbp_getenergies
   use dftbp_scc, only : TScc
   use dftbp_rangeseparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_onsitecorrection
-  use dftbp_dispiface
+  use dftbp_onsitecorrection, only : getEons
+  use dftbp_dispiface, only : TDispersionIface
 #:if WITH_MBD
   use dftbp_dispmbd, only: TDispMbd
 #:endif
   use dftbp_solvation, only : TSolvation
-  use dftbp_repcont
-  use dftbp_repulsive
+  use dftbp_repcont, only : TRepCont
+  use dftbp_repulsive, only : TRepulsive
   use dftbp_reks, only : TReksCalc
   use dftbp_determinants, only : TDftbDeterminants, determinants
   implicit none

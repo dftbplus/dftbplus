@@ -10,8 +10,8 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_gdiis
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_diismixer
+  use dftbp_accuracy, only : dp
+  use dftbp_diismixer, only : TDIISMixer, reset, init, mix
   implicit none
 
   private

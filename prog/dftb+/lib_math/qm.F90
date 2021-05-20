@@ -11,8 +11,7 @@
 module dftbp_qm
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_message
-
+  use dftbp_message, only : error
   implicit none
 
   private

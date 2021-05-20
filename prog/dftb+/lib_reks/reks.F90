@@ -15,17 +15,17 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks
 
-  use dftbp_rekscommon
-  use dftbp_reksen
-  use dftbp_reksfon
-  use dftbp_reksinterface
-  use dftbp_reksio
-  use dftbp_reksvar
-
+  use dftbp_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
+  use dftbp_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
+      & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
+  use dftbp_reksfon, only : optimizeFons
+  use dftbp_reksinterface, only : getReksEnProperties, getReksGradProperties, getReksGradients,&
+      & getReksStress, getStateInteraction
+  use dftbp_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
+  use dftbp_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
   implicit none
 
   private
-
   !> In REKS method, there is a symmetry for the microstates due to the restricted scheme.
   !> For the reduce of memory allocation, I make two representation used in REKS.
   !>

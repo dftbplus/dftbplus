@@ -18,42 +18,38 @@
 module dftbp_reksgrad
 
 #:if WITH_OMP
-  use omp_lib
+  use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
 #:endif
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemm, gemv
   use dftbp_coulomb, only : addInvRPrime
-  use dftbp_densedescr
-  use dftbp_environment
-  use dftbp_globalenv
+  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_globalenv, only : stdOut
   use dftbp_lapackroutines, only : getrf, getri
-  use dftbp_message
-  use dftbp_nonscc
-  use dftbp_orbitals
-  use dftbp_periodic
-  use dftbp_rangeseparated
-  use dftbp_scc
-  use dftbp_schedule
-  use dftbp_slakocont
-  use dftbp_sparse2dense
-  use dftbp_rekscommon
+  use dftbp_message, only : error
+  use dftbp_nonscc, only : TNonSccDiff
+  use dftbp_orbitals, only : TOrbitals
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_rangeseparated, only : TRangeSepFunc
+  use dftbp_scc, only : TScc
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_slakocont, only : TSlakoCont 
+  use dftbp_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
+  use dftbp_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
+      & findShellOfAO, qmExpandL
   use dftbp_reksvar, only : reksTypes
-
   implicit none
 
   private
-
   public :: getEnergyWeightedDensityL
   public :: derivative_blockL, weightGradient
-
   public :: getSccSpinLrPars, getHxcKernel, getG1ILOmegaRab, getSuperAMatrix
   public :: buildSaReksVectors, buildInteractionVectors, buildLstateVector, solveZT
   public :: getRmat, getRdel, getZmat, getQ1mat, getQ1del, getQ2mat
-
   public :: SaToSsrXT, SaToSsrWeight, SaToSsrGradient, addSItoRQ
   public :: SSRshift, SIshift, Lshift, RTshift
   public :: getOtherSAgrad, getReksNAC
-
   public :: getExtChrgGradients
 
   contains

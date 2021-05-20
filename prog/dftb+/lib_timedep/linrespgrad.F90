@@ -10,28 +10,30 @@
 !> Linear response excitations and gradients with respect to atomic coordinates
 module dftbp_linrespgrad
   use dftbp_assert
-  use dftbp_arpack
-  use dftbp_linrespcommon
-  use dftbp_commontypes
-  use dftbp_slakocont
+  use dftbp_arpack, only : withArpack, saupd, seupd
+  use dftbp_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird, oscillatorStrength,&
+  & indxoo, indxov, indxvv, rindxvv, rindxov_array, apbw, wtdn, omegatvec, getSPExcitations,&
+  & calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations, getExcSpin,&
+  & writeExcMulliken
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_slakocont, only : TSlakoCont 
   use dftbp_shortgammafuncs, only : expGammaPrime
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_constants, only : Hartree__eV, au__Debye
   use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc, only : TScc
-  use dftbp_blasroutines
-  use dftbp_eigensolver
-  use dftbp_lapackroutines
-  use dftbp_message
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_sorting
-  use dftbp_qm
-  use dftbp_transcharges
-  use dftbp_linresptypes
-  use dftbp_degeneracyfind
+  use dftbp_transcharges, only : TTransCharges, transq, TTransCharges_init
+  use dftbp_linresptypes, only : TLinResp 
+  use dftbp_degeneracyfind, only : TDegeneracyFind
+  use dftbp_sorting, only : index_heap_sort, merge_sort
+  use dftbp_qm, only : makeSimilarityTrans
+  use dftbp_blasroutines, only : gemm, hemv, symm
+  use dftbp_eigensolver, only : heev
+  use dftbp_message, only : error
   implicit none
+  
   private
-
   public :: LinRespGrad_old
 
   !> Output files for results

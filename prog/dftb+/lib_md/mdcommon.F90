@@ -10,12 +10,12 @@
 !> Common routines for MD calculations
 module dftbp_mdcommon
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_ranlux
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : pi
+  use dftbp_ranlux, only : TRanlux, getRandom
   implicit none
+  
   private
-
   public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann
 
