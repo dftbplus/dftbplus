@@ -2919,7 +2919,7 @@ contains
         case(mixerTypes%anderson)
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
         case(mixerTypes%broyden)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
+          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
         case(mixerTypes%diis)
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
         end select
