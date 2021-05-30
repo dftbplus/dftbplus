@@ -6,6 +6,7 @@ set(sources-fpp
   ${curdir}/blasroutines.F90
   ${curdir}/degeneracy.F90
   ${curdir}/determinant.F90
+  ${curdir}/duplicate.F90
   ${curdir}/eigensolver.F90
   ${curdir}/erfcalc.F90
   ${curdir}/errorfunction.F90
