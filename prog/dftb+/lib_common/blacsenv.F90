@@ -105,7 +105,7 @@ contains
   subroutine TBlacsEnv_final(this)
 
     !> Initialized instance.
-    type(TBlacsEnv), intent(out) :: this
+    type(TBlacsEnv), intent(inout) :: this
 
     call this%orbitalGrid%destruct()
     call this%atomGrid%destruct()
