@@ -17,7 +17,6 @@
 !>
 !> For the specification of the HSD format see the sample input
 module dftbp_hsdparser
-  use dftbp_assert
   use dftbp_message, only : error
   use dftbp_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
       & unquotedScan, convertWhitespaces, getFirstOccurance

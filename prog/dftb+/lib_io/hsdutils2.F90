@@ -10,7 +10,6 @@
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 module dftbp_hsdutils2
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
       & appendPathAndLine

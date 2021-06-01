@@ -10,7 +10,6 @@
 !> Routines to make socket contact with an external code and
 !! communicate data back and forward from DFTB+ to the external code.
 module dftbp_ipisocket
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc, rdp
   use dftbp_message, only : error, warning
   use dftbp_fsockets, only : writebuffer, readbuffer, close_socket, connect_inet_socket,&

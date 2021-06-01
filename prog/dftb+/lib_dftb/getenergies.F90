@@ -10,7 +10,6 @@
 !> Evaluate energies
 module dftbp_getenergies
   use dftbp_accuracy, only : dp, lc
-  use dftbp_assert
   use dftbp_energytypes, only : TEnergies
   use dftbp_populations, only : mulliken
   use dftbp_commontypes, only : TOrbitals

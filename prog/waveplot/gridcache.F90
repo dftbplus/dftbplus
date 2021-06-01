@@ -11,8 +11,6 @@
 !> This object is responsible for reading in the eigenvectors from a specified file and passing the
 !> appropriate eigenvectors to the molecule orbital calculator.
 module dftbp_gridcache
-
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut
   use dftbp_constants, only : pi
   use dftbp_accuracy, only : dp

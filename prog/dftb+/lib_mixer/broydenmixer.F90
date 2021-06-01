@@ -13,7 +13,6 @@
 !> see D.D. Johnson, PRB 38, 12807 (1988)
 !> In order to use the mixer you have to create and reset it.
 module dftbp_broydenmixer
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   use dftbp_blasroutines, only : ger

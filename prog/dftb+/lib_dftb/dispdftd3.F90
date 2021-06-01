@@ -9,7 +9,6 @@
 
 !> DFT-D3 dispersion model.
 module dftbp_dispdftd3
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_dftd3, only : dftd3_input, dftd3_calc, dftd3_pbc_dispersion, dftd3_dispersion,&

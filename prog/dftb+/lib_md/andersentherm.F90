@@ -13,7 +13,6 @@
 !> distribution
 !> See Andersen J. Chem. Phys. 72. 2384 (1980)
 module dftbp_andersentherm
-  use dftbp_assert
   use dftbp_accuracy, only : dp, minTemp
   use dftbp_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame, rescaleTokT
   use dftbp_ranlux, only : TRanlux, getRandom

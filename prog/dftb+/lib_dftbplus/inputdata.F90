@@ -10,7 +10,6 @@
 !> Contains data type representing the input data for DFTB
 module dftbp_inputdata
   use dftbp_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc
   use dftbp_typegeometry, only : TGeometry
   use dftbp_message, only : error, warning

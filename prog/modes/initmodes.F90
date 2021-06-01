@@ -9,7 +9,6 @@
 
 !> Contains the routines for initialising modes.
 module dftbp_initmodes
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut
   use dftbp_hsdparser, only : parseHSD, dumpHSD
   use dftbp_xmlutils

@@ -11,7 +11,6 @@
 !> 1-dimensional representations
 !>
 module dftbp_sparse2dense
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, imag
   use dftbp_commontypes, only : TOrbitals

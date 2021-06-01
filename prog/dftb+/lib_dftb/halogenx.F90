@@ -10,7 +10,6 @@
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
 !> from doi: 10.1021/ct5009137
 module dftbp_halogenx
-  use dftbp_assert
   use dftbp_accuracy, only : dp, mc
   use dftbp_vdwdata, only : getVdwData
   use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree

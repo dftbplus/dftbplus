@@ -11,7 +11,6 @@
 !> into eigenvectors
 module dftbp_eigenvects
   use dftbp_environment, only : TEnvironment
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_eigensolver, only : hegv, hegvd, gvr
 #:if WITH_GPU

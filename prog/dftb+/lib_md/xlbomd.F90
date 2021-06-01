@@ -11,7 +11,6 @@
 !> Aradi et al. Extended lagrangian density functional tight-binding molecular dynamics for
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_xlbomd
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_globalenv, only : stdOut
   use dftbp_message, only : error

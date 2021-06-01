@@ -9,7 +9,6 @@
 
 !> Contains routines to convert data (typically delivered by the parser) to the internal form.
 module dftbp_inputconversion
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc
   use dftbp_commontypes, only : TOrbitals
   use dftbp_wrappedintr, only : TWrappedInt1

@@ -9,7 +9,6 @@
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut
   use dftbp_accuracy
   use dftbp_constants

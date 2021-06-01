@@ -13,14 +13,9 @@ module dftbp_assert
   implicit none
   
   private
-#:block DEBUG_CODE
   public :: assertError
-#:endblock DEBUG_CODE
 
 contains
-
-#:block DEBUG_CODE
-
 
   !> Prints assertion error and abort program execution.
   subroutine assertError(fileName, lineNr)
@@ -37,7 +32,5 @@ contains
     call abortProgram()
 
   end subroutine assertError
-
-#:endblock DEBUG_CODE
 
 end module dftbp_assert

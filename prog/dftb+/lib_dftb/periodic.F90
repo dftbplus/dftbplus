@@ -9,7 +9,6 @@
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_periodic
-  use dftbp_assert
   use dftbp_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
   use dftbp_constants, only : pi
   use dftbp_message, only : error, warning

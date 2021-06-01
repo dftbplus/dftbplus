@@ -9,7 +9,6 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut
   use dftbp_initmodes
   use dftbp_accuracy, only : dp, lc

@@ -10,7 +10,6 @@
 !> Contains routines relating to Hermite polynomials
 !> To do: Proper documentation, and trap overflow and underflows
 module dftbp_hermite
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
   

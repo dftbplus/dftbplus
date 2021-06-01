@@ -22,7 +22,6 @@ module dftbp_mainio
   use dftbp_globalenv, only : stdOut, destructGlobalEnv, abortProgram
   use dftbp_environment, only : TEnvironment
   use dftbp_densedescr, only : TDenseDescr
-  use dftbp_assert
   use dftbp_accuracy, only : dp, mc, sc, lc
   use dftbp_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName

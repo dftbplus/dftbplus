@@ -9,7 +9,6 @@
 
 !> Helper routines for the linear response modules.
 module dftbp_linrespcommon
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : elecTolMax, hemv
   use dftbp_sorting, only : index_heap_sort

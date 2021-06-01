@@ -11,7 +11,6 @@
 !> excitations energies according to the particle-particle Random Phase Approximation
 !> (doi:10.1063/1.4977928)
 module dftbp_pprpa
-  use dftbp_assert
   use dftbp_linrespcommon, only : indxoo, indxvv
   use dftbp_commontypes, only : TOrbitals
   use dftbp_accuracy, only : dp

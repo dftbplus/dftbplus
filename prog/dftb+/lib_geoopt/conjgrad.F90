@@ -10,7 +10,6 @@
 !> Function minimization with the standard conjugate gradient technique.  See Numerical Recipes for
 !> details.
 module dftbp_conjgrad
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_linemin, only : TLineMin, TLineMin_init
   implicit none

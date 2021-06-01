@@ -9,7 +9,6 @@
 
 !> Calculator for the spline/polynomial repulsive as found in legacy SK-files
 module dftbp_splinepolyrep
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_boundarycond, only : zAxis
   use dftbp_constants, only : pi

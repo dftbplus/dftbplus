@@ -9,7 +9,6 @@
 
 !> Module to wrap around the different shift contributions in the DFTB energy expressions
 module dftbp_potentials
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
   implicit none

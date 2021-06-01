@@ -17,7 +17,6 @@ module dftbp_randomgenpool
   use dftbp_environment, only : TEnvironment
   use dftbp_accuracy, only : dp
   use dftbp_ranlux, only : TRanlux, init, getRandom
-  use dftbp_assert
   implicit none
   
   private

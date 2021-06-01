@@ -9,7 +9,6 @@
 
 !> Coordination number implementation
 module dftbp_coordnumber
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber

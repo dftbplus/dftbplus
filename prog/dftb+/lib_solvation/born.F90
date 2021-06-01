@@ -9,7 +9,6 @@
 
 !> Generalized Born solvation model.
 module dftbp_born
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges

@@ -11,7 +11,6 @@
 !> To do: add other algorithms, radix? definitely not quicksort though,
 !> but adaptive heap sorts?
 module dftbp_sorting
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
   

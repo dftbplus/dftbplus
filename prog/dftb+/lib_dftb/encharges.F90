@@ -13,7 +13,6 @@
 !>
 !> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_encharges
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_errorfunction, only : erfwrap

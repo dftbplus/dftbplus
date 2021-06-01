@@ -9,7 +9,6 @@
 
 !> main module for the DFTB+ API
 module dftbp_mainapi
-  use dftbp_assert
   use dftbp_accuracy, only : dp, mc
   use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr, only : TDenseDescr

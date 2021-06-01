@@ -9,7 +9,6 @@
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_scc
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_charges, only : getSummedCharges
   use dftbp_chargeconstr, only : TChrgConstr, TChrgConstr_init

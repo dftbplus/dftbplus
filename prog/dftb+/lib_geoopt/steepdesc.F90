@@ -9,7 +9,6 @@
 
 !> Function minimization with steepest descent algorithm
 module dftbp_steepdesc
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
 

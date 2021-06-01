@@ -13,7 +13,6 @@
 !> PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
 !> interpolation instead of bisection.
 module dftbp_etemp
-  use dftbp_assert
   use dftbp_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
   use dftbp_errorfunction, only : erfcwrap
   use dftbp_message, only : error

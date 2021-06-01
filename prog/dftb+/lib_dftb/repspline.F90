@@ -9,7 +9,6 @@
 
 !> Implements a repulsive potential between two atoms represented by cubic splines.
 module dftbp_repspline
-  use dftbp_assert
   use dftbp_accuracy, only : dp, minNeighDist
   use dftbp_bisect, only : bisection
   implicit none

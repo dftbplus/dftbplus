@@ -9,7 +9,6 @@
 
 !> Module to calculate atomic charges
 module dftbp_charges
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
   use dftbp_uniquehubbard, only : TUniqueHubbard

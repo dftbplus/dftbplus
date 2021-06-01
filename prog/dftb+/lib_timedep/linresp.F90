@@ -17,7 +17,6 @@
 !>   case).
 !> * Onsite corrections are not included in this version
 module dftbp_linresp
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   use dftbp_commontypes, only : TOrbitals

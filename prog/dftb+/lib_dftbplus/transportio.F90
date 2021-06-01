@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_transportio
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc
   use dftbp_constants, only : Hartree__eV
   use dftbp_globalenv, only : stdOut

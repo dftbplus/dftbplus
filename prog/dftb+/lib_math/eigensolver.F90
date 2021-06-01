@@ -12,7 +12,6 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_eigensolver
-  use dftbp_assert
   use dftbp_message, only : error, warning
   use dftbp_accuracy, only : rsp, rdp
   use dftbp_lapack, only : dlamch, DLAMCH, slamch, SLAMCH

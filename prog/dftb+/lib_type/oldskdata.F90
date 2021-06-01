@@ -10,7 +10,6 @@
 !> Contains type for representing the data stored in the old SK-file format and subroutines to read
 !> that data from file.
 module dftbp_oldskdata
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc
   use dftbp_constants, only : amu__au
   use dftbp_repspline, only : TRepSplineIn

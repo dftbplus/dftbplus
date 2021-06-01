@@ -9,7 +9,6 @@
 
 !> Implementation of the charge model 5 (CM5)
 module dftbp_cm5
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_blasroutines, only : gemv

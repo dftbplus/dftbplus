@@ -35,7 +35,6 @@ module dftbp_negfint
   use dftbp_message, only : error, warning
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
-  use dftbp_assert
   use dftbp_eigensolver, only : heev
 #:if WITH_MPI
   use dftbp_mpifx, only : mpifx_comm, MPI_SUM, mpifx_reduceip, mpifx_allreduceip

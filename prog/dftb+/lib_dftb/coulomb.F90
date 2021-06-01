@@ -9,7 +9,6 @@
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_coulomb
-  use dftbp_assert
   use dftbp_accuracy, only : dp, tolSameDist, tolSameDist2, nSearchIter
   use dftbp_boundarycond, only : boundaryConditions
   use dftbp_blasroutines, only : hemv

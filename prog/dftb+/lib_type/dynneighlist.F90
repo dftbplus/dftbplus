@@ -13,7 +13,6 @@
 !> allowing for a low memory footprint for large neighbour lists (at the cost of speed).
 !>
 module dftbp_dynneighlist
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_message , only : error

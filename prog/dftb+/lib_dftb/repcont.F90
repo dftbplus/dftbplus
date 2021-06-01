@@ -13,7 +13,6 @@
 !> pairs. It can be easily extended to contain different repulsive schemes for different pairs. At
 !> the moment, it handles only repulsive with spline interpolation.
 module dftbp_repcont
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_repspline, only : TRepSpline, getEnergyDeriv, getEnergy, getCutoff
   use dftbp_reppoly, only : TRepPoly, getEnergyDeriv, getEnergy, getCutoff

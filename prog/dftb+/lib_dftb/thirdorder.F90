@@ -9,7 +9,6 @@
 
 !> Routines implementing the full 3rd order DFTB.
 module dftbp_thirdorder
-  use dftbp_assert
   use dftbp_accuracy, only : dp, minHubDiff, tolSameDist
   use dftbp_commontypes, only : TOrbitals
   use dftbp_shortgammafuncs, only : expGammaCutoff

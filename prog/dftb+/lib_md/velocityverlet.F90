@@ -9,7 +9,6 @@
 
 !> Velocity Verlet intergrator.
 module dftbp_velocityverlet
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_thermostat, only : TThermostat, state, init, updateVelocities, getInitVelocities
   use dftbp_message, only : error

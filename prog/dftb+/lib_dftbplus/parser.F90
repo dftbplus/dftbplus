@@ -10,7 +10,6 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_parser
   use dftbp_globalenv, only : stdout, withMpi, withScalapack, abortProgram
-  use dftbp_assert
   use dftbp_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_constants, only : maxL, symbolToNumber, shellNames, Bohr__AA
   use dftbp_inputdata, only : TControl, TGeometry, TSlater, TInputData, TXLBOMDInp,&

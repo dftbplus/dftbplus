@@ -9,7 +9,6 @@
 
 !> contains some miscellaneous quantum mechanics related bits and pieces.
 module dftbp_qm
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   implicit none

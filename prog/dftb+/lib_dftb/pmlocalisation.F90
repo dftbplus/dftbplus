@@ -11,7 +11,6 @@
 !> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
 !> each k-point is localised independently.
 module dftbp_pmlocalisation
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_globalenv, only : stdOut
   use dftbp_blasroutines, only : hemv, hemm, symm

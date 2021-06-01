@@ -9,7 +9,6 @@
 
 !> Routines to calculate contributions to the stress tensor
 module dftbp_stress
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_nonscc, only : TNonSccDiff
   use dftbp_commontypes, only : TOrbitals

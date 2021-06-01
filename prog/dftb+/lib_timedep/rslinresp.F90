@@ -11,7 +11,6 @@
 !> and the rangesep module by Lusker et al.
 !> Periodic systems and 3rd order calculations are not supported so far.
 module dftbp_rslinresp
-  use dftbp_assert
   use dftbp_slakoCont, only : TSlakoCont, getMIntegrals, getSKIntegrals
   use dftbp_shortgammafuncs, only : expGammaPrime
   use dftbp_accuracy, only : dp, rsp, lc

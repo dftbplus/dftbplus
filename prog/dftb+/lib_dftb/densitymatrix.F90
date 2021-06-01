@@ -15,7 +15,6 @@
 !> Caveat: The routines create the transposed and complex conjugated of the density matrices! (cc*
 !> instead of the conventional c*c)
 module dftbp_densitymatrix
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : herk
   use dftbp_sorting, only : unique, heap_sort

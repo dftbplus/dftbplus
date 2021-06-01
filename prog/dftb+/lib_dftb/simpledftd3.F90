@@ -10,7 +10,6 @@
 !> A simple reimplementation of DFT-D3
 module dftbp_simpledftd3
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber

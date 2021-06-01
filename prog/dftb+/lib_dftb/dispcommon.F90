@@ -12,7 +12,6 @@
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 module dftbp_dispcommon
-  use dftbp_assert
   use dftbp_accuracy, only : dp, lc, nSearchIter
   use dftbp_constants, only : pi
   use dftbp_environment, only : TEnvironment

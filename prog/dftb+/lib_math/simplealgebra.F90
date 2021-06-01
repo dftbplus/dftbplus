@@ -9,7 +9,6 @@
 
 !> Simple algebraic stuff for cases where LAPACK would be overkill
 module dftbp_simplealgebra
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
   

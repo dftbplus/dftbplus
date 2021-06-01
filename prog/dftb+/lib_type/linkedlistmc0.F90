@@ -10,7 +10,6 @@
 !> Linked list for single charcter strings
 module dftbp_linkedlistmc0
   use dftbp_accuracy, only : mc
-  use dftbp_assert
   implicit none
   
   private

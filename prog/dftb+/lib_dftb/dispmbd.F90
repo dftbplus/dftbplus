@@ -10,7 +10,6 @@
 
 !> MBD/TS dispersion model.
 module dftbp_dispmbd
-  use dftbp_assert
   use dftbp_accuracy, only : dp, mc, lc
   use dftbp_commontypes, only : TOrbitals
   use dftbp_constants, only : symbolToNumber

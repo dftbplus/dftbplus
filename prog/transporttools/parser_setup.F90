@@ -10,7 +10,6 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_parsersetup
   use dftbp_globalenv
-  use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants
   use dftbp_typegeometryhsd

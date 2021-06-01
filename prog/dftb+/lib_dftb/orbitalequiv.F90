@@ -18,7 +18,6 @@
 !> in the mapping vector stand for non-existent orbitals.
 !>
 module dftbp_orbitalequiv
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
   implicit none

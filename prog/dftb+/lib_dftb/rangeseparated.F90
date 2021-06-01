@@ -12,7 +12,6 @@
 module dftbp_rangeseparated
   use dftbp_accuracy, only : dp, tolSameDist, MinHubDiff
   use dftbp_environment, only : TEnvironment, globalTimers
-  use dftbp_assert
   use dftbp_message, only : error
   use dftbp_nonscc, only : TNonSccDiff
   use dftbp_slakocont, only : TSlakoCont

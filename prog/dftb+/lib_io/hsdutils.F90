@@ -11,7 +11,6 @@
 !> intrinsic types.
 !> Todo: Some more routines for complex numbers?
 module dftbp_hsdutils
-  use dftbp_assert
   use dftbp_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string, appendChild,&
       & xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength, assignment(=),&
       & getNodeType, replaceChild, createTextNode, createElement, removeChild, trim, getAttribute,&

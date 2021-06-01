@@ -32,7 +32,6 @@
 !> Step 4. is repeated as long as the projected derivative of the function on the line is less than
 !> the given tolerance.
 module dftbp_linemin
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : goldenMeanP1
   implicit none

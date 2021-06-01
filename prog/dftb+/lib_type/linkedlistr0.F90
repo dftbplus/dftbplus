@@ -10,7 +10,6 @@
 !> Linked list for single real values
 module dftbp_linkedlistr0
   use dftbp_accuracy, only : dp
-  use dftbp_assert
   implicit none
   
   private

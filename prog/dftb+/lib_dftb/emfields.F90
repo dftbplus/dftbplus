@@ -9,7 +9,6 @@
 
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module dftbp_emfields
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants
   use dftbp_globalenv, only : stdOut

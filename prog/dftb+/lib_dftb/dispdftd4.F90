@@ -11,7 +11,6 @@
 !> Implementation of the D4 dispersion model
 module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_charges, only : getSummedCharges

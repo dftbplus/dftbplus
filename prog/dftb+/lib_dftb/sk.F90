@@ -16,7 +16,6 @@
 !>
 !> Caveat: Only angular momenta up to f are currently allowed
 module dftbp_sk
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
   implicit none

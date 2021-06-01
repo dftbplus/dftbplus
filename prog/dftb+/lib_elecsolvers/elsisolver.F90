@@ -21,7 +21,6 @@ module dftbp_elsisolver
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energytypes, only : TEnergies
   use dftbp_etemp, only : fillingTypes
-  use dftbp_assert
   use dftbp_spin, only : ud2qm
   use dftbp_angmomentum, only : getLOnsite
   use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy

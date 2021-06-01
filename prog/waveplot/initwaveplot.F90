@@ -9,8 +9,6 @@
 
 !> Contains the routines for initialising waveplot.
 module dftbp_initwaveplot
-
-  use dftbp_assert
   use xmlf90_flib_dom
   use dftbp_linkedlist
   use dftbp_globalenv, only : stdOut

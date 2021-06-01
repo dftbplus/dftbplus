@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_initphonons
-  use dftbp_assert
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_hsdparser, only : parseHSD, dumpHSD

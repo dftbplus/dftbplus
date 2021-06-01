@@ -12,7 +12,6 @@ module dftbp_angmomentum
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx, only : scalafx_addg2l
 #:endif
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : imag
   use dftbp_qm, only : makeSimilarityTrans

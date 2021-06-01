@@ -9,7 +9,6 @@
 
 !> Implements an interator over lattice points up to a certain cutoff
 module dftbp_latpointiter
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
   

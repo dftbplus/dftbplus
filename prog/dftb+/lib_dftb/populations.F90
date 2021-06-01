@@ -10,7 +10,6 @@
 !> Calculates various types of charge populations
 !> To do: extend to other populations than Mulliken
 module dftbp_populations
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals

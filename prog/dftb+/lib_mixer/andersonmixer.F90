@@ -16,7 +16,6 @@
 !>   considered.
 !> In order to use the mixer you have to create and reset it.
 module dftbp_andersonmixer
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_lapackroutines, only : gesv
   implicit none

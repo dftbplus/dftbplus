@@ -22,7 +22,6 @@
 !> Todo: The generation of the reciprocal lattice vectors should not be done localy, but somewhere
 !> outside, since the Coulomb module does the same.
 module dftbp_dispslaterkirkw
-  use dftbp_assert
   use dftbp_accuracy, only : dp, tolDispDamp, tolDispersion
   use dftbp_constants, only : pi
   use dftbp_dispiface, only : TDispersionIface

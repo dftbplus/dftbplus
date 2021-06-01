@@ -40,9 +40,12 @@
 #! Check a condition if WITH_ASSERT is True and call assertError if condition is False.
 #:def ASSERT(cond)
   #:if WITH_ASSERT
-  if (.not. (${cond}$)) then
-    call assertError("${_FILE_}$", ${_LINE_}$)
-  end if
+  block
+    use dftbp_assert, only : assertError
+    if (.not. (${cond}$)) then
+      call assertError("${_FILE_}$", ${_LINE_}$)
+    end if
+  end block
   #:endif
 #:enddef ASSERT
 

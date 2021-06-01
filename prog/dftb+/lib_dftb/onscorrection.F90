@@ -9,7 +9,6 @@
 
 module dftbp_onsitecorrection
   use dftbp_accuracy, only : dp
-  use dftbp_assert
   use dftbp_commontypes, only : TOrbitals
   use dftbp_message, only : error
   use dftbp_nonscc, only : TNonSccDiff

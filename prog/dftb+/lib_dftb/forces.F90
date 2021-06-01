@@ -9,7 +9,6 @@
 
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module dftbp_forces
-  use dftbp_assert
   use dftbp_accuracy, only : dp 
   use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc, only : TScc

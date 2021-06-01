@@ -16,7 +16,6 @@
 !> structure as the internal sparse matrices. The CSR matrices must be created using the
 !> createEquivCSR routines.
 module dftbp_matconv
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals

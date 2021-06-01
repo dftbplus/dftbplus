@@ -10,7 +10,6 @@
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
 !> derivatives.
 module dftbp_nonscc
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_sk, only : rotateH0
   use dftbp_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals

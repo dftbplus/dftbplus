@@ -15,7 +15,6 @@
 !> Briddon to add a contribution from the gradient vector as well is also used
 !> In order to use the mixer you have to create and reset it.
 module dftbp_diismixer
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_lapackroutines, only : gesv
   implicit none

@@ -10,7 +10,6 @@
 !> update the SCC hamiltonian
 module dftbp_hamiltonian
   use dftbp_accuracy, only : dp, lc
-  use dftbp_assert
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
   use dftbp_potentials, only : TPotentials

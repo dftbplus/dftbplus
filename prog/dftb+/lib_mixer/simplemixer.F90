@@ -9,7 +9,6 @@
 
 !> Simple mixer for mixing charges
 module dftbp_simplemixer
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   implicit none
 

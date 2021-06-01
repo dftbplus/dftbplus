@@ -16,7 +16,6 @@
 !> To Do: Take the reciprocal lattice vectors from outside.
 !>
 module dftbp_dispuff
-  use dftbp_assert
   use dftbp_accuracy, only : dp, tolDispersion
   use dftbp_constants, only : pi
   use dftbp_dispiface, only : TDispersionIface

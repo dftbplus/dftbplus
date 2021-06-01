@@ -13,7 +13,6 @@ module dftbp_spinorbit
   use dftbp_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
   use dftbp_environment, only : TEnvironment
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : imag
   use dftbp_angmomentum, only : getLOperators

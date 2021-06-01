@@ -9,7 +9,6 @@
 
 !> Module for initializing SCC part of the calculation
 module dftbp_sccinit
-  use dftbp_assert
   use dftbp_accuracy, only : dp, elecTolMax
   use dftbp_globalenv, only : stdOut
   use dftbp_message, only : error

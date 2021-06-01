@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_timerarray
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : dp
   use dftbp_timer, only : TTimer

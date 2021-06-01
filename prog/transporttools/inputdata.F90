@@ -9,7 +9,6 @@
 
 !> Contains data type representing the input data for setupgeom
 module dftbp_inputsetup
-  use dftbp_assert
   use dftbp_accuracy
   use dftbp_typegeometry
   use dftbp_message

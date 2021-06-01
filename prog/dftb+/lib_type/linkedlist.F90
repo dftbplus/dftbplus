@@ -10,7 +10,6 @@
 !> Contains types and functions and subroutines for manipulating linked lists.  Every list must be
 !> initialized with init, and destroyed with destroy.
 module dftbp_linkedlist
-  use dftbp_assert
   use dftbp_accuracy, only : mc, lc
   use dftbp_linkedlisti0, only : TListInt, append, destruct, asArray, init, len
   use dftbp_linkedlisti1, only : TListIntR1, append, len, destruct, init, asArray, asVector,&

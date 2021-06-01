@@ -28,7 +28,6 @@ module dftbp_main
   use dftbp_ipisocket, only : IpiSocketComm
 #:endif
   use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_assert
   use dftbp_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_constants, only : pi
   use dftbp_globalenv, only : stdOut, withMpi

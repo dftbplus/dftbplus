@@ -11,7 +11,6 @@
 module dftbp_formatout
   use dftbp_globalenv, only : stdOut, tIoProc, withMpi
   use dftbp_environment, only : TEnvironment
-  use dftbp_assert
   use dftbp_accuracy, only : dp, mc
   use dftbp_message, only : error
   use dftbp_constants, only : au__fs, Bohr__AA, pi

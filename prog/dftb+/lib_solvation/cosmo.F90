@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_cosmo
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_charges, only : getSummedCharges

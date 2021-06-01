@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_degeneracyfind
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   implicit none

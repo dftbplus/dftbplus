@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 program phonons 
-  use dftbp_assert
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_initphonons

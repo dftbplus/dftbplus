@@ -13,7 +13,6 @@
 !> Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
 module dftbp_berendsentherm
-  use dftbp_assert
   use dftbp_accuracy, only : dp, minTemp
   use dftbp_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
   use dftbp_ranlux, only : TRanlux

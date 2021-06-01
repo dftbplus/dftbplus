@@ -14,7 +14,6 @@ module dftbp_initprogram
   use omp_lib, only : omp_get_max_threads
 #:endif
   use dftbp_mainio, only : initOutputFile
-  use dftbp_assert
   use dftbp_globalenv, only : stdOut, withMpi
   use dftbp_coherence, only : checkToleranceCoherence, checkExactCoherence
   use dftbp_environment, only : TEnvironment, globalTimers

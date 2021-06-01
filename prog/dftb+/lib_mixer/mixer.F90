@@ -9,7 +9,6 @@
 
 !> Provides a general mixer which contains the desired actual mixer.
 module dftbp_mixer
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_simplemixer, only : TSimpleMixer, mix, reset
   use dftbp_andersonmixer, only : TAndersonMixer, mix, reset

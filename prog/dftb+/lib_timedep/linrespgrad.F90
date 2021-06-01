@@ -9,7 +9,6 @@
 
 !> Linear response excitations and gradients with respect to atomic coordinates
 module dftbp_linrespgrad
-  use dftbp_assert
   use dftbp_arpack, only : withArpack, saupd, seupd
   use dftbp_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird, oscillatorStrength,&
   & indxoo, indxov, indxvv, rindxvv, rindxov_array, apbw, wtdn, omegatvec, getSPExcitations,&

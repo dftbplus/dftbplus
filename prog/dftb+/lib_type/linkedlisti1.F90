@@ -9,7 +9,6 @@
 
 !> Linked list for single real vectors
 module dftbp_linkedlisti1
-  use dftbp_assert
   implicit none
   
   private
