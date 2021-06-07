@@ -99,6 +99,10 @@ if(WITH_TRANSPORT)
 endif()
 target_link_libraries(dftbplus PUBLIC mudpack)
 
+if(WITH_TBLITE)
+  target_link_libraries(dftbplus PUBLIC tblite::tblite)
+endif()
+
 if(WITH_ELSI)
   # Some compilers need all mod files (also indirect ones), so include dir must be exported
   target_link_libraries(dftbplus PUBLIC elsi::elsi)

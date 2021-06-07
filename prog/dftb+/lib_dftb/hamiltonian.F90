@@ -23,6 +23,7 @@ module dftbp_hamiltonian
   use dftbp_solvation, only : TSolvation
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
+  use dftbp_tblite, only : TTBLite
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_extfields, only : TEField
   implicit none
@@ -129,14 +130,18 @@ contains
 
   !> Add potentials coming from electrostatics (in various boundary conditions and models), possibly
   !> spin, and where relevant dispersion
-  subroutine addChargePotentials(env, sccCalc, updateScc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
+  subroutine addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0, chargePerShell,&
+      & orb, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
+      & dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
-    type(TScc), intent(inout) :: sccCalc
+    type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), intent(inout), allocatable :: tblite
 
     !> Whether the charges in the scc calculator should be updated before obtaining the potential
     logical, intent(in) :: updateScc
@@ -187,21 +192,23 @@ contains
     nSpin = size(qInput, dim=3)
     pSpecies0 => species(1:nAtom)
 
-    allocate(atomPot(nAtom, nSpin))
-    allocate(shellPot(orb%mShell, nAtom, nSpin))
+    allocate(atomPot(nAtom, nSpin), source=0.0_dp)
+    allocate(shellPot(orb%mShell, nAtom, nSpin), source=0.0_dp)
 
-    if (updateScc) then
-      call sccCalc%updateCharges(env, qInput, orb, species, q0)
-    end if
-    call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-    call sccCalc%getShiftPerAtom(atomPot(:,1))
-    call sccCalc%getShiftPerL(shellPot(:,:,1))
+    if (allocated(sccCalc)) then
+      if (updateScc) then
+        call sccCalc%updateCharges(env, qInput, orb, species, q0)
+      end if
+      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+      call sccCalc%getShiftPerAtom(atomPot(:,1))
+      call sccCalc%getShiftPerL(shellPot(:,:,1))
 
-    if (allocated(potential%coulombShell)) then
-      ! need to retain the just electrostatic contributions to the potential for a contact
-      ! calculation or similar
-      potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
-      call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
+      if (allocated(potential%coulombShell)) then
+        ! need to retain the just electrostatic contributions to the potential for a contact
+        ! calculation or similar
+        potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
+        call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
+      end if
     end if
 
     if (allocated(dispersion)) then
@@ -211,6 +218,13 @@ contains
 
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+
+    if (allocated(tblite)) then
+      call tblite%updateCharges(env, species, neighbourList, qInput, q0, img2CentCell, orb)
+      call tblite%getShifts(atomPot(:,1), shellPot(:,:,1))
+      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
+      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+    end if
 
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)

@@ -13,6 +13,8 @@ Addded
 
 - On-site potentials added
 
+- Support for extended tight binding (xTB) Hamiltonian via tblite library
+
 Changed
 -------
 

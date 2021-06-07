@@ -188,6 +188,44 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
+if(WITH_TBLITE)
+  set(MCTC_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
+  set(MCTC_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
+  dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mctc-lib "${exclude}" "${MCTC_GIT_REPOSITORY}" "${MCTC_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
+
+  set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
+  set(MSTORE_GIT_TAG "0184acca83fb6ceea1d4261175752d4f81ae948e")  # do not change manually!
+  dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mstore)
+
+  set(SDFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
+  set(SDFTD3_GIT_TAG "6be55d401af313d47481f756694631ca5903d2c3")  # do not change manually!
+  dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/s-dftd3 "${exclude}" "${SDFTD3_GIT_REPOSITORY}" "${SDFTD3_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
+
+  set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/tblite.git")
+  set(MULTICHARGE_GIT_TAG "668b7962b099d99d25f5bb8b06cbeb4062311d7d")  # do not change manually!
+  dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}" "${MULTICHARGE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES multicharge)
+
+  set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
+  set(DFTD4_GIT_TAG "1065faa3c6eec89dbc715dae14ea5781497fa4a7")  # do not change manually!
+  dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES dftd4)
+
+  set(TBLITE_GIT_REPOSITORY "https://github.com/awvwgk/tblite.git")
+  set(TBLITE_GIT_TAG "c7ca7703e17ca2f761310b4de702cd463e573f94")  # do not change manually!
+  dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES tblite)
+endif()
+
 # FyTest currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")

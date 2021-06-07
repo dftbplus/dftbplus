@@ -26,6 +26,8 @@ option(WITH_POISSON "Whether the Poisson-solver should be included" ${WITH_TRANS
 # if you want to use it in a non-transport build. Note, the Poisson-solver is not
 # multi-instance safe and is therefore not allowed, if WITH_API (see below) is on.
 
+option(WITH_TBLITE "Whether xTB support should be included via tblite." FALSE)
+
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)

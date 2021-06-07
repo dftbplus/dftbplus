@@ -59,6 +59,12 @@ dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
+xtb/gfn1_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn1_succinic                      #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/ipea1_h2                           #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/ipea1_mindless02                   #? WITH_TBLITE and MPI_PROCS <= 1
+
 input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1

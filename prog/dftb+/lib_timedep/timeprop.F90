@@ -42,6 +42,7 @@ module dftbp_timeprop
   use dftbp_energytypes, only : TEnergies, TEnergies_init
   use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_thirdorder, only : TThirdOrder
+  use dftbp_tblite, only : TTBLite
   use dftbp_solvation, only : TSolvation
   use dftbp_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_eigenvects, only : diagDenseMtx
@@ -210,6 +211,7 @@ module dftbp_timeprop
     logical :: tReadRestart, tWriteRestart, tRestartAscii, tWriteRestartAscii, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
+    type(TTBLite), allocatable :: tblite
     character(mc) :: autotestTag
 
     real(dp), allocatable :: initialVelocities(:,:), movedMass(:,:)
@@ -334,7 +336,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, solvation)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -405,6 +407,9 @@ contains
     !> SCC module internal variables
     type(TScc), intent(in), allocatable :: sccCalc
 
+    !> Library interface handler
+    type(TTBLite), intent(in), allocatable :: tblite
+
     !> Solvation data and calculations
     class(TSolvation), allocatable, intent(in) :: solvation
 
@@ -438,6 +443,9 @@ contains
       call error("SCC calculations are currently required for dynamics")
     else
       this%sccCalc = sccCalc
+    end if
+    if (allocated(tblite)) then
+      this%tblite = tblite
     end if
 
     if (inp%envType /= envTypes%constant) then
@@ -1086,7 +1094,7 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, .true., qq, q0, chargePerShell, orb, speciesAll,&
+    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell, orb, speciesAll,&
         & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
@@ -1534,7 +1542,7 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
-    call calcEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
+    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
         & dftbU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
         & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)

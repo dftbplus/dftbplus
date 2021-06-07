@@ -35,6 +35,7 @@ module dftbp_inputdata
   use dftbp_reks, only : TReksInp
   use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
+  use dftbp_tblite, only : TTBLiteInput
 #:if WITH_TRANSPORT
   use dftbp_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
@@ -450,6 +451,10 @@ module dftbp_inputdata
 
     !> Solvation
     class(TSolvationInp), allocatable :: solvInp
+
+
+    !> Input for tblite library
+    type(TTBLiteInput), allocatable :: tbliteInp
 
 
     !> Local potentials
