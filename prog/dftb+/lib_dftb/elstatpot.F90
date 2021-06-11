@@ -12,6 +12,7 @@ module dftbp_elstatpot
   use dftbp_accuracy, only : dp, lc
   use dftbp_scc, only : TScc
   use dftbp_environment, only : TEnvironment
+  use dftbp_extfields, only : TEField
   implicit none
   
   private
@@ -126,7 +127,7 @@ contains
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Electric field magnitude
-    real(dp), intent(in) :: EField(3)
+    type(TEField), intent(in), optional :: eField
 
     integer :: ii
 
@@ -136,11 +137,13 @@ contains
       call sccCalc%getExternalElStatPotential(this%extPotential, env, this%espGrid,&
           & epsSoften=this%softenEsp)
       this%extPotential = -this%extPotential
-      if (any(EField /= 0.0_dp)) then
-        do ii = 1, size(this%espGrid,dim=2)
-          this%extPotential(ii) = this%extPotential(ii)&
-              & + dot_product(this%espGrid(:, ii), EField)
-        end do
+      if (present(eField)) then
+        if (allocated(eField%EFieldStrength)) then
+          do ii = 1, size(this%espGrid,dim=2)
+            this%extPotential(ii) = this%extPotential(ii) + dot_product(this%espGrid(:, ii),&
+                & eField%eField)
+          end do
+        end if
       end if
     end if
 

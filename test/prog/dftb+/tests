@@ -5,6 +5,11 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+extpot/CH4_gross                       #? MPI_PROCS <= 1
+extpot/CH4_net                         #? MPI_PROCS <= 1
+extpot/CH4_scc_gross                   #? MPI_PROCS <= 1
+extpot/CH4_scc_net                     #? MPI_PROCS <= 1
+
 deltadftb/C2H4                         #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI

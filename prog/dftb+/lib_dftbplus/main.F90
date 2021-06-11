@@ -46,9 +46,9 @@ module dftbp_main
   use dftbp_forces, only : derivative_shift
   use dftbp_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
   use dftbp_scc, only : TScc
-  use dftbp_hamiltonian, only : resetInternalPotentials, addChargePotentials, getSccHamiltonian,&
-      & setUpExternalElectricField, mergeExternalPotentials, resetExternalPotentials, &
-      & addBlockChargePotentials
+  use dftbp_hamiltonian, only : resetInternalPotentials, addChargePotentials, getSccHamiltonian
+  use dftbp_hamiltonian, only : mergeExternalPotentials
+  use dftbp_hamiltonian, only : resetExternalPotentials, addBlockChargePotentials
   use dftbp_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
@@ -130,6 +130,7 @@ module dftbp_main
 #:endif
   use dftbp_blockpothelper, only : appendBlockReduced
   use dftbp_staticperturb, only : staticPerturWrtE
+  use dftbp_extfields, only : addUpExternalField
   implicit none
 
   private
@@ -326,7 +327,7 @@ contains
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs,&
-            & this%tEField, this%absEField, this%dipoleMoment, this%deltaDftb, this%solvation)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs)
@@ -725,11 +726,9 @@ contains
       call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
     end if
 
-    call setUpExternalElectricField(this%tEField, this%tTDEField, this%tPeriodic,&
-        & this%EFieldStrength, this%EFieldVector, this%EFieldOmega, this%EFieldPhase,&
-        & this%neighbourList, this%nNeighbourSk, this%iCellVec, this%img2CentCell, this%cellVec,&
-        & this%deltaT, iGeoStep, this%coord0Fold, this%coord, this%potential%extAtom(:,1),&
-        & this%potential%extGrad, this%EField, this%absEField)
+    call addUpExternalField(this%eField, this%tPeriodic, this%neighbourList, this%nNeighbourSk,&
+        & this%iCellVec, this%img2CentCell, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold,&
+        & this%coord, this%potential)
 
     call mergeExternalPotentials(this%orb, this%species, this%potential)
 
@@ -783,10 +782,11 @@ contains
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
             & this%over, this%spinW, this%cellVol, this%extPressure, this%dftbEnergy(1), this%q0,&
             & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
-            & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
+            & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %isExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom,&
+            & this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -896,8 +896,7 @@ contains
         end if
 
         ! All potentials are added up into intBlock
-        this%potential%intBlock = this%potential%intBlock +&
-            & this%potential%extBlock
+        this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
 
         if (allocated(this%qDepExtPot)) then
           call getChargePerShell(this%qInput, this%orb, this%species, dQ, qRef=this%q0)
@@ -1007,13 +1006,14 @@ contains
         end if
 
         call calcEnergies(this%scc, this%qOutput, this%q0, this%chargePerShell, this%species,&
-            & this%tExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit, this%rhoPrim,&
+            & this%isExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit, this%rhoPrim,&
             & this%H0, this%orb, this%neighbourList, this%nNeighbourSk, this%img2CentCell,&
             & this%iSparseStart, this%cellVol, this%extPressure,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
             & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements)
+            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
+            & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -1081,7 +1081,7 @@ contains
           call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
               & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
-              & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
+              & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
               & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
               & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
               & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
@@ -1133,7 +1133,7 @@ contains
         call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
-            & this%dispersion, this%tEField, this%tPeriodic, this%nSpin, this%tSpin,&
+            & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements), this%tNegf,&
             & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
             & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
@@ -1267,15 +1267,14 @@ contains
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
             & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-        call getGradients(env, this%scc, this%tExtField, this%isXlbomd, this%nonSccDeriv,&
-            & this%EField, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont,&
-            & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
-            & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
-            & this%potential, this%coord, this%derivs, this%groundDerivs, this%tripletderivs,&
-            & this%mixedderivs, this%iRhoPrim, this%thirdOrd, this%solvation, this%qDepExtPot,&
-            & this%chrgForces, this%dispersion, this%rangeSep, this%SSqrReal, this%over,&
-            & this%denseDesc, this%deltaRhoOutSqr, this%halogenXCorrection, this%tHelical,&
-            & this%coord0, this%deltaDftb)
+        call getGradients(env, this%scc, this%isExtField, this%isXlbomd, this%nonSccDeriv,&
+            & this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont, this%skOverCont,&
+            & this%repulsive, this%neighbourList, this%nNeighbourSk, this%species,&
+            & this%img2CentCell, this%iSparseStart, this%orb, this%potential, this%coord,&
+            & this%derivs, this%groundDerivs, this%tripletderivs, this%mixedderivs, this%iRhoPrim,&
+            & this%thirdOrd, this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
+            & this%rangeSep, this%SSqrReal, this%over, this%denseDesc, this%deltaRhoOutSqr,&
+            & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -1297,7 +1296,7 @@ contains
               & this%dispersion, this%coord, this%q0, this%invLatVec, this%cellVol,&
               & this%totalStress, this%totalLatDeriv, this%intPressure, this%reks)
         else
-          call getStress(env, this%scc, this%thirdOrd, this%tExtField, this%nonSccDeriv,&
+          call getStress(env, this%scc, this%thirdOrd, this%isExtField, this%nonSccDeriv,&
               & this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont,&
               & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
               & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
@@ -1324,7 +1323,7 @@ contains
         & .and. (.not. (this%isGeoOpt .or. this%tMD)&
         & .or. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep, this%nGeoSteps,&
         & this%restartFreq))) then
-      call this%electrostatPot%evaluate(env, this%scc, this%EField)
+      call this%electrostatPot%evaluate(env, this%scc, this%eField)
       call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
 
@@ -1482,8 +1481,8 @@ contains
           & this%intPressure, this%totalStress, this%totalLatDeriv, this%velocities, tempIon)
       this%tCoordsChanged = .true.
       this%tLatticeChanged = this%tBarostat
-      call printMdInfo(this%tSetFillingTemp, this%tEField, this%tPeriodic, this%tempElec,&
-          & this%absEField, tempIon, this%intPressure, this%extPressure,&
+      call printMdInfo(this%tSetFillingTemp, this%eField, this%tPeriodic, this%tempElec,&
+          & tempIon, this%intPressure, this%extPressure,&
           & this%dftbEnergy(this%deltaDftb%iDeterminant))
       if (tWriteRestart) then
         if (this%tPeriodic) then
@@ -1493,10 +1492,10 @@ contains
               & + this%extPressure * this%cellVol
         end if
         call writeMdOut2(this%fdMd, this%tStress, this%tBarostat, this%tPeriodic, this%isLinResp,&
-            & this%tEField, this%tFixEf, this%tPrintMulliken,&
+            & this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
-            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%absEField,&
-            & this%qOutput, this%q0, this%dipoleMoment, this%solvation)
+            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
+            & this%dipoleMoment, this%solvation)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -4553,7 +4552,7 @@ contains
       call add_shift(hprime, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potentialDerivative)
 
-      ! evaluate <psi| dH/dE | psi>
+      ! evaluate <psi| dH/dE | psi> = Tr_part rho dH/dE
       call mulliken(dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
           & img2CentCell, iSparseStart)
 
@@ -5092,7 +5091,7 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-        !> Is the geometry haelical
+    !> Is the geometry helical
     logical, intent(in) :: tHelical
 
     !> species of atoms
@@ -5353,12 +5352,11 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
-      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-      & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
-      & chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & halogenXCorrection, tHelical, coord0, deltaDftb)
+  subroutine getGradients(env, sccCalc, isExtField, isXlbomd, nonSccDeriv, rhoPrim, ERhoPrim,&
+      & qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK, species,&
+      & img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs, tripletderivs,&
+      & mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep,&
+      & SSqrReal, over, denseDesc, deltaRhoOutSqr, halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5367,16 +5365,13 @@ contains
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> external electric field
-    logical, intent(in) :: tExtField
+    logical, intent(in) :: isExtField
 
     !> extended Lagrangian active?
     logical, intent(in) :: isXlbomd
 
     !> method for calculating derivatives of S and H0
     type(TNonSccDiff), intent(in) :: nonSccDeriv
-
-    !> Any applied electric field
-    real(dp), intent(in) :: Efield(:)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -5493,7 +5488,7 @@ contains
     allocate(tmpDerivs(3, nAtom))
     derivs(:,:) = 0.0_dp
 
-    if (.not. (tSccCalc .or. tExtField)) then
+    if (.not. (tSccCalc .or. isExtField)) then
       ! No external or internal potentials
       if (tImHam) then
         call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
@@ -5547,7 +5542,7 @@ contains
         call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
       end if
 
-      if (tExtField) then
+      if (isExtField) then
         do iAt = 1, nAtom
           derivs(:, iAt) = derivs(:, iAt)&
               & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
@@ -5699,7 +5694,7 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
+  subroutine getStress(env, sccCalc, thirdOrd, isExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
       & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
@@ -5715,7 +5710,7 @@ contains
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> External field
-    logical, intent(in) :: tExtField
+    logical, intent(in) :: isExtField
 
     !> method for calculating derivatives of S and H0
     type(TNonSccDiff), intent(in) :: nonSccDeriv
@@ -5854,7 +5849,7 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    if (tExtField) then
+    if (isExtField) then
       call getExtFieldStress(latVec, cellVol, q0, qOutput, potential%extGrad, coord0, tmpStress)
       totalStress(:,:) = totalStress + tmpStress
     end if
@@ -6886,7 +6881,7 @@ contains
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
-      & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
+      & tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
       & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
       & referenceN0, qNetAtom, reks)
 
@@ -6963,7 +6958,7 @@ contains
     real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> is an external electric field present
-    logical, intent(in) :: tExtField
+    logical, intent(in) :: isExtField
 
     !> Is the extended Lagrangian being used for MD
     logical, intent(in) :: isXlbomd
@@ -7153,7 +7148,7 @@ contains
       end if
 
       call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
-          & species, tExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
+          & species, isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
           & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)

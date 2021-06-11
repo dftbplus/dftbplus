@@ -15,7 +15,7 @@ module dftbp_potentials
   implicit none
 
   private
-  public :: TPotentials, TPotentials_init
+  public :: TPotentials, TPotentials_init, TAtomExtPotInput
 
 
   !> data type to store components of the internal and external potential as named variables - makes
@@ -24,6 +24,8 @@ module dftbp_potentials
   !> Note: the reason for splitting internal and external potentials is that internals require 0.5
   !> scaling for double counting when evaluating total energies of the form V * n
   type TPotentials
+
+    !> Is data structure initialised
     logical :: tInitialised = .false.
 
     !> internal atom and spin resolved potential
@@ -58,14 +60,39 @@ module dftbp_potentials
     !> allocated as 1 in most cases
     real(dp), allocatable :: coulombShell(:,:,:)
 
+    !> internal atom and spin resolved onsite only potential (i.e. relating to net, not gross
+    !> populations)
+    real(dp), allocatable :: intOnSiteAtom(:,:)
+
+    !> external atom and spin resolved onsite only potential (i.e. relating to net, not gross
+    !> populations)
+    real(dp), allocatable :: extOnSiteAtom(:,:)
+
   end type TPotentials
 
+
+  !> External potentials at atomic sites
+  type TAtomExtPotInput
+
+    !> Potentials experienced by gross population charge on atom
+    real(dp), allocatable :: Vext(:)
+
+    !> Atom(s) at which potential is present
+    integer, allocatable :: iAt(:)
+
+    !> Potentials experienced by net population charge on atom
+    real(dp), allocatable :: VextOnSite(:)
+
+    !> Atom(s) at which on-site potential is present
+    integer, allocatable :: iAtOnSite(:)
+
+  end type TAtomExtPotInput
 
 contains
 
 
   !> Allocates storage for the potential components
-  subroutine TPotentials_init(this, orb, nAtom, nSpin)
+  subroutine TPotentials_init(this, orb, nAtom, nSpin, extAtPotentials)
 
     !> data structure to allocate
     type(TPotentials), intent(out) :: this
@@ -78,6 +105,9 @@ contains
 
     !> number of spins
     integer, intent(in) :: nSpin
+
+    !> Should the on site potentials be allocated?
+    type(TAtomExtPotInput), intent(in), optional :: extAtPotentials
 
     @:ASSERT(.not. this%tInitialised)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
@@ -103,6 +133,21 @@ contains
     this%extGrad(:,:) = 0.0_dp
     this%orbitalBlock = 0.0_dp
     this%iorbitalBlock = 0.0_dp
+
+    if (present(extAtPotentials)) then
+
+      if (allocated(extAtPotentials%VextOnSite)) then
+
+        allocate(this%extOnSiteAtom(nAtom,nSpin))
+        this%extOnSiteAtom(:,:) = 0.0_dp
+
+        allocate(this%intOnSiteAtom(nAtom,nSpin))
+        this%intOnSiteAtom(:,:) = 0.0_dp
+
+      end if
+
+    end if
+
     this%tInitialised = .true.
 
   end subroutine TPotentials_init

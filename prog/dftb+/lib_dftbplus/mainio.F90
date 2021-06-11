@@ -56,6 +56,7 @@ module dftbp_mainio
   use dftbp_cosmo, only : TCosmo
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
+  use dftbp_extfields, only : TEField
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketComm
 #:endif
@@ -2978,9 +2979,9 @@ contains
 
   !> Third group of data to go to detailed.out
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
-      & pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin, tSpinOrbit,&
-      & tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd,&
-      & tSolv)
+      & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
+      & tSpinOrbit, tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX,&
+      & tRangeSep, t3rd, tSolv)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3018,8 +3019,8 @@ contains
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
-    !> Is there an external electric field
-    logical, intent(in) :: tEfield
+    !> Is there an external field present
+    logical, intent(in) :: isExtField
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -3141,7 +3142,7 @@ contains
       write(fd, format2U) 'Energy L.S', energy%ELS, 'H', energy%ELS * Hartree__eV, 'eV'
     end if
 
-    if (tEfield) then
+    if (isExtField) then
       write(fd, format2U) 'Energy ext. field', energy%Eext, 'H', energy%Eext * Hartree__eV, 'eV'
     end if
 
@@ -3448,8 +3449,8 @@ contains
 
 
   !> Seventh group of data for detailed.out
-  subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-      & dipoleMoment, deltaDftb, solvation)
+  subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
+      & deltaDftb, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3466,11 +3467,8 @@ contains
     !> Are finite difference derivatives being computed
     logical, intent(in) :: tDerivs
 
-    !> Is there an external electric field
-    logical, intent(in) :: tEField
-
-    !> What is the external E field magnitude
-    real(dp), intent(in) :: absEField
+    !> External electric field (if allocated)
+    type(TEField), intent(in), allocatable :: eField
 
     !> dipole moment
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
@@ -3524,8 +3522,11 @@ contains
       end if
     end if
 
-    if (tEfield) then
-      write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
+    if (allocated(eField)) then
+      if (allocated(eField%EFieldStrength)) then
+        write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
+            & eField%absEField * au__V_m, 'V/m'
+      end if
     end if
 
     if (tGeoOpt) then
@@ -3664,9 +3665,9 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
+  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & absEField, qOutput, q0, dipoleMoment, solvation)
+      & qOutput, q0, dipoleMoment, solvation)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3683,8 +3684,8 @@ contains
     !> Is linear response excitation being used
     logical, intent(in) :: isLinResp
 
-    !> External electric field
-    logical, intent(in) :: tEField
+    !> External electric field (if allocated)
+    type(TEField), intent(in), allocatable :: eField
 
     !> Is the  Fermi level fixed
     logical, intent(in) :: tFixEf
@@ -3712,9 +3713,6 @@ contains
 
     !> Atomic kinetic energy
     real(dp), intent(in) :: tempIon
-
-    !> magnitude of any applied electric field
-    real(dp), intent(in) :: absEField
 
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -3767,8 +3765,11 @@ contains
     write(fd, format2U) 'Total MD Energy', energy%EMerminKin, 'H',&
         & energy%EMerminKin * Hartree__eV, 'eV'
     write(fd, format2U) 'MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K'
-    if (tEfield) then
-      write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
+    if (allocated(eField)) then
+      if (allocated(eField%EFieldStrength)) then
+        write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
+            & eField%absEField * au__V_m, 'V/m'
+      end if
     end if
     if (tFixEf .and. tPrintMulliken) then
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
@@ -4496,23 +4497,20 @@ contains
 
 
   !> Prints out info about current MD step.
-  subroutine printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, tempIon,&
-      & cellPressure, pressure, energy)
+  subroutine printMdInfo(tSetFillingTemp, eField, tPeriodic, tempElec, tempIon, cellPressure,&
+      & pressure, energy)
 
     !> Is the electronic temperature set by the thermostat method?
     logical, intent(in) :: tSetFillingTemp
 
-    !> Is an electric field being applied?
-    logical, intent(in) :: tEFIeld
+    !> External electric field (if allocated)
+    type(TEField), intent(in), allocatable :: eField
 
     !> Is the geometry periodic?
     logical, intent(in) :: tPeriodic
 
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
-
-    !> magnitude of applied electric field
-    real(dp), intent(in) :: absEField
 
     !> Atomic kinetic energy
     real(dp), intent(in) :: tempIon
@@ -4529,8 +4527,11 @@ contains
     if (tSetFillingTemp) then
       write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
     end if
-    if (tEfield) then
-      write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
+    if (allocated(eField)) then
+      if (allocated(eField%EFieldStrength)) then
+        write(stdOut, format1U1e) 'External E field', eField%absEField, 'au',&
+            & eField%absEField * au__V_m, 'V/m'
+      end if
     end if
     write(stdOut, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
     write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
