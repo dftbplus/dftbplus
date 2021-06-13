@@ -1,18 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 module dftbp_transport_negfvars
   use dftbp_common_accuracy, only : dp, mc, lc
-  use dftbp_type_commontypes
-  use dftbp_type_wrappedintr
-  use dftbp_extlibs_xmlf90
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
+  
   private
-
   public :: TNEGFTunDos
   public :: TNEGFGreenDensInfo
   public :: TTransPar

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,13 +18,17 @@
 !> For the specification of the HSD format see the sample input
 module dftbp_io_hsdparser
   use dftbp_common_assert
-  use dftbp_io_message
-  use dftbp_io_charmanip
-  use dftbp_io_xmlutils
-  use dftbp_extlibs_xmlf90
+  use dftbp_io_message, only : error
+  use dftbp_io_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
+      & unquotedScan, convertWhitespaces, getFirstOccurance
+  use dftbp_io_xmlutils, only : getFirstChildByName
+  use dftbp_extlibs_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
+      & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
+      & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&
+      & getAttribute, getNodeName, getNodeValue, destroyNode, setAttribute, getAttribute, normalize
   implicit none
+  
   private
-
 
   !> Wrapper around the parsing function
   interface parseHSD

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,12 +9,14 @@
 
 !> Module for square dense matrix specification
 module dftbp_type_densedescr
-  use dftbp_extlibs_scalapackfx
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : DLEN_
+#:endif
   implicit none
+  
   private
-
   public :: TDenseDescr
-
+  
 
   type :: TDenseDescr
 

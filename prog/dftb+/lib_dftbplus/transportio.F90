@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,21 +9,19 @@
 
 module dftbp_dftbplus_transportio
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_common_globalenv
-  use dftbp_io_message
-  use dftbp_type_orbitals
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : Hartree__eV
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only : error
+  use dftbp_type_orbitals, only : TOrbitals
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars
+  use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
 
   private
   public :: writeShifts, readShifts, writeContactShifts
-#:if WITH_TRANSPORT
   public :: readContactShifts
-#:endif
 
   integer, parameter :: contactFormatVersion = 2
 
@@ -593,6 +591,11 @@ contains
     charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
 
   end subroutine readContactShiftData2
+
+#:else
+
+  subroutine readContactShifts() 
+  end subroutine readContactShifts
 
 #:endif
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,49 +9,46 @@
 
 !> Contains data type representing the input data for DFTB
 module dftbp_dftbplus_inputdata
-  use dftbp_common_hamiltoniantypes
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_type_typegeometry
-  use dftbp_io_message
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_io_message, only : error, warning
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_timedep_linresp, only : TLinrespini
   use dftbp_timedep_pprpa, only : TppRPAcal
-  use dftbp_dftb_slakocont
-  use dftbp_type_commontypes
-  use dftbp_dftb_repcont
-  use dftbp_type_linkedlist
-  use dftbp_type_wrappedintr
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_repcont, only : TRepCont
+  use dftbp_type_linkedlist, only : TListIntR1, destruct
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
-  use dftbp_timedep_dynamics
+  use dftbp_timedep_timeprop, only : TElecDynamicsInp
   use dftbp_dftb_etemp, only : fillingTypes
-  use dftbp_md_xlbomd
+  use dftbp_md_xlbomd, only : TXLBOMDInp
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
   use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
-  use dftbp_reks_reks
+  use dftbp_reks_reks, only : TReksInp
   use dftbp_solvation_cm5, only : TCM5Input
   use dftbp_solvation_solvinput, only : TSolvationInp
-
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars
+  use dftbp_transport_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
   implicit none
+  
   private
   save
-
   public :: TControl, TGeometry, TSlater, TInputData, TXLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: TRangeSepInp
   public :: init, destruct
-#:if WITH_TRANSPORT
   public :: TNEGFInfo
-#:endif
 
 
   !> Contains Blacs specific options.
@@ -203,7 +200,14 @@ module dftbp_dftbplus_inputdata
     !> Localise electronic states
     logical :: tLocalise   = .false.
 
+    !> Input data for Pipek-Mezey localisation
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
+
+    !> Is a perturbation expression in use
+    logical :: isDFTBPT = .false.
+
+    !> Is this is a static electric field perturbation calculation
+    logical :: isStatEPerturb = .false.
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
@@ -539,11 +543,19 @@ module dftbp_dftbplus_inputdata
   end type TSlater
 
 #:if WITH_TRANSPORT
+
   !> container for data needed by libNEGF
   type TNEGFInfo
     type(TNEGFTunDos) :: tundos  !Transport section informations
     type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
   end type TNEGFInfo
+
+#:else
+
+  !> Dummy type replacement
+  type TNegfInfo
+  end type TNegfInfo
+
 #:endif
 
 

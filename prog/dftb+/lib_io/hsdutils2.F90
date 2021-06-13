@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,17 +11,20 @@
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdparser
-  use dftbp_io_xmlutils
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
+      & appendPathAndLine
+  use dftbp_io_hsdparser, only : attrName, attrModifier
+  use dftbp_io_xmlutils, only : getTagsWithoutAttribute, removeNodes, removeSpace
   use dftbp_common_unitconversion, only : unit
-  use dftbp_io_message
-  use dftbp_io_charmanip
-  use dftbp_extlibs_xmlf90
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_charmanip, only : newline, tolower, i2c
+  use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
+      & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
+      & normalize, append_to_string, destroyNodeList, removeAttribute
   implicit none
+  
   private
-
   public :: getUnprocessedNodes, warnUnprocessedNodes,  getModifierIndex
   public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier

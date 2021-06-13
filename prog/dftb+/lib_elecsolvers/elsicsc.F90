@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,9 +9,6 @@
 
 !> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elecsolvers_elsicsc
-#:if WITH_MPI
-  use dftbp_extlibs_mpifx
-#:endif
   use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
@@ -20,9 +17,12 @@ module dftbp_elecsolvers_elsicsc
   use dftbp_io_message, only : error
   use dftbp_math_angmomentum, only : rotateZ
   use dftbp_type_commontypes, only : TOrbitals
+  #:if WITH_MPI
+    use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduce
+  #:endif
   implicit none
+  
   private
-
   public :: TElsiCsc, TElsiCsc_init
 
   #:set CONDITIONS = ['', 'Helical']

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,13 +15,13 @@ module dftbp_math_angmomentum
   use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
-  use dftbp_math_qm
+  use dftbp_math_qm, only : makeSimilarityTrans
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_common_environment
-  use dftbp_type_densedescr
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_type_densedescr, only : TDenseDescr
   implicit none
+  
   private
-
   public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ
 
   !> Construct matrix for rotation of orbitals around the z axis in the tesseral spherical hamonics

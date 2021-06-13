@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,20 +10,19 @@
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module dftbp_dftb_forces
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp 
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_scc
-  use dftbp_type_commontypes
-  use dftbp_dftb_slakocont
-  use dftbp_common_schedule
-  use dftbp_common_environment
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_constants, only : pi
   use dftbp_math_quaternions, only : rotate3
   use dftbp_dftb_boundarycond, only : zAxis
   implicit none
 
   private
-
   public :: derivative_shift
 
   !> forces with shift vectors present

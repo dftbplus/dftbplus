@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 !> Routines to calculate a Slater type orbital (STO)
 module dftbp_slater
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only :dp
   implicit none
 
   private
@@ -134,23 +134,20 @@ contains
       select case (mm)
       case(-3)
         ! y(3x**2-y**2)
-        rty = 0.5900435899266435_dp * yy * (3.0_dp * xx**2 - yy**2) &
-            &/ rr**3
+        rty = 0.5900435899266435_dp * yy * (3.0_dp * xx**2 - yy**2) / rr**3
       case(-2)
         ! x**2+y**2+z**2
         rty = 2.890611442640554_dp * xx * yy *zz / rr**3
       case(-1)
         ! yz**2
-        rty = -0.4570457994644658_dp * (-4.0_dp * zz**2 + xx**2 + yy**2) * yy &
-            &/ rr**3
+        rty = -0.4570457994644658_dp * (-4.0_dp * zz**2 + xx**2 + yy**2) * yy / rr**3
       case(0)
         ! z**3
-        rty = -0.3731763325901155_dp * zz &
-            &*(-2.0_dp * zz**2 + 3.0_dp * xx**2 + 3.0_dp * yy**2)/ rr**3
+        rty = -0.3731763325901155_dp * zz * (-2.0_dp * zz**2 + 3.0_dp * xx**2 + 3.0_dp * yy**2)&
+            & / rr**3
       case(1)
         ! xz**2
-        rty = -0.4570457994644658_dp * (-4.0_dp * zz**2 + xx**2 + yy**2) * xx &
-            &/ rr**3
+        rty = -0.4570457994644658_dp * (-4.0_dp * zz**2 + xx**2 + yy**2) * xx / rr**3
       case(2)
         ! z(x**2-y**2)
         rty = 1.445305721320277_dp * zz * (xx**2 - yy**2) / rr**3
@@ -213,8 +210,8 @@ contains
     allocate(this%gridValue(this%nGrid))
     do iGrid = 1, this%nGrid
       rr = real(iGrid - 1, dp) * resolution
-      call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, this%alpha, &
-          &rr, this%gridValue(iGrid))
+      call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, this%alpha, rr,&
+          & this%gridValue(iGrid))
     end do
 
   end subroutine SlaterOrbital_init
@@ -241,8 +238,7 @@ contains
     ind = floor(rr / this%gridDist) + 1
     if (ind < this%nGrid) then
       frac = mod(rr, this%gridDist) / this%gridDist
-      sto = (1.0_dp - frac) * this%gridValue(ind) + &
-          &frac * this%gridValue(ind+1)
+      sto = (1.0_dp - frac) * this%gridValue(ind) + frac * this%gridValue(ind+1)
     else
       sto = 0.0_dp
     end if
@@ -294,7 +290,7 @@ contains
       do jj = 1, nPow
         rTmp = rTmp + aa(jj, ii) * pows(jj)
       end do
-      sto = sto + rTmp * exp(alpha(ii)*rr)
+      sto = sto + rTmp * exp(alpha(ii) * rr)
     end do
 
   end subroutine SlaterOrbital_getValue_explicit
@@ -313,9 +309,11 @@ contains
       deallocate(left%aa)
       deallocate(left%alpha)
     end if
+
     allocate(left%aa(size(right%aa, dim=1), size(right%aa, dim=2)))
     allocate(left%alpha(size(right%alpha)))
     allocate(left%gridValue(size(right%gridValue)))
+
     left%nPow = right%nPow
     left%nAlpha = right%nAlpha
     left%ll = right%ll

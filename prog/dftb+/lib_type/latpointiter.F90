@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,11 +9,11 @@
 
 !> Implements an interator over lattice points up to a certain cutoff
 module dftbp_type_latpointiter
-  use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
+  use dftbp_common_accuracy, only : dp
   implicit none
+  
   private
-
   public :: TLatPointIter, TLatPointIter_init
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,16 +14,16 @@
 !> interpolation instead of bisection.
 module dftbp_dftb_etemp
   use dftbp_common_assert
-  use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg
-  use dftbp_math_errorfunction
-  use dftbp_io_message
-  use dftbp_math_hermite
-  use dftbp_math_sorting
-  use dftbp_common_constants
+  use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
+  use dftbp_math_errorfunction, only : erfcwrap
+  use dftbp_io_message, only : error
+  use dftbp_math_hermite, only : hx
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_common_constants, only : pi
   use dftbp_math_factorial, only : fact
   implicit none
+  
   private
-
   public :: Efilling, electronFill, fillingTypes
 
   type :: TFillingTypesEnum

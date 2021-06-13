@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,19 +16,18 @@
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_math_blasroutines
-  use dftbp_math_sorting
-  use dftbp_type_commontypes
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_blasroutines, only : herk
+  use dftbp_math_sorting, only : unique, heap_sort
+  use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx
-  use dftbp_common_blacsenv
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pherk, size, pblasfx_psyrk
+  !use dftbp_common_blacsenv
 #:endif
   implicit none
+  
   private
-
   public :: makeDensityMatrix
-
 #:if WITH_SCALAPACK
   public :: makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
 #:endif

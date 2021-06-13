@@ -1,18 +1,17 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains various constants for memory management
 module dftbp_common_memman
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
 
   implicit none
 
   private
-
   public :: incrmntOfArray
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,10 +14,10 @@
 !> currently be handled.
 module dftbp_io_tokenreader
   use dftbp_common_assert
-  use dftbp_io_charmanip
+  use dftbp_io_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
   use dftbp_io_message, only : error
   use dftbp_common_accuracy, only : dp
-  use dftbp_extlibs_xmlf90
+  use dftbp_extlibs_xmlf90, only : string, assignment(=)
   implicit none
 
   private

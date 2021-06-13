@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -33,7 +33,7 @@
 !> the given tolerance.
 module dftbp_geoopt_linemin
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : goldenMeanP1
   implicit none
 

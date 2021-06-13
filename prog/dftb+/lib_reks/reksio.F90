@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,17 +15,16 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksio
 
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : au__Debye
-  use dftbp_common_globalenv
-  use dftbp_io_message
+  use dftbp_common_globalenv, only: stdOut
+  use dftbp_io_message, only : error
   use dftbp_reks_rekscommon, only : getTwoIndices, getSpaceSym
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
   private
-
   public :: printReksMicrostates, printSaReksEnergy
   public :: printReksSAInfo, printReksSSRInfo
   public :: printReksGradInfo
@@ -45,8 +44,8 @@ module dftbp_reks_reksio
 
     integer :: iL
 
-    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
-        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
+    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,10x,A,9x,A,10x,A,8x,A)') &
+        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Disp", "Total"
     do iL = 1, this%Lmax
       write(stdOut,'(I3,7(f13.8))',advance="no") iL, this%enLnonSCC(iL), &
           & this%enLscc(iL), this%enLspin(iL)
@@ -60,7 +59,13 @@ module dftbp_reks_reksio
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      write(stdOut,'(2(f13.8))') Erep, this%enLtot(iL)
+      write(stdOut,'(1(f13.8))',advance="no") Erep
+      if (this%isDispersion) then
+        write(stdOut,'(1(f13.8))',advance="no") this%enLdisp(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      write(stdOut,'(1(f13.8))') this%enLtot(iL)
     end do
 
   end subroutine printReksMicrostates
@@ -144,6 +149,7 @@ module dftbp_reks_reksio
     real(dp), intent(in) :: derivs(:,:)
 
     integer :: ist, ia, ib, nstHalf
+    character(3), parameter :: ordinals(6) = ['1st', '2nd', '3rd', '4th', '5th', '6th']
 
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
@@ -165,7 +171,7 @@ module dftbp_reks_reksio
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
         do ist = 1, this%nstates
-          write(stdOut,*) ist, "st state (SSR)"
+          write(stdOut,'(12X,A)') ordinals(ist) // " state (SSR)"
           write(stdOut,'(3(f15.8))') this%SSRgrad(:,:,ist)
           if (ist == this%nstates) then
             write(stdOut,"(A)") repeat("-", 50)
@@ -174,18 +180,20 @@ module dftbp_reks_reksio
           end if
         end do
 
-!        write(stdOut,*) "AVG state"
-!        write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
-!        write(stdOut,'(3(f15.8))')
-!        do ist = 1, this%nstates
-!          write(stdOut,*) ist, "st state (SA-REKS)"
-!          write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
-!          if (ist == this%nstates) then
-!            write(stdOut,"(A)") repeat("-", 50)
-!          else
-!            write(stdOut,'(3(f15.8))')
-!          end if
-!        end do
+        if (this%Plevel >= 2) then
+          write(stdOut,"(12X,A)") "Averaged state"
+          write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
+          write(stdOut,'(3(f15.8))')
+          do ist = 1, this%nstates
+            write(stdOut,'(10X,A)') ordinals(ist) // " state (SA-REKS)"
+            write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
+            if (ist == this%nstates) then
+              write(stdOut,"(A)") repeat("-", 50)
+            else
+              write(stdOut,'(3(f15.8))')
+            end if
+          end do
+        end if
 
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,42 +18,39 @@
 module dftbp_reks_reksgrad
 
 #:if WITH_OMP
-  use omp_lib
+  use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
 #:endif
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_dftb_coulomb, only : addInvRPrime
-  use dftbp_type_densedescr
-  use dftbp_common_environment
-  use dftbp_common_globalenv
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_math_lapackroutines, only : getrf, getri
-  use dftbp_io_message
-  use dftbp_dftb_nonscc
-  use dftbp_type_orbitals
-  use dftbp_dftb_periodic
-  use dftbp_dftb_rangeseparated
-  use dftbp_dftb_scc
-  use dftbp_common_schedule
-  use dftbp_dftb_slakocont
-  use dftbp_dftb_sparse2dense
-  use dftbp_reks_rekscommon
+  use dftbp_io_message, only : error
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_slakocont, only : TSlakoCont 
+  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
+      & findShellOfAO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
 
   implicit none
 
   private
-
   public :: getEnergyWeightedDensityL
   public :: derivative_blockL, weightGradient
-
   public :: getSccSpinLrPars, getHxcKernel, getG1ILOmegaRab, getSuperAMatrix
   public :: buildSaReksVectors, buildInteractionVectors, buildLstateVector, solveZT
   public :: getRmat, getRdel, getZmat, getQ1mat, getQ1del, getQ2mat
-
   public :: SaToSsrXT, SaToSsrWeight, SaToSsrGradient, addSItoRQ
   public :: SSRshift, SIshift, Lshift, RTshift
   public :: getOtherSAgrad, getReksNAC
-
   public :: getExtChrgGradients
 
   contains

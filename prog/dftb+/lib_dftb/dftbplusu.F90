@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,15 +11,15 @@
 !> Intended to be used with SCC switched on !
 module dftbp_dftb_dftbplusu
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_io_fileid
-  use dftbp_type_commontypes
-  use dftbp_dftb_spin
+  use dftbp_common_accuracy, only : dp, sc
+  !use dftbp_io_message
+  !use dftbp_io_fileid
+  use dftbp_type_commontypes, only : TOrbitals
+  !use dftbp_dftb_spin
   use dftbp_math_sorting, only : heap_sort
   implicit none
+  
   private
-
   public :: TDftbUInp, TDftbU, TDftbU_init, plusUFunctionals
 
   !> Input for DFTB+U calculation
@@ -144,7 +144,7 @@ contains
 
   !> Construct the Orbital contribution to the Hamiltonian
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein PHYSICAL REVIEW B 67 (15): 153106 APR 15 2003
-  subroutine shift_U(this, shift, qBlock, species, orb)
+  subroutine shift_U(this, shift, qBlock, species, orb, iFuncOverRide)
 
     !> Instance of DFTB+U calculation
     class(TDftbU), intent(in) :: this
@@ -161,10 +161,12 @@ contains
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
+    integer, intent(in), optional :: iFuncOverRide
+
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
     integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
-    integer :: ii, jj, kk, ll, ik
+    integer :: ii, jj, kk, ll, ik, iFunc
 
     @:ASSERT(all(shape(shift)==shape(qBlock)))
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
@@ -173,7 +175,13 @@ contains
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
 
-    if (this%iFunctional == plusUFunctionals%fll) then
+    if (present(iFuncOverRide)) then
+      iFunc = iFuncOverRide
+    else
+      iFunc = this%iFunctional
+    end if
+
+    if (iFunc == plusUFunctionals%fll) then
       ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)

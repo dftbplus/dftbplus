@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,16 +10,16 @@
 !> HSD-parsing related helper routines.
 module dftbp_dftbplus_hsdhelpers
   use dftbp_common_globalenv, only : stdOut, tIoProc
-  use dftbp_dftbplus_parser
-  use dftbp_io_hsdparser
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdutils2
-  use dftbp_dftbplus_inputdata
-  use dftbp_io_message
+  use dftbp_dftbplus_parser, only : TParserFlags, rootTag, readHsdFile, parseHsdTree
+  use dftbp_io_hsdparser, only : dumpHSD
+  use dftbp_io_hsdutils, only : getChild
+  use dftbp_io_hsdutils2, only : warnUnprocessedNodes
+  use dftbp_dftbplus_inputdata, only : TInputData
+  use dftbp_io_message, only : error
   use dftbp_extlibs_xmlf90, only : fnode, destroyNode
   implicit none
+  
   private
-
   public :: parseHsdInput, doPostParseJobs
 
 

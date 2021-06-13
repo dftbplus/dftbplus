@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -11,23 +18,39 @@
 module dftbp_poisson_poisson
 
   use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
-  use dftbp_poisson_gallocation
-  use dftbp_poisson_parameters
-  use dftbp_poisson_structure
-  use dftbp_poisson_parcheck
-  use dftbp_poisson_gewald
-  use dftbp_poisson_bulkpot
-  use dftbp_poisson_fancybc
-  use dftbp_poisson_mpi_poisson
+  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate, writePoissMemInfo,&
+      & writePoissPeakInfo
+  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,& 
+      & biasdir, bufferBox, cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin,&
+      & do_renorm, DoCilGate, DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb,&
+      & fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm,&
+      & init_defaults, InitPot, LmbMax, localBC, maxiter, maxpoissiter, mbound_end, mixed, mu,&
+      & ncdim, ncont, nf, ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds,&
+      & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
+      & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indeces,&
+      & set_contdir, set_dopoisson, set_fermi, set_mol_indeces, set_ncont, set_poissonbox,&
+      & set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose, telec, temp,&
+      & tip_atom, tipbias, verbose, x0, y0, z0
+  use dftbp_poisson_structure, only : dqmat, init_charges, init_skdata, init_structure, izp, lmax,&
+      & natoms, period, uhubb, renorm, x, initlatvecs, period_dir, boxsiz
+  use dftbp_poisson_parcheck, only: check_biasdir, check_contacts, check_localbc, check_parameters,&
+      & check_poisson_box, write_parameters
+  use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
+  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&     
+      & destroy_phi_bulk
+  use dftbp_poisson_fancybc, only : bndyc, coef, coef_cilgate, coef_gate, coef_tip, gate_bound,&
+      & cilgate_bound, tip_bound, local_bound
+  use dftbp_poisson_mpi_poisson, only : active_id, id0, numprocs, id
+#:if WITH_MPI
+  use dftbp_poisson_mpi_poisson, only : global_comm, poiss_comm, poiss_mpi_init, poiss_mpi_split,&
+      & mpifx_gatherv
+#:endif
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_accuracy, only : lc, dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
   implicit none
+  
   private
-
-  !> Verbosity threashold
-  integer, parameter :: VBT=30
-
   ! from parameters
   public :: MAXNCONT
   public :: verbose, biasdir, gatedir, contdir, ncont, ni, nf
@@ -60,11 +83,11 @@ module dftbp_poisson_poisson
 #:endif
   public :: id0, active_id, numprocs
   ! from io
-
-
   public :: init_poissbox, mudpack_drv, save_pot, rho, n_alpha
   public :: poiss_getlatvecs, poiss_updcoords, poiss_savepotential, poiss_freepoisson
 
+  !> Verbosity threashold
+  integer, parameter :: VBT=30
 
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: phi_

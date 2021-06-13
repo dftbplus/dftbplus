@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,12 +10,14 @@
 !> Utilities for processing an XML tree
 module dftbp_io_xmlutils
   use dftbp_common_assert
-  use dftbp_io_charmanip
-  use dftbp_extlibs_xmlf90
+  use dftbp_io_charmanip, only : len_trim2
+  use dftbp_extlibs_xmlf90, only : fnode, string, fnodeList, TEXT_NODE, item, getParentNode,&
+      & getLength, getFirstChild, removeChild, getNextSibling, getAttributeNode, getNodeType,&
+      & char, getLastChild, getPreviousSibling, operator(==), destroyNode, append, getNodeValue,&
+      & getNodeName
   implicit none
 
   private
-
   public :: getFirstChildByName, getLastChildByName, removeSpace
   public :: getTagsWithoutAttribute, removeChildNodes, removeNodes
   public :: getChildrenByName

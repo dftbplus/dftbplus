@@ -1,17 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Module to print data types
 module dftbp_io_intrinsicpr
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
 
   private
-
   public :: printContent
 
 

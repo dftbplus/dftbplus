@@ -1,20 +1,22 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains wrapper for all thermostats.
 module dftbp_md_thermostat
-  use dftbp_common_accuracy
-  use dftbp_md_dummytherm
-  use dftbp_md_andersentherm
-  use dftbp_md_berendsentherm
-  use dftbp_nhctherm
+  use dftbp_common_accuracy, only : dp
+  use dftbp_md_dummytherm, only : TDummyThermostat, getInitVelocities, init
+  use dftbp_md_andersentherm, only : TAndersenThermostat, getInitVelocities, updateVelocities,&
+      & state
+  use dftbp_md_berendsentherm, only : TBerendsenThermostat, state, updateVelocities,&
+      & getInitVelocities
+  use dftbp_md_nhctherm, only : TNHCThermostat, state, updateVelocities, getInitVelocities, init
   implicit none
+  
   private
-
   public :: TThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

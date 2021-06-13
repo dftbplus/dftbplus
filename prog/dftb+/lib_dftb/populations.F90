@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,13 +11,13 @@
 !> To do: extend to other populations than Mulliken
 module dftbp_dftb_populations
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_dftb_periodic
-  use dftbp_type_commontypes
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
+  !use dftbp_dftb_periodic
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
+  
   private
-
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
   public :: getOnsitePopulation

@@ -18,3 +18,4 @@ qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
+mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)

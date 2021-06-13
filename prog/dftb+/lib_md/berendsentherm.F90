@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,14 +14,14 @@
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
 module dftbp_md_berendsentherm
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_md_mdcommon
-  use dftbp_math_ranlux
-  use dftbp_md_tempprofile
-  use dftbp_io_message
+  use dftbp_common_accuracy, only : dp, minTemp
+  use dftbp_md_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_math_ranlux, only : TRanlux
+  use dftbp_md_tempprofile, only : TTempProfile
+  use dftbp_io_message, only : error
   implicit none
+  
   private
-
   public :: TBerendsenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 

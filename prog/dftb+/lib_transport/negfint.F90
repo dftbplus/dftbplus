@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,42 +9,43 @@
 
 !> Interface to LIBNEGF for DFTB+
 module dftbp_transport_negfint
-  use dftbp_transport_negfvars
+  use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
+      & TElph
   use dftbp_extlibs_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use dftbp_extlibs_negf, only : negf_mpi_init, negf_cart_init
 #:endif
   use dftbp_extlibs_negf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use dftbp_extlibs_negf, only : associate_lead_currents, associate_ldos, associate_transmission
-  use dftbp_extlibs_negf, only : associate_current, compute_current, compute_density_dft, compute_ldos
+  use dftbp_extlibs_negf, only : associate_current, compute_current, compute_density_dft,&
+      & compute_ldos
   use dftbp_extlibs_negf, only : create, create_scratch, destroy, set_readoldDMsgf
-  use dftbp_extlibs_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use dftbp_extlibs_negf, only : destroy_matrices, destroy_negf, get_params, init_contacts,&
+      & init_ldos
   use dftbp_extlibs_negf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
   use dftbp_extlibs_negf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing
   use dftbp_extlibs_negf, only : set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch
   use dftbp_extlibs_negf, only : writememinfo, writepeakinfo, printcsr
-  use dftbp_common_accuracy
-  use dftbp_common_environment
-  use dftbp_common_constants
-  use dftbp_transport_matconv
-  use dftbp_dftb_sparse2dense
-  use dftbp_type_densedescr
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_constants, only : Hartree__eV, pi
+  use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
+  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, unpackHS
+  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_io_formatout
+  use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_common_globalenv, only : stdOut, tIOproc
-  use dftbp_io_message
+  use dftbp_io_message, only : error, warning
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_type_linkedlist
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_common_assert
-  use dftbp_math_eigensolver
+  use dftbp_math_eigensolver, only : heev
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx
+  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_reduceip, mpifx_allreduceip
 #:endif
   implicit none
 
   private
-
   public :: TNegfInt, TNegfInt_init, TNegfInt_final
 
 

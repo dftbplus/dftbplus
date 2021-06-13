@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,11 @@
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
 module dftbp_dftb_reppoly
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_math_bisect
+  use dftbp_common_accuracy, only : dp
+  !use dftbp_math_bisect
   implicit none
+  
   private
-
   public :: powMin, powMax
   public :: TRepPolyIn, TRepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv

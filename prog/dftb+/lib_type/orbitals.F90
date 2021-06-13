@@ -1,18 +1,18 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a type with basis information
 module dftbp_type_orbitals
-  use dftbp_common_accuracy
-  use dftbp_io_message
+  use dftbp_common_accuracy, only : sc
+  use dftbp_io_message, only : error
   use dftbp_common_constants, only : shellNames
   implicit none
+  
   private
-
   public :: TOrbitals, getShellNames, orbitalNames
 
 

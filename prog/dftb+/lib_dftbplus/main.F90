@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,103 +11,133 @@
 !> The main routines for DFTB+
 module dftbp_dftbplus_main
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx
-  use dftbp_math_scalafxext
+  use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_ptranc, pblasfx_psymm, pblasfx_ptran
+  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+  use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs, packERhoPauliBlacs,&
+      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
+      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
+      & unpackSPauliBlacs
 #:endif
 #:if WITH_SOCKETS
+  use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
   use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_common_assert
-  use dftbp_common_constants
-  use dftbp_common_globalenv
-  use dftbp_common_environment
-  use dftbp_type_densedescr
-  use dftbp_dftbplus_inputdata
-  use dftbp_common_hamiltoniantypes
-  use dftbp_dftb_nonscc
-  use dftbp_dftbplus_eigenvects
+  use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
+  use dftbp_common_constants, only : pi
+  use dftbp_common_globalenv, only : stdOut, withMpi
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_dftbplus_inputdata, only : TNEGFInfo
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
+  use dftbp_dftbplus_eigenvects, only : diagDenseMtx
   use dftbp_dftb_repulsive, only : TRepulsive
-  use dftbp_dftb_etemp
-  use dftbp_dftb_populations
-  use dftbp_dftb_densitymatrix
-  use dftbp_dftb_forces
-  use dftbp_dftb_stress
-  use dftbp_dftb_scc
-  use dftbp_dftb_hamiltonian
+  use dftbp_dftb_etemp, only : electronFill, Efilling
+  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
+      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation
+  use dftbp_dftb_densitymatrix, only : makeDensityMatrix
+  use dftbp_dftb_forces, only : derivative_shift
+  use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
+      & getSccHamiltonian, setUpExternalElectricField, mergeExternalPotentials,&
+      & resetExternalPotentials, addBlockChargePotentials
   use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
-  use dftbp_dftb_sccinit
-  use dftbp_dftb_onsitecorrection
-  use dftbp_dftb_periodic
-  use dftbp_mixer_mixer
-  use dftbp_geoopt_geoopt
-  use dftbp_derivs_numderivs2
-  use dftbp_dftb_spin
-  use dftbp_dftb_dftbplusu
-  use dftbp_md_mdcommon
+  !use dftbp_dftb_sccinit
+  use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
+  use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
+      & frac2cart, foldCoordToUnitCell, getNrOfNeighboursForAll, getSparseDescriptor,&
+      & getCellTranslations
+  use dftbp_mixer_mixer, only : TMixer, reset, mix, getInverseJacobian
+  use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
+  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
+  use dftbp_dftb_spin, only : ud2qm, qm2ud
+  use dftbp_dftb_dftbplusu, only : TDftbU
+  use dftbp_md_mdcommon, only : TMdCommon, evalke, evalkt
   use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_dftb_potentials
-  use dftbp_dftb_orbitalequiv
-  use dftbp_dftbplus_parser
-  use dftbp_dftb_sparse2dense
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
+  !use dftbp_dftbplus_parser
+  use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
+      & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
+      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli
 #:if not WITH_SCALAPACK
   use dftbp_math_blasroutines, only : symm, hemm
 #:endif
-  use dftbp_io_hsdutils
-  use dftbp_io_charmanip
-  use dftbp_dftb_shift
-  use dftbp_dftb_spinorbit
-  use dftbp_math_angmomentum
-  use dftbp_dftb_elecconstraints
+  !use dftbp_io_hsdutils
+  !use dftbp_io_charmanip
+  use dftbp_dftb_shift, only : add_shift
+  use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use dftbp_math_angmomentum, only : getLOnsite, getLDual
+  !use dftbp_dftb_elecconstraints
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
-  use dftbp_timedep_linresp
-  use dftbp_timedep_linresptypes
+  use dftbp_timedep_linresp, only : addGradients, linResp_calcExcitations
+  use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_pprpa, only : ppRPAenergies
 #:if WITH_ARPACK
-  use dftbp_timedep_rslinresp
+  use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRS
 #:endif
-  use dftbp_dftbplus_mainio
-  use dftbp_type_commontypes
+  use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
+      & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
+      & writeMdOut2, writeDetailedOut5, writeMdOut1, openDetailedOut, printReksSccInfo,&
+      & writeReksDetailedOut1, writebandout, writehsandstop, printSccInfo, printBlankLine,&
+      & writeCharges, writeDetailedOut1, writeDetailedOut2, writeDetailedOut3,&
+      & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
+      & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
+      & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
+      & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
+      & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
+      & writeDetailedOut8
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_cm5, only : TChargeModel5
-  use dftbp_extlibs_xmlf90
-  use dftbp_thirdorder, only : TThirdOrder
+  !use dftbp_extlibs_xmlf90
+  use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_math_simplealgebra
-  use dftbp_io_message
-  use dftbp_dftb_repcont
-  use dftbp_dftb_halogenx
-  use dftbp_md_xlbomd
-  use dftbp_dftb_slakocont
-  use dftbp_type_linkedlist
-  use dftbp_math_lapackroutines
-  use dftbp_md_mdcommon
-  use dftbp_md_mdintegrator
-  use dftbp_md_tempprofile
+  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
+  use dftbp_io_message, only : error, warning
+  use dftbp_dftb_repcont, only : TRepCont
+  use dftbp_dftb_halogenx, only : THalogenX
+  use dftbp_md_xlbomd, only : TXLBOMD
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  !use dftbp_type_linkedlist
+  use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
+  use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
+  use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_timedep_dynamics
+  use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_taggedoutput, only : TTaggedWriter
-  use dftbp_reks_reks
+  use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
+  & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
+  & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
+  & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
+  & getReksStress
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
-  use dftbp_dftb_determinants
+  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
 #:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TTransPar
-  use dftbp_transport_negfint
+  use dftbp_transport_negfint, only : TNegfInt_final
 #:endif
-  use dftbp_dftbplus_transportio
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut, fCharges,&
-      & fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag
+  use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut,&
+      & fCharges, fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag,&
+      & derivEBandOut
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_initprogram, only : overrideContactCharges
 #:endif
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_derivs_staticperturb, only : staticPerturWrtE
   implicit none
 
   private
@@ -365,6 +395,34 @@ contains
 
   #:endif
 
+    if (this%isDFTBPT) then
+      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
+        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
+            & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
+            & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
+            & this%img2CentCell, this%coord, this%scc, this%maxSccIter, this%sccTol,&
+            & this%isSccConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
+            & this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd, this%dftbU,&
+            & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%rangeSep,&
+            & this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec,&
+            & this%cellVec, this%tPeriodic, this%polarisability, this%dEidE, this%dqOut,&
+            & this%neFermi, this%dEfdE)
+        if (this%tWriteBandDat) then
+          call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
+        end if
+      end if
+
+    end if
+
+    if (env%tGlobalLead) then
+      if (this%tWriteDetailedOut) then
+        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+            & this%neFermi, this%dEfdE)
+
+        close(this%fdDetailedOut)
+      end if
+    end if
+
     if (allocated(this%pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
       if (withMpi) then
@@ -392,13 +450,14 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
           & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
-          & this%lCurrArray)
+          & this%lCurrArray, this%polarisability, this%dEidE)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
-          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont)
+          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -726,7 +785,7 @@ contains
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
-            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%reks)
+            & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
         call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
@@ -735,7 +794,7 @@ contains
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %tExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
             & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
-            & this%dispersion, this%reks)
+            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -769,16 +828,8 @@ contains
               & tStopScc, this%eigvecsReal, this%reks)
         end if
 
-        if (allocated(this%dispersion) .and. .not. tConverged) then
-          call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
-              & this%species0, tConverged)
-          call calcDispersionEnergy(this%dispersion, this%dftbEnergy(1)%atomDisp,&
-              & this%dftbEnergy(1)%Edisp, this%iAtInCentralRegion)
-        end if
-        call sumEnergies(this%dftbEnergy(1))
-
-        call getSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Etotal, diffElec, sccErrorQ,&
+        call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
+        call printReksSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, diffElec, sccErrorQ,&
             & this%reks)
 
         if (tConverged .or. tStopScc) then
@@ -789,10 +840,13 @@ contains
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
               & this%eigvecsReal, this%electronicSolver, this%eigen, this%qOutput, this%q0,&
               & this%tDipole, dipoleTmp, this%reks)
+          call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+              & this%tDipole, this%reks, isSingleState=.true.)
 
-          call getReksEnProperties(this%eigvecsReal, this%coord0, this%reks)
+          call getReksEnProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
+              & this%img2CentCell, this%iSparseStart, this%eigvecsReal, this%coord0, this%reks)
 
-          if (this%tWriteDetailedOut) then
+          if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
@@ -804,7 +858,7 @@ contains
                 & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
                 & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
                 & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-                & allocated(this%thirdOrd), this%isRangeSep)
+                & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
             call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -844,7 +898,7 @@ contains
 
           if (allocated(this%onSiteElements) .and. (iSCCIter > 1 .or. this%tReadChrg)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockIn,&
-                & this%qiBlockIn, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockIn, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
         end if
@@ -948,7 +1002,7 @@ contains
 
           if (allocated(this%onSiteElements)) then
             call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockOut,&
-                & this%qiBlockOut, this%q0, this%onSiteElements, this%species, this%orb)
+                & this%qiBlockOut, this%onSiteElements, this%species, this%orb, this%q0)
           end if
 
           this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
@@ -1049,7 +1103,7 @@ contains
 
     end if REKS_SCC
 
-    if (allocated(this%dispersion)) then
+    if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
       ! non-converged SCC.
@@ -1073,7 +1127,7 @@ contains
             & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
             & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-            & allocated(this%thirdOrd), this%isRangeSep)
+            & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
       else
         call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
             & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
@@ -1098,6 +1152,20 @@ contains
 
     if (allocated(this%scc)) then
       call this%scc%finishSccLoop(env)
+    end if
+
+    if (allocated(this%dispersion)) then
+      if (.not.this%dispersion%energyAvailable()) then
+        call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
+    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
+        & .and. .not. this%tRestartNoSC) then
+      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+      if (this%isSccConvRequired) then
+        call env%shutdown()
+      end if
     end if
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
@@ -1196,6 +1264,8 @@ contains
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%over, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
+        call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
+            & this%tDipole, this%reks, isSingleState=.false.)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
@@ -1256,20 +1326,6 @@ contains
           & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
           & this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol,&
           & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
-    end if
-
-    if (allocated(this%dispersion)) then
-      if (.not.this%dispersion%energyAvailable()) then
-        call warning("Dispersion contributions are not included in the energy")
-      end if
-    end if
-
-    if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
-        & .and. .not. this%tRestartNoSC) then
-      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (this%isSccConvRequired) then
-        call env%shutdown()
-      end if
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
@@ -3408,7 +3464,7 @@ contains
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Onsite Mulliken charges per atom
-    real(dp), intent(inout), optional :: qNetAtom(:)
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     integer :: iSpin
 
@@ -3434,7 +3490,7 @@ contains
       end do
     end if
 
-    if (present(qNetAtom)) then
+    if (allocated(qNetAtom)) then
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
@@ -3518,7 +3574,7 @@ contains
     !> SCC error
     real(dp), intent(out) :: sccErrorQ
 
-    !> Has the calculation converged>
+    !> Has the calculation converged
     logical, intent(out) :: tConverged
 
     !> Are there orbital potentials present
@@ -6676,7 +6732,7 @@ contains
     real(dp), intent(inout) :: work(:,:)
 
     !> Dense density matrix if needed
-    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
@@ -6746,7 +6802,7 @@ contains
   !> Calculate Mulliken population for each microstate from sparse density matrix.
   subroutine getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, &
       & img2CentCell, iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlock, &
-      & qiBlock, reks)
+      & qiBlock, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6784,6 +6840,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
+
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
@@ -6801,11 +6860,26 @@ contains
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
       end if
 
-      ! reks%qOutputL has (my_qm) component
+      ! reks%qOutputL & reks%qNetAtomL has (my_qm) component
       reks%qOutputL(:,:,:,iL) = 0.0_dp
       call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
-          & qBlock=qBlock, qiBlock=qiBlock)
+          & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=qNetAtom)
+
+      ! Get correct net charge per atom
+      ! Note that qNetAtomL does not have spin dependency so it does not
+      ! correspond to (my_qm) or (my_ud) representation
+      if (reks%isQNetAllocated) then
+        if (iL > reks%Lpaired) then
+          if (mod(iL,2) == 0) then
+            reks%qNetAtomL(:,iL) = reks%qNetAtomL(:,iL-1)
+          else
+            reks%qNetAtomL(:,iL) = qNetAtom
+          end if
+        else
+          reks%qNetAtomL(:,iL) = qNetAtom
+        end if
+      end if
 
     end do
 
@@ -6821,7 +6895,8 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, tExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
+      & referenceN0, qNetAtom, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6934,6 +7009,18 @@ contains
 
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Has the calculation converged>
+    logical, intent(in) :: tConverged
+
+    !> species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> reference n_0 charges for each atom
+    real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qNetAtom(:)
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
@@ -7065,12 +7152,12 @@ contains
       end if
 
       ! Calculate correct charge contribution for each microstate
-      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
       if (allocated(thirdOrd)) then
-        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
+        call thirdOrd%updateCharges(pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL), q0,&
+            & img2CentCell, orb)
       end if
 
       call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
@@ -7078,6 +7165,21 @@ contains
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&
           & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+
+      if (allocated(dispersion)) then
+        ! For dftd4 dispersion, update charges
+        call dispersion%updateCharges(env, pSpecies0, neighbourList, reks%qOutputL(:,:,:,iL),&
+            & q0, img2CentCell, orb)
+        ! For MBD/TS dispersion, update onsite charges
+        ! TODO : Currently, reks%qNetAtomL does not affect Hamiltonian
+        if (reks%isQNetAllocated) then
+          qNetAtom(:) = reks%qNetAtomL(:,iL)
+        end if
+        call dispersion%updateOnsiteCharges(qNetAtom, orb, referenceN0,&
+            & species0, tConverged)
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp,&
+            & iAtInCentralRegion)
+      end if
       call sumEnergies(energy)
 
       ! Assign energy contribution of each microstate
@@ -7089,6 +7191,9 @@ contains
       end if
       if (reks%isRangeSep) then
         reks%enLfock(iL) = energy%Efock
+      end if
+      if (reks%isDispersion) then
+        reks%enLdisp(iL) = energy%Edisp
       end if
       reks%enLtot(iL) = energy%Etotal
 
@@ -7251,6 +7356,42 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+  !> Set correct dipole moment according to type of REKS calculation
+  subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
 
+    !> resulting temporary dipole moment
+    real(dp), allocatable, intent(in) :: dipoleTmp(:)
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:,:)
+
+    !> Which state is being calculated in the determinant loop?
+    integer, intent(in) :: iDet
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> calculate a single-state REKS?
+    logical, intent(in) :: isSingleState
+
+    ! Set correct dipole moment to this%dipoleMoment
+    if (tDipole) then
+      if (isSingleState) then
+        ! For single-state REKS case, see getStateInteraction routine.
+        if (reks%Efunction == 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      else
+        ! (SI)-SA-REKS case, see getReksGradProperties routine.
+        if (reks%Efunction > 1) then
+          dipoleMoment(:,iDet) = dipoleTmp
+        end if
+      end if
+    end if
+
+  end subroutine assignDipoleMoment
 
 end module dftbp_dftbplus_main

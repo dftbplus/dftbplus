@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,25 +12,25 @@
 !> (doi:10.1063/1.4977928)
 module dftbp_timedep_pprpa
   use dftbp_common_assert
-  use dftbp_timedep_linrespcommon
-  use dftbp_type_commontypes
-  use dftbp_dftb_slakocont
-  use dftbp_dftb_shortgamma
-  use dftbp_common_accuracy
+  use dftbp_timedep_linrespcommon, only : indxoo, indxvv
+  use dftbp_type_commontypes, only : TOrbitals
+  !use dftbp_dftb_slakocont
+  !use dftbp_dftb_shortgamma
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_dftb_scc, only : TScc
-  use dftbp_math_blasroutines
-  use dftbp_math_eigensolver
-  use dftbp_io_message
+  use dftbp_math_blasroutines, only : symm
+  use dftbp_math_eigensolver, only : geev
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_math_sorting
-  use dftbp_math_qm
-  use dftbp_timedep_transcharges
-  use dftbp_type_densedescr
-  use dftbp_io_fileid
+  use dftbp_math_sorting, only: index_heap_sort
+  !use dftbp_math_qm
+  use dftbp_timedep_transcharges, only : transq
+  use dftbp_type_densedescr, only : TDenseDescr
+  !use dftbp_io_fileid
   implicit none
+  
   private
-
   public :: ppRPAenergies, TppRPAcal
 
   !> Data type for pp-RPA calculations

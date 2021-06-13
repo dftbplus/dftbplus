@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,25 +15,24 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksen
 
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_blasroutines, only : gemm
-  use dftbp_type_densedescr
+  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_math_eigensolver, only : heev
-  use dftbp_elecsolvers_elecsolvers
+  use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
   use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_common_environment
-  use dftbp_common_globalenv
-  use dftbp_io_message
-  use dftbp_dftb_periodic
-  use dftbp_dftb_sparse2dense
-  use dftbp_reks_rekscommon
-  use dftbp_reks_reksio
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only : error
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS 
+  use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
+  use dftbp_reks_reksio, only : printReksSSRInfo
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
   private
-
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
@@ -138,20 +137,29 @@ module dftbp_reks_reksen
     if (this%isRangeSep) then
       energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
+    if (this%isDispersion) then
+      energy%Edisp = sum(this%weightL(this%rstate,:)*this%enLdisp(:))
+    end if
 
     energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
         & energy%e3rd + energy%Efock
+    energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
 
     ! Compute the total energy for SA-REKS states
     do ist = 1, this%nstates
       this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
 
-    ! In this step Etotal becomes the energy of averaged state, not individual states
+!    if (abs(energy%Etotal - this%energy(this%rstate)) >= epsilon(1.0_dp)) then
+    if (abs(energy%Etotal - this%energy(this%rstate)) >= 1.0e-8_dp) then
+      call error("Wrong energy contribution for target SA-REKS state")
+    end if
+
+    ! In this step Eavg becomes the energy of averaged state
     ! From this energy we can check the variational principle
-    energy%Etotal = 0.0_dp
+    energy%Eavg = 0.0_dp
     do ist = 1, this%SAstates
-      energy%Etotal = energy%Etotal + this%SAweight(ist) * this%energy(ist)
+      energy%Eavg = energy%Eavg + this%SAweight(ist) * this%energy(ist)
     end do
 
   end subroutine calcSaReksEnergy
@@ -367,7 +375,7 @@ module dftbp_reks_reksen
 
 
   !> Set correct final energy values for target state or microstate
-  subroutine setReksTargetEnergy(this, energy, cellVol, pressure, TS)
+  subroutine setReksTargetEnergy(this, energy, cellVol, pressure)
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: this
@@ -380,9 +388,6 @@ module dftbp_reks_reksen
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     ! get correct energy values
     if (this%Lstate == 0) then
@@ -407,16 +412,26 @@ module dftbp_reks_reksen
       if (this%isRangeSep) then
         energy%Efock = this%enLfock(this%Lstate)
       end if
+      if (this%isDispersion) then
+        energy%Edisp = this%enLdisp(this%Lstate)
+      end if
 
       energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
           & energy%e3rd + energy%Efock
-      energy%Etotal = this%enLtot(this%Lstate)
+      energy%Etotal = energy%Eelec + energy%Erep + energy%Edisp
       energy%Eexcited = 0.0_dp
+
+!      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > epsilon(1.0_dp)) then
+      if (abs(energy%Etotal - this%enLtot(this%Lstate)) > 1.0e-8_dp) then
+        call error("Wrong energy contribution for target microstate")
+      end if
 
     end if
 
-    energy%EMermin = energy%Etotal - sum(TS)
-    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    ! REKS is not affected by filling, so TS becomes 0
+    energy%EMermin = energy%Etotal
+    ! extrapolated to 0 K
+    energy%Ezero = energy%Etotal
     energy%EGibbs = energy%EMermin + cellVol * pressure
     energy%EForceRelated = energy%EGibbs
 

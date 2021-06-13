@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,11 +17,13 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_andersonmixer
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
   implicit none
 
   private
+  public :: TAndersonMixer
+  public :: init, reset, mix
 
 
   !> Contains the necessary data for an Anderson mixer
@@ -87,9 +89,6 @@ module dftbp_mixer_andersonmixer
   interface mix
     module procedure AndersonMixer_mix
   end interface mix
-
-  public :: TAndersonMixer
-  public :: init, reset, mix
 
 contains
 

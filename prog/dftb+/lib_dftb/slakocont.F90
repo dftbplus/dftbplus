@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,14 +14,13 @@
 !> species. At the moment, it handles only Slater-Koster data tabulated on an equidistant grid.
 module dftbp_dftb_slakocont
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_dftb_slakoeqgrid
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
   implicit none
+  
   private
-
   public :: TSlakoCont, init
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
-
 
   !> A specific Slater-Koster table implementation.
   type TSlaKo_

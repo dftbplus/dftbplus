@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 program dftbplus
-  use dftbp_common_globalenv
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_dftbplus_main, only : runDftbPlus
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -18,7 +18,7 @@ program dftbplus
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
-  integer, parameter :: releaseYear = 2020
+  integer, parameter :: releaseYear = 2021
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input

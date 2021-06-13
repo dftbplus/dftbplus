@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,16 +11,17 @@
 
 !> Contains routines to calculate matrix determinants
 module dftbp_math_determinant
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
-  use dftbp_math_lapackroutines
+  use dftbp_math_lapackroutines, only : getrf
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_mpifx
-  use dftbp_extlibs_scalapackfx
+  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : DLEN_, blacsgrid, CSRC_, M_, N_, NB_, scalafx_indxl2g,&
+      & scalafx_pgetrf
 #:endif
   implicit none
+  
   private
-
   public :: det
 
   interface det

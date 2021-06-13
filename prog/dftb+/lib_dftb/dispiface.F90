@@ -1,19 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Common interface for all dispersion modules.
-module dftbp_dispiface
+module dftbp_dftb_dispiface
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  private
   
+  private
   public :: TDispersionIface
 
   !> Interface for classes providing dispersion.
@@ -244,4 +244,4 @@ contains
   end subroutine updateCharges
 
 
-end module dftbp_dispiface
+end module dftbp_dftb_dispiface

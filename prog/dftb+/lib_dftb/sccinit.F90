@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,14 +10,14 @@
 !> Module for initializing SCC part of the calculation
 module dftbp_dftb_sccinit
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_io_message
-  use dftbp_type_commontypes
-  use dftbp_io_charmanip
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
+  !use dftbp_io_charmanip
   implicit none
+  
   private
-
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
   public :: initQFromUsrChrg
 

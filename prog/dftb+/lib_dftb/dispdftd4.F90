@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,13 +20,14 @@ module dftbp_dftb_dispdftd4
   use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
   use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
       & TDftD4Calculator_init, TDftD4Ref_init
-  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_encharges, only : TEeqCont, init_ => init
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
+  
   private
 
   public :: TDispDftD4, TDispDftD4Inp, TDispDftD4_init, init, writeDftD4Info

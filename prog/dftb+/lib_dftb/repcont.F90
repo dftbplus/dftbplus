@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,12 +14,12 @@
 !> the moment, it handles only repulsive with spline interpolation.
 module dftbp_dftb_repcont
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_dftb_repspline
-  use dftbp_dftb_reppoly
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_repspline, only : TRepSpline, getEnergyDeriv, getEnergy, getCutoff
+  use dftbp_dftb_reppoly, only : TRepPoly, getEnergyDeriv, getEnergy, getCutoff
   implicit none
+  
   private
-
   public :: TRepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 

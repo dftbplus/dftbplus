@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,13 +10,13 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvation_solvparser
   use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_math_bisect, only : bisection
   use dftbp_solvation_born, only : TGBInput, fgbKernel
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_solvation_cm5, only : TCM5Input
-  use dftbp_common_constants, only : Boltzmann, lc, amu__au, kg__au, AA__Bohr
+  use dftbp_common_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
   use dftbp_solvation_cosmo, only : TCosmoInput, TDomainDecompositionInput
   use dftbp_solvation_gbsafile, only : readParamGBSA
   use dftbp_common_globalenv, only : stdOut
@@ -35,8 +35,8 @@ module dftbp_solvation_solvparser
       & massDensityUnits, inverseLengthUnits
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getNodeName
   implicit none
+  
   private
-
   public :: readSolvation
   public :: readSolvGB, readSolvSASA, readCM5, readSolvCosmo
 

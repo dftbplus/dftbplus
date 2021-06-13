@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,58 +13,64 @@
 !> F. J., Frauenheim, T., & Sánchez, C. G.  Journal of Chemical Theory and Computation (2020)
 !> https://doi.org/10.1021/acs.jctc.9b01217
 
-module dftbp_timedep_dynamics
-  use dftbp_common_globalenv
-  use dftbp_type_commontypes
-  use dftbp_dftb_potentials
-  use dftbp_dftb_scc
-  use dftbp_dftb_shift
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_dftb_sparse2dense
-  use dftbp_dftb_densitymatrix
-  use dftbp_math_blasroutines
-  use dftbp_math_lapackroutines
-  use dftbp_dftb_populations
-  use dftbp_dftb_bondpopulations
-  use dftbp_extlibs_blas
-  use dftbp_extlibs_lapack
-  use dftbp_dftb_spin
-  use dftbp_dftb_forces
-  use dftbp_dftb_slakocont
-  use dftbp_md_thermostat
-  use dftbp_md_mdintegrator
-  use dftbp_md_dummytherm
-  use dftbp_md_mdcommon
-  use dftbp_math_ranlux
-  use dftbp_dftb_periodic
-  use dftbp_md_velocityverlet
-  use dftbp_dftb_nonscc
+module dftbp_timedep_timeprop
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_shift, only : total_shift
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS
+  use dftbp_dftb_densitymatrix, only : makeDensityMatrix
+  use dftbp_math_blasroutines, only : mc, sc, lc, gemm, her2k
+  use dftbp_math_lapackroutines, only : matinv, gesv 
+  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
+  use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
+  !use dftbp_extlibs_blas
+  !use dftbp_extlibs_lapack
+  use dftbp_dftb_spin, only : ud2qm, qm2ud
+  use dftbp_dftb_forces, only : derivative_shift
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_md_thermostat, only : TThermostat
+  use dftbp_md_mdintegrator, only : TMDIntegrator, reset, init, state, next
+  use dftbp_md_dummytherm, only : TDummyThermostat
+  use dftbp_md_mdcommon, only : TMDCommon
+  use dftbp_math_ranlux, only : TRanlux
+  use dftbp_dftb_periodic, only : TNeighbourList, foldCoordToUnitCell,& 
+      updateNeighbourListAndSpecies, getNrOfNeighboursForAll, getSparseDescriptor
+  use dftbp_md_velocityverlet, only : TVelocityVerlet
+  use dftbp_dftb_nonscc, only : TNonSccDiff, buildH0, buildS
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
-  use dftbp_thirdorder, only : TThirdOrder
+  use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_dftb_populations
-  use dftbp_dftbplus_eigenvects
-  use dftbp_dftb_sk
-  use dftbp_dispiface
-  use dftbp_dftb_dispersions
-  use dftbp_common_environment
+  !use dftbp_dftb_populations
+  use dftbp_dftbplus_eigenvects, only : diagDenseMtx
+  !use dftbp_dftb_sk
+  !use dftbp_dftb_dispiface
+  use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_dftb_repulsive, only : TRepulsive
-  use dftbp_common_timer
-  use dftbp_io_taggedoutput
-  use dftbp_dftb_hamiltonian
-  use dftbp_dftb_onsitecorrection
-  use dftbp_io_message
+  use dftbp_common_timer, only : TTimer
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_dftb_hamiltonian, only : TRefExtPot, resetExternalPotentials, resetInternalPotentials,&
+      & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
+  use dftbp_dftb_onsitecorrection, only : addOnsShift
+  use dftbp_io_message, only : error, warning
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
-  use dftbp_math_simplealgebra
+  use dftbp_math_simplealgebra, only : determinant33
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_reks_reks, only : TReksCalc
+  use dftbp_dftb_repcont, only : TRepCont
+  #:if WITH_MBD
+    use dftbp_dftb_dispmbd, only : TDispMbd
+  #:endif
   implicit none
+  
   private
-
   public :: runDynamics, TElecDynamics_init
   public :: initializeDynamics, doTdStep
   public :: TElecDynamicsInp, TElecDynamics
@@ -1097,8 +1103,8 @@ contains
       call addBlockChargePotentials(qBlock, qiBlock, dftbU, .false., speciesAll, orb, potential)
     end if
     if (allocated(onSiteElements)) then
-      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
-          & onSiteElements, speciesAll, orb)
+      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock,&
+          & onSiteElements, speciesAll, orb, q0)
     end if
 
     ! Add time dependent field if necessary
@@ -1769,7 +1775,7 @@ contains
       end do
     end if
 
-    call init(potential, orb, this%nAtom, this%nSpin)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
@@ -3105,7 +3111,7 @@ contains
     call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
         & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
         & img2CentCell, iSparseStart, orb, potential%intBlock)
-    call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
+    call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
         & img2CentCell)
     if (allocated(repulsive)) then
@@ -4070,4 +4076,4 @@ contains
     end if
 
   end subroutine finalizeDynamics
-end module dftbp_timedep_dynamics
+end module dftbp_timedep_timeprop

@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "20.2.1")
+set(DFTBPLUS_VERSION "21.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -155,7 +155,7 @@ endif()
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "0cb07ee08cbb20f3f7bb2527152a4ec317c579ad")  # do not change manually!
+  set(MPIFX_GIT_TAG "8c959ff1a4563269481bd9a9a54bf306ab7fc6c6")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -173,7 +173,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "82005cbb65bdf5d32ca021848eec8f19da956a77")  # do not change manually!
+  set(MBD_GIT_TAG "299a5e2232e76a1c4abb3716e1f83169fc966677")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
@@ -181,7 +181,7 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "83d7588d3b05cf4aaf989085cea96f5dcf1b9830")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "c8ed2caf9ed00fce1a7d9583a605bec211920d2b")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
@@ -257,4 +257,16 @@ if(WITH_API)
     FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
+endif()
+
+
+#
+# Coverage testing related targets
+#
+if(LCOV_REPORT)
+  find_program(LCOV lcov REQUIRED)
+  find_program(GENHTML genhtml)
+  dftbp_create_lcov_targets("${LCOV}" "${GENHTML}" "${CMAKE_CURRENT_BINARY_DIR}/lcov"
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/prog")
 endif()

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,21 +15,20 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_rekscpeqn
 
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_blasroutines, only : gemm, gemv
-  use dftbp_type_densedescr
-  use dftbp_common_environment
-  use dftbp_common_globalenv
-  use dftbp_io_message
-  use dftbp_type_orbitals
-  use dftbp_dftb_periodic
-  use dftbp_reks_rekscommon
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only: error
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_dftb_periodic, only: TNeighbourList
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex
   use dftbp_reks_reksgrad, only : getRmat, getZmat, getQ2mat
 
   implicit none
 
   private
-
   public :: CGgrad
 
   contains

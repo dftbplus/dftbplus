@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,11 @@
 !> Contains simple temperature profiles for molecular dynamics.
 module dftbp_md_tempprofile
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_charmanip, only : tolower
   implicit none
+  
   private
-
   public :: TTempProfile, TempProfile_init, identifyTempProfile
 
   ! Internal constants for the different profiles:

@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -28,12 +35,13 @@ module dftbp_poisson_gallocation
   use, intrinsic :: iso_c_binding, only : c_sizeof
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_accuracy, only : dp
+  implicit none
+  
+  public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
 
   integer, parameter :: long = int64
   integer, save :: iolog
-  integer(int64), save :: alloc_mem, peak_mem
-
-  public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
+  integer(int64), save :: alloc_mem, peak_mem  
 
   interface log_gallocate
   #:for LABEL, _, _, _ in ALLOC_CASES

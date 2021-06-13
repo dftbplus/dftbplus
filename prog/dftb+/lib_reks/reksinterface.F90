@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,35 +15,40 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksinterface
 
-  use dftbp_common_accuracy
-  use dftbp_type_densedescr
-  use dftbp_dispiface
-  use dftbp_elecsolvers_elecsolvers
-  use dftbp_common_environment
-  use dftbp_common_globalenv
-  use dftbp_dftb_nonscc
-  use dftbp_type_orbitals
-  use dftbp_dftb_periodic
-  use dftbp_dftb_populations
-  use dftbp_dftb_rangeseparated
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_populations, only : mulliken
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_repulsive, only : TRepulsive
-  use dftbp_dftb_scc
-  use dftbp_dftb_slakocont
-  use dftbp_dftb_sparse2dense
-  use dftbp_dftb_stress
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
+  use dftbp_dftb_stress, only : getBlockStress
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_reks_rekscommon
-  use dftbp_reks_rekscpeqn
-  use dftbp_reks_reksen
-  use dftbp_reks_reksgrad
-  use dftbp_reks_reksio
-  use dftbp_reks_reksproperty
-  use dftbp_reks_reksvar
+  use dftbp_reks_rekscommon, only : getTwoIndices
+  use dftbp_reks_rekscpeqn, only : cggrad
+  use dftbp_reks_reksen, only : adjustEigenval, solveSecularEqn
+  use dftbp_reks_reksgrad, only : weightgradient, ssrshift, sishift, satossrxt, satossrweight,&
+      & addsitorq, ssrshift, lshift, getothersagrad, satossrgradient, getreksnac, rtshift, &
+      & solvezt, getrmat, getzmat, getq2mat, getq1mat, buildsareksvectors, getrdel, getzmat,&
+      & buildinteractionvectors, getq2mat, getq1del, buildlstatevector, getsccspinlrpars,&
+      & gethxckernel, getsuperamatrix, getenergyweighteddensityl, derivative_blockl,&
+      & getg1ilomegarab, getextchrggradients
+  use dftbp_reks_reksio, only : writereksrelaxedcharge, printreksgradinfo, writerekstdp
+  use dftbp_reks_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl,&
+      & getunrelaxeddensmatandtdp, getdipoleintegral, getdipolemomentmatrix, getreksosc
+  use dftbp_reks_reksvar, only : TReksCalc
 
   implicit none
 
   private
-
   public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
@@ -123,7 +128,26 @@ module dftbp_reks_reksinterface
 
   !> get the energy-related properties; unrelaxed density matrix,
   !> dipole integral, transition dipole, oscillator strength
-  subroutine getReksEnProperties(eigenvecs, coord0, this)
+  subroutine getReksEnProperties(env, denseDesc, neighbourList, nNeighbourSK,&
+      & img2CentCell, iSparseStart, eigenvecs, coord0, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:,:)
@@ -134,13 +158,15 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    real(dp), allocatable :: rhoL(:,:)
     real(dp), allocatable :: dipoleInt(:,:,:)
 
-    integer :: ist, nstHalf, nOrb
+    integer :: tmpL, ist, nstHalf, nOrb
 
     nOrb = size(eigenvecs,dim=1)
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
+    allocate(rhoL(nOrb,nOrb))
     allocate(dipoleInt(nOrb,nOrb,3))
 
     ! Get the unrelaxed density matrix for SA-REKS or SSR state
@@ -150,7 +176,35 @@ module dftbp_reks_reksinterface
     ! gradient. Therefore, we can easily guess the behavior of the states.
     if (this%nstates > 1) then
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, this%rhoSqrL, &
+      ! Find proper index for up+down in rhoSqrL when TargetMicrostate is used.
+      if (.not. this%tSSR) then
+        if (this%Lstate > 0) then
+
+          if (this%Lstate <= this%Lpaired) then
+            tmpL = this%Lstate
+          else
+            if (mod(this%Lstate,2) == 1) then
+              tmpL = this%Lstate
+            else
+              tmpL = this%Lstate - 1
+            end if
+          end if
+
+          if (this%tForces) then
+            rhoL(:,:) = this%rhoSqrL(:,:,1,tmpL)
+          else
+            rhoL(:,:) = 0.0_dp
+            call env%globalTimer%startTimer(globalTimers%sparseToDense)
+            call unpackHS(rhoL, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour, &
+                & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+            call blockSymmetrizeHS(rhoL, denseDesc%iAtomStart)
+          end if
+
+        end if
+      end if
+
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
           & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm)
@@ -659,7 +713,7 @@ module dftbp_reks_reksinterface
         end if
 
         ! this%qOutputL has (qm) component
-        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+        call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
         call sccCalc%updateShifts(env, orb, species, &
             & neighbourList%iNeighbour, img2CentCell)
 
@@ -829,7 +883,7 @@ module dftbp_reks_reksinterface
       derivs(:,:) = 0.0_dp
 
       ! qOutput_L has (qm) component
-      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateCharges(env, this%qOutputL(:,:,:,iL), orb, species, q0)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
       if (this%tExtChrg) then
@@ -856,6 +910,8 @@ module dftbp_reks_reksinterface
             & neighbourList%iNeighbour, nNeighbourSK)
       end if
 
+      ! TODO : this part should be modified after merging selfconsistent
+      !      : MBD/TS or dftd4 gradients
       if (iL == 1) then
 
         dispDerivs(:,:) = 0.0_dp

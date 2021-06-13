@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,13 +11,14 @@
 !! communicate data back and forward from DFTB+ to the external code.
 module dftbp_io_ipisocket
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_extlibs_fsockets
+  use dftbp_common_accuracy, only : dp, lc, rdp
+  use dftbp_io_message, only : error, warning
+  use dftbp_extlibs_fsockets, only : writebuffer, readbuffer, close_socket, connect_inet_socket,&
+      & connect_unix_socket
   use dftbp_io_logger, only : LogWriter
   implicit none
+  
   private
-
   public :: IpiSocketCommInp
   public :: IpiSocketComm, IpiSocketComm_init
   public :: IPI_PROTOCOLS
@@ -233,7 +234,7 @@ contains
 
     ! lattice vector data
     call readbuffer(this%socket, commsBuffer2)
-    cell(:,:) = reshape(commsBuffer2, [3, 3])
+    cell(:,:) = transpose(reshape(commsBuffer2, [3, 3]))
 
     call this%logger%write('ipisocket%receive: read from socket: cell', 3)
     call this%logger%write(cell, 4, '(f12.6)')
@@ -343,6 +344,7 @@ contains
     call this%logger%write(forces, 5, '(f12.6)')
 
     ! transmit stress
+    ! The (virial) stress tensor is symmetric, so no transpose needed.
     call writebuffer(this%socket, reshape(stress, [9]))
     call this%logger%write('ipisocket%send: write to socket: stress', 3)
     call this%logger%write(stress, 4, '(f12.6)')

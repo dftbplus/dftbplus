@@ -1,130 +1,141 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-
+#:include 'error.fypp'
 
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
 #:if WITH_OMP
-  use omp_lib
+  use omp_lib, only : omp_get_max_threads
 #:endif
   use dftbp_dftbplus_mainio, only : initOutputFile
   use dftbp_common_assert
-  use dftbp_common_globalenv
-  use dftbp_common_coherence
-  use dftbp_common_environment
-  use dftbp_extlibs_scalapackfx
-  use dftbp_dftbplus_inputdata
-  use dftbp_type_densedescr
-  use dftbp_common_constants
-  use dftbp_elecsolvers_elecsolvers
+  use dftbp_common_globalenv, only : stdOut, withMpi
+  use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : scalafx_getdescriptor, scalafx_getlocalshape
+#:endif
+  use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
+#:if WITH_TRANSPORT
+  use dftbp_dftbplus_inputdata, only : TNEGFInfo
+#:endif
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
+      & Bohr__nm, Hartree__kJ_mol, Boltzmann
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes,&
+      & TElectronicSolver_init
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_init, TElsiSolver_final
-  use dftbp_extlibs_elsiiface
+  use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
   use dftbp_dftb_periodic, only : getCellTranslations
-  use dftbp_common_accuracy
-  use dftbp_io_intrinsicpr
+  use dftbp_common_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
   use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGammaDamp
-  use dftbp_io_message
-  use dftbp_mixer_mixer
-  use dftbp_mixer_simplemixer
-  use dftbp_mixer_andersonmixer
-  use dftbp_mixer_broydenmixer
-  use dftbp_mixer_diismixer
-
-  use dftbp_geoopt_geoopt
-  use dftbp_geoopt_conjgrad
-  use dftbp_geoopt_steepdesc
-  use dftbp_geoopt_gdiis
-  use dftbp_geoopt_lbfgs
-  use dftbp_geoopt_fire
-
-  use dftbp_common_hamiltoniantypes
-
-  use dftbp_math_randomgenpool
-  use dftbp_math_ranlux
-  use dftbp_md_mdcommon
-  use dftbp_md_mdintegrator
-  use dftbp_md_velocityverlet
-  use dftbp_md_thermostat
-  use dftbp_md_dummytherm
-  use dftbp_md_andersentherm
-  use dftbp_md_berendsentherm
-  use dftbp_nhctherm
+  use dftbp_io_message, only : error, warning
+  use dftbp_mixer_mixer, only : TMixer, mixerTypes, init
+  use dftbp_mixer_simplemixer, only : TSimpleMixer, init
+  use dftbp_mixer_andersonmixer, only : TAndersonMixer, init
+  use dftbp_mixer_broydenmixer, only : TBroydenMixer, init
+  use dftbp_mixer_diismixer, only : TDIISMixer, init
+  use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
+  use dftbp_geoopt_conjgrad, only : TConjGrad
+  use dftbp_geoopt_steepdesc, only : TSteepDesc
+  use dftbp_geoopt_gdiis, only : TDIIS
+  use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
+  use dftbp_geoopt_fire, only : TFire, TFire_init
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_math_randomgenpool, only : TRandomGenPool, init
+  use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_md_mdcommon, only : TMDCommon, init
+  use dftbp_md_mdintegrator, only : TMDIntegrator, init
+  use dftbp_md_velocityverlet, only : TVelocityVerlet, init
+  use dftbp_md_thermostat, only : TThermostat, init
+  use dftbp_md_dummytherm, only : TDummyThermostat, init
+  use dftbp_md_andersentherm, only : TAndersenThermostat, init
+  use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
+  use dftbp_md_nhctherm, only : TNHCThermostat, init
   use dftbp_md_tempprofile, only : TTempProfile, TempProfile_init
-  use dftbp_derivs_numderivs2
-  use dftbp_math_lapackroutines
-  use dftbp_math_simplealgebra
-  use dftbp_dftb_nonscc
-  use dftbp_dftb_scc
-  use dftbp_dftb_sccinit
+  use dftbp_derivs_numderivs2, only : TNumDerivs, create
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
+  use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
+  use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
+      & initQFromShellChrg
   use dftbp_dftb_coulomb, only : TCoulombInput
-  use dftbp_dftb_onsitecorrection
+  use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_hamiltonian, only : TRefExtPot
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
-  use dftbp_dftb_halogenx
-  use dftbp_dftb_slakocont
+  use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
+  use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
   use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_dftb_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
-  use dftbp_dftb_repcont
-  use dftbp_io_fileid
+  use dftbp_dftb_repcont, only : TRepCont, getCutOff
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_dispersions
-  use dftbp_thirdorder
-  use dftbp_timedep_linresp
-  use dftbp_timedep_linresptypes
+  use dftbp_dftb_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
+      & TDispDftD4, init, DispSlaKirk_init, DispUff_init
+  use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
+  use dftbp_timedep_linresp, only : LinResp_init
+  use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_pprpa, only : TppRPAcal
-  use dftbp_dftb_rangeseparated
-  use dftbp_dftb_stress
-  use dftbp_dftb_orbitalequiv
-  use dftbp_type_orbitals
-  use dftbp_type_commontypes
-  use dftbp_type_linkedlist
-  use dftbp_type_wrappedintr
-  use dftbp_timedep_dynamics
-  use dftbp_md_xlbomd
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+  use dftbp_type_orbitals, only : getShellNames
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
+  use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
+      & append
+  use dftbp_type_wrappedintr, only : TWrappedInt1
+  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
+  use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
   use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftbplus_transportio, only : readContactShifts
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
-  use dftbp_io_ipisocket
+  use dftbp_io_ipisocket, only : ipiSocketCommInp, ipiSocketComm
 #:endif
-  use dftbp_dftb_elstatpot
-  use dftbp_dftb_pmlocalisation
-  use dftbp_dftb_energytypes
-  use dftbp_dftb_potentials
-  use dftbp_io_taggedoutput
-  use dftbp_io_formatout
+  use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
+  use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
+  use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
+  use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
+  use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
+  use dftbp_io_formatout, only : clearFile
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_elstattypes, only : elstatTypes
-  use dftbp_reks_reks
+  use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
-
+  use dftbp_dftb_dispdftd4, only : writeDftD4Info
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars
-  use dftbp_transport_negfint
+  use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
 #:endif
   use dftbp_extlibs_poisson, only : TPoissonInput
-  use dftbp_dftbplus_transportio
-  use dftbp_dftb_determinants
+  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_boundarycond, only : boundaryConditions
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+#:if WITH_DFTD3
+  use dftbp_dftb_dispdftd3, only : TDispDftD3, DispDftD3_init
+#:endif
+#:if WITH_MBD
+  use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
+#:endif
+  use dftbp_common_status, only : TStatus
   implicit none
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, mdOut, resultsTag, hessianOut
+  public :: autotestTag, userOut, bandOut, derivEBandOut, mdOut, resultsTag, hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_TRANSPORT
@@ -141,8 +152,11 @@ module dftbp_dftbplus_initprogram
   !> Detailed user output
   character(*), parameter :: userOut = "detailed.out"
 
-  !> band structure and filling information
+  !> File for band structure and filling information
   character(*), parameter :: bandOut = "band.out"
+
+  !> File for derivatives of band structure
+  character(*), parameter :: derivEBandOut = "dE_band.out"
 
   !> File accumulating data during an MD run
   character(*), parameter :: mdOut = "md.out"
@@ -462,6 +476,9 @@ module dftbp_dftbplus_initprogram
     !> Do we need to show Mulliken charges?
     logical :: tPrintMulliken
 
+    !> Logical to determine whether to calculate net charge per atom (qNetAtom)
+    logical :: isQNetAllocated
+
     !> Do we need to show net atomic charges?
     logical :: tNetAtomCharges
 
@@ -509,6 +526,27 @@ module dftbp_dftbplus_initprogram
 
     !> Pipek-Mezey localisation calculator
     type(TPipekMezey), allocatable :: pipekMezey
+
+    !> Density functional tight binding perturbation theory
+    logical :: isDFTBPT = .false.
+
+    !> Static polarisability
+    logical :: isStatEResp = .false.
+
+    !> Electric static polarisability
+    real(dp), allocatable :: polarisability(:,:)
+
+    !> Number of electrons  at the Fermi energy
+    real(dp), allocatable :: neFermi(:)
+
+    !> Derivatives of the Fermi energy [spin, perturbation]
+    real(dp), allocatable :: dEfdE(:,:)
+
+    !> Derivatives of the DFTB eigenvalues with respect to perturbation
+    real(dp), allocatable :: dEidE(:,:,:,:)
+
+    !> Derivatives of Mulliken charges with respect to perturbation
+    real(dp), allocatable :: dqOut(:,:,:,:)
 
     !> use commands from socket communication to control the run
     logical :: tSocket
@@ -1217,6 +1255,7 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tInitialized, tGeoOptRequiresEgy
+    type(TStatus) :: status
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1326,7 +1365,13 @@ contains
 
   #:if WITH_SCALAPACK
     call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
-        & this%t2Component, env)
+        & this%t2Component, env, status)
+    if (status%hasError()) then
+      if (status%code == -1) then
+        call warning("Insufficent atoms for this number of MPI processors")
+      end if
+      call error(status%message)
+    end if
   #:endif
     call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
 
@@ -1499,8 +1544,10 @@ contains
     if (this%tSccCalc) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
-        call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
-            & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
       else
         call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
             & this%uniqHubbU, shortGammaDamp, shortGammaInput)
@@ -1992,6 +2039,11 @@ contains
         call move_alloc(sdftd3, this%dispersion)
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
+        if (allocated(this%reks)) then
+          if (input%ctrl%dispInp%dftd4%selfConsistent .and. this%tForces) then
+            call error("Calculation of self-consistent dftd4 is not currently compatible with force calculation in REKS")
+          end if
+        end if
         if (this%tPeriodic) then
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName, this%latVec)
         else
@@ -2002,6 +2054,11 @@ contains
       else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
           call error("MBD model not currently supported for Casida linear response")
+        else if (allocated(this%reks)) then
+          call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
+          if (this%tForces) then
+            call error("Calculation of self-consistent MBD/TS is not currently compatible with force calculation in REKS")
+          end if
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
@@ -2109,11 +2166,59 @@ contains
           & spin orbit calculations")
     end if
 
+    this%isDFTBPT = input%ctrl%isDFTBPT
+    if (this%isDFTBPT) then
+      this%isStatEResp = input%ctrl%isStatEPerturb
+      if (this%tNegf) then
+        call error("Currently the perturbation expresions for NEGF are not implemented")
+      end if
+      if (.not. this%electronicSolver%providesEigenvals) then
+        call error("Perturbation expression for polarisability require eigenvalues and&
+            & eigenvectors")
+      end if
+      if (this%tPeriodic) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%tHelical) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
+      if (this%t3rd) then
+        call error("Only full 3rd order currently supported for perturbation")
+      end if
+      if (allocated(this%reks)) then
+        call error("REKS not currently supported for perturbation")
+      end if
+      if (this%tFixEf) then
+        call error("Perturbation for fixed Fermi energy is not currently supported")
+      end if
+      if (this%deltaDftb%isNonAufbau) then
+        call error("Delta-DFTB not currently supported for perturbation")
+      end if
+      if (allocated(this%solvation)) then
+        call error("Solvation not currently implemented for perturbation")
+      end if
+      if (allocated(this%dispersion)) then
+        call error("Dispersion (particularly charge dependent) not currently implemented for&
+            & perturbation")
+      end if
+
+      allocate(this%polarisability(3,3))
+      this%polarisability(:,:) = 0.0_dp
+      if (input%ctrl%tWriteBandDat) then
+        allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+        this%dEidE(:,:,:,:) = 0.0_dp
+      end if
+      allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
+      this%dqOut(:,:,:,:) = 0.0_dp
+
+    else
+      this%isStatEResp = .false.
+    end if
+
     if (allocated(this%solvation)) then
       if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
         call error('External fields are not currently compatible with this implicit solvent.')
       end if
-
     end if
 
     if (this%isLinResp) then
@@ -2466,7 +2571,8 @@ contains
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
           & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
-          & this%isRangeSep, this%tForces, this%tPeriodic, this%tStress, this%tDipole)
+          & this%isRangeSep, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
+          & this%tPeriodic, this%tStress, this%tDipole)
     end if
 
     call this%initDetArrays()
@@ -2814,7 +2920,7 @@ contains
         case(mixerTypes%anderson)
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
         case(mixerTypes%broyden)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
+          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
         case(mixerTypes%diis)
           write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
         end select
@@ -3499,7 +3605,6 @@ contains
     integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
-    logical :: tAllocate
 
     ! Charge arrays may have already been initialised
     @:ASSERT(size(this%species0) == this%nAtom)
@@ -3521,17 +3626,17 @@ contains
       this%qDiff(:,:,:) = 0.0_dp
     endif
 
-    tAllocate = .false.
+    this%isQNetAllocated = .false.
   #:if WITH_MBD
     if (allocated(this%dispersion)) then
       select type (o=>this%dispersion)
       type is (TDispMbd)
-        tAllocate = .true.
+        this%isQNetAllocated = .true.
       end select
     end if
   #:endif
-    tAllocate = tAllocate .or. this%tNetAtomCharges
-    if (tAllocate) then
+    this%isQNetAllocated = this%isQNetAllocated .or. this%tNetAtomCharges
+    if (this%isQNetAllocated) then
       if (.not. allocated(this%qNetAtom)) then
         allocate(this%qNetAtom(this%nAtom))
       endif
@@ -4166,6 +4271,9 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
+      if (this%isDFTBPT) then
+        call initOutputFile(derivEBandOut)
+      end if
     end if
     if (this%tDerivs) then
       call initOutputFile(hessianOut)
@@ -4238,7 +4346,7 @@ contains
       end if
     end if
 
-    call init(this%potential, this%orb, this%nAtom, this%nSpin)
+    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin)
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)
@@ -4456,7 +4564,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env)
+  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, status)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4476,6 +4584,9 @@ contains
     !> Computing enviroment data
     type(TEnvironment), intent(inout) :: env
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
     integer :: sizeHS
 
     if (t2Component) then
@@ -4483,7 +4594,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, status)
+    @:PROPAGATE_ERROR(status)
 
   end subroutine initScalapack
 
@@ -4569,14 +4681,9 @@ contains
     case ('ts')
       write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
     end select
-    write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
     select case (input%method)
-    case ('ts')
-      write(tmpStr,"(E18.6)") input%ts_f_acc
-      write(stdOut, "(A,T30,A)") '  TSForceAccuracy', trim(adjustl(tmpStr))
-      write(tmpStr, "(E18.6)") input%ts_ene_acc
-      write(stdOut, "(A,T30,A)") '  TSEnergyAccuracy', trim(adjustl(tmpStr))
     case ('mbd-rsscs')
+      write(stdOut, "(A,T30,A)") "  Parameters", tmpStr
       write(tmpStr, "(3(I3,1X))") input%k_grid
       write(stdOut,"(A,T30,A)") "  MBD k-Grid", trim(adjustl(tmpStr))
       write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
@@ -5228,7 +5335,8 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
+      & tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks
@@ -5269,6 +5377,12 @@ contains
     !> Whether to run a range separated calculation
     logical, intent(in) :: isRangeSep
 
+    !> Whether to run a dispersion calculation
+    logical, intent(in) :: isDispersion
+
+    !> Logical to determine whether to calculate net charge per atom (qNetAtom)
+    logical, intent(in) :: isQNetAllocated
+
     !> Do we need forces?
     logical, intent(in) :: tForces
 
@@ -5296,7 +5410,8 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+            & blurWidths, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
+            & tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -5565,6 +5680,8 @@ contains
   end subroutine initCoulombInput_
 
 
+#:if WITH_POISSON
+
   ! Initializes a Poisson solver
   subroutine initPoissonInput_(input, nAtom, nType, species0, coord0, tPeriodic, latVec, orb,&
       & hubbU, poissonInput, shiftPerLUp)
@@ -5607,6 +5724,8 @@ contains
   #:endif
 
   end subroutine initPoissonInput_
+
+#:endif
 
 
   ! Initializes the scc calculator

@@ -1,19 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains the Van der Waal parameters for the UFF force field.
 module dftbp_dftb_dispuffdata
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
   use dftbp_io_charmanip, only : tolower
-  use dftbp_common_constants
+  use dftbp_common_constants, only : AA__Bohr, kcal_mol__Hartree
   implicit none
+  
   private
-
   public :: getUffValues
 
 

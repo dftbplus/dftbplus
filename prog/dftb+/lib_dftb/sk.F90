@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,12 +17,11 @@
 !> Caveat: Only angular momenta up to f are currently allowed
 module dftbp_dftb_sk
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_type_commontypes
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
-
   public :: rotateH0
 
 

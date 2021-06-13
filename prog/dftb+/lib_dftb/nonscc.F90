@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,15 @@
 module dftbp_dftb_nonscc
   use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_sk
-  use dftbp_dftb_slakocont
-  use dftbp_type_commontypes
-  use dftbp_io_message
-  use dftbp_common_schedule
-  use dftbp_common_environment
+  use dftbp_dftb_sk, only : rotateH0
+  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_io_message, only : error
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_environment, only : TEnvironment
   implicit none
+  
   private
-
   public :: buildH0, buildS
   public :: TNonSccDiff, NonSccDiff_init
   public :: diffTypes

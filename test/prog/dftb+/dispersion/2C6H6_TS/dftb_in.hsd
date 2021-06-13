@@ -27,7 +27,6 @@ Hamiltonian = DFTB {
   }
 
   Dispersion = Ts {
-    EnergyAccuracy = 1e-10
     RangeSeparation = 0.90
     Damping = 20
     ReferenceSet = "ts"

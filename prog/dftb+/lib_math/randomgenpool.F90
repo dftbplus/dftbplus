@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,15 @@
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
 module dftbp_math_randomgenpool
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx
+  use dftbp_extlibs_mpifx, only : mpifx_bcast
 #:endif
-  use dftbp_common_environment
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_ranlux
+  use dftbp_math_ranlux, only : TRanlux, init, getRandom
   use dftbp_common_assert
   implicit none
+  
   private
-
   public :: TRandomGenPool, init
 
 

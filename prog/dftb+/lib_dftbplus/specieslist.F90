@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,8 +14,8 @@ module dftbp_dftbplus_specieslist
   use dftbp_io_hsdutils, only : getChildValue, getChild
   use dftbp_extlibs_xmlf90, only : fnode
   implicit none
+  
   private
-
   public :: readSpeciesList
 
 

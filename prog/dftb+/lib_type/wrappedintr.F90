@@ -1,31 +1,36 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:set FLAVOURS = [('logical','Logical',''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
+  & ('complex', 'Cmplx', '(dp)')]
+
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
 module dftbp_type_wrappedintr
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   implicit none
+  
   private
+#:for _, SUFFIX, _ in FLAVOURS
+#:for DIM in [('1'), ('2')]
 
-  public :: TWrappedInt1, TWrappedReal1, TWrappedLogical1
+  public :: Twrapped${SUFFIX}$${DIM}$
 
-  !> 1 dimensional integers
-  type :: TWrappedInt1
-    integer, allocatable :: data(:)
-  end type TWrappedInt1
+#:endfor
+#:endfor
 
-  !> 1 dimensional reals
-  type :: TWrappedReal1
-    real(dp), allocatable :: data(:)
-  end type TWrappedReal1
+#:for TYPE, NAME, PREC in FLAVOURS
+#:for DIM, ARRAY in [('1',':'), ('2', ':,:')]
 
-  !> 1 dimensional logicals
-  type :: TWrappedLogical1
-    logical, allocatable :: data(:)
-  end type TWrappedLogical1
+  !> ${DIM}$ dimensional ${TYPE}$
+  type :: Twrapped${NAME}$${DIM}$
+    ${TYPE}$${PREC}$, allocatable :: data(${ARRAY}$)
+  end type Twrapped${NAME}$${DIM}$
+
+#:endfor
+#:endfor
 
 end module dftbp_type_wrappedintr

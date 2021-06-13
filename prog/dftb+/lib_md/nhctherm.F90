@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,17 +9,16 @@
 
 !> Nose-Hoover Chain thermostat
 !> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
-module dftbp_nhctherm
+module dftbp_md_nhctherm
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_md_mdcommon
-  use dftbp_math_ranlux
-  use dftbp_md_tempprofile
-  use dftbp_io_message
+  use dftbp_common_accuracy, only : dp, lc, minTemp
+  use dftbp_md_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_math_ranlux, only : TRanlux
+  use dftbp_md_tempprofile, only : TTempProfile
+  use dftbp_io_message, only : error
   implicit none
 
   private
-
   public :: TNHCThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
@@ -328,4 +327,4 @@ contains
 
   end subroutine NHC_state
 
-end module dftbp_nhctherm
+end module dftbp_md_nhctherm

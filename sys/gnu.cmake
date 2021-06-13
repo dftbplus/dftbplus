@@ -33,10 +33,12 @@ set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
 set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check"
   CACHE STRING "Fortran compiler flags for Debug build")
 
+set(Fortran_FLAGS_COVERAGE "-O0 -g --coverage")
+
 # Use intrinsic Fortran 2008 erf/erfc functions
 set(INTERNAL_ERFC CACHE BOOL 0)
 
-set(FYPP_FLAGS "" CACHE STRING "Fypp preprocessor flags")
+set(FYPP_FLAGS "-n" CACHE STRING "Fypp preprocessor flags")
 
 
 #
@@ -53,6 +55,8 @@ set(C_FLAGS_RELWITDEBINFO "-g ${C_FLAGS_RELEASE}"
 
 set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
   CACHE STRING "C compiler flags for Debug build")
+
+set(C_FLAGS_COVERAGE "-O0 -g --coverage")
 
 
 #

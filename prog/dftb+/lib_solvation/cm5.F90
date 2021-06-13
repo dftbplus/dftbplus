@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,8 +17,8 @@ module dftbp_solvation_cm5
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TChargeModel5, TCM5Input, TChargeModel5_init
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,28 +10,31 @@
 !> Linear response excitations and gradients with respect to atomic coordinates
 module dftbp_timedep_linrespgrad
   use dftbp_common_assert
-  use dftbp_extlibs_arpack
-  use dftbp_timedep_linrespcommon
-  use dftbp_type_commontypes
-  use dftbp_dftb_slakocont
+  use dftbp_extlibs_arpack, only : withArpack, saupd, seupd
+  use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
+      & oscillatorStrength, indxoo, indxov, indxvv, rindxvv, rindxov_array, apbw, wtdn, omegatvec,&
+      & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
+      & getExcSpin, writeExcMulliken
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_slakocont, only : TSlakoCont 
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
-  use dftbp_math_blasroutines
-  use dftbp_math_eigensolver
-  use dftbp_math_lapackroutines
-  use dftbp_io_message
+  use dftbp_math_blasroutines, only : gemm, hemv, symm
+  use dftbp_math_eigensolver, only : heev
+  !use dftbp_math_lapackroutines
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_math_sorting
-  use dftbp_math_qm
-  use dftbp_timedep_transcharges
-  use dftbp_timedep_linresptypes
-  use dftbp_math_degeneracy
+  use dftbp_math_sorting, only : index_heap_sort, merge_sort
+  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
+  use dftbp_timedep_linresptypes, only : TLinResp 
+  use dftbp_math_degeneracy, only : TDegeneracyFind
   implicit none
+  
   private
-
   public :: LinRespGrad_old
 
   !> Output files for results

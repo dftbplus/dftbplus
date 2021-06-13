@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,43 +9,52 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
-  use dftbp_common_globalenv
+  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_dftbplus_inputdata
-  use dftbp_type_typegeometryhsd
+  use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
+  use dftbp_common_constants, only : maxL, symbolToNumber, shellNames, Bohr__AA
+  use dftbp_dftbplus_inputdata, only : TControl, TGeometry, TSlater, TInputData, TXLBOMDInp,&
+      & TBlacsOpts, TRangeSepInp
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryXyz,&
+      & readTGeometryVasp, reduce, setLattice
   use dftbp_io_hsdparser, only : getNodeHSDName, parseHSD
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdutils2
+  use dftbp_io_hsdutils, only : getChildValue, getChild, detailedError, detailedWarning,&
+      & getChildren, setChild, setChildValue, getSelectedAtomIndices
+  use dftbp_io_hsdutils2, only : getNodeName2, convertByMul, setUnprocessed, splitModifier
   use dftbp_dftbplus_specieslist, only : readSpeciesList
-  use dftbp_io_charmanip
-  use dftbp_io_message
-  use dftbp_type_linkedlist
-  use dftbp_common_unitconversion
-  use dftbp_dftbplus_oldcompat
-  use dftbp_dftbplus_inputconversion
+  use dftbp_io_charmanip, only : newline, i2c, unquote, tolower
+  use dftbp_io_message, only : error, warning
+  use dftbp_type_linkedlist, only : TListIntR1, TListRealR1, TListIntR1, TListInt, TListString,&
+      & len, init, append, TListCharLc, TListRealR2, TListReal, asArray, get, destruct, asVector,&
+      & intoArray
+  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
+      & timeUnits, EFieldUnits, freqUnits, pi, massUnits, VelocityUnits, Boltzmann,&
+      & dipoleUnits, chargeUnits, volumeUnits
+  use dftbp_dftbplus_oldcompat, only : convertOldHSD
+  use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling
   use dftbp_dftb_periodic, only : getCellTranslations, updateNeighbourList
-  use dftbp_dftb_coordnumber
-  use dftbp_dftb_dispersions
+  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
+  use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
+      & TSimpleDftD3Input, TDispDftD4Inp, getUffValues
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_math_simplealgebra, only: cross3, determinant33
-  use dftbp_dftb_slakocont
-  use dftbp_dftb_slakoeqgrid
-  use dftbp_dftb_repcont
-  use dftbp_dftb_repspline
-  use dftbp_dftb_reppoly
-  use dftbp_dftb_dftbplusu
-  use dftbp_type_commontypes
-  use dftbp_type_oldskdata
+  use dftbp_dftb_slakocont, only : init, addTable
+  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
+  use dftbp_dftb_repcont, only : init, addRepulsive
+  use dftbp_dftb_repspline, only : TRepSpline, TRepSplineIn, init
+  use dftbp_dftb_reppoly, only : TRepPoly, TRepPolyIn, init
+  use dftbp_dftb_dftbplusu, only : plusUFunctionals
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_extlibs_xmlf90
-  use dftbp_type_orbitals
-  use dftbp_dftb_rangeseparated
-  use dftbp_timedep_dynamics
+  use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
+      & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
+  use dftbp_type_orbitals, only : getShellnames
+  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
+  use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_mixer_mixer, only : mixerTypes
   use dftbp_geoopt_geoopt, only : geoOptTypes
@@ -53,23 +62,30 @@ module dftbp_dftbplus_parser
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
-  use dftbp_extlibs_elsiiface
+  use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
   use dftbp_dftb_etemp, only : fillingTypes
-  use dftbp_common_hamiltoniantypes
-  use dftbp_type_wrappedintr
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   use dftbp_md_tempprofile, only : identifyTempProfile
-  use dftbp_reks_reks
+  use dftbp_reks_reks, only : reksTypes
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure
+  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure, withPoisson
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars
+  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
+      & ContactInfo
 #:endif
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
+#:if WITH_DFTD3
+  use dftbp_dftb_dispdftd3, only : TDispDftD3Inp
+#:endif
+#:if WITH_MBD
+  use dftbp_dftb_dispmbd, only :TDispMbdInp
+#:endif
   implicit none
+  
   private
-
   public :: parserVersion, rootTag
   public :: TParserFlags
   public :: readHsdFile, parseHsdTree
@@ -108,6 +124,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
 
@@ -2044,21 +2061,31 @@ contains
     ! Read in which kind of electrostatics method to use.
     call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
     call getNodeName(value1, buffer)
+
     select case (char(buffer))
+
     case ("gammafunctional")
     #:if WITH_TRANSPORT
       if (tp%taskUpload .and. ctrl%tSCC) then
-        call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
+        call detailedError(value1, "GammaFunctional not available, if you upload contacts in an SCC&
             & calculation.")
       end if
     #:endif
+
     case ("poisson")
-      ctrl%tPoisson = .true.
-    #:if WITH_TRANSPORT
-      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:else
-      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
-    #:endif
+      if (.not. withPoisson) then
+        call detailedError(value1, "Poisson not available as binary was built without the Poisson&
+            &-solver")
+      end if
+      #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+        ctrl%tPoisson = .true.
+        #:if WITH_TRANSPORT
+          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:else
+          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
+        #:endif
+      #:endblock
+
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
@@ -4378,12 +4405,16 @@ contains
     type(fnode), pointer :: child
 
     input%method = 'ts'
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, default=(input%ts_ene_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, default=(input%ts_f_acc),&
-        & modifier=buffer, child=child)
-    call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
+    call getChild(node, "EnergyAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The energy accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
+    call getChild(node, "ForceAccuracy", child, requested=.false.)
+    if (associated(child)) then
+      call detailedWarning(child, "The force accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+    end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
     call getChildValue(node, "RangeSeparation", input%ts_sr, default=(input%ts_sr))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
@@ -4828,6 +4859,15 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ! electric field polarisability of system
+      call getChild(node, "Polarisability", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+      else
+        ctrl%isDFTBPT = .false.
+      end if
+
     end if
 
     if (tHaveDensityMatrix) then
@@ -4863,6 +4903,9 @@ contains
       ctrl%tPrintForces = .false.
 
     end if
+
+
+
 
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
@@ -5780,6 +5823,8 @@ contains
 #:endif
 
 
+#:if WITH_POISSON
+
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
   subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
@@ -6053,6 +6098,9 @@ contains
     end do
 
   end subroutine getPoissonBoundaryConditionOverrides
+
+#:endif
+
 
 #:if WITH_TRANSPORT
   !> Sanity checking of atom ranges and returning contact vector and direction.
@@ -6874,18 +6922,20 @@ contains
       input%ginfo%greendens%PL = input%transpar%PL
     end if
 
-    !! Not orthogonal directions in transport are only allowed if no Poisson
-    if (input%poisson%defined.and.input%transpar%defined) then
-      do ii = 1, input%transpar%ncont
-        ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
-        ! a direction not parallel to any coordinate axis
-        if (input%transpar%contacts(ii)%dir.lt.1 .or. &
-          &input%transpar%contacts(ii)%dir.gt.3 ) then
-          call error("Contact " // i2c(ii) // " not parallel to any &
-            & coordinate axis is not compatible with Poisson solver")
-        end if
-      end do
-    end if
+    #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+      !! Not orthogonal directions in transport are only allowed if no Poisson
+      if (input%poisson%defined.and.input%transpar%defined) then
+        do ii = 1, input%transpar%ncont
+          ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
+          ! a direction not parallel to any coordinate axis
+          if (input%transpar%contacts(ii)%dir.lt.1 .or. &
+            &input%transpar%contacts(ii)%dir.gt.3 ) then
+            call error("Contact " // i2c(ii) // " not parallel to any &
+              & coordinate axis is not compatible with Poisson solver")
+          end if
+        end do
+      end if
+    #:endblock
 
     !! Temporarily not supporting surface green function read/load
     !! for spin polarized, because spin is handled outside of libnegf

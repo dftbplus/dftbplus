@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
-  use dftbp_timedep_dynamics, only : initializeDynamics, doTdStep
+  use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
 #:endif
@@ -29,8 +29,8 @@ module dftbp_dftbplus_mainapi
   use dftbp_type_wrappedintr, only : TWrappedInt1
   use dftbp_io_charmanip, only : newline
   implicit none
+  
   private
-
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms, getAtomicMasses

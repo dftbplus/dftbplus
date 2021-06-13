@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,17 +13,17 @@
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 module dftbp_dftb_dispcommon
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, lc, nSearchIter
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_errorfunction
-  use dftbp_io_message
+  use dftbp_math_errorfunction, only : erfcwrap
+  use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_math_sorting
+  use dftbp_math_sorting, only : index_heap_sort
   implicit none
+  
   private
-
   public :: addDispEGr_per_species, addDispEGr_per_atom
   public :: getOptimalEta, getMaxRDispersion, getMaxGDispersion
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -116,6 +116,13 @@ module dftbp_mmapi
   end type TDftbPlus
 
 
+#:if not INSTANCE_SAFE_BUILD
+
+  !> Nr. of exisiting instances (if build is not instance safe)
+  integer :: nInstance_ = 0
+
+#:endif
+
 
 contains
 
@@ -132,7 +139,7 @@ contains
 
 
   !> Returns the DFTB+ API version
-  subroutine getDftbPlusApi(major, minor, patch)
+  subroutine getDftbPlusApi(major, minor, patch, instanceSafe)
 
     !> Major version number
     integer, intent(out) :: major
@@ -143,9 +150,15 @@ contains
     !> patch level for API
     integer, intent(out) :: patch
 
+    !> Whether API is instance safe
+    logical, optional, intent(out) :: instanceSafe
+
     major = ${APIMAJOR}$
     minor = ${APIMINOR}$
     patch = ${APIPATCH}$
+    if (present(instanceSafe)) then
+      instanceSafe = instanceSafeBuild
+    end if
 
   end subroutine getDftbPlusApi
 
@@ -241,7 +254,7 @@ contains
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
   !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
   !>
-  subroutine TDftbPlus_init(this, outputUnit, mpiComm)
+  subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
     !> Instance
     type(TDftbPlus), intent(out) :: this
@@ -252,7 +265,18 @@ contains
     !> MPI-communicator to use
     integer, intent(in), optional :: mpiComm
 
+    !> Unit of the null device (you must open the null device and pass its unit number, if you open
+    !> multiple TDftbPlus instances within an MPI-process)
+    integer, intent(in), optional :: devNull
+
     integer :: stdOut
+
+    #:if not INSTANCE_SAFE_BUILD
+      if (nInstance_ /= 0) then
+        call error("This build does not support multiple DFTB+ instances")
+      end if
+      nInstance_ = 1
+    #:endif
 
     if (present(outputUnit)) then
       stdOut = outputUnit
@@ -260,7 +284,7 @@ contains
       stdOut = output_unit
     end if
 
-    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
+    call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
     allocate(this%env)
     allocate(this%main)
     call TEnvironment_init(this%env)
@@ -283,6 +307,10 @@ contains
     deallocate(this%main, this%env)
     call destructGlobalEnv()
     this%tInit = .false.
+
+    #:if not INSTANCE_SAFE_BUILD
+      nInstance_ = 0
+    #:endif
 
   end subroutine TDftbPlus_destruct
 

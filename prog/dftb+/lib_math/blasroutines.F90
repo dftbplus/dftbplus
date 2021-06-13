@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,8 +14,8 @@
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_extlibs_blas
+  use dftbp_common_accuracy, only : dp, elecTolMax, mc, lc, sc, rsp, rdp
+  use dftbp_extlibs_blas, only : ssyr, cher, zher
   implicit none
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,16 +15,15 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_rekscommon
 
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_blasroutines, only : gemm
-  use dftbp_type_densedescr
-  use dftbp_io_message
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_io_message, only: error
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
   private
-
   public :: checkGammaPoint
   public :: getTwoIndices
   public :: qm2udL, ud2qmL

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,19 +23,20 @@
 !> outside, since the Coulomb module does the same.
 module dftbp_dftb_dispslaterkirkw
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, tolDispDamp, tolDispersion
   use dftbp_common_constants, only : pi
-  use dftbp_dispiface
-  use dftbp_dftb_dispcommon
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
+      &addDispEGr_per_atom
   use dftbp_common_environment, only : TEnvironment
   use dftbp_math_lapackroutines, only : matinv
-  use dftbp_io_message
+  use dftbp_io_message, only : error
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
+  
   private
-
   public :: TDispSlaKirkInp, TDispSlaKirk, DispSlaKirk_init
 
 

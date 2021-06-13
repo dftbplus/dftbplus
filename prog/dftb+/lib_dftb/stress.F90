@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,17 +10,17 @@
 !> Routines to calculate contributions to the stress tensor
 module dftbp_dftb_stress
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_scc
-  use dftbp_type_commontypes
-  use dftbp_dftb_slakocont
-  use dftbp_dftb_repcont
-  use dftbp_common_schedule
-  use dftbp_common_environment
+  !use dftbp_dftb_scc
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_repcont, only : TRepCont, getEnergyDeriv
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_environment, only : TEnvironment
   implicit none
+  
   private
-
   public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 
 contains

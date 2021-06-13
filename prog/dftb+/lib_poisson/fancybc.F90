@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -8,13 +15,15 @@
 module dftbp_poisson_fancybc
 
   use dftbp_common_accuracy, only : dp
-  use dftbp_poisson_parameters
+  use dftbp_poisson_parameters, only : poissbox, cntr_gate, base_atom1, base_atom2, tip_atom,&    
+      & r_cont, localbc, cntr_cont, contdir, ncont, gatedir, dr_cont, iatc, mixed, rmin_gate,&
+      & gatelength_l, biasdir, tipbias, gate, OxLength, dr_eps, eps_r, rmin_ins, gatelength_t
   use dftbp_poisson_bulkpot , only : super_array
-  use dftbp_poisson_mpi_poisson
+  use dftbp_poisson_mpi_poisson, only : id0
   
   implicit none
+  
   private
-
   public :: bndyc, coef, coef_period, coef_gate, gate_bound
   public :: coef_tip ,tip_bound, coef_cilgate, cilgate_bound
   public :: coef_local, local_bound

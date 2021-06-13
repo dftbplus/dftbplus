@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,21 +10,21 @@
 
 !> Contains range separated related routines.
 module dftbp_dftb_rangeseparated
-  use dftbp_common_accuracy
-  use dftbp_common_environment
+  use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_assert
-  use dftbp_io_message
+  use dftbp_io_message, only : error
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_type_commontypes
-  use dftbp_math_sorting
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_math_sorting, only : index_heap_sort
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_math_f08math
+  !use dftbp_math_f08math
   use dftbp_math_blasroutines, only : gemm
   implicit none
+  
   private
-
   public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue, rangeSepTypes
 
 

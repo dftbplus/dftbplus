@@ -1,22 +1,24 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains BLACS environmental settings.
 module dftbp_common_blacsenv
-  use dftbp_common_mpienv
-  use dftbp_io_message
-  use dftbp_extlibs_scalapackfx
+  use dftbp_common_mpienv, only : TMpiEnv
+  use dftbp_io_message, only : error
+  use dftbp_extlibs_scalapackfx, only : blacsgrid
   use dftbp_common_assert
+  use dftbp_common_status, only : TStatus
   implicit none
+  
   private
-
-  public :: TBlacsEnv, TBlacsEnv_init
+  public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 
 
   !> Contains various BLACS related settings
@@ -43,7 +45,7 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom)
+  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, status)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
@@ -63,6 +65,9 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: status
+
     integer, allocatable :: gridMap(:,:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
     character(200) :: buffer
@@ -76,9 +81,9 @@ contains
     if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
-      call error(buffer)
+      @:RAISE_ERROR(status, -1, trim(buffer))
     end if
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
 
     ! Create atom grid for each processor group
@@ -86,13 +91,26 @@ contains
     maxProcColMax = (nAtom - 1) / colBlock + 1
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
-    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%atomGrid%initmappedgrids(gridMap)
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
 
   end subroutine TBlacsEnv_init
+
+
+  !> Finalizes the initialized grids.
+  subroutine TBlacsEnv_final(this)
+
+    !> Initialized instance.
+    type(TBlacsEnv), intent(out) :: this
+
+    call this%orbitalGrid%destruct()
+    call this%atomGrid%destruct()
+
+  end subroutine TBlacsEnv_final
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

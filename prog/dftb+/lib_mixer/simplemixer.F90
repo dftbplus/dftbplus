@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,10 +10,12 @@
 !> Simple mixer for mixing charges
 module dftbp_mixer_simplemixer
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
+  public :: TSimpleMixer
+  public :: init, reset, mix
 
 
   !> Contains data for a simple mixer
@@ -42,9 +44,6 @@ module dftbp_mixer_simplemixer
   interface mix
     module procedure SimpleMixer_mix
   end interface
-
-  public :: TSimpleMixer
-  public :: init, reset, mix
 
 contains
 

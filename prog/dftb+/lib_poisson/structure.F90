@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -8,12 +15,17 @@
 module dftbp_poisson_structure
 
   use dftbp_common_accuracy, only : dp
-  use dftbp_poisson_gallocation
-  use dftbp_poisson_mpi_poisson
+  use dftbp_poisson_gallocation, only : log_gallocate
+  use dftbp_poisson_mpi_poisson, only : active_id
   use dftbp_common_globalenv, only : stdOut
    
   implicit none
+  
   private
+  public :: find_ntypes, buildsupercell
+  public :: shortvertice
+  public :: gamma_summind
+  public :: init_structure, init_charges, init_skdata
   
   integer,  public, save :: natoms
   integer, allocatable, public, save :: izp(:)       ! specie
@@ -43,12 +55,6 @@ module dftbp_poisson_structure
   
   !! Renormalization volumes: to ensure charge neutrality
   real(kind=dp), public, allocatable :: renorm(:,:)
-
-
-  public :: find_ntypes, buildsupercell
-  public :: shortvertice
-  public :: gamma_summind
-  public :: init_structure, init_charges, init_skdata
 
   contains
 

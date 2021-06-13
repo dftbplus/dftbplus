@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -11,19 +18,18 @@
 module dftbp_poisson_bulkpot
   
  use dftbp_common_accuracy, only : dp
- use dftbp_common_constants
+ use dftbp_common_constants, only : Bohr__AA
  use dftbp_common_globalenv, only : stdOut
  use dftbp_io_message, only : warning
- use dftbp_poisson_gallocation
- use dftbp_poisson_parameters
- use dftbp_poisson_structure
- use dftbp_poisson_mpi_poisson
- use dftbp_poisson_gewald
+ use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
+ use dftbp_poisson_parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc,&
+      & overrbulkbc, dmin
+ use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, lmax
+ use dftbp_poisson_mpi_poisson, only : id0
+ use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
 
  implicit none
-
  private
-
  public :: super_array, create_super_array,destroy_super_array
  public :: create_phi_bulk,destroy_phi_bulk,readbulk_pot,compbulk_pot
  public :: save_bulkpot, write_super_array

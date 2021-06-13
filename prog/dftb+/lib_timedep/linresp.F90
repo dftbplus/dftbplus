@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,21 +18,21 @@
 !> * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_type_commontypes
-  use dftbp_dftb_slakocont
-  use dftbp_io_fileid
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_io_fileid, only : getFileId 
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_type_densedescr
+  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_io_taggedoutput, only : TTaggedWriter
-  use dftbp_timedep_linrespgrad
+  use dftbp_timedep_linrespgrad, only : LinRespGrad_old
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_timedep_linresptypes
+  use dftbp_timedep_linresptypes, only : TLinResp
   implicit none
+  
   private
-
   public :: TLinresp, TLinrespini
   public :: LinResp_init, linResp_calcExcitations, addGradients
 

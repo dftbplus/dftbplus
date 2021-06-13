@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_assert
   use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_dftb_populations
+  use dftbp_dftb_populations, only : mulliken
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -21,19 +21,19 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_io_message, only : error
-  use dftbp_thirdorder, only : TThirdOrder
+  use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_dftb_onsitecorrection
-  use dftbp_dispiface
+  use dftbp_dftb_onsitecorrection, only : getEons
+  use dftbp_dftb_dispiface, only : TDispersionIface
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only: TDispMbd
 #:endif
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_dftb_repcont
-  use dftbp_dftb_repulsive
+  use dftbp_dftb_repcont, only : TRepCont
+  use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   implicit none

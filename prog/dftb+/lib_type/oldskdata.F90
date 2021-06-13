@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,15 +11,15 @@
 !> that data from file.
 module dftbp_type_oldskdata
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_common_constants
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : amu__au
   use dftbp_dftb_repspline, only : TRepSplineIn
   use dftbp_dftb_reppoly, only : TRepPolyIn
-  use dftbp_io_message
+  use dftbp_io_message, only : error
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
   implicit none
+  
   private
-
   public :: TOldSKData, readFromFile, readSplineRep
 
 

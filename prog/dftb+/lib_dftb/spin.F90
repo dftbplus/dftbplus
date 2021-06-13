@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,13 +11,13 @@
 !> switched on!
 module dftbp_dftb_spin
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_type_commontypes
-  use dftbp_dftb_shift
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
+  !use dftbp_dftb_shift
   implicit none
+  
   private
-
   public :: getEnergySpin, getSpinShift
   public :: Spin_getOrbitalEquiv, ud2qm, qm2ud
 

@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -11,21 +18,24 @@
 module dftbp_poisson_parcheck
 
   use dftbp_common_accuracy, only : lc, dp
-  use dftbp_common_constants
+  use dftbp_common_constants, only : hartree__eV, Bohr__AA
   use dftbp_io_message, only : warning
-  use dftbp_poisson_parameters
+  use dftbp_poisson_parameters, only : cluster, DoGate, gatedir, ncdim, ncont, verbose, localBC,&
+      & mixed, overrideBC, contdir, iatc, dr_cont, poissbox, iatm, mu, poissBC, Efermi, Rmin_ins,&
+      & Rmin_gate, dr_eps, GateLength_l, deltaR_max, DoCilGate, DoPoisson, eps_r, gate, &
+      & GateLength_t, initPot, OxLength, PoissAcc, foundbox
   use dftbp_poisson_structure, only : natoms, x, boxsiz, period, period_dir
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
   use dftbp_common_globalenv, only : stdOut
 
-implicit none
-private
+  implicit none
+  
+  private
+  public :: check_poisson_box, check_contacts, check_localbc
+  public :: check_parameters, write_parameters, check_biasdir
 
- public :: check_poisson_box, check_contacts, check_localbc
- public :: check_parameters, write_parameters, check_biasdir
-
- !> Verbosity threashold
- integer, parameter :: VBT=30
+  !> Verbosity threashold
+  integer, parameter :: VBT=30
 
 contains
  ! ---------------------------------------------------------------------------

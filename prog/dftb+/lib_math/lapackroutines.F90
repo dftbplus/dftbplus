@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,13 +14,14 @@
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_math_lapackroutines
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_extlibs_lapack
+  use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_io_message, only : error, warning
+  ! use dftbp_extlibs_lapack
   implicit none
 
   private
-
+  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
+  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
   !> matrix and X and B are N-by-NRHS matrices
@@ -122,8 +123,7 @@ module dftbp_math_lapackroutines
   end interface getrs
 
 
-  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
+  
 
 contains
 

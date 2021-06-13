@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,18 +12,23 @@
 module dftbp_dftbplus_eigenvects
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_math_eigensolver
-  use dftbp_io_message
-#:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_eigensolver, only : hegv, hegvd, gvr
+#:if WITH_GPU
+  use dftbp_math_eigensolver, only : gpu_gvd
 #:endif
-  use dftbp_extlibs_elsiiface
-  use dftbp_type_parallelks
+  use dftbp_io_message, only : error, cleanShutdown
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : DLEN_, scalafx_phegv, scalafx_phegvd, scalafx_phegvr,&
+      & scalafx_psygv, scalafx_psygvd, scalafx_psygvr
+#:endif
+  use dftbp_extlibs_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&
+      & elsi_ev_real, elsi_write_mat_real
+  !use dftbp_type_parallelks
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   implicit none
+  
   private
-
   public :: diagDenseMtx
 #:if WITH_SCALAPACK
   public :: diagDenseMtxBlacs

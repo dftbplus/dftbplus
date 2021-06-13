@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,13 +12,13 @@
 module dftbp_dftb_halogenx
   use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_dftb_vdwdata
+  use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_io_message
+  use dftbp_io_message, only : error
   implicit none
+  
   private
-
   public :: THalogenX, THalogenX_init
   public :: halogenXSpecies1, halogenXSpecies2
 

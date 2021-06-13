@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !**************************************************************************
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
@@ -10,8 +17,8 @@ module dftbp_poisson_parameters
   use dftbp_common_accuracy, only : dp
 
   implicit none
+  
   private
-
   public :: init_defaults
   public :: set_verbose, set_scratch, set_contdir, set_fermi, set_potentials
   public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces

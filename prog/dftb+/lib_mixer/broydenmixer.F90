@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,13 +14,15 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_broydenmixer
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_io_message
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : ger
   use dftbp_math_lapackroutines, only : getrf, getrs, matinv
   implicit none
 
   private
+  public :: TBroydenMixer
+  public :: init, reset, mix, getInverseJacobian
 
 
   !> Contains the necessary data for a Broyden mixer.
@@ -93,9 +95,6 @@ module dftbp_mixer_broydenmixer
   interface getInverseJacobian
     module procedure BroydenMixer_getInverseJacobian
   end interface getInverseJacobian
-
-  public :: TBroydenMixer
-  public :: init, reset, mix, getInverseJacobian
 
 contains
 

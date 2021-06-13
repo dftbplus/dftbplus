@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_elecsolvers_elecsolvers
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_assert
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_elecsolvers_elsisolver
+  use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
   implicit none
 
   private

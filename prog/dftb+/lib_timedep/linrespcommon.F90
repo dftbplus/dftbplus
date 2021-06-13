@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,15 +10,16 @@
 !> Helper routines for the linear response modules.
 module dftbp_timedep_linrespcommon
   use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_math_blasroutines
-  use dftbp_math_sorting
-  use dftbp_io_message
-  use dftbp_type_commontypes
-  use dftbp_timedep_transcharges
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_blasroutines, only : elecTolMax, hemv
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_timedep_transcharges, only : TTransCharges, transq
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_common_constants, only: Hartree__eV, au__Debye
   implicit none
+  
   public
 
 

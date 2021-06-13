@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,20 +12,20 @@
 !>
 module dftbp_dftb_sparse2dense
   use dftbp_common_assert
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, imag
-  use dftbp_type_commontypes
-  use dftbp_common_memman
+  use dftbp_type_commontypes, only : TOrbitals
+  !use dftbp_common_memman
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_type_densedescr
+  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_math_angmomentum, only : rotateZ
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx
-  use dftbp_common_blacsenv
+  use dftbp_extlibs_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
+  use dftbp_common_blacsenv, only : TBlacsEnv
 #:endif
   implicit none
+  
   private
-
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
   public :: hermitianSquareMatrix

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,16 +15,16 @@ module dftbp_dftb_simpledftd3
   use dftbp_math_blasroutines, only : gemv
   use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_dftb_dftd3param
+  use dftbp_dftb_dftd3param, only : TDftD3Ref, init
   use dftbp_dftb_dftd4param, only : getSqrtZr4r2
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
+  
   private
-
   public :: TSimpleDftD3, TSimpleDftD3Input, init
 
 

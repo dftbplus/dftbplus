@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,8 +23,8 @@ module dftbp_solvation_born
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_solvation_solvation, only : TSolvation
   implicit none
+  
   private
-
   public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
   public :: writeGeneralizedBornInfo, fgbKernel
 

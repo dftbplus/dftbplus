@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,16 +13,16 @@
 !> allowing for a low memory footprint for large neighbour lists (at the cost of speed).
 !>
 module dftbp_type_dynneighlist
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
-  use dftbp_type_latpointiter
-  use dftbp_io_message
+  use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
+  use dftbp_io_message, only : error
   implicit none
+  
   private
-
   public :: TDynNeighList, TDynNeighList_init
   public :: TNeighIterator, TNeighIterator_init
-
+  
 
   !> Dynamic neighbour list
   type :: TDynNeighList

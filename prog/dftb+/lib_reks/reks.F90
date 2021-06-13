@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,17 +15,18 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reks
 
-  use dftbp_reks_rekscommon
-  use dftbp_reks_reksen
-  use dftbp_reks_reksfon
-  use dftbp_reks_reksinterface
-  use dftbp_reks_reksio
-  use dftbp_reks_reksvar
+  use dftbp_reks_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
+  use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
+      & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
+  use dftbp_reks_reksfon, only : optimizeFons
+  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradProperties,&
+      & getReksGradients, getReksStress, getStateInteraction
+  use dftbp_reks_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
+  use dftbp_reks_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
 
   implicit none
 
   private
-
   !> In REKS method, there is a symmetry for the microstates due to the restricted scheme.
   !> For the reduce of memory allocation, I make two representation used in REKS.
   !>

@@ -1,16 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> IDs for file operations
 module dftbp_io_fileid
-  use dftbp_io_message
+  use dftbp_io_message, only : error
 
   private
-
   public :: getFileId
 
 

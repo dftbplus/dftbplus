@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,20 +15,19 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksproperty
 
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp
   use dftbp_math_blasroutines, only : gemm
-  use dftbp_dftb_densitymatrix
-  use dftbp_common_globalenv
-  use dftbp_io_message
-  use dftbp_dftb_sparse2dense
-  use dftbp_reks_rekscommon
-  use dftbp_reks_reksio
+  use dftbp_dftb_densitymatrix, only : makeDensityMatrix
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only : error
+  use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_reks_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
+  use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
   use dftbp_reks_reksvar, only : reksTypes
 
   implicit none
 
   private
-
   public :: getUnrelaxedDensMatAndTdp, getRelaxedDensMat, getRelaxedDensMatL
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
@@ -36,7 +35,7 @@ module dftbp_reks_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoSqrL, FONs, &
+  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoL, FONs, &
       & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
       & unrelRhoSqr, unrelTdm)
 
@@ -46,8 +45,8 @@ module dftbp_reks_reksproperty
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
 
-    !> Dense density matrix for each microstate
-    real(dp), intent(in) :: rhoSqrL(:,:,:,:)
+    !> Dense density matrix for target microstate
+    real(dp), intent(in) :: rhoL(:,:)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
@@ -137,16 +136,7 @@ module dftbp_reks_reksproperty
         call symmetrizeHS(rhoX(:,:,1))
       else
         ! find proper index for up+down in rhoSqrL
-        if (Lstate <= Lpaired) then
-          ii = Lstate
-        else
-          if (mod(Lstate,2) == 1) then
-            ii = Lstate
-          else
-            ii = Lstate - 1
-          end if
-        end if
-        rhoX(:,:,1) = rhoSqrL(:,:,1,ii)
+        rhoX(:,:,1) = rhoL
       end if
     end if
 

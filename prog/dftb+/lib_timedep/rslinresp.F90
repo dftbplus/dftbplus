@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,9 +22,10 @@ module dftbp_timedep_rslinresp
   use dftbp_io_message, only : error 
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_timedep_linresp, only : TLinResp
-  use dftbp_timedep_linrespcommon, only : TOrbitals, twothird, elecTolMax, excitedDipoleOut, excitedQOut,&
-      & rIndXvv, hemv, indxov, wtdn, indXvv, indXoo, getSPExcitations, calcTransitionDipoles,&
-      & dipselect, rIndXov_array, getExcSpin, writeExcMulliken, writeSPExcitations
+  use dftbp_timedep_linrespcommon, only : TOrbitals, twothird, elecTolMax, excitedDipoleOut,&
+      & excitedQOut, rIndXvv, hemv, indxov, wtdn, indXvv, indXoo, getSPExcitations,&
+      & calcTransitionDipoles,dipselect, rIndXov_array, getExcSpin, writeExcMulliken,& 
+      & writeSPExcitations
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
   use dftbp_timedep_transcharges, only : TTransCharges, transQ, TTransCharges_init
@@ -3275,5 +3276,5 @@ contains
     print *,'Max. deviation vir-vir trans charges: ', maxdev
 
   end subroutine chargeTestRS
-
+  
 end module dftbp_timedep_rslinresp
