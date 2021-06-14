@@ -189,8 +189,8 @@ endif()
 add_subdirectory(external/mudpack)
 
 if(WITH_TBLITE)
-  set(MCTC_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
+  set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
+  set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_GIT_REPOSITORY}" "${MCTC_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
@@ -201,8 +201,8 @@ if(WITH_TBLITE)
     external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mstore)
 
-  set(SDFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(SDFTD3_GIT_TAG "6be55d401af313d47481f756694631ca5903d2c3")  # do not change manually!
+  set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
+  set(S_DFTD3_GIT_TAG "6be55d401af313d47481f756694631ca5903d2c3")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${SDFTD3_GIT_REPOSITORY}" "${SDFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
