@@ -3622,9 +3622,9 @@ contains
 
       if (allocated(this%tblite)) then
         allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
+        iEqOrbSpin(:,:,:) = 0
         allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        iEqOrbDFTBU(:,:,:) = 0
         call this%tblite%getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
         call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
         this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
@@ -3636,9 +3636,9 @@ contains
 
       if (allocated(this%onSiteElements)) then
         allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
+        iEqOrbSpin(:,:,:) = 0
         allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        iEqOrbDFTBU(:,:,:) = 0
         call Ons_getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
         call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
         this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
