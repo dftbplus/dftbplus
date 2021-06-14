@@ -202,7 +202,7 @@ if(WITH_TBLITE)
   #list(APPEND PKG_CONFIG_REQUIRES mstore)
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "6be55d401af313d47481f756694631ca5903d2c3")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "a6475bae522252078da46cc238429e124a037635")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${SDFTD3_GIT_REPOSITORY}" "${SDFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -214,7 +214,7 @@ if(WITH_TBLITE)
   #list(APPEND PKG_CONFIG_REQUIRES multicharge)
 
   set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-  set(DFTD4_GIT_TAG "1065faa3c6eec89dbc715dae14ea5781497fa4a7")  # do not change manually!
+  set(DFTD4_GIT_TAG "776f8af9b975c7bf7adcf01633d4400fd2298a48")  # do not change manually!
   dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES dftd4)
