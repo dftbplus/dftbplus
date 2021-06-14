@@ -45,10 +45,11 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, dftbU,&
+  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, isExtField, isXlbomd, dftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-      & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom,&
+      & vOnSiteAtomInt, vOnSiteAtomExt)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -65,8 +66,8 @@ contains
     !> chemical species
     integer, intent(in) :: species(:)
 
-    !> is an external electric field present
-    logical, intent(in) :: tExtField
+    !> is an external field present
+    logical, intent(in) :: isExtField
 
     !> Is the extended Lagrangian being used for MD
     logical, intent(in) :: isXlbomd
@@ -150,6 +151,15 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
+    !> Net atom populations
+    real(dp), intent(in), optional :: qNetAtom(:)
+
+    !> On-site only (internal) potential
+    real(dp), intent(in), optional :: vOnSiteAtomInt(:,:)
+
+    !> On-site only (external) potential
+    real(dp), intent(in), optional :: vOnSiteAtomExt(:,:)
+
     integer :: nSpin
     real(dp) :: nEl(2)
 
@@ -162,7 +172,7 @@ contains
     energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion))
 
     energy%atomExt(:) = 0.0_dp
-    if (tExtField) then
+    if (isExtField) then
       energy%atomExt(:) = energy%atomExt&
           & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
     end if
@@ -183,6 +193,17 @@ contains
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
+      end if
+    end if
+
+    if (present(qNetAtom)) then
+      if (present(vOnSiteAtomExt)) then
+        energy%atomExt = energy%atomExt + (qNetAtom - sum(q0(:,:,1),dim=1)) * vOnSiteAtomExt(:,1)
+        energy%Eext = energy%Eext + sum((qNetAtom - sum(q0(:,:,1),dim=1)) * vOnSiteAtomExt(:,1))
+      end if
+      if (present(vOnSiteAtomInt)) then
+        energy%atomScc = energy%atomScc + (qNetAtom - sum(q0(:,:,1),dim=1)) * vOnSiteAtomInt(:,1)
+        energy%EScc = energy%EScc + sum((qNetAtom - sum(q0(:,:,1),dim=1)) * vOnSiteAtomInt(:,1))
       end if
     end if
 

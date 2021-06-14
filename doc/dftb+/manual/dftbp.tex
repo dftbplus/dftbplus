@@ -1092,7 +1092,8 @@ following properties:
   \pref{sec:dftbp.OrbitalPotential} \\
   \kw{ReadInitialCharges} &l& SCC = Yes & No & \\
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
-  \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
+  \kw{ElectricField} & p & & \cb & \pref{sec:dftbp.ElectricField} \\
+  \kw{AtomSitePotential} & p & & \cb & \pref{sec:dftbp.AtomSitePotential}\\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{HCorrection} & m & SCC = Yes & None \cb & \pref{sec:dftbp.hcorr}\\
   \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
@@ -1338,6 +1339,9 @@ expressions, as described in appendix \ref{sec:index_selection}.):
 \item[\is{ElectricField}] Specifies an external electric field,
   arising currently from either an applied field or a distribution of
   electrostatic charges. See p.~\pref{sec:dftbp.ElectricField}.
+
+\item[\is{AtomSitePotential}] Specifies an external potential at an atom. See
+  p.~\pref{sec:dftbp.AtomSitePotential}.
 
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
@@ -2158,9 +2162,9 @@ default):
     GroundGuess = Yes
   }
 \end{verbatim}
-The \verb|detailed.out| will then contain energies of the ground, triplet and
-the spin purified singlet excitation, along with estimates for the excitation
-energies from the $S_o$ to the $T_1$ and $S_1$ states:
+The \verb|detailed.out| file will then contain energies of the ground, triplet
+and the spin purified singlet excitation, along with estimates for the
+excitation energies from the $S_o$ to the $T_1$ and $S_1$ states:
 \begin{verbatim}
 S0 -> T1:                            0.2104101411 H            5.7256 eV
 S0 -> S1:                            0.2615036445 H            7.1159 eV
@@ -2567,6 +2571,48 @@ The \kw{External} field keyword has the following options
   current MD-step in the simulation, using the MD \kw{TimeStep} of $\Delta t$
   (see section \ref{sec:dftbp.VelocityVerlet}).
 \end{description}
+
+\subsection{AtomSitePotential}
+\label{sec:dftbp.AtomSitePotential}
+
+Specifies an external potential at a selected atomic site or sites. This
+potential either couples with the gross atomic charges (charges printed in
+\verb|detailed.out| when {\is MullikenAnalysis} = \is{Yes}) or net atomic charge
+(as printed when \is{WriteNetCharges} is enabled). {\bf Note:} The sign
+convention is that the potential will {\em increase} the energy of states
+associated with the affected site for a {\em positive} potential.
+
+The \kw{Net} and \kw{Gross} potentials are specified as environments, both of
+which have the following options
+\begin{ptable}
+  \kw{Atoms} & i+ & & & \\
+  \kw{Vext} & r+ & & & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Atoms}] The atoms in the geometry for which an external potential
+  should be applied. As these must be paired with a specified potential value,
+  specific atom numbers in the structure should be given (not ranges or chemical
+  species).
+\item[\is{Vext}]\modif{\modtype{energy}} Specified strength of the applied
+  potential at the listed sites.
+\end{description}
+
+Example:
+\begin{verbatim}
+  AtomSitePotential {
+    # potential(s) coupling to Mulliken charges
+    Gross {
+      Atoms = 1 2
+      Vext [eV] = 1.5 -0.5
+    }
+    # on-site only part of potential
+    Net {
+      Atoms = 2
+      Vext [eV] = 0.5
+    }
+  }
+\end{verbatim}
 
 \subsection{Dispersion}
 \label{sec:dftbp.Dispersion}

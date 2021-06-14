@@ -40,6 +40,8 @@ module dftbp_dftbplus_inputdata
 #:endif
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
+  use dftbp_dftb_extfields, only : TElecFieldInput
+  use dftbp_dftb_potentials, only : TAtomExtPotInput
   implicit none
   
   private
@@ -190,6 +192,9 @@ module dftbp_dftbplus_inputdata
 
     !> Net atomic charges (i.e. on-site only part of Mulliken charges)
     logical :: tNetAtomCharges = .false.
+
+    !> Should net atomic charges be printed
+    logical :: tPrintNetAtomCharges = .false.
 
     !> Input for CM5 corrected Mulliken charges
     type(TCM5Input), allocatable :: cm5Input
@@ -381,25 +386,11 @@ module dftbp_dftbplus_inputdata
     !> finite charge width if needed
     real(dp), allocatable :: extChrgBlurWidth(:)
 
+    !> Homogeneous external electric field
+    type(TElecFieldInput), allocatable :: electricField
 
-    !> External homogeneous electric field
-    logical :: tEField = .false.
-
-    !> time dependent field in MD
-    logical :: tTDEfield = .false.
-
-    !> strength
-    real(dp) :: EFieldStrength = 0.0_dp
-
-    !> direction
-    real(dp) :: EfieldVector(3)
-
-    !> frequency of time dependent field
-    real(dp) :: EfieldOmega
-
-    !> relative phase of field
-    integer :: EfieldPhase = 0
-
+    !> Potential(s) at atomic sites
+    type(TAtomExtPotInput), allocatable :: atomicExtPotential
 
     !> Projection of eigenvectors
     type(TListIntR1) :: iAtInRegion

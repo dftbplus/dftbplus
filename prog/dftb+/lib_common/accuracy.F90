@@ -27,7 +27,7 @@ module dftbp_common_accuracy
   integer, parameter :: mc = 50
 
   !> length of a long string
-  integer, parameter :: lc = 200
+  integer, parameter :: lc = 1024
 
 
   !> Real double precision - do not edit

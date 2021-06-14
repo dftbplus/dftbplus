@@ -14,7 +14,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_shift, only : add_shift, total_shift
+  use dftbp_dftb_shift, only : add_shift, total_shift, addOnSiteShift
   use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -24,12 +24,12 @@ module dftbp_dftb_hamiltonian
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_dispersions, only : TDispersionIface
-
+  use dftbp_dftb_extfields, only : TEField
   implicit none
 
   private
   public :: resetExternalPotentials, getSccHamiltonian, mergeExternalPotentials
-  public :: setUpExternalElectricField, resetInternalPotentials, addChargePotentials
+  public :: resetInternalPotentials, addChargePotentials
   public :: addBlockChargePotentials, TRefExtPot
 
   !> Container for external potentials
@@ -67,6 +67,9 @@ contains
     else
       potential%extGrad(:,:) = 0.0_dp
     end if
+    if (allocated(potential%extOnSiteAtom)) then
+      potential%extOnSiteAtom(:,:) = 0.0_dp
+    end if
 
   end subroutine resetExternalPotentials
 
@@ -87,118 +90,6 @@ contains
     call total_shift(potential%extBlock, potential%extShell, orb, species)
 
   end subroutine mergeExternalPotentials
-
-
-  !> Sets up electric external field
-  subroutine setUpExternalElectricField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength,&
-      & EFieldVector, EFieldOmega, EFieldPhase, neighbourList, nNeighbourSK, iCellVec,&
-      & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, extAtomPot, extPotGrad, EField,&
-      & absEField)
-
-    !> Whether electric field should be considered at all
-    logical, intent(in) :: tEfield
-
-    !> Is there an electric field that varies with geometry step during MD?
-    logical, intent(in) :: tTimeDepEField
-
-    !> Is this a periodic geometry
-    logical, intent(in) :: tPeriodic
-
-    !> What is the field strength
-    real(dp), intent(in) :: EFieldStrength
-
-    !> What is the field direction
-    real(dp), intent(in) :: EFieldVector(:)
-
-    !> Is there an angular frequency for the applied field
-    real(dp), intent(in) :: EFieldOmega
-
-    !> What is the phase of the field
-    integer, intent(in) :: EFieldPhase
-
-    !> Atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index for unit cells
-    integer, intent(in) :: iCellVec(:)
-
-    !> Image atom to central cell atom number
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Vectors (in units of the lattice constants) to cells of the lattice
-    real(dp), intent(in) :: cellVec(:,:)
-
-    !> Time step in MD
-    real(dp), intent(in) :: deltaT
-
-    !> Number of the geometry step
-    integer, intent(in) :: iGeoStep
-
-    !> Atomic coordinates in central cell
-    real(dp), allocatable, intent(in) :: coord0Fold(:,:)
-
-    !> all coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Potentials on atomic sites
-    real(dp), intent(inout) :: extAtomPot(:)
-
-    !> Gradient of potential on atomic sites with respect of nucleus positions. Shape: (3, nAtom)
-    real(dp), intent(inout) :: extPotGrad(:,:)
-
-    !> Resulting electric field
-    real(dp), intent(out) :: EField(:)
-
-    !> Magnitude of the field
-    real(dp), intent(out) :: absEField
-
-    integer :: nAtom
-    integer :: iAt1, iAt2, iNeigh
-    character(lc) :: tmpStr
-
-    if (.not. tEField) then
-      EField(:) = 0.0_dp
-      absEField = 0.0_dp
-      return
-    end if
-
-    nAtom = size(nNeighbourSK)
-
-    Efield(:) = EFieldStrength * EfieldVector
-    if (tTimeDepEField) then
-      Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
-    end if
-    absEfield = sqrt(sum(Efield**2))
-    if (tPeriodic) then
-      do iAt1 = 1, nAtom
-        do iNeigh = 1, nNeighbourSK(iAt1)
-          iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
-          ! overlap between atom in central cell and non-central cell
-          if (iCellVec(iAt2) /= 0) then
-            ! component of electric field projects onto vector between cells
-            if (abs(dot_product(cellVec(:, iCellVec(iAt2)), EfieldVector)) > epsilon(1.0_dp)) then
-              write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
-                  & img2CentCell(iAt2), ' crosses the saw-tooth discontinuity in the electric&
-                  & field.'
-              call error(tmpStr)
-            end if
-          end if
-        end do
-      end do
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord0Fold(:, iAt1), Efield)
-      end do
-    else
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord(:, iAt1), Efield)
-      end do
-    end if
-    extPotGrad(:,:) = extPotGrad + spread(EField, 2, nAtom)
-
-  end subroutine setUpExternalElectricField
 
 
   !> Reset internal potential related quantities
@@ -228,6 +119,9 @@ contains
     potential%iOrbitalBlock(:,:,:,:) = 0.0_dp
     if (tDualSpinOrbit) then
       call getDualSpinOrbitShift(potential%iOrbitalBlock, xi, orb, species)
+    end if
+    if (allocated(potential%intOnSiteAtom)) then
+      potential%intOnSiteAtom(:,:) = 0.0_dp
     end if
 
   end subroutine resetInternalPotentials
@@ -288,8 +182,6 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
-    ! Is this a contact calculation, if so, purely the Coulomb electrostatics should also be stored
-    logical :: isAContactCalc
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -433,6 +325,13 @@ contains
 
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
+
+    if (allocated(potential%intOnSiteAtom)) then
+      call addOnSiteShift(ham, over, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
+    end if
+    if (allocated(potential%extOnSiteAtom)) then
+      call addOnSiteShift(ham, over, species, orb, iSparseStart, nAtom, potential%extOnSiteAtom)
+    end if
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp

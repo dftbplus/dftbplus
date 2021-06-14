@@ -228,7 +228,7 @@ contains
       @:ASSERT(all(shape(potGrad) == [3, main%nAtom]))
       main%refExtPot%potGrad(:,:) = potGrad
     end if
-    main%tExtField = .true.
+    main%isExtField = .true.
 
   end subroutine setExternalPotential
 

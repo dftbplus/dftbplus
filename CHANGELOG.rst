@@ -11,6 +11,7 @@ Unreleased
 Addded
 ------
 
+- On-site potentials added
 
 Changed
 -------
@@ -19,6 +20,7 @@ Changed
 Fixed
 -----
 
+- External fields disabled for XLBOMD
 
 21.1 (2021-05-12)
 =================

@@ -84,7 +84,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_dispmbd, only :TDispMbdInp
 #:endif
   implicit none
-  
+
   private
   public :: parserVersion, rootTag
   public :: TParserFlags
@@ -248,7 +248,7 @@ contains
 
       call finalizeNegf(input)
     #:else
-      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
+      call readAnalysis(analysisNode, input%ctrl, input%geom)
     #:endif
 
     end if
@@ -1457,7 +1457,7 @@ contains
     !end if
     ctrl%tReadShifts = .false.
 
-    ! External electric field
+    ! External fields and potentials
     call readExternal(node, ctrl, geo)
 
     call getChild(node, "SpinOrbit", child, requested=.false.)
@@ -1539,7 +1539,6 @@ contains
           call append(liN(iSp1),size(pTmpI1))
           deallocate(pTmpI1)
           call destruct(li)
-
           call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
               & child=child3)
           call convertByMul(char(modifier), energyUnits, child3, rTmp)
@@ -2152,7 +2151,7 @@ contains
   end subroutine readSpinPolarisation
 
 
-  ! External electric field
+  ! External field(s) and potential(s)
   subroutine readExternal(node, ctrl, geo)
 
     !> Relevant node in input tree
@@ -2166,53 +2165,48 @@ contains
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
-    type(string) :: modifier
-    type(string) :: buffer, buffer2
+    type(string) :: modifier, buffer, buffer2
     real(dp) :: rTmp
-    integer :: ind, ii
-    integer :: fp, iErr
-    integer :: nElem
-    real(dp), allocatable :: tmpR1(:)
-    real(dp), allocatable :: tmpR2(:,:)
+    integer :: ind, ii, fp, iErr, nElem
+    real(dp), allocatable :: tmpR1(:), tmpR2(:,:)
     type(TListRealR2) :: lCharges
-    type(TListRealR1) :: lBlurs
-    type(TListRealR1) :: lr1
+    type(TListRealR1) :: lBlurs, lr1
+    type(TListReal) :: lr
+    type(TListInt) :: li
 
-    call getChildValue(node, "ElectricField", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildValue(node, "ElectricField", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
 
     ! external applied field
-    call getChild(child, "External",child2,requested=.false.)
+    call getChild(child, "External", child2, requested=.false.)
     if (associated(child2)) then
-      call getChildValue(child2, "Strength", ctrl%EFieldStrength, &
-          & modifier=modifier, child=child3)
-      call convertByMul(char(modifier), EFieldUnits, child3, &
-          & ctrl%EFieldStrength)
-      call getChildValue(child2, "Direction", ctrl%EfieldVector)
-      if (sum(ctrl%EfieldVector**2) < 1e-8_dp) then
+      allocate(ctrl%electricField)
+      ctrl%tMulliken = .true.
+      call getChildValue(child2, "Strength", ctrl%electricField%EFieldStrength, modifier=modifier,&
+          & child=child3)
+      call convertByMul(char(modifier), EFieldUnits, child3, ctrl%electricField%EFieldStrength)
+      call getChildValue(child2, "Direction", ctrl%electricField%EfieldVector)
+      if (sum(ctrl%electricField%EfieldVector**2) < 1e-8_dp) then
         call detailedError(child2,"Vector too small")
       else
-        ctrl%EfieldVector = ctrl%EfieldVector/sqrt(sum(ctrl%EfieldVector**2))
+        ctrl%electricField%EfieldVector = ctrl%electricField%EfieldVector&
+            & / sqrt(sum(ctrl%electricField%EfieldVector**2))
       end if
-      ctrl%tEField = .true.
-      ctrl%tMulliken = .true.
-      call getChildValue(child2, "Frequency", ctrl%EFieldOmega, 0.0_dp, &
+      call getChildValue(child2, "Frequency", ctrl%electricField%EFieldOmega, 0.0_dp, &
           & modifier=modifier, child=child3)
-      call convertByMul(char(modifier), freqUnits, child3, &
-          & ctrl%EFieldOmega)
-      if (ctrl%EFieldOmega > 0.0) then
-        ctrl%EFieldOmega = 2.0_dp * pi * ctrl%EFieldOmega !angular frequency
-        ctrl%tTDEfield = .true.
+      call convertByMul(char(modifier), freqUnits, child3, ctrl%electricField%EFieldOmega)
+      if (ctrl%electricField%EFieldOmega > 0.0) then
+        ! angular frequency
+        ctrl%electricField%EFieldOmega = 2.0_dp * pi * ctrl%electricField%EFieldOmega
+        ctrl%electricField%isTDEfield = .true.
       else
-        ctrl%tTDEfield = .false.
-        ctrl%EFieldOmega = 0.0_dp
+        ctrl%electricField%isTDEfield = .false.
+        ctrl%electricField%EFieldOmega = 0.0_dp
       end if
-      ctrl%EfieldPhase = 0
-      if (ctrl%tTDEfield) then
-        call getChildValue(child2, "Phase", ctrl%EfieldPhase, 0)
+      ctrl%electricField%EfieldPhase = 0
+      if (ctrl%electricField%isTDEfield) then
+        call getChildValue(child2, "Phase", ctrl%electricField%EfieldPhase, 0)
       end if
-    else
-      ctrl%tEField = .false.
     end if
 
     ! Point charges present
@@ -2293,6 +2287,56 @@ contains
       ctrl%nExtChrg = 0
     end if
     call destroyNodeList(children)
+
+    call getChild(node, "AtomSitePotential", child, requested=.false.)
+    if (associated(child)) then
+      allocate(ctrl%atomicExtPotential)
+
+      call getChild(child, "Net", child2, requested=.false.)
+      if (associated(child2)) then
+        ! onsites
+        ctrl%tNetAtomCharges = .true.
+        call init(li)
+        call init(lr)
+        call getChildValue(child2, "Atoms", li)
+        call getChildValue(child2, "Vext", lr, modifier=modifier, child=child3)
+        if (len(li) /= len(lr)) then
+          call detailedError(child2, "Mismatch in number of sites and potentials")
+        end if
+        allocate(ctrl%atomicExtPotential%iAtOnSite(len(li)))
+        call asArray(li, ctrl%atomicExtPotential%iAtOnSite)
+        allocate(ctrl%atomicExtPotential%VextOnSite(len(lr)))
+        call asArray(lr, ctrl%atomicExtPotential%VextOnSite)
+        call convertByMul(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%VextOnSite)
+        call destruct(li)
+        call destruct(lr)
+      end if
+
+      call getChild(child, "Gross", child2, requested=.false.)
+      if (associated(child2)) then
+        ! atomic
+        call init(li)
+        call init(lr)
+        call getChildValue(child2, "Atoms", li)
+        call getChildValue(child2, "Vext", lr, modifier=modifier, child=child3)
+        if (len(li) /= len(lr)) then
+          call detailedError(child2, "Mismatch in number of sites and potentials")
+        end if
+        allocate(ctrl%atomicExtPotential%iAt(len(li)))
+        call asArray(li, ctrl%atomicExtPotential%iAt)
+        allocate(ctrl%atomicExtPotential%Vext(len(lr)))
+        call asArray(lr, ctrl%atomicExtPotential%Vext)
+        call convertByMul(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%Vext)
+        call destruct(li)
+        call destruct(lr)
+      end if
+
+      if (.not.allocated(ctrl%atomicExtPotential%iAt)&
+          & .and. .not.allocated(ctrl%atomicExtPotential%iAtOnSite)) then
+        call detailedError(child, "No atomic potentials specified")
+      end if
+
+    end if
 
   end subroutine readExternal
 
@@ -4730,7 +4774,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readAnalysis(node, ctrl, geo, orb, transpar, tundos)
 #:else
-  subroutine readAnalysis(node, ctrl, geo, orb)
+  subroutine readAnalysis(node, ctrl, geo)
 #:endif
 
     !> Node to parse
@@ -4742,10 +4786,10 @@ contains
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
 
+  #:if WITH_TRANSPORT
     !> Orbital
     type(TOrbitals), intent(in) :: orb
 
-  #:if WITH_TRANSPORT
     !> Transport parameters
     type(TTransPar), intent(inout) :: transpar
 
@@ -4877,7 +4921,10 @@ contains
 
       call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
       if (ctrl%tPrintMulliken) then
-        call getChildValue(node, "WriteNetCharges", ctrl%tNetAtomCharges, default=.false.)
+        call getChildValue(node, "WriteNetCharges", ctrl%tPrintNetAtomCharges, default=.false.)
+        if (ctrl%tPrintNetAtomCharges) then
+          ctrl%tNetAtomCharges = .true.
+        end if
         call getChild(node, "CM5", child, requested=.false.)
         if (associated(child)) then
           allocate(ctrl%cm5Input)
@@ -4905,8 +4952,6 @@ contains
     end if
 
 
-
-
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
     if (associated(child)) then
@@ -4920,8 +4965,8 @@ contains
     endif
   #:endif
 
-
   end subroutine readAnalysis
+
 
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
   subroutine readLaterAnalysis(node, ctrl)

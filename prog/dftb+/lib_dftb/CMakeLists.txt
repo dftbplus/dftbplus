@@ -27,6 +27,7 @@ set(sources-fpp
   ${curdir}/encharges.F90
   ${curdir}/etemp.F90
   ${curdir}/extcharges.F90
+  ${curdir}/extfields.F90
   ${curdir}/forces.F90
   ${curdir}/getenergies.F90
   ${curdir}/h5correction.F90

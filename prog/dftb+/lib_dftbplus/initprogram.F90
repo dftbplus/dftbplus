@@ -131,6 +131,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
 #:endif
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_extfields, only : TEField
+  use dftbp_math_duplicate, only : isRepeated
   implicit none
 
   private
@@ -479,8 +481,11 @@ module dftbp_dftbplus_initprogram
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical :: isQNetAllocated
 
-    !> Do we need to show net atomic charges?
+    !> Do need net atomic charges?
     logical :: tNetAtomCharges
+
+    !> Should the net charges be printed
+    logical :: tPrintNetAtomCharges
 
     !> calculate an electric dipole?
     logical :: tDipole
@@ -671,27 +676,11 @@ module dftbp_dftbplus_initprogram
     !> Nr. of external charges
     integer :: nExtChrg
 
-    !> external electric field
-    logical :: tEField
+    !> Electric field
+    type(TEfield), allocatable :: eField
 
-    !> Arbitrary external field (including electric)
-    logical :: tExtField
-
-    !> field strength
-    real(dp) :: EFieldStrength
-
-    !> field direction
-    real(dp) :: EfieldVector(3)
-
-    !> time dependent
-    logical :: tTDEfield
-
-    !> angular frequency
-    real(dp) :: EfieldOmega
-
-    !> phase of field at step 0
-    integer :: EfieldPhase
-
+    !> Is an arbitrary external field (including electric) present
+    logical :: isExtField
 
     !> Partial density of states (PDOS) projection regions
     type(TListIntR1) :: iOrbRegion
@@ -947,9 +936,6 @@ module dftbp_dftbplus_initprogram
 
     !> Electron dynamics
     type(TElecDynamics), allocatable :: electronDynamics
-
-    !> external electric field
-    real(dp) :: Efield(3), absEfield
 
     !> Electronic structure solver
     type(TElectronicSolver) :: electronicSolver
@@ -1733,9 +1719,27 @@ contains
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
-    this%tEField = input%ctrl%tEfield
-    this%tExtField = this%tEField
-    this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%tExtField .or.&
+
+    if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential)) then
+      allocate(this%eField)
+    end if
+    this%isExtField = allocated(this%eField)
+
+    if (allocated(input%ctrl%electricField)) then
+      allocate(this%eField%EFieldStrength)
+      this%eField%EFieldStrength = input%ctrl%electricField%EFieldStrength
+      this%eField%EfieldVector(:) = input%ctrl%electricField%EfieldVector(:)
+      this%eField%isTDEfield = input%ctrl%electricField%isTDEfield
+      this%eField%EfieldOmega = input%ctrl%electricField%EfieldOmega
+      this%eField%EfieldPhase = input%ctrl%electricField%EfieldPhase
+      if (this%eField%isTDEfield .and. .not. this%tMD) then
+        call error ("Time dependent electric fields only possible for MD!")
+      end if
+      ! parser should catch all of these:
+      @:ASSERT(.not.this%eField%isTDEfield .or. this%tMD)
+    end if
+
+    this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
         & this%tFixEf .or. this%isRangeSep
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -2041,7 +2045,8 @@ contains
         allocate(dftd4)
         if (allocated(this%reks)) then
           if (input%ctrl%dispInp%dftd4%selfConsistent .and. this%tForces) then
-            call error("Calculation of self-consistent dftd4 is not currently compatible with force calculation in REKS")
+            call error("Calculation of self-consistent dftd4 is not currently compatible with&
+                & force calculation in REKS")
           end if
         end if
         if (this%tPeriodic) then
@@ -2057,7 +2062,8 @@ contains
         else if (allocated(this%reks)) then
           call error("Selfconsistent MBD/TS dispersion is blocked from REKS")
           if (this%tForces) then
-            call error("Calculation of self-consistent MBD/TS is not currently compatible with force calculation in REKS")
+            call error("Calculation of self-consistent MBD/TS is not currently compatible with&
+                & force calculation in REKS")
           end if
         end if
         allocate (mbd)
@@ -2125,7 +2131,8 @@ contains
     end if
 
     if (this%tMulliken) then
-      this%tNetAtomCharges = input%ctrl%tNetAtomCharges
+      this%tPrintNetAtomCharges = input%ctrl%tPrintNetAtomCharges
+      this%tNetAtomCharges = input%ctrl%tNetAtomCharges .or. input%ctrl%tPrintNetAtomCharges
       if (allocated(input%ctrl%cm5Input)) then
         allocate(this%cm5Cont)
         if (this%tPeriodic) then
@@ -2152,8 +2159,8 @@ contains
         end if
       end if
       allocate(this%electrostatPot)
-      call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp, this%tEField&
-          & .or. this%tExtChrg)
+      call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
+          & allocated(this%eField) .or. this%tExtChrg)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2216,7 +2223,7 @@ contains
     end if
 
     if (allocated(this%solvation)) then
-      if ((this%tExtChrg .or. this%tEField) .and. this%solvation%isEFieldModified()) then
+      if ((this%tExtChrg .or. this%isExtField) .and. this%solvation%isEFieldModified()) then
         call error('External fields are not currently compatible with this implicit solvent.')
       end if
     end if
@@ -2424,7 +2431,10 @@ contains
           & forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (this%iDistribFn /= fillingTypes%Fermi) then
-        call error("Filling function incompatible with XLBOMD")
+        call error("Choice of filling function incompatible with XLBOMD")
+      end if
+      if (this%tExtChrg .or. this%isExtField) then
+        call error("External fields currently disabled for XLBOMD calculations")
       end if
       allocate(this%xlbomdIntegrator)
       call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
@@ -2444,25 +2454,6 @@ contains
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
-    end if
-
-    if (this%tEField) then
-      this%EFieldStrength = input%ctrl%EFieldStrength
-      this%EfieldVector(:) = input%ctrl%EfieldVector(:)
-      this%tTDEfield = input%ctrl%tTDEfield
-      this%EfieldOmega = input%ctrl%EfieldOmega
-      this%EfieldPhase = input%ctrl%EfieldPhase
-      if (this%tTDEfield .and. .not. this%tMD) then
-        call error ("Time dependent electric fields only possible for MD!")
-      end if
-      ! parser should catch all of these:
-      @:ASSERT(.not.this%tTDEfield .or. this%tMD)
-    else
-      this%EFieldStrength = 0.0_dp
-      this%EfieldVector(:) = 0.0_dp
-      this%tTDEfield = .false.
-      this%EfieldOmega = 0.0_dp
-      this%EfieldPhase = 0
     end if
 
     this%tReadChrg = input%ctrl%tReadChrg
@@ -2565,7 +2556,7 @@ contains
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%tEField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
+          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
           & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
@@ -2576,7 +2567,7 @@ contains
     end if
 
     call this%initDetArrays()
-    call this%initArrays(env)
+    call this%initArrays(env, input)
 
   #:if WITH_TRANSPORT
     if (this%tUpload) then
@@ -2622,12 +2613,55 @@ contains
       this%iAtInCentralRegion(iAt) = iAt
     end do
 
+    if (allocated(this%eField)) then
+      if (allocated(input%ctrl%atomicExtPotential)) then
+        ii = 0
+        jj = 0
+        if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+          ii = size(input%ctrl%atomicExtPotential%iAtOnSite)
+          if (ii > 1) then
+            if (any(input%ctrl%atomicExtPotential%iAtOnSite < 1) .or.&
+                & any(input%ctrl%atomicExtPotential%iAtOnSite > size(this%iAtInCentralRegion))) then
+              call error("Net potential atom(s) outside of range of real atoms")
+            end if
+            if (isRepeated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+              call error("Repeating atom(s) for net potentials")
+            end if
+          end if
+        end if
+        if (allocated(input%ctrl%atomicExtPotential%iAt)) then
+          jj = size(input%ctrl%atomicExtPotential%iAt)
+          if (jj > 1) then
+            if (any(input%ctrl%atomicExtPotential%iAt < 1) .or.&
+                & any(input%ctrl%atomicExtPotential%iAt > size(this%iAtInCentralRegion))) then
+              call error("Gross potential atom(s) outside of range of real atoms")
+            end if
+            if (isRepeated(input%ctrl%atomicExtPotential%iAt)) then
+              call error("Repeating atom(s) for gross potentials")
+            end if
+          end if
+        end if
+        allocate(this%eField%atomicSites(ii+jj))
+        allocate(this%eField%atomicPotential(ii+jj))
+        allocate(this%eField%atomicOnSite(ii+jj))
+        if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+          this%eField%atomicSites(:ii) = input%ctrl%atomicExtPotential%iAtOnSite
+          this%eField%atomicPotential(:ii) = input%ctrl%atomicExtPotential%VextOnSite
+          this%eField%atomicOnSite(:ii) = .true.
+        end if
+        if (allocated(input%ctrl%atomicExtPotential%iAt)) then
+          this%eField%atomicSites(ii+1:) = input%ctrl%atomicExtPotential%iAt
+          this%eField%atomicPotential(ii+1:) = input%ctrl%atomicExtPotential%Vext
+          this%eField%atomicOnSite(ii+1:) = .false.
+        end if
+      end if
+    end if
+
     if (this%tShowFoldedCoord) then
       this%pCoord0Out => this%coord0Fold
     else
       this%pCoord0Out => this%coord0
     end if
-
 
     ! Projection of eigenstates onto specific regions of the system
     this%tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -3218,19 +3252,40 @@ contains
       write(stdOut, "(T30,A)") "External charges specified"
     end if
 
-    if (this%tEField) then
-      if (this%tTDEfield) then
-        write(stdOut, "(T30,A)") "External electric field specified"
-        write(stdOut, "(A,':',T30,E14.6)") "Angular frequency", this%EfieldOmega
-      else
-        write(stdOut, "(T30,A)") "External static electric field specified"
+    if (this%isExtField) then
+
+      if (allocated(this%eField%EFieldStrength)) then
+        if (this%eField%isTDEfield) then
+          write(stdOut, "(T30,A)") "External electric field specified"
+          write(stdOut, "(A,':',T30,E14.6)") "Angular frequency", this%eField%EfieldOmega
+        else
+          write(stdOut, "(T30,A)") "External static electric field specified"
+        end if
+        write(stdOut, "(A,':',T30,E14.6)") "Field strength", this%eField%EFieldStrength
+        write(stdOut, "(A,':',T30,3F9.6)") "Direction", this%eField%EfieldVector
+        if (this%tPeriodic) then
+          call warning("Saw tooth potential used for periodic geometry - make sure there is a&
+              & vacuum region!")
+        end if
       end if
-      write(stdOut, "(A,':',T30,E14.6)") "Field strength", this%EFieldStrength
-      write(stdOut, "(A,':',T30,3F9.6)") "Direction", this%EfieldVector
-      if (this%tPeriodic) then
-        call warning("Saw tooth potential used for periodic geometry - make sure there is a vacuum&
-            & region!")
+
+      if (allocated(input%ctrl%atomicExtPotential)) then
+        if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+          write(stdOut, "(A)")'Net on-site potentials at atoms (/ H)'
+          do ii = 1, size(input%ctrl%atomicExtPotential%iAtOnSite)
+            write(stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAtOnSite(ii),&
+                & input%ctrl%atomicExtPotential%VextOnSite(ii)
+          end do
+        end if
+        if (allocated(input%ctrl%atomicExtPotential%iAt)) then
+          write(stdOut, "(A)")'Gross on-site potentials at atoms (/ H)'
+          do ii = 1, size(input%ctrl%atomicExtPotential%iAt)
+            write(stdOut,"(1X,I6,' : ',E14.6)")input%ctrl%atomicExtPotential%iAt(ii),&
+                & input%ctrl%atomicExtPotential%Vext(ii)
+          end do
+        end if
       end if
+
     end if
 
     if (allocated(this%dftbU)) then
@@ -3401,6 +3456,11 @@ contains
 
       if (.not. this%tRealHS .and. input%ctrl%elecDynInp%tBondE) then
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
+      end if
+
+      if (this%isExtField) then
+        call error("Electron dynamics does not work yet with static external fields/potentials in&
+            & the initial ground state.")
       end if
 
       allocate(this%electronDynamics)
@@ -4298,7 +4358,7 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(this, env)
+  subroutine initArrays(this, env, input)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4306,6 +4366,8 @@ contains
     !> Current environment
     type(TEnvironment), intent(in) :: env
 
+    !> Input data structure
+    type(TInputData), intent(in) :: input
 
     logical :: isREKS
     integer :: nSpinHams, sqrHamSize, iDet
@@ -4346,7 +4408,8 @@ contains
       end if
     end if
 
-    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin)
+    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin,&
+        & input%ctrl%atomicExtPotential)
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)
@@ -5225,7 +5288,7 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, isDftbU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
+      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
 
     !> data type for REKS input
@@ -5259,7 +5322,7 @@ contains
     logical, intent(in) :: isDftbU
 
     !> external electric field
-    logical, intent(in) :: tEField
+    logical, intent(in) :: isExtField
 
     !> Calculate Casida linear response excitations
     logical, intent(in) :: isLinResp
@@ -5291,8 +5354,8 @@ contains
       call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
     else if (isDftbU) then
       call error("REKS is not compatible with DFTB+U calculation")
-    else if (tEField) then
-      call error("REKS is not compatible with external electric field, only point charge&
+    else if (isExtField) then
+      call error("REKS is not compatible with external field and potentials, only point charge&
           & embedding is implemented")
     else if (isLinResp) then
       call error("REKS is not compatible with standard linear response excitation")
@@ -5335,8 +5398,8 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
-      & tPeriodic, tStress, tDipole)
+      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated,&
+      & tForces, tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks

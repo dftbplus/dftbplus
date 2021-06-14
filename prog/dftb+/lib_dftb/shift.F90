@@ -17,7 +17,7 @@ module dftbp_dftb_shift
   implicit none
 
   private
-  public :: add_shift, total_shift
+  public :: add_shift, total_shift, addOnsiteShift
 
 
   !> add shifts to a given Hamiltonian
@@ -338,5 +338,45 @@ contains
     end do
 
   end subroutine addshell_block
+
+
+  !> Add on-site only atomic shift (potential is not only dependent on overlap, only the number of
+  !> each atom in the structure)
+  subroutine addOnsiteShift(ham, over, species, orb, iPair, nAtom, shift)
+
+    !> The Hamiltonian to add the contribution
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> The overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> List of the species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Contains Information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Indexing array for the Hamiltonian
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index mapping atoms onto the central cell atoms
+    integer, intent(in) :: nAtom
+
+    !> Atom resolved potential
+    real(dp), intent(in) :: shift(:,:)
+
+    integer :: iAt, iOrig, iSp, nOrb, iSpin
+
+    do iSpin = 1, size(ham,dim=2)
+      do iAt = 1, nAtom
+        iSp = species(iAt)
+        nOrb = orb%nOrbSpecies(iSp)
+        iOrig = iPair(0, iAt)
+        ham(iOrig+1:iOrig+nOrb*nOrb,iSpin) = ham(iOrig+1:iOrig+nOrb*nOrb,iSpin)&
+            & + over(iOrig+1:iOrig+nOrb*nOrb) * shift(iAt,iSpin)
+      end do
+    end do
+
+  end subroutine addOnsiteShift
 
 end module dftbp_dftb_shift
