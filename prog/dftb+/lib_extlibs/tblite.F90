@@ -32,6 +32,7 @@ module dftbp_tblite
 #:if WITH_TBLITE
   use mctc_env, only : error_type
   use mctc_io, only : structure_type, new
+  use mctc_io_symbols, only : symbol_length
   use tblite_basis_type, only : get_cutoff, basis_type
   use tblite_context_type, only : context_type
   use tblite_coulomb_cache, only : coulomb_cache
@@ -218,8 +219,10 @@ contains
 
   #:if WITH_TBLITE
     type(scf_info) :: info
+    character(len=symbol_length), allocatable :: symbol(:)
 
-    call new(this%mol, speciesNames(species0), coords0, lattice=latVecs)
+    symbol = speciesNames(species0)
+    call new(this%mol, symbol, coords0, lattice=latVecs)
 
     select case(input%method%id)
     case default
