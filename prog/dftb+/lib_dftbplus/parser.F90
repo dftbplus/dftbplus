@@ -5542,8 +5542,8 @@ contains
     type(string) :: buffer, modifier
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
-    integer :: contact
-    real(dp) :: lateralContactSeparation
+    integer :: contact, iStart, iEnd, iRange
+    real(dp) :: lateralContactSeparation, vector(3)
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -5596,6 +5596,16 @@ contains
 
       call getChildValue(root, "readBinaryContact", transpar%tReadBinShift, .true.)
 
+      do contact = 1, size(transpar%contacts)
+        iRange = (transpar%contacts(contact)%idxrange(2)-transpar%contacts(contact)%idxrange(1))/2
+        iStart = transpar%contacts(contact)%idxrange(1)
+        vector(:) = geom%coords(:, iStart+iRange+1) - geom%coords(:, iStart)
+        do iStart = transpar%contacts(contact)%idxrange(1),&
+            & iRange + transpar%contacts(contact)%idxrange(1)
+          geom%coords(:, iStart+iRange+1) = geom%coords(:, iStart) + vector
+        end do
+      end do
+
     case default
 
       call getNodeHSDName(pTaskType, buffer)
@@ -5641,10 +5651,16 @@ contains
         ind = ind + 1
       end do
       newLatVecs = geom%latVecs
-      newLatVecs(:,ind) = 2.0_dp * contactVec
+      ! two PLs:
+      !newLatVecs(:,ind) = 2.0_dp * contactVec
+      ! one PL for contact:
+      newLatVecs(:,ind) = contactVec
       newOrigin = geom%origin
     else
-      newLatVecs(:,1) = 2.0_dp * contactVec
+      ! two PLs:
+      !newLatVecs(:,1) = 2.0_dp * contactVec
+      ! one PL for contact:
+      newLatVecs(:,1) = contactVec
       mask = abs(contactVec) > 1e-8_dp
       ! Workaround for bug in Intel compiler (can not use index function)
       ind = 1
@@ -5662,7 +5678,10 @@ contains
       newLatVecs(:,3) = newLatVecs(:,3) / sqrt(sum(newLatVecs(:,3)**2))
       newOrigin(:) = 0.0_dp
     end if
-    call reduce(geom, contactRange(1), contactRange(2))
+    ! two PLs for contact:
+    !call reduce(geom, contactRange(1),contactRange(2))
+    ! one PL for contact:
+    call reduce(geom, contactRange(1), (contactRange(2)-contactRange(1))/2 + contactRange(1))
     if (.not. geom%tPeriodic) then
       do ii = 2, 3
         minProj = minval(matmul(newLatVecs(:,ii), geom%coords))
