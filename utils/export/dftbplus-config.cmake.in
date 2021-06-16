@@ -26,7 +26,11 @@ if(NOT TARGET DftbPlus::DftbPlus)
   if(DftbPlus_WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
     find_dependency(OpenMP)
   endif()
-  
+
+  if(NOT TARGET BLAS::BLAS)
+    find_dependency(CustomBlas)
+  endif()
+
   if(NOT TARGET LAPACK::LAPACK)
     find_dependency(CustomLapack)
   endif()

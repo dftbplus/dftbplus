@@ -121,11 +121,9 @@ if(WITH_MPI)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
 endif()
 
-if(WITH_OMP)
-  # OpenMP dependency must be public in order to forward eventual linker flags
-  # (workaround for NAG compiler) to targets linking to it.
-  target_link_libraries(dftbplus PUBLIC OpenMP::OpenMP_Fortran)
-endif()
+# OpenMP dependency must be public in order to forward eventual linker flags
+# (workaround for NAG compiler) to targets linking to it.
+target_link_libraries(dftbplus PUBLIC OpenMP::OpenMP_Fortran)
 
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE Arpack::Arpack)

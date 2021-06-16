@@ -38,13 +38,23 @@ if(WITH_MPI)
   endif()
 endif()
 
-if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
-  find_package(OpenMP REQUIRED)
-  # Fix CMake bug on OpenMP settings for the NAG compiler
-  # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+if(WITH_OMP)
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    find_package(OpenMP REQUIRED)
+    # Fix CMake bug on OpenMP settings for the NAG compiler
+    # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
+    if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+    endif()
+  endif()
+else()
+  # Create empty targets, so that subprojects can depend on it without actual effect
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    add_library(OpenMP::OpenMP_Fortran INTERFACE IMPORTED)
+  endif()
+  if(NOT TARGET OpenMP::OpenMP_C)
+    add_library(OpenMP::OpenMP_C INTERFACE IMPORTED)
   endif()
 endif()
 
@@ -92,8 +102,9 @@ if(WITH_PLUMED)
   list(APPEND PKG_CONFIG_REQUIRES plumed)
 endif()
 
+find_package(CustomBlas REQUIRED)
 find_package(CustomLapack REQUIRED)
-list(APPEND PKG_CONFIG_LIBS_PRIVATE ${LAPACK_LIBRARY})
+list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
   find_package(CustomArpack REQUIRED)
