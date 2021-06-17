@@ -40,9 +40,9 @@ module dftbp_tblite
   use tblite_disp_cache, only : dispersion_cache
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto
   use tblite_integral_overlap, only : overlap_cgto, overlap_grad_cgto, maxl, msao
-  use tblite_scf_potential, only : potential_type, new_potential
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
     & not_used
+  use tblite_scf_potential, only : potential_type, new_potential
   use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
   use tblite_xtb_calculator, only : xtb_calculator
   use tblite_xtb_gfn2, only : new_gfn2_calculator
@@ -263,7 +263,7 @@ contains
     allocate(this%sp2id(maxval(species0)))
     call getSpeciesIdentifierMap(this%sp2id, species0, this%mol%id)
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine TTBLite_init
 
@@ -310,7 +310,7 @@ contains
     call get_tblite_version(string=version_string)
     write(unit, '(a, ":", t30, a)') "tblite library version", version_string
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine writeTBLiteInfo
 
@@ -371,7 +371,7 @@ contains
     call get_selfenergy(this%calc%h0, this%mol%id, this%calc%bas%ish_at, &
         & this%calc%bas%nsh_id, cn=this%cn, selfenergy=this%selfenergy, dsedcn=this%dsedcn)
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine updateCoords
 
@@ -388,7 +388,7 @@ contains
   #:if WITH_TBLITE
     this%mol%lattice(:, :) = latVecs
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine updateLatVecs
 
@@ -405,7 +405,7 @@ contains
   #:if WITH_TBLITE
     energies(:) = (this%erep + this%edisp + this%escd + this%ees) / size(energies)
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getEnergies
 
@@ -437,7 +437,7 @@ contains
   #:if WITH_TBLITE
     gradients(:, :) = gradients + this%gradient
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine addGradients
 
@@ -454,7 +454,7 @@ contains
   #:if WITH_TBLITE
     stress(:, :) = this%sigma / abs(determinant33(this%mol%lattice))
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getStress
 
@@ -471,7 +471,7 @@ contains
   #:if WITH_TBLITE
     cutoff = get_cutoff(this%calc%bas)
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end function getRCutoff
 
@@ -545,7 +545,7 @@ contains
       call this%calc%dispersion%get_energy(this%mol, this%dcache, this%wfn, this%escd)
     end if
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine updateCharges
 
@@ -579,7 +579,7 @@ contains
       end do
     end do
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getShifts
 
@@ -652,7 +652,7 @@ contains
       orb%posShell(orb%nShell(iSp)+1, iSp) = ind
     end do
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getOrbitalInfo
 
@@ -686,7 +686,7 @@ contains
       done(iSp) = .true.
     end do
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getReferenceN0
 
@@ -752,7 +752,7 @@ contains
       end do
     end select
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine getOrbitalEquiv
 
@@ -819,7 +819,7 @@ contains
     call assembleChunks(env, hamiltonian)
     call assembleChunks(env, overlap)
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine buildSH0
 
@@ -1095,7 +1095,7 @@ contains
     this%gradient(:, :) = this%gradient + gradient
     this%sigma(:, :) = this%sigma + sigma
   #:else
-    call not_implemented_error
+    call notImplementedError
   #:endif
   end subroutine buildDerivativeShift
 
@@ -1304,8 +1304,13 @@ contains
             dEdcn(jat) = dEdcn(jat) + dcnj
             gradient(:, iat) = gradient(:, iat) + dG
             gradient(:, jat) = gradient(:, jat) - dG
-            sigma(:, :) = sigma + 0.5_dp * (spread(vec, 1, 3) * spread(dG, 2, 3) &
-              & + spread(dG, 1, 3) * spread(vec, 2, 3))
+            if (iat == jat) then
+              sigma(:, :) = sigma + 0.25_dp * (spread(vec, 1, 3) * spread(dG, 2, 3) &
+                & + spread(dG, 1, 3) * spread(vec, 2, 3))
+            else
+              sigma(:, :) = sigma + 0.50_dp * (spread(vec, 1, 3) * spread(dG, 2, 3) &
+                & + spread(dG, 1, 3) * spread(vec, 2, 3))
+            end if
 
           end do
         end do
@@ -1317,10 +1322,10 @@ contains
 
 
 #:if not WITH_TBLITE
-  subroutine not_implemented_error
+  subroutine notImplementedError
 
     call error("DFTB+ compiled without support for tblite library")
-  end subroutine not_implemented_error
+  end subroutine notImplementedError
 #:endif
 
 
