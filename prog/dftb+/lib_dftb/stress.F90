@@ -9,15 +9,14 @@
 
 !> Routines to calculate contributions to the stress tensor
 module dftbp_dftb_stress
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_nonscc, only : TNonSccDiff
-  !use dftbp_dftb_scc
-  use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_repcont, only : TRepCont, getEnergyDeriv
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_repcont, only : TRepCont, getEnergyDeriv
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private

@@ -9,8 +9,8 @@
 
 !> Extended Lagrangian dynamics
 module dftbp_md_extlagrangian
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_io_message, only : error
   implicit none
   

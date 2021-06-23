@@ -9,19 +9,19 @@
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_dftb_periodic
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
-  use dftbp_io_message, only : error, warning
-  use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_math_bisect, only : bisection
-  use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
-  use dftbp_math_simplealgebra, only : determinant33, invert33
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_common_memman, only : incrmntOfArray
-  use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
-  use dftbp_math_quaternions, only : rotate3
   use dftbp_dftb_boundarycond, only : zAxis
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_bisect, only : bisection
+  use dftbp_math_quaternions, only : rotate3
+  use dftbp_math_simplealgebra, only : determinant33, invert33
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
+  use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
   implicit none
 
   private

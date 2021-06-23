@@ -13,16 +13,16 @@
 !>
 !> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_dftb_encharges
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
-  use dftbp_math_errorfunction, only : erfwrap
+  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_dftb_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
-  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_math_blasroutines, only : hemv, gemv, gemm
-  use dftbp_math_lapackroutines, only : symmatinv
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_math_blasroutines, only : hemv, gemv, gemm
+  use dftbp_math_errorfunction, only : erfwrap
+  use dftbp_math_lapackroutines, only : symmatinv
   use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
   

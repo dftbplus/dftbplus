@@ -9,19 +9,19 @@
 
 !> Generalized Born solvation model.
 module dftbp_solvation_born
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_blasroutines, only : hemv, gemv
-  use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_solvation_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
-  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_blasroutines, only : hemv, gemv
   use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_solvation_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
+  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private

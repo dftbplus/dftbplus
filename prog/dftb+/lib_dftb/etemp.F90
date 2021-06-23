@@ -13,14 +13,14 @@
 !> PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
 !> interpolation instead of bisection.
 module dftbp_dftb_etemp
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
-  use dftbp_math_errorfunction, only : erfcwrap
+  use dftbp_common_assert
+  use dftbp_common_constants, only : pi
   use dftbp_io_message, only : error
+  use dftbp_math_errorfunction, only : erfcwrap
+  use dftbp_math_factorial, only : fact
   use dftbp_math_hermite, only : hx
   use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_common_constants, only : pi
-  use dftbp_math_factorial, only : fact
   implicit none
   
   private

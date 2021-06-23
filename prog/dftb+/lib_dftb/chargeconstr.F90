@@ -11,8 +11,8 @@
 !>
 !> Note: this also has the same functional form as onsite 3rd order SCC contributions
 module dftbp_dftb_chargeconstr
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
 
   private

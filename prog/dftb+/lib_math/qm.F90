@@ -9,8 +9,8 @@
 
 !> contains some miscellaneous quantum mechanics related bits and pieces.
 module dftbp_math_qm
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_io_message, only : error
 
   implicit none

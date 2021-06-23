@@ -14,12 +14,11 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_rekscommon
-
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_blasroutines, only : gemm
-  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_io_message, only: error
+  use dftbp_math_blasroutines, only : gemm
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
+  use dftbp_type_densedescr, only : TDenseDescr
 
   implicit none
 

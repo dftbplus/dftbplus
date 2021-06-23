@@ -14,7 +14,6 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksvar
-
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
   use dftbp_type_orbitals, only : TOrbitals

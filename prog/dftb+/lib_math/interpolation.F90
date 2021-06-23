@@ -9,8 +9,8 @@
 
 !> Contains routines for interpolation and extrapolation
 module dftbp_math_interpolation
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_io_message, only : error
   implicit none
   

@@ -10,18 +10,18 @@
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 module dftbp_io_hsdutils2
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
-      & appendPathAndLine
-  use dftbp_io_hsdparser, only : attrName, attrModifier
-  use dftbp_io_xmlutils, only : getTagsWithoutAttribute, removeNodes, removeSpace
+  use dftbp_common_assert
   use dftbp_common_unitconversion, only : unit
-  use dftbp_io_message, only : error, warning
-  use dftbp_io_charmanip, only : newline, tolower, i2c
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
       & normalize, append_to_string, destroyNodeList, removeAttribute
+  use dftbp_io_charmanip, only : newline, tolower, i2c
+  use dftbp_io_hsdparser, only : attrName, attrModifier
+  use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
+      & appendPathAndLine
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_xmlutils, only : getTagsWithoutAttribute, removeNodes, removeSpace
   implicit none
   
   private

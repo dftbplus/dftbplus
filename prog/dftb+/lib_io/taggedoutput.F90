@@ -19,8 +19,8 @@
 
 !> Contains routines to write out various data structures in a comprehensive tagged format.
 module dftbp_io_taggedoutput
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
   
   private

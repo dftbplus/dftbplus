@@ -10,8 +10,8 @@
 !> Helper routines for block charges (used in on-site corrections and DFTB+U)
 module dftbp_dftb_blockpothelper
   use dftbp_common_accuracy, only : dp
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_common_assert
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private

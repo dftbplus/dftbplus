@@ -13,7 +13,7 @@ install(TARGETS makecube DESTINATION "${CMAKE_INSTALL_BINDIR}")
 set(setupgeom-fpp
   helpsetupgeom.F90
   inputdata.F90
-  parser_setup.F90
+  parser.F90
   setupgeom.F90)
 
 set(fypp_flags ${FYPP_BUILD_FLAGS})

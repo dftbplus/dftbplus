@@ -11,8 +11,8 @@
 !> Information on any GPUs on the system
 module dftbp_common_gpuenv
   use iso_c_binding, only :  c_int
-  use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested
   implicit none
 
   private

@@ -15,14 +15,13 @@
 !> Caveat: The routines create the transposed and complex conjugated of the density matrices! (cc*
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pherk, size, pblasfx_psyrk
-  !use dftbp_common_blacsenv
 #:endif
   implicit none
   

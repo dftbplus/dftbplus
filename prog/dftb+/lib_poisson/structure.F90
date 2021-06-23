@@ -13,11 +13,10 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 module dftbp_poisson_structure
-
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_poisson_gallocation, only : log_gallocate
   use dftbp_poisson_mpi_poisson, only : active_id
-  use dftbp_common_globalenv, only : stdOut
    
   implicit none
   
@@ -334,4 +333,3 @@ module dftbp_poisson_structure
    
    
  end module dftbp_poisson_structure
- 

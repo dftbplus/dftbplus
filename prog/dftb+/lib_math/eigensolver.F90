@@ -12,11 +12,10 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_math_eigensolver
-  use dftbp_common_assert
-  use dftbp_io_message, only : error, warning
   use dftbp_common_accuracy, only : rsp, rdp
-  ! use dftbp_extlibs_blas
+  use dftbp_common_assert
   use dftbp_extlibs_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
+  use dftbp_io_message, only : error, warning
 #:if WITH_GPU
   use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif

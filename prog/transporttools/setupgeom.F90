@@ -7,15 +7,15 @@
 
 #:include 'common.fypp'
 
-program setupGeometry 
+program setupgeom
   use dftbp_common_globalenv
   use dftbp_io_formatout, only : printDftbHeader
-  use dftbp_inputsetup, only : TInputData
-  use dftbp_dftbplus_parsersetup, only : parseHsdInput
+  use transporttools_inputdata, only : TInputData
+  use transporttools_parser, only : parseHsdInput
 #:if WITH_MPI
+  use mpi, only : MPI_THREAD_FUNNELED, MPI_COMM_WORLD
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
   use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
-  use mpi, only : MPI_THREAD_FUNNELED, MPI_COMM_WORLD
 #:endif
   implicit none
 
@@ -47,4 +47,4 @@ program setupGeometry
   call mpifx_finalize()
 #:endif
 
-end program setupGeometry
+end program setupgeom

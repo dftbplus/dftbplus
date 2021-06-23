@@ -9,14 +9,14 @@
 
 !> Calculator for the spline/polynomial repulsive as found in legacy SK-files
 module dftbp_dftb_splinepolyrep
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_boundarycond, only : zAxis
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
+  use dftbp_dftb_boundarycond, only : zAxis
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_math_quaternions, only : rotate3
   use dftbp_dftb_repcont, only : TRepCont, getCutOff, getEnergy, getEnergyDeriv
   use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_math_quaternions, only : rotate3
   implicit none
 
   private

@@ -9,79 +9,79 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
-  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
+  use dftbp_common_assert
   use dftbp_common_constants, only : maxL, symbolToNumber, shellNames, Bohr__AA
+  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
+      & timeUnits, EFieldUnits, freqUnits, pi, massUnits, VelocityUnits, Boltzmann,&
+      & dipoleUnits, chargeUnits, volumeUnits
+  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
+  use dftbp_dftb_dftbplusu, only : plusUFunctionals
+  use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
+  use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
+      & TSimpleDftD3Input, TDispDftD4Inp, getUffValues
+  use dftbp_dftb_encharges, only : TEeqInput
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
+      & getCellTranslations, updateNeighbourList
+  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
+  use dftbp_dftb_repcont, only : init, addRepulsive
+  use dftbp_dftb_reppoly, only : TRepPoly, TRepPolyIn, init
+  use dftbp_dftb_repspline, only : TRepSpline, TRepSplineIn, init
+  use dftbp_dftb_slakocont, only : init, addTable
+  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
+  use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only : TControl, TGeometry, TSlater, TInputData, TXLBOMDInp,&
       & TBlacsOpts, TRangeSepInp
-  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryXyz,&
-      & readTGeometryVasp, reduce, setLattice
+  use dftbp_dftbplus_oldcompat, only : convertOldHSD
+  use dftbp_dftbplus_specieslist, only : readSpeciesList
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
+  use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
+  use dftbp_extlibs_plumed, only : withPlumed
+  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure, withPoisson
+  use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
+      & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
+  use dftbp_geoopt_geoopt, only : geoOptTypes
+  use dftbp_io_charmanip, only : newline, i2c, unquote, tolower
   use dftbp_io_hsdparser, only : getNodeHSDName, parseHSD
   use dftbp_io_hsdutils, only : getChildValue, getChild, detailedError, detailedWarning,&
       & getChildren, setChild, setChildValue, getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : getNodeName2, convertByMul, setUnprocessed, splitModifier
-  use dftbp_dftbplus_specieslist, only : readSpeciesList
-  use dftbp_io_charmanip, only : newline, i2c, unquote, tolower
   use dftbp_io_message, only : error, warning
+  use dftbp_io_xmlutils, only : removeChildNodes
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_md_tempprofile, only : identifyTempProfile
+  use dftbp_mixer_mixer, only : mixerTypes
+  use dftbp_reks_reks, only : reksTypes
+  use dftbp_solvation_solvparser, only : readSolvation, readCM5
+  use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
+  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListIntR1, TListRealR1, TListIntR1, TListInt, TListString,&
       & len, init, append, TListCharLc, TListRealR2, TListReal, asArray, get, destruct, asVector,&
       & intoArray
-  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
-      & timeUnits, EFieldUnits, freqUnits, pi, massUnits, VelocityUnits, Boltzmann,&
-      & dipoleUnits, chargeUnits, volumeUnits
-  use dftbp_dftbplus_oldcompat, only : convertOldHSD
-  use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_math_lapackroutines, only : matinv
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling
-  use dftbp_dftb_periodic, only : getCellTranslations, updateNeighbourList
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
-  use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
-      & TSimpleDftD3Input, TDispDftD4Inp, getUffValues
-  use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
-  use dftbp_dftb_encharges, only : TEeqInput
-  use dftbp_math_simplealgebra, only: cross3, determinant33
-  use dftbp_dftb_slakocont, only : init, addTable
-  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
-  use dftbp_dftb_repcont, only : init, addRepulsive
-  use dftbp_dftb_repspline, only : TRepSpline, TRepSplineIn, init
-  use dftbp_dftb_reppoly, only : TRepPoly, TRepPolyIn, init
-  use dftbp_dftb_dftbplusu, only : plusUFunctionals
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_oldskdata, only : TOldSKData, readFromFile
-  use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
-      & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
   use dftbp_type_orbitals, only : getShellnames
-  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
-  use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
-  use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_mixer_mixer, only : mixerTypes
-  use dftbp_geoopt_geoopt, only : geoOptTypes
-  use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-#:if WITH_SOCKETS
-  use dftbp_io_ipisocket, only : IPI_PROTOCOLS
-#:endif
-  use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
-  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
-  use dftbp_dftb_etemp, only : fillingTypes
-  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryXyz,&
+      & readTGeometryVasp, reduce, setLattice
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  use dftbp_md_tempprofile, only : identifyTempProfile
-  use dftbp_reks_reks, only : reksTypes
-  use dftbp_extlibs_plumed, only : withPlumed
-  use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure, withPoisson
-#:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
-      & ContactInfo
-#:endif
-  use dftbp_solvation_solvparser, only : readSolvation, readCM5
 #:if WITH_DFTD3
   use dftbp_dftb_dispdftd3, only : TDispDftD3Inp
 #:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbdInp
+#:endif
+#:if WITH_SOCKETS
+  use dftbp_io_ipisocket, only : IPI_PROTOCOLS
+#:endif
+#:if WITH_TRANSPORT
+  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
+      & ContactInfo
 #:endif
   implicit none
 

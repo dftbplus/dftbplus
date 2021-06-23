@@ -15,11 +15,11 @@
 
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_common_schedule
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_accuracy, only : dp
   implicit none
   
   private

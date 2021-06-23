@@ -11,8 +11,8 @@
 module dftbp_dftbplus_specieslist
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : elementSymbol
-  use dftbp_io_hsdutils, only : getChildValue, getChild
   use dftbp_extlibs_xmlf90, only : fnode
+  use dftbp_io_hsdutils, only : getChildValue, getChild
   implicit none
   
   private

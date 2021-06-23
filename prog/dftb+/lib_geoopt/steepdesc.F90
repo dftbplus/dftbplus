@@ -9,8 +9,8 @@
 
 !> Function minimization with steepest descent algorithm
 module dftbp_geoopt_steepdesc
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
 
   private

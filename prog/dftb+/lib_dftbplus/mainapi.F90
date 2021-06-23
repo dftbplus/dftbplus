@@ -9,25 +9,23 @@
 
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_assert
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
-  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_dftbplus_main, only : processGeometry
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_io_charmanip, only : newline
+  use dftbp_io_message, only : error
   use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
-#:endif
-  use dftbp_dftbplus_main, only : processGeometry
-  use dftbp_io_message, only : error
-  use dftbp_type_orbitals, only : TOrbitals
-  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
-#:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
 #:endif
-  use dftbp_type_wrappedintr, only : TWrappedInt1
-  use dftbp_io_charmanip, only : newline
   implicit none
   
   private

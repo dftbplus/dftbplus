@@ -11,8 +11,8 @@
 !>
 !> Note: Currently only velocity Verlet is wrapped.
 module dftbp_md_mdintegrator
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_md_velocityverlet, only : TVelocityVerlet, state, reset, rescale, next, init
   implicit none
   

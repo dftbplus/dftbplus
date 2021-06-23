@@ -9,18 +9,18 @@
 
 !> Non-polar solvent accessible surface area (SASA) contributions
 module dftbp_solvation_sasa
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_blasroutines, only : gemv
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_extlibs_lebedev, only : getAngGrid, gridSize
   use dftbp_io_message, only : error
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private

@@ -32,8 +32,8 @@
 !> Step 4. is repeated as long as the projected derivative of the function on the line is less than
 !> the given tolerance.
 module dftbp_geoopt_linemin
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_constants, only : goldenMeanP1
   implicit none
 

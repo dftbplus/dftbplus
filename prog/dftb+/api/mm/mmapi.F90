@@ -11,20 +11,20 @@
 module dftbp_mmapi
   use iso_fortran_env, only : output_unit
   use dftbp_common_accuracy
-  use dftbp_common_globalenv
   use dftbp_common_environment
-  use dftbp_io_message, only: error
+  use dftbp_common_globalenv
+  use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
+  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
+  use dftbp_dftbplus_inputdata
   use dftbp_dftbplus_mainapi
   use dftbp_dftbplus_parser
-  use dftbp_io_hsdutils
-  use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
-  use dftbp_dftbplus_inputdata
-  use dftbp_type_linkedlist
-  use dftbp_extlibs_xmlf90
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_extlibs_xmlf90
   use dftbp_io_charmanip, only : newline
-  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
+  use dftbp_io_hsdutils
+  use dftbp_io_message, only: error
+  use dftbp_type_linkedlist
   implicit none
   private
 

@@ -12,14 +12,14 @@
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 module dftbp_dftb_dispcommon
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, lc, nSearchIter
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_errorfunction, only : erfcwrap
-  use dftbp_io_message, only : error
-  use dftbp_math_simplealgebra, only : cross3
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_io_message, only : error
+  use dftbp_math_errorfunction, only : erfcwrap
+  use dftbp_math_simplealgebra, only : cross3
   use dftbp_math_sorting, only : index_heap_sort
   implicit none
   

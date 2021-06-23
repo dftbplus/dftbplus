@@ -10,15 +10,15 @@
 !> Read GBSA parametrisation data from file
 module dftbp_solvation_gbsafile
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_solvation_born, only : TGBInput
-  use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
       & symbolToNumber
+  use dftbp_extlibs_xmlf90, only : fnode
+  use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_io_hsdutils, only : detailedError, detailedWarning
   use dftbp_io_message, only : error, warning
-  use dftbp_solvation_solventdata, only : TSolventData
   use dftbp_io_tokenreader, only : getNextToken, TOKEN_OK
-  use dftbp_extlibs_xmlf90, only : fnode
+  use dftbp_solvation_born, only : TGBInput
+  use dftbp_solvation_solventdata, only : TSolventData
   implicit none
   
   private

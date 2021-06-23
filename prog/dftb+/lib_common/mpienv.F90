@@ -14,9 +14,9 @@ module dftbp_common_mpienv
   use dftbp_common_accuracy, only : lc
   use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_allgather
   use dftbp_io_message, only : error
-  #:if WITH_TRANSPORT
-    use dftbp_extlibs_negf, only : negf_cart_init
-  #:endif
+#:if WITH_TRANSPORT
+  use dftbp_extlibs_negf, only : negf_cart_init
+#:endif
   implicit none
   
   private

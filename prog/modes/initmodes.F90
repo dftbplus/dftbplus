@@ -8,23 +8,23 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module dftbp_initmodes
+module modes_initmodes
+  use xmlf90_flib_dom
+  use dftbp_common_accuracy
   use dftbp_common_assert
+  use dftbp_common_constants
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_unitconversion
+  use dftbp_io_charmanip
+  use dftbp_io_fileid
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_xmlutils
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
-  use xmlf90_flib_dom
-  use dftbp_type_linkedlist
-  use dftbp_io_charmanip
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_type_typegeometryhsd
   use dftbp_io_message
-  use dftbp_io_fileid
-  use dftbp_common_unitconversion
+  use dftbp_io_xmlutils
+  use dftbp_type_linkedlist
   use dftbp_type_oldskdata
+  use dftbp_type_typegeometryhsd
   implicit none
   private
 
@@ -370,4 +370,4 @@ contains
 
   end subroutine getInputMasses
 
-end module dftbp_initmodes
+end module modes_initmodes

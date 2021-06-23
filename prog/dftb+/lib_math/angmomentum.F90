@@ -9,16 +9,16 @@
 
 !> Angular momentum related routines
 module dftbp_math_angmomentum
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_constants, only : imag
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx
 #:endif
-  use dftbp_common_assert
-  use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : imag
-  use dftbp_math_qm, only : makeSimilarityTrans
-  use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_type_densedescr, only : TDenseDescr
   implicit none
   
   private

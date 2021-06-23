@@ -9,16 +9,16 @@
 
 !> Routines for spin orbit coupling
 module dftbp_dftb_spinorbit
-#:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
-#:endif
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_constants, only : imag
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_math_angmomentum, only : getLOperators
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
+#:endif
   implicit none
   
   private

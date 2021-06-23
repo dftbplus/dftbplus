@@ -9,14 +9,14 @@
 
 !> Contains subroutines for formatted output of data
 module dftbp_io_formatout
-  use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_io_message, only : error
+  use dftbp_common_assert
   use dftbp_common_constants, only : au__fs, Bohr__AA, pi
-  use dftbp_math_lapackroutines, only: matinv
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
   use dftbp_dftb_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
+  use dftbp_io_message, only : error
+  use dftbp_math_lapackroutines, only: matinv
   implicit none
   
   private

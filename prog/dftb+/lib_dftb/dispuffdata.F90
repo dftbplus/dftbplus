@@ -8,9 +8,9 @@
 !> Contains the Van der Waal parameters for the UFF force field.
 module dftbp_dftb_dispuffdata
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
-  use dftbp_io_charmanip, only : tolower
   use dftbp_common_constants, only : AA__Bohr, kcal_mol__Hartree
+  use dftbp_io_charmanip, only : tolower
+  use dftbp_io_message, only : error
   implicit none
   
   private

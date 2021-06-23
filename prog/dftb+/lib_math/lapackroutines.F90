@@ -13,8 +13,8 @@
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_math_lapackroutines
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_common_assert
   use dftbp_io_message, only : error, warning
   ! use dftbp_extlibs_lapack
   implicit none

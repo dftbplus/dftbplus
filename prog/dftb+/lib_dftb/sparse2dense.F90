@@ -11,17 +11,16 @@
 !> 1-dimensional representations
 !>
 module dftbp_dftb_sparse2dense
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi, imag
-  use dftbp_type_commontypes, only : TOrbitals
-  !use dftbp_common_memman
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
   use dftbp_common_blacsenv, only : TBlacsEnv
+  use dftbp_extlibs_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
 #:endif
   implicit none
   

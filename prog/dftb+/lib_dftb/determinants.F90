@@ -10,10 +10,10 @@
 !> Routines for (time independent excited) TI-DFTB
 module dftbp_dftb_determinants
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_io_message, only : error
-  use dftbp_dftb_etemp, only : Efilling
   use dftbp_common_assert
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : Efilling
+  use dftbp_io_message, only : error
   implicit none
 
   private

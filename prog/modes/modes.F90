@@ -9,20 +9,20 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use dftbp_common_assert
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_initmodes
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__cm, Bohr__AA, pi
-  use dftbp_type_typegeometry
-  use dftbp_math_eigensolver, only : heev
-  use dftbp_io_taggedoutput
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message
-  use dftbp_modeprojection
+  use dftbp_io_taggedoutput
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_type_typegeometry
+  use modes_initmodes
+  use modes_modeprojection
 #:if WITH_MPI
+  use mpi, only : MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
   use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
-  use mpi, only : MPI_THREAD_FUNNELED
 #:endif
   implicit none
 

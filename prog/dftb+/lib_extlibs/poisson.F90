@@ -16,12 +16,9 @@
 module dftbp_extlibs_poisson
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
-#:if WITH_MPI
-  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
-#:endif
   use dftbp_poisson_poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms,&
       & verbose, bufferBox, deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm,&
       & FoundBox, Gate, GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter,&
@@ -31,15 +28,14 @@ module dftbp_extlibs_poisson
       & set_temperature, set_ncont, set_cluster, set_mol_indeces, set_dopoisson, set_poissonbox,&
       & set_poissongrid, set_accuracy, set_verbose, check_biasdir, check_poisson_box,&
       & check_parameters, check_localbc, check_contacts, write_parameters, poiss_getlatvecs
+  use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
+  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_poisson_poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi,&
       & set_potentials, set_builtin
-#:endif
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-#:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
@@ -467,6 +463,7 @@ contains
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+#:if WITH_POISSON
 
   !> Initialise gDFTB environment and variables
 #:if WITH_TRANSPORT
@@ -907,6 +904,8 @@ contains
     end do
 
   end subroutine checkDensityCutoff_
+
+#:endif
 
 #:endif
 

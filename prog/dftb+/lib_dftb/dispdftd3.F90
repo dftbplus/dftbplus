@@ -9,15 +9,15 @@
 
 !> DFT-D3 dispersion model.
 module dftbp_dftb_dispdftd3
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_constants, only : kcal_mol__Hartree, AA__Bohr
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_extlibs_dftd3, only : dftd3_input, dftd3_calc, dftd3_pbc_dispersion, dftd3_dispersion,&
       & dftd3_init, dftd3_set_params
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_math_simplealgebra, only : determinant33
-  use dftbp_common_constants, only : kcal_mol__Hartree, AA__Bohr
   implicit none
   
   private

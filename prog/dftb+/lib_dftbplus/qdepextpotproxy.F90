@@ -8,9 +8,9 @@
 !> Contains a proxy communicating with external generators of population dependent potentials.
 module dftbp_dftbplus_qdepextpotproxy
   use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_shift, only : total_shift
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_dftb_shift, only : total_shift
   implicit none
   
   private

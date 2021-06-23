@@ -8,10 +8,10 @@
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
 module dftbp_common_unitconversion
+  use dftbp_common_accuracy, only : dp, mc, lc
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, J__Hartree, fs__au, c, Coulomb__au,&
       & V_m__au, pascal__au, kg__au, pi, Hartree__cm, eV__Hartree, au__fs, Debye__au, hbar,&
       & amu__au, Boltzmann, kcal_mol__Hartree
-  use dftbp_common_accuracy, only : dp, mc, lc
   implicit none
 
   public

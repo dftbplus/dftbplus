@@ -9,8 +9,8 @@
 
 !> Contains simple temperature profiles for molecular dynamics.
 module dftbp_md_tempprofile
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, minTemp
+  use dftbp_common_assert
   use dftbp_io_charmanip, only : tolower
   implicit none
   

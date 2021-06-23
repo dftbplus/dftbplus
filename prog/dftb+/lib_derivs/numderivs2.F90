@@ -10,8 +10,8 @@
 !> Module containing routines for numerical second derivs of energy using central finite difference.
 !> To Do: Option to restart the calculation
 module dftbp_derivs_numderivs2
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
   
   private

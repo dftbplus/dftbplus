@@ -11,15 +11,15 @@
 module dftbp_elecsolvers_elsicsc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
+  use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_common_constants, only : pi
   use dftbp_io_message, only : error
   use dftbp_math_angmomentum, only : rotateZ
   use dftbp_type_commontypes, only : TOrbitals
-  #:if WITH_MPI
-    use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduce
-  #:endif
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduce
+#:endif
   implicit none
   
   private

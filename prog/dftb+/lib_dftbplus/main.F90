@@ -10,79 +10,59 @@
 
 !> The main routines for DFTB+
 module dftbp_dftbplus_main
-#:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-#:endif
-#:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_ptranc, pblasfx_psymm, pblasfx_ptran
-  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
-  use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
-  use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
-  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs, packERhoPauliBlacs,&
-      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
-      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
-      & unpackSPauliBlacs
-#:endif
-#:if WITH_SOCKETS
-  use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
-  use dftbp_io_ipisocket, only : IpiSocketComm
-#:endif
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
-  use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_dftbplus_inputdata, only : TNEGFInfo
+  use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
-  use dftbp_dftbplus_eigenvects, only : diagDenseMtx
-  use dftbp_dftb_repulsive, only : TRepulsive
-  use dftbp_dftb_etemp, only : electronFill, Efilling
-  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
-      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation
+  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
+  use dftbp_derivs_staticperturb, only : staticPerturWrtE
+  use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
+  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
+  use dftbp_dftb_dftbplusu, only : TDftbU
+  use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_dftb_elstatpot, only : TElStatPotentials
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : electronFill, Efilling
+  use dftbp_dftb_extfields, only : addUpExternalField
   use dftbp_dftb_forces, only : derivative_shift
-  use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
-  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
+  use dftbp_dftb_halogenx, only : THalogenX
   use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
       & getSccHamiltonian, mergeExternalPotentials, resetExternalPotentials,&
       & addBlockChargePotentials
-  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
+  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
   use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
       & frac2cart, foldCoordToUnitCell, getNrOfNeighboursForAll, getSparseDescriptor,&
       & getCellTranslations
-  use dftbp_mixer_mixer, only : TMixer, reset, mix, getInverseJacobian
-  use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
-  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
-  use dftbp_dftb_spin, only : ud2qm, qm2ud
-  use dftbp_dftb_dftbplusu, only : TDftbU
-  use dftbp_md_mdcommon, only : TMdCommon, evalke, evalkt
-  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_pmlocalisation, only : TPipekMezey
+  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
+      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
-  !use dftbp_dftbplus_parser
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_repcont, only : TRepCont
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_shift, only : add_shift
+  use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
       & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
       & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli
-#:if not WITH_SCALAPACK
-  use dftbp_math_blasroutines, only : symm, hemm
-#:endif
-  !use dftbp_io_hsdutils
-  !use dftbp_io_charmanip
-  use dftbp_dftb_shift, only : add_shift
+  use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use dftbp_math_angmomentum, only : getLOnsite, getLDual
-  !use dftbp_dftb_elecconstraints
-  use dftbp_dftb_pmlocalisation, only : TPipekMezey
-  use dftbp_timedep_linresp, only : addGradients, linResp_calcExcitations
-  use dftbp_timedep_linresptypes, only : TLinResp
-  use dftbp_timedep_pprpa, only : ppRPAenergies
-#:if WITH_ARPACK
-  use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRS
-#:endif
+  use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
+  use dftbp_dftb_thirdorder, only : TThirdOrder
+  use dftbp_dftbplus_eigenvects, only : diagDenseMtx
+  use dftbp_dftbplus_elstattypes, only : elstatTypes
+  use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut,&
+      & fCharges, fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag,&
+      & derivEBandOut
+  use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
       & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
       & writeMdOut2, writeDetailedOut5, writeMdOut1, openDetailedOut, printReksSccInfo,&
@@ -94,50 +74,61 @@ module dftbp_dftbplus_main
       & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
       & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
       & writeDetailedOut8
-  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
-  use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_solvation_cm5, only : TChargeModel5
-  !use dftbp_extlibs_xmlf90
-  use dftbp_dftb_thirdorder, only : TThirdOrder
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
+  use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
+  use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
   use dftbp_io_message, only : error, warning
-  use dftbp_dftb_repcont, only : TRepCont
-  use dftbp_dftb_halogenx, only : THalogenX
-  use dftbp_md_xlbomd, only : TXLBOMD
-  use dftbp_dftb_slakocont, only : TSlakoCont
-  !use dftbp_type_linkedlist
+  use dftbp_io_taggedoutput, only : TTaggedWriter
+  use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
+  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
+  use dftbp_md_mdcommon, only : TMdCommon, evalke, evalkt
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
   use dftbp_md_tempprofile, only : TTempProfile
-  use dftbp_dftb_elstatpot, only : TElStatPotentials
-  use dftbp_dftbplus_elstattypes, only : elstatTypes
-  use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_timedep_timeprop, only : runDynamics
-  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_io_taggedoutput, only : TTaggedWriter
+  use dftbp_md_xlbomd, only : TXLBOMD
+  use dftbp_mixer_mixer, only : TMixer, reset, mix, getInverseJacobian
   use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
-  & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
-  & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
-  & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
-  & getReksStress
-  use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
-  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
-#:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TTransPar
-  use dftbp_transport_negfint, only : TNegfInt_final
+      & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
+      & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
+      & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
+      & getReksStress
+  use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_timedep_linresp, only : addGradients, linResp_calcExcitations
+  use dftbp_timedep_linresptypes, only : TLinResp
+  use dftbp_timedep_pprpa, only : ppRPAenergies
+  use dftbp_timedep_timeprop, only : runDynamics
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_ARPACK
+  use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRS
 #:endif
-  use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt, autotestTag, bandOut,&
-      & fCharges, fShifts, fStopScc, mdOut, userOut, fStopDriver, hessianOut, resultsTag,&
-      & derivEBandOut
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs, packERhoPauliBlacs,&
+      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
+      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
+      & unpackSPauliBlacs
+  use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
+  use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_ptranc, pblasfx_psymm, pblasfx_ptran
+  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+#:else
+  use dftbp_math_blasroutines, only : symm, hemm
+#:endif
+#:if WITH_SOCKETS
+  use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
+  use dftbp_io_ipisocket, only : IpiSocketComm
+#:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_initprogram, only : overrideContactCharges
+  use dftbp_transport_negfint, only : TNegfInt_final
+  use dftbp_transport_negfvars, only : TTransPar
 #:endif
-  use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_derivs_staticperturb, only : staticPerturWrtE
-  use dftbp_dftb_extfields, only : addUpExternalField
   implicit none
 
   private
@@ -5616,9 +5607,8 @@ contains
 
   !> Correct for z folding into central unit cell requiring a twist in helical cases
   pure subroutine helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
-
-    use dftbp_math_quaternions, only : rotate3
     use dftbp_dftb_boundarycond, only : zAxis
+    use dftbp_math_quaternions, only : rotate3
 
     !> Derivatives
     real(dp), intent(inout) :: derivs(:,:)
@@ -6611,7 +6601,6 @@ contains
 
   !> Normalize eigenvectors with unitary transformation
   subroutine renormalizeEigenvecs(env, electronicSolver, eigvecsReal, reks)
-
     use dftbp_math_blasroutines, only : gemm
     use dftbp_math_eigensolver, only : heev
 

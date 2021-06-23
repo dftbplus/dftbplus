@@ -9,10 +9,10 @@
 
 !> Constraints on the electronic ground state
 module dftbp_dftb_elecconstraints
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_assert
   use dftbp_math_angmomentum, only : getLOperators
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private

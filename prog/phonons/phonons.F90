@@ -7,20 +7,20 @@
 
 #:include 'common.fypp'
 
-program phonons 
-  use dftbp_common_assert
-  use dftbp_common_globalenv
-  use dftbp_common_environment
-  use dftbp_initphonons
-  use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
-  use dftbp_math_simplealgebra, only : invert33
-  use dftbp_type_typegeometry
-  use dftbp_math_eigensolver, only : heev
-  use dftbp_io_message
-  use dftbp_io_taggedoutput
+program phonons
   use libnegf_int
   use ln_structure
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_assert
+  use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
+  use dftbp_common_environment
+  use dftbp_common_globalenv
+  use dftbp_initphonons
+  use dftbp_io_message
+  use dftbp_io_taggedoutput
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_math_simplealgebra, only : invert33
+  use dftbp_type_typegeometry
   implicit none
 
   type(TEnvironment) :: env
@@ -355,4 +355,4 @@ contains
 
   end subroutine writeTaggedOut
 
-end program phonons 
+end program phonons

@@ -13,11 +13,11 @@
 !> are assumed to be separated by white space, therefore strings with spaces inside can not
 !> currently be handled.
 module dftbp_io_tokenreader
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_assert
+  use dftbp_extlibs_xmlf90, only : string, assignment(=)
   use dftbp_io_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
   use dftbp_io_message, only : error
-  use dftbp_common_accuracy, only : dp
-  use dftbp_extlibs_xmlf90, only : string, assignment(=)
   implicit none
 
   private

@@ -14,7 +14,6 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksfon
-
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error

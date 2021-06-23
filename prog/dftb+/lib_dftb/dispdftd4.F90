@@ -11,21 +11,21 @@
 !> Implementation of the D4 dispersion model
 module dftbp_dftb_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_blasroutines, only : gemv
-  use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi, symbolToNumber
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
   use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
       & TDftD4Calculator_init, TDftD4Ref_init
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_encharges, only : TEeqCont, init_ => init
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private

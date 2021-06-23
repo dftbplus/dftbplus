@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 module dftbp_dftbplus_transportio
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error

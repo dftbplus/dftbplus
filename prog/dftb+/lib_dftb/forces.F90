@@ -9,17 +9,17 @@
 
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module dftbp_dftb_forces
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp 
+  use dftbp_common_assert
+  use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_boundarycond, only : zAxis
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_constants, only : pi
   use dftbp_math_quaternions, only : rotate3
-  use dftbp_dftb_boundarycond, only : zAxis
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private

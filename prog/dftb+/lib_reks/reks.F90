@@ -14,7 +14,6 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reks
-
   use dftbp_reks_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
   use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
       & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy

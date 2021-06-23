@@ -14,15 +14,11 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksinterface
-
   use dftbp_common_accuracy, only : dp
-  use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_type_orbitals, only : TOrbitals
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
@@ -31,6 +27,7 @@ module dftbp_reks_reksinterface
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
   use dftbp_dftb_stress, only : getBlockStress
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_reks_rekscommon, only : getTwoIndices
   use dftbp_reks_rekscpeqn, only : cggrad
@@ -45,6 +42,8 @@ module dftbp_reks_reksinterface
   use dftbp_reks_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl,&
       & getunrelaxeddensmatandtdp, getdipoleintegral, getdipolemomentmatrix, getreksosc
   use dftbp_reks_reksvar, only : TReksCalc
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
 
   implicit none
 

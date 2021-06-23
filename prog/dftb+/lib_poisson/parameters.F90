@@ -13,7 +13,6 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 module dftbp_poisson_parameters
-  
   use dftbp_common_accuracy, only : dp
 
   implicit none

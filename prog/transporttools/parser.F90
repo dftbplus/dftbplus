@@ -8,41 +8,33 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module dftbp_dftbplus_parsersetup
-  use dftbp_common_globalenv
-  use dftbp_common_assert
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_type_typegeometryhsd
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdutils2
-  use dftbp_io_charmanip
-  use dftbp_io_message
-  use dftbp_type_linkedlist
-  use dftbp_type_wrappedintr
-  use dftbp_common_unitconversion
-  use dftbp_dftb_periodic
-  use dftbp_math_simplealgebra, only: cross3, determinant33
-  use dftbp_dftb_dispersions
+module transporttools_parser
+  use dftbp_common_accuracy, only : dp, mc, lc, distFudge, distFudgeOld
+  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_unitconversion, only : lengthUnits, Bohr__AA
   use dftbp_dftb_slakocont
-  use dftbp_dftb_slakoeqgrid
-  use dftbp_dftb_repcont
-  use dftbp_dftb_repspline
-  use dftbp_dftb_reppoly
-  use dftbp_type_commontypes
-  use dftbp_type_oldskdata
-  use dftbp_extlibs_xmlf90
-  use dftbp_type_wrappedintr
-  use dftbp_transport_negfvars
-  use dftbp_helpsetupgeom
-  use dftbp_inputsetup
-  use dftbp_dftbplus_inputconversion
-  use dftbp_dftbplus_oldcompat
+  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
+  use dftbp_dftbplus_oldcompat, only : convertOldHsd
+  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, assignment(=), getLength,&
+      & getNodeName, getItem1, destroyNode, destroyNodeList
+  use dftbp_io_charmanip, only : newline, unquote, i2c, tolower
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
+  use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, getSelectedAtomIndices,&
+      & detailedError, detailedWarning
+  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_transport_negfvars, only : TTransPar, ContactInfo
+  use dftbp_type_linkedlist, only : TListReal, TListString, TListCharLc, init, destruct, len, get,&
+      & append, asArray
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile
+  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHsd
+  use dftbp_type_wrappedintr, only : TWrappedInt1
+  use transporttools_helpsetupgeom, only :setupGeometry
+  use transporttools_inputdata, only : TInputData
   implicit none
 
   private
-
   public :: parseHsdInput, parserVersion
 
 
@@ -579,4 +571,4 @@ contains
 
   end subroutine SKTruncations
 
-end module dftbp_dftbplus_parsersetup
+end module transporttools_parser

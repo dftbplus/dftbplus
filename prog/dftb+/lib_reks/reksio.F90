@@ -14,7 +14,6 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksio
-
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : au__Debye
   use dftbp_common_globalenv, only: stdOut

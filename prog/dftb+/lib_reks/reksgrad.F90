@@ -16,29 +16,28 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksgrad
-
-#:if WITH_OMP
-  use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
-#:endif
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_blasroutines, only : gemm, gemv
-  use dftbp_dftb_coulomb, only : addInvRPrime
-  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_math_lapackroutines, only : getrf, getri
-  use dftbp_io_message, only : error
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_coulomb, only : addInvRPrime
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_type_orbitals, only : TOrbitals
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_scc, only : TScc
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_dftb_slakocont, only : TSlakoCont 
   use dftbp_dftb_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemm, gemv
+  use dftbp_math_lapackroutines, only : getrf, getri
   use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
       & findShellOfAO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
+#:if WITH_OMP
+  use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+#:endif
 
   implicit none
 
@@ -53,7 +52,7 @@ module dftbp_reks_reksgrad
   public :: getOtherSAgrad, getReksNAC
   public :: getExtChrgGradients
 
-  contains
+contains
 
   !> Calculate energy weighted density matrix for each microstate
   subroutine getEnergyWeightedDensityL(env, denseDesc, neighbourList, &

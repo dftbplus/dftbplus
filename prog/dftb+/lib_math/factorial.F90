@@ -9,8 +9,8 @@
 
 !> Contains routines relating to evaluating factorials
 module dftbp_math_factorial
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
 
   implicit none
 

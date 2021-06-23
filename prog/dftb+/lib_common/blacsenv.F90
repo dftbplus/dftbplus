@@ -10,11 +10,11 @@
 
 !> Contains BLACS environmental settings.
 module dftbp_common_blacsenv
-  use dftbp_common_mpienv, only : TMpiEnv
-  use dftbp_io_message, only : error
-  use dftbp_extlibs_scalapackfx, only : blacsgrid
   use dftbp_common_assert
+  use dftbp_common_mpienv, only : TMpiEnv
   use dftbp_common_status, only : TStatus
+  use dftbp_extlibs_scalapackfx, only : blacsgrid
+  use dftbp_io_message, only : error
   implicit none
   
   private

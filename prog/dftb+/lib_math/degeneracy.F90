@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 module dftbp_math_degeneracy
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_io_message, only : error
   implicit none
 

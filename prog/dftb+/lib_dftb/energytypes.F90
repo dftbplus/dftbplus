@@ -9,8 +9,8 @@
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
 module dftbp_dftb_energytypes
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   implicit none
   
   private

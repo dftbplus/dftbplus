@@ -10,14 +10,14 @@
 !> A cache for calculating molecule orbitals on a grid.
 !> This object is responsible for reading in the eigenvectors from a specified file and passing the
 !> appropriate eigenvectors to the molecule orbital calculator.
-module dftbp_gridcache
-  use dftbp_common_assert
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_constants, only : pi
+module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_constants, only : pi
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
-  use dftbp_molecularorbital, only : TMolecularOrbital, init, getValue
+  use waveplot_molorb, only : TMolecularOrbital, init, getValue
   implicit none
 
   private
@@ -377,4 +377,4 @@ contains
 
   end subroutine local_next
 
-end module dftbp_gridcache
+end module waveplot_gridcache

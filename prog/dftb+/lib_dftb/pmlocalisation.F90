@@ -11,14 +11,14 @@
 !> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
 !> each k-point is localised independently.
 module dftbp_dftb_pmlocalisation
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_math_blasroutines, only : hemv, hemm, symm
-  use dftbp_dftb_sparse2dense, only :unpackHS
-  use dftbp_math_sorting, only : unique, heap_sort
-  use dftbp_io_message, only : error, warning
   use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sparse2dense, only :unpackHS
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_blasroutines, only : hemv, hemm, symm
+  use dftbp_math_sorting, only : unique, heap_sort
   implicit none
   
   private

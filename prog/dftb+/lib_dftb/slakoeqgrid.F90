@@ -10,10 +10,10 @@
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
 module dftbp_dftb_slakoeqgrid
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp, distFudge, distFudgeOld
-  use dftbp_math_interpolation, only : polyInterUniform, poly5ToZero, freeCubicSpline
+  use dftbp_common_assert
   use dftbp_io_message, only : error
+  use dftbp_math_interpolation, only : polyInterUniform, poly5ToZero, freeCubicSpline
   implicit none
   
   private

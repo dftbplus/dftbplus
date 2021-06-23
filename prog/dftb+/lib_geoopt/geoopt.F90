@@ -9,10 +9,10 @@
 module dftbp_geoopt_geoopt
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_conjgrad, only : TConjGrad, next, reset, init
-  use dftbp_geoopt_steepdesc, only : TSteepDesc, next, reset, init
+  use dftbp_geoopt_fire, only : TFire
   use dftbp_geoopt_gdiis, only : TDIIS, reset, next, init
   use dftbp_geoopt_lbfgs, only : TLbfgs
-  use dftbp_geoopt_fire, only : TFire
+  use dftbp_geoopt_steepdesc, only : TSteepDesc, next, reset, init
   implicit none
   
   private

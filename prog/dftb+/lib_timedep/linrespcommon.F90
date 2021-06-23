@@ -9,15 +9,15 @@
 
 !> Helper routines for the linear response modules.
 module dftbp_timedep_linrespcommon
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
+  use dftbp_common_constants, only: Hartree__eV, au__Debye
+  use dftbp_dftb_onsitecorrection, only : getOnsME
+  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : elecTolMax, hemv
   use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_io_message, only : error
-  use dftbp_type_commontypes, only : TOrbitals
   use dftbp_timedep_transcharges, only : TTransCharges, transq
-  use dftbp_dftb_onsitecorrection, only : getOnsME
-  use dftbp_common_constants, only: Hartree__eV, au__Debye
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   public

@@ -19,13 +19,13 @@ module dftbp_dftb_dispuff
   use dftbp_common_accuracy, only : dp, tolDispersion
   use dftbp_common_assert
   use dftbp_common_constants, only: pi
-  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
       & addDispEGr_per_species
-  use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
   

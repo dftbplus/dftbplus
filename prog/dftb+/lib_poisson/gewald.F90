@@ -16,7 +16,6 @@
 #:include 'error.fypp'
 
 module dftbp_poisson_gewald
-
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   implicit none

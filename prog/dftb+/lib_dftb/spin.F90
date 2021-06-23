@@ -10,8 +10,8 @@
 !> Module containing various routines for spin polarised calculations. Intended to be used with SCC
 !> switched on!
 module dftbp_dftb_spin
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   !use dftbp_dftb_shift

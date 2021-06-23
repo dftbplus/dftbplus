@@ -9,8 +9,8 @@
 
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_mixer_diismixer, only : TDIISMixer, reset, init, mix
   implicit none
 

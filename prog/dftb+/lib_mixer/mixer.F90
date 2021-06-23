@@ -9,13 +9,13 @@
 
 !> Provides a general mixer which contains the desired actual mixer.
 module dftbp_mixer_mixer
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_simplemixer, only : TSimpleMixer, mix, reset
+  use dftbp_common_assert
+  use dftbp_io_message, only : error
   use dftbp_mixer_andersonmixer, only : TAndersonMixer, mix, reset
   use dftbp_mixer_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
   use dftbp_mixer_diismixer, only : TDIISMixer, mix, reset
-  use dftbp_io_message, only : error
+  use dftbp_mixer_simplemixer, only : TSimpleMixer, mix, reset
   implicit none
   
   private

@@ -9,8 +9,8 @@
 
 !> Common routines for MD calculations
 module dftbp_md_mdcommon
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_math_ranlux, only : TRanlux, getRandom
   implicit none

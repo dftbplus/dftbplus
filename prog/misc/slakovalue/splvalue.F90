@@ -13,9 +13,9 @@ program splvalue
   use dftbp_common_accuracy
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_repspline
-  use dftbp_type_oldskdata, only : readsplinerep
   use dftbp_io_fileid
   use dftbp_io_message
+  use dftbp_type_oldskdata, only : readsplinerep
 #:if WITH_MPI
   use dftbp_common_mpienv
 #:endif

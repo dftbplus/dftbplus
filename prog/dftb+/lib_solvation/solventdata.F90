@@ -10,8 +10,8 @@
 !> Constants for commonly known solvents
 module dftbp_solvation_solventdata
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_charmanip, only : tolower
   use dftbp_common_constants, only : kg__au, AA__Bohr, amu__au
+  use dftbp_io_charmanip, only : tolower
   implicit none
   
   private

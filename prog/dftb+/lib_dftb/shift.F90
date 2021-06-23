@@ -10,8 +10,8 @@
 !> Contains routines to calculate contributions to typical DFTB Hamiltonian parts using various
 !> generalisations of H_mu,nu = 0.5*S_mu,nu*(V_mu + V_nu)
 module dftbp_dftb_shift
-  use dftbp_common_assert
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_assert
   use dftbp_type_commontypes, only : TOrbitals
 
   implicit none

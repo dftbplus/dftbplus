@@ -8,9 +8,9 @@
 !> External fields
 module dftbp_dftb_extfields
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_io_message, only : error
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_io_message, only : error
   implicit none
 
   public :: TEField, TElecFieldInput, addUpExternalField
