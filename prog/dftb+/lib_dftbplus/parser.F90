@@ -76,7 +76,7 @@ module dftbp_parser
   use dftbp_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh, ContactInfo
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
-  use dftbp_tblite, only : gfn1xtb, gfn2xtb, ipea1xtb
+  use dftbp_tblite, only : tbliteMethod
 #:if WITH_DFTD3
   use dftbp_dispdftd3, only : TDispDftD3Inp
 #:endif
@@ -1773,11 +1773,11 @@ contains
     case default
       call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
     case("GFN1-xTB")
-      ctrl%tbliteInp%method = gfn1xtb
+      ctrl%tbliteInp%method = tbliteMethod%gfn1xtb
     case("GFN2-xTB")
-      ctrl%tbliteInp%method = gfn2xtb
+      ctrl%tbliteInp%method = tbliteMethod%gfn2xtb
     case("IPEA1-xTB")
-      ctrl%tbliteInp%method = ipea1xtb
+      ctrl%tbliteInp%method = tbliteMethod%ipea1xtb
     end select
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)

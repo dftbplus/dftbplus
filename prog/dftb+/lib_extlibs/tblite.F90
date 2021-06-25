@@ -57,30 +57,32 @@ module dftbp_tblite
   private
 
   public :: TTBLite, TTBLiteInput, TTBLite_init, writeTBLiteInfo
-  public :: gfn2xtb, gfn1xtb, ipea1xtb
+  public :: tbliteMethod
 
 
-  !> Type to implement an enumerated method selector
-  type :: TMethodSelector
-    private
-    integer :: id
-  end type TMethodSelector
+  !> Possible methods available in this library
+  type :: EnumMethod
 
-  !> Selector for GFN2-xTB Hamiltonian
-  type(TMethodSelector), parameter :: gfn2xtb = TMethodSelector(2)
+    !> Selector for GFN2-xTB Hamiltonian
+    integer :: gfn2xtb = 2
 
-  !> Selector for GFN1-xTB Hamiltonian
-  type(TMethodSelector), parameter :: gfn1xtb = TMethodSelector(1)
+    !> Selector for GFN1-xTB Hamiltonian
+    integer :: gfn1xtb = 1
 
-  !> Selector for IPEA1-xTB Hamiltonian
-  type(TMethodSelector), parameter :: ipea1xtb = TMethodSelector(11)
+    !> Selector for IPEA1-xTB Hamiltonian
+    integer :: ipea1xtb = 11
+
+  end type EnumMethod
+
+  !> Actual numerated method selector
+  type(EnumMethod), parameter :: tbliteMethod = EnumMethod()
 
 
   !> Input for the library
   type :: TTBLiteInput
 
     !> Selected method
-    type(TMethodSelector) :: method
+    integer :: method
 
   end type TTBLiteInput
 
@@ -224,14 +226,14 @@ contains
     symbol = speciesNames(species0)
     call new(this%mol, symbol, coords0, lattice=latVecs)
 
-    select case(input%method%id)
+    select case(input%method)
     case default
       call error("Unknown method selector")
-    case(gfn2xtb%id)
+    case(tbliteMethod%gfn2xtb)
       call new_gfn2_calculator(this%calc, this%mol)
-    case(gfn1xtb%id)
+    case(tbliteMethod%gfn1xtb)
       call new_gfn1_calculator(this%calc, this%mol)
-    case(ipea1xtb%id)
+    case(tbliteMethod%ipea1xtb)
       call new_ipea1_calculator(this%calc, this%mol)
     end select
 
