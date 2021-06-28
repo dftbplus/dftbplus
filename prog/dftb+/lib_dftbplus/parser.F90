@@ -10,8 +10,7 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
-  use dftbp_common_assert
-  use dftbp_common_constants, only : maxL, symbolToNumber, shellNames, Bohr__AA
+  use dftbp_common_constants, only : Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
@@ -25,7 +24,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
       & getCellTranslations, updateNeighbourList
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
   use dftbp_dftb_repcont, only : init, addRepulsive
@@ -35,40 +34,41 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_dftbplus_inputdata, only : TControl, TGeometry, TSlater, TInputData, TXLBOMDInp,&
-      & TBlacsOpts, TRangeSepInp
+  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
-  use dftbp_extlibs_poisson, only : TPoissonInfo, TPoissonStructure, withPoisson
+  use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
+  use dftbp_extlibs_tblite, only : tbliteMethod
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
       & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
   use dftbp_geoopt_geoopt, only : geoOptTypes
-  use dftbp_io_charmanip, only : newline, i2c, unquote, tolower
-  use dftbp_io_hsdparser, only : getNodeHSDName, parseHSD
-  use dftbp_io_hsdutils, only : getChildValue, getChild, detailedError, detailedWarning,&
-      & getChildren, setChild, setChildValue, getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : getNodeName2, convertByMul, setUnprocessed, splitModifier
+  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
+  use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
+      & getChildren, getSelectedAtomIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertByMul, getNodeName2, setUnprocessed, splitModifier
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only: cross3, determinant33
   use dftbp_md_tempprofile, only : identifyTempProfile
+  use dftbp_md_xlbomd, only : TXlbomdInp
   use dftbp_mixer_mixer, only : mixerTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
   use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_linkedlist, only : TListIntR1, TListRealR1, TListIntR1, TListInt, TListString,&
-      & len, init, append, TListCharLc, TListRealR2, TListReal, asArray, get, destruct, asVector,&
-      & intoArray
+  use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
+      & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
   use dftbp_type_oldskdata, only : TOldSKData, readFromFile
   use dftbp_type_orbitals, only : getShellnames
-  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryXyz,&
-      & readTGeometryVasp, reduce, setLattice
+  use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
+      & readTGeometryVasp
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_DFTD3
   use dftbp_dftb_dispdftd3, only : TDispDftD3Inp
@@ -1198,6 +1198,12 @@ contains
   #:else
       call readDFTBHam(node, ctrl, geo, slako, poisson)
   #:endif
+    case ("xtb")
+  #:if WITH_TRANSPORT
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+      call readXTBHam(node, ctrl, geo, poisson)
+  #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1754,28 +1760,30 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     type(fnode), pointer :: value1, child
-    integer :: gfnLevel
+    type(string) :: buffer
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
-    call getChildValue(node, "gfn", gfnLevel, child=child)
-    select case(gfnLevel)
+    allocate(ctrl%tbliteInp)
+
+    call getChildValue(node, "Method", buffer, child=child)
+    select case(unquote(char(buffer)))
     case default
-      call detailedError(child, "Invalid GFN level specified")
-    case(0)
-      tSCCdefault = .false.
-    case(1)
-      tSCCdefault = .true.
-    case(2)
-      tSCCdefault = .true.
+      call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
+    case("GFN1-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%gfn1xtb
+    case("GFN2-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%gfn2xtb
+    case("IPEA1-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%ipea1xtb
     end select
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
 
     ! SCC parameters
-    call getChildValue(node, "SCC", ctrl%tSCC, tSCCdefault)
+    call getChildValue(node, "SCC", ctrl%tSCC, .true.)
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options etc.
@@ -1867,8 +1875,6 @@ contains
     else
       ctrl%forceType = forceTypes%orig
     end if
-
-    call error("xTB calculation currently not supported")
 
   end subroutine readXTBHam
 

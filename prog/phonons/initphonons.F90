@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_initphonons
-  use xmlf90_flib_dom
   use dftbp_common_accuracy
   use dftbp_common_assert
   use dftbp_common_atomicmass
@@ -31,6 +30,7 @@ module dftbp_initphonons
   use dftbp_type_oldskdata
   use dftbp_type_typegeometryhsd
   use dftbp_type_wrappedintr
+  use xmlf90_flib_dom
   implicit none
   private
 

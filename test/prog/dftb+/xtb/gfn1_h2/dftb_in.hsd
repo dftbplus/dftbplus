@@ -1,0 +1,17 @@
+Geometry = genFormat {
+2 C
+ H
+    1    1    0.00000000000000E+00    0.00000000000000E+00   -3.71762583041627E-01
+    2    1    0.00000000000000E+00    0.00000000000000E+00    3.71762583041627E-01
+}
+
+Driver {}
+
+Hamiltonian = xtb {
+  method = "GFN1-xTB"
+}
+
+Options { WriteAutotestTag = Yes }
+Analysis { CalculateForces = Yes }
+ParserOptions { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }

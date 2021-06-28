@@ -38,13 +38,23 @@ if(WITH_MPI)
   endif()
 endif()
 
-if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
-  find_package(OpenMP REQUIRED)
-  # Fix CMake bug on OpenMP settings for the NAG compiler
-  # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+if(WITH_OMP)
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    find_package(OpenMP REQUIRED)
+    # Fix CMake bug on OpenMP settings for the NAG compiler
+    # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
+    if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+    endif()
+  endif()
+else()
+  # Create empty targets, so that subprojects can depend on it without actual effect
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    add_library(OpenMP::OpenMP_Fortran INTERFACE IMPORTED)
+  endif()
+  if(NOT TARGET OpenMP::OpenMP_C)
+    add_library(OpenMP::OpenMP_C INTERFACE IMPORTED)
   endif()
 endif()
 
@@ -92,8 +102,9 @@ if(WITH_PLUMED)
   list(APPEND PKG_CONFIG_REQUIRES plumed)
 endif()
 
+find_package(CustomBlas REQUIRED)
 find_package(CustomLapack REQUIRED)
-list(APPEND PKG_CONFIG_LIBS_PRIVATE ${LAPACK_LIBRARY})
+list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
   find_package(CustomArpack REQUIRED)
@@ -187,6 +198,44 @@ if(WITH_TRANSPORT)
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
 add_subdirectory(external/mudpack)
+
+if(WITH_TBLITE)
+  set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
+  set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
+  dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mctc-lib "${exclude}" "${MCTC_GIT_REPOSITORY}" "${MCTC_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
+
+  set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
+  set(MSTORE_GIT_TAG "0184acca83fb6ceea1d4261175752d4f81ae948e")  # do not change manually!
+  dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mstore)
+
+  set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
+  set(S_DFTD3_GIT_TAG "b33ae37eed3f70c0cef5bad58b31904e6c6c3941")  # do not change manually!
+  dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/s-dftd3 "${exclude}" "${SDFTD3_GIT_REPOSITORY}" "${SDFTD3_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
+
+  set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
+  set(MULTICHARGE_GIT_TAG "668b7962b099d99d25f5bb8b06cbeb4062311d7d")  # do not change manually!
+  dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}" "${MULTICHARGE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES multicharge)
+
+  set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
+  set(DFTD4_GIT_TAG "e66e1e2adc4a7d3c0bbdf6d3345ca5da19749d57")  # do not change manually!
+  dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES dftd4)
+
+  set(TBLITE_GIT_REPOSITORY "https://github.com/awvwgk/tblite.git")
+  set(TBLITE_GIT_TAG "778f1c1623f52eca752f4fdeb1cbcb641e33ec76")  # do not change manually!
+  dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES tblite)
+endif()
 
 # FyTest currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)

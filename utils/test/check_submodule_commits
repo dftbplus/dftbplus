@@ -17,8 +17,15 @@ should work.
 """
 
 _PAT_SUBMOD_COMMIT = re.compile(
-    r"[-+ ]*(?P<commit>[0-9a-f]+)\s+external/(?P<submodule>\w+).*")
+    r"""^[-+ ]*(?P<commit>[0-9a-f]+)
+    \s+
+    external/(?P<submodule>[0-9a-zA-Z_-]+)/origin
+    \s+.*$""",
+    re.MULTILINE | re.VERBOSE)
 
+_PAT_SPECIAL_CHAR = re.compile(r"[-_]")
+
+_SPECIAL_CHAR_REPLACEMENT = "_"
 
 def main():
     """Main script"""
@@ -64,10 +71,13 @@ def _parse_arguments():
 
 def _replace_submodule_commit(content, submodule, commit):
     """Replaces the commit id in the CMakeLists.txt file content"""
-    submodule_upper = submodule.upper()
+    submodule_normed = submodule.upper()
+    submodule_normed = re.sub(
+        _PAT_SPECIAL_CHAR, _SPECIAL_CHAR_REPLACEMENT, submodule_normed)
+
     newcontent, nsubs = re.subn(
-        r"set\({}_GIT_TAG (['\"]).+\1\)".format(submodule_upper),
-        'set({}_GIT_TAG "{}")'.format(submodule_upper, commit),
+        r"set\({}_GIT_TAG (['\"]).+\1\)".format(submodule_normed),
+        'set({}_GIT_TAG "{}")'.format(submodule_normed, commit),
         content)
     return newcontent, nsubs
 

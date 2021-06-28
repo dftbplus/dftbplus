@@ -10,7 +10,6 @@
 !> Evaluate energies
 module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -29,6 +28,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_io_message, only : error
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
@@ -45,14 +45,17 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, isExtField, isXlbomd, dftbU,&
-      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-      & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom,&
-      & vOnSiteAtomInt, vOnSiteAtomExt)
+  subroutine calcEnergies(sccCalc, tblite, qOrb, q0, chargePerShell, species, isExtField,&
+      & isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK,&
+      & img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd,&
+      & solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+      & tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt, vOnSiteAtomExt)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
@@ -194,6 +197,11 @@ contains
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
       end if
+    end if
+
+    if (allocated(tblite)) then
+      call tblite%getEnergies(energy%atomSCC)
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
     end if
 
     if (present(qNetAtom)) then

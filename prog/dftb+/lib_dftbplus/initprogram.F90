@@ -11,7 +11,7 @@
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
   use dftbp_common_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
-  use dftbp_common_assert
+  use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
@@ -67,6 +67,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_extlibs_poisson, only : TPoissonInput
+  use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
   use dftbp_geoopt_conjgrad, only : TConjGrad
   use dftbp_geoopt_fire, only : TFire, TFire_init
   use dftbp_geoopt_gdiis, only : TDIIS
@@ -797,6 +798,9 @@ module dftbp_dftbplus_initprogram
     !> Write cavity information as cosmo file
     logical :: tWriteCosmoFile
 
+    !> Library interface handler
+    type(TTBLite), allocatable :: tblite
+
     !> Can stress be calculated?
     logical :: tStress
 
@@ -1291,6 +1295,21 @@ contains
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol)
 
+    ! Get species names and output file
+    this%geoOutFile = input%ctrl%outFile
+    allocate(this%speciesName(size(input%geom%speciesNames)))
+    this%speciesName(:) = input%geom%speciesNames(:)
+
+    do iSp = 1, this%nType
+      do jj = iSp+1, this%nType
+        if (this%speciesName(iSp) == this%speciesName(jj)) then
+          write (tmpStr,"('Duplicate identical species labels in the geometry: ',A)")&
+              & this%speciesName(iSp)
+          call error(tmpStr)
+        end if
+      end do
+    end do
+
 
     select case(this%hamiltonianType)
     case default
@@ -1299,7 +1318,25 @@ contains
       this%orb = input%slako%orb
     case(hamiltonianTypes%xtb)
       ! TODO
-      call error("xTB calculation currently not supported")
+      if (.not.allocated(input%ctrl%tbliteInp)) then
+        call error("xTB calculation supported only with tblite library")
+      end if
+
+      allocate(this%tblite)
+      if (this%tPeriodic) then
+        call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
+            & this%speciesName, this%coord0, this%latVec)
+      else
+        call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
+            & this%speciesName, this%coord0)
+      end if
+
+      allocate(input%slako%orb)
+      call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
+      this%orb = input%slako%orb
+
+      allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
+      call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1411,7 +1448,9 @@ contains
       this%speciesMass(:) = input%slako%mass(:)
     case(hamiltonianTypes%xtb)
       ! TODO
-      call error("xTB calculation currently not supported")
+      ! call error("xTB calculation currently not supported")
+      allocate(this%speciesMass(this%nType))
+      this%speciesMass(:) = getAtomicMass(this%speciesName)
     end select
 
     ! Spin W's !'
@@ -1457,23 +1496,10 @@ contains
       end if
     case(hamiltonianTypes%xtb)
       ! TODO
-      call error("xTB calculation currently not supported")
+      ! call error("xTB calculation currently not supported")
+      this%cutOff%skCutoff = this%tblite%getRCutoff()
+      this%cutOff%mCutoff = this%cutOff%skCutoff
     end select
-
-    ! Get species names and output file
-    this%geoOutFile = input%ctrl%outFile
-    allocate(this%speciesName(size(input%geom%speciesNames)))
-    this%speciesName(:) = input%geom%speciesNames(:)
-
-    do iSp = 1, this%nType
-      do jj = iSp+1, this%nType
-        if (this%speciesName(iSp) == this%speciesName(jj)) then
-          write (tmpStr,"('Duplicate identical species labels in the geometry: ',A)")&
-              & this%speciesName(iSp)
-          call error(tmpStr)
-        end if
-      end do
-    end do
 
     call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
     if (this%tSccCalc) then
@@ -1525,7 +1551,7 @@ contains
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
-    if (this%tSccCalc) then
+    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
         #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -2990,6 +3016,10 @@ contains
       end do
     end if
 
+    if (allocated(this%tblite)) then
+      call writeTBLiteInfo(stdOut, this%tblite)
+    end if
+
     if (.not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
       if (.not.input%ctrl%tSetFillingTemp) then
         write(stdOut, format2Ue) "Electronic temperature", this%tempElec, 'H',&
@@ -3187,12 +3217,13 @@ contains
           end do
         end if
       end if
-
-      if (any(shortGammaDamp%isDamped)) then
-        write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
-        ii = count(shortGammaDamp%isDamped)
-        write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-        write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName, shortGammaDamp%isDamped)
+      if (allocated(this%scc)) then
+        if (any(shortGammaDamp%isDamped)) then
+          write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
+          ii = count(shortGammaDamp%isDamped)
+          write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
+          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName, shortGammaDamp%isDamped)
+        end if
       end if
 
       if (allocated(input%ctrl%h5Input)) then
@@ -3467,7 +3498,7 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%solvation)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation)
 
     end if
 
@@ -3587,11 +3618,25 @@ contains
         deallocate(iEqOrbDFTBU)
       end if
 
+      if (allocated(this%tblite)) then
+        allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
+        iEqOrbSpin(:,:,:) = 0
+        allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
+        iEqOrbDFTBU(:,:,:) = 0
+        call this%tblite%getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
+        call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
+        this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+        this%nIneqOrb = maxval(this%iEqOrbitals)
+        this%nMixElements = this%nIneqOrb
+        deallocate(iEqOrbSpin)
+        deallocate(iEqOrbDFTBU)
+      end if
+
       if (allocated(this%onSiteElements)) then
         allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
+        iEqOrbSpin(:,:,:) = 0
         allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        iEqOrbDFTBU(:,:,:) = 0
         call Ons_getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
         call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
         this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
@@ -3984,8 +4029,8 @@ contains
     case(hamiltonianTypes%dftb)
       referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      ! It's an xTB Hamiltonian masquerading as a DFTB one (for now)
+      referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     end select
 
   end subroutine initReferencePopulation_
@@ -4033,7 +4078,7 @@ contains
 
     nSpecies = size(orb%nOrbSpecies)
 
-    allocate(hubbU(orb%mShell, nSpecies))
+    allocate(hubbU(orb%mShell, nSpecies), source=0.0_dp)
 
     select case(hamiltonianType)
     case default
@@ -4044,7 +4089,7 @@ contains
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
       ! TODO
-      call error("xTB calculation currently not supported")
+      ! call error("xTB calculation currently not supported")
     end select
 
     if (allocated(input%ctrl%hubbU)) then

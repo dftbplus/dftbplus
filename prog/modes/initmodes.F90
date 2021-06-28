@@ -9,7 +9,6 @@
 
 !> Contains the routines for initialising modes.
 module modes_initmodes
-  use xmlf90_flib_dom
   use dftbp_common_accuracy
   use dftbp_common_assert
   use dftbp_common_constants
@@ -25,6 +24,7 @@ module modes_initmodes
   use dftbp_type_linkedlist
   use dftbp_type_oldskdata
   use dftbp_type_typegeometryhsd
+  use xmlf90_flib_dom
   implicit none
   private
 

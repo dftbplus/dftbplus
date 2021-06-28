@@ -16,9 +16,9 @@ module dftbp_derivs_rotatedegen
   use dftbp_math_qm, only : makeSimilarityTrans
   use dftbp_type_wrappedintr, only : TwrappedReal2, TwrappedCmplx2
 #:if WITH_SCALAPACK
-  use linecomm_module, only : linecomm
   use dftbp_common_environment, only : TEnvironment
   use dftbp_type_densedescr, only: TDenseDescr
+  use linecomm_module, only : linecomm
 #:endif
   implicit none
   

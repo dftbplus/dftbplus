@@ -30,8 +30,8 @@ module dftbp_extlibs_poisson
       & check_parameters, check_localbc, check_contacts, write_parameters, poiss_getlatvecs
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
-  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
+  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_poisson_poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi,&

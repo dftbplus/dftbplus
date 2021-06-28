@@ -86,10 +86,12 @@ target_link_options(OpenMP::OpenMP_Fortran INTERFACE "-fopenmp")
 # sure your CMAKE_PREFIX_PATH variable is set up accordingly.
 
 # LAPACK and BLAS
-set(LAPACK_LIBRARY "-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
-  CACHE STRING "LAPACK libraries")
-#set(LAPACK_LIBRARY_DIR "" CACHE STRING
-#  "Directories where LAPACK and BLAS libraries can be found")
+# (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
+set(BLAS_LIBRARY "-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
+  CACHE STRING "BLAS libraries")
+#set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
+set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries")
+#set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 set(ARPACK_LIBRARY "libarpack.a" CACHE STRING "Arpack libraries")

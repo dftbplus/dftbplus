@@ -18,8 +18,8 @@ program waveplot
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist
   use dftbp_type_typegeometry, only : TGeometry
-  use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_gridcache, only : next
+  use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_molorb, only : getValue
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED

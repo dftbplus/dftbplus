@@ -13,6 +13,7 @@ set(sources-fpp
   ${curdir}/plumed.F90
   ${curdir}/poisson.F90
   ${curdir}/scalapackfx.F90
+  ${curdir}/tblite.F90
   ${curdir}/xmlf90.F90)
 
 if(WITH_DFTD3)

@@ -27,6 +27,7 @@
 #:set WITH_PLUMED = defined('WITH_PLUMED')
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set WITH_POISSON = defined('WITH_POISSON')
+#:set WITH_TBLITE = defined('WITH_TBLITE')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
@@ -41,7 +42,10 @@
 #:def ASSERT(cond)
   #:if WITH_ASSERT
   if (.not. (${cond}$)) then
-    call assertError("${_FILE_}$", ${_LINE_}$)
+    block
+      use dftbp_common_assert, only : assertError
+      call assertError("${_FILE_}$", ${_LINE_}$)
+    end block
   end if
   #:endif
 #:enddef ASSERT

@@ -111,21 +111,16 @@ else()
   set(LAPACK_FOUND ${CUSTOMLAPACK_FOUND})
   set(Lapack_FOUND ${CUSTOMLAPACK_FOUND})
 
-
-  # Ugly workaround: CMake's built-in LAPACK finder sometimes creates a LAPACK:LAPACK target
-  # (e.g. on MacOS) which does not contain all entries from ${LAPACK_LIBRARIES}. It is, therefore,
-  # added it here once more explicitely. If things worked correctly, this branch
-  #
-  #if (LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
-  if(LAPACK_FOUND)
-    if (NOT TARGET LAPACK::LAPACK)
-      add_library(LAPACK::LAPACK INTERFACE IMPORTED)
-    endif()
+  if (LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
+    add_library(LAPACK::LAPACK INTERFACE IMPORTED)
     if(NOT "${LAPACK_LIBRARY}" STREQUAL "NONE")
       target_link_libraries(LAPACK::LAPACK INTERFACE "${LAPACK_LIBRARY}")
     endif()
     if(NOT "${LAPACK_LINKER_FLAG}" STREQUAL "")
       target_link_options(LAPACK::LAPACK INTERFACE "${LAPACK_LINKER_FLAG}")
+    endif()
+    if(TARGET BLAS::BLAS)
+      target_link_libraries(LAPACK::LAPACK INTERFACE BLAS::BLAS)
     endif()
   endif()
 

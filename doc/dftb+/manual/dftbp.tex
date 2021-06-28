@@ -1060,9 +1060,9 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \section{Hamiltonian}
 \label{sec:dftbp.Hamiltonian}
 
-Currently only a DFTB Hamiltonian is implemented, so you must set
-\is{Hamiltonian = DFTB\cb}. The \iscb{DFTB} method may contain the
-following properties:
+Currently, DFTB and xTB Hamiltonians are implemented. To select the DFTB
+Hamiltonian you must set \is{Hamiltonian = DFTB\cb}. The \iscb{DFTB} method
+may contain the following properties:
 
 \begin{ptable}
   \kw{SCC} &l &  & No  & \\
@@ -1438,6 +1438,31 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   \end{verbatim}
 
 \end{description}
+
+
+\subsection{Extended Tight Binding Hamiltonian}
+\label{sec:dftbp.XTB}
+
+The extended tight binding~(xTB) Hamiltonian\cite{bannwarth2020} is available if \dftbp{}
+is built with support for a communication bridge to the \texttt{tblite} library.
+
+\begin{ptable}
+  \kw{Method} & s & & & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Method}]
+  Request library to initialize the xTB parametrisation for the given method.
+  Doing so will hand over the energy, potential and force evaluation to the
+  \texttt{tblite} library.
+  Supported methods are GFN1-xTB\cite{grimme2017}, and IPEA1-xTB\cite{asgeirsson2017}.
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = xTB {
+  Method = "GFN1-xTB"
+}
+\end{verbatim}
 
 
 \subsection{Mixer}
