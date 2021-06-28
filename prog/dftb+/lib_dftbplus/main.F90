@@ -94,6 +94,7 @@ module dftbp_main
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
   use dftbp_cm5, only : TChargeModel5
+  use dftbp_tblite, only : TTBLite
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_rangeseparated, only : TRangeSepFunc
   use dftbp_simplealgebra, only : determinant33, derivDeterminant33
@@ -650,7 +651,7 @@ contains
     end if
 
     if (this%tLatticeChanged) then
-      call handleLatticeChange(this%latVec, this%scc, this%tStress, this%extPressure,&
+      call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%dispersion, this%solvation, this%cm5Cont, this%recVec,&
           & this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs, this%cellVec,&
           & this%rCellVec)
@@ -658,7 +659,7 @@ contains
 
     if (this%tCoordsChanged) then
       call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%repulsive,&
+          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite, this%repulsive,&
           & this%dispersion,this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
           & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC, this%ham,&
@@ -694,8 +695,10 @@ contains
       call buildS(env, this%over, this%skOverCont, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      @:ASSERT(allocated(this%tblite))
+      call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
+          & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
+          & this%orb, this%H0, this%over)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
@@ -778,7 +781,7 @@ contains
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
             & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
-        call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%orb, this%species,&
+        call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%tblite, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
             & this%over, this%spinW, this%cellVol, this%extPressure, this%dftbEnergy(1), this%q0,&
             & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
@@ -881,7 +884,7 @@ contains
           end if
         #:endif
 
-          call addChargePotentials(env, this%scc, .true., this%qInput, this%q0,&
+          call addChargePotentials(env, this%scc, this%tblite, .true., this%qInput, this%q0,&
               & this%chargePerShell, this%orb, this%species, this%neighbourList, this%img2CentCell,&
               & this%spinW, this%solvation, this%thirdOrd, this%potential, this%dispersion)
 
@@ -983,7 +986,7 @@ contains
               & this%potential)
           call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
 
-          call addChargePotentials(env, this%scc, this%updateSccAfterDiag, this%qOutput,&
+          call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag, this%qOutput,&
               & this%q0, this%chargePerShell, this%orb, this%species, this%neighbourList,&
               & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%potential,&
               & this%dispersion)
@@ -1005,10 +1008,10 @@ contains
               & this%species, this%potential%intBlock)
         end if
 
-        call calcEnergies(this%scc, this%qOutput, this%q0, this%chargePerShell, this%species,&
-            & this%isExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit, this%rhoPrim,&
-            & this%H0, this%orb, this%neighbourList, this%nNeighbourSk, this%img2CentCell,&
-            & this%iSparseStart, this%cellVol, this%extPressure,&
+        call calcEnergies(this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
+            & this%species, this%isExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit,&
+            & this%rhoPrim, this%H0, this%orb, this%neighbourList, this%nNeighbourSk,&
+            & this%img2CentCell, this%iSparseStart, this%cellVol, this%extPressure,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
             & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
@@ -1267,12 +1270,13 @@ contains
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
             & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-        call getGradients(env, this%scc, this%isExtField, this%isXlbomd, this%nonSccDeriv,&
-            & this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont, this%skOverCont,&
-            & this%repulsive, this%neighbourList, this%nNeighbourSk, this%species,&
-            & this%img2CentCell, this%iSparseStart, this%orb, this%potential, this%coord,&
-            & this%derivs, this%groundDerivs, this%tripletderivs, this%mixedderivs, this%iRhoPrim,&
-            & this%thirdOrd, this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
+        call getGradients(env, this%scc, this%tblite, this%isExtField, this%isXlbomd,&
+            & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
+            & this%skHamCont, this%skOverCont, this%repulsive, this%neighbourList,&
+            & this%nNeighbourSk, this%species, this%img2CentCell, this%iSparseStart,&
+            & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
+            & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
+            & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
             & this%rangeSep, this%SSqrReal, this%over, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
@@ -1296,14 +1300,14 @@ contains
               & this%dispersion, this%coord, this%q0, this%invLatVec, this%cellVol,&
               & this%totalStress, this%totalLatDeriv, this%intPressure, this%reks)
         else
-          call getStress(env, this%scc, this%thirdOrd, this%isExtField, this%nonSccDeriv,&
-              & this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0, this%skHamCont,&
-              & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
-              & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
-              & this%potential, this%coord, this%latVec, this%invLatVec, this%cellVol, this%coord0,&
-              & this%totalStress, this%totalLatDeriv, this%intPressure, this%iRhoPrim,&
-              & this%solvation, this%dispersion, this%halogenXCorrection, this%deltaDftb,&
-              & this%tripletStress, this%mixedStress)
+          call getStress(env, this%scc, this%tblite, this%thirdOrd, this%isExtField,&
+              & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
+              & this%skHamCont, this%skOverCont, this%repulsive, this%neighbourList,&
+              & this%nNeighbourSk, this%species, this%img2CentCell, this%iSparseStart,&
+              & this%orb, this%potential, this%coord, this%latVec, this%invLatVec,&
+              & this%cellVol, this%coord0, this%totalStress, this%totalLatDeriv,&
+              & this%intPressure, this%iRhoPrim, this%solvation, this%dispersion,&
+              & this%halogenXCorrection, this%deltaDftb, this%tripletStress, this%mixedStress)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
 
@@ -1562,8 +1566,8 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
-      & solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs,&
+  subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
+      & dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs,&
       & cellVecs, rCellVecs)
 
     !> lattice vectors
@@ -1571,6 +1575,9 @@ contains
 
     !> Module variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> evaluate stress
     logical, intent(in) :: tStress
@@ -1625,6 +1632,10 @@ contains
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
+    if (allocated(tblite)) then
+      call tblite%updateLatVecs(latVecs)
+      mCutOff = max(mCutOff, tblite%getRCutOff())
+    end if
     if (allocated(dispersion)) then
       call dispersion%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, dispersion%getRCutOff())
@@ -1644,10 +1655,10 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
-      & orb, tPeriodic, tHelical, sccCalc, repulsive, dispersion, solvation, thirdOrd, rangeSep,&
-      & reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species,&
-      & rCellVec, nNeighbourSK, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-      & iSparseStart, cm5Cont, stat)
+      & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
+      & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
+      & species, rCellVec, nNeighbourSK, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim,&
+      & iHam, ERhoPrim, iSparseStart, cm5Cont, stat)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1678,6 +1689,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> Repulsive
     class(TRepulsive), allocatable, intent(inout) :: repulsive
@@ -1788,6 +1802,10 @@ contains
 
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(env, coord0, coord, species, neighbourList)
+    end if
+
+    if (allocated(tblite)) then
+      call tblite%updateCoords(env, neighbourList, img2CentCell, coord, species)
     end if
 
     if (allocated(repulsive)) then
@@ -5352,17 +5370,21 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, isExtField, isXlbomd, nonSccDeriv, rhoPrim, ERhoPrim,&
-      & qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs, tripletderivs,&
-      & mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep,&
-      & SSqrReal, over, denseDesc, deltaRhoOutSqr, halogenXCorrection, tHelical, coord0, deltaDftb)
+  subroutine getGradients(env, sccCalc, tblite, isExtField, isXlbomd, nonSccDeriv, rhoPrim,&
+      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs,&
+      & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
+      & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, halogenXCorrection,&
+      & tHelical, coord0, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library communication interface
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> external electric field
     logical, intent(in) :: isExtField
@@ -5490,24 +5512,38 @@ contains
 
     if (.not. (tSccCalc .or. isExtField)) then
       ! No external or internal potentials
-      if (tImHam) then
-        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
-            & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
+      if (allocated(tblite)) then
+        call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
+          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
+          & potential%intBlock)
+        call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
-        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
-            & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, tHelical)
+        if (tImHam) then
+          call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+              & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
+              & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
+        else
+          call derivative_shift(env, derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+              & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
+              & iSparseStart, orb, tHelical)
+        end if
       end if
     else
-      if (tImHam) then
-        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
-            & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
+      if (allocated(tblite)) then
+        call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
+          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
+          & potential%intBlock)
+        call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
-        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
-            & coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
-            & orb, potential%intBlock)
+        if (tImHam) then
+          call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+              & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
+              & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
+        else
+          call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
+              & coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
+              & orb, potential%intBlock)
+        end if
       end if
 
       if (tExtChrg) then
@@ -5694,17 +5730,20 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(env, sccCalc, thirdOrd, isExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
-      & q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
-      & halogenXCorrection, deltaDftb, tripletStress, mixedStress)
+  subroutine getStress(env, sccCalc, tblite, thirdOrd, isExtField, nonSccDeriv, rhoPrim,&
+      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec,&
+      & cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation,&
+      & dispersion, halogenXCorrection, deltaDftb, tripletStress, mixedStress)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> Is 3rd order SCC being used
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
@@ -5806,6 +5845,7 @@ contains
     logical :: tImHam
 
     tImHam = allocated(iRhoPrim)
+    totalStress(:, :) = 0.0_dp
 
     if (allocated(sccCalc)) then
       if (tImHam) then
@@ -5822,14 +5862,19 @@ contains
         call thirdOrd%addStressDc(neighbourList, species, coord, img2CentCell, cellVol, totalStress)
       end if
     else
-      if (tImHam) then
-        call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
-            & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
+      if (allocated(tblite)) then
+        call tblite%getStress(tmpStress)
+        totalStress(:, :) = totalStress + tmpStress
       else
-        call getNonSCCStress(env, totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
-            & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, cellVol)
+        if (tImHam) then
+          call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+              & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
+              & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
+        else
+          call getNonSCCStress(env, totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+              & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
+              & iSparseStart, orb, cellVol)
+        end if
       end if
     end if
 
@@ -6878,7 +6923,7 @@ contains
 
   !> Build L, spin dependent Hamiltonian with various contributions
   !> and compute the energy of microstates
-  subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList, &
+  subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, tblite, orb, species, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
@@ -6893,6 +6938,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -7037,7 +7085,7 @@ contains
       call getChargePerShell(reks%qOutputL(:,:,:,iL), orb, species,&
           & reks%chargePerShellL(:,:,:,iL))
       call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-      call addChargePotentials(env, sccCalc, .true., reks%qOutputL(:,:,:,iL), q0,&
+      call addChargePotentials(env, sccCalc, tblite, .true., reks%qOutputL(:,:,:,iL), q0,&
           & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, img2CentCell, spinW,&
           & solvation, thirdOrd, potential, dispersion)
 
@@ -7147,7 +7195,7 @@ contains
             & img2CentCell, orb)
       end if
 
-      call calcEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
+      call calcEnergies(sccCalc, tblite, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
           & species, isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure, TS,&
           & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock,&

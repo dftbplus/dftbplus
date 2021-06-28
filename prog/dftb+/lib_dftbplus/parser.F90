@@ -76,6 +76,7 @@ module dftbp_parser
   use dftbp_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh, ContactInfo
 #:endif
   use dftbp_solvparser, only : readSolvation, readCM5
+  use dftbp_tblite, only : tbliteMethod
 #:if WITH_DFTD3
   use dftbp_dispdftd3, only : TDispDftD3Inp
 #:endif
@@ -1197,6 +1198,12 @@ contains
   #:else
       call readDFTBHam(node, ctrl, geo, slako, poisson)
   #:endif
+    case ("xtb")
+  #:if WITH_TRANSPORT
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+      call readXTBHam(node, ctrl, geo, poisson)
+  #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1753,28 +1760,30 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     type(fnode), pointer :: value1, child
-    integer :: gfnLevel
+    type(string) :: buffer
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
-    call getChildValue(node, "gfn", gfnLevel, child=child)
-    select case(gfnLevel)
+    allocate(ctrl%tbliteInp)
+
+    call getChildValue(node, "Method", buffer, child=child)
+    select case(unquote(char(buffer)))
     case default
-      call detailedError(child, "Invalid GFN level specified")
-    case(0)
-      tSCCdefault = .false.
-    case(1)
-      tSCCdefault = .true.
-    case(2)
-      tSCCdefault = .true.
+      call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
+    case("GFN1-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%gfn1xtb
+    case("GFN2-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%gfn2xtb
+    case("IPEA1-xTB")
+      ctrl%tbliteInp%method = tbliteMethod%ipea1xtb
     end select
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
 
     ! SCC parameters
-    call getChildValue(node, "SCC", ctrl%tSCC, tSCCdefault)
+    call getChildValue(node, "SCC", ctrl%tSCC, .true.)
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options etc.
@@ -1866,8 +1875,6 @@ contains
     else
       ctrl%forceType = forceTypes%orig
     end if
-
-    call error("xTB calculation currently not supported")
 
   end subroutine readXTBHam
 

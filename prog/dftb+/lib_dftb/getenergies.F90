@@ -32,6 +32,7 @@ module dftbp_getenergies
   use dftbp_dispmbd, only: TDispMbd
 #:endif
   use dftbp_solvation, only : TSolvation
+  use dftbp_tblite, only : TTBLite
   use dftbp_repcont, only : TRepCont
   use dftbp_repulsive, only : TRepulsive
   use dftbp_reks, only : TReksCalc
@@ -45,14 +46,17 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, isExtField, isXlbomd, dftbU,&
-      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-      & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom,&
-      & vOnSiteAtomInt, vOnSiteAtomExt)
+  subroutine calcEnergies(sccCalc, tblite, qOrb, q0, chargePerShell, species, isExtField,&
+      & isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK,&
+      & img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd,&
+      & solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+      & tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt, vOnSiteAtomExt)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
@@ -194,6 +198,11 @@ contains
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
       end if
+    end if
+
+    if (allocated(tblite)) then
+      call tblite%getEnergies(energy%atomSCC)
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
     end if
 
     if (present(qNetAtom)) then
