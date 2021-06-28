@@ -4653,21 +4653,20 @@ contains
         call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       end if
       ctrl%lrespini%tUseArpack = .true.
-      call getChildValue(child, "Diagonalizer", child2, default="")
-      if (associated(child2)) then
-        call getNodeName(child2, buffer)
-        ctrl%lrespini%tUseArpack = .true.
-        select case(char(buffer))
-          case ("arpack")
-            call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
-            call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
-          case ("stratmann")
-            ctrl%lrespini%tUseArpack = .false.
-            call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
-          case default
-            call detailedError(child2, "Invalid method name.")
-        end select
-      end if
+
+      call getChildValue(child, "Diagonalizer", child2)
+      call getNodeName(child2, buffer)
+      select case(char(buffer))
+        case ("arpack")
+          call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
+          call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+          ctrl%lrespini%tUseArpack = .true.
+        case ("stratmann")
+          ctrl%lrespini%tUseArpack = .false.
+          call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+        case default
+          call detailedError(child2, "Invalid diagonalizer method '" // char(buffer) // "'")
+      end select
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
