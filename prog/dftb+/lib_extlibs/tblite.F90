@@ -133,6 +133,9 @@ module dftbp_tblite
     !> Repulsion energy
     real(dp) :: erep
 
+    !> Halogen bonding energy
+    real(dp) :: ehal
+
     !> Non-self consistent dispersion energy
     real(dp) :: edisp
 
@@ -284,7 +287,7 @@ contains
     integer :: nSpecies, iAt, iSp, iId
     logical, allocatable :: done(:)
 
-    nSpecies= maxval(species)
+    nSpecies = maxval(species)
     allocate(done(nSpecies))
     done(:) = .false.
     do iAt = 1, size(species)
@@ -343,10 +346,18 @@ contains
     real(dp), allocatable :: lattr(:, :)
 
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
+    this%ehal = 0.0_dp
     this%erep = 0.0_dp
     this%edisp = 0.0_dp
     this%gradient(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
+
+    if (allocated(this%calc%halogen)) then
+      cutoff = 20.0_dp
+      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
+      call this%calc%halogen%get_engrad(this%mol, lattr, cutoff, this%ehal, &
+          & this%gradient, this%sigma)
+    end if
 
     if (allocated(this%calc%repulsion)) then
       cutoff = 25.0_dp
@@ -405,7 +416,7 @@ contains
     real(dp), intent(out) :: energies(:)
 
   #:if WITH_TBLITE
-    energies(:) = (this%erep + this%edisp + this%escd + this%ees) / size(energies)
+    energies(:) = (this%ehal + this%erep + this%edisp + this%escd + this%ees) / size(energies)
   #:else
     call notImplementedError
   #:endif
@@ -607,7 +618,7 @@ contains
     integer :: nShell, mShell, nSpecies, iAt, iSp, iId, iSh, ind, ii
     logical, allocatable :: done(:)
 
-    nSpecies= maxval(species0)
+    nSpecies = maxval(species0)
     mShell = maxval(this%calc%bas%nsh_id)
     allocate(done(nSpecies))
     allocate(orb%angShell(mShell, nSpecies))

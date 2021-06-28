@@ -5845,6 +5845,7 @@ contains
     logical :: tImHam
 
     tImHam = allocated(iRhoPrim)
+    totalStress(:, :) = 0.0_dp
 
     if (allocated(sccCalc)) then
       if (tImHam) then
