@@ -12,7 +12,6 @@
 !> Todo: Some more routines for complex numbers?
 module dftbp_io_hsdutils
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_status, only : TStatus
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string,&
       & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&

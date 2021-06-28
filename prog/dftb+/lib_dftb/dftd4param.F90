@@ -10,7 +10,6 @@
 !> Necessary parameters to perform DFT-D4 calculations
 module dftbp_dftb_dftd4param
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, cnType
   use dftbp_dftb_encharges, only : TEeqInput

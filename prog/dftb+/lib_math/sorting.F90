@@ -12,7 +12,6 @@
 !> but adaptive heap sorts?
 module dftbp_math_sorting
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
   
   private

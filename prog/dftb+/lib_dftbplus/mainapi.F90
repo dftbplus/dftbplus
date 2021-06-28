@@ -10,7 +10,6 @@
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_common_assert
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers

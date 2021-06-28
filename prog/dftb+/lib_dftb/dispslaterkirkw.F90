@@ -23,7 +23,6 @@
 !> outside, since the Coulomb module does the same.
 module dftbp_dftb_dispslaterkirkw
   use dftbp_common_accuracy, only : dp, tolDispDamp, tolDispersion
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks

@@ -16,9 +16,8 @@
 !> Nocedal, Wright - Numerical Optimization, Springer
 !>
 module dftbp_geoopt_lbfgs
-  use, intrinsic :: ieee_arithmetic
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_geoopt_linemin, only : TLineMin, TLineMin_init
   use dftbp_io_message, only : error, warning
   implicit none

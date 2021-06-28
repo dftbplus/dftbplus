@@ -12,7 +12,6 @@
 !> (doi:10.1063/1.4977928)
 module dftbp_timedep_pprpa
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_dftb_scc, only : TScc
   use dftbp_io_message, only : error

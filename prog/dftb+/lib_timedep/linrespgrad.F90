@@ -10,7 +10,6 @@
 !> Linear response excitations and gradients with respect to atomic coordinates
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV, au__Debye
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc

@@ -14,7 +14,11 @@ module dftbp_common_unitconversion
       & amu__au, Boltzmann, kcal_mol__Hartree
   implicit none
 
-  public
+  private
+  public :: unit
+  public :: lengthUnits, inverseLengthUnits, energyUnits, forceUnits, timeUnits, freqUnits
+  public :: volumeUnits, chargeUnits, EFieldUnits, BFieldUnits, pressureUnits, velocityUnits
+  public :: dipoleUnits, massUnits, angularUnits, massDensityUnits
 
 
   !> Contains name of a unit and its conversion factor

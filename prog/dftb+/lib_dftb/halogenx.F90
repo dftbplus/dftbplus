@@ -11,7 +11,6 @@
 !> from doi: 10.1021/ct5009137
 module dftbp_dftb_halogenx
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_common_assert
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_dftb_vdwdata, only : getVdwData

@@ -9,7 +9,6 @@
 
 !> Contains character manipulation routines
 module dftbp_io_charmanip
-  use dftbp_common_assert
   implicit none
 
   private

@@ -11,7 +11,6 @@
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_unitconversion, only : unit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&

@@ -10,7 +10,6 @@
 !> Contains routines to convert data (typically delivered by the parser) to the internal form.
 module dftbp_dftbplus_inputconversion
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_dftb_periodic, only : buildSquaredAtomIndex
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_wrappedintr, only : TWrappedInt1

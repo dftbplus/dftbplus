@@ -10,7 +10,6 @@
 !> Calculator for the spline/polynomial repulsive as found in legacy SK-files
 module dftbp_dftb_splinepolyrep
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_dftb_boundarycond, only : zAxis
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll

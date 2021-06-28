@@ -14,7 +14,6 @@
 !> interpolation instead of bisection.
 module dftbp_dftb_etemp
   use dftbp_common_accuracy, only : dp, elecTol, elecTolMax, mExpArg, rsp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_io_message, only : error
   use dftbp_math_errorfunction, only : erfcwrap

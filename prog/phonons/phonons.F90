@@ -9,7 +9,6 @@
 
 program phonons
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
   use dftbp_common_environment
   use dftbp_common_globalenv

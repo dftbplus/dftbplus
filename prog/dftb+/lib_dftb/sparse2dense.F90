@@ -12,7 +12,6 @@
 !>
 module dftbp_dftb_sparse2dense
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi, imag
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_math_angmomentum, only : rotateZ

@@ -12,7 +12,6 @@
 !> Contains routines to calculate matrix determinants
 module dftbp_math_determinant
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_math_lapackroutines, only : getrf
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip

@@ -10,7 +10,6 @@
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_dftb_periodic
   use dftbp_common_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_memman, only : incrmntOfArray
   use dftbp_dftb_boundarycond, only : zAxis

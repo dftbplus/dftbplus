@@ -14,7 +14,6 @@
 !> species. At the moment, it handles only Slater-Koster data tabulated on an equidistant grid.
 module dftbp_dftb_slakocont
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
   implicit none
   

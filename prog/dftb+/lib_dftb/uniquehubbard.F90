@@ -10,7 +10,6 @@
 !> Contains unique Hubbard U values for a given system
 module dftbp_dftb_uniquehubbard
   use dftbp_common_accuracy, only : dp, minHubDiff
-  use dftbp_common_assert
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

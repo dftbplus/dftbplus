@@ -10,12 +10,12 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
-  use dftbp_common_constants, only : Bohr__AA, maxL, shellNames, symbolToNumber
+  use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
-      & timeUnits, EFieldUnits, freqUnits, pi, massUnits, VelocityUnits, Boltzmann,&
-      & dipoleUnits, chargeUnits, volumeUnits
+      & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
+      & volumeUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad

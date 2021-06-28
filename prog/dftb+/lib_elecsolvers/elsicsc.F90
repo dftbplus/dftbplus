@@ -10,7 +10,6 @@
 !> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elecsolvers_elsicsc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList

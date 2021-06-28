@@ -10,7 +10,6 @@
 !> Functions and local variables for the SCC calculation.
 module dftbp_dftb_scc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_boundarycond, only : boundaryConditions
   use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init

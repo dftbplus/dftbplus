@@ -10,9 +10,9 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module transporttools_parser
   use dftbp_common_accuracy, only : dp, mc, lc, distFudge, distFudgeOld
+  use dftbp_common_constants, only : Bohr__AA
   use dftbp_common_globalenv, only : stdOut, tIoProc
-  use dftbp_common_unitconversion, only : lengthUnits, Bohr__AA
-  use dftbp_dftb_slakocont
+  use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
   use dftbp_dftbplus_oldcompat, only : convertOldHsd
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, assignment(=), getLength,&

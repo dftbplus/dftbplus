@@ -10,7 +10,6 @@
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module dftbp_dftb_forces
   use dftbp_common_accuracy, only : dp 
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks

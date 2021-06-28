@@ -14,7 +14,6 @@
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
 module dftbp_md_berendsentherm
   use dftbp_common_accuracy, only : dp, minTemp
-  use dftbp_common_assert
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT

@@ -10,7 +10,6 @@
 !> Contains the interface to the ELSI solvers
 module dftbp_elecsolvers_elsisolver
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_version, only : TVersion

@@ -11,7 +11,6 @@
 !> MBD/TS dispersion model.
 module dftbp_dftb_dispmbd
   use dftbp_common_accuracy, only: dp, mc, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only: symbolToNumber
   use dftbp_common_environment, only: TEnvironment
   use dftbp_common_globalenv, only: stdOut

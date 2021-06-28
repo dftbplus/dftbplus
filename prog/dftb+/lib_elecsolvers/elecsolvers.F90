@@ -10,7 +10,6 @@
 !> Contains computer environment settings
 module dftbp_elecsolvers_elecsolvers
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
   implicit none

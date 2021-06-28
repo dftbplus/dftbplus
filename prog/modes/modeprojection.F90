@@ -10,11 +10,11 @@
 !> Removal of translation or rotation related modes
 module modes_modeprojection
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message
+  use dftbp_io_message, only : warning
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_simplealgebra, only : cross3
-  use dftbp_type_typegeometry
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private

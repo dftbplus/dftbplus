@@ -11,7 +11,6 @@
 !> Contains range separated related routines.
 module dftbp_dftb_rangeseparated
   use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_nonscc, only : TNonSccDiff

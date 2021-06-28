@@ -10,7 +10,6 @@
 !> Helper routines for transition charges between levels.
 module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
   
   private

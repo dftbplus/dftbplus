@@ -10,7 +10,6 @@
 !> Routines implementing the full 3rd order DFTB.
 module dftbp_dftb_thirdorder
   use dftbp_common_accuracy, only : dp, minHubDiff, tolSameDist
-  use dftbp_common_assert
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaCutoff

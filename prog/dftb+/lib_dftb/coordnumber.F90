@@ -10,7 +10,6 @@
 !> Coordination number implementation
 module dftbp_dftb_coordnumber
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_io_message, only : error

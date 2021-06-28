@@ -11,7 +11,6 @@
 !> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
 module dftbp_md_nhctherm
   use dftbp_common_accuracy, only : dp, lc, minTemp
-  use dftbp_common_assert
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT

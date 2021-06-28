@@ -13,7 +13,6 @@
 !> removed.
 module dftbp_math_eigensolver
   use dftbp_common_accuracy, only : rsp, rdp
-  use dftbp_common_assert
   use dftbp_extlibs_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
   use dftbp_io_message, only : error, warning
 #:if WITH_GPU

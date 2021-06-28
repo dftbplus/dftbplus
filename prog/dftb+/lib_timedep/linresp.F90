@@ -18,7 +18,6 @@
 !> * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont

@@ -9,7 +9,6 @@
 
 !> Linked list of single strings
 module dftbp_type_linkedlists0
-  use dftbp_common_assert
   use dftbp_extlibs_xmlf90, only : string, assignment(=), operator(==), len
   implicit none
 

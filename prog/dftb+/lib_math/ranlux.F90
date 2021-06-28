@@ -42,7 +42,6 @@
 !> Communications 79 (1994) 111
 module dftbp_math_ranlux
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
 
   private

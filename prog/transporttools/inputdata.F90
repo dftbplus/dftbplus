@@ -10,7 +10,6 @@
 !> Contains data type representing the input data for setupgeom
 module transporttools_inputdata
   use dftbp_common_accuracy
-  use dftbp_common_assert
   use dftbp_dftb_repcont
   use dftbp_dftb_slakocont
   use dftbp_io_message

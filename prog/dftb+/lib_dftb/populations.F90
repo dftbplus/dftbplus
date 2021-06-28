@@ -11,7 +11,6 @@
 !> To do: extend to other populations than Mulliken
 module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_type_commontypes, only : TOrbitals
   implicit none

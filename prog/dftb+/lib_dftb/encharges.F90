@@ -14,7 +14,6 @@
 !> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_dftb_encharges
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_dftb_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &

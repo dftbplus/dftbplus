@@ -10,7 +10,6 @@
 !> Generalized Born solvation model.
 module dftbp_solvation_born
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks

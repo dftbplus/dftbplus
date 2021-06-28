@@ -11,7 +11,6 @@
 !> details.
 module dftbp_geoopt_conjgrad
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_geoopt_linemin, only : TLineMin, TLineMin_init
   implicit none
 

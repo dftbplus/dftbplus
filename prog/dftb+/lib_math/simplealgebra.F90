@@ -10,7 +10,6 @@
 !> Simple algebraic stuff for cases where LAPACK would be overkill
 module dftbp_math_simplealgebra
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
   
   private

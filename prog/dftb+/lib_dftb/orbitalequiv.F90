@@ -19,7 +19,6 @@
 !>
 module dftbp_dftb_orbitalequiv
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
   

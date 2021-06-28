@@ -10,8 +10,6 @@
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module dftbp_dftb_emfields
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
-  use dftbp_common_constants
   use dftbp_common_globalenv, only : stdOut
   use dftbp_math_angmomentum, only : Loperators
   use dftbp_math_simplealgebra, only : cross3

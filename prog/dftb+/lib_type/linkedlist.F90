@@ -11,7 +11,6 @@
 !> initialized with init, and destroyed with destroy.
 module dftbp_type_linkedlist
   use dftbp_common_accuracy, only : mc, lc
-  use dftbp_common_assert
   use dftbp_type_linkedlisti0, only : TListInt, append, destruct, asArray, init, len
   use dftbp_type_linkedlisti1, only : TListIntR1, append, len, destruct, init, asArray, asVector,&
       & intoArray, get, elemShape

@@ -12,7 +12,6 @@
 !> each k-point is localised independently.
 module dftbp_dftb_pmlocalisation
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only :unpackHS

@@ -16,7 +16,6 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_diismixer
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_math_lapackroutines, only : gesv
   implicit none
 

@@ -10,7 +10,6 @@
 !> DFT-D3 dispersion model.
 module dftbp_dftb_dispdftd3
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : kcal_mol__Hartree, AA__Bohr
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dispiface, only : TDispersionIface

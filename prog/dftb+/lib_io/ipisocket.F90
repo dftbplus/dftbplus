@@ -11,7 +11,6 @@
 !! communicate data back and forward from DFTB+ to the external code.
 module dftbp_io_ipisocket
   use dftbp_common_accuracy, only : dp, lc, rdp
-  use dftbp_common_assert
   use dftbp_extlibs_fsockets, only : writebuffer, readbuffer, close_socket, connect_inet_socket,&
       & connect_unix_socket
   use dftbp_io_logger, only : LogWriter

@@ -14,7 +14,6 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, mc, sc, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName
   use dftbp_common_environment, only : TEnvironment

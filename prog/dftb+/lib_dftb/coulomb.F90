@@ -10,7 +10,6 @@
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_dftb_coulomb
   use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, nSearchIter
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2, assembleChunks

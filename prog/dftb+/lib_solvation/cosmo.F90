@@ -11,7 +11,6 @@ module dftbp_solvation_cosmo
   use ddcosmo_core, only : ddupdate, TDomainDecomposition_init, wghpot, intrhs, fdoka, fdokb,&
       & fdoga
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi, Hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_charges, only : getSummedCharges

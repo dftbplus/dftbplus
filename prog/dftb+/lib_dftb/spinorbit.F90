@@ -10,7 +10,6 @@
 !> Routines for spin orbit coupling
 module dftbp_dftb_spinorbit
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : imag
   use dftbp_common_environment, only : TEnvironment
   use dftbp_math_angmomentum, only : getLOperators

@@ -9,9 +9,9 @@
 
 !> Proviedes access to HSD manipulation functions
 module dftbp_hsdapi
-  use dftbp_extlibs_xmlf90
+  use dftbp_extlibs_xmlf90, only : fnode, fNodeList
   use dftbp_io_hsdparser, only : dumpHsd
-  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, setChild, setChildValue
   implicit none
   private
 

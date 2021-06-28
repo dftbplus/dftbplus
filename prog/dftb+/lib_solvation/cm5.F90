@@ -10,7 +10,6 @@
 !> Implementation of the charge model 5 (CM5)
 module dftbp_solvation_cm5
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll

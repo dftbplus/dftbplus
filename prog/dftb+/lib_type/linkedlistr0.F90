@@ -10,7 +10,6 @@
 !> Linked list for single real values
 module dftbp_type_linkedlistr0
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
   
   private

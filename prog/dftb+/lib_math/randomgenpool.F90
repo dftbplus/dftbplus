@@ -12,7 +12,6 @@
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
 module dftbp_math_randomgenpool
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
   use dftbp_math_ranlux, only : TRanlux, init, getRandom
 #:if WITH_MPI

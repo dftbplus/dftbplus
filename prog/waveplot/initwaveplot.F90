@@ -10,10 +10,10 @@
 !> Contains the routines for initialising waveplot.
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
-  use dftbp_common_constants
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : lengthUnits
+  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
+      & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
   use dftbp_io_fileid, only : getFileId
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
@@ -22,18 +22,14 @@ module waveplot_initwaveplot
   use dftbp_io_hsdutils2, only : getModifierIndex, readHSDAsXML, warnUnprocessedNodes
   use dftbp_io_message, only : warning, error
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_type_linkedlist
+  use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
       & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
   use waveplot_gridcache, only : TGridCache, init
   use waveplot_molorb, only : TMolecularOrbital, TSpeciesBasis
-  use waveplot_slater
-  use xmlf90_flib_dom
   implicit none
 
   private
-  save
-
   public :: TProgramVariables, TProgramVariables_init
 
 

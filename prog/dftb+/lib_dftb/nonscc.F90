@@ -11,7 +11,6 @@
 !> derivatives.
 module dftbp_dftb_nonscc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_dftb_sk, only : rotateH0

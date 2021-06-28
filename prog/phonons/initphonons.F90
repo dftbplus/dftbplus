@@ -9,7 +9,6 @@
 
 module dftbp_initphonons
   use dftbp_common_accuracy
-  use dftbp_common_assert
   use dftbp_common_atomicmass
   use dftbp_common_constants
   use dftbp_common_environment

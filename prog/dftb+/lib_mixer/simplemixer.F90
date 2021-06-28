@@ -10,7 +10,6 @@
 !> Simple mixer for mixing charges
 module dftbp_mixer_simplemixer
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
 
   private

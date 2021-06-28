@@ -10,7 +10,6 @@
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
 module dftbp_dftb_reppoly
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   !use dftbp_math_bisect
   implicit none
   

@@ -7,8 +7,10 @@
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
 module dftbp_type_typegeometryhsd
-  use dftbp_common_unitconversion, only : dp, lengthUnits, lc, mc, AA__Bohr, pi, angularUnits
-  use dftbp_extlibs_xmlf90, flib_normalize => normalize
+  use dftbp_common_accuracy, only : dp, lc, mc
+  use dftbp_common_constants, only : AA__Bohr, pi
+  use dftbp_common_unitconversion, only : lengthUnits, angularUnits
+  use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char
   use dftbp_io_charmanip, only : i2c, tolower
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
       & checkError, getFirstTextChild, writeChildValue

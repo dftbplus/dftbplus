@@ -10,7 +10,6 @@
 !> Linked list for real vectors
 module dftbp_type_linkedlistr1
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   implicit none
   
   private

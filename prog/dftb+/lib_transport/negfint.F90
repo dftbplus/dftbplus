@@ -10,7 +10,6 @@
 !> Interface to LIBNEGF for DFTB+
 module dftbp_transport_negfint
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut, tIOproc

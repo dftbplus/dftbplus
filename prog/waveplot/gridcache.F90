@@ -12,7 +12,6 @@
 !> appropriate eigenvectors to the molecule orbital calculator.
 module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_fileid, only : getFileId

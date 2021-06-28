@@ -9,7 +9,6 @@
 
 !> Linked list for single integers
 module dftbp_type_linkedlisti0
-  use dftbp_common_assert
   implicit none
   
   private

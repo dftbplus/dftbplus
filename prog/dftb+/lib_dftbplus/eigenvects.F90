@@ -11,7 +11,6 @@
 !> into eigenvectors
 module dftbp_dftbplus_eigenvects
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_environment, only : TEnvironment
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_extlibs_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&

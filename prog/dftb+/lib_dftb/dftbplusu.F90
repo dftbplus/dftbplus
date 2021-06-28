@@ -11,7 +11,6 @@
 !> Intended to be used with SCC switched on !
 module dftbp_dftb_dftbplusu
   use dftbp_common_accuracy, only : dp, sc
-  use dftbp_common_assert
   use dftbp_math_sorting, only : heap_sort
   use dftbp_type_commontypes, only : TOrbitals
   implicit none

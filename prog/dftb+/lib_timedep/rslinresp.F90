@@ -12,7 +12,6 @@
 !> Periodic systems and 3rd order calculations are not supported so far.
 module dftbp_timedep_rslinresp
   use dftbp_common_accuracy, only : dp, rsp, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only : Hartree__eV, au__Debye
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue

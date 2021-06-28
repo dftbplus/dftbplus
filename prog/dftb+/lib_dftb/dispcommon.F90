@@ -13,7 +13,6 @@
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 module dftbp_dftb_dispcommon
   use dftbp_common_accuracy, only : dp, lc, nSearchIter
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks

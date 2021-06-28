@@ -11,7 +11,6 @@
 !> that data from file.
 module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_assert
   use dftbp_common_constants, only : amu__au
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
   use dftbp_dftb_reppoly, only : TRepPolyIn

@@ -17,7 +17,6 @@
 !>
 !> For the specification of the HSD format see the sample input
 module dftbp_io_hsdparser
-  use dftbp_common_assert
   use dftbp_extlibs_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
       & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
       & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&

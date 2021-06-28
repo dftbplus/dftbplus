@@ -10,7 +10,6 @@
 !> Non-polar solvent accessible surface area (SASA) contributions
 module dftbp_solvation_sasa
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks

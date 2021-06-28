@@ -10,7 +10,6 @@
 !> Helper routines for the linear response modules.
 module dftbp_timedep_linrespcommon
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_common_constants, only: Hartree__eV, au__Debye
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error

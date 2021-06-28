@@ -14,7 +14,6 @@
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
   use dftbp_common_accuracy, only : dp, elecTolMax, mc, lc, sc, rsp, rdp
-  use dftbp_common_assert
   use dftbp_extlibs_blas, only : ssyr, cher, zher
   implicit none
 

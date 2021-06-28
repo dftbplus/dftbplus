@@ -16,7 +16,6 @@
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_assert
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals
