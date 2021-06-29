@@ -53,7 +53,8 @@ module dftbp_dftbplus_qdepextpotgenc
   end interface
 
 
-  !> builds on the charge dependent external interface type from dftbp_dftbplus_qdepextpotgen for the C API
+  !> builds on the charge dependent external interface type from dftbp_dftbplus_qdepextpotgen for
+  !> the C API
   type, extends(TQDepExtPotGen) :: TQDepExtPotGenC
     private
     type(c_ptr) :: refPtr

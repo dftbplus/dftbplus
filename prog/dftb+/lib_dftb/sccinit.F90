@@ -13,7 +13,6 @@ module dftbp_dftb_sccinit
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
-  !use dftbp_io_charmanip
   implicit none
   
   private

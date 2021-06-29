@@ -103,8 +103,24 @@ module dftbp_dftbplus_main
   use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_ARPACK
+  use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRs
+#:endif
 #:if WITH_SCALAPACK
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
+  use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
+      & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
+      & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
+      & unpackHSHelicalCplxBlacs
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
+      & pblasfx_ptranc
+  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+#:endif
+#:if WITH_SOCKETS
+  use dftbp_io_ipisocket, only : IpiSocketComm
+  use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_initprogram, only : overrideContactCharges
