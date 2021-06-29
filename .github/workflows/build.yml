@@ -109,13 +109,13 @@ jobs:
     - name: Run integration CMake test
       run: >-
         CMAKE_PREFIX_PATH="${PWD}/_install:${CMAKE_PREFIX_PATH}"
-        ./test/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
+        ./test/src/dftbp/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
         ${CMAKE_DEP_OPTIONS}
 
     - name: Run integration pkg-config test
       run: >-
         PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
-        ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
+        ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
   intel-build:
     runs-on: ${{ matrix.os }}

@@ -36,7 +36,7 @@ code, you should access the code functionality only via the provided API and not
 by calling internal routines directly. We aim to keep the API stable over time,
 but the internal routines themselves can change without notice between
 releases. The API version can be found in the \verb|API_VERSION| file in the
-\verb|prog/dftb+/api/mm| folder. We use semantic versioning, a change in the
+\verb|src/dftbp/api/mm| folder. We use semantic versioning, a change in the
 major (first) version number indicates backwards incompatible changes, while
 changes in the minor (second) version number indicate backwards compatible
 extensions of the API.
@@ -46,7 +46,7 @@ ensure that you can maintain backwards compatibility with later versions of
 DFTB+.
 
 The Fortran interface is documented in the source code file
-\verb|prog/dftb+/api/mm/mmapi.F90|, while \verb|prog/dftb+/api/mm/capi.F90|
+\verb|src/dftbp/api/mm/mmapi.F90|, while \verb|src/dftbp/api/mm/capi.F90|
 gives the bindings for calling from C. DFTB+ uses atomic units internally, hence
 exchanged values should be in this unit system (however HSD formatted data can
 carry unit modifiers, see examples of input parsing for details).

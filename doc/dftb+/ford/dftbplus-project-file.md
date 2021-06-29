@@ -7,17 +7,17 @@ macro:
         RELEASE=21.1
 preprocess: true
 src_dir:
-        ../../../prog/dftb+
-        ../../../prog/modes
-        ../../../prog/waveplot
-        ../../../prog/misc
+        ../../../app/dftb+
+        ../../../app/modes
+        ../../../app/waveplot
+        ../../../app/misc
 output_dir: ./doc
 project_github: https://github.com/dftbplus/dftbplus
 project_website: http://www.dftbplus.org
 summary: The DFTB+ package for fast quantum mechanical atomistic simulations
 author: The DFTB+ developers group
 preprocessor: ../../../external/fypp/bin/fypp
-include: ../../../prog/dftb+/include
+include: ../../../src/dftbp/include
          ../../../external/dftd4refs
 predocmark: >
 display: public

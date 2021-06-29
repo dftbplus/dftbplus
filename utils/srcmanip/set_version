@@ -90,7 +90,7 @@ def _get_short_version(version):
 
 def _replace_in_dftbplus_parser(rootdir, shortversion):
     '''Sets InputVersion tag to current ParserVersion in dftb+ parser'''
-    fname = os.path.join(rootdir, "prog/dftb+/lib_dftbplus/parser.F90")
+    fname = os.path.join(rootdir, "src/dftbp/dftbplus/parser.F90")
     with open(fname, "r") as fp:
         txt = fp.read()
     match = re.search(

@@ -30,6 +30,9 @@ function(dftbp_preprocess preproc preprocopts oldext newext oldfiles newfiles)
 
   set(_newfiles)
   foreach(oldfile IN LISTS oldfiles)
+    # Start with an absolulte path, so that the correct relative path is calculated thereafter
+    get_filename_component(oldfile ${oldfile} ABSOLUTE ${CMAKE_CURRENT_SOURCE_DIR})
+    file(RELATIVE_PATH oldfile ${CMAKE_CURRENT_SOURCE_DIR} ${oldfile})
     dftbp_replace_extension(${oldext} ${newext} ${oldfile} newfile)
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
@@ -158,7 +161,7 @@ endfunction()
 #
 function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
+  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/dftbp/api/mm/API_VERSION _api
     REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
   string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
   list(GET _api_list 0 _api_major)
