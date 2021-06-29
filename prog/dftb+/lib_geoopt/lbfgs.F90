@@ -15,12 +15,11 @@
 !>
 !> Nocedal, Wright - Numerical Optimization, Springer
 !>
-module dftbp_lbfgs
-  use, intrinsic :: ieee_arithmetic
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
-  use dftbp_message, only : error, warning
-  use dftbp_linemin, only : TLineMin, TLineMin_init
+module dftbp_geoopt_lbfgs
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+  use dftbp_common_accuracy, only : dp
+  use dftbp_geoopt_linemin, only : TLineMin, TLineMin_init
+  use dftbp_io_message, only : error, warning
   implicit none
   
   private
@@ -82,7 +81,7 @@ module dftbp_lbfgs
     !> Gradient of phi on the high side
     real(dp) :: dphiHi
 
-    !> gradient of phi on the low side
+    !> Gradient of phi on the low side
     real(dp) :: dphiLo
 
     !> minimum scale of step along gradient
@@ -983,4 +982,4 @@ contains
   end function quadMin
 
 
-end module dftbp_lbfgs
+end module dftbp_geoopt_lbfgs

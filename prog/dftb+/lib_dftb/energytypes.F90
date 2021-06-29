@@ -8,9 +8,8 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module dftbp_energytypes
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
+module dftbp_dftb_energytypes
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -233,4 +232,4 @@ contains
 
   end subroutine TEnergies_init
 
-end module dftbp_energytypes
+end module dftbp_dftb_energytypes

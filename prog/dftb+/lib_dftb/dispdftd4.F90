@@ -9,23 +9,22 @@
 #:include 'error.fypp'
 
 !> Implementation of the D4 dispersion model
-module dftbp_dispdftd4
+module dftbp_dftb_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemv
-  use dftbp_charges, only : getSummedCharges
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_constants, only : pi, symbolToNumber
-  use dftbp_coordnumber, only : TCNCont, init_ => init
-  use dftbp_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi, symbolToNumber
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
+  use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
       & TDftD4Calculator_init, TDftD4Ref_init
-  use dftbp_dispiface, only : TDispersionIface
-  use dftbp_encharges, only : TEeqCont, init_ => init
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_simplealgebra, only : determinant33
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_encharges, only : TEeqCont, init_ => init
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -1572,4 +1571,4 @@ contains
   end subroutine addScDispGradient
 
 
-end module dftbp_dispdftd4
+end module dftbp_dftb_dispdftd4

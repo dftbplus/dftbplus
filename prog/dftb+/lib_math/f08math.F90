@@ -12,8 +12,8 @@
 !> If the compiler does not provide these routines, preprocess the module with the
 !> -DEMULATE_F08_MATH option.
 !>
-module dftbp_f08math
-  use dftbp_accuracy, only : dp
+module dftbp_math_f08math
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -37,4 +37,4 @@ contains
 
 #:endif
 
-end module dftbp_f08math
+end module dftbp_math_f08math

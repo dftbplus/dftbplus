@@ -6,13 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> General interface for the optimization algorithms
-module dftbp_geoopt
-  use dftbp_accuracy, only : dp
-  use dftbp_conjgrad, only : TConjGrad, next, reset, init
-  use dftbp_steepdesc, only : TSteepDesc, next, reset, init
-  use dftbp_gdiis, only : TDIIS, reset, next, init
-  use dftbp_lbfgs, only : TLbfgs
-  use dftbp_fire, only : TFire
+module dftbp_geoopt_geoopt
+  use dftbp_common_accuracy, only : dp
+  use dftbp_geoopt_conjgrad, only : TConjGrad, next, reset, init
+  use dftbp_geoopt_fire, only : TFire
+  use dftbp_geoopt_gdiis, only : TDIIS, reset, next, init
+  use dftbp_geoopt_lbfgs, only : TLbfgs
+  use dftbp_geoopt_steepdesc, only : TSteepDesc, next, reset, init
   implicit none
   
   private
@@ -202,4 +202,4 @@ contains
 
   end subroutine GeoOpt_next
 
-end module dftbp_geoopt
+end module dftbp_geoopt_geoopt

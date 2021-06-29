@@ -8,10 +8,9 @@
 #:include 'common.fypp'
 
 !> Extended Lagrangian dynamics
-module dftbp_extlagrangian
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
+module dftbp_md_extlagrangian
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -341,4 +340,4 @@ contains
 
   end subroutine updatePhaseAndSteps
 
-end module dftbp_extlagrangian
+end module dftbp_md_extlagrangian

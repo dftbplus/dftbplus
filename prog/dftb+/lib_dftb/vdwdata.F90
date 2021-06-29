@@ -13,11 +13,11 @@
 !> M. Mantina; A.C. Chamberlin; R. Valero; C.J. Cramer; D.G. Truhlar (2009). "Consistent van der
 !> Waals Radii for the Whole Main Group". J. Phys. Chem. A. 113:5806-12. doi:10.1021/jp8111556
 !>
-module dftbp_vdwdata
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_charmanip, only : tolower
-  use dftbp_constants, only : AA__Bohr
+module dftbp_dftb_vdwdata
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : AA__Bohr
+  use dftbp_io_charmanip, only : tolower
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -116,4 +116,4 @@ module dftbp_vdwdata
 
   end subroutine getVdwData
 
-end module dftbp_vdwdata
+end module dftbp_dftb_vdwdata

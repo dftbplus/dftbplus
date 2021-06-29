@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Interface wrapper for the DFT-D4 parameters
-module dftbp_dftd4refs
-  use dftbp_accuracy, only : dp
+module dftbp_extlibs_dftd4refs
+  use dftbp_common_accuracy, only : dp
   implicit none
   private
 
@@ -16,4 +16,4 @@ module dftbp_dftd4refs
 
   include 'dftd4_references.fh'
 
-end module dftbp_dftd4refs
+end module dftbp_extlibs_dftd4refs

@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> contains some miscellaneous quantum mechanics related bits and pieces.
-module dftbp_qm
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
+module dftbp_math_qm
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+
   implicit none
 
   private
@@ -103,4 +103,4 @@ contains
 
   end subroutine U_cmplx
 
-end module dftbp_qm
+end module dftbp_math_qm

@@ -12,13 +12,12 @@
 !> thermostat!
 !> Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
-module dftbp_berendsentherm
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, minTemp
-  use dftbp_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
-  use dftbp_ranlux, only : TRanlux
-  use dftbp_tempprofile, only : TTempProfile
-  use dftbp_message, only : error
+module dftbp_md_berendsentherm
+  use dftbp_common_accuracy, only : dp, minTemp
+  use dftbp_io_message, only : error
+  use dftbp_math_ranlux, only : TRanlux
+  use dftbp_md_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_md_tempprofile, only : TTempProfile
   implicit none
   
   private
@@ -172,4 +171,4 @@ contains
 
   end subroutine Berendsen_state
 
-end module dftbp_berendsentherm
+end module dftbp_md_berendsentherm

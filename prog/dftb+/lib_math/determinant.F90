@@ -10,13 +10,12 @@
 #:set FLAVOURS = [('Real', 'real', 'real'), ('Cmplx', 'complex', 'cmplx')]
 
 !> Contains routines to calculate matrix determinants
-module dftbp_determinant
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
-  use dftbp_lapackroutines, only : getrf
+module dftbp_math_determinant
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_lapackroutines, only : getrf
 #:if WITH_SCALAPACK
-  use dftbp_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip
-  use dftbp_scalapackfx, only : DLEN_, blacsgrid, CSRC_, M_, N_, NB_, scalafx_indxl2g,&
+  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : DLEN_, blacsgrid, CSRC_, M_, N_, NB_, scalafx_indxl2g,&
       & scalafx_pgetrf
 #:endif
   implicit none
@@ -197,4 +196,4 @@ contains
 
 #:endfor
 
-end module dftbp_determinant
+end module dftbp_math_determinant

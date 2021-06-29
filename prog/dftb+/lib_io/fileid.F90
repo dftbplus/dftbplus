@@ -6,9 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> IDs for file operations
-module dftbp_fileid
-  use dftbp_message, only : error
-  implicit none
+module dftbp_io_fileid
+  use dftbp_io_message, only : error
 
   private
   public :: getFileId
@@ -37,4 +36,4 @@ contains
 
   end function getFileId
 
-end module dftbp_fileid
+end module dftbp_io_fileid

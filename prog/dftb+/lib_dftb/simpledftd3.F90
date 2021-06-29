@@ -8,20 +8,19 @@
 #:include 'common.fypp'
 
 !> A simple reimplementation of DFT-D3
-module dftbp_simpledftd3
+module dftbp_dftb_simpledftd3
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemv
-  use dftbp_constants, only : pi, symbolToNumber
-  use dftbp_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_dftd3param, only : TDftD3Ref, init
-  use dftbp_dftd4param, only : getSqrtZr4r2
-  use dftbp_environment, only : TEnvironment
-  use dftbp_dispiface, only : TDispersionIface
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_simplealgebra, only : determinant33, invert33
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi, symbolToNumber
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
+  use dftbp_dftb_dftd3param, only : TDftD3Ref, init
+  use dftbp_dftb_dftd4param, only : getSqrtZr4r2
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
   
   private
@@ -683,4 +682,4 @@ contains
   end function weightCN
 
 
-end module dftbp_simpledftd3
+end module dftbp_dftb_simpledftd3

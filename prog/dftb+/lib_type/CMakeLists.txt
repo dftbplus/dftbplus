@@ -19,6 +19,6 @@ set(sources-fpp
   ${curdir}/parallelks.F90
   ${curdir}/typegeometry.F90
   ${curdir}/typegeometryhsd.F90
-  ${curdir}/wrapped_intrinsics.F90)
+  ${curdir}/wrappedintr.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

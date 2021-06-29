@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Common interface for all dispersion modules.
-module dftbp_dispiface
-  use dftbp_accuracy, only : dp
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_dispiface
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -244,4 +244,4 @@ contains
   end subroutine updateCharges
 
 
-end module dftbp_dispiface
+end module dftbp_dftb_dispiface

@@ -12,10 +12,10 @@
 
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
-module dftbp_lapackroutines
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, rdp, rsp
-  use dftbp_message, only : error, warning
+module dftbp_math_lapackroutines
+  use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_io_message, only : error, warning
+  ! use dftbp_extlibs_lapack
   implicit none
 
   private
@@ -1828,4 +1828,4 @@ contains
   end subroutine getrs1_real
 
 
-end module dftbp_lapackroutines
+end module dftbp_math_lapackroutines

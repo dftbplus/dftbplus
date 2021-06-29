@@ -5,20 +5,21 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_helpsetupgeom
-  use dftbp_accuracy
-  use dftbp_globalenv
-  use dftbp_constants
-  use dftbp_message
-  use dftbp_sorting
-  use dftbp_simplealgebra
-  use dftbp_wrappedintr
-  use dftbp_linkedlist
-  use dftbp_typegeometry
-  use dftbp_f08math
-  use dftbp_negfvars, only : contactInfo
+module transporttools_helpsetupgeom
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_common_globalenv
+  use dftbp_io_message
+  use dftbp_math_f08math
+  use dftbp_math_simplealgebra
+  use dftbp_math_sorting
+  use dftbp_transport_negfvars, only : contactInfo
+  use dftbp_type_linkedlist
+  use dftbp_type_typegeometry
+  use dftbp_type_wrappedintr
   implicit none
 
+  private
   public :: setupGeometry
 
 contains
@@ -685,4 +686,4 @@ contains
 
   end function minDist2ndPL
 
-end module dftbp_helpsetupgeom
+end module transporttools_helpsetupgeom

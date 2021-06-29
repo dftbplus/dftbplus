@@ -14,10 +14,9 @@
 !> The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928-936 1999) and Patrick
 !> Briddon to add a contribution from the gradient vector as well is also used
 !> In order to use the mixer you have to create and reset it.
-module dftbp_diismixer
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_lapackroutines, only : gesv
+module dftbp_mixer_diismixer
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_lapackroutines, only : gesv
   implicit none
 
   private
@@ -275,4 +274,4 @@ contains
 
   end subroutine storeVectors
 
-end module dftbp_diismixer
+end module dftbp_mixer_diismixer

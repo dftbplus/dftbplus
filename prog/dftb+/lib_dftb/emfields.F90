@@ -8,14 +8,12 @@
 #:include 'common.fypp'
 
 !!* Module for external electromagnetic fields - currently scalar magnetic field
-module dftbp_emfields
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants
-  use dftbp_globalenv, only : stdOut
-  use dftbp_angmomentum, only : Loperators
-  use dftbp_simplealgebra, only : cross3
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_emfields
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_math_angmomentum, only : Loperators
+  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -170,4 +168,4 @@ contains
 
   end subroutine shiftB_
 
-end module dftbp_emfields
+end module dftbp_dftb_emfields

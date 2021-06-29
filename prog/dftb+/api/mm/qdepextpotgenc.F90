@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Simplified C-interface with callbacks for population dependant external potential generators.
-module dftbp_qdepextpotgenc
+module dftbp_dftbplus_qdepextpotgenc
   use, intrinsic :: iso_c_binding
-  use dftbp_accuracy, only : dp
-  use dftbp_qdepextpotgen, only : TQDepExtPotGen
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   implicit none
   private
 
@@ -53,7 +53,8 @@ module dftbp_qdepextpotgenc
   end interface
 
 
-  !> builds on the charge dependent external interface type from dftbp_qdepextpotgen for the C API
+  !> builds on the charge dependent external interface type from dftbp_dftbplus_qdepextpotgen for
+  !> the C API
   type, extends(TQDepExtPotGen) :: TQDepExtPotGenC
     private
     type(c_ptr) :: refPtr
@@ -140,4 +141,4 @@ contains
   end subroutine TQDepExtPotGenC_getExternalPotGrad
 
 
-end module dftbp_qdepextpotgenc
+end module dftbp_dftbplus_qdepextpotgenc

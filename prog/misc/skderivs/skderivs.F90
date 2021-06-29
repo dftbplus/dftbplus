@@ -9,24 +9,23 @@
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_message
-  use xmlf90_flib_dom
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_charmanip
-  use dftbp_linkedlist
-  use dftbp_slakoeqgrid
-  use dftbp_oldskdata
-  use dftbp_fileid
+  use dftbp_common_accuracy
+  use dftbp_common_constants
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_slakoeqgrid
+  use dftbp_io_charmanip
+  use dftbp_io_fileid
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
+  use dftbp_io_hsdutils
+  use dftbp_io_hsdutils2
+  use dftbp_io_message
+  use dftbp_type_linkedlist
+  use dftbp_type_oldskdata
 #:if WITH_MPI
-  use dftbp_mpienv
+  use dftbp_common_mpienv
 #:endif
-  implicit none
+  use xmlf90_flib_dom
+implicit none
 
 
   !> Contains the data necessary for the main program

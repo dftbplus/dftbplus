@@ -8,10 +8,9 @@
 #:include 'common.fypp'
 
 !> Helper routines for block charges (used in on-site corrections and DFTB+U)
-module dftbp_blockpothelper
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_assert
+module dftbp_dftb_blockpothelper
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -75,4 +74,4 @@ contains
 
   end subroutine appendBlockReduced
 
-end module dftbp_blockpothelper
+end module dftbp_dftb_blockpothelper

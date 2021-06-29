@@ -8,15 +8,14 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for formatted output of data
-module dftbp_formatout
-  use dftbp_globalenv, only : stdOut, tIoProc, withMpi
-  use dftbp_environment, only : TEnvironment
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, mc
-  use dftbp_message, only : error
-  use dftbp_constants, only : au__fs, Bohr__AA, pi
-  use dftbp_lapackroutines, only: matinv
-  use dftbp_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
+module dftbp_io_formatout
+  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_constants, only : au__fs, Bohr__AA, pi
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
+  use dftbp_dftb_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
+  use dftbp_io_message, only : error
+  use dftbp_math_lapackroutines, only: matinv
   implicit none
   
   private
@@ -602,4 +601,4 @@ contains
 
   end subroutine writeSparse
 
-end module dftbp_formatout
+end module dftbp_io_formatout

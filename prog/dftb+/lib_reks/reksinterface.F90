@@ -13,37 +13,38 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksinterface
-  use dftbp_accuracy, only : dp
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_dispiface, only : TDispersionIface
-  use dftbp_elecsolvers, only : TElectronicSolver
-  use dftbp_environment, only : TEnvironment, globalTimers
-  use dftbp_globalenv, only : stdOut
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_orbitals, only : TOrbitals
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_populations, only : mulliken
-  use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_repulsive, only : TRepulsive
-  use dftbp_scc, only : TScc
-  use dftbp_slakocont, only : TSlakoCont
-  use dftbp_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
-  use dftbp_stress, only : getBlockStress
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_rekscommon, only : getTwoIndices
-  use dftbp_rekscpeqn, only : cggrad
-  use dftbp_reksen, only : adjustEigenval, solveSecularEqn
-  use dftbp_reksgrad, only : weightgradient, ssrshift, sishift, satossrxt, satossrweight,&
+module dftbp_reks_reksinterface
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_populations, only : mulliken
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
+  use dftbp_dftb_stress, only : getBlockStress
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_reks_rekscommon, only : getTwoIndices
+  use dftbp_reks_rekscpeqn, only : cggrad
+  use dftbp_reks_reksen, only : adjustEigenval, solveSecularEqn
+  use dftbp_reks_reksgrad, only : weightgradient, ssrshift, sishift, satossrxt, satossrweight,&
       & addsitorq, ssrshift, lshift, getothersagrad, satossrgradient, getreksnac, rtshift, &
       & solvezt, getrmat, getzmat, getq2mat, getq1mat, buildsareksvectors, getrdel, getzmat,&
       & buildinteractionvectors, getq2mat, getq1del, buildlstatevector, getsccspinlrpars,&
       & gethxckernel, getsuperamatrix, getenergyweighteddensityl, derivative_blockl,&
       & getg1ilomegarab, getextchrggradients
-  use dftbp_reksio, only : writereksrelaxedcharge, printreksgradinfo, writerekstdp
-  use dftbp_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl, getunrelaxeddensmatandtdp,&
-      & getdipoleintegral, getdipolemomentmatrix, getreksosc
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reks_reksio, only : writereksrelaxedcharge, printreksgradinfo, writerekstdp
+  use dftbp_reks_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl,&
+      & getunrelaxeddensmatandtdp, getdipoleintegral, getdipolemomentmatrix, getreksosc
+  use dftbp_reks_reksvar, only : TReksCalc
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
+
   implicit none
 
   private
@@ -1413,4 +1414,4 @@ module dftbp_reksinterface
   end subroutine getDipoleMoment_
 
 
-end module dftbp_reksinterface
+end module dftbp_reks_reksinterface

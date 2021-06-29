@@ -7,16 +7,16 @@
 
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
-module dftbp_oldcompat
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
+module dftbp_dftbplus_oldcompat
+  use dftbp_common_accuracy, only : dp
+  use dftbp_extlibs_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength,&
+      & getNodeName, destroyNode, getItem1, destroyNodeList
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
       & detailedError, getChildren
-  use dftbp_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
-  use dftbp_charmanip, only : i2c
-  use dftbp_xmlutils, only : removeChildNodes
-  use dftbp_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength, getNodeName,&
-      & destroyNode, getItem1, destroyNodeList
+  use dftbp_io_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
+  use dftbp_io_message, only : error
+  use dftbp_io_xmlutils, only : removeChildNodes
   implicit none
   
   private
@@ -580,4 +580,4 @@ contains
   end subroutine useDftb3Default
 
 
-end module dftbp_oldcompat
+end module dftbp_dftbplus_oldcompat

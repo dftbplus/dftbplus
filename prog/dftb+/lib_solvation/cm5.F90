@@ -8,14 +8,13 @@
 #:include 'common.fypp'
 
 !> Implementation of the charge model 5 (CM5)
-module dftbp_cm5
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_atomicrad, only : getAtomicRad
-  use dftbp_blasroutines, only : gemv
-  use dftbp_constants, only : AA__Bohr, symbolToNumber
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_simplealgebra, only : determinant33
+module dftbp_solvation_cm5
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_atomicrad, only : getAtomicRad
+  use dftbp_common_constants, only : AA__Bohr, symbolToNumber
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_math_simplealgebra, only : determinant33
   implicit none
   
   private
@@ -499,4 +498,4 @@ contains
   end function getPairParameterNumber
 
 
-end module dftbp_cm5
+end module dftbp_solvation_cm5

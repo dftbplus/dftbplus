@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a proxy communicating with external generators of population dependent potentials.
-module dftbp_qdepextpotproxy
-  use dftbp_accuracy, only : dp
-  use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_shift, only : total_shift
+module dftbp_dftbplus_qdepextpotproxy
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_shift, only : total_shift
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -152,4 +152,4 @@ contains
   end subroutine TQDepExtPotProxy_addGradientDc
 
 
-end module dftbp_qdepextpotproxy
+end module dftbp_dftbplus_qdepextpotproxy

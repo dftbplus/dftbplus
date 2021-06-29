@@ -9,11 +9,10 @@
 
 !> Calculates various types of charge populations
 !> To do: extend to other populations than Mulliken
-module dftbp_populations
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pi
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_populations
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -614,4 +613,4 @@ contains
   end subroutine denseBlockMulliken
 
 
-end module dftbp_populations
+end module dftbp_dftb_populations

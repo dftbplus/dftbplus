@@ -8,26 +8,23 @@
 #:include 'common.fypp'
 
 !> main module for the DFTB+ API
-module dftbp_mainapi
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, mc
-  use dftbp_coherence, only : checkExactCoherence, checkToleranceCoherence
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
-  use dftbp_timeprop, only : initializeDynamics, doTdStep
+module dftbp_dftbplus_mainapi
+  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_dftbplus_main, only : processGeometry
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_io_charmanip, only : newline
+  use dftbp_io_message, only : error
+  use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_SCALAPACK
-  use dftbp_initprogram, only : getDenseDescBlacs
+  use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
+  use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
 #:endif
-  use dftbp_main, only : processGeometry
-  use dftbp_message, only : error
-  use dftbp_orbitals, only : TOrbitals
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-#:if WITH_SCALAPACK
-  use dftbp_scalapackfx, only : scalafx_getlocalshape
-#:endif
-  use dftbp_wrappedintr, only : TWrappedInt1
-  use dftbp_charmanip, only : newline
   implicit none
   
   private
@@ -725,4 +722,4 @@ contains
 
   end subroutine recalcGeometry
 
-end module dftbp_mainapi
+end module dftbp_dftbplus_mainapi

@@ -9,18 +9,17 @@
 
 
 !> Contains range separated related routines.
-module dftbp_rangeseparated
-  use dftbp_accuracy, only : dp, tolSameDist, MinHubDiff
-  use dftbp_environment, only : TEnvironment, globalTimers
-  use dftbp_assert
-  use dftbp_message, only : error
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_slakocont, only : TSlakoCont
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_sorting, only : index_heap_sort
-  use dftbp_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
-  use dftbp_globalenv, only : stdOut
-  use dftbp_blasroutines, only : gemm
+module dftbp_dftb_rangeseparated
+  use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -54,7 +53,7 @@ module dftbp_rangeseparated
   end type TRangeSepSKTag
 
 
-  !> Range-Sep module structure
+  !> Range-Sep module dftbp_poisson_structure
   type :: TRangeSepFunc
     private
 
@@ -1620,4 +1619,4 @@ contains
 
   end subroutine getLrGammaDeriv
 
-end module dftbp_rangeseparated
+end module dftbp_dftb_rangeseparated

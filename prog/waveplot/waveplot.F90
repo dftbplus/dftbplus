@@ -9,24 +9,21 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
-
-  use dftbp_assert
-  use dftbp_linkedlist
-  use dftbp_globalenv, only : stdOut
-  use dftbp_initwaveplot, only : TProgramVariables, TProgramVariables_init
-  use dftbp_accuracy, only : dp
-  use dftbp_charmanip, only : i2c
-  use dftbp_typegeometry, only : TGeometry
-  use dftbp_fileid, only : getFileId
-  use dftbp_gridcache, only : next
-  use dftbp_molecularorbital, only : getValue
-  use dftbp_simplealgebra, only : invert33
-  use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
-
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_periodic, only : getCellTranslations, foldCoordToUnitCell
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_fileid, only : getFileId
+  use dftbp_math_simplealgebra, only : invert33
+  use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
+  use dftbp_type_typegeometry, only : TGeometry
+  use waveplot_gridcache, only : next
+  use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
+  use waveplot_molorb, only : getValue
 #:if WITH_MPI
-  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
   use mpi, only : MPI_THREAD_FUNNELED
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
 #:endif
 
   implicit none

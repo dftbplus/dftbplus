@@ -15,10 +15,9 @@
 
 #:include 'error.fypp'
 
-module gewald
-
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pi
+module dftbp_poisson_gewald
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
   implicit none
 
   private
@@ -715,4 +714,4 @@ contains
   END function Rspace
  
 
-end module gewald
+end module dftbp_poisson_gewald

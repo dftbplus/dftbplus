@@ -8,11 +8,8 @@
 #:include 'common.fypp'
 
 !> Routines to calculate a Slater type orbital (STO)
-module dftbp_slater
-
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-
+module waveplot_slater
+  use dftbp_common_accuracy, only :dp
   implicit none
 
   private
@@ -327,4 +324,4 @@ contains
 
   end subroutine SlaterOrbital_assign
 
-end module dftbp_slater
+end module waveplot_slater

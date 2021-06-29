@@ -19,16 +19,16 @@
 !> 2 (d) | -2, -1, 0, 1, 2
 !> 3 (f) | -3, -2, -1, 0, 1, 2, 3
 !> 4 (g) | -4, -3, -2, -1, 0, 1, 2, 3, 4
-module dftbp_tblite
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemv
-  use dftbp_charges, only : getSummedCharges
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_environment, only : TEnvironment
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_simplealgebra, only : determinant33
+module dftbp_extlibs_tblite
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_TBLITE
   use mctc_env, only : error_type
   use mctc_io, only : structure_type, new
@@ -41,17 +41,17 @@ module dftbp_tblite
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto
   use tblite_integral_overlap, only : overlap_cgto, overlap_grad_cgto, maxl, msao
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
-    & not_used
+      & not_used
   use tblite_scf_potential, only : potential_type, new_potential
+  use tblite_version, only : get_tblite_version
   use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
   use tblite_xtb_calculator, only : xtb_calculator
-  use tblite_xtb_gfn2, only : new_gfn2_calculator
   use tblite_xtb_gfn1, only : new_gfn1_calculator
+  use tblite_xtb_gfn2, only : new_gfn2_calculator
   use tblite_xtb_h0, only : get_selfenergy, get_hamiltonian, get_occupation, &
       & get_hamiltonian_gradient, tb_hamiltonian
   use tblite_xtb_ipea1, only : new_ipea1_calculator
   use tblite_xtb_singlepoint, only : xtb_singlepoint
-  use tblite_version, only : get_tblite_version
 #:endif
   implicit none
   private
@@ -1342,4 +1342,4 @@ contains
 #:endif
 
 
-end module dftbp_tblite
+end module dftbp_extlibs_tblite

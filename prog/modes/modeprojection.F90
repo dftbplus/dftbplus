@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Removal of translation or rotation related modes
-module dftbp_modeprojection
-  use dftbp_accuracy, only : dp
-  use dftbp_message
-  use dftbp_typegeometry
-  use dftbp_blasroutines, only : herk
-  use dftbp_simplealgebra, only : cross3
-  use dftbp_eigensolver, only : heev
+module modes_modeprojection
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : warning
+  use dftbp_math_blasroutines, only : herk
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private
@@ -186,4 +186,4 @@ contains
 
   end subroutine getPrincipleAxes
 
-end module dftbp_modeprojection
+end module modes_modeprojection

@@ -42,7 +42,10 @@
 #:def ASSERT(cond)
   #:if WITH_ASSERT
   if (.not. (${cond}$)) then
-    call assertError("${_FILE_}$", ${_LINE_}$)
+    block
+      use dftbp_common_assert, only : assertError
+      call assertError("${_FILE_}$", ${_LINE_}$)
+    end block
   end if
   #:endif
 #:enddef ASSERT
@@ -76,7 +79,7 @@
   #:else
     #:if DEBUG > 0
       block
-        use dftbp_message, only : error
+        use dftbp_io_message, only : error
         call error("Internal error: trying to execute code of the non-existent component '${name}$'")
       end block
     #:endif

@@ -8,15 +8,14 @@
 #:include 'common.fypp'
 
 !> Routines to calculate contributions to the stress tensor
-module dftbp_stress
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_slakocont, only : TSlakoCont
-  use dftbp_repcont, only : TRepCont, getEnergyDeriv
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_environment, only : TEnvironment
+module dftbp_dftb_stress
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_repcont, only : TRepCont, getEnergyDeriv
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -459,4 +458,4 @@ contains
   end subroutine getBlockiStress
 
 
-end module dftbp_stress
+end module dftbp_dftb_stress

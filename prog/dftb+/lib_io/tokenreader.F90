@@ -12,12 +12,11 @@
 !> This module contains the utilities which can parse a strings into Fortran intrinsic types. Tokens
 !> are assumed to be separated by white space, therefore strings with spaces inside can not
 !> currently be handled.
-module dftbp_tokenreader
-  use dftbp_assert
-  use dftbp_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
-  use dftbp_message, only : error
-  use dftbp_accuracy, only : dp
-  use dftbp_xmlf90, only : string, assignment(=)
+module dftbp_io_tokenreader
+  use dftbp_common_accuracy, only : dp
+  use dftbp_extlibs_xmlf90, only : string, assignment(=)
+  use dftbp_io_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
+  use dftbp_io_message, only : error
   implicit none
 
   private
@@ -479,4 +478,4 @@ contains
 
   end function validIntegerStart
 
-end module dftbp_tokenreader
+end module dftbp_io_tokenreader

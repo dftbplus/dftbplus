@@ -8,14 +8,13 @@
 #:include 'common.fypp'
 
 !> Provides a general mixer which contains the desired actual mixer.
-module dftbp_mixer
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_simplemixer, only : TSimpleMixer, mix, reset
-  use dftbp_andersonmixer, only : TAndersonMixer, mix, reset
-  use dftbp_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
-  use dftbp_diismixer, only : TDIISMixer, mix, reset
-  use dftbp_message, only : error
+module dftbp_mixer_mixer
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_mixer_andersonmixer, only : TAndersonMixer, mix, reset
+  use dftbp_mixer_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
+  use dftbp_mixer_diismixer, only : TDIISMixer, mix, reset
+  use dftbp_mixer_simplemixer, only : TSimpleMixer, mix, reset
   implicit none
   
   private
@@ -246,4 +245,4 @@ contains
 
   end subroutine Mixer_getInverseJacobian
 
-end module dftbp_mixer
+end module dftbp_mixer_mixer

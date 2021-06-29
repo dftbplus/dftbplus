@@ -14,12 +14,12 @@
     & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4')]
 
 !> Contains routines helpful for mpi-parallelisation.
-module dftbp_schedule
+module dftbp_common_schedule
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
-  use dftbp_environment, only : TEnvironment
-  use dftbp_accuracy, only : dp
   implicit none
   
   private
@@ -177,4 +177,4 @@ contains
   end subroutine getChunkRanges
 
 
-end module dftbp_schedule
+end module dftbp_common_schedule

@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-program current
+program flux
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -190,4 +190,4 @@ program current
 
   deallocate(neig,nn,Inm,coord)
 
-end program current
+end program flux

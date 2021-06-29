@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains routines relating to quaternion rotation in 3D
-module dftbp_quaternions
-  use dftbp_accuracy, only : dp
-  use dftbp_simplealgebra, only : cross3
+module dftbp_math_quaternions
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_simplealgebra, only : cross3
   implicit none
 
   private
@@ -120,4 +120,4 @@ contains
 
   end subroutine rotate3
 
-end module dftbp_quaternions
+end module dftbp_math_quaternions

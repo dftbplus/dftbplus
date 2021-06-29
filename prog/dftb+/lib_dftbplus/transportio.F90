@@ -7,15 +7,14 @@
 
 #:include 'common.fypp'
 
-module dftbp_transportio
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_constants, only : Hartree__eV
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message, only : error
-  use dftbp_orbitals, only : TOrbitals
+module dftbp_dftbplus_transportio
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : Hartree__eV
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only : error
+  use dftbp_type_orbitals, only : TOrbitals
 #:if WITH_TRANSPORT
-  use dftbp_negfvars, only : TTransPar
+  use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
 
@@ -599,4 +598,4 @@ contains
 
 #:endif
 
-end module dftbp_transportio
+end module dftbp_dftbplus_transportio

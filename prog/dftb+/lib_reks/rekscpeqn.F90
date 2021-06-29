@@ -13,18 +13,18 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_rekscpeqn
+module dftbp_reks_rekscpeqn
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_periodic, only: TNeighbourList
+  use dftbp_io_message, only: error
+  use dftbp_math_blasroutines, only : gemm, gemv
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex
+  use dftbp_reks_reksgrad, only : getRmat, getZmat, getQ2mat
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_orbitals, only : TOrbitals
 
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemm, gemv
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_environment, only : TEnvironment
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message, only: error
-  use dftbp_orbitals, only : TOrbitals
-  use dftbp_periodic, only: TNeighbourList
-  use dftbp_rekscommon, only : assignEpsilon, assignIndex
-  use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
   implicit none
 
   private
@@ -635,4 +635,4 @@ module dftbp_rekscpeqn
   end subroutine shiftAY2e_
 
 
-end module dftbp_rekscpeqn
+end module dftbp_reks_rekscpeqn

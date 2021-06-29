@@ -9,14 +9,13 @@
 
 !> Contains type for representing the data stored in the old SK-file format and subroutines to read
 !> that data from file.
-module dftbp_oldskdata
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_constants, only : amu__au
-  use dftbp_repspline, only : TRepSplineIn
-  use dftbp_reppoly, only : TRepPolyIn
-  use dftbp_message, only : error
-  use dftbp_rangeseparated, only : TRangeSepSKTag
+module dftbp_type_oldskdata
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : amu__au
+  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
+  use dftbp_dftb_reppoly, only : TRepPolyIn
+  use dftbp_dftb_repspline, only : TRepSplineIn
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -340,4 +339,4 @@ contains
 
   end subroutine checkIOError
 
-end module dftbp_oldskdata
+end module dftbp_type_oldskdata

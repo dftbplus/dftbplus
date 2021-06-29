@@ -8,14 +8,13 @@
 #:include 'common.fypp'
 
 !> Coordination number implementation
-module dftbp_coordnumber
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemv
-  use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_simplealgebra, only : determinant33
+module dftbp_dftb_coordnumber
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemv
+  use dftbp_math_simplealgebra, only : determinant33
   implicit none
   
   private
@@ -271,7 +270,7 @@ contains
 
     select case(input%cnType)
     case default
-      call error("Fatal programming error in dftbp_coordnumber!")
+      call error("Fatal programming error in dftbp_dftb_coordnumber!")
     case(cnType%erf)
       this%countFunc => erfCount
       this%countDeriv => derfCount
@@ -842,4 +841,4 @@ contains
   end function getElectronegativityNumber
 
 
-end module dftbp_coordnumber
+end module dftbp_dftb_coordnumber

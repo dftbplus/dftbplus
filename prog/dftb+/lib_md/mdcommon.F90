@@ -8,11 +8,10 @@
 #:include 'common.fypp'
 
 !> Common routines for MD calculations
-module dftbp_mdcommon
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pi
-  use dftbp_ranlux, only : TRanlux, getRandom
+module dftbp_md_mdcommon
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
+  use dftbp_math_ranlux, only : TRanlux, getRandom
   implicit none
   
   private
@@ -253,4 +252,4 @@ contains
 
   end subroutine MaxwellBoltzmann
 
-end module dftbp_mdcommon
+end module dftbp_md_mdcommon

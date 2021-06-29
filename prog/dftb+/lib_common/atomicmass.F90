@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Atomic masses for each element known in the PSE
-module dftbp_atomicmass
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : amu__au, symbolToNumber
+module dftbp_common_atomicmass
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : amu__au, symbolToNumber
   implicit none
   
   private
@@ -93,4 +93,4 @@ contains
   end function getAtomicMassNumber
 
 
-end module dftbp_atomicmass
+end module dftbp_common_atomicmass

@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains routines relating to duplicated numbers
-module dftbp_duplicate
-  use dftbp_sorting, only : heap_sort, unique
+module dftbp_math_duplicate
+  use dftbp_math_sorting, only : heap_sort, unique
   implicit none
 
   private
@@ -35,4 +35,4 @@ contains
 
   end function isRepeated
 
-end module dftbp_duplicate
+end module dftbp_math_duplicate

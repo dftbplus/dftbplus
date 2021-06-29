@@ -11,10 +11,10 @@
 
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
 !> state calculations).
-module dftbp_arpack
-  use dftbp_accuracy, only : rsp, rdp
+module dftbp_extlibs_arpack
+  use dftbp_common_accuracy, only : rsp, rdp
 #:if not WITH_ARPACK
-  use dftbp_message
+  use dftbp_io_message
 #:endif
   implicit none
   private
@@ -142,4 +142,4 @@ contains
   end interface seupd
 #:endif
 
-end module dftbp_arpack
+end module dftbp_extlibs_arpack

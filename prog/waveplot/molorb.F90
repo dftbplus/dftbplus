@@ -9,15 +9,12 @@
 
 !> Contains routines to calculate the value of one or more molecular orbitals composed from STOs on
 !> an equidistant grid.
-module dftbp_molecularorbital
-
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_typegeometry, only : TGeometry
-  use dftbp_slater, only : TSlaterOrbital, RealTessY, getValue, init
-  use dftbp_simplealgebra, only : invert33
-  use dftbp_periodic, only: getCellTranslations, foldCoordToUnitCell
-
+module waveplot_molorb
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_periodic, only: getCellTranslations, foldCoordToUnitCell
+  use dftbp_math_simplealgebra, only : invert33
+  use dftbp_type_typegeometry, only : TGeometry
+  use waveplot_slater, only : TSlaterOrbital, RealTessY, getValue, init
   implicit none
 
   private
@@ -500,4 +497,4 @@ contains
 
   end subroutine local_getValue
 
-end module dftbp_molecularorbital
+end module waveplot_molorb

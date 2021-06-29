@@ -10,21 +10,26 @@
 !> Proviedes DFTB+ API for MM-type high level access
 module dftbp_mmapi
   use iso_fortran_env, only : output_unit
-  use dftbp_accuracy
-  use dftbp_globalenv
-  use dftbp_environment
-  use dftbp_message, only: error
-  use dftbp_mainapi
-  use dftbp_parser
-  use dftbp_hsdutils
-  use dftbp_hsdhelpers, only : doPostParseJobs
-  use dftbp_inputdata
-  use dftbp_linkedlist
-  use dftbp_xmlf90
-  use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_charmanip, only : newline
-  use dftbp_initprogram, only: TDftbPlusMain
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild
+  use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
+  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
+  use dftbp_dftbplus_inputdata, only : TInputData
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
+      & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
+      & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
+      & getGrossCharges, getExtChargeGradients, getStressTensor, getGradients, getEnergy,&
+      & setQDepExtPotProxy, setExternalCharges, setGeometry
+  use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
+  use dftbp_io_charmanip, only : newline
+  use dftbp_io_hsdutils, only : getChild
+  use dftbp_io_message, only: error
+  use dftbp_type_linkedlist, only : TListString, init, append, get, len, asArray
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
   private
 

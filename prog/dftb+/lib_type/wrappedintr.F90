@@ -9,8 +9,8 @@
   & ('complex', 'Cmplx', '(dp)')]
 
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
-module dftbp_wrappedintr
-  use dftbp_accuracy, only : dp
+module dftbp_type_wrappedintr
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -33,4 +33,4 @@ module dftbp_wrappedintr
 #:endfor
 #:endfor
 
-end module dftbp_wrappedintr
+end module dftbp_type_wrappedintr

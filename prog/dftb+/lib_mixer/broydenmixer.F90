@@ -12,12 +12,11 @@
 !> code. A detailed description of the method can be found in Johnson's paper.
 !> see D.D. Johnson, PRB 38, 12807 (1988)
 !> In order to use the mixer you have to create and reset it.
-module dftbp_broydenmixer
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_blasroutines, only : ger
-  use dftbp_lapackroutines, only : getrf, getrs, matinv 
+module dftbp_mixer_broydenmixer
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : ger
+  use dftbp_math_lapackroutines, only : getrf, getrs, matinv
   implicit none
 
   private
@@ -397,4 +396,4 @@ contains
 
   end subroutine BroydenMixer_getInverseJacobian
 
-end module dftbp_broydenmixer
+end module dftbp_mixer_broydenmixer

@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains the Van der Waal parameters for the UFF force field.
-module dftbp_dispuffdata
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_charmanip, only : tolower
-  use dftbp_constants, only : AA__Bohr, kcal_mol__Hartree
+module dftbp_dftb_dispuffdata
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : AA__Bohr, kcal_mol__Hartree
+  use dftbp_io_charmanip, only : tolower
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -128,4 +128,4 @@ contains
 
   end subroutine getUffValues
 
-end module dftbp_dispuffdata
+end module dftbp_dftb_dispuffdata

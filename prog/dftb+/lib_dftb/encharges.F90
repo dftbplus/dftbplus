@@ -12,18 +12,17 @@
 !> for the charge scaling in DFT-D4.
 !>
 !> This implementation is general enough to be used outside of DFT-D4.
-module dftbp_encharges
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pi
-  use dftbp_errorfunction, only : erfwrap
-  use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
+module dftbp_dftb_encharges
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
+  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
+  use dftbp_dftb_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
-  use dftbp_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_blasroutines, only : hemv, gemv, gemm
-  use dftbp_lapackroutines, only : symmatinv
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_simplealgebra, only : determinant33, invert33
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_math_blasroutines, only : hemv, gemv, gemm
+  use dftbp_math_errorfunction, only : erfwrap
+  use dftbp_math_lapackroutines, only : symmatinv
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
   
   private
@@ -1126,4 +1125,4 @@ contains
   end subroutine getEEQCharges
 
 
-end module dftbp_encharges
+end module dftbp_dftb_encharges

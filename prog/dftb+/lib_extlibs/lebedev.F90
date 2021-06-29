@@ -16,8 +16,8 @@
 !>
 !> The original Fortran source code can be found at
 !> https://people.sc.fsu.edu/~jburkardt/f_src/sphere_lebedev_rule/
-module dftbp_lebedev
-  use dftbp_accuracy, only : dp
+module dftbp_extlibs_lebedev
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
@@ -5542,4 +5542,4 @@ contains
   end subroutine ld5810
 
 
-end module dftbp_lebedev
+end module dftbp_extlibs_lebedev

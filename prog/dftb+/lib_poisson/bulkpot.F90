@@ -15,17 +15,17 @@
 
 #:include "error.fypp"
 
-Module bulkpot
-  
- use dftbp_accuracy, only : dp
- use dftbp_constants, only : Bohr__AA
- use dftbp_globalenv, only : stdOut
- use dftbp_message, only : warning
- use gallocation, only : log_gallocate, log_gdeallocate
- use parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc, overrbulkbc, dmin
- use structure, only : period, izp, x, dqmat, period_dir, uhubb, lmax
- use mpi_poisson, only : id0
- use gewald, only : getalpha, rezvol, long_pot, short_pot
+module dftbp_poisson_bulkpot
+ use dftbp_common_accuracy, only : dp
+ use dftbp_common_constants, only : Bohr__AA
+ use dftbp_common_globalenv, only : stdOut
+ use dftbp_io_message, only : warning
+ use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
+ use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
+ use dftbp_poisson_mpi_poisson, only : id0
+ use dftbp_poisson_parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc,&
+      & overrbulkbc, dmin
+ use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, lmax
 
  implicit none
  private
@@ -776,4 +776,4 @@ subroutine set_bulk_rhs(phi_bulk,cont)
 end subroutine set_bulk_rhs
 
 
-end Module bulkpot
+end module dftbp_poisson_bulkpot

@@ -9,12 +9,11 @@
 #:include 'error.fypp'
 
 !> Contains BLACS environmental settings.
-module dftbp_blacsenv
-  use dftbp_assert
-  use dftbp_mpienv, only : TMpiEnv
-  use dftbp_message, only : error
-  use dftbp_scalapackfx, only : blacsgrid
-  use dftbp_status, only : TStatus
+module dftbp_common_blacsenv
+  use dftbp_common_mpienv, only : TMpiEnv
+  use dftbp_common_status, only : TStatus
+  use dftbp_extlibs_scalapackfx, only : blacsgrid
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -174,4 +173,4 @@ contains
   end subroutine getGridMap
 
 
-end module dftbp_blacsenv
+end module dftbp_common_blacsenv

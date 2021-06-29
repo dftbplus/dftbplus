@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> External fields
-module dftbp_extfields
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_potentials, only : TPotentials
+module dftbp_dftb_extfields
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_io_message, only : error
   implicit none
 
   public :: TEField, TElecFieldInput, addUpExternalField
@@ -182,4 +182,4 @@ contains
   end subroutine addUpExternalField
 
 
-end module dftbp_extfields
+end module dftbp_dftb_extfields

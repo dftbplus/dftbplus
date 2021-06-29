@@ -8,11 +8,10 @@
 #:include 'common.fypp'
 
 !> Velocity Verlet intergrator.
-module dftbp_velocityverlet
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_thermostat, only : TThermostat, state, init, updateVelocities, getInitVelocities
-  use dftbp_message, only : error
+module dftbp_md_velocityverlet
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_md_thermostat, only : TThermostat, state, init, updateVelocities, getInitVelocities
   implicit none
   
   private
@@ -442,4 +441,4 @@ contains
 
   end subroutine VelocityVerlet_reset
 
-end module dftbp_velocityverlet
+end module dftbp_md_velocityverlet

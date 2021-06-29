@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Module for square dense matrix specification
-module dftbp_densedescr
+module dftbp_type_densedescr
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx, only : DLEN_
+  use dftbp_extlibs_scalapackfx, only : DLEN_
 #:endif
   implicit none
   
@@ -45,4 +45,4 @@ module dftbp_densedescr
 
   end type TDenseDescr
 
-end module dftbp_densedescr
+end module dftbp_type_densedescr

@@ -8,32 +8,32 @@
 #:include 'common.fypp'
 
 !> Contains the interface to the ELSI solvers
-module dftbp_elsisolver
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_environment, only : TEnvironment, globalTimers
-  use dftbp_globalenv, only : stdOut
-  use dftbp_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_elsiiface, only : elsi_rw_handle, elsi_handle
-  use dftbp_elsicsc, only : TElsiCsc
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_message, only : error, warning, cleanshutdown
-  use dftbp_commontypes, only : TParallelKS, TOrbitals
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_assert
-  use dftbp_spin, only : ud2qm
-  use dftbp_angmomentum, only : getLOnsite
-  use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use dftbp_potentials, only : TPotentials
-  use dftbp_version, only : TVersion
+module dftbp_elecsolvers_elsisolver
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_version, only : TVersion
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_dftb_spin, only : ud2qm
+  use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elsicsc, only : TElsiCsc
+  use dftbp_extlibs_elsiiface, only : elsi_rw_handle, elsi_handle
+  use dftbp_io_message, only : error, warning, cleanshutdown
+  use dftbp_math_angmomentum, only : getLOnsite
+  use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_sparse2dense, only : unpackHPauliBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
-      & packRhoHelicalCplxBlacs, packRhoCplxBlacs, unpackSPauliBlacs, packRhoPauliBlacs,&
-      & packRhoHelicalRealBlacs, packRhoRealBlacs, unpackHSHelicalCplxBlacs, unpackHSCplxBlacs,&
-      & packRhoHelicalRealBlacs, packRhoRealBlacs, packERhoPauliBlacs
-  use dftbp_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
+  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs,&
+      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
+      & unpackSPauliBlacs, packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
+      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
+      & packERhoPauliBlacs
+  use dftbp_elecsolvers_elsicsc, only : TElsiCsc_init
+  use dftbp_extlibs_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
       & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&
       & elsi_set_zero_def, elsi_set_sparsity_mask, elsi_set_blacs, elsi_init_rw, elsi_set_rw_blacs,&
       & elsi_set_elpa_solver, elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol,&
@@ -48,13 +48,8 @@ module dftbp_elsisolver
       & elsi_write_mat_complex_sparse, elsi_dm_complex_sparse, elsi_get_edm_real_sparse,&
       & elsi_get_edm_real, elsi_set_rw_mpi, elsi_get_edm_complex, elsi_get_edm_complex_sparse,&
       & elsi_dm_real, elsi_write_mat_real_sparse, elsi_dm_real_sparse
-  !use dftbp_elsiiface, only : elsi_get_MP_elsi_get_version, elsi_setup_MP_elsi_finalize
-      !& elsi_setup_MP_elsi_reinit, elsi_setup_MP_elsi_init, elsi_setup_MP_elsi_set_mpi_global,&
-      !& elsi_setup_MP_elsi_illcond_check, elsi_setup_MP_elsi_set_mpi
-      
-  use dftbp_elsicsc, only : TElsiCsc_init
-#:endif
-
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif  
   implicit none
   
   private
@@ -2118,4 +2113,4 @@ contains
 
 #:endif
 
-end module dftbp_elsisolver
+end module dftbp_elecsolvers_elsisolver

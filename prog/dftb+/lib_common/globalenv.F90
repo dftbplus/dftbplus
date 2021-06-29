@@ -14,11 +14,11 @@
 !> known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
 !> code.
 !>
-module dftbp_globalenv
+module dftbp_common_globalenv
   use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
 #:if WITH_MPI
   use mpi, only : MPI_COMM_WORLD
-  use dftbp_mpifx, only : mpifx_comm, MPI_THREAD_FUNNELED, mpifx_init_thread, mpifx_abort,&
+  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_THREAD_FUNNELED, mpifx_init_thread, mpifx_abort,&
       & mpifx_barrier, mpifx_finalize
 #:endif
   implicit none
@@ -207,4 +207,4 @@ contains
   end subroutine synchronizeAll
 
 
-end module dftbp_globalenv
+end module dftbp_common_globalenv

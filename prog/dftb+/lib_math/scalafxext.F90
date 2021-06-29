@@ -5,17 +5,23 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
+
 !> Common mathematical operations built out of multiple scalapack calls
-module dftbp_scalafxext
-  use dftbp_accuracy, only : lc, dp
-  use dftbp_scalapackfx, only : DLEN_, scalafx_ppotrf, scalafx_ppotri
-  use dftbp_message, only : error
+module dftbp_math_scalafxext
+  use dftbp_common_accuracy, only : lc, dp
+  use dftbp_io_message, only : error
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : DLEN_, scalafx_ppotrf, scalafx_ppotri
+#:endif
   implicit none
   
   private
   public :: psymmatinv, phermatinv
 
 contains
+
+#:if WITH_SCALAPACK
 
   !> Inversion of a symmetric matrix
   subroutine psymmatinv(desc, aa, uplo, info)
@@ -59,6 +65,15 @@ contains
 
   end subroutine psymmatinv
 
+#:else
+
+  subroutine psymmatinv()
+  end subroutine psymmatinv
+
+#:endif
+
+
+#:if WITH_SCALAPACK
 
   !> Inversion of a hermitian matrix
   subroutine phermatinv(desc, aa, uplo, info)
@@ -102,5 +117,12 @@ contains
 
   end subroutine phermatinv
 
+#:else
 
-end module dftbp_scalafxext
+  subroutine phermatinv()
+  end subroutine phermatinv
+
+#:endif
+
+
+end module dftbp_math_scalafxext

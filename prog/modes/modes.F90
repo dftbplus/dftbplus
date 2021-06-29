@@ -9,20 +9,19 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_initmodes
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_constants, only : Hartree__cm, Bohr__AA, pi
-  use dftbp_typegeometry
-  use dftbp_eigensolver, only : heev
-  use dftbp_taggedoutput
-  use dftbp_message
-  use dftbp_modeprojection
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
+  use dftbp_math_eigensolver, only : heev
+  use modes_initmodes, only : dynMatrix, modesToPlot, geo, iMovedAtoms, nCycles, nDerivs,&
+      & nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes, tRemoveRotate,&
+      & tXmakeMol, tRemoveTranslate, atomicMasses, initProgramVariables
+  use modes_modeprojection, only : project
 #:if WITH_MPI
-  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
   use mpi, only : MPI_THREAD_FUNNELED
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
 #:endif
   implicit none
 

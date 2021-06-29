@@ -8,25 +8,31 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module dftbp_initmodes
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_xmlutils
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use xmlf90_flib_dom
-  use dftbp_linkedlist
-  use dftbp_charmanip
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_typegeometryhsd
-  use dftbp_message
-  use dftbp_fileid
-  use dftbp_unitconversion
-  use dftbp_oldskdata
+module modes_initmodes
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_unitconversion, only : massUnits
+  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
+      & getNodeName, destroyNode, destroyNodeList
+  use dftbp_io_charmanip, only : i2c, tolower, unquote
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
+  use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
+      & getSelectedIndices, detailedError, detailedWarning
+  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes, getNodeName2
+  use dftbp_io_message, only : error
+  use dftbp_io_xmlutils, only : removeChildNodes
+  use dftbp_type_linkedlist, only : TListCharLc, TListRealR1, TListString, init, destruct, append,&
+      & get, len, asArray
+  use dftbp_type_oldskdata, only : TOldSkData, readFromFile
+  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
+      & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
   implicit none
+  
   private
+  public :: initProgramVariables
+  public :: geo, atomicMasses, dynMatrix, modesToPlot, nModesToPlot, nCycles, nSteps
+  public :: nMovedAtom, iMovedAtoms, nDerivs
+  public :: tVerbose, tPlotModes, tAnimateModes, tXmakeMol, tRemoveTranslate, tRemoveRotate
 
 
   !> program version
@@ -44,60 +50,54 @@ module dftbp_initmodes
   !> version of the input document
   integer, parameter :: parserVersion = 3
 
-  public :: initProgramVariables
-
   !> Geometry
-  type(TGeometry), public :: geo
-
-  !! Variables from the Option block
-
+  type(TGeometry) :: geo
 
   !> If program should be verbose
-  logical, public :: tVerbose
+  logical :: tVerbose
 
 
   !> atomic masses to build dynamical matrix
-  real(dp), allocatable, public :: atomicMasses(:)
+  real(dp), allocatable :: atomicMasses(:)
 
   !> dynamical matrix
-  real(dp), allocatable, public :: dynMatrix(:,:)
-
+  real(dp), allocatable :: dynMatrix(:,:)
 
   !> produce plots of modes, orjust eigenvalues
-  logical, public :: tPlotModes
+  logical :: tPlotModes
 
   !> animate mode  or as vectors
-  logical, public :: tAnimateModes
+  logical :: tAnimateModes
 
   !> use xmakemol dialect xyz
-  logical, public :: tXmakeMol
+  logical :: tXmakeMol
 
   !> Remove translation modes
-  logical, public :: tRemoveTranslate
+  logical :: tRemoveTranslate
 
   !> Remove rotation modes
-  logical, public :: tRemoveRotate
+  logical :: tRemoveRotate
 
   !> modes to produce xyz file for
-  integer, allocatable, public :: modesToPlot(:)
+  integer, allocatable :: modesToPlot(:)
 
   !> number of modes being plotted
-  integer, public :: nModesToPlot
+  integer :: nModesToPlot
 
   !> if animating, number of cycles to show in an animation
-  integer, public :: nCycles
+  integer :: nCycles
 
   !> steps in an animation cycle
-  integer, public, parameter :: nSteps = 10
+  integer, parameter :: nSteps = 10
 
   !> Number of atoms which should be moved.
-  integer, public :: nMovedAtom
+  integer :: nMovedAtom
 
   !> list of atoms in dynamical matrix
-  integer, allocatable, public :: iMovedAtoms(:)
+  integer, allocatable :: iMovedAtoms(:)
 
   !> Number of derivatives
-  integer, public :: nDerivs
+  integer :: nDerivs
 
 contains
 
@@ -370,4 +370,4 @@ contains
 
   end subroutine getInputMasses
 
-end module dftbp_initmodes
+end module modes_initmodes

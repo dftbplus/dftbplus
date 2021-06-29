@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Parameters for the generalized Born model
-module dftbp_solvdata
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : AA__Bohr, symbolToNumber
+module dftbp_solvation_solvdata
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : AA__Bohr, symbolToNumber
   implicit none
   private
 
@@ -207,4 +207,4 @@ contains
 
   end function getVanDerWaalsRadiusBondiNumber
 
-end module dftbp_solvdata
+end module dftbp_solvation_solvdata

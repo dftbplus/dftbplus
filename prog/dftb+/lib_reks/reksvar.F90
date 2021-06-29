@@ -13,11 +13,11 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksvar
+module dftbp_reks_reksvar
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_type_orbitals, only : TOrbitals
 
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_orbitals, only : TOrbitals
   implicit none
 
   private
@@ -1311,4 +1311,4 @@ module dftbp_reksvar
   end subroutine reallocate
 
 
-end module dftbp_reksvar
+end module dftbp_reks_reksvar

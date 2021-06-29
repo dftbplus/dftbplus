@@ -7,8 +7,8 @@
 
 !> Evaluates bond populations from sparse matrices. To do: add evaluation of bond orders, perhaps
 !> DOI: 10.1039/c7ra07400j can be adapted for DFTB.
-module dftbp_bondpops
-  use dftbp_accuracy, only : dp
+module dftbp_dftb_bondpopulations
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
@@ -76,4 +76,4 @@ contains
 
   end subroutine addPairWiseBondInfo
 
-end module dftbp_bondpops
+end module dftbp_dftb_bondpopulations

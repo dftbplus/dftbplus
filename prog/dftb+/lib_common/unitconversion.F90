@@ -7,14 +7,18 @@
 
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
-module dftbp_unitconversion
-  use dftbp_constants, only : AA__Bohr, Bohr__AA, J__Hartree, fs__au, c, Coulomb__au, V_m__au,&
-      & pascal__au, kg__au, pi, Hartree__cm, eV__Hartree, au__fs, Debye__au, hbar, amu__au,&
-      & Boltzmann, kcal_mol__Hartree
-  use dftbp_accuracy, only : dp, mc, lc
+module dftbp_common_unitconversion
+  use dftbp_common_accuracy, only : dp, mc, lc
+  use dftbp_common_constants, only : AA__Bohr, Bohr__AA, J__Hartree, fs__au, c, Coulomb__au,&
+      & V_m__au, pascal__au, kg__au, pi, Hartree__cm, eV__Hartree, au__fs, Debye__au, hbar,&
+      & amu__au, Boltzmann, kcal_mol__Hartree
   implicit none
 
-  public
+  private
+  public :: unit
+  public :: lengthUnits, inverseLengthUnits, energyUnits, forceUnits, timeUnits, freqUnits
+  public :: volumeUnits, chargeUnits, EFieldUnits, BFieldUnits, pressureUnits, velocityUnits
+  public :: dipoleUnits, massUnits, angularUnits, massDensityUnits
 
 
   !> Contains name of a unit and its conversion factor
@@ -289,4 +293,4 @@ module dftbp_unitconversion
       & unit("au                  ", 1.0_dp)]
 
 
-end module dftbp_unitconversion
+end module dftbp_common_unitconversion

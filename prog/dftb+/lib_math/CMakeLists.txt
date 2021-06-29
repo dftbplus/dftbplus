@@ -19,12 +19,9 @@ set(sources-fpp
   ${curdir}/quaternions.F90
   ${curdir}/randomgenpool.F90
   ${curdir}/ranlux.F90
+  ${curdir}/scalafxext.F90
   ${curdir}/simplealgebra.F90
   ${curdir}/sorting.F90)
 
-if(WITH_MPI)
-  list(APPEND sources-fpp
-    ${curdir}/scalafxext.F90)
-endif()
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

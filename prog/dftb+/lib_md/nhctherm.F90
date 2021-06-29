@@ -9,13 +9,12 @@
 
 !> Nose-Hoover Chain thermostat
 !> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
-module dftbp_nhctherm
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, lc, minTemp
-  use dftbp_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT
-  use dftbp_ranlux, only : TRanlux
-  use dftbp_tempprofile, only : TTempProfile
-  use dftbp_message, only : error
+module dftbp_md_nhctherm
+  use dftbp_common_accuracy, only : dp, lc, minTemp
+  use dftbp_io_message, only : error
+  use dftbp_math_ranlux, only : TRanlux
+  use dftbp_md_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_md_tempprofile, only : TTempProfile
   implicit none
 
   private
@@ -327,4 +326,4 @@ contains
 
   end subroutine NHC_state
 
-end module dftbp_nhctherm
+end module dftbp_md_nhctherm

@@ -9,131 +9,129 @@
 #:include 'error.fypp'
 
 !> Global variables and initialization for the main program.
-module dftbp_initprogram
+module dftbp_dftbplus_initprogram
+  use dftbp_common_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
+  use dftbp_common_atomicmass, only : getAtomicMass
+  use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
+  use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
+      & Bohr__nm, Hartree__kJ_mol, Boltzmann
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut, withMpi
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_status, only : TStatus
+  use dftbp_derivs_numderivs2, only : TNumDerivs, create
+  use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_coulomb, only : TCoulombInput
+  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
+  use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_dftb_dispdftd4, only : writeDftD4Info
+  use dftbp_dftb_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
+      & TDispDftD4, init, DispSlaKirk_init, DispUff_init
+  use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
+  use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_extfields, only : TEField
+  use dftbp_dftb_h5correction, only : TH5CorrectionInput
+  use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
+  use dftbp_dftb_hamiltonian, only : TRefExtPot
+  use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
+  use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex,&
+      & getCellTranslations
+  use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
+  use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
+  use dftbp_dftb_repcont, only : TRepCont, getCutOff
+  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
+  use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
+      & initQFromShellChrg
+  use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGammaDamp
+  use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
+  use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
+  use dftbp_dftb_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
+  use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
+  use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+  use dftbp_dftbplus_elstattypes, only : elstatTypes
+  use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
+  use dftbp_dftbplus_mainio, only : initOutputFile
+  use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_dftbplus_transportio, only : readContactShifts
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes,&
+      & TElectronicSolver_init
+  use dftbp_elecsolvers_elsisolver, only : TElsiSolver_init, TElsiSolver_final
+  use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_elsiiface, only : withELSI
+  use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
+  use dftbp_extlibs_poisson, only : TPoissonInput
+  use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
+  use dftbp_geoopt_conjgrad, only : TConjGrad
+  use dftbp_geoopt_fire, only : TFire, TFire_init
+  use dftbp_geoopt_gdiis, only : TDIIS
+  use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
+  use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
+  use dftbp_geoopt_steepdesc, only : TSteepDesc
+  use dftbp_io_formatout, only : clearFile
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
+  use dftbp_math_duplicate, only : isRepeated
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_math_randomgenpool, only : TRandomGenPool, init
+  use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_md_andersentherm, only : TAndersenThermostat, init
+  use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
+  use dftbp_md_dummytherm, only : TDummyThermostat, init
+  use dftbp_md_mdcommon, only : TMDCommon, init
+  use dftbp_md_mdintegrator, only : TMDIntegrator, init
+  use dftbp_md_nhctherm, only : TNHCThermostat, init
+  use dftbp_md_tempprofile, only : TTempProfile, TempProfile_init
+  use dftbp_md_thermostat, only : TThermostat, init
+  use dftbp_md_velocityverlet, only : TVelocityVerlet, init
+  use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
+  use dftbp_mixer_andersonmixer, only : TAndersonMixer, init
+  use dftbp_mixer_broydenmixer, only : TBroydenMixer, init
+  use dftbp_mixer_diismixer, only : TDIISMixer, init
+  use dftbp_mixer_mixer, only : TMixer, mixerTypes, init
+  use dftbp_mixer_simplemixer, only : TSimpleMixer, init
+  use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
+  use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
+  use dftbp_timedep_linresp, only : LinResp_init
+  use dftbp_timedep_linresptypes, only : TLinResp
+  use dftbp_timedep_pprpa, only : TppRPAcal
+  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
+      & append
+  use dftbp_type_orbitals, only : getShellNames
+  use dftbp_type_wrappedintr, only : TWrappedInt1
+#:if WITH_DFTD3
+  use dftbp_dftb_dispdftd3, only : TDispDftD3, DispDftD3_init
+#:endif
+#:if WITH_MBD
+  use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
+#:endif
 #:if WITH_OMP
   use omp_lib, only : omp_get_max_threads
 #:endif
-  use dftbp_mainio, only : initOutputFile
-  use dftbp_assert
-  use dftbp_atomicmass, only : getAtomicMass
-  use dftbp_globalenv, only : stdOut, withMpi
-  use dftbp_coherence, only : checkToleranceCoherence, checkExactCoherence
-  use dftbp_environment, only : TEnvironment, globalTimers
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx, only : scalafx_getdescriptor, scalafx_getlocalshape
+  use dftbp_extlibs_scalapackfx, only : scalafx_getdescriptor, scalafx_getlocalshape
 #:endif
-  use dftbp_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
-#:if WITH_TRANSPORT
-  use dftbp_inputdata, only : TNEGFInfo
-#:endif
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps, Bohr__nm,&
-      & Hartree__kJ_mol, Boltzmann
-  use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes, TElectronicSolver_init
-  use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
-  use dftbp_elsiiface, only : withELSI
-  use dftbp_arpack, only : withArpack
-  use dftbp_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex
-  use dftbp_periodic, only : getCellTranslations
-  use dftbp_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
-  use dftbp_shortgamma, only : TShortGammaInput, TShortGammaDamp
-  use dftbp_message, only : error, warning
-  use dftbp_mixer, only : TMixer, mixerTypes, init
-  use dftbp_simplemixer, only : TSimpleMixer, init
-  use dftbp_andersonmixer, only : TAndersonMixer, init
-  use dftbp_broydenmixer, only : TBroydenMixer, init
-  use dftbp_diismixer, only : TDIISMixer, init
-  use dftbp_geoopt, only : TGeoOpt, geoOptTypes, reset, init
-  use dftbp_conjgrad, only : TConjGrad
-  use dftbp_steepdesc, only : TSteepDesc
-  use dftbp_gdiis, only : TDIIS
-  use dftbp_lbfgs, only : TLbfgs, TLbfgs_init
-  use dftbp_fire, only : TFire, TFire_init
-  use dftbp_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_randomgenpool, only : TRandomGenPool, init
-  use dftbp_ranlux, only : TRanlux, getRandom
-  use dftbp_mdcommon, only : TMDCommon, init
-  use dftbp_mdintegrator, only : TMDIntegrator, init
-  use dftbp_velocityverlet, only : TVelocityVerlet, init
-  use dftbp_thermostat, only : TThermostat, init
-  use dftbp_dummytherm, only : TDummyThermostat, init
-  use dftbp_andersentherm, only : TAndersenThermostat, init
-  use dftbp_berendsentherm, only :TBerendsenThermostat, init
-  use dftbp_nhctherm, only : TNHCThermostat, init
-  use dftbp_tempprofile, only : TTempProfile, TempProfile_init
-  use dftbp_numderivs2, only : TNumDerivs, create
-  use dftbp_lapackroutines, only : matinv
-  use dftbp_simplealgebra, only : determinant33
-  use dftbp_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
-  use dftbp_scc, only : TSccInput, TScc, TScc_init
-  use dftbp_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
-      & initQFromShellChrg
-  use dftbp_coulomb, only : TCoulombInput
-  use dftbp_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
-  use dftbp_hamiltonian, only : TRefExtPot
-  use dftbp_h5correction, only : TH5CorrectionInput
-  use dftbp_halogenx, only : THalogenX, THalogenX_init
-  use dftbp_slakocont, only : TSlakoCont, getCutOff
-  use dftbp_repulsive, only : TRepulsive
-  use dftbp_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
-  use dftbp_repcont, only : TRepCont, getCutOff
-  use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftbplusu, only : TDftbU, TDftbU_init
-  use dftbp_blockpothelper, only : appendBlockReduced
-  use dftbp_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
-      & TDispDftD4, init, DispSlaKirk_init, DispUff_init
-  use dftbp_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
-  use dftbp_linresp, only : LinResp_init
-  use dftbp_linresptypes, only : TLinResp
-  use dftbp_pprpa, only : TppRPAcal
-  use dftbp_RangeSeparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_orbitals, only : getShellNames
-  use dftbp_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
-  use dftbp_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
-      & append
-  use dftbp_wrappedintr, only : TWrappedInt1
-  use dftbp_timeprop, only : TElecDynamics, TElecDynamics_init
-  use dftbp_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_transportio, only : readContactShifts
 #:if WITH_SOCKETS
-  use dftbp_mainio, only : receiveGeometryFromSocket
-  use dftbp_ipisocket, only : ipiSocketCommInp, ipiSocketComm
+  use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
+  use dftbp_io_ipisocket, only : ipiSocketCommInp, ipiSocketComm
 #:endif
-  use dftbp_elstatpot, only : TElStatPotentials, TElStatPotentials_init
-  use dftbp_pmlocalisation, only : TPipekMezey, initialise
-  use dftbp_energytypes, only : TEnergies, TEnergies_init
-  use dftbp_potentials, only : TPotentials, TPotentials_init
-  use dftbp_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
-  use dftbp_formatout, only : clearFile
-  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_forcetypes, only : forceTypes
-  use dftbp_elstattypes, only : elstatTypes
-  use dftbp_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
-  use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
-  use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
-  use dftbp_solvation, only : TSolvation
-  use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
-  use dftbp_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
-  use dftbp_dispdftd4, only : writeDftD4Info
 #:if WITH_TRANSPORT
-  use dftbp_negfvars, only : TTransPar
-  use dftbp_negfint, only : TNegfInt, TNegfInt_init
+  use dftbp_dftbplus_inputdata, only : TNEGFInfo
+  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
+  use dftbp_transport_negfvars, only : TTransPar
 #:endif
-  use dftbp_poisson, only : TPoissonInput
-  use dftbp_determinants, only : TDftbDeterminants, TDftbDeterminants_init
-  use dftbp_boundarycond, only : boundaryConditions
-  use dftbp_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
-#:if WITH_DFTD3
-  use dftbp_dispdftd3, only : TDispDftD3, DispDftD3_init
-#:endif
-#:if WITH_MBD
-  use dftbp_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
-#:endif
-  use dftbp_status, only : TStatus
-  use dftbp_extfields, only : TEField
-  use dftbp_duplicate, only : isRepeated
   implicit none
 
   private
@@ -4808,7 +4806,7 @@ contains
   !> Check for compatibility between requested electronic solver and features of the calculation
   subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
 
-    !> Solver number (see dftbp_elecsolvertypes)
+    !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
 
     !> Is this a spin polarised calculation
@@ -5962,4 +5960,4 @@ contains
 #:endif
 
 
-end module dftbp_initprogram
+end module dftbp_dftbplus_initprogram

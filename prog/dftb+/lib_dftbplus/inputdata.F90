@@ -8,46 +8,44 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for DFTB
-module dftbp_inputdata
-  use dftbp_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_typegeometry, only : TGeometry
-  use dftbp_message, only : error, warning
-  use dftbp_dftbplusu, only : TDftbUInp
-  use dftbp_dispersions, only : TDispersionInp
-  use dftbp_linresp, only : TLinrespini
-  use dftbp_pprpa, only : TppRPAcal
-  use dftbp_slakocont, only : TSlakoCont
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_repcont, only : TRepCont
-  use dftbp_linkedlist, only : TListIntR1, destruct
-  use dftbp_wrappedintr, only : TWrappedInt1
-  use dftbp_elecsolvers, only : TElectronicSolverInp
-  use dftbp_timeprop, only : TElecDynamicsInp
-  use dftbp_etemp, only : fillingTypes
-  use dftbp_xlbomd, only : TXLBOMDInp
+module dftbp_dftbplus_inputdata
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_dftb_dftbplusu, only : TDftbUInp
+  use dftbp_dftb_dispersions, only : TDispersionInp
+  use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
+  use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_extfields, only : TElecFieldInput
+  use dftbp_dftb_h5correction, only : TH5CorrectionInput
+  use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
+  use dftbp_dftb_potentials, only : TAtomExtPotInput
+  use dftbp_dftb_repcont, only : TRepCont
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
+  use dftbp_extlibs_poisson, only : TPoissonInfo
+  use dftbp_extlibs_tblite, only : TTBLiteInput
+  use dftbp_io_message, only : error, warning
+  use dftbp_md_xlbomd, only : TXLBOMDInp
+  use dftbp_reks_reks, only : TReksInp
+  use dftbp_solvation_cm5, only : TCM5Input
+  use dftbp_solvation_solvinput, only : TSolvationInp
+  use dftbp_timedep_linresp, only : TLinrespini
+  use dftbp_timedep_pprpa, only : TppRPAcal
+  use dftbp_timedep_timeprop, only : TElecDynamicsInp
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_linkedlist, only : TListIntR1, destruct
+  use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_SOCKETS
-  use dftbp_ipisocket, only : IpiSocketCommInp
+  use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
-  use dftbp_pmlocalisation, only : TPipekMezeyInp
-  use dftbp_elstatpot, only : TElStatPotentialsInp
-  use dftbp_reks, only : TReksInp
-  use dftbp_cm5, only : TCM5Input
-  use dftbp_solvinput, only : TSolvationInp
-  use dftbp_tblite, only : TTBLiteInput
 #:if WITH_TRANSPORT
-  use dftbp_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
+  use dftbp_transport_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
-  use dftbp_poisson, only : TPoissonInfo
-  use dftbp_h5correction, only : TH5CorrectionInput
-  use dftbp_extfields, only : TElecFieldInput
-  use dftbp_potentials, only : TAtomExtPotInput
   implicit none
   
   private
-  save
-  public :: TControl, TGeometry, TSlater, TInputData, TXLBOMDInp, TParallelOpts
+  public :: TControl, TSlater, TInputData, TParallelOpts
   public :: TBlacsOpts
   public :: TRangeSepInp
   public :: init, destruct
@@ -617,4 +615,4 @@ contains
 
   end subroutine Control_destruct
 
-end module dftbp_inputdata
+end module dftbp_dftbplus_inputdata

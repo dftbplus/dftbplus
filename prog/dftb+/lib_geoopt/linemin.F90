@@ -31,10 +31,9 @@
 !>
 !> Step 4. is repeated as long as the projected derivative of the function on the line is less than
 !> the given tolerance.
-module dftbp_linemin
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : goldenMeanP1
+module dftbp_geoopt_linemin
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : goldenMeanP1
   implicit none
 
   private
@@ -454,4 +453,4 @@ contains
 
   end subroutine getMinLambda
 
-end module dftbp_linemin
+end module dftbp_geoopt_linemin

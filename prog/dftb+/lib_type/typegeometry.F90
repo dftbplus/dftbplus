@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> data type and associated routines for specifying atomic geometry and boundary conditions
-module dftbp_typegeometry
-  use dftbp_accuracy, only : dp, mc
-  use dftbp_lapackroutines, only : matinv
+module dftbp_type_typegeometry
+  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_math_lapackroutines, only : matinv
   implicit none
   
   private
@@ -185,4 +185,4 @@ contains
   end subroutine setLattice_Geometry
 
 
-end module dftbp_typegeometry
+end module dftbp_type_typegeometry

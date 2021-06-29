@@ -6,19 +6,21 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
-module dftbp_typegeometryhsd
-  use dftbp_typegeometry, only : TGeometry, normalize, reduce, setlattice
-  use dftbp_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
+module dftbp_type_typegeometryhsd
+  use dftbp_common_accuracy, only : dp, lc, mc
+  use dftbp_common_constants, only : AA__Bohr, pi
+  use dftbp_common_unitconversion, only : lengthUnits, angularUnits
+  use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char
+  use dftbp_io_charmanip, only : i2c, tolower
+  use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
       & checkError, getFirstTextChild, writeChildValue
-  use dftbp_hsdutils2, only : getModifierIndex, splitModifier, convertByMul
-  use dftbp_tokenreader, only : TOKEN_OK, getNextToken
-  use dftbp_unitconversion, only : dp, lengthUnits, lc, mc, AA__Bohr, pi, angularUnits
-  use dftbp_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
+  use dftbp_io_hsdutils2, only : getModifierIndex, splitModifier, convertByMul
+  use dftbp_io_message, only : error
+  use dftbp_io_tokenreader, only : TOKEN_OK, getNextToken
+  use dftbp_math_simplealgebra, only : invert33, determinant33
+  use dftbp_type_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
       & destruct, asArray
-  use dftbp_charmanip, only : i2c, tolower
-  use dftbp_message, only : error
-  use dftbp_simplealgebra, only : invert33, determinant33
-  use dftbp_xmlf90, flib_normalize => normalize
+  use dftbp_type_typegeometry, only : TGeometry, normalize, reduce, setlattice
   implicit none
   
   private
@@ -757,4 +759,4 @@ contains
   end function nextLine
 
 
-end module dftbp_typegeometryhsd
+end module dftbp_type_typegeometryhsd

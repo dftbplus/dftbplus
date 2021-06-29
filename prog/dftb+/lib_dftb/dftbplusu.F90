@@ -9,11 +9,10 @@
 
 !> Module containing various routines for DFTB+U calculations
 !> Intended to be used with SCC switched on !
-module dftbp_dftbplusu
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, sc
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_sorting, only : heap_sort
+module dftbp_dftb_dftbplusu
+  use dftbp_common_accuracy, only : dp, sc
+  use dftbp_math_sorting, only : heap_sort
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -655,4 +654,4 @@ contains
 
   end function funcName
 
-end module dftbp_dftbplusu
+end module dftbp_dftb_dftbplusu

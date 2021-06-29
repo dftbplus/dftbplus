@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Time stages in the code
-module dftbp_timer
-  use dftbp_globalenv, only : stdOut
+module dftbp_common_timer
+  use dftbp_common_globalenv, only : stdOut
   implicit none
   
   private
@@ -135,4 +135,4 @@ contains
   end subroutine writeTimes
 
 
-end module dftbp_timer
+end module dftbp_common_timer

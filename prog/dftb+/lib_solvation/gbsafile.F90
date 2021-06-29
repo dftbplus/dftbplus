@@ -8,16 +8,17 @@
 #:include 'common.fypp'
 
 !> Read GBSA parametrisation data from file
-module dftbp_gbsafile
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_born, only : TGBInput
-  use dftbp_charmanip, only : newline, whiteSpaces
-  use dftbp_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, symbolToNumber
-  use dftbp_hsdutils, only : detailedError, detailedWarning
-  use dftbp_message, only : error, warning
-  use dftbp_solventdata, only : TSolventData
-  use dftbp_tokenreader, only : getNextToken, TOKEN_OK
-  use dftbp_xmlf90, only : fnode
+module dftbp_solvation_gbsafile
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
+      & symbolToNumber
+  use dftbp_extlibs_xmlf90, only : fnode
+  use dftbp_io_charmanip, only : newline, whiteSpaces
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_tokenreader, only : getNextToken, TOKEN_OK
+  use dftbp_solvation_born, only : TGBInput
+  use dftbp_solvation_solventdata, only : TSolventData
   implicit none
   
   private
@@ -274,4 +275,4 @@ contains
   end subroutine nextLine
 
 
-end module dftbp_gbsafile
+end module dftbp_solvation_gbsafile

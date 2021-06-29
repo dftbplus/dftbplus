@@ -17,7 +17,7 @@ program test_mpisubgrids
       !& mpi_init_thread, mpi_comm_rank, mpi_comm_size, mpi_comm_split, mpi_ireduce, mpi_barrier,&
       !& mpi_comm_free, mpi_finalize
   use dftbplus, only : TDftbPlusInput, TDftbPlus, TDftbPlus_init, TDftbPlus_destruct
-  use dftbp_constants, only : AA__Bohr   ! Imported to ensure accurate conversion
+  use dftbp_common_constants, only : AA__Bohr   ! Imported to ensure accurate conversion
   use testhelpers, only : writeAutotestTag   ! Only needed for the internal test system
   use, intrinsic :: iso_fortran_env, only : real64
   implicit none

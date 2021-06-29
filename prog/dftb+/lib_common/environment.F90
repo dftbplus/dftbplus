@@ -9,22 +9,20 @@
 #:include 'error.fypp'
 
 !> Contains computer environment settings
-module dftbp_environment
-  use dftbp_globalenv, only : shutdown, stdOut
-  use dftbp_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
-  use dftbp_fileregistry, only : TFileRegistry, TFileRegistry_init
-#:if WITH_MPI
-  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init, TMpiEnv_final
+module dftbp_common_environment
+  use dftbp_common_fileregistry, only : TFileRegistry, TFileRegistry_init
+  use dftbp_common_globalenv, only : shutdown, stdOut
+  use dftbp_common_status, only : TStatus
+  use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
+#:if WITH_GPU
+  use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
-  use dftbp_status, only : TStatus
 #:if WITH_MPI
-  use dftbp_globalenv, only : globalMpiComm
+  use dftbp_common_globalenv, only : globalMpiComm
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init, TMpiEnv_final
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
-#:endif
-#:if WITH_GPU
-  use dftbp_gpuenv, only : TGpuEnv, TGpuEnv_init
+  use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
   implicit none
   
@@ -309,4 +307,4 @@ contains
 #:endif
 
 
-end module dftbp_environment
+end module dftbp_common_environment

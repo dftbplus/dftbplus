@@ -8,41 +8,40 @@
 #:include 'common.fypp'
 
 !> Module for static linear response derivative calculations using perturbation methods
-module dftbp_staticperturb
-  use dftbp_accuracy, only : dp, mc
-  use dftbp_constants, only : Hartree__eV, quaternionName
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message, only : error, warning
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_potentials, only : TPotentials, TPotentials_init
-  use dftbp_scc, only : TScc
-  use dftbp_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
-  use dftbp_populations, only : mulliken, densemulliken, getchargepershell
-  use dftbp_spin, only : getSpinShift, ud2qm, qm2ud
-  use dftbp_thirdorder, only : TThirdOrder
-  use dftbp_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
-  use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_onsitecorrection, only : addOnsShift, onsblock_expand
-  use dftbp_shift, only : add_shift, total_shift
-  use dftbp_mixer, only : TMixer, mix, reset
-  use dftbp_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_rotatedegen, only : TRotateDegen, TRotateDegen_init
-  use dftbp_parallelks, only : TParallelKS
-  use dftbp_blockpothelper, only : appendBlockReduced
-  use dftbp_linearresponse, only : dRhoStaticReal, dRhoFermiChangeStaticReal
-  use dftbp_linearresponse, only : dRhoStaticPauli, dRhoFermiChangeStaticPauli
+module dftbp_derivs_staticperturb
+  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_constants, only : Hartree__eV, quaternionName
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
+  use dftbp_derivs_linearresponse, only : dRhoStaticReal, dRhoFermiChangeStaticReal,&
+      & dRhoStaticPauli, dRhoFermiChangeStaticPauli
+  use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
+  use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
+  use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_populations, only : mulliken, densemulliken, getchargepershell
+  use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_shift, only : add_shift, total_shift
+  use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
+  use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
+  use dftbp_io_message, only : error, warning
+  use dftbp_mixer_mixer, only : TMixer, mix, reset
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
 #:if WITH_MPI
-  use dftbp_mpifx, only : mpifx_allreduceip, MPI_SUM
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_scalapackfx, only : DLEN_, scalafx_getdescriptor
+  use dftbp_extlibs_scalapackfx, only : DLEN_, scalafx_getdescriptor
 #:else
-  use dftbp_sparse2dense, only : unpackHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif
-
   implicit none
 
   private
@@ -989,4 +988,4 @@ contains
 
   end subroutine response
 
-end module dftbp_staticperturb
+end module dftbp_derivs_staticperturb

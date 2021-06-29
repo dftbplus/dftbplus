@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a list of physical constants for the code
-module dftbp_constants
-  use dftbp_accuracy, only : dp, rsp, lc, mc, elecTolMax, tolSameDist
+module dftbp_common_constants
+  use dftbp_common_accuracy, only : dp, rsp, lc, mc, elecTolMax, tolSameDist
   implicit none
-  
+
   private 
   public :: pi, Bohr__AA, AA__Bohr, Hartree__eV, eV__Hartree, Boltzmann, au__kg, kg__au, e__amu
   public :: amu__au, au__fs, fs__au, alpha_fs, c, au__Coulomb, Coulomb__au, Hartree__J, J__Hartree
@@ -18,7 +18,7 @@ module dftbp_constants
   public :: avogadConst, Hartree__kJ_mol, Bohr__nm, au__ps, goldenMeanP1, maxL, nShellName
   public :: shellNames, spinName, quaternionName, imag, elementSymbol
   public :: symbolToNumber
-  
+
   !! Natural constants
 
   !> pi
@@ -225,4 +225,4 @@ contains
   end function symbolToNumber
 
 
-end module dftbp_constants
+end module dftbp_common_constants

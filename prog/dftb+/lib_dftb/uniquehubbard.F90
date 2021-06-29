@@ -8,10 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains unique Hubbard U values for a given system
-module dftbp_uniquehubbard
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, minHubDiff
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_uniquehubbard
+  use dftbp_common_accuracy, only : dp, minHubDiff
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -161,4 +160,4 @@ contains
   end subroutine getOrbitalEquiv
 
 
-end module dftbp_uniquehubbard
+end module dftbp_dftb_uniquehubbard

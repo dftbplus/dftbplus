@@ -7,10 +7,10 @@
 
 !> Contains mathematical functions to calculate the short-ranged part of gamma, and the distance
 !> beyond which it becomes negligible.
-module dftbp_shortgammafuncs
-  use dftbp_accuracy, only : dp, lc, minHubTol, minHubDiff, tolSameDist, minShortGamma,&
+module dftbp_dftb_shortgammafuncs
+  use dftbp_common_accuracy, only : dp, lc, minHubTol, minHubDiff, tolSameDist, minShortGamma,&
       & tolShortGamma
-  use dftbp_message, only : error
+  use dftbp_io_message, only : error
   implicit none
 
   private
@@ -340,4 +340,4 @@ contains
   end function gammaSubExprnPrime_
 
 
-end module dftbp_shortgammafuncs
+end module dftbp_dftb_shortgammafuncs

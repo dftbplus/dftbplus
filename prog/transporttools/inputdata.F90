@@ -8,22 +8,21 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for setupgeom
-module dftbp_inputsetup
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_typegeometry
-  use dftbp_message
-  use dftbp_slakocont
-  use dftbp_commontypes
-  use dftbp_repcont
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
-  use dftbp_negfvars
+module transporttools_inputdata
+  use dftbp_common_accuracy
+  use dftbp_dftb_repcont
+  use dftbp_dftb_slakocont
+  use dftbp_io_message
+  use dftbp_transport_negfvars
+  use dftbp_type_commontypes
+  use dftbp_type_linkedlist
+  use dftbp_type_typegeometry
+  use dftbp_type_wrappedintr
 
   implicit none
   private
 
-  public :: TGeometry, TSlater, TInputData
+  public :: TSlater, TInputData
   public :: init, destruct
 
   !> Slater-Koster data
@@ -77,4 +76,4 @@ contains
 
   end subroutine InputData_destruct
 
-end module dftbp_inputsetup
+end module transporttools_inputdata

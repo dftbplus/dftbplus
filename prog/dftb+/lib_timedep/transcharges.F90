@@ -8,9 +8,8 @@
 #:include 'common.fypp'
 
 !> Helper routines for transition charges between levels.
-module dftbp_transcharges
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
+module dftbp_timedep_transcharges
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -567,4 +566,4 @@ contains
   end function transq
 
 
-end module dftbp_transcharges
+end module dftbp_timedep_transcharges

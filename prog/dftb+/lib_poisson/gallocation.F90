@@ -30,11 +30,11 @@
   & ('z3', 'complex(dp)', ':,:,:', 'row,col,dep'),&
   & ('d4', 'real(dp)', ':,:,:,:', 'row,col,dep,qep')]
 
-module gallocation
+module dftbp_poisson_gallocation
   use, intrinsic :: iso_fortran_env, only : int64
   use, intrinsic :: iso_c_binding, only : c_sizeof
-  use dftbp_globalenv, only : stdOut
-  use dftbp_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
   implicit none
   
   public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
@@ -201,4 +201,4 @@ contains
 
   end subroutine memstr
 
-end module gallocation
+end module dftbp_poisson_gallocation

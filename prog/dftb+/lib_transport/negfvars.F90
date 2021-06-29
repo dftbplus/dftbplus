@@ -5,9 +5,9 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_negfvars
-  use dftbp_accuracy, only : dp, mc, lc
-  use dftbp_wrappedintr, only : TWrappedInt1
+module dftbp_transport_negfvars
+  use dftbp_common_accuracy, only : dp, mc, lc
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
   
   private
@@ -463,4 +463,4 @@ contains
   end subroutine copyTranspar
 
 
-end module dftbp_negfvars
+end module dftbp_transport_negfvars

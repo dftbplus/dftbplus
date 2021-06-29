@@ -13,22 +13,22 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksen
+module dftbp_reks_reksen
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS 
+  use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
+  use dftbp_reks_reksio, only : printReksSSRInfo
+  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
+  use dftbp_type_densedescr, only : TDenseDescr
 
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemm
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_eigensolver, only : heev
-  use dftbp_elecsolvers, only: TElectronicSolver
-  use dftbp_energytypes, only : TEnergies
-  use dftbp_environment, only : globalTimers, TEnvironment
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message, only : error
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS 
-  use dftbp_rekscommon, only : getTwoIndices, matAO2MO
-  use dftbp_reksio, only : printReksSSRInfo
-  use dftbp_reksvar, only : TReksCalc, reksTypes
   implicit none
 
   private
@@ -1171,4 +1171,4 @@ module dftbp_reksen
   end function getFactor
 
 
-end module dftbp_reksen
+end module dftbp_reks_reksen

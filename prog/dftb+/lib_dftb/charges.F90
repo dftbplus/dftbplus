@@ -8,11 +8,10 @@
 #:include 'common.fypp'
 
 !> Module to calculate atomic charges
-module dftbp_charges
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_uniquehubbard, only : TUniqueHubbard
+module dftbp_dftb_charges
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_uniquehubbard, only : TUniqueHubbard
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -159,4 +158,4 @@ contains
 
   end subroutine getSummedChargesPerUniqueU
 
-end module dftbp_charges
+end module dftbp_dftb_charges

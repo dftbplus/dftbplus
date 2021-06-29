@@ -12,55 +12,50 @@
 #:include 'common.fypp'
 
 !> Various I/O routines for the main program.
-module dftbp_mainio
-#:if WITH_MPI
-  use dftbp_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
-#:endif
-#:if WITH_SCALAPACK
-  use dftbp_scalapackfx, only : linecomm, pblasfx_phemm, pblasfx_psymm
-#:endif
-  use dftbp_globalenv, only : stdOut, destructGlobalEnv, abortProgram
-  use dftbp_environment, only : TEnvironment
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, mc, sc, lc
-  use dftbp_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
+module dftbp_dftbplus_mainio
+  use dftbp_common_accuracy, only : dp, mc, sc, lc
+  use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName
-  use dftbp_orbitals, only : orbitalNames, getShellNames
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_commontypes, only : TOrbitals, TParallelKS
-  use dftbp_sparse2dense, only : unpackHS, unpackSPauli 
-#:if WITH_SCALAPACK
-  use dftbp_sparse2dense, only :unpackSPauliBlacs, unpackHSCplxBlacs, unpackHSRealBlacs
-#:endif
-  use dftbp_blasroutines, only : hemv
-  use dftbp_charmanip, only : i2c
-  use dftbp_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_spin, only : qm2ud
-  use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_energytypes, only : TEnergies
-  
-  use dftbp_fileid, only : getFileId 
-  
-  use dftbp_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_dftb_determinants, only : TDftbDeterminants
+  use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_dftb_elstatpot, only : TElStatPotentials
+  use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_extfields, only : TEField
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sccinit, only : writeQToFile
+  use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli 
+  use dftbp_dftb_spin, only : qm2ud
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
+  use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
-  use dftbp_hsdutils, only : writeChildValue
-  use dftbp_mdintegrator, only : TMdIntegrator, state
-  use dftbp_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
-  use dftbp_sccinit, only : writeQToFile
-  use dftbp_elstatpot, only : TElStatPotentials
-  use dftbp_message, only : error, warning
-  use dftbp_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
-  use dftbp_cm5, only : TChargeModel5
-  use dftbp_cosmo, only : TCosmo
-  use dftbp_dispersions, only : TDispersionIface
-  use dftbp_solvation, only : TSolvation
-  use dftbp_extfields, only : TEField
-#:if WITH_SOCKETS
-  use dftbp_ipisocket, only : IpiSocketComm
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_fileid, only : getFileId 
+  use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
+  use dftbp_io_hsdutils, only : writeChildValue
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_blasroutines, only : hemv
+  use dftbp_md_mdintegrator, only : TMdIntegrator, state
+  use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
+  use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_solvation_cosmo, only : TCosmo
+  use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_type_orbitals, only : orbitalNames, getShellNames
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
 #:endif
-  use dftbp_determinants, only : TDftbDeterminants
+#:if WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only :unpackSPauliBlacs, unpackHSCplxBlacs, unpackHSRealBlacs
+  use dftbp_extlibs_scalapackfx, only : linecomm, pblasfx_phemm, pblasfx_psymm
+#:endif
+#:if WITH_SOCKETS
+  use dftbp_io_ipisocket, only : IpiSocketComm
+#:endif
   implicit none
   
   private
@@ -5543,4 +5538,4 @@ contains
     end select
 
   end subroutine writeCosmoFile
-end module dftbp_mainio
+end module dftbp_dftbplus_mainio

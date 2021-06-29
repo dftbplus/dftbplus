@@ -10,25 +10,25 @@
 !> This module heavily relies on the linresp module by Dominguez et al.
 !> and the rangesep module by Lusker et al.
 !> Periodic systems and 3rd order calculations are not supported so far.
-module dftbp_rslinresp
-  use dftbp_assert
-  use dftbp_slakoCont, only : TSlakoCont, getMIntegrals, getSKIntegrals
-  use dftbp_shortgammafuncs, only : expGammaPrime
-  use dftbp_accuracy, only : dp, rsp, lc
-  use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc, only : TScc
-  use dftbp_blasroutines, only : herk, gemm, symm 
-  use dftbp_message, only : error 
-  use dftbp_taggedOutput, only : TTaggedWriter, tagLabels
-  use dftbp_linresp, only : TLinResp
-  use dftbp_linrespcommon, only : TOrbitals, twothird, elecTolMax, excitedDipoleOut, excitedQOut,&
-      & rIndXvv, hemv, indxov, wtdn, indXvv, indXoo, getSPExcitations, calcTransitionDipoles,&
-      & dipselect, rIndXov_array, getExcSpin, writeExcMulliken, writeSPExcitations
-  use dftbp_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
-  use dftbp_sorting, only : index_heap_sort, merge_sort
-  use dftbp_transcharges, only : TTransCharges, transQ, TTransCharges_init
-  use dftbp_sk, only: rotateH0
+module dftbp_timedep_rslinresp
+  use dftbp_common_accuracy, only : dp, rsp, lc
+  use dftbp_common_constants, only : Hartree__eV, au__Debye
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_shortgammafuncs, only : expGammaPrime
+  use dftbp_dftb_sk, only: rotateH0
+  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_io_message, only : error 
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_blasroutines, only : herk, gemm, symm 
+  use dftbp_math_sorting, only : index_heap_sort, merge_sort
+  use dftbp_timedep_linresp, only : TLinResp
+  use dftbp_timedep_linrespcommon, only : TOrbitals, twothird, elecTolMax, excitedDipoleOut,&
+      & excitedQOut, rIndXvv, hemv, indxov, wtdn, indXvv, indXoo, getSPExcitations,&
+      & calcTransitionDipoles,dipselect, rIndXov_array, getExcSpin, writeExcMulliken,& 
+      & writeSPExcitations
+  use dftbp_timedep_transcharges, only : TTransCharges, transQ, TTransCharges_init
   !!^-- Check: once done, see which modules are actually required
   implicit none
 
@@ -948,7 +948,7 @@ contains
     elseif (nStat /= 0 .and. cSym == "B") then
       call error("Linresp: Both symmetries not allowed if specific state is excited")
     elseif (nStat == 0 .and. tZVector) then
-      call error("Linresp: Gradient, charges, coefficients and charges only with selected&
+      call error("Linresp: gradient, charges, coefficients and charges only with selected&
           & excitation.")
     elseif (tGrads .and. nExc > nXov) then
       call error("Linresp: With gradients nExc can be max. the number of occ-virt excitations")
@@ -3275,5 +3275,5 @@ contains
     print *,'Max. deviation vir-vir trans charges: ', maxdev
 
   end subroutine chargeTestRS
-
-end module dftbp_rslinresp
+  
+end module dftbp_timedep_rslinresp

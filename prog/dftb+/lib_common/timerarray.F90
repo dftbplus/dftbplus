@@ -7,11 +7,10 @@
 
 #:include 'common.fypp'
 
-module dftbp_timerarray
-  use dftbp_assert
-  use dftbp_globalenv, only : stdOut
-  use dftbp_accuracy, only : dp
-  use dftbp_timer, only : TTimer
+module dftbp_common_timerarray
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_timer, only : TTimer
   implicit none
   
   private
@@ -208,4 +207,4 @@ contains
   end subroutine writeTimings
 
 
-end module dftbp_timerarray
+end module dftbp_common_timerarray

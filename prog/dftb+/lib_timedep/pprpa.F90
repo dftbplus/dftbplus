@@ -10,20 +10,19 @@
 
 !> excitations energies according to the particle-particle Random Phase Approximation
 !> (doi:10.1063/1.4977928)
-module dftbp_pprpa
-  use dftbp_assert
-  use dftbp_linrespcommon, only : indxoo, indxvv
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : Hartree__eV
-  use dftbp_scc, only : TScc
-  use dftbp_blasroutines, only : symm
-  use dftbp_eigensolver, only : geev
-  use dftbp_message, only : error
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_sorting, only : index_heap_sort
-  use dftbp_transcharges, only : TTransCharges, transq
-  use dftbp_densedescr, only : TDenseDescr
+module dftbp_timedep_pprpa
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : Hartree__eV
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_io_message, only : error
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_blasroutines, only : symm
+  use dftbp_math_eigensolver, only : geev
+  use dftbp_math_sorting, only: index_heap_sort
+  use dftbp_timedep_linrespcommon, only : indxoo, indxvv
+  use dftbp_timedep_transcharges, only : transq
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
   implicit none
   
   private
@@ -751,4 +750,4 @@ contains
   end subroutine writeppRPAExcitations
 
 
-end module dftbp_pprpa
+end module dftbp_timedep_pprpa

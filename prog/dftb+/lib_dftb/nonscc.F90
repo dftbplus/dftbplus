@@ -9,15 +9,14 @@
 
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
 !> derivatives.
-module dftbp_nonscc
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_sk, only : rotateH0
-  use dftbp_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_message, only : error
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_environment, only : TEnvironment
+module dftbp_dftb_nonscc
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_sk, only : rotateH0
+  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -542,4 +541,4 @@ contains
 
   end subroutine getSecondDerivFiniteDiff
 
-end module dftbp_nonscc
+end module dftbp_dftb_nonscc

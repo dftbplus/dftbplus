@@ -18,9 +18,8 @@
 
 
 !> Contains routines to write out various data structures in a comprehensive tagged format.
-module dftbp_taggedoutput
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
+module dftbp_io_taggedoutput
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -345,4 +344,4 @@ contains
   end function getLabel
 
 
-end module dftbp_taggedoutput
+end module dftbp_io_taggedoutput

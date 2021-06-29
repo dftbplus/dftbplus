@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> Helper routines to handle input to solvation models
-module dftbp_solvinput
-  use dftbp_accuracy, only : dp
-  use dftbp_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, &
+module dftbp_solvation_solvinput
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_solvation_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, &
     writeGeneralizedBornInfo
-  use dftbp_cosmo, only : TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
-  use dftbp_message, only : error
-  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
-  use dftbp_solvation, only : TSolvation
+  use dftbp_solvation_cosmo, only : TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
+  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
+  use dftbp_solvation_solvation, only : TSolvation
   implicit none
   
   private
@@ -180,4 +180,4 @@ contains
   end subroutine createSASAModel
 
 
-end module dftbp_solvinput
+end module dftbp_solvation_solvinput

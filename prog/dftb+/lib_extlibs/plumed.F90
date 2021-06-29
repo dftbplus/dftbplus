@@ -12,10 +12,10 @@
 
 
 !> Exporting the functionality from the plumed library
-module dftbp_plumed
+module dftbp_extlibs_plumed
   use, intrinsic :: iso_c_binding, only : c_int, c_char, c_ptr, c_loc
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
   implicit none
   private
 
@@ -220,4 +220,4 @@ contains
   #:endif
 
 
-end module dftbp_plumed
+end module dftbp_extlibs_plumed

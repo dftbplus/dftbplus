@@ -9,11 +9,10 @@
 
 !> Module containing various routines for spin polarised calculations. Intended to be used with SCC
 !> switched on!
-module dftbp_spin
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_message, only : error
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_spin
+  use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -320,4 +319,4 @@ contains
 
   end subroutine ud2qm4
 
-end module dftbp_spin
+end module dftbp_dftb_spin

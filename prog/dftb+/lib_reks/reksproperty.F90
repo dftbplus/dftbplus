@@ -13,17 +13,17 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reksproperty
+module dftbp_reks_reksproperty
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_densitymatrix, only : makeDensityMatrix
+  use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_io_message, only : error
+  use dftbp_math_blasroutines, only : gemm
+  use dftbp_reks_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
+  use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
+  use dftbp_reks_reksvar, only : reksTypes
 
-  use dftbp_accuracy, only : dp
-  use dftbp_blasroutines, only : gemm
-  use dftbp_densitymatrix, only : makeDensityMatrix
-  use dftbp_globalenv, only : stdOut
-  use dftbp_message, only : error
-  use dftbp_sparse2dense, only : symmetrizeHS
-  use dftbp_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
-  use dftbp_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
-  use dftbp_reksvar, only : reksTypes
   implicit none
 
   private
@@ -842,4 +842,4 @@ module dftbp_reksproperty
   end subroutine getResponseDML22_
 
 
-end module dftbp_reksproperty
+end module dftbp_reks_reksproperty

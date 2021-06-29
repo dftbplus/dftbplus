@@ -12,7 +12,7 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
-module gradient
+module dftbp_poisson_gradient
 
 
 real(8), allocatable, save :: gr(:,:)     !3,NNDIM
@@ -22,4 +22,4 @@ real(8), allocatable, save :: convec(:,:) !3,NNDIM
 logical, save :: constr
 
 
-end module gradient
+end module dftbp_poisson_gradient

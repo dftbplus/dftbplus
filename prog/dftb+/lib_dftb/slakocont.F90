@@ -12,10 +12,9 @@
 !> This module contains the Slater-Koster tables. It decides, which one to call for which
 !> species. It can be easily extended to contain different Slater-Koster schemes for different
 !> species. At the moment, it handles only Slater-Koster data tabulated on an equidistant grid.
-module dftbp_slakocont
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
+module dftbp_dftb_slakocont
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
   implicit none
   
   private
@@ -176,4 +175,4 @@ contains
 
   end subroutine SlakoCont_getSKIntegrals
 
-end module dftbp_slakocont
+end module dftbp_dftb_slakocont

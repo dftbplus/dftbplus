@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Implements interface for the repulsive (force-field like) potential
-module dftbp_repulsive
-  use dftbp_accuracy, only : dp
-  use dftbp_periodic, only : TNeighbourList
+module dftbp_dftb_repulsive
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_periodic, only : TNeighbourList
   implicit none
 
   private
@@ -168,4 +168,4 @@ module dftbp_repulsive
   end interface
 
 
-end module dftbp_repulsive
+end module dftbp_dftb_repulsive

@@ -21,19 +21,18 @@
 !>
 !> Todo: The generation of the reciprocal lattice vectors should not be done localy, but somewhere
 !> outside, since the Coulomb module does the same.
-module dftbp_dispslaterkirkw
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, tolDispDamp, tolDispersion
-  use dftbp_constants, only : pi
-  use dftbp_dispiface, only : TDispersionIface
-  use dftbp_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
+module dftbp_dftb_dispslaterkirkw
+  use dftbp_common_accuracy, only : dp, tolDispDamp, tolDispersion
+  use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
       &addDispEGr_per_atom
-  use dftbp_environment, only : TEnvironment
-  use dftbp_lapackroutines, only : matinv
-  use dftbp_message, only : error
-  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_simplealgebra, only : determinant33
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_io_message, only : error
+  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_math_simplealgebra, only : determinant33
   implicit none
   
   private
@@ -548,4 +547,4 @@ contains
   end function getDampCutoff_
 
 
-end module dftbp_dispslaterkirkw
+end module dftbp_dftb_dispslaterkirkw

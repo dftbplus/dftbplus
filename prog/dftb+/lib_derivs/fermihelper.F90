@@ -9,8 +9,8 @@
 
 !> Module containing finite temperature function distributions and derivatives for the Fermi-Dirac
 !> distribution
-module dftbp_fermihelper
-  use dftbp_accuracy, only : dp
+module dftbp_derivs_fermihelper
+  use dftbp_common_accuracy, only : dp
   implicit none
 
   private
@@ -162,4 +162,4 @@ contains
 
   end subroutine dEida
 
-end module dftbp_fermihelper
+end module dftbp_derivs_fermihelper

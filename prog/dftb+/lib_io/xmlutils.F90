@@ -8,13 +8,12 @@
 #:include 'common.fypp'
 
 !> Utilities for processing an XML tree
-module dftbp_xmlutils
-  use dftbp_assert
-  use dftbp_charmanip, only : len_trim2
-  use dftbp_xmlf90, only : fnode, string, fnodeList, TEXT_NODE, item, getParentNode, getLength,&
-      & getFirstChild, removeChild, getNextSibling, getAttributeNode, getNodeType, char,&
-      & getLastChild, getPreviousSibling, operator(==), destroyNode, append, getNodeValue,&
+module dftbp_io_xmlutils
+  use dftbp_extlibs_xmlf90, only : fnode, string, fnodeList, TEXT_NODE, item, getParentNode,&
+      & getLength, getFirstChild, removeChild, getNextSibling, getAttributeNode, getNodeType,&
+      & char, getLastChild, getPreviousSibling, operator(==), destroyNode, append, getNodeValue,&
       & getNodeName
+  use dftbp_io_charmanip, only : len_trim2
   implicit none
 
   private
@@ -263,4 +262,4 @@ contains
 
   end subroutine removeNodes
 
-end module dftbp_xmlutils
+end module dftbp_io_xmlutils

@@ -7,12 +7,11 @@
 
 #:include 'common.fypp'
 
-module dftbp_onsitecorrection
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_message, only : error
-  use dftbp_nonscc, only : TNonSccDiff
+module dftbp_dftb_onsitecorrection
+  use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -430,4 +429,4 @@ contains
 
   end subroutine onsblock_expand
 
-end module dftbp_onsitecorrection
+end module dftbp_dftb_onsitecorrection

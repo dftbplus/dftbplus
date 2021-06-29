@@ -8,13 +8,12 @@
 #:include 'common.fypp'
 
 !> Routines implementing the full 3rd order DFTB.
-module dftbp_thirdorder
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, minHubDiff, tolSameDist
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_shortgammafuncs, only : expGammaCutoff
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighbours
-  use dftbp_charges, only : getSummedCharges
+module dftbp_dftb_thirdorder
+  use dftbp_common_accuracy, only : dp, minHubDiff, tolSameDist
+  use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
+  use dftbp_dftb_shortgammafuncs, only : expGammaCutoff
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -1079,4 +1078,4 @@ contains
 
   end function hpUpR
 
-end module dftbp_thirdorder
+end module dftbp_dftb_thirdorder

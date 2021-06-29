@@ -6,13 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains some widely used types (at the moment only TOrbitals)
-module dftbp_commontypes
-  use dftbp_orbitals, only : TOrbitals
-  use dftbp_parallelks, only : TParallelKS, TParallelKS_init
+module dftbp_type_commontypes
+  use dftbp_type_orbitals, only : TOrbitals
+  use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   implicit none
   
   private
   public :: TOrbitals
   public :: TParallelKS, TParallelKS_init
 
-end module dftbp_commontypes
+end module dftbp_type_commontypes

@@ -8,12 +8,12 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program integvalue
-  use dftbp_accuracy
-  use dftbp_globalenv, only : stdOut
-  use dftbp_oldskdata
-  use dftbp_slakoeqgrid
-  use dftbp_fileid
-  use dftbp_message
+  use dftbp_common_accuracy
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_dftb_slakoeqgrid
+  use dftbp_io_fileid
+  use dftbp_io_message
+  use dftbp_type_oldskdata
   implicit none
 
   integer, parameter :: nSKInter = 20

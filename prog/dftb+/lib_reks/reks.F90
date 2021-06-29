@@ -13,16 +13,16 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-module dftbp_reks
-
-  use dftbp_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
-  use dftbp_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
+module dftbp_reks_reks
+  use dftbp_reks_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
+  use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
       & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
-  use dftbp_reksfon, only : optimizeFons
-  use dftbp_reksinterface, only : getReksEnProperties, getReksGradProperties, getReksGradients,&
-      & getReksStress, getStateInteraction
-  use dftbp_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
-  use dftbp_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
+  use dftbp_reks_reksfon, only : optimizeFons
+  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradProperties,&
+      & getReksGradients, getReksStress, getStateInteraction
+  use dftbp_reks_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
+  use dftbp_reks_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
+
   implicit none
 
   private
@@ -37,29 +37,29 @@ module dftbp_reks
   !>            1 = 1u + 1d (= 1u + 1u), 2 = 2u + 2d (= 2u + 2u), 3 = 3u + 3d (= 3u + 4u),
   !>            4 = 3u - 3d (= 3u - 4u), 5 = 5u + 5d (= 5u + 6u), 6 = 5u - 5d (= 5u - 6u).
 
-  !> dftbp_rekscommon modules used in main.F90
+  !> dftbp_reks_rekscommon modules used in main.F90
   public :: checkGammaPoint
   public :: qm2udL, ud2qmL
   public :: qmExpandL!, udExpandL
 
-  !> dftbp_reksen modules used in main.F90, mainio.F90
+  !> dftbp_reks_reksen modules used in main.F90, mainio.F90
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
   public :: setReksTargetEnergy
 
-  !> dftbp_reksfon module used in main.F90
+  !> dftbp_reks_reksfon module used in main.F90
   public :: optimizeFons
 
-  !> dftbp_reksinterface modules used in main.F90
+  !> dftbp_reks_reksinterface modules used in main.F90
   public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
 
-  !> dftbp_reksio modules used in main.F90
+  !> dftbp_reks_reksio modules used in main.F90
   public :: printReksMicrostates, printSaReksEnergy, printReksSAInfo
 
-  !> dftbp_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90, parser.F90
+  !> dftbp_reks_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90, parser.F90
   public :: TReksInp, TReksCalc, REKS_init, reksTypes
 
-end module dftbp_reks
+end module dftbp_reks_reks

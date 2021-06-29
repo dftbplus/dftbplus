@@ -8,29 +8,28 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
-module dftbp_linrespgrad
-  use dftbp_assert
-  use dftbp_arpack, only : withArpack, saupd, seupd
-  use dftbp_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird, oscillatorStrength,&
-  & indxoo, indxov, indxvv, rindxvv, rindxov_array, apbw, wtdn, omegatvec, getSPExcitations,&
-  & calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations, getExcSpin,&
-  & writeExcMulliken
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_slakocont, only : TSlakoCont 
-  use dftbp_shortgammafuncs, only : expGammaPrime
-  use dftbp_accuracy, only : dp, elecTolMax, lc, rsp
-  use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : TNonSccDiff
-  use dftbp_scc, only : TScc
-  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_transcharges, only : TTransCharges, transq, TTransCharges_init
-  use dftbp_linresptypes, only : TLinResp 
-  use dftbp_degeneracyfind, only : TDegeneracyFind
-  use dftbp_sorting, only : index_heap_sort, merge_sort
-  use dftbp_qm, only : makeSimilarityTrans
-  use dftbp_blasroutines, only : gemm, hemv, symm
-  use dftbp_eigensolver, only : heev
-  use dftbp_message, only : error
+module dftbp_timedep_linrespgrad
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
+  use dftbp_common_constants, only : Hartree__eV, au__Debye
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_scc, only : TScc
+  use dftbp_dftb_shortgammafuncs, only : expGammaPrime
+  use dftbp_dftb_slakocont, only : TSlakoCont 
+  use dftbp_extlibs_arpack, only : withArpack, saupd, seupd
+  use dftbp_io_message, only : error
+  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_math_blasroutines, only : gemm, hemv, symm
+  use dftbp_math_degeneracy, only : TDegeneracyFind
+  use dftbp_math_eigensolver, only : heev
+  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_math_sorting, only : index_heap_sort, merge_sort
+  use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
+      & oscillatorStrength, indxoo, indxov, indxvv, rindxvv, rindxov_array, apbw, wtdn, omegatvec,&
+      & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
+      & getExcSpin, writeExcMulliken
+  use dftbp_timedep_linresptypes, only : TLinResp 
+  use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -2480,4 +2479,4 @@ contains
     enddo
 
   end subroutine chargeTest
-end module dftbp_linrespgrad
+end module dftbp_timedep_linrespgrad

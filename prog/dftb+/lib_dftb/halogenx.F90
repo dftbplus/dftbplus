@@ -9,13 +9,12 @@
 
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
 !> from doi: 10.1021/ct5009137
-module dftbp_halogenx
-  use dftbp_assert
-  use dftbp_accuracy, only : dp, mc
-  use dftbp_vdwdata, only : getVdwData
-  use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_message, only : error
+module dftbp_dftb_halogenx
+  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_vdwdata, only : getVdwData
+  use dftbp_io_message, only : error
   implicit none
   
   private
@@ -444,4 +443,4 @@ contains
 
   end function halogendSigma
 
-end module dftbp_halogenx
+end module dftbp_dftb_halogenx

@@ -8,9 +8,8 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for real arrays
-module dftbp_linkedlistr2
-  use dftbp_accuracy, only : dp
-  use dftbp_assert
+module dftbp_type_linkedlistr2
+  use dftbp_common_accuracy, only : dp
   implicit none
   
   private
@@ -21,4 +20,4 @@ module dftbp_linkedlistr2
       & ITEM_RANK=2,&
       & PADDING='0.0_dp')
 
-end module dftbp_linkedlistr2
+end module dftbp_type_linkedlistr2

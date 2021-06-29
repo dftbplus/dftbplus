@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Interface definition for solvation models
-module dftbp_solvation
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList
+module dftbp_solvation_solvation
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
   
   private
@@ -208,4 +208,4 @@ module dftbp_solvation
 
   end interface
 
-end module dftbp_solvation
+end module dftbp_solvation_solvation

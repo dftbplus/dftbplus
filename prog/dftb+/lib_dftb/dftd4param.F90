@@ -8,14 +8,13 @@
 #:include 'common.fypp'
 
 !> Necessary parameters to perform DFT-D4 calculations
-module dftbp_dftd4param
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
-  use dftbp_encharges, only : TEeqInput
-  use dftbp_coordnumber, only : TCNCont, TCNInput, cnType
-  use dftbp_dftd4refs, only : secaiw, alphaiw, clsh, clsq, refn, refsys, refcn, sscale, refcovcn,&
-      & hcount, ascale
+module dftbp_dftb_dftd4param
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
+  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, cnType
+  use dftbp_dftb_encharges, only : TEeqInput
+  use dftbp_extlibs_dftd4refs, only : secaiw, alphaiw, clsh, clsq, refn, refsys, refcn, sscale,&
+      & refcovcn, hcount, ascale
   implicit none
 
   public :: TDftD4Calc, TDispDftD4Inp, TDftD4Calculator_init
@@ -805,4 +804,4 @@ contains
   end function getSqrtZr4r2Number
 
 
-end module dftbp_dftd4param
+end module dftbp_dftb_dftd4param

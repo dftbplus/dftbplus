@@ -9,8 +9,8 @@
 !> during run time.
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
-module dftbp_message
-  use dftbp_globalenv, only : stdOut, synchronizeAll, abortProgram
+module dftbp_io_message
+  use dftbp_common_globalenv, only : stdOut, synchronizeAll, abortProgram
   implicit none
   
   private
@@ -135,4 +135,4 @@ contains
 
   end subroutine shutdown_array
 
-end module dftbp_message
+end module dftbp_io_message

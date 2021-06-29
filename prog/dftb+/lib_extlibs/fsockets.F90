@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Socket interface library
-module dftbp_fsockets
+module dftbp_extlibs_fsockets
   use fsockets
   implicit none
 
@@ -22,4 +22,4 @@ module dftbp_fsockets
 
 #:endif
 
-end module dftbp_fsockets
+end module dftbp_extlibs_fsockets

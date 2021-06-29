@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains geometrical boundary condition information on the calculation
-module dftbp_boundarycond
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_boundarycond
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -44,4 +44,4 @@ module dftbp_boundarycond
   type(TBoundaryConditionEnum_), parameter :: boundaryConditions = TBoundaryConditionEnum_()
 
 
-end module dftbp_boundarycond
+end module dftbp_dftb_boundarycond

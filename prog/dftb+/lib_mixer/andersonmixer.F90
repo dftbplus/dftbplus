@@ -15,10 +15,9 @@
 !>   mixing parameter. Only a specified amount of previous charges are
 !>   considered.
 !> In order to use the mixer you have to create and reset it.
-module dftbp_andersonmixer
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_lapackroutines, only : gesv
+module dftbp_mixer_andersonmixer
+  use dftbp_common_accuracy, only : dp
+  use dftbp_math_lapackroutines, only : gesv
   implicit none
 
   private
@@ -372,4 +371,4 @@ contains
 
   end subroutine storeVectors
 
-end module dftbp_andersonmixer
+end module dftbp_mixer_andersonmixer

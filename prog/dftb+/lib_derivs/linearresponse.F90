@@ -8,24 +8,24 @@
 #:include 'common.fypp'
 
 !> Module for linear response calculations
-module dftbp_linearresponse
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_rangeseparated, only : TRangeSepFunc
-  use dftbp_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList
-  use dftbp_densedescr, only : TDenseDescr
-  use dftbp_rotatedegen, only : TRotateDegen, TRotateDegen_init
-  use dftbp_parallelks, only : TParallelKS
+module dftbp_derivs_linearresponse
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
+  use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_parallelks, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
-  use dftbp_sparse2dense, only : unpackHPauliBlacs, packRhoPauliBlacs
-  use dftbp_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm, pblasfx_ptranc
-  use dftbp_scalapackfx, only : pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g
+  use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs, unpackHPauliBlacs,&
+      & packRhoPauliBlacs
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
+      & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g
 #:else
-  use dftbp_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
-  use dftbp_blasroutines, only : hemm, symm
+  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag
+  use dftbp_math_blasroutines, only : hemm, symm
 #:endif
 
   implicit none
@@ -929,4 +929,4 @@ contains
 
   end subroutine dRhoFermiChangeStaticPauli
 
-end module dftbp_linearresponse
+end module dftbp_derivs_linearresponse

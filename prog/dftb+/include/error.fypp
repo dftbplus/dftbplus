@@ -14,8 +14,8 @@
 #! an error and shut down otherwise
 #:def ERROR_HANDLING(errVar, errNumber, msg)
   block
-    use dftbp_accuracy, only : lc
-    use dftbp_message
+    use dftbp_common_accuracy, only : lc
+    use dftbp_io_message
     !> Error handling string
     character(lc) :: stringTmp
 
@@ -35,8 +35,8 @@
 #! an error and shut down otherwise
 #:def FORMATTED_ERROR_HANDLING(errVar, errNumber, formating, *variables)
   block
-    use dftbp_accuracy, only : lc
-    use dftbp_message
+    use dftbp_common_accuracy, only : lc
+    use dftbp_io_message
     !> Error handling string
     character(lc) :: stringTmp
 

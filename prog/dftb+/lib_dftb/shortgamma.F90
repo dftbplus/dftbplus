@@ -8,17 +8,17 @@
 #:include "common.fypp"
 
 !> Contains the calculator for the short-range part of the Gamma-electrostatics
-module dftbp_shortgamma
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
-  use dftbp_uniquehubbard, only : TUniqueHubbard
-  use dftbp_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
-  use dftbp_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
+module dftbp_dftb_shortgamma
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
+  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
+  use dftbp_dftb_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
       & expGammaDampedPrime
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighbours
-  use dftbp_environment, only : TEnvironment
+  use dftbp_dftb_uniquehubbard, only : TUniqueHubbard
+  use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
   implicit none
 
@@ -790,4 +790,4 @@ contains
     end subroutine buildShifts_
 
 
-end module dftbp_shortgamma
+end module dftbp_dftb_shortgamma

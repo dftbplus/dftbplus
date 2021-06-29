@@ -15,10 +15,9 @@
 !> elements", A. V. Podolskiy and P. Vogl, Phys. Rev.  B 69, 233101 (2004).
 !>
 !> Caveat: Only angular momenta up to f are currently allowed
-module dftbp_sk
-  use dftbp_assert
-  use dftbp_accuracy, only : dp
-  use dftbp_commontypes, only : TOrbitals
+module dftbp_dftb_sk
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -945,4 +944,4 @@ contains
 
   end subroutine ff
 
-end module dftbp_sk
+end module dftbp_dftb_sk

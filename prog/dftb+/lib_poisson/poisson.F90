@@ -15,36 +15,38 @@
 #:include "common.fypp"
 #:include "error.fypp"
 
-module poisson
-
-  use dftbp_constants, only : pi, hartree__eV, Bohr__AA
-  use gallocation, only : log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
-  use parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf, biasdir, bufferBox,&
-      & cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin, do_renorm, DoCilGate,&
-      & DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb, fictcont, fixed_renorm,&
-      & FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm, init_defaults, InitPot,&
-      & LmbMax, localBC, maxiter, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf, ni,&
-      & overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds, PoissPlane, R_cont,&
-      & racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList, SavePOT, scratchfolder,&
-      & set_accuracy, set_builtin, set_cluster, set_cont_indeces, set_contdir, set_dopoisson,&
-      & set_fermi, set_mol_indeces, set_ncont, set_poissonbox, set_poissongrid, set_potentials,&
-      & set_scratch, set_temperature, set_verbose, telec, temp, tip_atom, tipbias, verbose, x0, y0,&
-      & z0
-  use structure, only : dqmat, init_charges, init_skdata, init_structure, izp, lmax, natoms,&
-      & period, uhubb, renorm, x, initlatvecs, period_dir, boxsiz
-  use parcheck, only: check_biasdir, check_contacts, check_localbc, check_parameters,&
-      & check_poisson_box, write_parameters
-  use gewald, only : getalpha, rezvol, long_pot, short_pot
-  use bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot, destroy_phi_bulk
-  use fancybc, only : bndyc, coef, coef_cilgate, coef_gate, coef_tip, gate_bound,&
+module dftbp_poisson_poisson
+  use dftbp_common_accuracy, only : lc, dp
+  use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
+  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&     
+      & destroy_phi_bulk
+  use dftbp_poisson_fancybc, only : bndyc, coef, coef_cilgate, coef_gate, coef_tip, gate_bound,&
       & cilgate_bound, tip_bound, local_bound
-  use mpi_poisson, only : active_id, id0, numprocs, id
+  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate, writePoissMemInfo,&
+      & writePoissPeakInfo
+  use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
+  use dftbp_poisson_mpi_poisson, only : active_id, id0, numprocs, id
+  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,& 
+      & biasdir, bufferBox, cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin,&
+      & do_renorm, DoCilGate, DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb,&
+      & fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm,&
+      & init_defaults, InitPot, LmbMax, localBC, maxiter, maxpoissiter, mbound_end, mixed, mu,&
+      & ncdim, ncont, nf, ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds,&
+      & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
+      & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indeces,&
+      & set_contdir, set_dopoisson, set_fermi, set_mol_indeces, set_ncont, set_poissonbox,&
+      & set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose, telec, temp,&
+      & tip_atom, tipbias, verbose, x0, y0, z0
+  use dftbp_poisson_parcheck, only: check_biasdir, check_contacts, check_localbc, check_parameters,&
+      & check_poisson_box, write_parameters
+  use dftbp_poisson_structure, only : dqmat, init_charges, init_skdata, init_structure, izp, lmax,&
+      & natoms, period, uhubb, renorm, x, initlatvecs, period_dir, boxsiz
 #:if WITH_MPI
-  use mpi_poisson, only : global_comm, poiss_comm, poiss_mpi_init, poiss_mpi_split, mpifx_gatherv
+  use dftbp_poisson_mpi_poisson, only : global_comm, poiss_comm, poiss_mpi_init, poiss_mpi_split,&
+      & mpifx_gatherv
 #:endif
-  use dftbp_globalenv, only : stdOut
-  use dftbp_accuracy, only : lc, dp
-  use dftbp_environment, only : TEnvironment, globalTimers
   implicit none
   
   private
@@ -517,7 +519,7 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
  select case(SCC_in)
 
  !/////////////////////////////////////////////////////////////////
- case(GetPOT)     !Poisson called in order to calculate potential in SCC
+case(GetPOT)     !Poisson called in order to calculate potential in SCC
  !/////////////////////////////////////////////////////////////////
 
    !**********************************************************************************
@@ -838,20 +840,20 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
     deallocate(bulk,stat=err)
 
  !//////////////////////////////////////////////////////////////////////
- case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient
+case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient
  !//////////////////////////////////////////////////////////////////////
 
    if (id0) call gradient_V(phi_,iparm,fparm,dlx,dly,dlz,grad_V)
 
 
  !////////////////////////////////////////////////////////////////////////
- case(SavePOT)    ! Poisson called in order to save potential and charge density
+case(SavePOT)    ! Poisson called in order to save potential and charge density
  !////////////////////////////////////////////////////////////////////////
 
     if (id0) call save_pot(iparm,fparm,dlx,dly,dlz,phi_,rhs_)
 
  !///////////////////////////////////////////
- case(CLEAN)       ! Deallocate Poisson variables
+case(CLEAN)       ! Deallocate Poisson variables
  !///////////////////////////////////////////
 
    call finalize_mudpack()
@@ -1919,7 +1921,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
  end function booltoint
 
-end module poisson
+end module dftbp_poisson_poisson
 
 
 

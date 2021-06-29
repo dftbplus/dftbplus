@@ -8,41 +8,33 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module dftbp_parsersetup
-  use dftbp_globalenv
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants
-  use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_hsdutils
-  use dftbp_hsdutils2
-  use dftbp_charmanip
-  use dftbp_message
-  use dftbp_linkedlist
-  use dftbp_wrappedintr
-  use dftbp_unitconversion
-  use dftbp_periodic
-  use dftbp_simplealgebra, only: cross3, determinant33
-  use dftbp_dispersions
-  use dftbp_slakocont
-  use dftbp_slakoeqgrid
-  use dftbp_repcont
-  use dftbp_repspline
-  use dftbp_reppoly
-  use dftbp_commontypes
-  use dftbp_oldskdata
-  use dftbp_xmlf90
-  use dftbp_wrappedintr
-  use dftbp_negfvars
-  use dftbp_helpsetupgeom
-  use dftbp_inputsetup
-  use dftbp_inputconversion
-  use dftbp_oldcompat
+module transporttools_parser
+  use dftbp_common_accuracy, only : dp, mc, lc, distFudge, distFudgeOld
+  use dftbp_common_constants, only : Bohr__AA
+  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_unitconversion, only : lengthUnits
+  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
+  use dftbp_dftbplus_oldcompat, only : convertOldHsd
+  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, assignment(=), getLength,&
+      & getNodeName, getItem1, destroyNode, destroyNodeList
+  use dftbp_io_charmanip, only : newline, unquote, i2c, tolower
+  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
+  use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, getSelectedAtomIndices,&
+      & detailedError, detailedWarning
+  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_transport_negfvars, only : TTransPar, ContactInfo
+  use dftbp_type_linkedlist, only : TListReal, TListString, TListCharLc, init, destruct, len, get,&
+      & append, asArray
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile
+  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHsd
+  use dftbp_type_wrappedintr, only : TWrappedInt1
+  use transporttools_helpsetupgeom, only :setupGeometry
+  use transporttools_inputdata, only : TInputData
   implicit none
 
   private
-
   public :: parseHsdInput, parserVersion
 
 
@@ -579,4 +571,4 @@ contains
 
   end subroutine SKTruncations
 
-end module dftbp_parsersetup
+end module transporttools_parser
