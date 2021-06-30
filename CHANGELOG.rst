@@ -18,6 +18,8 @@ Addded
 Changed
 -------
 
+- Source tree reorganised to match the `Fortran package manager
+  <https://fpm.fortran-lang.org/>`_ preferred structure.
 
 Fixed
 -----
