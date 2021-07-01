@@ -1930,7 +1930,7 @@ contains
     !> allocated)
     real(dp), allocatable, intent(inout) :: ERhoPrim(:)
 
-    integer :: nSpin
+    integer :: nSpin, nDipole, nQuadrupole
 
     #:block DEBUG_CODE
       @:ASSERT(size(H0) == size(ints%overlap))
@@ -1944,6 +1944,16 @@ contains
         if (allocated(ERhoPrim)) then
           @:ASSERT(size(ERhoPrim) == size(rhoPrim, dim=1))
         end if
+      end if
+      @:ASSERT(allocated(ints%dipoleKet) .eqv. allocated(ints%dipoleBra))
+      if (allocated(ints%dipoleKet)) then
+        @:ASSERT(size(ints%overlap) == size(ints%dipoleKet, 2))
+        @:ASSERT(all(shape(ints%dipoleKet) == shape(ints%dipoleBra)))
+      end if
+      @:ASSERT(allocated(ints%quadrupoleKet) .eqv. allocated(ints%quadrupoleBra))
+      if (allocated(ints%quadrupoleKet)) then
+        @:ASSERT(size(ints%overlap) == size(ints%quadrupoleKet, 2))
+        @:ASSERT(all(shape(ints%quadrupoleKet) == shape(ints%quadrupoleBra)))
       end if
     #:endblock DEBUG_CODE
 
@@ -1985,6 +1995,18 @@ contains
     end if
     if (allocated(reks)) then
       call reks%reallocate(sparseSize)
+    end if
+    if (allocated(ints%dipoleKet)) then
+      nDipole = size(ints%dipoleKet, 1)
+      deallocate(ints%dipoleBra, ints%dipoleKet)
+      allocate(ints%dipoleKet(nDipole, sparseSize))
+      allocate(ints%dipoleBra(nDipole, sparseSize))
+    end if
+    if (allocated(ints%quadrupoleKet)) then
+      nQuadrupole = size(ints%quadrupoleKet, 1)
+      deallocate(ints%quadrupoleBra, ints%quadrupoleKet)
+      allocate(ints%quadrupoleKet(nQuadrupole, sparseSize))
+      allocate(ints%quadrupoleBra(nQuadrupole, sparseSize))
     end if
 
   end subroutine reallocateSparseArrays

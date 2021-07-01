@@ -20,6 +20,18 @@ module dftbp_type_integral
     !> Overlap integrals in atomic block sparse form
     real(dp), allocatable :: overlap(:)
 
+    !> Dipole integrals with operator on ket function
+    real(dp), allocatable :: dipoleKet(:, :)
+
+    !> Dipole integrals with operator on bra function
+    real(dp), allocatable :: dipoleBra(:, :)
+
+    !> Quadrupole integrals with operator on ket function
+    real(dp), allocatable :: quadrupoleKet(:, :)
+
+    !> Quadrupole integrals with operator on bra function
+    real(dp), allocatable :: quadrupoleBra(:, :)
+
     !> Real Hamiltonian integrals in atomic block sparse form
     real(dp), allocatable :: hamiltonian(:, :)
 
@@ -33,7 +45,7 @@ contains
 
 
   !> Initializier for integral container
-  subroutine TIntegral_init(this, nSpin, tReHam, tImHam)
+  subroutine TIntegral_init(this, nSpin, tReHam, tImHam, nDipole, nQuadrupole)
 
     !> Instance of the integral container
     type(TIntegral), intent(out) :: this
@@ -47,6 +59,12 @@ contains
     !> Allocate space for imaginary Hamiltonian
     logical, intent(in) :: tImHam
 
+    !> Number of dipole moment components included
+    integer, intent(in) :: nDipole
+
+    !> Number of quadrupole moment components included
+    integer, intent(in) :: nQuadrupole
+
     if (tReHam) then
       allocate(this%hamiltonian(0, nSpin))
     end if
@@ -54,6 +72,14 @@ contains
       allocate(this%iHamiltonian(0, nSpin))
     end if
     allocate(this%overlap(0))
+    if (nDipole > 0) then
+      allocate(this%dipoleKet(nDipole, 0))
+      allocate(this%dipoleBra(nDipole, 0))
+    end if
+    if (nQuadrupole > 0) then
+      allocate(this%quadrupoleKet(nQuadrupole, 0))
+      allocate(this%quadrupoleBra(nQuadrupole, 0))
+    end if
 
   end subroutine TIntegral_init
 

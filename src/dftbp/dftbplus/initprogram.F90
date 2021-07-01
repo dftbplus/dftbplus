@@ -1642,7 +1642,7 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam)
+    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, 0, 0)
     allocate(this%iSparseStart(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom
