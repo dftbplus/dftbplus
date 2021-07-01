@@ -180,6 +180,9 @@ module dftbp_extlibs_tblite
     !> Get orbital information
     procedure :: getOrbitalInfo
 
+    !> Get information about required multipolar contributions
+    procedure :: getMultipoleInfo
+
     !> Get reference occupation
     procedure :: getReferenceN0
 
@@ -244,11 +247,11 @@ contains
     if (info%charge > shell_resolved) then
       call error("Library interface does not support orbital-resolved charge communication")
     end if
-    if (info%dipole /= not_used) then
-      call error("Library interface does not support dipole moment communication")
+    if (info%dipole > atom_resolved) then
+      call error("Library interface does not support shell-resolved dipole moment communication")
     end if
-    if (info%quadrupole /= not_used) then
-      call error("Library interface does not support quadrupole moment communication")
+    if (info%quadrupole > atom_resolved) then
+      call error("Library interface does not support shell-resolved quadrupole moment communication")
     end if
 
     call new_wavefunction(this%wfn, this%mol%nat, this%calc%bas%nsh, this%calc%bas%nao, &
@@ -499,7 +502,8 @@ contains
   !>
   !> Also the orbital charges have the opposite sign of the ones requested from
   !> the library.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, dipAtom, quadAtom, &
+      & img2CentCell, orb)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -513,11 +517,17 @@ contains
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Orbital charges.
+    !> Orbital populations
     real(dp), intent(in) :: qq(:,:,:)
 
-    !> Reference orbital charges.
+    !> Reference orbital populations
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Cumulative atomic dipole populations
+    real(dp), intent(in), optional :: dipAtom(:,:)
+
+    !> Cumulative atomic dipole populations
+    real(dp), intent(in), optional :: quadAtom(:,:)
 
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -544,6 +554,14 @@ contains
       end do
     end do
 
+    if (present(dipAtom)) then
+      this%wfn%dpat(:, :) = -dipAtom
+    end if
+
+    if (present(quadAtom)) then
+      this%wfn%qpat(:, :) = -quadAtom
+    end if
+
     if (allocated(this%calc%coulomb)) then
       call this%calc%coulomb%get_potential(this%mol, this%cache, this%wfn, this%pot)
     end if
@@ -568,7 +586,7 @@ contains
   !> Potential shifts in tblite are calculated as derivatives w.r.t. the partial
   !> charges / multipole moments, while in DFTB+ they are calculated as derivative
   !> w.r.t. the population. This means we have to flip the sign here.
-  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell, dipShift, quadShift)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -578,6 +596,12 @@ contains
 
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
+
+    !> Dipolar shift per atom
+    real(dp), intent(out), optional :: dipShift(:,:)
+
+    !> Quadrupolar shift per atom
+    real(dp), intent(out), optional :: quadShift(:,:)
 
   #:if WITH_TBLITE
     integer :: iAt, iSh, ii
@@ -591,6 +615,14 @@ contains
         shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh)
       end do
     end do
+
+    if (present(dipShift)) then
+      dipShift(:,:) = -this%pot%vdp
+    end if
+
+    if (present(quadShift)) then
+      quadshift(:,:) = -this%pot%vqp
+    end if
   #:else
     call notImplementedError
   #:endif
@@ -668,6 +700,30 @@ contains
     call notImplementedError
   #:endif
   end subroutine getOrbitalInfo
+
+
+  !> Get information on required multipolar contributions
+  subroutine getMultipoleInfo(this, nDipole, nQuadrupole)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Number of dipole moment components
+    integer, intent(out) :: nDipole
+
+    !> Number of quadrupole moment components
+    integer, intent(out) :: nQuadrupole
+
+  #:if WITH_TBLITE
+    type(scf_info) :: info
+
+    info = this%calc%variable_info()
+    nDipole = merge(3, 0, info%dipole == atom_resolved)
+    nQuadrupole = merge(6, 0, info%quadrupole == atom_resolved)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine getMultipoleInfo
 
 
   !> Get reference occupation numbers.

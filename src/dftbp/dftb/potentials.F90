@@ -67,6 +67,12 @@ module dftbp_dftb_potentials
     !> populations)
     real(dp), allocatable :: extOnSiteAtom(:,:)
 
+    !> Atomic dipolar contribution to the Hamiltonian
+    real(dp), allocatable :: dipoleAtom(:,:)
+
+    !> Atomic quadrupolar contribution to the Hamiltonian
+    real(dp), allocatable :: quadrupoleAtom(:,:)
+
   end type TPotentials
 
 
@@ -91,7 +97,7 @@ contains
 
 
   !> Allocates storage for the potential components
-  subroutine TPotentials_init(this, orb, nAtom, nSpin, extAtPotentials)
+  subroutine TPotentials_init(this, orb, nAtom, nSpin, nDipole, nQuadrupole, extAtPotentials)
 
     !> data structure to allocate
     type(TPotentials), intent(out) :: this
@@ -105,12 +111,20 @@ contains
     !> number of spins
     integer, intent(in) :: nSpin
 
+    !> Number of dipole moment components
+    integer, intent(in) :: nDipole
+
+    !> Number of quadrupole moment components
+    integer, intent(in) :: nQuadrupole
+
     !> Should the on site potentials be allocated?
     type(TAtomExtPotInput), intent(in), optional :: extAtPotentials
 
     @:ASSERT(.not. this%tInitialised)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(nAtom > 0)
+    @:ASSERT(nDipole >= 0)
+    @:ASSERT(nQuadrupole >= 0)
     @:ASSERT(orb%mShell > 0)
     @:ASSERT(orb%mOrb > 0)
 
@@ -132,6 +146,14 @@ contains
     this%extGrad(:,:) = 0.0_dp
     this%orbitalBlock = 0.0_dp
     this%iorbitalBlock = 0.0_dp
+    if (nDipole > 0) then
+      allocate(this%dipoleAtom(nDipole, nAtom))
+      this%dipoleAtom(:,:) = 0.0_dp
+    end if
+    if (nQuadrupole > 0) then
+      allocate(this%quadrupoleAtom(nQuadrupole, nAtom))
+      this%quadrupoleAtom(:,:) = 0.0_dp
+    end if
 
     if (present(extAtPotentials)) then
 

@@ -15,6 +15,7 @@ set(sources-fpp
   ${curdir}/linkedlistr1.F90
   ${curdir}/linkedlistr2.F90
   ${curdir}/linkedlists0.F90
+  ${curdir}/multipole.F90
   ${curdir}/oldskdata.F90
   ${curdir}/orbitals.F90
   ${curdir}/parallelks.F90

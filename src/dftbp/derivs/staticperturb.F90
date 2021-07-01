@@ -297,7 +297,7 @@ contains
       allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
     end if
 
-    call TPotentials_init(dPotential,orb,nAtom,nSpin)
+    call TPotentials_init(dPotential,orb,nAtom,nSpin,0,0)
 
     allocate(nFilled(nIndepHam, nKpts))
     allocate(nEmpty(nIndepHam, nKpts))

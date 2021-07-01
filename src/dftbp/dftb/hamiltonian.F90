@@ -25,6 +25,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_io_message, only : error
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_multipole, only : TMultipole
   implicit none
 
   private
@@ -130,8 +131,8 @@ contains
   !> Add potentials coming from electrostatics (in various boundary conditions and models), possibly
   !> spin, and where relevant dispersion
   subroutine addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0, chargePerShell,&
-      & orb, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-      & dispersion)
+      & orb, multipole, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd,&
+      & dispersion, potential)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -156,6 +157,9 @@ contains
 
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Multipole information
+    type(TMultipole), intent(in) :: multipole
 
     !> species of all atoms
     integer, target, intent(in) :: species(:)
@@ -184,6 +188,7 @@ contains
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
+    real(dp), allocatable :: dipPot(:,:), quadPot(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
 
@@ -193,6 +198,14 @@ contains
 
     allocate(atomPot(nAtom, nSpin), source=0.0_dp)
     allocate(shellPot(orb%mShell, nAtom, nSpin), source=0.0_dp)
+    if (allocated(potential%dipoleAtom)) then
+      allocate(dipPot, mold=potential%dipoleAtom)
+      dipPot(:, :) = 0.0_dp
+    end if
+    if (allocated(potential%quadrupoleAtom)) then
+      allocate(quadPot, mold=potential%quadrupoleAtom)
+      quadPot(:, :) = 0.0_dp
+    end if
 
     if (allocated(sccCalc)) then
       if (updateScc) then
@@ -219,10 +232,17 @@ contains
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
     if (allocated(tblite)) then
-      call tblite%updateCharges(env, species, neighbourList, qInput, q0, img2CentCell, orb)
-      call tblite%getShifts(atomPot(:,1), shellPot(:,:,1))
+      call tblite%updateCharges(env, species, neighbourList, qInput, q0, &
+          & multipole%dipoleAtom, multipole%quadrupoleAtom, img2CentCell, orb)
+      call tblite%getShifts(atomPot(:,1), shellPot(:,:,1), dipPot, quadPot)
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+      if (allocated(potential%dipoleAtom)) then
+        potential%dipoleAtom(:,:) = potential%dipoleAtom + dipPot
+      end if
+      if (allocated(potential%quadrupoleAtom)) then
+        potential%quadrupoleAtom(:,:) = potential%quadrupoleAtom + quadPot
+      end if
     end if
 
     if (allocated(thirdOrd)) then

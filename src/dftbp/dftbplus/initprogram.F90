@@ -110,6 +110,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_type_integral, only : TIntegral, TIntegral_init
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
+  use dftbp_type_multipole, only : TMultipole, TMultipole_init
   use dftbp_type_orbitals, only : getShellNames
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_DFTD3
@@ -426,6 +427,12 @@ module dftbp_dftbplus_initprogram
     !> Use block like dual representation for spin orbit
     logical :: tDualSpinOrbit
 
+    !> Number of dipole moment components
+    integer :: nDipole = 0
+
+    !> Number of quadrupole moment components
+    integer :: nQuadrupole = 0
+
     !> Is there a complex hamiltonian contribution in real space
     logical :: tImHam
 
@@ -641,6 +648,9 @@ module dftbp_dftbplus_initprogram
 
     !> nr. of inequivalent orbitals
     integer :: nIneqOrb
+
+    !> Multipole moments
+    type(TMultipole) :: multipole
 
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if tDFTBU or onsite corrections)
@@ -1635,6 +1645,12 @@ contains
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
 
+    ! Check if multipolar contributions are required
+    if (allocated(this%tblite)) then
+      call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
+    end if
+    call TMultipole_init(this%multipole, this%nAtom, this%nDipole, this%nQuadrupole)
+
     ! Intialize Hamilton and overlap
     this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. allocated(this%dftbU))
     if (this%tSccCalc .and. .not.allocated(this%reks)) then
@@ -1642,7 +1658,8 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, 0, 0)
+    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, &
+        & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom
@@ -4444,8 +4461,8 @@ contains
       end if
     end if
 
-    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin,&
-        & input%ctrl%atomicExtPotential)
+    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
+        & this%nDipole, this%nQuadrupole, input%ctrl%atomicExtPotential)
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)

@@ -105,6 +105,7 @@ module dftbp_dftbplus_main
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
+  use dftbp_type_multipole, only : TMultipole
 #:if WITH_ARPACK
   use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRs
 #:endif
@@ -790,7 +791,7 @@ contains
             & this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot,&
             & this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
             & this%onSiteElements, this%dispersion, tConverged, this%species0, this%referenceN0,&
-            & this%qNetAtom, this%reks)
+            & this%qNetAtom, this%multipole, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -886,8 +887,9 @@ contains
         #:endif
 
           call addChargePotentials(env, this%scc, this%tblite, .true., this%qInput, this%q0,&
-              & this%chargePerShell, this%orb, this%species, this%neighbourList, this%img2CentCell,&
-              & this%spinW, this%solvation, this%thirdOrd, this%potential, this%dispersion)
+              & this%chargePerShell, this%orb, this%multipole, this%species, this%neighbourList,&
+              & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%dispersion,&
+              & this%potential)
 
           call addBlockChargePotentials(this%qBlockIn, this%qiBlockIn, this%dftbU, this%tImHam,&
               & this%species, this%orb, this%potential)
@@ -988,9 +990,9 @@ contains
           call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
 
           call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag, this%qOutput,&
-              & this%q0, this%chargePerShell, this%orb, this%species, this%neighbourList,&
-              & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%potential,&
-              & this%dispersion)
+              & this%q0, this%chargePerShell, this%orb, this%multipole, this%species,&
+              & this%neighbourList, this%img2CentCell, this%spinW, this%solvation,&
+              & this%thirdOrd, this%dispersion, this%potential)
 
           call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
               & this%species, this%orb, this%potential)
@@ -6901,7 +6903,7 @@ contains
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
       & tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
-      & referenceN0, qNetAtom, reks)
+      & referenceN0, qNetAtom, multipole, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -7027,6 +7029,9 @@ contains
     !> Onsite Mulliken charges per atom
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
+    !> Multipole container
+    type(TMultipole), intent(inout) :: multipole
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
@@ -7056,8 +7061,8 @@ contains
           & reks%chargePerShellL(:,:,:,iL))
       call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
       call addChargePotentials(env, sccCalc, tblite, .true., reks%qOutputL(:,:,:,iL), q0,&
-          & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, img2CentCell, spinW,&
-          & solvation, thirdOrd, potential, dispersion)
+          & reks%chargePerShellL(:,:,:,iL), orb, multipole, species, neighbourList,&
+          & img2CentCell, spinW, solvation, thirdOrd, dispersion, potential)
 
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell

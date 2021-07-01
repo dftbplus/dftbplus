@@ -64,6 +64,7 @@ module dftbp_timedep_timeprop
   use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
+  use dftbp_type_multipole, only : TMultipole
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
@@ -215,6 +216,7 @@ module dftbp_timedep_timeprop
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
     type(TTBLite), allocatable :: tblite
+    type(TMultipole) :: multipole
     character(mc) :: autotestTag
 
     real(dp), allocatable :: initialVelocities(:,:), movedMass(:,:)
@@ -1103,9 +1105,9 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell, orb,&
-        & speciesAll, neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & dispersion)
+    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
+        & orb, this%multipole, speciesAll, neighbourList, img2CentCell, spinW, solvation,&
+        & thirdOrd, dispersion, potential)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
@@ -1792,7 +1794,7 @@ contains
       end do
     end if
 
-    call TPotentials_init(potential, orb, this%nAtom, this%nSpin)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, 0, 0)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
