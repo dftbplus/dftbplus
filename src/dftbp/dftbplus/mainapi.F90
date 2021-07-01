@@ -12,6 +12,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -421,6 +422,8 @@ contains
     !> coords and velocities will be provided at each step through the API?
     logical, intent(in) :: tdCoordsAndVelosThroughAPI
 
+    type(TStatus) :: status
+
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
       if (tdCoordsAndVelosThroughAPI) then
@@ -438,10 +441,13 @@ contains
           & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
           & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
           & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation,&
-          & main%rangeSep, main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion,&
-          & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef,&
-          & main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
+          & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
+          & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
+          & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
+          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver, status)
+      if (status%hasError()) then
+        call error(status%message)
+      end if
     else
       call error("Electron dynamics not enabled, please initialize the calculator&
           & including the ElectronDynamics block")
@@ -482,14 +488,20 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
+    type(TStatus) :: status
+
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
            & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-           & main%onSiteElements, main%refExtPot, main%solvation,&
-           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
-           & main%electronicSolver, main%qDepExtPot)
+           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
+           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
+           & status)
+
+      if (status%hasError()) then
+        call error(status%message)
+      end if
 
       if (present(dipole)) then
         dipole(:,:) = main%electronDynamics%dipole

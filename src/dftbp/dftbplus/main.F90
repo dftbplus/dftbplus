@@ -15,6 +15,7 @@ module dftbp_dftbplus_main
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_staticperturb, only : staticPerturWrtE
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
@@ -152,7 +153,6 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-
     !> Geometry steps so far
     integer :: iGeoStep
 
@@ -191,6 +191,8 @@ contains
     !> Which state is being calculated in the determinant loop?
     integer :: iDet
     logical :: isUnReduced
+
+    type(TStatus) :: status
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -355,7 +357,10 @@ contains
           & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
           & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
           & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
-          & this%taggedWriter, this%refExtPot)
+          & this%taggedWriter, this%refExtPot, status)
+      if (status%hasError()) then
+        call error(status%message)
+      end if
     end if
 
   #:if WITH_TRANSPORT
@@ -655,12 +660,12 @@ contains
 
     if (this%tCoordsChanged) then
       call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite, this%repulsive,&
-          & this%dispersion,this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
-          & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
-          & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC,&
-          & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim,&
-          & this%iSparseStart, this%cm5Cont, stat)
+          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite,&
+          & this%repulsive, this%dispersion,this%solvation, this%thirdOrd, this%rangeSep,&
+          & this%reks, this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
+          & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
+          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
+          & this%ERhoPrim, this%iSparseStart, this%cm5Cont, stat)
         @:HANDLE_ERROR(stat)
     end if
 
@@ -777,15 +782,15 @@ contains
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%ints,&
             & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
-        call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%tblite, this%orb, this%species,&
-            & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
-            & this%ints, this%spinW, this%cellVol, this%extPressure, this%dftbEnergy(1), this%q0,&
-            & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
-            & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %isExtField,&
-            & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
-            & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements,&
-            & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom,&
-            & this%reks)
+        call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%tblite, this%orb,&
+            & this%species, this%neighbourList, this%nNeighbourSK, this%iSparseStart,&
+            & this%img2CentCell, this%H0, this%ints, this%spinW, this%cellVol, this%extPressure,&
+            & this%dftbEnergy(1), this%q0, this%iAtInCentralRegion, this%solvation, this%thirdOrd,&
+            & this%potential, this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi,&
+            & this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot,&
+            & this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
+            & this%onSiteElements, this%dispersion, tConverged, this%species0, this%referenceN0,&
+            & this%qNetAtom, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&

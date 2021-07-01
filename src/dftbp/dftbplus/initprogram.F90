@@ -3487,7 +3487,11 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
+          & status)
+      if (status%hasError()) then
+        call error(status%message)
+      end if
 
     end if
 
