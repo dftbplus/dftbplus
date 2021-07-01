@@ -17,7 +17,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : add_shift, total_shift, addOnSiteShift
+  use dftbp_dftb_shift, only : addShift, totalShift, addOnSiteShift, addAtomicMultipoleShift
   use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_thirdorder, only : TThirdOrder
@@ -25,6 +25,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_io_message, only : error
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
   implicit none
 
@@ -87,8 +88,8 @@ contains
     !> Potential energy contributions
     type(TPotentials), intent(inout) :: potential
 
-    call total_shift(potential%extShell, potential%extAtom, orb, species)
-    call total_shift(potential%extBlock, potential%extShell, orb, species)
+    call totalShift(potential%extShell, potential%extAtom, orb, species)
+    call totalShift(potential%extBlock, potential%extShell, orb, species)
 
   end subroutine mergeExternalPotentials
 
@@ -219,7 +220,7 @@ contains
         ! need to retain the just electrostatic contributions to the potential for a contact
         ! calculation or similar
         potential%coulombShell(:,:,:) = shellPot(:,:,1:1)
-        call total_shift(potential%coulombShell, atomPot(:,1:1), orb, species)
+        call totalShift(potential%coulombShell, atomPot(:,1:1), orb, species)
       end if
     end if
 
@@ -264,8 +265,8 @@ contains
       potential%intShell = potential%intShell + shellPot
     end if
 
-    call total_shift(potential%intShell, potential%intAtom, orb, species)
-    call total_shift(potential%intBlock, potential%intShell, orb, species)
+    call totalShift(potential%intShell, potential%intAtom, orb, species)
+    call totalShift(potential%intBlock, potential%intShell, orb, species)
 
   end subroutine addChargePotentials
 
@@ -308,14 +309,14 @@ contains
 
 
   !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+  subroutine getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
       & img2CentCell, potential, isREKS, ham, iHam)
 
     !> non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
 
-    !> overlap (sparse)
-    real(dp), intent(in) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
 
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)
@@ -356,19 +357,31 @@ contains
       ham(:,1) = h0
     end if
 
-    call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
+    call addShift(ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
     if (allocated(potential%intOnSiteAtom)) then
-      call addOnSiteShift(ham, over, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
     end if
     if (allocated(potential%extOnSiteAtom)) then
-      call addOnSiteShift(ham, over, species, orb, iSparseStart, nAtom, potential%extOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%extOnSiteAtom)
+    end if
+
+    if (allocated(potential%dipoleAtom)) then
+      call addAtomicMultipoleShift(ham, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
+          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+          & potential%dipoleAtom)
+    end if
+
+    if (allocated(potential%quadrupoleAtom)) then
+      call addAtomicMultipoleShift(ham, ints%quadrupoleBra, ints%quadrupoleKet, nNeighbourSK, &
+          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+          & potential%quadrupoleAtom)
     end if
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
-      call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+      call addShift(iHam, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
     end if
 

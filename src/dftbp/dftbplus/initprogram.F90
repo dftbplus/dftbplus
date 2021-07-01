@@ -646,11 +646,26 @@ module dftbp_dftbplus_initprogram
     !> Orbital equivalence relations
     integer, allocatable :: iEqOrbitals(:,:,:)
 
+    !> Dipolar equivalence relations
+    integer, allocatable :: iEqDipole(:,:)
+
+    !> Quadrupolar equivalence relations
+    integer, allocatable :: iEqQuadrupole(:,:)
+
     !> nr. of inequivalent orbitals
     integer :: nIneqOrb
 
+    !> nr. of inequivalent dipoles
+    integer :: nIneqDip
+
+    !> nr. of inequivalent quadrupoles
+    integer :: nIneqQuad
+
     !> Multipole moments
-    type(TMultipole) :: multipole
+    type(TMultipole) :: multipoleInp
+
+    !> Multipole moments
+    type(TMultipole) :: multipoleOut
 
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if tDFTBU or onsite corrections)
@@ -1649,7 +1664,8 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipole, this%nAtom, this%nDipole, this%nQuadrupole)
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole)
+    this%multipoleInp = this%multipoleOut
 
     ! Intialize Hamilton and overlap
     this%tImHam = this%tDualSpinOrbit .or. (this%tSpinOrbit .and. allocated(this%dftbU))
@@ -3593,15 +3609,28 @@ contains
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
-    !> Orbital equivalency for SCC and Spin
+    ! Orbital equivalency for SCC and Spin
     integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    !> Orbital equivalency for orbital potentials
+    ! Orbital equivalency for orbital potentials
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
+    ! Equivalency for multipolar contributions
+    integer, allocatable :: iEqDip(:,:), iEqQuad(:,:)
+
+    this%nIneqOrb = 0
+    this%nIneqDip = 0
+    this%nIneqQuad = 0
+    this%nMixElements = 0
 
     if (this%tSccCalc) then
       if(.not. allocated(this%iEqOrbitals)) then
         allocate(this%iEqOrbitals(this%orb%mOrb, this%nAtom, this%nSpin))
       endif
+      if (.not.allocated(this%iEqDipole)) then
+        allocate(this%iEqDipole(this%nDipole, this%nAtom))
+      end if
+      if (.not.allocated(this%iEqQuadrupole)) then
+        allocate(this%iEqQuadrupole(this%nQuadrupole, this%nAtom))
+      end if
       allocate(iEqOrbSCC(this%orb%mOrb, this%nAtom, this%nSpin))
       @:ASSERT(allocated(this%uniqHubbU))
       call this%uniqHubbU%getOrbitalEquiv(this%orb, this%species0, iEqOrbSCC)
@@ -3629,17 +3658,23 @@ contains
       end if
 
       if (allocated(this%tblite)) then
-        allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbSpin(:,:,:) = 0
-        allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin))
-        iEqOrbDFTBU(:,:,:) = 0
-        call this%tblite%getOrbitalEquiv(iEqOrbDFTBU, this%orb, this%species0)
+        allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin), source=0)
+        allocate(iEqOrbDFTBU(this%orb%mOrb, this%nAtom, this%nSpin), source=0)
+        allocate(iEqDip(this%nDipole, this%nAtom), source=0)
+        allocate(iEqQuad(this%nQuadrupole, this%nAtom), source=0)
+        call this%tblite%getOrbitalEquiv(iEqOrbDFTBU, iEqDip, iEqQuad, this%orb, this%species0)
         call OrbitalEquiv_merge(this%iEqOrbitals, iEqOrbDFTBU, this%orb, iEqOrbSpin)
-        this%iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+        this%iEqOrbitals(:,:,:) = iEqOrbSpin
+        this%iEqDipole(:,:) = iEqDip
+        this%iEqQuadrupole(:,:) = iEqQuad
         this%nIneqOrb = maxval(this%iEqOrbitals)
-        this%nMixElements = this%nIneqOrb
+        this%nIneqDip = maxval(this%iEqDipole)
+        this%nIneqQuad = maxval(this%iEqQuadrupole)
+        this%nMixElements = this%nIneqOrb + this%nIneqDip + this%nIneqQuad
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+        deallocate(iEqDip)
+        deallocate(iEqQuad)
       end if
 
       if (allocated(this%onSiteElements)) then
