@@ -11,7 +11,8 @@ module dftbp_type_integral
   implicit none
 
   private
-  public :: TIntegral
+  public :: TIntegral, TIntegral_init
+
 
   !> Container to store overlap related integrals
   type :: TIntegral
@@ -27,5 +28,34 @@ module dftbp_type_integral
 
   end type TIntegral
 
+
 contains
+
+
+  !> Initializier for integral container
+  subroutine TIntegral_init(this, nSpin, tReHam, tImHam)
+
+    !> Instance of the integral container
+    type(TIntegral), intent(out) :: this
+
+    !> Number of spins channels in the system
+    integer, intent(in) :: nSpin
+
+    !> Allocate space for real Hamiltonian
+    logical, intent(in) :: tReHam
+
+    !> Allocate space for imaginary Hamiltonian
+    logical, intent(in) :: tImHam
+
+    if (tReHam) then
+      allocate(this%hamiltonian(0, nSpin))
+    end if
+    if (tImHam) then
+      allocate(this%iHamiltonian(0, nSpin))
+    end if
+    allocate(this%overlap(0))
+
+  end subroutine TIntegral_init
+
+
 end module dftbp_type_integral

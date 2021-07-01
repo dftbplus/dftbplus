@@ -107,7 +107,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_integral, only : TIntegral
+  use dftbp_type_integral, only : TIntegral, TIntegral_init
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
   use dftbp_type_orbitals, only : getShellNames
@@ -1642,13 +1642,7 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    if (.not.allocated(this%reks)) then
-      allocate(this%ints%hamiltonian(0, this%nSpin))
-    end if
-    if (this%tImHam) then
-      allocate(this%ints%iHamiltonian(0, this%nSpin))
-    end if
-    allocate(this%ints%overlap(0))
+    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam)
     allocate(this%iSparseStart(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom
