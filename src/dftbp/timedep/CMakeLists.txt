@@ -1,6 +1,7 @@
 set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
+  ${curdir}/dynamicsrestart.F90
   ${curdir}/linresp.F90
   ${curdir}/linrespcommon.F90
   ${curdir}/linrespgrad.F90

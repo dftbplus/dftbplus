@@ -6,18 +6,19 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Implements real-time Ehrenfest time-dependent DFTB by numerically propagating the electronic
 !> one-electron density matrix of the system and the nuclei in the presence of an external
 !> perturbation (kick or laser) Bonafé, F. P., Aradi, B., Hourahine, B., Medrano, C. R., Hernandez,
 !> F. J., Frauenheim, T., & Sánchez, C. G.  Journal of Chemical Theory and Computation (2020)
 !> https://doi.org/10.1021/acs.jctc.9b01217
-
 module dftbp_timedep_timeprop
   use dftbp_common_accuracy, only : dp, sc, lc, mc
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
@@ -47,7 +48,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : matinv, gesv 
@@ -60,6 +61,7 @@ module dftbp_timedep_timeprop
   use dftbp_md_velocityverlet, only : TVelocityVerlet
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
 #:if WITH_MBD
@@ -325,10 +327,6 @@ module dftbp_timedep_timeprop
   !> Container for enumerated types of spin polarized spectra
   type(TDSpinTypesEnum), parameter :: tdSpinTypes = TDSpinTypesEnum()
 
-  !> version number for restart format, please increment if you change the file format (and consider
-  !> adding backward compatibility)
-  integer, parameter :: tdDumpFormat = 1
-
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
 
@@ -337,7 +335,8 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation,&
+      & status)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -414,6 +413,9 @@ contains
     !> Solvation data and calculations
     class(TSolvation), allocatable, intent(in) :: solvation
 
+    !> Error status
+    type(TStatus), intent(out) :: status
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -441,7 +443,7 @@ contains
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
     if (.not. allocated(sccCalc)) then
-      call error("SCC calculations are currently required for dynamics")
+      @:RAISE_ERROR(status, -1, "SCC calculations are currently required for dynamics")
     else
       this%sccCalc = sccCalc
     end if
@@ -468,12 +470,13 @@ contains
       this%tKick = .false.
       this%tLaser = .false.
     case default
-      call error("Wrong type of perturbation.")
+      @:RAISE_ERROR(status, -1, "Wrong type of perturbation.")
     end select
 
     if (allocated(solvation)) then
       if (solvation%isEFieldModified() .and. (this%tKick .or. this%tLaser)) then
-        call error("This type of solvation model currently unsupported for electron dyanamics")
+        @:RAISE_ERROR(status, -1, "This type of solvation model currently unsupported for electron&
+            & dyanamics")
       end if
     end if
 
@@ -513,7 +516,7 @@ contains
     this%eulerFreq = inp%eulerFreq
     this%tBondE = inp%tBondE
     if (this%tBondE .and. .not. this%tRealHS) then
-      call error("Real hamiltonian required for bond energies")
+      @:RAISE_ERROR(status, -1, "Real hamiltonian required for bond energies")
     end if
     this%tBondP = inp%tBondP
     this%species = species
@@ -522,9 +525,10 @@ contains
 
     if (this%tIons) then
       if (.not. this%tRealHS) then
-        call error("Ion dynamics is not implemented yet for imaginary Hamiltonians.")
+        @:RAISE_ERROR(status, -1, "Ion dynamics is not implemented yet for imaginary Hamiltonians.")
       elseif (isRangeSep) then
-        call error("Ion dynamics is not implemented yet for range separated calculations.")
+        @:RAISE_ERROR(status, -1, "Ion dynamics is not implemented yet for range separated&
+            & calculations.")
       end if
       this%tForces = .true.
       this%indMovedAtom = inp%indMovedAtom
@@ -572,8 +576,8 @@ contains
     if (this%tIons .or. this%tForces) then
       if (this%nExcitedAtom /= nAtom) then
         if (this%tLaser) then
-          call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
-              & atoms")
+          @:RAISE_ERROR(status, -1, "Ion dynamics and forces are not implemented for excitation of&
+              & a subgroup of atoms")
         else
           this%nExcitedAtom = nAtom
         end if
@@ -612,10 +616,10 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, H0, speciesAll, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
-      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll,&
-      & onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
-      & electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
+      & dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont,&
+      & latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
+      & taggedWriter, refExtPot, status)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -740,6 +744,9 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
+    !> Error status
+    type(TStatus), intent(inout) :: status
+
     integer :: iPol
     logical :: tWriteAutotest
 
@@ -760,7 +767,8 @@ contains
             & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
             & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
-            & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
+            & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
+            & status)
         this%iCall = this%iCall + 1
       end do
     else
@@ -769,7 +777,8 @@ contains
           & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
           & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
-          & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
+          & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
+          & status)
     end if
 
   end subroutine runDynamics
@@ -779,9 +788,9 @@ contains
   subroutine doDynamics(this, eigvecsReal, H0, q0, referenceN0, ints, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
       & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
-      & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
-      & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, electronicSolver, speciesAll, eigvecsCplx, taggedWriter, refExtPot, latVec,&
+      & invLatVec, iCellVec, rCellVec, cellVec, status)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -913,6 +922,9 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: speciesAll(:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: status
+
     type(TTimer) :: loopTime
     integer :: iStep
 
@@ -923,7 +935,8 @@ contains
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll, electronicSolver)
+       & rCellVec, cellVec, speciesAll, electronicSolver, status)
+    @:PROPAGATE_ERROR(status)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -941,7 +954,8 @@ contains
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
-       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
+       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, status)
+      @:PROPAGATE_ERROR(status)
 
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
@@ -964,7 +978,7 @@ contains
   subroutine updateH(this, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
-      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
+      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho, status)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1065,6 +1079,9 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: status
+
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: T2(:,:)
@@ -1086,8 +1103,9 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, dispersion)
+    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell, orb,&
+        & speciesAll, neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
+        & dispersion)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
@@ -1104,7 +1122,8 @@ contains
 
     ! Add time dependent field if necessary
     if (this%tLaser) then
-      call setPresentField(this, iStep)
+      call setPresentField(this, iStep, status)
+      @:PROPAGATE_ERROR(status)
       do iAtom = 1, this%nExcitedAtom
         iEatom = this%indExcitedAtom(iAtom)
         potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%presentField)
@@ -1116,8 +1135,8 @@ contains
     potential%intBlock = potential%intBlock + potential%extBlock
     potential%intShell = potential%intShell + potential%extShell
 
-    call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
-        & img2CentCell, potential, .false., ints%hamiltonian, iHam)
+    call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, speciesAll, orb,&
+        & iSparseStart, img2CentCell, potential, .false., ints%hamiltonian, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
@@ -1131,13 +1150,14 @@ contains
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
       if (this%tRealHS) then
-        call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare,&
-            & iSparseStart, img2CentCell)
+        call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+            & iSquare, iSparseStart, img2CentCell)
         call blockSymmetrizeHS(T2, iSquare)
         H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
       else
-        call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+        call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
+            & iSparseStart, img2CentCell)
         call blockHermitianHS(H1(:,:,iKS), iSquare)
       end if
     end do
@@ -1153,7 +1173,7 @@ contains
       case(1)
         call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
       case default
-        call error("Range separation not implemented for non-colinear spin")
+        @:RAISE_ERROR(status, -1, "Range separation not implemented for noncolinear spin")
       end select
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
@@ -1304,7 +1324,7 @@ contains
 
   !> Calculate charges, dipole moments
   subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
-      & qNetAtom)
+      & qNetAtom, status)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1338,6 +1358,9 @@ contains
 
     !> Net (on-site only) atomic charge
     real(dp), allocatable, intent(inout) :: qNetAtom(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: status
 
     integer :: iAt, iSpin, iOrb1, iOrb2, nOrb, iKS, iK, ii
 
@@ -1376,7 +1399,7 @@ contains
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
-        call error("Not implemented yet")
+        @:RAISE_ERROR(status, -1, "Block populations not implemented yet")
       end if
       qBlock(:,:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1534,10 +1557,11 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
-    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
-        & dftbU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-        & qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%speciesAll,&
+        & this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList,&
+        & nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy,&
+        & thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+        & tFixEf, Ef, onSiteElements)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
@@ -1682,7 +1706,8 @@ contains
       Sinv(:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
-          call unpackHS(T2, ints%overlap, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          call unpackHS(T2, ints%overlap, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+              & img2CentCell)
           call blockSymmetrizeHS(T2, iSquare)
           Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
           T3(:,:) = 0.0_dp
@@ -1695,8 +1720,8 @@ contains
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
           T4(:,:) = cmplx(0,0,dp)
-          call unpackHS(T4, ints%overlap, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
-              & this%cellVec, iSquare, iSparseStart, img2CentCell)
+          call unpackHS(T4, ints%overlap, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(T4, iSquare)
           Ssqr(:,:,iKS) = T4
           Sinv(:,:,iKS) = cmplx(0,0,dp)
@@ -1712,13 +1737,13 @@ contains
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
         if (this%tRealHS) then
-          call unpackHS(T3, ints%hamiltonian(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-              & img2CentCell)
+          call unpackHS(T3, ints%hamiltonian(:,iSpin), iNeighbour, nNeighbourSK, iSquare,&
+              & iSparseStart, img2CentCell)
           call blockSymmetrizeHS(T3, iSquare)
           H1(:,:,iKS) = cmplx(T3, 0, dp)
         else
-          call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
-              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+          call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK), iNeighbour,&
+              & nNeighbourSK, this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(H1(:,:,iKS), iSquare)
         end if
       end do
@@ -2199,234 +2224,6 @@ contains
     end if
 
   end subroutine openFile
-
-
-  !> Write to restart file
-  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, tAsciiFile)
-
-    !> Density matrix
-    complex(dp), intent(in) :: rho(:,:,:)
-
-    !> Density matrix at previous time step
-    complex(dp), intent(in) :: rhoOld(:,:,:)
-
-    !> atomic coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> atomic velocities
-    real(dp), intent(in) :: veloc(:,:)
-
-    !> simulation time (in atomic units)
-    real(dp), intent(in) :: time
-
-    !> time step being used (in atomic units)
-    real(dp), intent(in) :: dt
-
-    !> name of the dump file
-    character(len=*), intent(in) :: fileName
-
-    !> Should restart data be written as ascii (cross platform, but potentially lower
-    !> reproducibility) or binary files
-    logical, intent(in) :: tAsciiFile
-
-    integer :: fd, ii, jj, kk, iErr
-    character(len=120) :: error_string
-
-
-    if (tAsciiFile) then
-      open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
-          & iostat=iErr)
-    else
-      open(newunit=fd, file=trim(fileName) // '.bin', form='unformatted', access='stream',&
-          & action='write', iostat=iErr)
-    end if
-
-    if (iErr /= 0) then
-      if (tAsciiFile) then
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
-            & ".dat for writing"
-      else
-        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
-            & ".bin for writing"
-      end if
-      call error(error_string)
-    end if
-
-    if (tAsciiFile) then
-
-      write(fd, *)tdDumpFormat
-      write(fd, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
-      do ii = 1, size(rho, dim=3)
-        do jj = 1, size(rho, dim=2)
-          do kk = 1, size(rho, dim=1)
-            write(fd, *)rho(kk,jj,ii)
-          end do
-        end do
-      end do
-      do ii = 1, size(rhoOld, dim=3)
-        do jj = 1, size(rhoOld, dim=2)
-          do kk = 1, size(rhoOld, dim=1)
-            write(fd, *)rhoOld(kk,jj,ii)
-          end do
-        end do
-      end do
-      do ii = 1, size(coord, dim=2)
-        write(fd, *)coord(:,ii)
-      end do
-      do ii = 1, size(veloc, dim=2)
-        write(fd, *)veloc(:,ii)
-      end do
-
-    else
-
-      write(fd)tdDumpFormat
-      write(fd)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
-      write(fd) rho, rhoOld, coord, veloc
-
-    end if
-
-    close(fd)
-
-  end subroutine writeRestartFile
-
-
-  !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, tAsciiFile)
-
-    !> Density Matrix
-    complex(dp), intent(out) :: rho(:,:,:)
-
-    !> Previous density Matrix
-    complex(dp), intent(out) :: rhoOld(:,:,:)
-
-    !> atomic coordinates
-    real(dp), intent(out) :: coord(:,:)
-
-    !> Previous simulation elapsed time until restart file writing
-    real(dp), intent(out) :: time
-
-    !> time step being currently used (in atomic units) for checking compatibility
-    real(dp), intent(in) :: dt
-
-    !> Name of the file to open
-    character(*), intent(in) :: fileName
-
-    !> atomic velocities
-    real(dp), intent(out) :: veloc(:,:)
-
-    !> Should restart data be read as ascii (cross platform, but potentially lower reproducibility)
-    !> or binary files
-    logical, intent(in) :: tAsciiFile
-
-    integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
-    real(dp) :: deltaT
-    logical :: tExist
-    character(len=120) :: error_string
-
-    if (tAsciiFile) then
-      inquire(file=trim(fileName)//'.dat', exist=tExist)
-      if (.not. tExist) then
-        call error("TD restart file " // trim(fileName)//'.dat' // " is missing")
-      end if
-    else
-      inquire(file=trim(fileName)//'.bin', exist=tExist)
-      if (.not. tExist) then
-        call error("TD restart file " // trim(fileName)//'.bin' // " is missing")
-      end if
-    end if
-
-    if (tAsciiFile) then
-      open(newunit=fd, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
-    else
-      open(newunit=fd, file=trim(fileName)//'.bin', form='unformatted', access='stream',&
-          & action='read', iostat=iErr)
-    end if
-
-    if (iErr /= 0) then
-      if (tAsciiFile) then
-        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".dat"
-      else
-        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".bin"
-      end if
-      call error(error_string)
-    end if
-    rewind(fd)
-
-    if (tAsciiFile) then
-      read(fd, *)version
-      if (version /= tdDumpFormat) then
-        call error("Unknown TD format")
-      end if
-      read(fd, *) nOrb, nSpin, nAtom, time, deltaT
-      if (nOrb /= size(rho, dim=1)) then
-        write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
-            & " in tddump file, should be ",size(rho, dim=1)
-        call error(error_string)
-      end if
-      if (nSpin /= size(rho, dim=3)) then
-        write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
-            & " in tddump file, should be ",size(rho, dim=3)
-        call error(error_string)
-      end if
-      if (nAtom /= size(coord, dim=2)) then
-        write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
-            & " in tddump file, should be ", size(coord, dim=2)
-        call error(error_string)
-      end if
-      if (abs(deltaT - dt) > epsilon(0.0_dp)) then
-        write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
-            & deltaT, " instead of current timestep of", dt
-      end if
-      do ii = 1, size(rho, dim=3)
-        do jj = 1, size(rho, dim=2)
-          do kk = 1, size(rho, dim=1)
-            read(fd, *)rho(kk,jj,ii)
-          end do
-        end do
-      end do
-      do ii = 1, size(rhoOld, dim=3)
-        do jj = 1, size(rhoOld, dim=2)
-          do kk = 1, size(rhoOld, dim=1)
-            read(fd, *)rhoOld(kk,jj,ii)
-          end do
-        end do
-      end do
-      do ii = 1, size(coord, dim=2)
-        read(fd, *)coord(:,ii)
-      end do
-      do ii = 1, size(veloc, dim=2)
-        read(fd, *)veloc(:,ii)
-      end do
-    else
-      read(fd)version
-      if (version /= tdDumpFormat) then
-        call error("Unknown TD format")
-      end if
-      read(fd) nOrb, nSpin, nAtom, time, deltaT
-      if (nOrb /= size(rho, dim=1)) then
-        write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
-            & " in tddump file, should be ",size(rho, dim=1)
-        call error(error_string)
-      end if
-      if (nSpin /= size(rho, dim=3)) then
-        write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
-            & " in tddump file, should be ",size(rho, dim=3)
-        call error(error_string)
-      end if
-      if (nAtom /= size(coord, dim=2)) then
-        write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
-            & " in tddump file, should be ", size(coord, dim=2)
-        call error(error_string)
-      end if
-      if (abs(deltaT - dt) > epsilon(0.0_dp)) then
-        write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
-            & deltaT, " instead of current timestep of", dt
-      end if
-      read(fd) rho, rhoOld, coord, veloc
-    end if
-    close(fd)
-
-  end subroutine readRestartFile
 
 
   !> Write results to file
@@ -2921,8 +2718,8 @@ contains
       allocate(Sreal(this%nOrbs,this%nOrbs))
       allocate(SinvReal(this%nOrbs,this%nOrbs))
       Sreal = 0.0_dp
-      call unpackHS(Sreal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-          & img2CentCell)
+      call unpackHS(Sreal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell)
       call blockSymmetrizeHS(Sreal, iSquare)
       do iKS = 1, this%parallelKS%nLocalKS
         Ssqr(:,:,iKS) = cmplx(Sreal, 0, dp)
@@ -2966,7 +2763,7 @@ contains
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
       & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho)
+      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, status)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -3043,6 +2840,9 @@ contains
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: status
+
     real(dp), allocatable :: T1R(:,:), T2R(:,:)
     complex(dp), allocatable :: T1C(:,:), T2C(:,:)
     real(dp) :: derivs(3,this%nAtom), repulsiveDerivs(3,this%nAtom), totalDeriv(3, this%nAtom)
@@ -3111,13 +2911,15 @@ contains
     end if
 
     if (this%isRangeSep) then
-      call error("Ehrenfest forces not implemented yet with range separated calculations.")
+      @:RAISE_ERROR(status, -1, "Ehrenfest forces not implemented yet with range separated&
+          & calculations.")
       !call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
       ! & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
     end if
 
     if (this%tLaser) then
-      call setPresentField(this, iStep)
+      call setPresentField(this, iStep, status)
+      @:PROPAGATE_ERROR(status)
       do iDir = 1, 3
         derivs(iDir,:) = derivs(iDir,:)&
             & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%presentField(iDir)
@@ -3398,12 +3200,15 @@ contains
 
 
   !> sets electric field at present timestep
-  subroutine setPresentField(this, iStep)
+  subroutine setPresentField(this, iStep, status)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
     !> current step of the propagation
     integer, intent(in) :: iStep
+
+    !> Error status
+    type(TStatus), intent(out) :: status
 
     if (.not. this%tdFieldThroughAPI) then
       this%presentField(:) = this%tdFunction(:, iStep)
@@ -3411,7 +3216,7 @@ contains
       if (iStep == 0) then
         this%presentField(:) = 0.0_dp
       else
-        call error("External field has not been set.")
+        @:RAISE_ERROR(status, -1, "External field has not been set.")
       end if
     end if
 
@@ -3419,12 +3224,13 @@ contains
 
 
   !> Handles the initializations of the variables needed for the time propagation
-  subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
-       & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
-       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll, electronicSolver)
+  subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
+      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
+      & referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling,&
+      & qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec, speciesAll,&
+      & electronicSolver, status)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
 
@@ -3546,6 +3352,9 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
+    !> Error status
+    type(TStatus), intent(inout) :: status
+
     real(dp) :: new3Coord(3, this%nMovedAtom)
     integer :: iKS
 
@@ -3590,7 +3399,8 @@ contains
 
     if (this%tReadRestart) then
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
-          & restartFileName, this%tRestartAscii)
+          & restartFileName, this%tRestartAscii, status)
+      @:PROPAGATE_ERROR(status)
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll)
@@ -3634,7 +3444,8 @@ contains
         & this%populDat, this%forceDat, this%coorDat)
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%trho, this%Ssqr,&
-        & coord, iSquare, this%qBlock, this%qNetAtom)
+        & coord, iSquare, this%qBlock, this%qNetAtom, status)
+    @:PROPAGATE_ERROR(status)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
@@ -3644,14 +3455,16 @@ contains
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion, this%trho)
+        & this%dispersion, this%trho, status)
+    @:PROPAGATE_ERROR(status)
 
     if (this%tForces) then
       this%totalForce(:,:) = 0.0_dp
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho)
+          & 0, env, rangeSep, this%deltaRho, status)
+      @:PROPAGATE_ERROR(status)
     end if
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
@@ -3712,7 +3525,8 @@ contains
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
-        & iSquare, this%qBlock, this%qNetAtom)
+        & iSquare, this%qBlock, this%qNetAtom, status)
+    @:PROPAGATE_ERROR(status)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
@@ -3722,13 +3536,15 @@ contains
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion,this%rho)
+        & this%dispersion,this%rho, status)
+    @:PROPAGATE_ERROR(status)
 
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho)
+          & 0, env, rangeSep, this%deltaRho, status)
+      @:PROPAGATE_ERROR(status)
     end if
 
     this%tPropagatorsInitialized = .true.
@@ -3738,11 +3554,10 @@ contains
 
 
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
-  subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
-       & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
-       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
+  subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
+      & img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0, spinW,&
+      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
+      & repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, status)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3838,6 +3653,9 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
+    !> Error status
+    type(TStatus), intent(inout) :: status
+
     real(dp), allocatable :: velInternal(:,:)
     real(dp) :: new3Coord(3, this%nMovedAtom)
     character(sc) :: dumpIdx
@@ -3855,7 +3673,7 @@ contains
         this%coordNew(:, this%indMovedAtom) = new3Coord
 
       elseif (.not. this%tdCoordsAndVelosAreSet) then
-        call error("Coordinates and velocities were not set externally.")
+        @:RAISE_ERROR(status, -1, "Coordinates and velocities were not set externally.")
       end if
 
     end if
@@ -3935,7 +3753,8 @@ contains
         velInternal(:,:) = 0.0_dp
       end if
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
-          &restartFileName, this%tWriteRestartAscii)
+          &restartFileName, this%tWriteRestartAscii, status)
+      @:PROPAGATE_ERROR(status)
       deallocate(velInternal)
     end if
 
@@ -3951,7 +3770,8 @@ contains
         velInternal(:,:) = 0.0_dp
       end if
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
-          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
+          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, status)
+      @:PROPAGATE_ERROR(status)
       deallocate(velInternal)
     end if
 
@@ -3963,7 +3783,8 @@ contains
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
-        & iSquare, this%qBlock, this%qNetAtom)
+        & iSquare, this%qBlock, this%qNetAtom, status)
+    @:PROPAGATE_ERROR(status)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
@@ -3973,13 +3794,15 @@ contains
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion,this%rho)
+        & this%dispersion,this%rho, status)
+    @:PROPAGATE_ERROR(status)
 
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & iStep, env, rangeSep, this%deltaRho)
+          & iStep, env, rangeSep, this%deltaRho, status)
+      @:PROPAGATE_ERROR(status)
     end if
 
     ! unset coordinates and velocities at the end of the step
@@ -3988,6 +3811,7 @@ contains
     end if
 
   end subroutine doTdStep
+
 
   !> Handles deallocation, closing outputs and autotest writing
   subroutine finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
