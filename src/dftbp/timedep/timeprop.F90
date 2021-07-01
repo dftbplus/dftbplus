@@ -61,6 +61,7 @@ module dftbp_timedep_timeprop
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_type_integral, only : TIntegral
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
@@ -609,7 +610,7 @@ contains
 
 
   !> Driver of time dependent propagation to calculate with either spectrum or laser
-  subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, referenceN0, over, filling,&
+  subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
       & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep,&
       & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll,&
@@ -640,8 +641,8 @@ contains
     !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> central atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -757,7 +758,7 @@ contains
         this%currPolDir = this%polDirs(iPol)
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
-        call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
+        call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, ints, filling, neighbourList,&
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
             & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
             & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
@@ -766,7 +767,7 @@ contains
         this%iCall = this%iCall + 1
       end do
     else
-      call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, over, filling, neighbourList,&
+      call doDynamics(this, eigvecs, ham, H0, q0, referenceN0, ints, filling, neighbourList,&
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
           & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
           & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
@@ -778,7 +779,7 @@ contains
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, eigvecsReal, ham, H0, q0, referenceN0, over, filling, neighbourList,&
+  subroutine doDynamics(this, eigvecsReal, ham, H0, q0, referenceN0, ints, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
       & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
@@ -806,8 +807,8 @@ contains
     !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -924,7 +925,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
     call initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
+       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
@@ -943,7 +944,7 @@ contains
     do iStep = 1, this%nSteps
 
       call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
+       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
@@ -966,7 +967,7 @@ contains
 
 
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
-  subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
+  subroutine updateH(this, H1, ham, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
       & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
@@ -980,8 +981,8 @@ contains
     !> resulting hamiltonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
@@ -1124,7 +1125,7 @@ contains
     potential%intBlock = potential%intBlock + potential%extBlock
     potential%intShell = potential%intShell + potential%extShell
 
-    call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
+    call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
         & img2CentCell, potential, .false., ham, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
@@ -1561,7 +1562,7 @@ contains
 
 
   !> Create all necessary matrices and instances for dynamics
-  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
+  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, ints, ham, eigvecsReal,&
       & filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
       & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, qNetAtom, isDftbU,&
       & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
@@ -1575,8 +1576,8 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(in) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(in) :: ham(:,:)
@@ -1693,7 +1694,7 @@ contains
       Sinv(:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
-          call unpackHS(T2, over, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          call unpackHS(T2, ints%overlap, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
           call blockSymmetrizeHS(T2, iSquare)
           Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
           T3(:,:) = 0.0_dp
@@ -1706,7 +1707,7 @@ contains
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
           T4(:,:) = cmplx(0,0,dp)
-          call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
+          call unpackHS(T4, ints%overlap, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
               & this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(T4, iSquare)
           Ssqr(:,:,iKS) = T4
@@ -1802,7 +1803,7 @@ contains
     if (this%tBondP) then
       call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
     end if
-    call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour,&
+    call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, ints, iNeighbour,&
         & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, time)
 
   end subroutine initializeTDVariables
@@ -2831,7 +2832,7 @@ contains
 
   !> Calculates nonscc hamiltonian and overlap for new geometry and reallocates sparse arrays
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-      & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+      & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, ints, env, rhoPrim,&
       & ErhoPrim, coordAll)
 
     !> ElecDynamics instance
@@ -2849,8 +2850,8 @@ contains
     !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -2914,7 +2915,7 @@ contains
     if (.not. allocated(rhoPrim)) then
       allocate(rhoPrim(this%nSparse, this%nSpin))
     end if
-    call reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, ErhoPrim)
+    call reallocateTDSparseArrays(this, ham, ints, ham0, rhoPrim, ErhoPrim)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -2928,14 +2929,14 @@ contains
 
     call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
         & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
-    call buildS(env, over, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
+    call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
         & this%speciesAll, iSparseStart, orb)
 
     if (this%tRealHS) then
       allocate(Sreal(this%nOrbs,this%nOrbs))
       allocate(SinvReal(this%nOrbs,this%nOrbs))
       Sreal = 0.0_dp
-      call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+      call unpackHS(Sreal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
           & img2CentCell)
       call blockSymmetrizeHS(Sreal, iSquare)
       do iKS = 1, this%parallelKS%nLocalKS
@@ -2960,7 +2961,7 @@ contains
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
         T4(:,:) = cmplx(0,0,dp)
-        call unpackHS(T4, over, this%kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(T4, ints%overlap, this%kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
         call blockHermitianHS(T4, iSquare)
         Ssqr(:,:,iKS) = T4
@@ -3237,7 +3238,7 @@ contains
 
 
   !> Reallocates sparse arrays after change of coordinates
-  subroutine reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, ErhoPrim)
+  subroutine reallocateTDSparseArrays(this, ham, ints, ham0, rhoPrim, ErhoPrim)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
@@ -3245,8 +3246,8 @@ contains
     !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
@@ -3258,11 +3259,11 @@ contains
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
     deallocate(ham)
-    deallocate(over)
+    deallocate(ints%overlap)
     deallocate(ham0)
     deallocate(rhoPrim)
     allocate(ham(this%nSparse, this%nSpin))
-    allocate(over(this%nSparse))
+    allocate(ints%overlap(this%nSparse))
     allocate(ham0(this%nSparse))
     allocate(rhoPrim(this%nSparse, this%nSpin))
 
@@ -3344,7 +3345,7 @@ contains
 
 
   !> Calculates bond populations and bond energies if requested
-  subroutine getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour,&
+  subroutine getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, ints, iNeighbour,&
       & nNeighbourSK, iSparseStart, img2CentCell, iSquare,  fdBondEnergy, fdBondPopul, time)
 
     !> ElecDynamics instance
@@ -3359,8 +3360,8 @@ contains
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
 
-    !> overlap (sparse)
-    real(dp), intent(in) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> Local sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
@@ -3402,7 +3403,7 @@ contains
     if (this%tBondP) then
       bondWork(:,:) = 0.0_dp
       do iSpin = 1, this%nSpin
-        call addPairWiseBondInfo(bondWork, rhoPrim(:,1), over, iSquare,&
+        call addPairWiseBondInfo(bondWork, rhoPrim(:,1), ints%overlap, iSquare,&
             & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
       write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
@@ -3437,7 +3438,7 @@ contains
 
   !> Handles the initializations of the variables needed for the time propagation
   subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env, coordAll,&
+       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
@@ -3463,8 +3464,8 @@ contains
     !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -3612,7 +3613,7 @@ contains
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
           & restartFileName, this%tRestartAscii)
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll)
       if (this%tIons) then
 
@@ -3623,7 +3624,7 @@ contains
     else if (this%iCall > 1 .and. this%tIons) then
       coord(:,:) = this%initCoord
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll)
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
@@ -3633,7 +3634,7 @@ contains
     end if
 
     call initializeTDVariables(this, this%trho, this%H1, this%Ssqr, this%Sinv, H0, this%ham0, &
-        & over, ham, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
+        & ints, ham, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
         & neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
         & this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, skOverCont, this%qBlock,&
         & this%qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, this%H1LC, this%bondWork, &
@@ -3660,7 +3661,7 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, this%H1, ham, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
@@ -3727,7 +3728,7 @@ contains
     if (this%tIons) then
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll)
     end if
 
@@ -3738,7 +3739,7 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, this%H1, ham, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
@@ -3759,7 +3760,7 @@ contains
 
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
   subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
-       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, over, env,&
+       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
@@ -3779,8 +3780,8 @@ contains
     !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
-    !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -3902,7 +3903,7 @@ contains
 
     if ((mod(iStep, this%writeFreq) == 0)) then
       call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0,&
-          & over, neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+          & ints, neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
           & this%fdBondEnergy, this%fdBondPopul, this%time)
     end if
 
@@ -3981,7 +3982,7 @@ contains
     if (this%tIons) then
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, over, env,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll)
     end if
 
@@ -3992,7 +3993,7 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ham, over, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, this%H1, ham, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&

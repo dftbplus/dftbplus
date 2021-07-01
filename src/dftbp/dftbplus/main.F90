@@ -347,7 +347,7 @@ contains
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
       call runDynamics(this%electronDynamics, this%eigvecsReal, this%ham, this%H0, this%species,&
-          & this%q0, this%referenceN0, this%ints%overlap, this%filling, this%neighbourList,&
+          & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
