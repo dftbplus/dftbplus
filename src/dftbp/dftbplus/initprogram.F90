@@ -107,6 +107,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_integral, only : TIntegral
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
   use dftbp_type_orbitals, only : getShellNames
@@ -345,8 +346,8 @@ module dftbp_dftbplus_initprogram
     !> Charge par atom (atom, spin channel)
     real(dp), allocatable :: chargePerAtom(:,:)
 
-    !> sparse overlap
-    real(dp), allocatable :: over(:)
+    !> Integral container
+    type(TIntegral) :: ints
 
 
     !> nr. of K-points
@@ -1653,7 +1654,7 @@ contains
     if (this%tImHam) then
       allocate(this%iHam(0, this%nSpin))
     end if
-    allocate(this%over(0))
+    allocate(this%ints%overlap(0))
     allocate(this%iSparseStart(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom

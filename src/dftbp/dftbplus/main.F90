@@ -347,7 +347,7 @@ contains
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
       call runDynamics(this%electronDynamics, this%eigvecsReal, this%ham, this%H0, this%species,&
-          & this%q0, this%referenceN0, this%over, this%filling, this%neighbourList,&
+          & this%q0, this%referenceN0, this%ints%overlap, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
@@ -367,7 +367,7 @@ contains
     end if
 
     if (this%tLocalCurrents) then
-      call this%negfInt%local_currents(env, this%parallelKS%localKS, this%ham, this%over,&
+      call this%negfInt%local_currents(env, this%parallelKS%localKS, this%ham, this%ints%overlap,&
           & this%neighbourList, this%nNeighbourSK, this%cutOff%skCutoff, this%denseDesc%iAtomStart,&
           & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec, this%rCellVec,&
           & this%orb, this%kPoint, this%kWeight, this%coord0Fold, this%species0, this%speciesName,&
@@ -375,7 +375,7 @@ contains
     end if
 
     if (this%tTunn) then
-      call this%negfInt%calc_current(env, this%parallelKS%localKS, this%ham, this%over,&
+      call this%negfInt%calc_current(env, this%parallelKS%localKS, this%ham, this%ints%overlap,&
           & this%neighbourList%iNeighbour, this%nNeighbourSK, this%densedesc%iAtomStart,&
           & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec, this%orb,&
           & this%kPoint, this%kWeight, this%tunneling, this%current, this%ldos, this%leadCurrents,&
@@ -387,7 +387,7 @@ contains
     if (this%isDFTBPT) then
       if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
         call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
-            & this%eigvecsCplx, this%ham, this%over, this%orb, this%nAtom, this%species,&
+            & this%eigvecsCplx, this%ham, this%ints%overlap, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
             & this%img2CentCell, this%coord, this%scc, this%maxSccIter, this%sccTol,&
             & this%isSccConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
@@ -421,7 +421,7 @@ contains
         call error("Pipek-Mezey localisation not implemented for non-colinear DFTB")
       end if
       call calcPipekMezeyLocalisation(env, this%pipekMezey, this%tPrintEigvecsTxt, this%nEl,&
-          & this%filling, this%over, this%kPoint, this%neighbourList, this%nNeighbourSk,&
+          & this%filling, this%ints%overlap, this%kPoint, this%neighbourList, this%nNeighbourSk,&
           & this%denseDesc, this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec,&
           & this%runId, this%orb, this%species, this%speciesName, this%parallelKS, localisation,&
           & this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx, this%tHelical,&
@@ -658,7 +658,7 @@ contains
           & this%dispersion,this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
           & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC, this%ham,&
-          & this%over, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
+          & this%ints%overlap, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
           & this%iSparseStart, this%cm5Cont, stat)
         @:HANDLE_ERROR(stat)
     end if
@@ -687,13 +687,13 @@ contains
     case(hamiltonianTypes%dftb)
       call buildH0(env, this%H0, this%skHamCont, this%atomEigVal, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
-      call buildS(env, this%over, this%skOverCont, this%coord, this%nNeighbourSk,&
+      call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
     case(hamiltonianTypes%xtb)
       @:ASSERT(allocated(this%tblite))
       call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
           & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
-          & this%orb, this%H0, this%over)
+          & this%orb, this%H0, this%ints%overlap)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
@@ -736,7 +736,7 @@ contains
         call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
       end if
       ! We need to define hamltonian by adding the potential
-      call getSccHamiltonian(this%H0, this%over, this%nNeighbourSK, this%neighbourList,&
+      call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ham, this%iHam)
       tExitGeoOpt = .true.
@@ -763,7 +763,7 @@ contains
       lpSCC_REKS: do iSccIter = 1, this%maxSccIter
 
         if (iSccIter == 1) then
-          call getReksInitialSettings(env, this%denseDesc, this%h0, this%over, this%neighbourList,&
+          call getReksInitialSettings(env, this%denseDesc, this%h0, this%ints%overlap, this%neighbourList,&
               & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%electronicSolver,&
               & iGeoStep, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%eigen, this%reks)
         end if
@@ -773,12 +773,12 @@ contains
             & this%tHelical, this%eigvecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal,&
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
-            & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%over,&
+            & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%ints%overlap,&
             & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
 
         call getHamiltonianLandEnergyL(env, this%denseDesc, this%scc, this%tblite, this%orb, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%H0,&
-            & this%over, this%spinW, this%cellVol, this%extPressure, this%dftbEnergy(1), this%q0,&
+            & this%ints%overlap, this%spinW, this%cellVol, this%extPressure, this%dftbEnergy(1), this%q0,&
             & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %isExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
@@ -801,7 +801,7 @@ contains
         if (this%isRangeSep) then
           call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart, this%deltaRhoOutSqr)
         end if
-        call getMullikenPopulation(this%rhoPrim, this%over, this%orb, this%neighbourList,&
+        call getMullikenPopulation(this%rhoPrim, this%ints%overlap, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
             & qNetAtom=this%qNetAtom)
@@ -906,7 +906,7 @@ contains
           call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
         end if
 
-        call getSccHamiltonian(this%H0, this%over, this%nNeighbourSK, this%neighbourList,&
+        call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
             & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
             & allocated(this%reks), this%ham, this%iHam)
 
@@ -914,7 +914,7 @@ contains
             & .and. any(this%electronicSolver%iSolver&
             & == [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
             & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
-          call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS, this%over,&
+          call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS, this%ints%overlap,&
               & this%neighbourList, this%nNeighbourSK, this%denseDesc%iAtomStart,&
               & this%iSparseStart, this%img2CentCell, this%kPoint, this%iCellVec, this%cellVec,&
               & this%ham, this%iHam)
@@ -922,7 +922,7 @@ contains
 
         call convertToUpDownRepr(this%ham, this%iHam)
 
-        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ham, this%over,&
+        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ham, this%ints%overlap,&
             & this%neighbourList, this%nNeighbourSk, this%iSparseStart, this%img2CentCell,&
             & this%iCellVec, this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical,&
             & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
@@ -955,7 +955,7 @@ contains
         end if
 
         if (this%tMulliken) then
-          call getMullikenPopulation(this%rhoPrim, this%over, this%orb, this%neighbourList,&
+          call getMullikenPopulation(this%rhoPrim, this%ints%overlap, this%orb, this%neighbourList,&
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
               & qNetAtom=this%qNetAtom)
@@ -1025,7 +1025,7 @@ contains
                 & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
                 & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
           else
-            call getNextInputDensity(this%SSqrReal, this%over, this%neighbourList,&
+            call getNextInputDensity(this%SSqrReal, this%ints%overlap, this%neighbourList,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
                 & this%img2CentCell, this%pChrgMixer, this%qOutput, this%orb, this%tHelical,&
                 & this%species, this%coord, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter,&
@@ -1163,7 +1163,7 @@ contains
     if (this%isLinResp) then
       if (.not. this%isRS_LinResp) then
         call calculateLinRespExcitations(env, this%linearResponse, this%parallelKS, this%scc,&
-            & this%qOutput, this%q0, this%over, this%eigvecsReal, this%eigen(:,1,:),&
+            & this%qOutput, this%q0, this%ints%overlap, this%eigvecsReal, this%eigen(:,1,:),&
             & this%filling(:,1,:), this%coord, this%species, this%speciesName, this%orb,&
             & this%skHamCont, this%skOverCont, autotestTag, this%taggedWriter, this%runId,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
@@ -1173,7 +1173,7 @@ contains
             & this%excitedDerivs, this%dQAtomEx, this%occNatural)
       else
         call calculateLinRespExcitations_RS(env, this%linearResponse, this%parallelKS,&
-            & this%scc, this%qOutput, this%q0, this%over, this%eigvecsReal, this%eigen(:,1,:),&
+            & this%scc, this%qOutput, this%q0, this%ints%overlap, this%eigvecsReal, this%eigen(:,1,:),&
             & this%filling(:,1,:), this%coord0, this%species, this%speciesName, this%orb,&
             & this%skHamCont, this%skOverCont, autotestTag, this%taggedWriter, this%runId,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
@@ -1185,7 +1185,7 @@ contains
     end if
 
     if (allocated(this%ppRPA)) then
-      call unpackHS(this%SSqrReal, this%over, this%neighbourList%iNeighbour, this%nNeighbourSK,&
+      call unpackHS(this%SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour, this%nNeighbourSK,&
           & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
       call blockSymmetrizeHS(this%SSqrReal, this%denseDesc%iAtomStart)
       if (withMpi) then
@@ -1207,7 +1207,7 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%coord,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%over, this%orb,&
+      call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints%overlap, this%orb,&
           & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
           & this%img2CentCell, this%solvation)
     #:endblock DEBUG_CODE
@@ -1218,14 +1218,14 @@ contains
     if (this%tPrintEigVecs) then
       call writeEigenvectors(env, this%runId, this%neighbourList, this%nNeighbourSk, this%cellVec,&
           & this%iCellVec, this%denseDesc, this%iSparseStart, this%img2CentCell, this%species,&
-          & this%speciesName, this%orb, this%kPoint, this%over, this%parallelKS,&
+          & this%speciesName, this%orb, this%kPoint, this%ints%overlap, this%parallelKS,&
           & this%tPrintEigvecsTxt, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
     end if
 
     if (this%tProjEigenvecs) then
       call writeProjectedEigenvectors(env, this%regionLabels, this%eigen, this%neighbourList,&
           & this%nNeighbourSk, this%cellVec, this%iCellVec, this%denseDesc, this%iSparseStart,&
-          & this%img2CentCell, this%orb, this%over, this%kPoint, this%kWeight, this%iOrbRegion,&
+          & this%img2CentCell, this%orb, this%ints%overlap, this%kPoint, this%kWeight, this%iOrbRegion,&
           & this%parallelKS, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
     end if
     call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
@@ -1248,11 +1248,11 @@ contains
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell,&
             & this%orb, this%nonSccDeriv, this%skHamCont, this%skOverCont, this%repulsive,&
             & this%coord, this%coord0, this%species, this%q0, this%eigvecsReal,&
-            & this%chrgForces, this%over, this%spinW, this%derivs, this%tWriteAutotest,&
+            & this%chrgForces, this%ints%overlap, this%spinW, this%derivs, this%tWriteAutotest,&
             & autotestTag, this%taggedWriter, this%reks)
         call getReksGradProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
-            & this%iAtInCentralRegion, this%coord, this%coord0, this%over, this%rhoPrim,&
+            & this%iAtInCentralRegion, this%coord, this%coord0, this%ints%overlap, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
         call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
             & this%tDipole, this%reks, isSingleState=.false.)
@@ -1261,7 +1261,7 @@ contains
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
             & this%forceType, this%filling, this%eigen, this%kPoint, this%kWeight,&
             & this%neighbourList, this%nNeighbourSK, this%orb, this%iSparseStart,&
-            & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ham, this%over,&
+            & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ham, this%ints%overlap,&
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
             & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
@@ -1272,7 +1272,7 @@ contains
             & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
             & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
-            & this%rangeSep, this%SSqrReal, this%over, this%denseDesc, this%deltaRhoOutSqr,&
+            & this%rangeSep, this%SSqrReal, this%ints%overlap, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
         if (this%tCasidaForces) then
