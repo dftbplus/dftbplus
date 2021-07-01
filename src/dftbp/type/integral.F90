@@ -19,6 +19,12 @@ module dftbp_type_integral
     !> Overlap integrals in atomic block sparse form
     real(dp), allocatable :: overlap(:)
 
+    !> Real Hamiltonian integrals in atomic block sparse form
+    real(dp), allocatable :: hamiltonian(:, :)
+
+    !> Imaginary Hamiltonian integrals in atomic block sparse form
+    real(dp), allocatable :: iHamiltonian(:, :)
+
   end type TIntegral
 
 contains

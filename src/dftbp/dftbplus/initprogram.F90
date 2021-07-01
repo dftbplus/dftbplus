@@ -334,12 +334,6 @@ module dftbp_dftbplus_initprogram
     !> Cut off distances for various types of interaction
     type(TCutoffs) :: cutOff
 
-    !> Sparse hamiltonian matrix
-    real(dp), allocatable :: ham(:,:)
-
-    !> imaginary part of the Hamiltonian
-    real(dp), allocatable :: iHam(:,:)
-
     !> Charge per atomic shell (shell, atom, spin channel)
     real(dp), allocatable :: chargePerShell(:,:,:)
 
@@ -1649,10 +1643,10 @@ contains
       allocate(this%chargePerShell(0,0,0))
     end if
     if (.not.allocated(this%reks)) then
-      allocate(this%ham(0, this%nSpin))
+      allocate(this%ints%hamiltonian(0, this%nSpin))
     end if
     if (this%tImHam) then
-      allocate(this%iHam(0, this%nSpin))
+      allocate(this%ints%iHamiltonian(0, this%nSpin))
     end if
     allocate(this%ints%overlap(0))
     allocate(this%iSparseStart(0, this%nAtom))

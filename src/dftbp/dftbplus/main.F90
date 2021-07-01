@@ -347,7 +347,7 @@ contains
 
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
-      call runDynamics(this%electronDynamics, this%eigvecsReal, this%ham, this%H0, this%species,&
+      call runDynamics(this%electronDynamics, this%eigvecsReal, this%H0, this%species,&
           & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
@@ -368,7 +368,7 @@ contains
     end if
 
     if (this%tLocalCurrents) then
-      call this%negfInt%local_currents(env, this%parallelKS%localKS, this%ham, this%ints%overlap,&
+      call this%negfInt%local_currents(env, this%parallelKS%localKS, this%ints%hamiltonian, this%ints%overlap,&
           & this%neighbourList, this%nNeighbourSK, this%cutOff%skCutoff, this%denseDesc%iAtomStart,&
           & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec, this%rCellVec,&
           & this%orb, this%kPoint, this%kWeight, this%coord0Fold, this%species0, this%speciesName,&
@@ -376,7 +376,7 @@ contains
     end if
 
     if (this%tTunn) then
-      call this%negfInt%calc_current(env, this%parallelKS%localKS, this%ham, this%ints%overlap,&
+      call this%negfInt%calc_current(env, this%parallelKS%localKS, this%ints%hamiltonian, this%ints%overlap,&
           & this%neighbourList%iNeighbour, this%nNeighbourSK, this%densedesc%iAtomStart,&
           & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec, this%orb,&
           & this%kPoint, this%kWeight, this%tunneling, this%current, this%ldos, this%leadCurrents,&
@@ -388,7 +388,7 @@ contains
     if (this%isDFTBPT) then
       if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
         call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
-            & this%eigvecsCplx, this%ham, this%ints%overlap, this%orb, this%nAtom, this%species,&
+            & this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom, this%species,&
             & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
             & this%img2CentCell, this%coord, this%scc, this%maxSccIter, this%sccTol,&
             & this%isSccConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
@@ -658,8 +658,8 @@ contains
           & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite, this%repulsive,&
           & this%dispersion,this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
-          & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC, this%ham,&
-          & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%iHam, this%ERhoPrim,&
+          & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC,&
+          & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim,&
           & this%iSparseStart, this%cm5Cont, stat)
         @:HANDLE_ERROR(stat)
     end if
@@ -739,7 +739,7 @@ contains
       ! We need to define hamltonian by adding the potential
       call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
-          & allocated(this%reks), this%ham, this%iHam)
+          & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
       tExitGeoOpt = .true.
       return
     end if
@@ -783,7 +783,7 @@ contains
             & this%iAtInCentralRegion, this%solvation, this%thirdOrd, this%potential,&
             & this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi, this %isExtField,&
             & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this %qBlockOut,&
-            & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%iHam,&
+            & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements,&
             & this%dispersion, tConverged, this%species0, this%referenceN0, this%qNetAtom,&
             & this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
@@ -909,7 +909,7 @@ contains
 
         call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
             & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
-            & allocated(this%reks), this%ham, this%iHam)
+            & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
 
         if (this%tWriteRealHS .or. this%tWriteHS&
             & .and. any(this%electronicSolver%iSolver&
@@ -918,19 +918,19 @@ contains
           call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS, this%ints%overlap,&
               & this%neighbourList, this%nNeighbourSK, this%denseDesc%iAtomStart,&
               & this%iSparseStart, this%img2CentCell, this%kPoint, this%iCellVec, this%cellVec,&
-              & this%ham, this%iHam)
+              & this%ints%hamiltonian, this%ints%iHamiltonian)
         end if
 
-        call convertToUpDownRepr(this%ham, this%iHam)
+        call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
 
-        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ham, this%ints,&
+        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
             & this%neighbourList, this%nNeighbourSk, this%iSparseStart, this%img2CentCell,&
             & this%iCellVec, this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical,&
             & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
             & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
             & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%eigen,&
-            & this%filling, this%rhoPrim, this%iHam, this%xi, this%orbitalL, this%HSqrReal,&
+            & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
             & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb)
@@ -1262,7 +1262,7 @@ contains
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
             & this%forceType, this%filling, this%eigen, this%kPoint, this%kWeight,&
             & this%neighbourList, this%nNeighbourSK, this%orb, this%iSparseStart,&
-            & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ham, this%ints,&
+            & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ints,&
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
             & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
@@ -1653,8 +1653,8 @@ contains
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
       & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
-      & species, rCellVec, nNeighbourSK, nNeighbourLC, ham, ints, H0, rhoPrim, iRhoPrim,&
-      & iHam, ERhoPrim, iSparseStart, cm5Cont, stat)
+      & species, rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim,&
+      & ERhoPrim, iSparseStart, cm5Cont, stat)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1738,9 +1738,6 @@ contains
     !> functional
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
-    !> Sparse hamiltonian storage
-    real(dp), allocatable, intent(inout) :: ham(:,:)
-
     !> Integral container
     type(TIntegral), intent(inout) :: ints
 
@@ -1752,9 +1749,6 @@ contains
 
     !> Imaginary part of sparse density matrix storage
     real(dp), allocatable, intent(inout) :: iRhoPrim(:,:)
-
-    !> Imaginary part of sparse hamiltonian storage
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> energy weighted density matrix storage
     real(dp), allocatable, intent(inout) :: ERhoPrim(:)
@@ -1789,8 +1783,8 @@ contains
 
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
-    call reallocateSparseArrays(sparseSize, reks, ham, ints, H0,&
-        & rhoPrim, iHam, iRhoPrim, ERhoPrim)
+    call reallocateSparseArrays(sparseSize, reks, ints, H0,&
+        & rhoPrim, iRhoPrim, ERhoPrim)
 
     if (allocated(nNeighbourLC)) then
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
@@ -1905,17 +1899,14 @@ contains
 
 
   !> Ensures that sparse array have enough storage to hold all necessary elements.
-  subroutine reallocateSparseArrays(sparseSize, reks, ham, ints,&
-      & H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
+  subroutine reallocateSparseArrays(sparseSize, reks, ints,&
+      & H0, rhoPrim, iRhoPrim, ERhoPrim)
 
     !> Size of the sparse overlap
     integer, intent(in) :: sparseSize
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
-
-    !> Sparse storage for hamiltonian (sparseSize,nSpin)
-    real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(inout) :: ints
@@ -1925,9 +1916,6 @@ contains
 
     !> Sparse storage for density matrix
     real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
-
-    !> Sparse storage for imaginary hamiltonian (not reallocated if not initially allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> Sparse storage for imaginary part of density matrix (not reallocated if not initially
     !> allocated)
@@ -1942,11 +1930,11 @@ contains
     #:block DEBUG_CODE
       @:ASSERT(size(H0) == size(ints%overlap))
       if (.not. allocated(reks)) then
-        @:ASSERT(size(ham, dim=1) == size(ints%overlap))
-        @:ASSERT(all(shape(rhoPrim) == shape(ham)))
+        @:ASSERT(size(ints%hamiltonian, dim=1) == size(ints%overlap))
+        @:ASSERT(all(shape(rhoPrim) == shape(ints%hamiltonian)))
         if (allocated(iRhoPrim)) then
           @:ASSERT(all(shape(iRhoPrim) == shape(rhoPrim)))
-          @:ASSERT(all(shape(iHam) == shape(ham)))
+          @:ASSERT(all(shape(ints%iHamiltonian) == shape(ints%hamiltonian)))
         end if
         if (allocated(ERhoPrim)) then
           @:ASSERT(size(ERhoPrim) == size(rhoPrim, dim=1))
@@ -1961,7 +1949,7 @@ contains
         return
       end if
     else
-      if (size(ham, dim=1) >= sparseSize) then
+      if (size(ints%hamiltonian, dim=1) >= sparseSize) then
         ! Sparse matrices are big enough
         return
       end if
@@ -1969,22 +1957,22 @@ contains
 
     nSpin = size(rhoPrim, dim=2)
     if (.not. allocated(reks)) then
-      deallocate(ham)
+      deallocate(ints%hamiltonian)
     end if
     deallocate(ints%overlap)
     deallocate(H0)
     deallocate(rhoPrim)
     if (.not. allocated(reks)) then
-      allocate(ham(sparseSize, nSpin))
+      allocate(ints%hamiltonian(sparseSize, nSpin))
     end if
     allocate(ints%overlap(sparseSize))
     allocate(H0(sparseSize))
     allocate(rhoPrim(sparseSize, nSpin))
     if (allocated(iRhoPrim)) then
       deallocate(iRhoPrim)
-      deallocate(iHam)
+      deallocate(ints%iHamiltonian)
       allocate(iRhoPrim(sparseSize, nSpin))
-      allocate(iHam(sparseSize, nSpin))
+      allocate(ints%iHamiltonian(sparseSize, nSpin))
     end if
     if (allocated(ERhoPrim)) then
       deallocate(ERhoPrim)
@@ -2081,11 +2069,11 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(env, negfInt, iScc, denseDesc, ham, ints, neighbourList, nNeighbourSK,&
+  subroutine getDensity(env, negfInt, iScc, denseDesc, ints, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord,&
       & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
       & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
-      & filling, rhoPrim, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
+      & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
       & tLargeDenseMatrices, deltaDftb)
 
@@ -2100,9 +2088,6 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -2200,9 +2185,6 @@ contains
     !> sparse density matrix
     real(dp), intent(out) :: rhoPrim(:,:)
 
-    !> imaginary part of hamiltonian
-    real(dp), intent(in), allocatable :: iHam(:,:)
-
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
@@ -2256,7 +2238,7 @@ contains
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
 
-    nSpin = size(ham, dim=2)
+    nSpin = size(ints%hamiltonian, dim=2)
     tImHam = allocated(iRhoPrim)
 
     select case (electronicSolver%iSolver)
@@ -2265,7 +2247,7 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
     #:if WITH_TRANSPORT
-      call negfInt%calcdensity_green(iSCC, env, parallelKS%localKS, ham, ints%overlap,&
+      call negfInt%calcdensity_green(iSCC, env, parallelKS%localKS, ints%hamiltonian, ints%overlap,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef,&
           & energy%E0, energy%TS)
@@ -2283,11 +2265,11 @@ contains
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%magma_gvd)
 
-      call getDensityFromDenseDiag(env, denseDesc, ham, ints, neighbourList, nNeighbourSK,&
+      call getDensityFromDenseDiag(env, denseDesc, ints, neighbourList, nNeighbourSK,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
           & denseDesc%iAtomStart, tHelical, coord, species, electronicSolver, tRealHS,&
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, iHam, xi,&
+          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
           & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
           & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb)
 
@@ -2296,10 +2278,10 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
-      call electronicSolver%elsi%getDensity(env, denseDesc, ham, ints%overlap, neighbourList, nNeighbourSK,&
+      call electronicSolver%elsi%getDensity(env, denseDesc, ints%hamiltonian, ints%overlap, neighbourList, nNeighbourSK,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical, orb, species,&
           & coord, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef,&
-          & energy, rhoPrim, energy%Eband, energy%TS, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
+          & energy, rhoPrim, energy%Eband, energy%TS, ints%iHamiltonian, xi, orbitalL, HSqrReal, SSqrReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
@@ -2309,11 +2291,11 @@ contains
 
 
   !> Returns the density matrix using dense diagonalisation.
-  subroutine getDensityFromDenseDiag(env, denseDesc, ham, ints, neighbourList, nNeighbourSK,&
+  subroutine getDensityFromDenseDiag(env, denseDesc, ints, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, iAtomStart, tHelical,&
       & coord, species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit,&
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
-      & eigen, filling, rhoPrim, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
+      & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
       & nNeighbourLC, deltaDftb)
 
@@ -2322,9 +2304,6 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -2422,9 +2401,6 @@ contains
     !> sparse density matrix
     real(dp), intent(out) :: rhoPrim(:,:)
 
-    !> imaginary part of hamiltonian
-    real(dp), intent(in), allocatable :: iHam(:,:)
-
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
@@ -2473,23 +2449,23 @@ contains
 
     integer :: nSpin
 
-    nSpin = size(ham, dim=2)
+    nSpin = size(ints%hamiltonian, dim=2)
     call env%globalTimer%startTimer(globalTimers%diagonalization)
     if (nSpin /= 4) then
       if (tRealHS) then
-        call buildAndDiagDenseRealHam(env, denseDesc, ham, ints, species, neighbourList,&
+        call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
             & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC,&
             & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
       else
-        call buildAndDiagDenseCplxHam(env, denseDesc, ham, ints, kPoint, neighbourList,&
+        call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
             & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen)
       end if
     else
-      call buildAndDiagDensePauliHam(env, denseDesc, ham, ints, kPoint, neighbourList,&
+      call buildAndDiagDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
-          & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
+          & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, xi, species)
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
@@ -2523,7 +2499,7 @@ contains
 
 
   !> Builds and diagonalises dense Hamiltonians.
-  subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, ints, species, neighbourList,&
+  subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
       & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal,&
       & SSqrReal, eigvecsReal, eigen)
@@ -2533,9 +2509,6 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -2606,14 +2579,14 @@ contains
     #:if WITH_SCALAPACK
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHSHelicalRealBlacs(env%blacs, ham(:,iSpin), neighbourList%iNeighbour,&
+        call unpackHSHelicalRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, HSqrReal)
         if (.not. electronicSolver%hasCholesky(1)) then
           call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
               & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal)
         end if
       else
-        call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & iSparseStart, img2CentCell, denseDesc, HSqrReal)
         if (.not. electronicSolver%hasCholesky(1)) then
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
@@ -2626,12 +2599,12 @@ contains
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHelicalHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(HSqrReal, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
-        call unpackHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(HSqrReal, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
@@ -2662,7 +2635,7 @@ contains
 
 
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
-  subroutine buildAndDiagDenseCplxHam(env, denseDesc, ham, ints, kPoint, neighbourList,&
+  subroutine buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver, parallelKS,&
       & tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigvecsCplx, eigen)
 
@@ -2671,9 +2644,6 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -2738,7 +2708,7 @@ contains
     #:if WITH_SCALAPACK
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHSHelicalCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK),&
+        call unpackHSHelicalCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK),&
             & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
             & img2CentCell, orb, species, coord, denseDesc, HSqrCplx)
         if (.not. electronicSolver%hasCholesky(iKS)) then
@@ -2747,7 +2717,7 @@ contains
               & denseDesc, SSqrCplx)
         end if
       else
-        call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
+        call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
         if (.not. electronicSolver%hasCholesky(iKS)) then
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
@@ -2760,14 +2730,14 @@ contains
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHelicalHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
+        call unpackHelicalHS(HSqrCplx, ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
             & orb, species, coord)
         call unpackHelicalHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
             & coord)
       else
-        call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(HSqrCplx, ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call unpackHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -2786,18 +2756,15 @@ contains
 
 
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
-  subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, ints, kPoint, neighbourList,&
+  subroutine buildAndDiagDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
-      & parallelKS, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
+      & parallelKS, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -2844,9 +2811,6 @@ contains
     !> eigenvectors
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
 
-    !> imaginary part of the hamiltonian
-    real(dp), intent(in), allocatable :: iHam(:,:)
-
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
@@ -2860,12 +2824,12 @@ contains
       iK = parallelKS%localKS(1, iKS)
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
-      if (allocated(iHam)) then
-        call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
+      if (allocated(ints%iHamiltonian)) then
+        call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & HSqrCplx, iorig=iHam)
+            & HSqrCplx, iorig=ints%iHamiltonian)
       else
-        call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
+        call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
             & HSqrCplx)
       end if
@@ -2875,17 +2839,17 @@ contains
             & SSqrCplx)
       end if
     #:else
-      if (allocated(iHam)) then
-        call unpackHPauli(ham, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
-            & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=iHam)
+      if (allocated(ints%iHamiltonian)) then
+        call unpackHPauli(ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
+            & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=ints%iHamiltonian)
       else
-        call unpackHPauli(ham, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
+        call unpackHPauli(ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
             & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx)
       end if
       call unpackSPauli(ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
     #:endif
-      if (allocated(xi) .and. .not. allocated(iHam)) then
+      if (allocated(xi) .and. .not. allocated(ints%iHamiltonian)) then
         call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -4592,7 +4556,7 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, negfInt, electronicSolver, denseDesc, forceType,&
       & filling, eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart,&
-      & img2CentCell, iCellVEc, cellVec, tRealHS, ham, ints, parallelKS, tHelical, species, coord,&
+      & img2CentCell, iCellVEc, cellVec, tRealHS, ints, parallelKS, tHelical, species, coord,&
       & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
@@ -4646,9 +4610,6 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> Sparse Hamiltonian
-    real(dp), intent(in) :: ham(:,:)
-
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
@@ -4687,7 +4648,7 @@ contains
 
     integer :: nSpin
 
-    nSpin = size(ham, dim=2)
+    nSpin = size(ints%hamiltonian, dim=2)
 
     call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
 
@@ -4702,7 +4663,7 @@ contains
 
     #:if WITH_TRANSPORT
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
-        call negfInt%calcEdensity_green(iSCC, env, parallelKS%localKS, ham, ints%overlap,&
+        call negfInt%calcEdensity_green(iSCC, env, parallelKS%localKS, ints%hamiltonian, ints%overlap,&
             & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       end if
@@ -4718,7 +4679,7 @@ contains
 
       call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & tRealHS, ham, ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal,&
+          & tRealHS, ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal,&
           & HSqrCplx, SSqrCplx)
 
     case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -4743,7 +4704,7 @@ contains
   !> Calculates the energy weighted density matrix using eigenvectors
   subroutine getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-      & ham, ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx,&
+      & ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx,&
       & SSqrCplx)
 
     !> Environment settings
@@ -4791,9 +4752,6 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> Sparse Hamiltonian
-    real(dp), intent(in) :: ham(:,:)
-
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
@@ -4826,7 +4784,7 @@ contains
 
     integer :: nSpin
 
-    nSpin = size(ham, dim=2)
+    nSpin = size(ints%hamiltonian, dim=2)
 
     if (nSpin == 4) then
       call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
@@ -4835,12 +4793,12 @@ contains
     else
       if (tRealHS) then
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
-            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, ints,&
+            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ints,&
             & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal, ERhoPrim)
       else
         call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
-            & cellVec, ham, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx,&
+            & cellVec, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx,&
             & ERhoPrim)
       end if
     end if
@@ -4850,7 +4808,7 @@ contains
 
   !> Calculates density matrix from real eigenvectors.
   subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
-      & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, ints, parallelKS,&
+      & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ints, parallelKS,&
       & tHelical, species, coord, eigvecsReal, work, ERhoPrim)
 
     !> Environment settings
@@ -4882,9 +4840,6 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
-
-    !> Sparse Hamiltonian
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -4944,10 +4899,10 @@ contains
         ! Correct force for XLBOMD for T=0K (DHD)
       #:if WITH_SCALAPACK
         if (tHelical) then
-          call unpackHSHelicalRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour,&
+          call unpackHSHelicalRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourList%iNeighbour,&
               & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, work)
         else
-          call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work)
         end if
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
@@ -4958,10 +4913,10 @@ contains
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
       #:else
         if (tHelical) then
-          call unpackHelicalHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHelicalHS(work, ints%hamiltonian(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
-          call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHS(work, ints%hamiltonian(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
         call blockSymmetrizeHS(work, denseDesc%iAtomStart)
@@ -4978,10 +4933,10 @@ contains
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigVecsReal(:,:,iKS), work)
         if (tHelical) then
-          call unpackHSHelicalRealBlacs(env%blacs, ham(:,iS), neighbourlist%iNeighbour,&
+          call unpackHSHelicalRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourlist%iNeighbour,&
               & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, work2)
         else
-          call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work2)
         end if
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
@@ -5002,10 +4957,10 @@ contains
       #:else
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
         if (tHelical) then
-          call unpackHelicalHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHelicalHS(work2, ints%hamiltonian(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
-          call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHS(work2, ints%hamiltonian(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
         call blocksymmetrizeHS(work2, denseDesc%iAtomStart)
@@ -5053,7 +5008,7 @@ contains
   !> Calculates density matrix from complex eigenvectors.
   subroutine getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
       & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & ham, ints, parallelKS, tHelical, species, coord, eigvecsCplx, work, ERhoPrim)
+      & ints, parallelKS, tHelical, species, coord, eigvecsCplx, work, ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5095,9 +5050,6 @@ contains
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
-
-    !> Sparse Hamiltonian
-    real(dp), intent(in) :: ham(:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -5160,11 +5112,11 @@ contains
         ! Correct force for XLBOMD for T=0K (DHD)
       #:if WITH_SCALAPACK
         if (tHelical) then
-          call unpackHSHelicalCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK),&
+          call unpackHSHelicalCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, orb, species, coord, denseDesc, work)
         else
-          call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+          call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
         end if
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
@@ -5176,11 +5128,11 @@ contains
       #:else
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
-          call unpackHelicalHS(work, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+          call unpackHelicalHS(work, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
               & orb, species, coord)
         else
-          call unpackHS(work, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHS(work, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
         call blockHermitianHS(work, denseDesc%iAtomStart)
@@ -5194,11 +5146,11 @@ contains
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
             & filling(:,iK,iS), eigVecsCplx(:,:,iKS), work)
         if (tHelical) then
-          call unpackHSHelicalCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK),&
+          call unpackHSHelicalCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, orb, species, coord, denseDesc, work2)
         else
-          call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+          call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work2)
         end if
         call pblasfx_phemm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
@@ -5220,11 +5172,11 @@ contains
       #:else
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
-          call unpackHelicalHS(work2, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+          call unpackHelicalHS(work2, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
               & orb, species, coord)
         else
-          call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHS(work2, ints%hamiltonian(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
         call blockHermitianHS(work2, denseDesc%iAtomStart)
@@ -6921,7 +6873,7 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, H0, ints, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
-      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, dispersion, tConverged, species0,&
+      & tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
       & referenceN0, qNetAtom, reks)
 
     !> Environment settings
@@ -6958,7 +6910,7 @@ contains
     real(dp), intent(in) :: H0(:)
 
     !> Integral container
-    type(TIntegral), intent(in) :: ints
+    type(TIntegral), intent(inout) :: ints
 
     !> spin constants
     real(dp), allocatable, intent(in) :: spinW(:,:,:)
@@ -7033,9 +6985,6 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    !> imaginary part of hamiltonian (if required, signalled by being allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
-
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
@@ -7109,7 +7058,7 @@ contains
 
       ! tmpHamSp has (my_qm) component
       call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, species, orb,&
-          & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, iHam)
+          & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, ints%iHamiltonian)
       tmpHamSp(:,1) = 2.0_dp * tmpHamSp(:,1)
 
       if (reks%isRangeSep) then
