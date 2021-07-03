@@ -25,7 +25,7 @@
 ! * ---------------------------------------------------------------------- 
 #:include "common.fypp"
 
-module libnegf_int
+module phonons_libnegfint
   use dftbp_common_accuracy
   use dftbp_common_environment
   use dftbp_common_globalenv, only : stdOut, tIoProc
@@ -37,7 +37,7 @@ module libnegf_int
       & init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch, set_drop,&
       & set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing, set_ldos_indexes,&
       & set_tun_indexes, set_params, writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
-  use dftbp_initphonons, only : TempMin, TempMax, TempStep, modeEnum 
+  use phonons_initphonons, only : TempMin, TempMax, TempStep, modeEnum 
   use dftbp_io_message
   use dftbp_transport_matconv
   use dftbp_transport_negfvars
@@ -888,4 +888,4 @@ module libnegf_int
   end subroutine negf_dumpHS
   
     
-end module libnegf_int
+end module phonons_libnegfint

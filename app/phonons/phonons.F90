@@ -12,13 +12,13 @@ program phonons
   use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
   use dftbp_common_environment
   use dftbp_common_globalenv
-  use dftbp_initphonons
+  use phonons_initphonons
   use dftbp_io_message
   use dftbp_io_taggedoutput
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry
-  use libnegf_int
+  use phonons_libnegfint
   use ln_structure
   implicit none
 
