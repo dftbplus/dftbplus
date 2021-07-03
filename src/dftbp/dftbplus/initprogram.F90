@@ -138,7 +138,8 @@ module dftbp_dftbplus_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, derivEBandOut, mdOut, resultsTag, hessianOut
+  public :: autotestTag, userOut, bandOut, derivEBandOut, derivVBandOut, mdOut, resultsTag
+  public :: hessianOut
   public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_TRANSPORT
@@ -160,6 +161,9 @@ module dftbp_dftbplus_initprogram
 
   !> File for derivatives of band structure
   character(*), parameter :: derivEBandOut = "dE_band.out"
+
+  !> File for derivatives of band structure
+  character(*), parameter :: derivVBandOut = "dV_band.out"
 
   !> File accumulating data during an MD run
   character(*), parameter :: mdOut = "md.out"
@@ -536,8 +540,17 @@ module dftbp_dftbplus_initprogram
     !> Density functional tight binding perturbation theory
     logical :: isDFTBPT = .false.
 
+    !> Tolerance for degeneracy between eigenvalues in DFTB-PT
+    real(dp) :: tolDegenDFTBPT
+
     !> Static polarisability
     logical :: isStatEResp = .false.
+
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
+    logical :: isRespKernelPert
+
+    !> Should the response Kernel use RPA (non-SCC) or self-consistent
+    logical :: isRespKernelRPA
 
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:)
@@ -2215,7 +2228,17 @@ contains
 
     this%isDFTBPT = input%ctrl%isDFTBPT
     if (this%isDFTBPT) then
+      this%tolDegenDFTBPT = input%ctrl%tolDegenDFTBPT
       this%isStatEResp = input%ctrl%isStatEPerturb
+      this%isRespKernelPert = input%ctrl%isRespKernelPert
+      if (this%isRespKernelPert) then
+        this%isRespKernelRPA = input%ctrl%isRespKernelRPA
+        if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
+          call error("RPA option only relevant for SCC calculations of response kernel")
+        end if
+      else
+        this%isRespKernelRPA = .false.
+      end if
       if (this%tNegf) then
         call error("Currently the perturbation expressions for NEGF are not implemented")
       end if
@@ -2223,11 +2246,15 @@ contains
         call error("Perturbation expression for polarisability require eigenvalues and&
             & eigenvectors")
       end if
-      if (this%tPeriodic) then
-        call error("Currently the perturbation expressions periodic systems are not implemented")
-      end if
-      if (this%tHelical) then
-        call error("Currently the perturbation expressions periodic systems are not implemented")
+      if (this%isStatEResp) then
+        if (this%tPeriodic) then
+          call error("Currently the electric field perturbation expressions periodic systems are&
+              & not implemented")
+        end if
+        if (this%tHelical) then
+          call error("Currently the electric field perturbation expressions for helical systems are&
+              & not implemented")
+        end if
       end if
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")
@@ -2249,14 +2276,16 @@ contains
             & perturbation")
       end if
 
-      allocate(this%polarisability(3,3))
-      this%polarisability(:,:) = 0.0_dp
-      if (input%ctrl%tWriteBandDat) then
-        allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
-        this%dEidE(:,:,:,:) = 0.0_dp
+      if (this%isStatEResp) then
+        allocate(this%polarisability(3,3))
+        this%polarisability(:,:) = 0.0_dp
+        if (input%ctrl%tWriteBandDat) then
+          allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+          this%dEidE(:,:,:,:) = 0.0_dp
+        end if
+        allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
+        this%dqOut(:,:,:,:) = 0.0_dp
       end if
-      allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
-      this%dqOut(:,:,:,:) = 0.0_dp
 
     else
       this%isStatEResp = .false.
@@ -3742,9 +3771,8 @@ contains
           this%nMixElements = max(this%nMixElements, maxval(this%iEqBlockDFTBULS))
         end if
       end if
-
-    !Non-SCC
     else
+      !Non-SCC
       this%nIneqOrb = this%nOrb
       this%nMixElements = 0
     end if
@@ -4450,7 +4478,7 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
-      if (this%isDFTBPT) then
+      if (this%isDFTBPT .and. this%isStatEResp) then
         call initOutputFile(derivEBandOut)
       end if
     end if

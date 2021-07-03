@@ -131,7 +131,7 @@ module dftbp_dftbplus_inputdata
     logical :: tShellResolved = .false.
 
     !> SCC tolerance
-    real(dp) :: sccTol      = 0.0_dp
+    real(dp) :: sccTol = 0.0_dp
 
     !> Read starting charges from disc
     logical :: tReadChrg = .false.
@@ -210,8 +210,17 @@ module dftbp_dftbplus_inputdata
     !> Is a perturbation expression in use
     logical :: isDFTBPT = .false.
 
+    !> Tolerance for idenfifying need for degenerate perturbation theory
+    real(dp) :: tolDegenDFTBPT = 128.0_dp
+
     !> Is this is a static electric field perturbation calculation
     logical :: isStatEPerturb = .false.
+
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
+    logical :: isRespKernelPert = .false.
+
+    !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
+    logical :: isRespKernelRPA
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.

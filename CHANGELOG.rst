@@ -18,6 +18,12 @@ Addded
 - DFTBPLUS_PARAM_DIR for searching Slater-Koster parameter files, solvation
   parameter files, and xTB parameter files
 
+- Atomic potential responses (enables atom resolved response kernel evaluation
+  and condensed Fukui functions)
+
+- Internal changes for response evaluation for DFTB ground state hamiltonians
+  (except self-consistent dispersion) with molecular, periodic and helical
+  boundary conditions.
 
 Changed
 -------
