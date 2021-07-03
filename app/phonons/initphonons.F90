@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-module dftbp_initphonons
+module phonons_initphonons
   use dftbp_common_accuracy
   use dftbp_common_atomicmass
   use dftbp_common_constants
@@ -1638,4 +1638,4 @@ contains
 
 
 
-end module dftbp_initphonons
+end module phonons_initphonons
