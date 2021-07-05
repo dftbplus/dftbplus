@@ -177,7 +177,7 @@ class TaggedEntry(object):
         strValue --
         """
 
-        if not type in self.__validTypes:
+        if type not in self.__validTypes:
             raise InvalidEntry(msg="Invalid data type '%s'" % type)
         self.__name = name
         self.__type = type

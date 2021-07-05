@@ -49,7 +49,7 @@ for options, argument in opts:
     else:
         assert False, "unhandled option"
 
-if outfile==None or infile==None:
+if outfile is None or infile is None:
     useage()
         
 # returns numeric matches as a number
@@ -74,12 +74,12 @@ b = - 0.5 / (sigma * sigma)
 states = {}
 
 fp = open(infile, "r")
-eigenstates = numGrep("^ *([+-]?\d+\.\d+) +([+-]?\d+\.\d+e?-?\d*)",fp)
+eigenstates = numGrep(r"^ *([+-]?\d+\.\d+) +([+-]?\d+\.\d+e?-?\d*)",fp)
 fp.close()
 
 if norm:    
     fp = open(infile, "r")
-    nKPTS = numGrep("^ *KPT *(\d+) *(.*)",fp)    
+    nKPTS = numGrep(r"^ *KPT *(\d+) *(.*)",fp)
     scale = 2.0 / size(nKPTS)
     fp.close()
 else:

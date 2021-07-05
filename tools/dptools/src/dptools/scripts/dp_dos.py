@@ -175,7 +175,7 @@ def dp_dos(args, broadening, sigma, sigmarange, infile, outfile):
         order = args.mporder + 1 # order = 0 => Gaussian
         coefs = np.zeros(2*order, dtype=float)
         for ii in range(order):
-            coefs[2*ii] = ((-1)**ii) / (math.factorial(ii) * (4**ii) \
+            coefs[2*ii] = ((-1)**ii) / (math.factorial(ii) * (4**ii)
                                         * math.sqrt(math.pi))
         broadening_function = lambda x: H.hermval(bb * x, coefs) \
                               * np.exp(-x * x * bb * bb)
