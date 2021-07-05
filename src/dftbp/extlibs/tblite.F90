@@ -1186,7 +1186,15 @@ contains
 #:endif
 
 
-  !> Shift multipole operator from Bra function (center i) to Ket function (center j)
+  !> Shift multipole operator from Ket function (center i) to Bra function (center j),
+  !> the multipole operator on the Bra function can be assembled from the lower moments
+  !> on the Ket function and the displacement vector using horizontal shift rules.
+  !>
+  !> This is usually done inside the tblite library, but since we want to have both
+  !> Bra and Ket contributions at once and do not want to iterate over both triangles
+  !> of the multipole integral matrix we perform the shift of the moment operator here.
+  !>
+  !> Candidate for (partial) upstreaming in tblite library.
   pure subroutine shiftOperator(vec, s, di, qi, dj, qj)
 
     !> Displacement vector of center i and j
@@ -1195,32 +1203,41 @@ contains
     !> Overlap integral between basis functions
     real(dp),intent(in) :: s
 
-    !> Dipole integral with operator on Bra function (center i)
+    !> Dipole integral with operator on Ket function (center i)
     real(dp),intent(in) :: di(:)
 
-    !> Quadrupole integral with operator on Bra function (center i)
+    !> Quadrupole integral with operator on Ket function (center i)
     real(dp),intent(in) :: qi(:)
 
-    !> Dipole integral with operator on Ket function (center j)
+    !> Dipole integral with operator on Bra function (center j)
     real(dp),intent(out) :: dj(:)
 
-    !> Quadrupole integral with operator on Ket function (center j)
+    !> Quadrupole integral with operator on Bra function (center j)
     real(dp),intent(out) :: qj(:)
 
     real(dp) :: tr
 
+    ! Create dipole operator on Bra function from Ket function and shift contribution
+    ! due to monopol displacement
     dj(1) = di(1) + vec(1)*s
     dj(2) = di(2) + vec(2)*s
     dj(3) = di(3) + vec(3)*s
 
+    ! For the quadrupole operator on the Bra function we first construct the shift
+    ! contribution from the dipole and monopol displacement, since we have to remove
+    ! the trace contribution from the shift and the moment integral on the Ket function
+    ! is already traceless
     qj(1) = 2*vec(1)*di(1) + vec(1)**2*s
     qj(3) = 2*vec(2)*di(2) + vec(2)**2*s
     qj(6) = 2*vec(3)*di(3) + vec(3)**2*s
     qj(2) = vec(1)*di(2) + vec(2)*di(1) + vec(1)*vec(2)*s
     qj(4) = vec(1)*di(3) + vec(3)*di(1) + vec(1)*vec(3)*s
     qj(5) = vec(2)*di(3) + vec(3)*di(2) + vec(2)*vec(3)*s
+    ! Now collect the trace of the shift contribution
     tr = 0.5_dp * (qj(1) + qj(3) + qj(6))
 
+    ! Finally, assemble the quadrupole operator on the Bra function from the operator
+    ! on the Ket function and the traceless shift contribution
     qj(1) = qi(1) + 1.5_dp * qj(1) - tr
     qj(2) = qi(2) + 1.5_dp * qj(2)
     qj(3) = qi(3) + 1.5_dp * qj(3) - tr
