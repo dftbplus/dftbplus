@@ -23,7 +23,6 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : add_shift, total_shift
   use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder

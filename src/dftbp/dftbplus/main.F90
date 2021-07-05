@@ -41,13 +41,14 @@ module dftbp_dftbplus_main
       & getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
-      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation
+      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation, &
+      & getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : add_shift
+  use dftbp_dftb_shift, only : addShift
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
       & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
@@ -105,6 +106,7 @@ module dftbp_dftbplus_main
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
+  use dftbp_type_multipole, only : TMultipole
 #:if WITH_ARPACK
   use dftbp_timedep_rslinresp, only : linRespCalcExcitationsRs
 #:endif
@@ -699,7 +701,8 @@ contains
       @:ASSERT(allocated(this%tblite))
       call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
           & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
-          & this%orb, this%H0, this%ints%overlap)
+          & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet, &
+          & this%ints%quadrupoleBra, this%ints%quadrupoleKet)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
@@ -742,7 +745,7 @@ contains
         call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
       end if
       ! We need to define hamltonian by adding the potential
-      call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
+      call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
       tExitGeoOpt = .true.
@@ -790,7 +793,7 @@ contains
             & this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot,&
             & this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
             & this%onSiteElements, this%dispersion, tConverged, this%species0, this%referenceN0,&
-            & this%qNetAtom, this%reks)
+            & this%qNetAtom, this%multipoleOut, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -810,7 +813,8 @@ contains
         call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-            & qNetAtom=this%qNetAtom)
+            & qNetAtom=this%qNetAtom, &
+            & dipAtom=this%multipoleOut%dipoleAtom, quadAtom=this%multipoleOut%quadrupoleAtom)
 
         ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -886,8 +890,9 @@ contains
         #:endif
 
           call addChargePotentials(env, this%scc, this%tblite, .true., this%qInput, this%q0,&
-              & this%chargePerShell, this%orb, this%species, this%neighbourList, this%img2CentCell,&
-              & this%spinW, this%solvation, this%thirdOrd, this%potential, this%dispersion)
+              & this%chargePerShell, this%orb, this%multipoleInp, this%species, this%neighbourList,&
+              & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%dispersion,&
+              & this%potential)
 
           call addBlockChargePotentials(this%qBlockIn, this%qiBlockIn, this%dftbU, this%tImHam,&
               & this%species, this%orb, this%potential)
@@ -912,7 +917,7 @@ contains
           call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
         end if
 
-        call getSccHamiltonian(this%H0, this%ints%overlap, this%nNeighbourSK, this%neighbourList,&
+        call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
             & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
             & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
 
@@ -964,7 +969,8 @@ contains
           call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-              & qNetAtom=this%qNetAtom)
+              & qNetAtom=this%qNetAtom, dipAtom=this%multipoleOut%dipoleAtom, &
+              & quadAtom=this%multipoleOut%quadrupoleAtom)
         end if
 
       #:if WITH_TRANSPORT
@@ -988,9 +994,9 @@ contains
           call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
 
           call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag, this%qOutput,&
-              & this%q0, this%chargePerShell, this%orb, this%species, this%neighbourList,&
-              & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%potential,&
-              & this%dispersion)
+              & this%q0, this%chargePerShell, this%orb, this%multipoleOut, this%species,&
+              & this%neighbourList, this%img2CentCell, this%spinW, this%solvation,&
+              & this%thirdOrd, this%dispersion, this%potential)
 
           call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
               & this%species, this%orb, this%potential)
@@ -1029,7 +1035,9 @@ contains
                 & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
                 & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
                 & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
-                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
+                & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS,&
+                & this%nIneqDip, this%nIneqQuad, this%iEqDipole, this%iEqQuadrupole, &
+                & this%multipoleOut, this%multipoleInp)
           else
             call getNextInputDensity(this%SSqrReal, this%ints, this%neighbourList,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
@@ -1930,7 +1938,7 @@ contains
     !> allocated)
     real(dp), allocatable, intent(inout) :: ERhoPrim(:)
 
-    integer :: nSpin
+    integer :: nSpin, nDipole, nQuadrupole
 
     #:block DEBUG_CODE
       @:ASSERT(size(H0) == size(ints%overlap))
@@ -1944,6 +1952,16 @@ contains
         if (allocated(ERhoPrim)) then
           @:ASSERT(size(ERhoPrim) == size(rhoPrim, dim=1))
         end if
+      end if
+      @:ASSERT(allocated(ints%dipoleKet) .eqv. allocated(ints%dipoleBra))
+      if (allocated(ints%dipoleKet)) then
+        @:ASSERT(size(ints%overlap) == size(ints%dipoleKet, 2))
+        @:ASSERT(all(shape(ints%dipoleKet) == shape(ints%dipoleBra)))
+      end if
+      @:ASSERT(allocated(ints%quadrupoleKet) .eqv. allocated(ints%quadrupoleBra))
+      if (allocated(ints%quadrupoleKet)) then
+        @:ASSERT(size(ints%overlap) == size(ints%quadrupoleKet, 2))
+        @:ASSERT(all(shape(ints%quadrupoleKet) == shape(ints%quadrupoleBra)))
       end if
     #:endblock DEBUG_CODE
 
@@ -1985,6 +2003,18 @@ contains
     end if
     if (allocated(reks)) then
       call reks%reallocate(sparseSize)
+    end if
+    if (allocated(ints%dipoleKet)) then
+      nDipole = size(ints%dipoleKet, 1)
+      deallocate(ints%dipoleBra, ints%dipoleKet)
+      allocate(ints%dipoleKet(nDipole, sparseSize))
+      allocate(ints%dipoleBra(nDipole, sparseSize))
+    end if
+    if (allocated(ints%quadrupoleKet)) then
+      nQuadrupole = size(ints%quadrupoleKet, 1)
+      deallocate(ints%quadrupoleBra, ints%quadrupoleKet)
+      allocate(ints%quadrupoleKet(nQuadrupole, sparseSize))
+      allocate(ints%quadrupoleBra(nQuadrupole, sparseSize))
     end if
 
   end subroutine reallocateSparseArrays
@@ -3402,7 +3432,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, ints, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, dipAtom, quadAtom)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3440,6 +3470,12 @@ contains
     !> Onsite Mulliken charges per atom
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
+    !> Cumulative atomic dipole moment
+    real(dp), intent(inout), optional :: dipAtom(:, :)
+
+    !> Cumulative atomic quadrupole moment
+    real(dp), intent(inout), optional :: quadAtom(:, :)
+
     integer :: iSpin
 
     qOrb(:,:,:) = 0.0_dp
@@ -3468,6 +3504,18 @@ contains
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
+    if (present(dipAtom)) then
+      call getAtomicMultipolePopulation(dipAtom, ints%dipoleBra, ints%dipoleKet, &
+          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+          & iSparseStart)
+    end if
+
+    if (present(quadAtom)) then
+      call getAtomicMultipolePopulation(quadAtom, ints%quadrupoleBra, ints%quadrupoleKet, &
+          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+          & iSparseStart)
+    end if
+
   end subroutine getMullikenPopulation
 
 
@@ -3492,7 +3540,8 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
-      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
+      & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
+      & nIneqDip, nIneqQuad, iEqDipole, iEqQuadrupole, multipoleOut, multipoleInp)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3581,13 +3630,41 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary elements
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
+    !> Total number of inequivalent cumulative atomic dipole moments
+    integer, intent(in) :: nIneqDip
+
+    !> Total number of inequivalent cumulative atomic quadrupole moments
+    integer, intent(in) :: nIneqQuad
+
+    !> Equivalence relations between cumulative atomic dipole moments
+    integer, intent(in) :: iEqDipole(:,:)
+
+    !> Equivalence relations between cumulative atomic quadrupole moments
+    integer, intent(in) :: iEqQuadrupole(:,:)
+
+    !> Multipole moments
+    type(TMultipole), intent(inout) :: multipoleInp
+
+    !> Multipole moments
+    type(TMultipole), intent(inout) :: multipoleOut
+
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin
+    integer :: nSpin, nMix
 
     nSpin = size(qOutput, dim=3)
 
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, dftbU,&
         & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+    if (nIneqDip > 0) then
+      ! FIXME: Assumes we always mix all dipole moments
+      nMix = nIneqOrb
+      qOutRed(nMix+1:nMix+nIneqDip) = reshape(multipoleOut%dipoleAtom, [nIneqDip])
+    end if
+    if (nIneqQuad > 0) then
+      ! FIXME: Assumes we always mix all quadrupole moments
+      nMix = nIneqOrb + nIneqDip
+      qOutRed(nMix+1:nMix+nIneqQuad) = reshape(multipoleOut%quadrupoleAtom, [nIneqQuad])
+    end if
     qDiffRed = qOutRed - qInpRed
     sccErrorQ = maxval(abs(qDiffRed))
     tConverged = (sccErrorQ < sccTol)&
@@ -3606,6 +3683,7 @@ contains
             qiBlockIn(:,:,:,:) = qiBlockOut
           end if
         end if
+        multipoleInp = multipoleOut
       else
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
@@ -3615,6 +3693,18 @@ contains
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
             & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+        if (nIneqDip > 0) then
+          ! FIXME: Assumes we always mix all dipole moments
+          nMix = nIneqOrb
+          multipoleInp%dipoleAtom(:, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
+              & shape(multipoleInp%dipoleAtom))
+        end if
+        if (nIneqQuad > 0) then
+          ! FIXME: Assumes we always mix all quadrupole moments
+          nMix = nIneqOrb + nIneqDip
+          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad), &
+              & shape(multipoleInp%quadrupoleAtom))
+        end if
       end if
     end if
 
@@ -4532,7 +4622,7 @@ contains
       potentialDerivative(:,1) = -coord0(ii,:)
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
-      call add_shift(hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+      call addShift(hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potentialDerivative)
 
       ! evaluate <psi| dH/dE | psi> = Tr_part rho dH/dE
@@ -5468,7 +5558,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock)
+          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
@@ -5485,7 +5575,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock)
+          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
@@ -6879,7 +6969,7 @@ contains
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep, nNeighbourLC,&
       & tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock,&
       & tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
-      & referenceN0, qNetAtom, reks)
+      & referenceN0, qNetAtom, multipole, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -7005,6 +7095,9 @@ contains
     !> Onsite Mulliken charges per atom
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
+    !> Multipole container
+    type(TMultipole), intent(inout) :: multipole
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
@@ -7034,8 +7127,8 @@ contains
           & reks%chargePerShellL(:,:,:,iL))
       call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
       call addChargePotentials(env, sccCalc, tblite, .true., reks%qOutputL(:,:,:,iL), q0,&
-          & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, img2CentCell, spinW,&
-          & solvation, thirdOrd, potential, dispersion)
+          & reks%chargePerShellL(:,:,:,iL), orb, multipole, species, neighbourList,&
+          & img2CentCell, spinW, solvation, thirdOrd, dispersion, potential)
 
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell
@@ -7062,7 +7155,7 @@ contains
       end if
 
       ! tmpHamSp has (my_qm) component
-      call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, species, orb,&
+      call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species, orb,&
           & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, ints%iHamiltonian)
       tmpHamSp(:,1) = 2.0_dp * tmpHamSp(:,1)
 

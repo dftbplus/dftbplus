@@ -29,6 +29,7 @@ module dftbp_extlibs_tblite
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_integral, only : TIntegral
 #:if WITH_TBLITE
   use mctc_env, only : error_type
   use mctc_io, only : structure_type, new
@@ -38,8 +39,7 @@ module dftbp_extlibs_tblite
   use tblite_coulomb_cache, only : coulomb_cache
   use tblite_cutoff, only : get_lattice_points
   use tblite_disp_cache, only : dispersion_cache
-  use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto
-  use tblite_integral_overlap, only : overlap_cgto, overlap_grad_cgto, maxl, msao
+  use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
       & not_used
   use tblite_scf_potential, only : potential_type, new_potential
@@ -180,6 +180,9 @@ module dftbp_extlibs_tblite
     !> Get orbital information
     procedure :: getOrbitalInfo
 
+    !> Get information about required multipolar contributions
+    procedure :: getMultipoleInfo
+
     !> Get reference occupation
     procedure :: getReferenceN0
 
@@ -193,6 +196,13 @@ module dftbp_extlibs_tblite
     procedure :: buildDerivativeShift
 
   end type TTBLite
+
+
+  !> Number of dipole components used in tblite library (x, y, z)
+  integer, parameter :: dimDipole = 3
+
+  !> Number of quadrupole components used in tblite library (xx, xy, yy, xz, yz, zz)
+  integer, parameter :: dimQuadrupole = 6
 
 
 contains
@@ -244,11 +254,11 @@ contains
     if (info%charge > shell_resolved) then
       call error("Library interface does not support orbital-resolved charge communication")
     end if
-    if (info%dipole /= not_used) then
-      call error("Library interface does not support dipole moment communication")
+    if (info%dipole > atom_resolved) then
+      call error("Library interface does not support shell-resolved dipole moment communication")
     end if
-    if (info%quadrupole /= not_used) then
-      call error("Library interface does not support quadrupole moment communication")
+    if (info%quadrupole > atom_resolved) then
+      call error("Library interface does not support shell-resolved quadrupole moment communication")
     end if
 
     call new_wavefunction(this%wfn, this%mol%nat, this%calc%bas%nsh, this%calc%bas%nao, &
@@ -499,7 +509,8 @@ contains
   !>
   !> Also the orbital charges have the opposite sign of the ones requested from
   !> the library.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, dipAtom, quadAtom, &
+      & img2CentCell, orb)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -513,11 +524,17 @@ contains
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Orbital charges.
+    !> Orbital populations
     real(dp), intent(in) :: qq(:,:,:)
 
-    !> Reference orbital charges.
+    !> Reference orbital populations
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Cumulative atomic dipole populations
+    real(dp), intent(in), optional :: dipAtom(:,:)
+
+    !> Cumulative atomic dipole populations
+    real(dp), intent(in), optional :: quadAtom(:,:)
 
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -544,6 +561,14 @@ contains
       end do
     end do
 
+    if (present(dipAtom)) then
+      this%wfn%dpat(:, :) = -dipAtom
+    end if
+
+    if (present(quadAtom)) then
+      this%wfn%qpat(:, :) = -quadAtom
+    end if
+
     if (allocated(this%calc%coulomb)) then
       call this%calc%coulomb%get_potential(this%mol, this%cache, this%wfn, this%pot)
     end if
@@ -568,7 +593,7 @@ contains
   !> Potential shifts in tblite are calculated as derivatives w.r.t. the partial
   !> charges / multipole moments, while in DFTB+ they are calculated as derivative
   !> w.r.t. the population. This means we have to flip the sign here.
-  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell, dipShift, quadShift)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -578,6 +603,12 @@ contains
 
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
+
+    !> Dipolar shift per atom
+    real(dp), intent(out), optional :: dipShift(:,:)
+
+    !> Quadrupolar shift per atom
+    real(dp), intent(out), optional :: quadShift(:,:)
 
   #:if WITH_TBLITE
     integer :: iAt, iSh, ii
@@ -591,6 +622,14 @@ contains
         shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh)
       end do
     end do
+
+    if (present(dipShift)) then
+      dipShift(:,:) = -this%pot%vdp
+    end if
+
+    if (present(quadShift)) then
+      quadshift(:,:) = -this%pot%vqp
+    end if
   #:else
     call notImplementedError
   #:endif
@@ -670,6 +709,27 @@ contains
   end subroutine getOrbitalInfo
 
 
+  !> Get information on required multipolar contributions
+  subroutine getMultipoleInfo(this, nDipole, nQuadrupole)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Number of dipole moment components
+    integer, intent(out) :: nDipole
+
+    !> Number of quadrupole moment components
+    integer, intent(out) :: nQuadrupole
+
+  #:if WITH_TBLITE
+    nDipole = dimDipole
+    nQuadrupole = dimQuadrupole
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine getMultipoleInfo
+
+
   !> Get reference occupation numbers.
   subroutine getReferenceN0(this, species0, referenceN0)
 
@@ -705,13 +765,19 @@ contains
 
 
   !> Returns the equivalence to get the correct mixing of charge dependent contributions
-  subroutine getOrbitalEquiv(this, equiv, orb, species)
+  subroutine getOrbitalEquiv(this, equivOrb, equivDip, equivQuad, orb, species)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
 
-    !> The equivalence vector on return
-    integer, intent(out) :: equiv(:,:,:)
+    !> The equivalence vector for orbital populations
+    integer, intent(out) :: equivOrb(:,:,:)
+
+    !> The equivalence vector for cumulative atomic dipole populations
+    integer, intent(out) :: equivDip(:,:)
+
+    !> The equivalence vector for cumulative atomic quadrupole populations
+    integer, intent(out) :: equivQuad(:,:)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
@@ -723,10 +789,12 @@ contains
     type(scf_info) :: info
     integer :: nAtom, iCount, iSpin, nSpin, iAt, iSp, ii
 
-    nAtom = size(equiv, dim=2)
-    nSpin = size(equiv, dim=3)
+    nAtom = size(equivOrb, dim=2)
+    nSpin = size(equivOrb, dim=3)
 
-    equiv(:,:,:) = 0
+    equivOrb(:,:,:) = 0
+    equivDip(:,:) = 0
+    equivQuad(:,:) = 0
 
     info = this%calc%variable_info()
     select case(info%charge)
@@ -737,7 +805,7 @@ contains
           iSp = species(iAt)
           iCount = iCount + 1
           do ii = 1, orb%nOrbSpecies(iSp)
-            equiv(ii, iAt, iSpin) = iCount
+            equivOrb(ii, iAt, iSpin) = iCount
           end do
         end do
       end do
@@ -747,7 +815,7 @@ contains
         do iAt = 1, nAtom
           iSp = species(iAt)
           do ii = 1, orb%nOrbSpecies(iSp)
-            equiv(ii, iAt, iSpin) = iCount + orb%iShellOrb(ii, iSp)
+            equivOrb(ii, iAt, iSpin) = iCount + orb%iShellOrb(ii, iSp)
           end do
           iCount = iCount + orb%nShell(iSp)
         end do
@@ -759,8 +827,30 @@ contains
           iSp = species(iAt)
           do ii = 1, orb%nOrbSpecies(iSp)
             iCount = iCount + 1
-            equiv(ii, iAt, iSpin) = iCount
+            equivOrb(ii, iAt, iSpin) = iCount
           end do
+        end do
+      end do
+    end select
+
+    select case(info%dipole)
+    case(atom_resolved)
+      iCount = 0
+      do iAt = 1, nAtom
+        do ii = 1, dimDipole
+          iCount = iCount + 1
+          equivDip(ii, iAt) = iCount
+        end do
+      end do
+    end select
+
+    select case(info%quadrupole)
+    case(atom_resolved)
+      iCount = 0
+      do iAt = 1, nAtom
+        do ii = 1, dimQuadrupole
+          iCount = iCount + 1
+          equivQuad(ii, iAt) = iCount
         end do
       end do
     end select
@@ -772,7 +862,7 @@ contains
 
   !> Build atomic block sparse compressed Hamiltonian and overlap related integrals
   subroutine buildSH0(this, env, species, coords, nNeighbour, iNeighbours, img2centCell, &
-      & iPair, orb, hamiltonian, overlap)
+      & iPair, orb, hamiltonian, overlap, dpintBra, dpintKet, qpintBra, qpintKet)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -786,11 +876,17 @@ contains
     !> Returns the non-self-consistent Hamiltonian
     real(dp), intent(out) :: overlap(:)
 
-    !  Dipole moment integral matrix
-    !real(dp), intent(inout) :: dpint(:, :)
+    !> Dipole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: dpintBra(:, :)
 
-    !  Quadrupole moment integral matrix
-    !real(dp), intent(inout) :: qpint(:, :)
+    !> Dipole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: dpintKet(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: qpintBra(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: qpintKet(:, :)
 
     !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -819,18 +915,28 @@ contains
     nAtom = size(nNeighbour)
     hamiltonian(:) = 0.0_dp
     overlap(:) = 0.0_dp
+    dpintBra(:, :) = 0.0_dp
+    dpintKet(:, :) = 0.0_dp
+    qpintBra(:, :) = 0.0_dp
+    qpintKet(:, :) = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     call buildDiagonalBlocks(iAtFirst, iAtLast, this%mol%id, iPair, orb%nOrbAtom, &
-        & this%calc%bas, this%selfenergy, hamiltonian, overlap)
+        & this%calc%bas, this%selfenergy, hamiltonian, overlap, dpintBra, dpintKet, &
+        & qpintBra, qpintKet)
 
     call buildDiatomicBlocks(iAtFirst, iAtLast, this%mol%id, coords, &
         & nNeighbour, iNeighbours, img2centCell, iPair, orb%nOrbAtom, &
-        & this%calc%bas, this%calc%h0, this%selfenergy, hamiltonian, overlap)
+        & this%calc%bas, this%calc%h0, this%selfenergy, hamiltonian, overlap, &
+        & dpintBra, dpintKet, qpintBra, qpintKet)
 
     call assembleChunks(env, hamiltonian)
     call assembleChunks(env, overlap)
+    call assembleChunks(env, dpintBra)
+    call assembleChunks(env, dpintKet)
+    call assembleChunks(env, qpintBra)
+    call assembleChunks(env, qpintKet)
   #:else
     call notImplementedError
   #:endif
@@ -845,7 +951,7 @@ contains
   !> breaking the abstraction layer of the library interface.
   !> Candidate for (partial) upstreaming in tblite library.
   subroutine buildDiagonalBlocks(iAtFirst, iAtLast, species, iPair, nOrbAtom, &
-      & bas, selfenergy, hamiltonian, overlap)
+      & bas, selfenergy, hamiltonian, overlap, dpintBra, dpintKet, qpintBra, qpintKet)
 
     !> Atom range for this processor to evaluate
     integer, intent(in) :: iAtFirst, iAtLast
@@ -868,21 +974,34 @@ contains
     !> Overlap integral matrix
     real(dp), intent(inout) :: overlap(:)
 
-    !  Dipole moment integral matrix
-    !real(dp), intent(inout) :: dpint(:, :)
+    !> Dipole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: dpintBra(:, :)
 
-    !  Quadrupole moment integral matrix
-    !real(dp), intent(inout) :: qpint(:, :)
+    !> Dipole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: dpintKet(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: qpintBra(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: qpintKet(:, :)
 
     !> Effective Hamiltonian
     real(dp), intent(inout) :: hamiltonian(:)
 
-    integer :: iAt, iZp, ind, iOrb, ii, nBlk, is, io, ish, iao
+    integer :: iAt, iZp, ind, iOrb, ii, jj, nBlk, is, io, ish, jsh, iao, jao, ij, iblk, nao
+    real(dp), parameter :: r2 = 0.0_dp, vec(3) = 0.0_dp
+    real(dp), allocatable :: stmp(:)
+    real(dp), allocatable :: dtmp(:, :), qtmp(:, :)
+
+    allocate(stmp(msao(bas%maxl)**2))
+    allocate(dtmp(dimDipole, msao(bas%maxl)**2), qtmp(dimQuadrupole, msao(bas%maxl)**2))
 
     !$omp parallel do schedule(runtime) default(none) &
     !$omp shared(iAtFirst, iAtLast, species, bas, iPair, nOrbAtom, selfenergy, &
-    !$omp& overlap, hamiltonian) &
-    !$omp private(iAt, iZp, is, io, ind, ish, ii, iao, nBlk)
+    !$omp& overlap, hamiltonian, dpintBra, dpintKet, qpintBra, qpintKet) &
+    !$omp private(iAt, iZp, is, io, ind, ish, jsh, ii, jj, iao, jao, nBlk, ij, iblk, nao, &
+    !$omp& stmp, dtmp, qtmp)
     do iAt = iAtFirst, iAtLast
       iZp = species(iAt)
       is = bas%ish_at(iAt)
@@ -891,7 +1010,7 @@ contains
       nBlk = nOrbAtom(iAt)
       do iSh = 1, bas%nsh_id(iZp)
         ii = bas%iao_sh(is+iSh) - io
-        do iAo = 1, msao(bas%cgto(iSh, iZp)%ang)
+        do iao = 1, msao(bas%cgto(iSh, iZp)%ang)
           overlap(ind + ii+iao + nBlk*(ii+iao-1)) = & !overlap(ii+iao, ii+iao) &
             1.0_dp
 
@@ -899,6 +1018,33 @@ contains
             selfenergy(is+iSh)
         end do
       end do
+
+      do ish = 1, bas%nsh_id(iZp)
+        ii = bas%iao_sh(is+iSh) - io
+        do jsh = 1, bas%nsh_id(iZp)
+          jj = bas%iao_sh(is+jSh) - io
+          call multipole_cgto(bas%cgto(jSh, iZp), bas%cgto(iSh, iZp), &
+              & r2, vec, bas%intcut, stmp, dtmp, qtmp)
+          !call overlap_cgto(bas%cgto(jSh, iZp), bas%cgto(iSh, iZp), &
+          !    & r2, vec, bas%intcut, stmp)
+
+          nao = msao(bas%cgto(jSh, iZp)%ang)
+          do iao = 1, msao(bas%cgto(iSh, iZp)%ang)
+            do jao = 1, nao
+              ij = jao + nao*(iao-1)
+              iblk = ind + jj+jao + nBlk*(ii+iao-1)
+
+              dpintBra(:, iblk) = dtmp(:, ij)
+              dpintKet(:, iblk) = dtmp(:, ij)
+
+              qpintBra(:, iblk) = qtmp(:, ij)
+              qpintKet(:, iblk) = qtmp(:, ij)
+            end do
+          end do
+
+        end do
+      end do
+
     end do
   end subroutine buildDiagonalBlocks
 
@@ -910,7 +1056,8 @@ contains
   !> Candidate for (partial) upstreaming in tblite library.
   subroutine buildDiatomicBlocks(iAtFirst, iAtLast, species, coords, &
       & nNeighbour, iNeighbours, img2centCell, iPair, nOrbAtom, &
-      & bas, h0, selfenergy, hamiltonian, overlap)
+      & bas, h0, selfenergy, hamiltonian, overlap, dpintBra, dpintKet, &
+      & qpintBra, qpintKet)
 
     !> Atom range for this processor to evaluate
     integer, intent(in) :: iAtFirst, iAtLast
@@ -948,29 +1095,37 @@ contains
     !> Overlap integral matrix
     real(dp), intent(inout) :: overlap(:)
 
-    !  Dipole moment integral matrix
-    !real(dp), intent(inout) :: dpint(:, :)
+    !> Dipole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: dpintBra(:, :)
 
-    !  Quadrupole moment integral matrix
-    !real(dp), intent(inout) :: qpint(:, :)
+    !> Dipole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: dpintKet(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the bra function
+    real(dp), intent(inout) :: qpintBra(:, :)
+
+    !> Quadrupole moment integral matrix, operator on the ket function
+    real(dp), intent(inout) :: qpintKet(:, :)
 
     !> Effective Hamiltonian
     real(dp), intent(inout) :: hamiltonian(:)
 
-    integer :: iAt, jAt, iZp, jZp, iNeigh, img, ind, io, jo
+    integer :: iAt, jAt, iZp, jZp, iNeigh, img, ind, io, jo, iblk, ij
     integer :: iSh, jSh, is, js, ii, jj, iao, jao, nao, nBlk
-    real(dp) :: rr, r2, vec(3), hij, shpoly
+    real(dp) :: rr, r2, vec(3), hij, shpoly, dtmpj(dimDipole), qtmpj(dimQuadrupole)
     real(dp), allocatable :: stmp(:)
-    !real(dp), allocatable :: dtmp(:, :), qtmp(:, :)
+    real(dp), allocatable :: dtmpi(:, :), qtmpi(:, :)
 
     allocate(stmp(msao(bas%maxl)**2))
-    !allocate(dtmp(3, msao(bas%maxl)**2), qtmp(6, msao(bas%maxl)**2))
+    allocate(dtmpi(dimDipole, msao(bas%maxl)**2), qtmpi(dimQuadrupole, msao(bas%maxl)**2))
 
     !$omp parallel do schedule(runtime) default(none) &
     !$omp shared(iatfirst, iatlast, species, bas, overlap, hamiltonian, h0, selfenergy, &
-    !$omp& nNeighbour, ineighbours, img2centCell, ipair, nOrbAtom, coords) &
+    !$omp& nNeighbour, ineighbours, img2centCell, ipair, nOrbAtom, coords, &
+    !$omp& dpintBra, dpintKet, qpintBra, qpintKet) &
     !$omp private(iAt, jAt, iZp, jZp, is, js, iSh, jSh, ii, jj, iao, jao, nao, nBlk, &
-    !$omp& io, jo, iNeigh, img, ind, r2, vec, stmp, hij, shpoly, rr)
+    !$omp& io, jo, iNeigh, img, ind, r2, vec, stmp, dtmpj, dtmpi, qtmpj, qtmpi, hij, &
+    !$omp& shpoly, rr, iblk, ij)
     do iAt = iAtFirst, iAtLast
       iZp = species(iAt)
       is = bas%ish_at(iAt)
@@ -991,10 +1146,10 @@ contains
           ii = bas%iao_sh(is+iSh) - io
           do jsh = 1, bas%nsh_id(jZp)
             jj = bas%iao_sh(js+jSh) - jo
-            !call multipole_cgto(bas%cgto(jSh, jZp), bas%cgto(iSh, iZp), &
-            !    & r2, vec, bas%intcut, stmp, dtmp, qtmp)
-            call overlap_cgto(bas%cgto(jSh, jZp), bas%cgto(iSh, iZp), &
-              & r2, vec, bas%intcut, stmp)
+            call multipole_cgto(bas%cgto(jSh, jZp), bas%cgto(iSh, iZp), &
+                & r2, vec, bas%intcut, stmp, dtmpi, qtmpi)
+            !call overlap_cgto(bas%cgto(jSh, jZp), bas%cgto(iSh, iZp), &
+            !    & r2, vec, bas%intcut, stmp)
 
             shpoly = (1.0_dp + h0%shpoly(iSh, iZp)*rr) &
               & * (1.0_dp + h0%shpoly(jSh, jZp)*rr)
@@ -1006,17 +1161,19 @@ contains
             nao = msao(bas%cgto(jSh, jZp)%ang)
             do iao = 1, msao(bas%cgto(iSh, iZp)%ang)
               do jao = 1, nao
-                overlap(ind + jj+jao + nBlk*(ii+iao-1)) = & !overlap(jj+jao, ii+iao) &
-                  & + stmp(jao + nao*(iao-1))
+                ij = jao + nao*(iao-1)
+                iblk = ind + jj+jao + nBlk*(ii+iao-1)
+                call shiftOperator(vec, stmp(ij), dtmpi(:, ij), qtmpi(:, ij), dtmpj, qtmpj)
 
-                !dpint(:, ind + jj+jao + nBlk*(ii+iao-1)) = & !dpint(:, jj+jao, ii+iao) &
-                !    & + dtmp(:, jao + nao*(iao-1))
+                overlap(iblk) = stmp(ij)
 
-                !qpint(:, ind + jj+jao + nBlk*(ii+iao-1)) = & !qpint(:, jj+jao, ii+iao) &
-                !    & + qtmp(:, jao + nao*(iao-1))
+                dpintBra(:, iblk) = dtmpj
+                dpintKet(:, iblk) = dtmpi(:, ij)
 
-                hamiltonian(ind + jj+jao + nBlk*(ii+iao-1)) = & !hamiltonian(jj+jao, ii+iao) &
-                  & + stmp(jao + nao*(iao-1)) * hij
+                qpintBra(:, iblk) = qtmpj
+                qpintKet(:, iblk) = qtmpi(:, ij)
+
+                hamiltonian(iblk) = stmp(ij) * hij
               end do
             end do
 
@@ -1029,10 +1186,71 @@ contains
 #:endif
 
 
+  !> Shift multipole operator from Ket function (center i) to Bra function (center j),
+  !> the multipole operator on the Bra function can be assembled from the lower moments
+  !> on the Ket function and the displacement vector using horizontal shift rules.
+  !>
+  !> This is usually done inside the tblite library, but since we want to have both
+  !> Bra and Ket contributions at once and do not want to iterate over both triangles
+  !> of the multipole integral matrix we perform the shift of the moment operator here.
+  !>
+  !> Candidate for (partial) upstreaming in tblite library.
+  pure subroutine shiftOperator(vec, s, di, qi, dj, qj)
+
+    !> Displacement vector of center i and j
+    real(dp),intent(in) :: vec(:)
+
+    !> Overlap integral between basis functions
+    real(dp),intent(in) :: s
+
+    !> Dipole integral with operator on Ket function (center i)
+    real(dp),intent(in) :: di(:)
+
+    !> Quadrupole integral with operator on Ket function (center i)
+    real(dp),intent(in) :: qi(:)
+
+    !> Dipole integral with operator on Bra function (center j)
+    real(dp),intent(out) :: dj(:)
+
+    !> Quadrupole integral with operator on Bra function (center j)
+    real(dp),intent(out) :: qj(:)
+
+    real(dp) :: tr
+
+    ! Create dipole operator on Bra function from Ket function and shift contribution
+    ! due to monopol displacement
+    dj(1) = di(1) + vec(1)*s
+    dj(2) = di(2) + vec(2)*s
+    dj(3) = di(3) + vec(3)*s
+
+    ! For the quadrupole operator on the Bra function we first construct the shift
+    ! contribution from the dipole and monopol displacement, since we have to remove
+    ! the trace contribution from the shift and the moment integral on the Ket function
+    ! is already traceless
+    qj(1) = 2*vec(1)*di(1) + vec(1)**2*s
+    qj(3) = 2*vec(2)*di(2) + vec(2)**2*s
+    qj(6) = 2*vec(3)*di(3) + vec(3)**2*s
+    qj(2) = vec(1)*di(2) + vec(2)*di(1) + vec(1)*vec(2)*s
+    qj(4) = vec(1)*di(3) + vec(3)*di(1) + vec(1)*vec(3)*s
+    qj(5) = vec(2)*di(3) + vec(3)*di(2) + vec(2)*vec(3)*s
+    ! Now collect the trace of the shift contribution
+    tr = 0.5_dp * (qj(1) + qj(3) + qj(6))
+
+    ! Finally, assemble the quadrupole operator on the Bra function from the operator
+    ! on the Ket function and the traceless shift contribution
+    qj(1) = qi(1) + 1.5_dp * qj(1) - tr
+    qj(2) = qi(2) + 1.5_dp * qj(2)
+    qj(3) = qi(3) + 1.5_dp * qj(3) - tr
+    qj(4) = qi(4) + 1.5_dp * qj(4)
+    qj(5) = qi(5) + 1.5_dp * qj(5)
+    qj(6) = qi(6) + 1.5_dp * qj(6) - tr
+  end subroutine shiftOperator
+
+
   !> Evaluate derivatives of potential shifts from Hamiltonian and overlap related
   !> integrals.
   subroutine buildDerivativeShift(this, env, DM, EDM, coords, species, &
-      & nNeighbour, iNeighbours, img2CentCell, iPair, orb, shift)
+      & nNeighbour, iNeighbours, img2CentCell, iPair, orb, shift, dipShift, quadShift)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
@@ -1070,6 +1288,12 @@ contains
     !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
+    !> Dipole potential shift, shape: [nDipole, nAtom]
+    real(dp), intent(in) :: dipShift(:, :)
+
+    !> Quadrupole potential shift, shape: [nQuadrupole, nAtom]
+    real(dp), intent(in) :: quadShift(:, :)
+
   #:if WITH_TBLITE
     integer :: nAtom, iAtFirst, iAtLast
     real(dp), allocatable :: gradient(:, :), sigma(:, :), dEdcn(:)
@@ -1096,7 +1320,8 @@ contains
         & this%calc%bas, this%dsedcn, DM, dEdcn)
     call buildDiatomicDerivs(iAtFirst, iAtLast, this%mol%id, coords, nNeighbour, &
         & iNeighbours, img2centCell, iPair, orb%nOrbAtom, this%calc%bas, this%calc%h0, &
-        & this%selfenergy, this%dsedcn, DM, EDM, shift, dEdcn, gradient, sigma)
+        & this%selfenergy, this%dsedcn, DM, EDM, shift, dipShift, quadShift, &
+        & dEdcn, gradient, sigma)
 
     call assembleChunks(env, dEdcn)
     call assembleChunks(env, gradient)
@@ -1176,7 +1401,8 @@ contains
   !> Candidate for (partial) upstreaming in tblite library.
   subroutine buildDiatomicDerivs(iAtFirst, iAtLast, species, coords, &
       & nNeighbour, iNeighbours, img2centCell, iPair, nOrbAtom, bas, h0, &
-      & selfenergy, dsedcn, pmat, xmat, shift, dEdcn, gradient, sigma)
+      & selfenergy, dsedcn, pmat, xmat, shift, dipShift, quadShift, &
+      & dEdcn, gradient, sigma)
 
     !> Atom range for this processor to evaluate
     integer, intent(in) :: iAtFirst, iAtLast
@@ -1223,6 +1449,12 @@ contains
     !> Block potential shift, shape: [nOrb, nOrb, nAtom, nSpin]
     real(dp), intent(in) :: shift(:, :, :, :)
 
+    !> Dipole potential shift, shape: [nDipole, nAtom]
+    real(dp), intent(in) :: dipShift(:, :)
+
+    !> Quadrupole potential shift, shape: [nQuadrupole, nAtom]
+    real(dp), intent(in) :: quadShift(:, :)
+
     !> Derivative of energy w.r.t. coordination number
     real(dp), intent(inout) :: dEdcn(:)
 
@@ -1241,13 +1473,14 @@ contains
     real(dp), allocatable :: ddtmpj(:, :, :), dqtmpj(:, :, :)
 
     allocate(stmp(msao(bas%maxl)**2), dstmp(3, msao(bas%maxl)**2), &
-      & dtmp(3, msao(bas%maxl)**2), ddtmpi(3, 3, msao(bas%maxl)**2), &
-      & qtmp(6, msao(bas%maxl)**2), dqtmpi(3, 6, msao(bas%maxl)**2), &
-      & ddtmpj(3, 3, msao(bas%maxl)**2), dqtmpj(3, 6, msao(bas%maxl)**2))
+      & dtmp(dimDipole, msao(bas%maxl)**2), ddtmpi(3, dimDipole, msao(bas%maxl)**2), &
+      & qtmp(dimQuadrupole, msao(bas%maxl)**2), dqtmpi(3, dimQuadrupole, msao(bas%maxl)**2), &
+      & ddtmpj(3, dimDipole, msao(bas%maxl)**2), dqtmpj(3, dimQuadrupole, msao(bas%maxl)**2))
 
     !$omp parallel do schedule(runtime) default(none) reduction(+:dEdcn, gradient, sigma) &
     !$omp shared(iAtFirst, iAtLast, species, bas, h0, selfenergy, dsedcn, coords, &
-    !$omp& nNeighbour, iNeighbours, img2centCell, iPair, nOrbAtom, pmat, xmat, shift) &
+    !$omp& nNeighbour, iNeighbours, img2centCell, iPair, nOrbAtom, pmat, xmat, shift, &
+    !$omp& dipShift, quadShift) &
     !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao, ij, ind, &
     !$omp& iNeigh, io, jo, nblk, img, r2, vec, stmp, dtmp, qtmp, dstmp, ddtmpi, ddtmpj, &
     !$omp& dqtmpi, dqtmpj, hij, shpoly, dshpoly, dG, dcni, dcnj, dhdcni, dhdcnj, hpij, rr, &
@@ -1272,11 +1505,11 @@ contains
           ii = bas%iao_sh(is+ish) - io
           do jsh = 1, bas%nsh_id(jzp)
             jj = bas%iao_sh(js+jsh) - jo
-            !call multipole_grad_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
-            !    & r2, vec, bas%intcut, stmp, dtmp, qtmp, dstmp, ddtmpj, dqtmpj, &
-            !    & ddtmpi, dqtmpi)
-            call overlap_grad_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
-                & r2, vec, bas%intcut, stmp, dstmp)
+            call multipole_grad_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+                & r2, vec, bas%intcut, stmp, dtmp, qtmp, dstmp, ddtmpj, dqtmpj, &
+                & ddtmpi, dqtmpi)
+            !call overlap_grad_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+            !    & r2, vec, bas%intcut, stmp, dstmp)
 
             shpoly = (1.0_dp + h0%shpoly(ish, izp)*rr) &
               & * (1.0_dp + h0%shpoly(jsh, jzp)*rr)
@@ -1303,11 +1536,11 @@ contains
                   & + pij * (shift(jj+jao, jj+jao, jat, 1) + shift(ii+iao, ii+iao, iat, 1))
 
                 dG(:) = dG + sval * dstmp(:, ij) &
-                  & + 2*hpij*stmp(ij) * dshpoly / shpoly * vec
-                  !& + pij * matmul(ddtmpi(:, :, ij), pot%vdp(:, iat)) &
-                  !& + pij * matmul(ddtmpj(:, :, ij), pot%vdp(:, jat)) &
-                  !& + pij * matmul(dqtmpi(:, :, ij), pot%vqp(:, iat)) &
-                  !& + pij * matmul(dqtmpj(:, :, ij), pot%vqp(:, jat))
+                  & + 2*hpij*stmp(ij) * dshpoly / shpoly * vec &
+                  & + pij * matmul(ddtmpi(:, :, ij), dipShift(:, iat)) &
+                  & + pij * matmul(ddtmpj(:, :, ij), dipShift(:, jat)) &
+                  & + pij * matmul(dqtmpi(:, :, ij), quadShift(:, iat)) &
+                  & + pij * matmul(dqtmpj(:, :, ij), quadShift(:, jat))
 
                 dcni = dcni + dhdcni * pij * stmp(ij)
                 dcnj = dcnj + dhdcnj * pij * stmp(ij)

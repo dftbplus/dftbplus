@@ -39,7 +39,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : total_shift
+  use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS
   use dftbp_dftb_spin, only : ud2qm, qm2ud
@@ -64,6 +64,7 @@ module dftbp_timedep_timeprop
   use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
+  use dftbp_type_multipole, only : TMultipole
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
@@ -215,6 +216,7 @@ module dftbp_timedep_timeprop
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
     type(TTBLite), allocatable :: tblite
+    type(TMultipole) :: multipole
     character(mc) :: autotestTag
 
     real(dp), allocatable :: initialVelocities(:,:), movedMass(:,:)
@@ -1103,9 +1105,9 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell, orb,&
-        & speciesAll, neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & dispersion)
+    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
+        & orb, this%multipole, speciesAll, neighbourList, img2CentCell, spinW, solvation,&
+        & thirdOrd, dispersion, potential)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
@@ -1128,14 +1130,14 @@ contains
         iEatom = this%indExcitedAtom(iAtom)
         potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%presentField)
       end do
-      call total_shift(potential%extShell, potential%extAtom, orb, speciesAll)
-      call total_shift(potential%extBlock, potential%extShell, orb, speciesAll)
+      call totalShift(potential%extShell, potential%extAtom, orb, speciesAll)
+      call totalShift(potential%extBlock, potential%extShell, orb, speciesAll)
     end if
 
     potential%intBlock = potential%intBlock + potential%extBlock
     potential%intShell = potential%intShell + potential%extShell
 
-    call getSccHamiltonian(H0, ints%overlap, nNeighbourSK, neighbourList, speciesAll, orb,&
+    call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, speciesAll, orb,&
         & iSparseStart, img2CentCell, potential, .false., ints%hamiltonian, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
@@ -1792,7 +1794,7 @@ contains
       end do
     end if
 
-    call TPotentials_init(potential, orb, this%nAtom, this%nSpin)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, 0, 0)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
