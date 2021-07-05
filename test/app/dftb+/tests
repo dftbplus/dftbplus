@@ -64,6 +64,9 @@ xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn1_succinic                      #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/ipea1_h2                           #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/ipea1_mindless02                   #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_mindless05                    #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_benzene                       #? WITH_TBLITE and MPI_PROCS <= 1
 
 input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1

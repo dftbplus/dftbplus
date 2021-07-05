@@ -411,8 +411,7 @@ contains
 
     real(dp), intent(in) :: shift(:,:)
 
-    integer :: iAt1, iAt2, img, ind, nBlk, iOrig, iSp1, iSp2, iOrb1, iOrb2
-    integer :: iNeigh, iSpin, nSpin
+    integer :: iAt1, iAt2, img, ind, nBlk, iBlk, iSp1, iSp2, iOrb1, iOrb2, iNeigh
 
     @:ASSERT(size(nNeighbour)==nAtom)
     @:ASSERT(size(iNeighbour,dim=2)==nAtom)
@@ -423,8 +422,6 @@ contains
     @:ASSERT(all(shape(mpintKet)==shape(mpintBra)))
     @:ASSERT(size(shift,dim=1)==size(mpintKet,dim=1))
     @:ASSERT(size(shift,dim=2)==nAtom)
-
-    nSpin = size(ham,dim=2)
 
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
@@ -437,10 +434,10 @@ contains
 
         do iOrb1 = 1, orb%nOrbSpecies(iSp1)
           do iOrb2 = 1, nBlk
-            iOrig = ind + iOrb2 + nBlk*(iOrb1-1)
-            ham(iOrig, 1) = ham(iOrig, 1) &
-              & + 0.5_dp * dot_product(shift(:, iAt1), mpintKet(:, iOrig)) &
-              & + 0.5_dp * dot_product(shift(:, iAt2), mpintBra(:, iOrig))
+            iBlk = ind + iOrb2 + nBlk*(iOrb1-1)
+            ham(iBlk, 1) = ham(iBlk, 1) &
+              & + 0.5_dp * dot_product(mpintKet(:, iBlk), shift(:, iAt1)) &
+              & + 0.5_dp * dot_product(mpintBra(:, iBlk), shift(:, iAt2))
           end do
         end do
       end do

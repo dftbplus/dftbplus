@@ -125,6 +125,12 @@ contains
     if (allocated(potential%intOnSiteAtom)) then
       potential%intOnSiteAtom(:,:) = 0.0_dp
     end if
+    if (allocated(potential%dipoleAtom)) then
+      potential%dipoleAtom(:,:) = 0.0_dp
+    end if
+    if (allocated(potential%quadrupoleAtom)) then
+      potential%quadrupoleAtom(:,:) = 0.0_dp
+    end if
 
   end subroutine resetInternalPotentials
 
