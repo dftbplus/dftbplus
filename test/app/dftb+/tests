@@ -7,6 +7,8 @@
 
 extpot/CH4_gross                       #? MPI_PROCS <= 1
 extpot/CH4_net                         #? MPI_PROCS <= 1
+extpot/CH4_gross2                      #? MPI_PROCS <= 1
+extpot/CH4_net2                        #? MPI_PROCS <= 1
 extpot/CH4_scc_gross                   #? MPI_PROCS <= 1
 extpot/CH4_scc_net                     #? MPI_PROCS <= 1
 
