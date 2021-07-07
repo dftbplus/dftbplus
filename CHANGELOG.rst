@@ -26,6 +26,9 @@ Fixed
 
 - External fields disabled for XLBOMD
 
+- self-consistent DFT-D4 uses populations instead of partial charges
+  in potential shift, energy expression and derivatives
+
 21.1 (2021-05-12)
 =================
 

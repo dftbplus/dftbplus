@@ -329,10 +329,10 @@ contains
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neigh
 
-    !> Orbital charges.
+    !> Orbital populations
     real(dp), intent(in) :: qq(:,:,:)
 
-    !> Reference orbital charges.
+    !> Reference orbital populations
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Mapping on atoms in central cell.
@@ -346,6 +346,8 @@ contains
     if (allocated(this%sc)) then
       ! Obtain the atomic charges from the input populations
       call getSummedCharges(species, orb, qq, q0, dQAtom=this%sc%charges)
+      ! We get populations, but we want partial charges
+      this%sc%charges = -this%sc%charges
 
       ! Obtain the charge scaling and its derivative w.r.t. the atomic charges
       call scaleReferences(this%calc, this%ref, env, this%nAtom, species, &
@@ -379,7 +381,8 @@ contains
     real(dp), intent(inout) :: vDisp(:)
 
     if (allocated(this%sc)) then
-      vDisp(:) = vDisp + this%sc%shift
+      ! Potential shift is w.r.t. potentials, but we calculate w.r.t. charges (switch sign)
+      vDisp(:) = vDisp - this%sc%shift
     end if
 
   end subroutine addPotential
