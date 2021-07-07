@@ -14,7 +14,7 @@ env:
     -DWITH_DFTD3=true
     -DWITH_MBD=true
     -DWITH_TRANSPORT=true
-    -DFYPP_FLAGS='-DTRAVIS'
+    -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
 
 jobs:
@@ -120,9 +120,16 @@ jobs:
       run: |
         cmake --install ${BUILD_DIR}
 
+    - name: Create gcov reports
+      if: contains(matrix.config, 'Coverage')
+      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
+
     - name: Upload coverage report
       if: contains(matrix.config, 'Coverage')
       uses: codecov/codecov-action@v1
+      with:
+        directory: _build/gcovs
+        functionalities: gcov
 
     - name: Run integration CMake test
       run: >-
