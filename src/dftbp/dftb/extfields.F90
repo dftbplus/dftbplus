@@ -167,7 +167,7 @@ contains
 
         do ii = 1, size(eField%atomicSites)
           iAt1 = eField%atomicSites(ii)
-          if (eField%atomicOnSite(iAt1)) then
+          if (eField%atomicOnSite(ii)) then
             potential%extOnSiteAtom(iAt1,1) = potential%extOnSiteAtom(iAt1,1)&
                 & + eField%atomicPotential(ii)
           else
