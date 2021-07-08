@@ -45,11 +45,11 @@ contains
     integer, intent(in) :: nQuadrupole
 
     if (nDipole > 0) then
-      allocate(this%dipoleAtom(nDipole, nAtom))
+      allocate(this%dipoleAtom(nDipole, nAtom), source=0.0_dp)
     end if
 
     if (nQuadrupole > 0) then
-      allocate(this%quadrupoleAtom(nQuadrupole, nAtom))
+      allocate(this%quadrupoleAtom(nQuadrupole, nAtom), source=0.0_dp)
     end if
 
   end subroutine TMultipole_init
