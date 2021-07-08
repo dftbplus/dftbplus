@@ -1015,6 +1015,7 @@ contains
     allocate(evecR(memDim, nExc))
     allocate(workArray(3 * memDim + 1))
     allocate(vecNorm(2 * memDim))
+    mH(:,:) = 0.0_dp
 
     allocate(lrGamma(nAtom, nAtom))
     ! To be changed if RS branch is moved
