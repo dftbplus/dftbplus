@@ -44,7 +44,9 @@ jobs:
 
     - name: Disable MPI build
       if: contains(matrix.mpi, 'nompi')
-      run: echo "WITH_MPI=false" >> $GITHUB_ENV
+      run: |
+        echo "WITH_MPI=false" >> $GITHUB_ENV
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DWITH_TBLITE=true" >> $GITHUB_ENV
 
     - name: Set Compiler (Linux)
       if: contains(matrix.os, 'ubuntu')
@@ -140,6 +142,7 @@ jobs:
         -DWITH_DFTD3=true
         -DWITH_MBD=true
         -DWITH_TRANSPORT=true
+        -DWITH_TBLITE=true
         -DFYPP_FLAGS='-DTRAVIS'
 
     steps:
