@@ -54,7 +54,7 @@ class Gen2xyzTest(common.TestWithWorkDir):
         cmdargs = ['-o', outfile, '-c', "something", infile]
         gen2xyz.main(cmdargs)
         self.assertTrue(common.xyz_file_equals(outfile, reffile))
-        self.assertFalse(common.xyz_file_equals(outfile, reffile,\
+        self.assertFalse(common.xyz_file_equals(outfile, reffile,
                          check_comment=True))
 
     def test_fail_invalid_infile(self):

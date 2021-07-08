@@ -158,22 +158,22 @@ def main():
             print('(Si2) Expected nr. of atoms: {:d}\n'.format(natom0))
 
             # evaluate mermin free energy
-            print('(Si2) Obtained Mermin-energy: ' + \
+            print('(Si2) Obtained Mermin-energy: ' +
                   '{:15.10f}'.format(merminen))
-            print('(Si2) Expected Mermin-energy: ' + \
+            print('(Si2) Expected Mermin-energy: ' +
                   '{:15.10f}\n'.format(-2.5897497363))
 
             # evaluate gradients
-            print('(Si2) Obtained gradient of atom 1: ' + \
+            print('(Si2) Obtained gradient of atom 1: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*gradients[0]))
-            print('(Si2) Expected gradient of atom 1: ' + \
+            print('(Si2) Expected gradient of atom 1: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(0.0306186399, 0.0026710677, -0.0007231241))
-            print('(Si2) Obtained gradient of atom 2: ' + \
+            print('(Si2) Obtained gradient of atom 2: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*gradients[1]))
-            print('(Si2) Expected gradient of atom 2: ' + \
+            print('(Si2) Expected gradient of atom 2: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n'
                   .format(-0.0306186399, -0.0026710677, 0.0007231241))
 
@@ -190,36 +190,36 @@ def main():
             print('(H2O) Expected nr. of atoms: {:d}\n'.format(natom0))
 
             # evaluate mermin free energy
-            print('(H2O) Obtained Mermin-energy: ' + \
+            print('(H2O) Obtained Mermin-energy: ' +
                   '{:15.10f}'.format(merminen))
-            print('(H2O) Expected Mermin-energy: ' + \
+            print('(H2O) Expected Mermin-energy: ' +
                   '{:15.10f}\n'.format(-3.7534584715))
 
             # evaluate gradients
-            print('(H2O) Obtained gradient of atom 1: ' + \
+            print('(H2O) Obtained gradient of atom 1: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*gradients[0]))
-            print('(H2O) Expected gradient of atom 1: ' + \
+            print('(H2O) Expected gradient of atom 1: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(0.0178274222, 1.1052225107, -0.0835776976))
-            print('(H2O) Obtained gradient of atom 2: ' + \
+            print('(H2O) Obtained gradient of atom 2: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*gradients[1]))
-            print('(H2O) Expected gradient of atom 2: ' + \
+            print('(H2O) Expected gradient of atom 2: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(-0.0073820765, -0.4646991011, -0.5429357096))
-            print('(H2O) Obtained gradient of atom 3: ' + \
+            print('(H2O) Obtained gradient of atom 3: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*gradients[2]))
-            print('(H2O) Expected gradient of atom 3: ' + \
+            print('(H2O) Expected gradient of atom 3: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n'
                   .format(-0.0058552790, -0.6382027486, 0.6279471931))
 
             # evaluate Gross charges
-            print('(H2O) Obtained Gross charges: ' + \
+            print('(H2O) Obtained Gross charges: ' +
                   '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*grosschgs))
-            print('(H2O) Expected Gross charges: ' + \
+            print('(H2O) Expected Gross charges: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n\n'
                   .format(-0.6519945363, 0.3314953102, 0.3204992261))
 
