@@ -422,7 +422,7 @@ contains
     !> coords and velocities will be provided at each step through the API?
     logical, intent(in) :: tdCoordsAndVelosThroughAPI
 
-    type(TStatus) :: status
+    type(TStatus) :: errStatus
 
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
@@ -444,9 +444,10 @@ contains
           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
           & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
           & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
-          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver, status)
-      if (status%hasError()) then
-        call error(status%message)
+          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver,&
+          & errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
     else
       call error("Electron dynamics not enabled, please initialize the calculator&
@@ -488,7 +489,7 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    type(TStatus) :: status
+    type(TStatus) :: errStatus
 
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
@@ -497,10 +498,10 @@ contains
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
            & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
            & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
-           & status)
+           & errStatus)
 
-      if (status%hasError()) then
-        call error(status%message)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
 
       if (present(dipole)) then
