@@ -2981,6 +2981,15 @@ contains
       #:endif
     endif
 
+    if(this%isLinResp) then
+       if(input%ctrl%lrespini%tUseArpack) then
+          write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
+       else
+          write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+       end if
+    end if
+
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
         select case (iMixer)

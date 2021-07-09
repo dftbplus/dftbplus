@@ -1,3 +1,4 @@
+
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
 !  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
@@ -20,7 +21,6 @@ module dftbp_timedep_linrespcommon
   implicit none
   
   public
-
 
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
@@ -400,7 +400,7 @@ contains
     logical :: updwn
     real(dp) :: docc_ij
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, updwn, docc_ij) SCHEDULE(RUNTIME)
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, ss, updwn, docc_ij) SCHEDULE(RUNTIME)
     do ia = 1, nmat
       call indxov(win, ia, getia, ii, jj, ss)
       updwn = (win(ia) <= nmatup)
@@ -415,45 +415,101 @@ contains
 
   end subroutine wtdn
 
+  !> Square root of differences in occupations between filled and empty states
+  !> We need occupations per spin channel ([0:1]) also for closed shell systems
+  subroutine getSqrOcc(occNr, win, nmatup, nmat, getia, tSpin, n_ij)
+
+    !> occupation of states
+    real(dp), intent(in) :: occNr(:,:)
+
+    !> index array for transitions to single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> number of up-up excitations
+    integer, intent(in) :: nmatup
+
+    !> number of transitions to scale
+    integer, intent(in) :: nmat
+
+    !> array of the occupied->virtual pairs
+    integer, intent(in) :: getia(:,:)
+
+    !> is system spin polarized?
+    logical, intent(in) :: tSpin
+
+    !> resulting scaled matrix
+    real(dp), intent(out) :: n_ij(:)
+
+    integer :: ia, ii, jj, ss
+    logical :: updwn
+    real(dp) :: docc_ij
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, updwn, docc_ij) SCHEDULE(RUNTIME)
+    do ia = 1, nmat
+      call indxov(win, ia, getia, ii, jj, ss)
+      updwn = (win(ia) <= nmatup)
+      if(updwn) then
+        docc_ij = occNr(ii,1) - occNr(jj,1)
+      else
+        docc_ij = occNr(ii,2) - occNr(jj,2)
+      end if
+      if(.not. tSpin) then
+         docc_ij = docc_ij / 2.0_dp
+      endif
+      n_ij(ia) = sqrt(docc_ij)
+    end do
+    !$OMP  END PARALLEL DO
+
+  end subroutine getSqrOcc
+
 
   !> Multiplies the excitation supermatrix with a supervector.
+  !> For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt 
+  !> (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
+  !>
+  !> For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
+  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !>  World Scientific, 1995, Part I, p. 155.)
+  !> Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
+  !> occupations n_is, correct for finite T. 
+  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
-  subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getia, gamma, species0, spinW, onsMEs, orb, transChrg)
+  subroutine actionAplusB(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
+      & occNr, getia, gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg)
 
     !> logical spin polarization
     logical, intent(in) :: spin
 
-    !> Vector to multiply with size(nmat)
+    !> vector to multiply with size(nmat)
     real(dp), intent(in) :: vin(:)
 
-    !> Vector containing the result on exit size(nmat)
+    !> vector containing the result on exit size(nmat)
     real(dp), intent(out) :: vout(:)
 
-    !> Excitation energies (wij = epsion_j - epsilon_i)
+    !> excitation energies (wij = epsion_j - epsilon_i)
     real(dp), intent(in) :: wij(:)
 
-    !> Symmetry flag (singlet or triplet)
+    !> symmetry flag (singlet or triplet)
     character, intent(in) :: sym
 
-    !> Sorting index of the excitation energies.
+    !> sorting index of the excitation energies.
     integer, intent(in) :: win(:)
 
     !> number of same-spin transitions
     integer, intent(in) :: nmatup
 
-    !> Starting position of each atom in the list of orbitals.
+    !> starting position of each atom in the list of orbitals.
     integer, intent(in) :: iAtomStart(:)
 
     !> overlap times eigenvector. (nOrb, nOrb)
     real(dp), intent(in) :: stimc(:,:,:)
 
-    !> Eigenvectors (nOrb, nOrb)
+    !> eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> Occupation numbers
+    !> occupation numbers
     real(dp), intent(in) :: occNr(:,:)
 
     !> DFTB gamma matrix (nAtm, nAtom)
@@ -462,7 +518,7 @@ contains
     !> index array for excitations
     integer, intent(in) :: getia(:,:)
 
-    !> Chemical species of the atoms
+    !> chemical species of the atoms
     integer, intent(in) :: species0(:)
 
     !> ground state spin constants for each species
@@ -474,22 +530,21 @@ contains
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> whether (A+B)v or (Omega)v should be returned
+    logical, intent(in) :: tAplusB
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nmat, natom, ia
+    integer :: nmat, natom, ia, ss
 
-  #:if WITH_OMP
-    integer :: ii, jj
-  #:endif
-
-    real(dp) :: fact
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
-    real(dp) :: wnij(size(wij))
-    logical :: updwn
+    real(dp) :: sqrOccIA(size(wij))
     real(dp) :: vout_ons(size(vin))
+    real(dp) :: vTmp(size(vin))
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
 
     @:ASSERT(size(vin) == size(vout))
 
@@ -498,13 +553,19 @@ contains
 
     vout = 0.0_dp
 
-    call wtdn(wij, occNr, win, nmatup, nmat, getia, wnij)
-    wnij = sqrt(wnij) ! always used as root(wnij) after this
+    ! Compute sqrt(n_as-n_is)
+    call getSqrOcc(occNr, win, nmatup, nmat, getia, spin, sqrOccIA)
+ 
+    if(tAplusB) then
+       vTmp(:) = vin 
+    else
+       vTmp(:) = vin * sqrt(wij)
+    endif
 
     ! product charges with the v*wn product, i.e. Q * v*wn
     oTmp(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getia, win, vin(:nmat) * wnij(:nmat),&
-        & oTmp)
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getia, win, &
+        & vTmp * sqrOccIA, oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -512,19 +573,19 @@ contains
 
         call hemv(gtmp, gamma, otmp)
 
-        ! 2 * wn * (g * Q)
+        ! 4 * wn * (g * Q)
         vOut(:) = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, gTmp, vOut)
-        vOut(:) = 2.0_dp * wnij(:) * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA * vOut
 
       else
 
-        otmp = 2.0_dp * otmp * spinW(species0)
+        otmp = otmp * spinW(species0)
 
-        ! wn * (o * Q)
+        ! 4 * wn * (o * Q)
         vOut = 0.0_dp
         call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getia, win, oTmp, vOut)
-        vOut(:) = wnij(:) * vOut(:)
+        vOut(:) = 4.0_dp * sqrOccIA * vOut
 
 
       end if
@@ -535,66 +596,282 @@ contains
 
       otmp(:) = 0.0_dp
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
-
-        updwn = (win(ia) <= nmatup)
 
         qij(:) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
 
         ! singlet gamma part (S)
-        vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
+        vout(ia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
 
         ! magnetization part (T1)
-        if (updwn) then
-          fact = 1.0_dp
-        else
-          fact =-1.0_dp
-        end if
-        otmp(:) = otmp(:) + fact * vin(ia) * wnij(ia) * qij(:)
+        ss = getIA(win(ia), 3)
+
+        otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vTmp(ia) * qij
 
       end do
       !$OMP  END PARALLEL DO
 
-      otmp = 2.0_dp * otmp * spinW(species0)
+      otmp = otmp * spinW(species0)
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
         qij(:) = transChrg%qTransIA(ia, iAtomStart, stimc, grndEigVecs, getia, win)
 
-        updwn = (win(ia) <= nmatup)
-        if (updwn) then
-          fact = 1.0_dp
-        else
-          fact =-1.0_dp
-        end if
-        vout(ia) = vout(ia) + fact * wnij(ia) * dot_product(qij, otmp)
+        ss = getIA(win(ia), 3)
+
+        vout(ia) = vout(ia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
 
       end do
       !$OMP  END PARALLEL DO
+      
 
     end if
 
     if (allocated(onsMEs)) then
-      call onsiteEner(spin, sym, wnij, win, nmatup, iAtomStart, getia, species0, stimc,&
-          & grndEigVecs, onsMEs, orb, vin, vout_ons)
+      call onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
+          & grndEigVecs, onsMEs, orb, vTmp, vout_ons)
       vout(:) = vout + vout_ons
     end if
 
-    vout(:) = vout(:) + ( wij**2 ) * vin
+    vout(:) = vout + wij * vTmp
 
-  end subroutine omegatvec
+    if(.not. tAplusB) then
+       vout(:) = vout * sqrt(wij)
+    endif
 
+  end subroutine actionAplusB 
 
-  subroutine onsiteEner(spin, sym, wnij, win, nmatup, iAtomStart, getia, species0, stimc,&
+  !> Multiplies the excitation supermatrix with a supervector.
+  !> (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
+  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !>  World Scientific, 1995, Part I, p. 155.)
+  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
+  subroutine actionAminusB(tSpin, win, nMatUp, occNr, getIA, wIA, vIn, vOut)
+
+    !> logical spin polarization
+    logical, intent(in) :: tSpin
+
+    !> sorting index of the excitation energies.
+    integer, intent(in) :: win(:)
+
+    !> number of same-spin transitions
+    integer, intent(in) :: nMatUp
+
+    !> occupation numbers
+    real(dp), intent(in) :: occNr(:,:)
+
+    !> index array for excitations
+    integer, intent(in) :: getIA(:,:)
+
+    !> excitation energies (wIA = epsilon_a - epsilon_i)
+    real(dp), intent(in) :: wIA(:)
+
+    !> vector to multiply with size(nmat)
+    real(dp), intent(in) :: vIn(:)
+
+    !> vector containing the result on exit size(nmat)
+    real(dp), intent(out) :: vOut(:)
+
+    integer :: nMat
+
+    nMat = size(vin) 
+    vOut(:) = 0.0_dp
+
+    ! orb. energy difference diagonal contribution
+    vOut(:) = vOut + wIA * vIn 
+
+  end subroutine actionAminusB
+
+  !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
+  !> (JCP 109 8218 (1998).
+  !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell) 
+  !> Here ias,jbt <= initDim
+  !> Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
+  !> Note: Routine not set up to handle onsite corrections.
+  !> Note: Not yet OpenMP parallelized
+  subroutine intialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
+      & sTimesGrndEigVecs, grndEigVecs, occNr, getIA, iaTrans, gamma, lrGamma, species0, spinW, &
+      & tSpin, vP, vM, mP, mM)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> initial RPA subspace 
+    integer, intent(in) :: initDim
+
+    !> number of same-spin transitions
+    integer, intent(in) :: nmatup
+
+    !> excitation energies (wij = epsion_j - epsilon_i)
+    real(dp), intent(in) :: wIJ(:)
+
+    !> occupation numbers
+    real(dp), intent(in) :: occNr(:,:)
+
+    !> symmetry flag (singlet or triplet)
+    character, intent(in) :: sym
+
+    !> sorting index of the excitation energies.
+    integer, intent(in) :: win(:)
+
+    !> starting position of each atom in the list of orbitals.
+    integer, intent(in) :: iAtomStart(:)
+
+    !> overlap times eigenvector. (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> DFTB gamma matrix (nAtm, nAtom)
+    real(dp), intent(in) :: gamma(:,:)
+
+    !> DFTB gamma matrix (long-range corrected)
+    real(dp), intent(in) :: lrGamma(:,:)
+
+    !> index array for excitations
+    integer,  intent(in) :: getIA(:,:)
+
+    !> index array from orbital pairs to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> chemical species of the atoms
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin constants for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> logical spin polarization
+    logical, intent(in) :: tSpin
+
+    !> output vector v+ (nMat, initDim)
+    real(dp), intent(out) :: vP(:,:)
+
+    !> output vector v+ (nMat, initDim)
+    real(dp), intent(out) :: vM(:,:)
+
+    !> output matrix M+ (initDim, initDim)
+    real(dp), intent(out) :: mP(:,:)
+
+    !> output matrix M- (initDim, initDim)
+    real(dp), intent(out) :: mM(:,:)
+
+    integer :: izpAlpha, nMat, nAtom
+    integer :: ia, jb, ii, jj, ss, tt
+    real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
+    logical :: tRangeSep
+    ! somewhat ugly, but fast small arrays on stack:
+    real(dp) :: sqrOccIA(size(wIJ))
+
+    tRangeSep = .false. 
+    nMat = size(vP, dim=1) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+
+    allocate(gTmp(nAtom))
+    allocate(oTmp(nAtom))
+    allocate(qTr(nAtom))
+
+    vP(:,:) = 0.0_dp
+    vM(:,:) = 0.0_dp
+    mP(:,:) = 0.0_dp
+    mM(:,:) = 0.0_dp
+
+    oTmp(:) = 0.0_dp
+
+    call getSqrOcc(occNr, win, nmatup, nMat, getIA, tSpin, sqrOccIA)
+
+    !-----------spin-unpolarized systems--------------
+    if(.not. tSpin) then 
+
+      if (sym == 'S') then
+
+        ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
+        do jb = 1, initDim 
+          qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = qTr * sqrOccIA(jb)
+
+          call hemv(oTmp, gamma, qTr)
+
+          do ia = 1, nMat
+            qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+            vP(ia,jb) = 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+          end do
+
+        end do
+
+      else
+
+        ! full range triplets contribution: 2 * sum_A q^ia_A M_A q^jb_A
+        do jb = 1, initDim
+          qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          oTmp(:) = qTr * sqrOccIA(jb) * spinW(species0)
+
+          do ia = 1, nMat
+            qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+            vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+          end do
+
+        end do
+
+      end if
+    !--------------spin-polarized systems--------
+    else 
+
+      do jb = 1, initDim
+        qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+        qTr(:) = qTr * sqrOccIA(jb)
+
+        call hemv(gTmp, gamma, qTr)
+
+        oTmp(:) = qTr
+
+        do ia = 1, nMat
+          qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          vP(ia,jb) = 2.0_dp * sqrOccIA(ia) * dot_product(qTr, gTmp)
+        end do
+
+        ss = getIA(win(jb), 3)
+        
+        oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp
+
+        do ia = 1, nMat
+          qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          tt = getIA(win(ia), 3)
+          vP(ia,jb) = vP(ia,jb) + spinFactor(tt) * sqrOccIA(ia) * dot_product(qTr, oTmp)
+        end do
+
+      end do
+
+    end if
+
+    do jb = 1, initDim
+      vP(jb,jb) = vP(jb,jb) + wIJ(jb) 
+      vM(jb,jb) = vM(jb,jb) + wIJ(jb)
+    end do
+
+    do ii = 1, initDim
+      do jj = ii, initDim
+        mP(ii,jj) = vP(ii,jj)
+        mP(jj,ii) = mP(ii,jj)
+        mM(ii,jj) = vM(ii,jj)
+        mM(jj,ii) = mM(ii,jj)
+      end do
+    end do
+
+  end subroutine intialSubSpaceMatrixApmB
+
+  subroutine onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getia, species0, stimc,&
       & grndEigVecs, ons_en, orb, vin, vout)
 
     logical, intent(in) :: spin
     character, intent(in) :: sym
-    real(dp), intent(in) :: wnij(:)
+    real(dp), intent(in) :: wij(:)
+    real(dp), intent(in) :: sqrOccIA(:)
     integer, intent(in) :: win(:)
     integer, intent(in) :: nmatup
     integer, intent(in) :: iAtomStart(:)
@@ -646,12 +923,12 @@ contains
           end if
           do iSpin = 1, 2
             otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
-                & * wnij(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
+                & * sqrOccIA(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
           end do
         else
           ! closed shell
-          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + 0.5_dp &
-              & * qq_ij(:nOrb, :nOrb) * wnij(ia) * vin(ia)&
+          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + &
+              & qq_ij(:nOrb, :nOrb) * sqrOccIA(ia) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
       end do
@@ -677,7 +954,7 @@ contains
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
-        vout(ia) = vout(ia) + 4.0_dp * wnij(ia) *&
+        vout(ia) = vout(ia) + 4.0_dp * sqrOccIA(ia) *&
             & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
       end do
     end do
@@ -1073,8 +1350,8 @@ contains
               tmp = tmp + MOoverlap(m,aa,stimc,grndEigVecs) * MOoverlap(m,bb,stimc,grndEigVecs)
             end do
           end if
-
-          s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
+ 
+         s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
         end do
       end do
 
@@ -1232,5 +1509,160 @@ contains
     close(fdMulliken)
 
   end subroutine writeExcMulliken
+
+  !> increase dimension of vector from sizeIn to fac*sizeIn
+  pure subroutine incSizeVecTemporaryCopy(sizeIn, fac, vec)
+
+    integer, intent(in) :: sizeIn
+    integer, intent(in) :: fac
+    real(dp), allocatable, intent(inout) :: vec(:)
+
+    real(dp), allocatable :: temp(:)
+
+    allocate(temp(fac * sizeIn))
+    temp(:) = 0.0_dp
+    temp(1:sizeIn) = vec
+    call move_alloc(temp, vec)
+
+  end subroutine incSizeVecTemporaryCopy
+
+  !> increase size of (sizeIn,n) array to (fac*sizeIn,n)
+  pure subroutine incSizeMatDimOne(sizeIn, fac, mat)
+
+    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: fac
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    integer :: dim2
+    real(dp), allocatable :: temp(:,:)
+
+    dim2 = size(mat, dim=2)
+    allocate(temp(fac * sizeIn, dim2))
+    temp(:,:) = 0.0_dp
+    temp(1:sizeIn,:) = mat
+    call move_alloc(temp, mat)
+
+  end subroutine incSizeMatDimOne
+
+  !> increase size of (n,sizeIn) array to (n, fac*sizeIn)
+  pure subroutine incSizeMatDimTwo(sizeIn, fac, mat)
+
+    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: fac
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    integer :: dim1
+    real(dp), allocatable :: temp(:,:)
+
+    dim1 = size(mat, dim=1)
+    allocate(temp(dim1, fac * sizeIn))
+    temp(:,:) = 0.0_dp
+    temp(:,1:sizeIn) = mat
+    call move_alloc(temp, mat)
+
+  end subroutine incSizeMatDimTwo
+
+  !> increase size of (sizeIn,sizeIn) array to (fac1*sizeIn,fac2*sizeIn)
+  pure subroutine incSizeMatBothDim(sizeIn, fac1, fac2, mat)
+
+    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: fac1, fac2
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    real(dp), allocatable :: temp(:,:)
+
+    allocate(temp(fac1 * sizeIn, fac2 * sizeIn))
+    temp(:,:) = 0.0_dp
+    temp(1:sizeIn, 1:sizeIn) = mat
+    call move_alloc(temp, mat)
+
+  end subroutine incSizeMatBothDim
+
+  !> Same routine exists in rs_linresp and will be removed 
+  !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
+  subroutine calcMatrixSqrtTemporaryCopy(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
+
+    real(dp), intent(in) :: matIn(:,:)
+    integer, intent(in) :: spaceDim, memDim
+    real(dp), intent(out) :: matOut(:,:), matInvOut(:,:)
+    real(dp) :: workArray(:)
+    integer :: workDim
+
+    real(dp) :: dummyEV(spaceDim)
+    real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
+    integer :: info
+    integer :: ii
+
+    dummyM(:,:) = matIn(1:spaceDim,1:spaceDim)
+
+    call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
+
+    !calc. sqrt
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
+    end do
+
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matOut, memDim)
+
+    !calc. inv. of sqrt
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
+    end do
+
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matInvOut, memDim)
+
+  end subroutine calcMatrixSqrtTemporaryCopy
+
+
+  !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
+  !> vectors 1:(start-1) are orthonormal yet
+  pure subroutine orthonormalizeVectorsTemporaryCopy(start, end, vec)
+    integer, intent(in) :: start
+    integer, intent(in) :: end
+    real(dp), intent(inout) :: vec(:,:)
+
+    integer :: ii, jj
+
+    do ii = start, end
+      do jj = 1, ii - 1
+        vec(:,ii) = vec(:,ii) - dot_product(vec(:,ii), vec(:,jj)) * vec(:,jj)
+      end do
+      vec(:,ii) = vec(:,ii) / sqrt(dot_product(vec(:,ii), vec(:,ii)))
+    end do
+
+  end subroutine orthonormalizeVectorsTemporaryCopy
+
+  !> Encapsulate memory extension for Stratmann solver 
+  subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
+       &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
+
+    integer, intent(inout) :: memDim
+    integer, intent(inout) :: workDim
+    real(dp), allocatable :: vecB(:,:)
+    real(dp), allocatable :: vP(:,:), vM(:,:)
+    real(dp), allocatable :: mP(:,:), mM(:,:), mH(:,:), mMsqrt(:,:), mMsqrtInv(:,:)
+    real(dp), allocatable :: dummyM(:,:), evalInt(:), workArray(:)
+    real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:)
+
+    call incSizeMatDimTwo(memDim, 3, vecB)
+    call incSizeMatDimTwo(memDim, 3, vP)
+    call incSizeMatDimTwo(memDim, 3, vM)
+    call incSizeMatBothDim(memDim, 3, 2, mP)
+    call incSizeMatBothDim(memDim, 3, 2, mM)
+    call incSizeMatBothDim(memDim, 3, 2, mH)
+    call incSizeMatBothDim(memDim, 3, 2, mMsqrt)
+    call incSizeMatBothDim(memDim, 3, 2, mMsqrtInv)
+    call incSizeMatBothDim(memDim, 3, 2, dummyM)
+    call incSizeVecTemporaryCopy(memDim, 3, evalInt)
+    call incSizeVecTemporaryCopy(workDim, 3, workArray)
+    call incSizeMatDimOne(memDim, 3, evecL)
+    call incSizeMatDimOne(memDim, 3, evecR)
+    call incSizeVecTemporaryCopy(2 * memDim, 3, vecNorm)
+    memDim = 3 * memDim
+    workDim = 3 * workDim
+
+  end subroutine incMemStratmann
 
 end module dftbp_timedep_linrespcommon
