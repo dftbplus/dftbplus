@@ -10,12 +10,11 @@ env:
   HOMEBREW_NO_INSTALL_CLEANUP: "ON"
   BUILD_DIR: _build
   CMAKE_OPTIONS: >-
-    -DCMAKE_BUILD_TYPE=Debug
     -DWITH_API=true
     -DWITH_DFTD3=true
     -DWITH_MBD=true
     -DWITH_TRANSPORT=true
-    -DFYPP_FLAGS='-DTRAVIS'
+    -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
 
 jobs:
@@ -24,11 +23,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         mpi: [nompi, openmpi]
+        config: [Debug]
+        include:
+          - os: ubuntu-latest
+            mpi: nompi
+            config: Coverage
         exclude:
           - os: macos-latest
             mpi: openmpi
+            config: Debug
 
     steps:
     - name: Checkout code
@@ -80,6 +85,14 @@ jobs:
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
 
+    - name: Install MPICH (Linux)
+      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'mpich')
+      run: |
+        sudo apt-get update
+        sudo apt-get install mpich libscalapack-mpich-dev
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
+        echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
+
     - name: Install cmake
       run: pip3 install cmake ninja fypp numpy
 
@@ -90,6 +103,7 @@ jobs:
       run: >-
         cmake -B _build -G Ninja
         -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        -DCMAKE_BUILD_TYPE=${{ matrix.config }}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
@@ -105,6 +119,17 @@ jobs:
     - name: Install project
       run: |
         cmake --install ${BUILD_DIR}
+
+    - name: Create gcov reports
+      if: contains(matrix.config, 'Coverage')
+      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
+
+    - name: Upload coverage report
+      if: contains(matrix.config, 'Coverage')
+      uses: codecov/codecov-action@v1
+      with:
+        directory: _build/gcovs
+        functionalities: gcov
 
     - name: Run integration CMake test
       run: >-
@@ -178,6 +203,7 @@ jobs:
       run: >-
         cmake -B _build -G Ninja
         -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        -DCMAKE_BUILD_TYPE=Debug
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
