@@ -47,6 +47,7 @@ module dftbp_type_orbitals
 
     !> Total number of orbitals in system.
     integer :: nOrb
+
   end type TOrbitals
 
   !> Length of labels for atomic orbitals

@@ -119,7 +119,7 @@ contains
     !> gross charge for each atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
-    integer :: iAt, iSp, iSh, iStart, iend
+    integer :: iAt, iSp, iSh, iStart, iEnd
 
     deltaQPerLShell(:,:) = 0.0_dp
     do iAt = 1, size(orb%nOrbAtom)
