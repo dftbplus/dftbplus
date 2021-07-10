@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Contains some widely used types (at the moment only TOrbitals)
+!> Contains some widely used types
 module dftbp_type_commontypes
   use dftbp_type_orbitals, only : TOrbitals
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
