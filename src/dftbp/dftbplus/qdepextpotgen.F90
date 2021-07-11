@@ -74,7 +74,7 @@ module dftbp_dftbplus_qdepextpotgen
     !> Called when DFTB needs the gradient of the external potential at the position of the atoms.
     !>
     !>
-    !> The routine is only called once after finishing the SCC iteration, provied the calculator has
+    !> The routine is only called once after finishing the SCC iteration, provides the calculator has
     !> been set up to calculate forces.
     !> Note: External potential is defined as the external potential the electrons feel, so in case
     !> of an electrostatic potential you would have to invert its sign.

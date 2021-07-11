@@ -7,10 +7,10 @@
 
 #:include 'common.fypp'
 
-!> Line minimization iterator for arbitary function using its gradient.
+!> Line minimization iterator for arbitrary function using its gradient.
 !>
 !> The line minimization algorithm works in the following way:
-!> 1. One step along the unity vector along the gradient in the starting point (lenght of the step
+!> 1. One step along the unity vector along the gradient in the starting point (length of the step
 !>    specified externally)
 !> 2. Intervals between previous and current point enlarged as long as the derivative does not
 !>    change sign. (Derivative in the first point is negative.)

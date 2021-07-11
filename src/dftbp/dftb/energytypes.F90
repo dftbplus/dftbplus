@@ -53,7 +53,7 @@ module dftbp_dftb_energytypes
     !> Number of electrons times Fermi energy for cases of the system being connected to reservoir
     real(dp) :: NEf = 0.0_dp
 
-    !> Presure times volume for periodic systems
+    !> Pressure times volume for periodic systems
     real(dp) :: pV = 0.0_dp
 
     !> Electronic entropy times temperature
@@ -106,7 +106,7 @@ module dftbp_dftb_energytypes
     real(dp) :: EGibbsKin = 0.0_dp
 
     !> Energy or free energy which is related to the forces via the Helmann-Feynman theorem. This is
-    !> used for example in geometry optimisation or energetic comparisions.
+    !> used for example in geometry optimisation or energetic comparisons.
     real(dp) :: EForceRelated = 0.0_dp
 
     !> atom resolved repulsive

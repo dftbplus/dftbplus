@@ -192,7 +192,7 @@ module dftbp_timedep_timeprop
     !> field strength for KickAndLaser perturbations
     real(dp) :: tdLaserField = 0.0_dp
 
-    !> intial atomic velocities if supplied
+    !> initial atomic velocities if supplied
     real(dp), allocatable :: initialVelocities(:,:)
 
     !> if initial fillings are provided in an external file
@@ -385,7 +385,7 @@ contains
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
-    !> dummy thermostat objetct
+    !> dummy thermostat object
     type(TDummyThermostat), allocatable :: pDummyTherm
 
     !> MD Framework
@@ -997,7 +997,7 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: speciesAll(:)
 
-    !> atomic ocupations
+    !> atomic occupations
     real(dp), intent(inout) :: qq(:,:,:)
 
     !> reference atomic occupations
@@ -1030,7 +1030,7 @@ contains
     !> current step of the propagation
     integer, intent(in) :: iStep
 
-    !> electrons in each atomi shell
+    !> electrons in each atomic shell
     real(dp), intent(inout) :: chargePerShell(:,:,:)
 
     !> spin constants
@@ -1337,7 +1337,7 @@ contains
     !> Dipole moment
     real(dp), intent(out) :: dipole(:,:)
 
-    !> atomic ocupations
+    !> atomic occupations
     real(dp), intent(out) :: qq(:,:,:)
 
     !> reference atomic occupations
@@ -1464,7 +1464,7 @@ contains
     !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
 
-    !> atomic ocupations
+    !> atomic occupations
     real(dp), intent(inout) :: qq(:,:,:)
 
     !> reference atomic occupations
@@ -1488,7 +1488,7 @@ contains
     !> image atoms to their equivalent in the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> electrons in each atomi shell
+    !> electrons in each atomic shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> potential acting on the system
@@ -1824,7 +1824,7 @@ contains
   end subroutine initializeTDVariables
 
 
-  !> Perfoms a step backwards to boot the dynamics using the Euler algorithm.
+  !> Performs a step backwards to boot the dynamics using the Euler algorithm.
   !> Output is rho(deltaT) called rhoNew, input is rho(t=0) (ground state) called rho
   subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
       & orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
@@ -1898,7 +1898,7 @@ contains
   end subroutine initializePropagator
 
 
-  !> Propagate rho, notice that H = iH (coeficients are real)
+  !> Propagate rho, notice that H = iH (coefficients are real)
   subroutine propagateRho(this, rhoOld, rho, H1, Sinv, step)
 
     !> ElecDynamics instance
@@ -2175,7 +2175,7 @@ contains
   end subroutine closeTDOutputs
 
 
-  !> Open files in different ways depending on their previous existance
+  !> Open files in different ways depending on their previous existence
   subroutine openFile(this, unitName, fileName, isBinary)
 
     !> ElecDynamics instance
@@ -2617,7 +2617,7 @@ contains
   end subroutine initIonDynamics
 
 
-  !> Calculates nonscc hamiltonian and overlap for new geometry and reallocates sparse arrays
+  !> Calculates non-SCC hamiltonian and overlap for new geometry and reallocates sparse arrays
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, skHamCont, skOverCont, ham0, ints, env, rhoPrim,&
       & ErhoPrim, coordAll)
@@ -2818,7 +2818,7 @@ contains
     !> potential acting on the system
     type(TPotentials), intent(in) :: potential
 
-    !> atomic ocupations
+    !> atomic occupations
     real(dp), intent(inout) :: qq(:,:,:)
 
     !> reference atomic occupations

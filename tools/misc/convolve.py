@@ -17,7 +17,7 @@ outfile = None
 infile = None
 norm = True
 
-def useage():
+def usage():
     print("--broaden -b broadening width")
     print("--help    -h this message")
     print("--input   -i input file name")
@@ -30,12 +30,12 @@ try:
     opts, args = getopt.getopt(sys.argv[1:], "o:i:b:hwu", ["output=", "input=", "broaden=", "help","weight","unnorm"])
 except getopt.GetoptError as err:
     print(str(err)) # will print something like "option -a not recognized"
-    useage()    
+    usage()
 output = None
 input = None
 for options, argument in opts:
     if options in ("-h", "--help"):
-        useage()
+        usage()
     elif options in ("-o", "--output"):
         outfile = argument
     elif options in ("-b", "--broaden"):        
@@ -50,7 +50,7 @@ for options, argument in opts:
         assert False, "unhandled option"
 
 if outfile is None or infile is None:
-    useage()
+    usage()
         
 # returns numeric matches as a number
 def numGrep(pattern,fileObj):

@@ -365,7 +365,7 @@ contains
       end if
       selected(iFirstNorm : iLastNorm) = .true.
 
-    ! Non-numerical value. If this is an atom selection, try to interprete it as species name.
+    ! Non-numerical value. If this is an atom selection, try to interpret it as species name.
     else if (allocated(selection%speciesNames)) then
 
       ! Workaround: GCC 7 / GCC 8

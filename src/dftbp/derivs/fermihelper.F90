@@ -78,7 +78,7 @@ contains
   end function invDiff
 
 
-  !> Limit of function occuring in perturbation expression sum over states
+  !> Limit of function occurring in perturbation expression sum over states
   pure function deltamn(En,Em,sigma)
 
     !> Energy at which to measure the smeared level

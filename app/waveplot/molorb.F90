@@ -73,7 +73,7 @@ module waveplot_molorb
     !> Nr. of orbitals in the system
     integer :: nOrb
 
-    !> If sytem is periodic
+    !> If system is periodic
     logical :: tPeriodic
 
     !> Lattice vectors
@@ -402,7 +402,7 @@ contains
     end if
 
     ! Phase factors for the periodic image cell. Note: This will be conjugated in the scalar product
-    ! below. This is fine as, in contrast to what was published, DFTB+ uses implicitely exp(-ikr) as
+    ! below. This is fine as, in contrast to what was published, DFTB+ uses implicitly exp(-ikr) as
     ! a phase factor, as the unpack routines assemble the lower triangular matrix with exp(ikr) as
     ! factor.
     phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPoints))

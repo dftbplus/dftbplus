@@ -188,7 +188,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance bewteen two atoms of interest
+    !> distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(this%nInteg,nInterNew_), y1, y1p, y1pp
@@ -253,7 +253,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance bewteen two atoms of interest
+    !> distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterOld_), yb(this%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp

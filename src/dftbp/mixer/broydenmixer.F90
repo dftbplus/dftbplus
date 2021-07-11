@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains a modified Broyden mixer.
-!> The modified Broyden mixer implemented here is practicaly the same as the one in the old DFTB
+!> The modified Broyden mixer implemented here is practically the same as the one in the old DFTB
 !> code. A detailed description of the method can be found in Johnson's paper.
 !> see D.D. Johnson, PRB 38, 12807 (1988)
 !> In order to use the mixer you have to create and reset it.
@@ -99,7 +99,7 @@ contains
 
 
   !> Creates a Broyden mixer instance.
-  !> The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidian
+  !> The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidean
   !> norm of the charge difference vector. If the calculated weigth is outside of the
   !> [minWeight,maxWeight] region it is replaced with the appropriate boundary value.
   subroutine BroydenMixer_init(this, mIter, mixParam, omega0, minWeight, &

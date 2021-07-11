@@ -45,9 +45,9 @@ contributed to DFTB+ :
 
 * Tim Kowalczyk (Western Washington University)
 
-* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
+* In Seong Lee (Ulsan National Institute of Science and Technology, Republic of Korea)
 
-* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of
+* In Seong Lee (Ulsan National Institute of Science and Technology, Republic of
   Korea)
 
 * Reinhard Maurer (University of Warwick, UK)

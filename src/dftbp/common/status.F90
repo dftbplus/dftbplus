@@ -53,10 +53,10 @@ contains
     !> Error message.
     character(*), intent(in) :: message
 
-    !> File where error occured.
+    !> File where error occurred.
     character(*), intent(in) :: file
 
-    !> Line where error occured.
+    !> Line where error occurred.
     integer, intent(in) :: line
 
     this%code = code
@@ -73,7 +73,7 @@ contains
     !> Instance
     class(TStatus), intent(in) :: this
 
-    !> True if an error occured
+    !> True if an error occurred
     logical :: hasError
 
     hasError = this%code /= 0

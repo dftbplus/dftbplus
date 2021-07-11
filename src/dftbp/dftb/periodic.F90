@@ -116,7 +116,7 @@ contains
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
   !> the atoms in the central cell.
   !> This subroutine uses a simple guess to get the necessary translation vectors. This results in a
-  !> set of vectors wich could for very asymmetric cells a large amount bigger than the real
+  !> set of vectors which could for very asymmetric cells a large amount bigger than the real
   !> necessary one.
   subroutine getCellTranslations(cellVec, rCellVec, latVec, recVec2p, cutoff)
 
@@ -158,7 +158,7 @@ contains
   !> Without the onlyInside parameter, the returned set of lattice points shape a
   !> parallelepipedon. With the onlyInside parameter its not necessarily the case.
   !> Refine the algorithm with the help of a new routine which can calculate the minimal distance
-  !> between two arbitary cells.
+  !> between two arbitrary cells.
   subroutine getLatticePoints(latPoint, latVec, recVec2p, dist, posExtension, negExtension,&
       & onlyInside, reduceByInversion, withoutOrigin)
 
@@ -359,7 +359,7 @@ contains
     !> Whether the neighbour list should be symmetric or not (default)
     logical, intent(in), optional :: symmetric
 
-    !> Helical translation and angle, if neccessary, along z axis
+    !> Helical translation and angle, if necessary, along z axis
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
@@ -410,7 +410,7 @@ contains
     !> Optional, whether the map should be symmetric (dftb default = .false.)
     logical, intent(in), optional :: symmetric
 
-    !> Helical translation and angle, if neccessary, along z axis
+    !> Helical translation and angle, if necessary, along z axis
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     ! Nr. of atoms in the system

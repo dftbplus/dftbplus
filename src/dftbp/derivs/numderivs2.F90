@@ -71,7 +71,7 @@ contains
 
 
   !> Create new instance of derivative object
-  !> Note: Use pre-relaxed coordinates when starting this, as the the truncation at second
+  !> Note: Use pre-relaxed coordinates when starting this, as the truncation at second
   !> derivatives is only valid at the minimum position.
   subroutine derivs_create(this, xInit, Delta)
 
@@ -111,7 +111,7 @@ contains
   !> coordinates for differentiation of the forces with respect to atomic coordinates
   subroutine derivs_next(this,xNew,fOld,tGeomEnd)
 
-    !> Derivatives instance to propogate
+    !> Derivatives instance to propagate
     type(TNumDerivs), intent(inout) :: this
 
     !> New coordinates for the next step

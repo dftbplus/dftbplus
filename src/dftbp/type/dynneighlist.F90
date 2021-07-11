@@ -147,7 +147,7 @@ contains
   end subroutine TDynNeighList_updateLatVecs
 
 
-  !> Updates the coordiantes.
+  !> Updates the coordinates.
   subroutine TDynNeighList_updateCoords(this, coords)
 
     !> Instance.
@@ -240,7 +240,7 @@ contains
     !> Distances of the neighbours. Shape: (nNeighbourSK)
     real(dp), intent(out), optional :: dists(:)
 
-    !> Correspoinding images of the neighbours in the central cell. Shape: (nNeighbourSK)
+    !> Corresponding images of the neighbours in the central cell. Shape: (nNeighbourSK)
     integer, intent(out), optional :: img2CentCell(:)
 
     real(dp) :: neighCoords(3)

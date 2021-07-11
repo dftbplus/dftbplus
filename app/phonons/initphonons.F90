@@ -287,7 +287,7 @@ contains
       case("H", "eV" , "meV", "THz", "cm")
         outputUnits=trim(char(buffer))
       case default
-        call detailedError(node,"Uknown outputUnits "//trim(char(buffer)))
+        call detailedError(node,"Unknown outputUnits "//trim(char(buffer)))
       end select
       call readKPoints(node, geo, tBadKpoints)
     else
@@ -330,7 +330,7 @@ contains
     case ("cp2k")
       call readCp2kHessian(value)
     case default
-      call detailedError(node,"Unkown Hessian type "//char(buffer))
+      call detailedError(node,"Unknown Hessian type "//char(buffer))
     end select
 
     ! --------------------------------------------------------------------------------------
@@ -347,7 +347,7 @@ contains
       case ("gaussian")
         cubicType = 1
       case default
-        call detailedError(root,"Unkown Cubic forces type "//char(buffer))
+        call detailedError(root,"Unknown Cubic forces type "//char(buffer))
       end select
     end if
 
@@ -1453,7 +1453,7 @@ contains
         call detailedError(pValue,"In Mingo model check Wmax <= Emax")
       end if
     case default
-      call detailedError(pValue,"Uknown deltaModel "//trim(char(buffer)))
+      call detailedError(pValue,"Unknown deltaModel "//trim(char(buffer)))
     end select
   end subroutine ReadDeltaModel
 

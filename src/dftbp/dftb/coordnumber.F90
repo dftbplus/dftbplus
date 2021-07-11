@@ -447,7 +447,7 @@ contains
     !> Covalent Radii for counting function
     real(dp), intent(in) :: covalentRadius(:)
 
-    !> Electronegativities for covalancy scaling
+    !> Electronegativities for covalency scaling
     real(dp), intent(in) :: electronegativity(:)
 
     !> Steepness of the counting function for the fractional coordination number.
@@ -710,7 +710,7 @@ contains
     !> Cutoff for the CN, this is not the maximum value.
     real(dp), intent(in) :: cut
 
-    !> Cuting function vlaue
+    !> Cutting function value
     real(dp) :: cnp
 
     cnp = log(1.0_dp + exp(cut)) - log(1.0_dp + exp(cut - cn))

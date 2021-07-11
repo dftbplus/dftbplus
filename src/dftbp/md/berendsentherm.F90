@@ -61,7 +61,7 @@ module dftbp_md_berendsentherm
   end interface
 
 
-  !> update velocites acording to the thermostat
+  !> update velocities according to the thermostat
   interface updateVelocities
     module procedure Berendsen_updateVelos
   end interface

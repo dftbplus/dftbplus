@@ -177,7 +177,7 @@ contains
 
       !> Wrapper for passing a reference to a PLUMED instance.
       !>
-      !> NOTE: This wrapper passes the adress of the value object. Make sure, the object
+      !> NOTE: This wrapper passes the address of the value object. Make sure, the object
       !> exists long enough, that PLUMED can access and eventually modify it when necessary.
       !>
       subroutine sendCmdPtr${SUFFIX}$${RANK}$(this, key, val)

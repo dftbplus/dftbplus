@@ -256,7 +256,7 @@ contains
     !>  The child which carries this modifier (for error messages)
     type(fnode), pointer :: child
 
-    !>  Array of the modifiers, occuring in modifer.
+    !>  Array of the modifiers, occurring in modifer.
     type(string), intent(inout) :: modifiers(:)
 
     integer :: nModif

@@ -850,7 +850,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> Is the Fermi level common accross spin channels?
+    !> Is the Fermi level common across spin channels?
     logical, intent(in) :: tSpinSharedEf
 
     !> Are spin orbit interactions present

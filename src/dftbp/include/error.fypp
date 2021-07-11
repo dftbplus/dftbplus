@@ -78,14 +78,14 @@
 #:enddef SET_FORMATTED_ERROR
 
 
-#! Signals error status and returns from curren scope
+#! Signals error status and returns from current scope
 #:def RAISE_ERROR(status, code, message)
   $:SET_ERROR(status, code, message)
   return
 #:enddef RAISE_ERROR
 
 
-#! Signals error status with error message formatting and returns from curren scope
+#! Signals error status with error message formatting and returns from current scope
 #:def RAISE_FORMATTED_ERROR(status, code, format, *messageVars)
   $:SET_FORMATTED_ERROR(status, code, format, *messageVars)
   return

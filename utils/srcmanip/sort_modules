@@ -57,7 +57,7 @@ def _process_file_content(txt: str, fname: str) -> Tuple[int, List[str]]:
             buffer = {}
             output.append(txt[lastpos : match.start()].rstrip())
         if name in buffer:
-            _fatal_error(f"{fname}: multiple occurances of module '{name}'!")
+            _fatal_error(f"{fname}: multiple occurrences of module '{name}'!")
         buffer[name] = match
         lastpos = match.end()
     if buffer:

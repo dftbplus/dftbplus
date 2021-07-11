@@ -293,7 +293,7 @@ contains
   !> calculate the transition block at a specific atom
   subroutine transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
 
-    !> Index of inital state.
+    !> Index of initial state.
     integer, intent(in) :: ii
 
     !> Index of final state.

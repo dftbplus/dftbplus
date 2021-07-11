@@ -166,7 +166,7 @@ contains
     integer, allocatable :: win(:), getia(:,:), getij(:,:), getab(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
-    !> compact data structure in the cases where there are oscilator windows
+    !> compact data structure in the cases where there are oscillator windows
     integer, allocatable :: iatrans(:,:,:)
 
     character, allocatable :: symmetries(:)
@@ -301,7 +301,7 @@ contains
     nxvv_max = maxval(nxvv_ud)
 
     if (this%nExc + 1 >= nxov) then
-      write(tmpStr,"(' Insufficent single particle excitations, ',I0,&
+      write(tmpStr,"(' Insufficient single particle excitations, ',I0,&
           & ', for required number of excited states ',I0)")nxov, this%nExc
       call error(tmpStr)
     end if
@@ -670,7 +670,7 @@ contains
     !> symmetry to calculate transitions
     character, intent(in) :: sym
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> number of same spin excitations
@@ -803,7 +803,7 @@ contains
       rvec = .true.
 
       ! everything after the first 6 variables are passed directly to DSEUPD following the last call
-      ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
+      ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the last call to DSAUPD and the
       ! call to DSEUPD.
       call seupd (rvec, "All", selection, eval, evec, nxov, sigma, "I", nxov, "SM", nexc, ARTOL,&
           & resid, ncv, vv, nxov, iparam, ipntr, workd, workl, lworkl, info)
@@ -872,10 +872,10 @@ contains
     !> write transition dipole
     logical :: tTradip
 
-    !> flag wich if <-1 on entry is returned as the brightest state
+    !> flag which if <-1 on entry is returned as the brightest state
     integer, intent(inout) :: istat
 
-    !> Oscilator strengths of transitions
+    !> Oscillator strengths of transitions
     real(dp), intent(out) :: osz(:)
 
     !> resulting transition dipoles
@@ -1375,7 +1375,7 @@ contains
     zkm1(:) = P * rkm1
     pkm1(:) = zkm1
 
-    ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
+    ! Iteration: should be convergent in at most nxov steps for a quadratic surface, so set higher
     do kk = 1, nxov**2
 
       ! action of matrix on vector
@@ -1563,7 +1563,7 @@ contains
   !> Write out density matrix, full if rhoSqr is present
   subroutine writeDM(iLev, pc, rhoSqr)
 
-    !> Lable for excited state level
+    !> Label for excited state level
     integer, intent(in) :: iLev
 
     !> transition density matrix
@@ -1723,7 +1723,7 @@ contains
     !> overlap data
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> Differentiatior for the non-scc matrices
+    !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix
@@ -2129,7 +2129,7 @@ contains
     !> index array between transitions in square and 1D representations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> excitation energies

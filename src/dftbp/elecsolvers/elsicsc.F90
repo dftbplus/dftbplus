@@ -270,7 +270,7 @@ contains
       ! Offset in current column
       blockList(:,1) = 0
       tRowTrans = .false.
-      ! Starting index for column in DFTB+ sparse structure, because column probaly already contains
+      ! Starting index for column in DFTB+ sparse structure, because column probably already contains
       ! blocks coming from transposing previously processed elements.
       iNext = blockList(iAtom1, 2)
       do iNeigh = 0, nNeighbourSK(iAtom1)

@@ -42,7 +42,7 @@ module waveplot_slater
   end interface
 
 
-  !> Assignement operator for SlaterOrbital to assure proper allocation
+  !> Assignment operator for SlaterOrbital to assure proper allocation
   interface assignment(=)
     module procedure SlaterOrbital_assign
   end interface
@@ -295,7 +295,7 @@ contains
   end subroutine SlaterOrbital_getValue_explicit
 
 
-  !> An STO assignement with proper memory allocation (deep copy)
+  !> An STO assignment with proper memory allocation (deep copy)
   elemental subroutine SlaterOrbital_assign(left, right)
 
     !> Left value of the assignment

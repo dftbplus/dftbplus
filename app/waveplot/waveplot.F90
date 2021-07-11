@@ -376,7 +376,7 @@ contains
     !> Geometry information about the structure
     type(TGeometry), intent(in) :: geo
 
-    !> Atomic numbers correpsonding to each species
+    !> Atomic numbers corresponding to each species
     integer, intent(in) :: atomicNumbers(:)
 
     !> Grid vectors

@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------#
 #
 '''
-Fourier transfrom of DFTB+ TD data
+Fourier transform of DFTB+ TD data
 '''
 
 import sys

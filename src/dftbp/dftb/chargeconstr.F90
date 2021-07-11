@@ -58,7 +58,7 @@ contains
     !> Instance of a constraint
     type(TChrgConstr), intent(out) :: this
 
-    !> Array contining reference charges and prefactors (nAtom, 2)
+    !> Array containing reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
 
     !> exponent of the local potential to add

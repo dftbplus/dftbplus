@@ -277,7 +277,7 @@ contains
   !> get agreement between the positions and velocities.
   subroutine VelocityVerlet_next(this, accel, newCoord, newVelocity)
 
-    !> Integrator to propogate
+    !> Integrator to propagate
     type(TVelocityVerlet), intent(inout) :: this
 
     !> Accelerations.

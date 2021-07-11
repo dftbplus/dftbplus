@@ -169,7 +169,7 @@ contains
     eigvecsTransformed = eigVecsReal(:,:,iKS)
     call transform%generateUnitary(env, worklocal, eigvals(:,1,iS), eigVecsTransformed, denseDesc,&
         & isTransformed)
-    ! now have states orthogonalised agains the operator in degenerate cases, |c~>
+    ! now have states orthogonalised against the operator in degenerate cases, |c~>
 
     if (isTransformed) then
       ! re-form |c~> H' <c~| with the transformed vectors
@@ -589,7 +589,7 @@ contains
     eigvecsTransformed = eigVecsCplx(:,:,iKS)
     call transform%generateUnitary(env, worklocal, eigvals(:,1,iS), eigVecsTransformed, denseDesc,&
         & isTransformed)
-    ! now have states orthogonalised agains the operator in degenerate cases, |c~>
+    ! now have states orthogonalised against the operator in degenerate cases, |c~>
 
     if (isTransformed) then
       ! re-form |c~> H' <c~| with the transformed vectors

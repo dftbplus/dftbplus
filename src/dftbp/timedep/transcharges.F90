@@ -102,7 +102,7 @@ contains
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getab(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     integer :: ia, ij, ii, jj, kk, ab, aa, bb
@@ -187,7 +187,7 @@ contains
     !> index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> Transition charge on exit. (nAtom)
@@ -287,7 +287,7 @@ contains
   end function TTransCharges_qTransAB
 
 
-  !> Transition charges left producted with a vector Q * v
+  !> Transition charges left produced with a vector Q * v
   pure subroutine TTransCharges_qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
@@ -306,7 +306,7 @@ contains
     !> index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> vector to product with the transition charges
@@ -346,7 +346,7 @@ contains
   end subroutine TTransCharges_qMatVec
 
 
-  !> Transition charges right producted with a vector v * Q
+  !> Transition charges right produced with a vector v * Q
   pure subroutine TTransCharges_qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
@@ -365,7 +365,7 @@ contains
     !> index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> vector to product with the transition charges
@@ -405,8 +405,8 @@ contains
   end subroutine TTransCharges_qVecMat
 
 
-  !> Transition charges left producted with a vector Q * v for spin up
-  !> minus Transition charges left producted with a vector Q * v for spin down
+  !> Transition charges left produced with a vector Q * v for spin up
+  !> minus Transition charges left produced with a vector Q * v for spin down
   !> sum_ias q_ias V_ias delta_s,  where delta_s = 1 for spin up and delta_s = -1 for spin down
   pure subroutine TTransCharges_qMatVecDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
@@ -426,7 +426,7 @@ contains
     !> index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> vector to product with the transition charges
@@ -462,8 +462,8 @@ contains
   end subroutine TTransCharges_qMatVecDs
 
 
-  !> Transition charges right producted with a vector v * Q for spin up
-  !> and negative transition charges right producted with a vector v * Q for spin down
+  !> Transition charges right produced with a vector v * Q for spin up
+  !> and negative transition charges right produced with a vector v * Q for spin down
   !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
   pure subroutine TTransCharges_qVecMatDs(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
@@ -483,7 +483,7 @@ contains
     !> index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitions that are included
+    !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> vector to product with the transition charges
@@ -526,7 +526,7 @@ contains
   !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
   pure function transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
 
-    !> Index of inital state.
+    !> Index of initial state.
     integer, intent(in) :: ii
 
     !> Index of final state.

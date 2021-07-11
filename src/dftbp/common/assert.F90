@@ -25,10 +25,10 @@ contains
   !> Prints assertion error and abort program execution.
   subroutine assertError(fileName, lineNr)
 
-    !> Name of the file in which the error occured.
+    !> Name of the file in which the error occurred.
     character(*), intent(in) :: fileName
 
-    !> Nr. of the line at which the error occured.
+    !> Nr. of the line at which the error occurred.
     integer, intent(in) :: lineNr
 
     write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"

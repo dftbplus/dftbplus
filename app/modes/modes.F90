@@ -68,7 +68,7 @@ program modes
     end do
   end do
 
-  ! remove translations or rotations if neccessary
+  ! remove translations or rotations if necessary
   call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
 
   ! solve the eigenproblem

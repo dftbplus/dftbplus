@@ -103,7 +103,7 @@ contains
 
 
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
-  !> back.  When calling the first time, funciton value and gradient for the starting point of the
+  !> back.  When calling the first time, function value and gradient for the starting point of the
   !> minimization should be passed.
   subroutine gDIIS_next(this,dx, xNew, tConverged)
 

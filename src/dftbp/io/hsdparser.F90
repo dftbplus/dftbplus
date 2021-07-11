@@ -142,7 +142,7 @@ module dftbp_io_hsdparser
   !> Format string to read in one parse line (field length must correspond to lc above)
   character(len=*), parameter :: lineFormat = "(A${HSD_LINE_LENGTH}$)"
 
-  !> Maximal record lenght on output in characters (bytes).
+  !> Maximal record length on output in characters (bytes).
   !> If text nodes bigger than that occur runtime error can be expected.
   integer, parameter :: MAXRECL = 1024 * 1024
 
@@ -306,7 +306,7 @@ contains
         strLine = strLine(:iTmp-1)
       end if
 
-      !! Get first occurance of any separator
+      !! Get first occurrence of any separator
       call getFirstOccurance(strLine, separators, parsedTypes, iType, sepPos)
 
       !! Handle various closing operators.

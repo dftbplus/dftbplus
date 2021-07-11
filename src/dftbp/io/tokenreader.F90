@@ -22,7 +22,7 @@ module dftbp_io_tokenreader
   private
 
 
-  !> Flag for signals successfull token reading
+  !> Flag for signals successful token reading
   integer, parameter :: TOKEN_OK = 0
 
 
@@ -461,7 +461,7 @@ contains
   end subroutine getNextToken_local
 
 
-  !> Cheks whether a given character represents a valid staring character for an integer.
+  !> Checks whether a given character represents a valid staring character for an integer.
   pure function validIntegerStart(char) result(tValid)
 
     !> Character to check
