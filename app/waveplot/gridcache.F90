@@ -14,7 +14,7 @@ module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_io_fileid, only : getFileId
+  ! use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
   use waveplot_molorb, only : TMolecularOrbital, init, getValue
   implicit none
@@ -232,7 +232,7 @@ contains
     sf%cachePos = 1
     sf%nReadEigVec = 0
     sf%tFinished = .false.
-    sf%fdEigVec = getFileId()
+    !sf%fdEigVec = getFileId()
     open(sf%fdEigVec, file=eigvecbin, action="read", position="rewind", &
         &form="unformatted", iostat=iostat)
     if (iostat /= 0) then

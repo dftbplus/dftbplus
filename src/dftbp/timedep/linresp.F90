@@ -22,7 +22,7 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_io_fileid, only : getFileId 
+  ! use dftbp_io_fileid, only : getFileId 
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
@@ -158,49 +158,49 @@ contains
         call error("Excited energy window should be non-zero if used")
       end if
 
-      if (ini%tMulliken) then
-        this%fdMulliken = getFileId()
-      else
-        this%fdMulliken = -1
-      end if
-      if (ini%tCoeffs) then
-        this%fdCoeffs = getFileId()
-      else
-        this%fdCoeffs = -1
-      end if
+      ! if (ini%tMulliken) then
+      !   this%fdMulliken = getFileId()
+      ! else
+      !   this%fdMulliken = -1
+      ! end if
+      ! if (ini%tCoeffs) then
+      !   this%fdCoeffs = getFileId()
+      ! else
+      !   this%fdCoeffs = -1
+      ! end if
       this%tGrndState = ini%tGrndState
 
-      if (ini%tTrans) then
-        this%fdTrans = getFileId()
-      else
-        this%fdTrans = -1
-      end if
-
-      if (ini%tTransQ) then
-        this%fdTransQ = getFileId()
-      else
-        this%fdTransQ = -1
-      end if
-
-      if (ini%tSPTrans) then
-        this%fdSPTrans = getFileId()
-      else
-        this%fdSPTrans = -1
-      end if
-      if (ini%tXplusY) then
-        this%fdXplusY = getFileId()
-      else
-        this%fdXplusY = -1
-      end if
-      if (ini%tTradip) then
-        this%fdTradip = getFileId()
-      else
-        this%fdTradip = -1
-      end if
+      ! if (ini%tTrans) then
+      !   this%fdTrans = getFileId()
+      ! else
+      !   this%fdTrans = -1
+      ! end if
+      ! 
+      ! if (ini%tTransQ) then
+      !   this%fdTransQ = getFileId()
+      ! else
+      !   this%fdTransQ = -1
+      ! end if
+      ! 
+      ! if (ini%tSPTrans) then
+      !   this%fdSPTrans = getFileId()
+      ! else
+      !   this%fdSPTrans = -1
+      ! end if
+      ! if (ini%tXplusY) then
+      !   this%fdXplusY = getFileId()
+      ! else
+      !   this%fdXplusY = -1
+      ! end if
+      ! if (ini%tTradip) then
+      !   this%fdTradip = getFileId()
+      ! else
+      !   this%fdTradip = -1
+      ! end if
 
       this%nAtom = nAtom
       this%nEl = nEl
-      this%fdExc = getFileId() ! file for excitations
+      !this%fdExc = getFileId() ! file for excitations
 
       call move_alloc(ini%spinW, this%spinW)
       call move_alloc(ini%hubbardU, this%HubbardU)
@@ -216,13 +216,13 @@ contains
 
     if (withArpack) then
 
-      if (ini%tDiagnoseArnoldi) then
-        this%fdArnoldiDiagnosis = getFileId()
-      else
-        this%fdArnoldiDiagnosis = -1
-      end if
+      ! if (ini%tDiagnoseArnoldi) then
+      !   this%fdArnoldiDiagnosis = getFileId()
+      ! else
+      !   this%fdArnoldiDiagnosis = -1
+      ! end if
       this%tArnoldi = ini%tArnoldi
-      this%fdArnoldi = getFileId()
+      !this%fdArnoldi = getFileId()
       this%tinit = .true.
 
     else

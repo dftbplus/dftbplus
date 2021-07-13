@@ -13,7 +13,7 @@ program splvalue
   use dftbp_common_accuracy
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_repspline
-  use dftbp_io_fileid
+  ! use dftbp_io_fileid
   use dftbp_io_message
   use dftbp_type_oldskdata, only : readsplinerep
 #:if WITH_MPI
@@ -55,7 +55,7 @@ program splvalue
     stop
   end if
 
-  fp = getfileid()
+  ! fp = getfileid()
   open(fp, file=arg, action="read", status="old", iostat=iostat)
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")

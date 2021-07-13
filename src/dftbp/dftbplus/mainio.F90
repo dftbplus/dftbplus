@@ -31,7 +31,7 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_fileid, only : getFileId 
+  ! use dftbp_io_fileid, only : getFileId 
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -1887,7 +1887,7 @@ contains
     integer :: fdTmp
 
     if (present(fd)) then
-      fd = getFileId()
+      !fd = getFileId()
       open(fd, file=fileName, action="write", status="replace")
       close(fd)
     else
