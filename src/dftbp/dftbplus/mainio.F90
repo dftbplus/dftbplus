@@ -31,7 +31,6 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  ! use dftbp_io_fileid, only : getFileId 
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -1888,7 +1887,7 @@ contains
 
     if (present(fd)) then
       !fd = getFileId()
-      open(fd, file=fileName, action="write", status="replace")
+      open(newunit=fd, file=fileName, action="write", status="replace")
       close(fd)
     else
       open(newUnit=fdTmp, file=fileName, action="write", status="replace")
@@ -3652,7 +3651,7 @@ contains
     type(TMdIntegrator), intent(in) :: pMdIntegrator
 
     if (iGeoStep == 0) then
-      open(fd, file=fileName, status="replace", action="write")
+      open(newunit=fd, file=fileName, status="replace", action="write")
     end if
     write(fd, "(A, 1X, I0)") "MD step:", iGeoStep
     call state(pMdIntegrator, fd)

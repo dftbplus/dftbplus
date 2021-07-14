@@ -11,7 +11,6 @@ program polyvalue
   use dftbp_common_accuracy
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_reppoly
-  ! use dftbp_io_fileid
   use dftbp_io_message
   implicit none
 
@@ -47,8 +46,7 @@ program polyvalue
   end if
   call get_command_argument(2, fname)
 
-  ! fp = getFileId()
-  open(fp, file=fname, action="read", status="old", iostat=iostat)
+  open(newunit=fp, file=fname, action="read", status="old", iostat=iostat)
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")
   end if
