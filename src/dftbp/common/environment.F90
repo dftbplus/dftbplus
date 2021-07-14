@@ -263,7 +263,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, status)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, errStatus)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -281,10 +281,10 @@ contains
     integer, intent(in) :: nAtom
 
     !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: status
+    type(TStatus), intent(inout) :: errStatus
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, status)
-    @:PROPAGATE_ERROR(status)
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     this%blacsInitialised = .true.
 
   end subroutine TEnvironment_initBlacs

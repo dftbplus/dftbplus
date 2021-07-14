@@ -1263,7 +1263,7 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tInitialized, tGeoOptRequiresEgy
-    type(TStatus) :: status
+    type(TStatus) :: errStatus
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1406,12 +1406,12 @@ contains
 
   #:if WITH_SCALAPACK
     call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
-        & this%t2Component, env, status)
-    if (status%hasError()) then
-      if (status%code == -1) then
+        & this%t2Component, env, errStatus)
+    if (errStatus%hasError()) then
+      if (errStatus%code == -1) then
         call warning("Insufficient atoms for this number of MPI processors")
       end if
-      call error(status%message)
+      call error(errStatus%message)
     end if
   #:endif
     call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
@@ -3530,9 +3530,9 @@ contains
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
-          & status)
-      if (status%hasError()) then
-        call error(status%message)
+          & errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
 
     end if
@@ -4724,7 +4724,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, status)
+  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4745,7 +4745,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: sizeHS
 
@@ -4754,8 +4754,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, status)
-    @:PROPAGATE_ERROR(status)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine initScalapack
 

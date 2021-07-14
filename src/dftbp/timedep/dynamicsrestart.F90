@@ -24,7 +24,7 @@ module dftbp_timedep_dynamicsrestart
 contains
 
   !> Write to a restart file
-  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, status)
+  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -52,7 +52,7 @@ contains
     logical, intent(in) :: isAsciiFile
 
     !> operation status
-    type(TStatus), intent(out) :: status
+    type(TStatus), intent(out) :: errStatus
 
     integer :: fd, ii, jj, kk, iErr
     character(len=120) :: error_string
@@ -74,7 +74,7 @@ contains
         write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
             & ".bin for writing"
       end if
-      @:RAISE_ERROR(status, -1, error_string)
+      @:RAISE_ERROR(errStatus, -1, error_string)
     end if
 
     if (isAsciiFile) then
@@ -116,7 +116,7 @@ contains
 
 
   !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, status)
+  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
@@ -144,7 +144,7 @@ contains
     logical, intent(in) :: isAsciiFile
 
     !> operation status
-    type(TStatus), intent(out) :: status
+    type(TStatus), intent(out) :: errStatus
 
     integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
     real(dp) :: deltaT
@@ -155,13 +155,13 @@ contains
       inquire(file=trim(fileName)//'.dat', exist=isExisting)
       if (.not. isExisting) then
         error_string = "TD restart file " // trim(fileName)//'.dat' // " is missing"
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
     else
       inquire(file=trim(fileName)//'.bin', exist=isExisting)
       if (.not. isExisting) then
         error_string = "TD restart file " // trim(fileName)//'.bin' // " is missing"
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
     end if
 
@@ -178,30 +178,30 @@ contains
       else
         write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".bin"
       end if
-      @:RAISE_ERROR(status, -1, error_string)
+      @:RAISE_ERROR(errStatus, -1, error_string)
     end if
     rewind(fd)
 
     if (isAsciiFile) then
       read(fd, *)version
       if (version /= iDumpFormat) then
-        @:RAISE_ERROR(status, -1, "Unknown TD restart format")
+        @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
       read(fd, *) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (nSpin /= size(rho, dim=3)) then
         write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
             & " in tddump file, should be ",size(rho, dim=3)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (nAtom /= size(coord, dim=2)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
             & " in tddump file, should be ", size(coord, dim=2)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (abs(deltaT - dt) > epsilon(0.0_dp)) then
         write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
@@ -230,23 +230,23 @@ contains
     else
       read(fd)version
       if (version /= iDumpFormat) then
-        @:RAISE_ERROR(status, -1, "Unknown TD restart format")
+        @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
       read(fd) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (nSpin /= size(rho, dim=3)) then
         write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
             & " in tddump file, should be ",size(rho, dim=3)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (nAtom /= size(coord, dim=2)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
             & " in tddump file, should be ", size(coord, dim=2)
-        @:RAISE_ERROR(status, -1, error_string)
+        @:RAISE_ERROR(errStatus, -1, error_string)
       end if
       if (abs(deltaT - dt) > epsilon(0.0_dp)) then
         write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&

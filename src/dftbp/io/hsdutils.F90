@@ -1552,7 +1552,7 @@ contains
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: status
+    type(TStatus) :: errStatus
     logical, allocatable :: selected(:)
     integer :: selectionRange_(2)
     integer :: ii
@@ -1564,11 +1564,11 @@ contains
     end if
 
     allocate(selected(selectionRange_(2) - selectionRange_(1) + 1))
-    call getIndexSelection(selectionExpr, selectionRange_, selected, status, indexRange=indexRange,&
-       speciesNames=speciesNames, species=species)
-    if (status%hasError()) then
+    call getIndexSelection(selectionExpr, selectionRange_, selected, errStatus,&
+        & indexRange=indexRange, speciesNames=speciesNames, species=species)
+    if (errStatus%hasError()) then
       call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // status%message)
+          & // "': " // errStatus%message)
     end if
     selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
     if (size(selectedIndices) == 0) then
@@ -1597,15 +1597,16 @@ contains
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: status
+    type(TStatus) :: errStatus
     logical, allocatable :: selected(:)
     integer :: ii
 
     allocate(selected(selectionRange(2) - selectionRange(1) + 1))
-    call getIndexSelection(selectionExpr, selectionRange, selected, status, indexRange=indexRange)
-    if (status%hasError()) then
+    call getIndexSelection(selectionExpr, selectionRange, selected, errStatus,&
+        & indexRange=indexRange)
+    if (errStatus%hasError()) then
       call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // status%message)
+          & // "': " // errStatus%message)
     end if
     selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
     if (size(selectedIndices) == 0) then
