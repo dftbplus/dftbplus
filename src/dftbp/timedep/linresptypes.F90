@@ -38,8 +38,11 @@ module dftbp_timedep_linresptypes
     !> onsite corrections (if in use)
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
-    !> should transition charges be cached or evaluated on the fly?
-    logical :: tCacheCharges
+    !> should occ-vir transition charges be cached or evaluated on the fly?
+    logical :: tCacheChargesOccVir
+
+    !> same for occ-occ/vir-vir transitions
+    logical :: tCacheChargesSame
 
     !> Number of atoms
     integer :: nAtom
@@ -91,7 +94,10 @@ module dftbp_timedep_linresptypes
     !> Should the density matrix be stored to disc?
     logical :: tWriteDensityMatrix
 
-    ! ARPACK related
+    ! ARPACK/Stratmann related
+
+    !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
+    logical :: tUseArpack = .true. 
 
     !> write state of Arnoldi solver to disc
     logical :: tArnoldi
@@ -101,6 +107,9 @@ module dftbp_timedep_linresptypes
 
     !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
     integer :: fdArnoldiDiagnosis = -1
+
+    !> subspace dimension factor Stratmann diagonalizer
+    integer :: subSpaceFactorStratmann
 
     !> Is the data structure initialised?
     logical :: tInit = .false.

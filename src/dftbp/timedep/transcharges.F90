@@ -21,7 +21,10 @@ module dftbp_timedep_transcharges
     private
 
     !> should transition charges be cached in memory or evaluated when needed?
-    logical :: tCacheCharges
+    logical :: tCacheChargesOccVir
+
+    !> same for occ-occ/vir-vir transitions
+    logical :: tCacheChargesSame
 
     !> storage if caching the occupied -> virtual transition charges
     real(dp), allocatable :: qCacheOccVir(:,:)
@@ -64,7 +67,7 @@ contains
 
   !> initialise the cache/on-the fly transition charge evaluator
   subroutine TTransCharges_init(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
-      & nXooUD, nXvvUD, getia, getij, getab, win, tStore)
+      & nXooUD, nXvvUD, getia, getij, getab, win, tStoreOccVir, tStoreSame)
 
     !> Instance
     type(TTransCharges), intent(out) :: this
@@ -90,8 +93,13 @@ contains
     !> number of vir-vir excitations per spin channel
     integer, intent(in) :: nXvvUD(:)
 
-    !> should transitions be stored?
-    logical, intent(in) :: tStore
+    !> should occ-vir transitions be stored? 
+    !> this is sufficient for single-point TD-DFTB
+    logical, intent(in) :: tStoreOccVir
+
+    !> should also occ-occ and vir-vir transitions be stored?
+    !> required for excited state forces and TD-LC-DFTB
+    logical, intent(in) :: tStoreSame
 
     !> index array for occ-vir single particle excitations
     integer, intent(in) :: getia(:,:)
@@ -114,14 +122,10 @@ contains
     this%nMatUpOccOcc = nXooUD(1)
     this%nMatUpVirVir = nXvvUD(1)
 
-    if (tStore) then
+    if (tStoreOccVir) then
 
       @:ASSERT(.not.allocated(this%qCacheOccVir))
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
-      @:ASSERT(.not.allocated(this%qCacheOccOcc))
-      allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
-      @:ASSERT(.not.allocated(this%qCacheVirVir))
-      allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
       do ia = 1, nTrans
@@ -133,6 +137,19 @@ contains
             & grndEigVecs)
       end do
       !!$OMP  END PARALLEL DO
+
+    else
+
+      this%tCacheChargesOccVir = .false.
+
+    end if
+
+    if (tStoreSame) then
+
+      @:ASSERT(.not.allocated(this%qCacheOccOcc))
+      allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
+      @:ASSERT(.not.allocated(this%qCacheVirVir))
+      allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn) SCHEDULE(RUNTIME)
       do ij = 1, sum(nXooUD)
@@ -154,11 +171,11 @@ contains
       end do
       !!$OMP  END PARALLEL DO
 
-      this%tCacheCharges = .true.
+      this%tCacheChargesSame = .true.
 
     else
 
-      this%tCacheCharges = .false.
+      this%tCacheChargesSame = .false.
 
     end if
 
@@ -319,7 +336,7 @@ contains
     integer :: ii, jj, ij, kk
     logical :: updwn
 
-    if (this%tCacheCharges) then
+    if (this%tCacheChargesOccVir) then
 
       qProduct(:) = qProduct + matmul(this%qCacheOccVir, vector)
 
@@ -378,7 +395,7 @@ contains
     integer :: ii, jj, ij, kk
     logical :: updwn
 
-    if (this%tCacheCharges) then
+    if (this%tCacheChargesOccVir) then
 
       qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir)
 

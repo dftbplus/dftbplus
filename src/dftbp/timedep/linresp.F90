@@ -99,6 +99,12 @@ module dftbp_timedep_linresp
     !> dipole strengths to excited states
     logical :: tTradip
 
+    !> RPA solver is Arpack (or Stratmann if .false.)
+    logical :: tUseArpack
+
+    !> subspace dimension factor Stratmann diagonalizer
+    integer :: subSpaceFactorStratmann
+
     !> print state of Arnoldi solver
     logical :: tArnoldi
 
@@ -138,6 +144,8 @@ contains
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
     this%tinit = .false.
+    this%tUseArpack = ini%tUseArpack
+    this%subSpaceFactorStratmann = ini%subSpaceFactorStratmann
     if (withArpack) then
 
       this%nExc = ini%nExc
@@ -145,7 +153,9 @@ contains
       this%energyWindow = ini%energyWindow
       this%tOscillatorWindow = ini%tOscillatorWindow
       this%oscillatorWindow = ini%oscillatorWindow
-      this%tCacheCharges = ini%tCacheCharges
+      ! Final decision on value of tCacheChargesSame in linRespGrad
+      this%tCacheChargesOccVir = ini%tCacheCharges
+      this%tCacheChargesSame = ini%tCacheCharges
       this%nStat = ini%nStat
       this%symmetry = ini%sym
 
