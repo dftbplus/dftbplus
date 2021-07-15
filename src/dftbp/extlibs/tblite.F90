@@ -81,8 +81,24 @@ module dftbp_extlibs_tblite
   !> Input for the library
   type :: TTBLiteInput
 
-    !> Selected method
-    integer :: method
+  #:if WITH_TBLITE
+    !> Molecular structure data
+    type(structure_type) :: mol
+
+    !> Parametrisation data
+    type(xtb_calculator) :: calc
+  #:endif
+
+  contains
+
+    !> Create geometry data for library
+    procedure :: setupGeometry
+
+    !> Create parametrization data for library
+    procedure :: setupCalculator
+
+    !> Create orbital information from input data
+    procedure :: setupOrbitals
 
   end type TTBLiteInput
 
@@ -208,6 +224,75 @@ module dftbp_extlibs_tblite
 contains
 
 
+  !> Setup geometry information for input data
+  subroutine setupGeometry(this, nAtom, species0, coords0, speciesNames, latVecs)
+
+    !> Input data
+    class(TTBLiteInput), intent(inout) :: this
+
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Atomic coordinates in the unit cell
+    real(dp), intent(in) :: coords0(:,:)
+
+    !> Symbols of the species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Lattice vectors, if the system is periodic
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+  #:if WITH_TBLITE
+    character(len=symbol_length), allocatable :: symbol(:)
+
+    symbol = speciesNames(species0)
+    call new(this%mol, symbol, coords0, lattice=latVecs)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine setupGeometry
+
+
+  !> Setup calculator for input data
+  subroutine setupCalculator(this, method)
+
+    !> Input data
+    class(TTBLiteInput), intent(inout) :: this
+
+    !> Selected method
+    integer, intent(in) :: method
+
+  #:if WITH_TBLITE
+    call getCalculator(method, this%mol, this%calc)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine setupCalculator
+
+
+  !> Setup orbital information from input data
+  subroutine setupOrbitals(this, species0, orb)
+
+    !> Input data
+    class(TTBLiteInput), intent(in) :: this
+
+    !> Species of every atom in the unit cell
+    integer, intent(in) :: species0(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(out) :: orb
+
+  #:if WITH_TBLITE
+    call setupOrbitalInfo(this%calc%bas, this%mol%id, species0, orb)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine setupOrbitals
+
+
   !> Constructor for the library interface
   subroutine TTBLite_init(this, input, nAtom, species0, speciesNames, coords0, latVecs)
 
@@ -234,21 +319,9 @@ contains
 
   #:if WITH_TBLITE
     type(scf_info) :: info
-    character(len=symbol_length), allocatable :: symbol(:)
 
-    symbol = speciesNames(species0)
-    call new(this%mol, symbol, coords0, lattice=latVecs)
-
-    select case(input%method)
-    case default
-      call error("Unknown method selector")
-    case(tbliteMethod%gfn2xtb)
-      call new_gfn2_calculator(this%calc, this%mol)
-    case(tbliteMethod%gfn1xtb)
-      call new_gfn1_calculator(this%calc, this%mol)
-    case(tbliteMethod%ipea1xtb)
-      call new_ipea1_calculator(this%calc, this%mol)
-    end select
+    this%mol = input%mol
+    this%calc = input%calc
 
     info = this%calc%variable_info()
     if (info%charge > shell_resolved) then
@@ -281,6 +354,32 @@ contains
     call notImplementedError
   #:endif
   end subroutine TTBLite_init
+
+
+#:if WITH_TBLITE
+  subroutine getCalculator(method, mol, calc)
+
+    !> Selected method
+    integer, intent(in) :: method
+
+    !> Molecular structure data
+    type(structure_type), intent(in) :: mol
+
+    !> Parametrisation data
+    type(xtb_calculator), intent(out) :: calc
+
+    select case(method)
+    case default
+      call error("Unknown method selector")
+    case(tbliteMethod%gfn2xtb)
+      call new_gfn2_calculator(calc, mol)
+    case(tbliteMethod%gfn1xtb)
+      call new_gfn1_calculator(calc, mol)
+    case(tbliteMethod%ipea1xtb)
+      call new_ipea1_calculator(calc, mol)
+    end select
+  end subroutine getCalculator
+#:endif
 
 
   subroutine getSpeciesIdentifierMap(sp2id, species, id)
@@ -638,10 +737,6 @@ contains
 
   !> Create orbital information. The orbital information is already generated in
   !> this%calc%bas, but might be incomplete w.r.t. the information required here.
-  !>
-  !> Both this%mol%id and species are identifiers for unique groups of elements,
-  !> since we cannot guarantee that the species in DFTB+ are identical to the ones
-  !> found in the library we will reconstruct the species information from the atoms.
   subroutine getOrbitalInfo(this, species0, orb)
 
     !> Data structure
@@ -654,20 +749,47 @@ contains
     type(TOrbitals), intent(out) :: orb
 
   #:if WITH_TBLITE
+    call setupOrbitalInfo(this%calc%bas, this%mol%id, species0, orb)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine getOrbitalInfo
+
+
+#:if WITH_TBLITE
+  !> Create orbital information from tight-binding basis set.
+  !>
+  !> Both this%mol%id and species are identifiers for unique groups of elements,
+  !> since we cannot guarantee that the species in DFTB+ are identical to the ones
+  !> found in the library we will reconstruct the species information from the atoms.
+  subroutine setupOrbitalInfo(bas, id, species0, orb)
+
+    !> Basis set data
+    class(basis_type), intent(in) :: bas
+
+    !> Identifier of each atom, shape: [nAtom]
+    integer, intent(in) :: id(:)
+
+    !> Species of each atom, shape: [nAtom]
+    integer, intent(in) :: species0(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(out) :: orb
+
     integer :: nShell, mShell, nSpecies, iAt, iSp, iId, iSh, ind, ii
     logical, allocatable :: done(:)
 
     nSpecies = maxval(species0)
-    mShell = maxval(this%calc%bas%nsh_id)
+    mShell = maxval(bas%nsh_id)
     allocate(done(nSpecies))
     allocate(orb%angShell(mShell, nSpecies))
     done(:) = .false.
     do iAt = 1, size(species0)
-      iId = this%mol%id(iAt)
+      iId = id(iAt)
       iSp = species0(iAt)
       if (done(iSp)) cycle
-      do iSh = 1, this%calc%bas%nsh_at(iAt)
-        orb%angShell(iSh, iSp) = this%calc%bas%cgto(iSh, iId)%ang
+      do iSh = 1, bas%nsh_at(iAt)
+        orb%angShell(iSh, iSp) = bas%cgto(iSh, iId)%ang
       end do
       done(iSp) = .true.
     end do
@@ -679,9 +801,9 @@ contains
     done(:) = .false.
     do iAt = 1, size(species0)
       iSp = species0(iAt)
-      ii = this%calc%bas%ish_at(iAt)
-      nShell = this%calc%bas%nsh_at(iAt)
-      orb%nOrbAtom(iAt) = sum(this%calc%bas%nao_sh(ii+1:ii+nShell))
+      ii = bas%ish_at(iAt)
+      nShell = bas%nsh_at(iAt)
+      orb%nOrbAtom(iAt) = sum(bas%nao_sh(ii+1:ii+nShell))
       if (done(iSp)) cycle
       orb%nOrbSpecies(iSp) = orb%nOrbAtom(iAt)
       orb%nShell(iSp) = nShell
@@ -703,10 +825,8 @@ contains
       end do
       orb%posShell(orb%nShell(iSp)+1, iSp) = ind
     end do
-  #:else
-    call notImplementedError
-  #:endif
-  end subroutine getOrbitalInfo
+  end subroutine setupOrbitalInfo
+#:endif
 
 
   !> Get information on required multipolar contributions
@@ -1465,7 +1585,7 @@ contains
     real(dp), intent(inout) :: sigma(:, :)
 
     integer :: iat, jat, izp, jzp, itr, io, jo, nblk, iNeigh, img, ind
-    integer :: ish, jsh, is, js, ii, jj, iao, jao, nao, ij
+    integer :: ish, jsh, is, js, ii, jj, iao, jao, nao, ij, iSpin, nSpin, iblk
     real(dp) :: rr, r2, vec(3), cutoff2, hij, shpoly, dshpoly, dG(3), hscale
     real(dp) :: sval, dcni, dcnj, dhdcni, dhdcnj, hpij, pij
     real(dp), allocatable :: stmp(:), dtmp(:, :), qtmp(:, :)
@@ -1477,14 +1597,16 @@ contains
       & qtmp(dimQuadrupole, msao(bas%maxl)**2), dqtmpi(3, dimQuadrupole, msao(bas%maxl)**2), &
       & ddtmpj(3, dimDipole, msao(bas%maxl)**2), dqtmpj(3, dimQuadrupole, msao(bas%maxl)**2))
 
+    nSpin = size(shift, 4)
+
     !$omp parallel do schedule(runtime) default(none) reduction(+:dEdcn, gradient, sigma) &
     !$omp shared(iAtFirst, iAtLast, species, bas, h0, selfenergy, dsedcn, coords, &
     !$omp& nNeighbour, iNeighbours, img2centCell, iPair, nOrbAtom, pmat, xmat, shift, &
-    !$omp& dipShift, quadShift) &
+    !$omp& dipShift, quadShift, nSpin) &
     !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao, ij, ind, &
     !$omp& iNeigh, io, jo, nblk, img, r2, vec, stmp, dtmp, qtmp, dstmp, ddtmpi, ddtmpj, &
     !$omp& dqtmpi, dqtmpj, hij, shpoly, dshpoly, dG, dcni, dcnj, dhdcni, dhdcnj, hpij, rr, &
-    !$omp& sval, hscale, pij)
+    !$omp& sval, hscale, pij, iSpin, iblk)
     do iat = iAtFirst, iAtLast
       izp = species(iat)
       is = bas%ish_at(iat)
@@ -1528,12 +1650,16 @@ contains
             nao = msao(bas%cgto(jsh, jzp)%ang)
             do iao = 1, msao(bas%cgto(ish, izp)%ang)
               do jao = 1, nao
-
                 ij = jao + nao*(iao-1)
-                pij = pmat(ind + jj+jao + nBlk*(ii+iao-1), 1)
+                iblk = ind + jj+jao + nBlk*(ii+iao-1)
+
+                pij = pmat(iblk, 1)
                 hpij = pij * hij * shpoly
-                sval = 2*hpij - 2*xmat(ind + jj+jao + nBlk*(ii+iao-1)) &
-                  & + pij * (shift(jj+jao, jj+jao, jat, 1) + shift(ii+iao, ii+iao, iat, 1))
+                sval = 2*hpij - 2*xmat(iblk)
+                do iSpin = 1, nSpin
+                   sval = sval + pmat(iblk, iSpin) * (shift(jj+jao, jj+jao, jat, iSpin) &
+                      & + shift(ii+iao, ii+iao, iat, iSpin))
+                end do
 
                 dG(:) = dG + sval * dstmp(:, ij) &
                   & + 2*hpij*stmp(ij) * dshpoly / shpoly * vec &
