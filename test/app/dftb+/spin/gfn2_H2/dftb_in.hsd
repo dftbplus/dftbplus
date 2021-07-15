@@ -1,0 +1,43 @@
+Geometry = GenFormat {
+2  C
+ H
+     1 1 0.0 0.0  10.0
+     1 1 0.0 0.0 -10.0
+}
+
+Driver = {}
+
+Hamiltonian = xTB {
+  Method = "GFN2-xTB"
+  SCC = Yes
+  SCCTolerance = 1.0E-007
+  MaxSCCIterations = 1000
+  Mixer = Simple { MixingParameter = 5.0E-002 }
+  Charge = 0.0
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 0.0
+    InitialSpins = {
+      AtomSpin = {
+        Atoms = { 1 }
+        SpinPerAtom = -1.0
+      }
+      AtomSpin = {
+        Atoms = { 2 }
+        SpinPerAtom = 1.0
+      }
+    }
+  }
+  SpinConstants = { 
+    H = {
+       -6.4E-2
+    }
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 10.0
+  }
+}
+
+Options = { WriteAutotestTag = Yes }
+Analysis { CalculateForces = Yes }
+ParserOptions = { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }
