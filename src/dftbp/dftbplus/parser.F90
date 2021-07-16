@@ -3121,8 +3121,8 @@ contains
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (any(initSpins(:,iAt) /= 0.0_dp)) then
-            call detailedWarning(child3, "Previoius setting for the spin &
-                &of atom" // i2c(iAt) // " overwritten")
+            call detailedWarning(child3, "Previous setting for the spin of atom" // i2c(iAt) //&
+                & " overwritten")
           end if
           initSpins(:,iAt) = rTmp
         end do
