@@ -549,6 +549,7 @@ contains
 
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
+    call symmetrizeHS(tmpHH)
     HH(:,:) = HH + tmpHH
     this%lrEnergy = this%lrEnergy + evaluateEnergy(tmpHH, tmpDRho)
 
