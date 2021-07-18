@@ -997,8 +997,7 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    ! get gamma, spinW, gamma deriv, LR-gamma deriv, on-site constants
-    ! LRgamma is already defined in 1st scc loop
+    ! get gamma, spinW, gamma deriv, LR-gamma, LR-gamma deriv, on-site constants
     call getSccSpinLrPars(env, sccCalc, rangeSep, coord, species, &
         & neighbourList%iNeighbour, img2CentCell, denseDesc%iAtomStart, &
         & spinW, this%getAtomIndex, this%isRangeSep, this%GammaAO, &
