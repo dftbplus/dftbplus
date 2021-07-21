@@ -699,8 +699,9 @@ contains
 
           if (allocated(spinW)) then
             call getChargePerShell(dqIn, orb, species, dqPerShell)
-            call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
-            dPotential%intShell(:,:,:) = dPotential%intShell + shellPot
+            shellPot(:,:,:) = 0.0_dp
+            call getSpinShift(shellPot(:,:,2:), dqPerShell(:,:,2:), species, orb, spinW)
+            dPotential%intShell(:,:,2:) = dPotential%intShell(:,:,2:) + shellPot(:,:,2:)
           end if
 
           if (allocated(thirdOrd)) then

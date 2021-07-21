@@ -45,7 +45,8 @@ module dftbp_dftb_spin
 contains
 
 
-  !> Constructs the spin-polarised shell shift from shift_l = sum_l' W_ll' p_l'
+  !> Constructs the spin-polarised shell shift from shift_l = sum_l' W_ll' p_l', where only the spin
+  !> parts of the charges and shifts are processed.
   subroutine getSpinShift(shift, chargePerShell, species, orb, spinW)
 
     !> resulting shell-shifts for the system
@@ -70,10 +71,10 @@ contains
     @:ASSERT(size(shift,dim=2)==nAtom)
     @:ASSERT(all(shape(chargePerShell)==shape(shift)))
     nSpin = size(chargePerShell, dim=3)
-    @:ASSERT(nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
     shift(:,:,:) = 0.0_dp
-    do iSpin = 2, nSpin
+    do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         iSpecies = species(iAtom)
         do iShell = 1, orb%nShell(iSpecies)

@@ -267,8 +267,9 @@ contains
     end if
 
     if (nSpin /= 1 .and. allocated(spinW)) then
-      call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
-      potential%intShell = potential%intShell + shellPot
+      shellPot(:,:,:) = 0.0_dp
+      call getSpinShift(shellPot(:,:,2:), chargePerShell(:,:,2:), species, orb, spinW)
+      potential%intShell(:,:,2:) = potential%intShell(:,:,2:) + shellPot(:,:,2:)
     end if
 
     call totalShift(potential%intShell, potential%intAtom, orb, species)
