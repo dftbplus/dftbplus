@@ -246,9 +246,9 @@ contains
             & this%tPrintMulliken, this%cm5Cont)
       end if
 
-      if (.not.this%tRestartNoSC) then
-        call printEnergies(this%dftbEnergy, this%electronicSolver,&
-            & this%deltaDftb)
+      if (.not.this%tRestartNoSC .and.&
+          & this%electronicSolver%iSolver /= electronicSolverTypes%OnlyTransport) then
+        call printEnergies(this%dftbEnergy, this%electronicSolver, this%deltaDftb)
       end if
 
       if (this%tStress) then
