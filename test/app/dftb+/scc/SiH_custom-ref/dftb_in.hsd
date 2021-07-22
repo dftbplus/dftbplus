@@ -13,6 +13,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0
   }
   SlaterKosterFiles = Type2Filenames {
+    Prefix = "pbc-0-3/"
     Separator = "-"
     Suffix = ".skf"
   }

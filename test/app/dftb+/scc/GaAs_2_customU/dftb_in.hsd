@@ -24,10 +24,10 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 1.0E-006
   }
   SlaterKosterFiles {
-    Ga-Ga = "./Ga-Ga.skf"
-    Ga-As = "./Ga-As.skf"
-    As-Ga = "./As-Ga.skf"
-    As-As = "./As-As.skf"
+    Ga-Ga = "hyb-0-2/Ga-Ga.skf"
+    Ga-As = "hyb-0-2/Ga-As.skf"
+    As-Ga = "hyb-0-2/As-Ga.skf"
+    As-As = "hyb-0-2/As-As.skf"
   }
   CustomisedHubbards {
     Ga = 0.12

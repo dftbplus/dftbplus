@@ -52,10 +52,10 @@ Hamiltonian = DFTB {
         Temperature [Kelvin] = 100
     }
     SlaterKosterFiles = {
-        Si-Si = "./Si-Si.skf"
-        Si-C = "./Si-C.skf"
-        C-Si = "./C-Si.skf"
-        C-C = "./C-C.skf"
+        Si-Si = "pbc-0-3/Si-Si.skf"
+        Si-C = "pbc-0-3/Si-C.skf"
+        C-Si = "pbc-0-3/C-Si.skf"
+        C-C = "pbc-0-3/C-C.skf"
     }
     KPointsAndWeights = {
         0.0 0.0 0.0 1.0

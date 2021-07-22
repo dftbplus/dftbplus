@@ -34,4 +34,8 @@ foreach(test IN LISTS tests)
         -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
         -P "${TEST_RUNNER}" -p "$<TARGET_FILE:dftb+>"
         -s P,R,C,S ${test})
+  set_tests_properties(
+    dftb+_${test}
+    PROPERTIES
+    ENVIRONMENT "DFTBPLUS_PATH=${PROJECT_SOURCE_DIR}/external/slakos/origin")
 endforeach()

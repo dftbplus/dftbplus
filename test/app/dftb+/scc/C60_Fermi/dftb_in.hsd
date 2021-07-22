@@ -79,7 +79,7 @@ Hamiltonian = DFTB {
     FixedFermiLevel [eV] = -9.2337
   }
   SlaterKosterFiles = {
-    C-C = "C-C.skf"
+    C-C = "mio-1-1/C-C.skf"
   }
 }
 

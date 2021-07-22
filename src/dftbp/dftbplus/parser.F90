@@ -11,6 +11,7 @@
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
+  use dftbp_common_filesystem, only : getEnvVar, isAbsolutePath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
@@ -1269,6 +1270,8 @@ contains
     integer :: nShell, skInterMeth
     logical :: tBadIntegratingKPoints
     real(dp) :: rSKCutOff
+    type(string), allocatable :: skPath(:)
+    character(len=:), allocatable :: strOut
 
     !> For range separation
     type(TRangeSepSKTag) :: rangeSepSK
@@ -1283,6 +1286,7 @@ contains
     call setupOrbitals(slako%orb, geo, angShells)
 
     ! Slater-Koster files
+    call getSKPath(skPath)
     allocate(skFiles(geo%nSpecies, geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       do iSp2 = 1, geo%nSpecies
@@ -1314,6 +1318,8 @@ contains
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) &
               &// trim(elem2) // trim(suffix)
+          call findFile(skPath, strTmp, strOut)
+          if (allocated(strOut)) strTmp = strOut
           call append(skFiles(iSp2, iSp1), strTmp)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
@@ -1336,6 +1342,8 @@ contains
           end if
           do ii = 1, len(lStr)
             call get(lStr, strTmp, ii)
+            call findFile(skPath, strTmp, strOut)
+            if (allocated(strOut)) strTmp = strOut
             inquire(file=strTmp, exist=tExist)
             if (.not. tExist) then
               call detailedError(child2, "SK file '" // trim(strTmp) &
@@ -7640,5 +7648,56 @@ contains
     call detailedError(node, "Program version '"// trim(versionString) // "' is not recognized")
 
   end function parserVersionFromInputVersion
+
+
+  !> Get the environment variable describing the search path for DFTB+
+  subroutine getSKPath(path)
+    type(string), allocatable, intent(out) :: path(:)
+
+    character(len=*), parameter :: skEnv = "DFTBPLUS_PATH"
+    character(len=:), allocatable :: var
+
+    call getEnvVar(skEnv, var)
+
+    if (allocated(var)) then
+      allocate(path(1))
+      path(1) = var
+    else
+      allocate(path(0))
+    end if
+  end subroutine getSKPath
+
+
+  subroutine findFile(path, inName, outName)
+    type(string), intent(in) :: path(:)
+    character(len=*), intent(in) :: inName
+    character(len=:), allocatable :: outName
+
+    integer :: ip
+    logical :: exists
+
+    if (isAbsolutePath(inName)) then
+      outName = inName
+      return
+    end if
+
+    inquire(file=inName, exist=exists)
+    if (exists) then
+      outName = inName
+      return
+    end if
+
+    do ip = 1, size(path)
+      outName = char(path(ip))//"/"//inName
+      inquire(file=outName, exist=exists)
+      if (exists) exit
+
+      outName = char(path(ip))//"\"//inName
+      inquire(file=outName, exist=exists)
+      if (exists) exit
+    end do
+
+    if (.not.exists .and. allocated(outName)) deallocate(outName)
+  end subroutine findFile
 
 end module dftbp_dftbplus_parser

@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/constants.F90
   ${curdir}/environment.F90
   ${curdir}/fileregistry.F90
+  ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
   ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
