@@ -1448,6 +1448,15 @@ is built with support for a communication bridge to the \texttt{tblite} library.
 
 \begin{ptable}
   \kw{Method} & s & & & \\
+  \kw{SCCTolerance} &r& & 1e-5 &  \\
+  \kw{MaxSCCIterations} &i& & 100 & \\
+  \kw{MaxAngularMomentum} &p&  & -  & \\
+  \kw{Charge} &r& & 0.0 & \\
+  \kw{SpinPolarisation} &m& & \cb & \pref{sec:dftbp.SpinPolarisation} \\
+  \kw{SpinConstants} &p& SpinPolarisation $\neq$ \cb~ & - & \pref{sec:dftbp.SpinConstants} \\
+  \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
+  \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
+  \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - & \pref{sec:dftbp.KPointsAndWeights} \\
 \end{ptable}
 
 \begin{description}
@@ -1457,6 +1466,40 @@ is built with support for a communication bridge to the \texttt{tblite} library.
   \texttt{tblite} library.
   Supported methods are GFN1-xTB\cite{grimme2017}, IPEA1-xTB\cite{asgeirsson2017},
   and GFN2-xTB\cite{bannwarth2019}.
+
+\item[\is{SCCTolerance}] Stopping criteria for the SCC.  Specifies the
+  tolerance for the maximum difference in any charge between two SCC
+  cycles.
+
+\item[\is{MaxSCCIterations}] Maximal number of SCC cycles to reach
+  convergence. If convergence is not reached after the specified
+  number of steps, the program stops. However in cases where the
+  calculation is not for a static structure (so \is{Driver} $\neq$
+  \cb), this behaviour can be overridden using
+  \kw{ConvergentForcesOnly}.
+
+\item[\is{Charge}] Total charge of the system in units of the electron
+  charge. Negative values mean an excess of electrons. If the keyword
+  \is{FixedFermiLevel} is present (see section \ref{sec:dftbp.Filling}), then value
+  specified here will be ignored.
+
+\item[\is{SpinPolarisation}] Specifies if and how the system is spin
+  polarised. See p.~\pref{sec:dftbp.SpinPolarisation}.
+
+\item[\is{SpinConstants}] Specifies the atom type specific constants needed for
+  the spin polarised calculations, in units of Hartree.  See
+  p.~\pref{sec:dftbp.SpinConstants}.
+
+\item[\is{Solver}] Specifies which solver (eigensolver, Green's function, etc.)
+  to use with the hamiltonian. See p.~\pref{sec:dftbp.Solver}.
+
+\item[\is{Filling}] Method for occupying the one electron levels with
+  electrons. See p.~\pref{sec:dftbp.Filling}.
+
+\item[\is{KPointsAndWeights}]\modif{relative|absolute} Contains the
+  special $k$-points to be used for the Bril\-louin-zone integration.
+  See p.~\pref{sec:dftbp.KPointsAndWeights}. For automatically generated
+  $k$-point grids the modifier should not be set.
 \end{description}
 
 \begin{verbatim}

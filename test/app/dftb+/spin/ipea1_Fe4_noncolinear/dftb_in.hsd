@@ -1,0 +1,40 @@
+Geometry = GenFormat {
+    4  C
+ Fe
+    1 1      0.00020789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+    3 1      1.66468183      0.00020777      1.66468190
+    4 1      0.00020785      1.66468187      1.66468187
+}
+Hamiltonian = xTB {
+  Method = "IPEA1-xTB"
+  SCC = Yes
+  SCCTolerance = 1.0e-5
+  MaxSCCIterations = 1000
+  Mixer = Broyden {}
+  Charge = 0.0
+  SpinPolarisation = NonColinear {
+    InitialSpins = {
+      AtomSpin = {
+        Atoms = Fe
+        SpinPerAtom = {0.40824829046386301636 -0.40824829046386301636 0.81649658092772603273}
+      }
+    }
+  }
+  SpinConstants {
+    Fe { #  3d     4s     4p
+           -0.015 -0.003 -0.001  # 3d
+           -0.003 -0.013 -0.009  # 4s
+           -0.001 -0.009 -0.011  # 4p
+    }
+  }
+  Solver = QR {}
+  Filling = Fermi {
+    Temperature [Kelvin] = 5.0e+2
+  }
+}
+
+Options { WriteAutotestTag = Yes }
+Analysis { CalculateForces = Yes }
+ParserOptions { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }

@@ -157,6 +157,7 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
+    type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
     logical :: tReadAnalysis
     integer, allocatable :: implicitParserVersion
@@ -265,7 +266,12 @@ contains
     call readOptions(child, input%ctrl)
 
     ! W values if needed by Hamiltonian or excited state calculation
-    call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
+    if (allocated(input%ctrl%tbliteInp)) then
+      call input%ctrl%tbliteInp%setupOrbitals(input%geom%species, orb)
+      call readSpinConstants(hamNode, input%geom, orb, input%ctrl)
+    else
+      call readSpinConstants(hamNode, input%geom, input%slako%orb, input%ctrl)
+    end if
 
     ! analysis settings that need to know settings from the options block
     if (tReadAnalysis) then
@@ -1763,22 +1769,26 @@ contains
     type(string) :: buffer
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
+    integer :: method
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
     allocate(ctrl%tbliteInp)
+    call ctrl%tbliteInp%setupGeometry(geo%nAtom, geo%species, geo%coords, geo%speciesNames,&
+        & geo%latVecs)
 
     call getChildValue(node, "Method", buffer, child=child)
     select case(unquote(char(buffer)))
     case default
       call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
     case("GFN1-xTB")
-      ctrl%tbliteInp%method = tbliteMethod%gfn1xtb
+      method = tbliteMethod%gfn1xtb
     case("GFN2-xTB")
-      ctrl%tbliteInp%method = tbliteMethod%gfn2xtb
+      method = tbliteMethod%gfn2xtb
     case("IPEA1-xTB")
-      ctrl%tbliteInp%method = tbliteMethod%ipea1xtb
+      method = tbliteMethod%ipea1xtb
     end select
+    call ctrl%tbliteInp%setupCalculator(method)
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
 
@@ -5116,7 +5126,7 @@ contains
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state
-  subroutine readSpinConstants(hamNode, geo, slako, ctrl)
+  subroutine readSpinConstants(hamNode, geo, orb, ctrl)
 
     !> node for Hamiltonian data
     type(fnode), pointer :: hamNode
@@ -5124,8 +5134,8 @@ contains
     !> geometry of the system
     type(TGeometry), intent(in) :: geo
 
-    !> Slater-Koster structure
-    type(TSlater), intent(in) :: slako
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
 
     !> control structure
     type(TControl), intent(inout) :: ctrl
@@ -5148,7 +5158,7 @@ contains
 
     if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. &
         & ctrl%reksInp%reksAlg /= reksTypes%noReks) then
-      allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
+      allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
       call getChild(hamNode, "SpinConstants", child)
@@ -5162,13 +5172,13 @@ contains
         ! potentially unique values for each shell
         do iSp1 = 1, geo%nSpecies
           call getChildValue(child, geo%speciesNames(iSp1),&
-              & ctrl%spinW(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), iSp1))
+              & ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1))
         end do
       else
         ! only one value per atom
         do iSp1 = 1, geo%nSpecies
           call getChildValue(child, geo%speciesNames(iSp1),ctrl%spinW(1, 1, iSp1))
-          ctrl%spinW(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), iSp1) =&
+          ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
               & ctrl%spinW(1, 1, iSp1)
         end do
       end if

@@ -49,10 +49,10 @@ contains
   subroutine getSpinShift(shift, chargePerShell, species, orb, spinW)
 
     !> resulting shell-shifts for the system
-    real(dp), intent(out) :: shift(:,:,0:)
+    real(dp), intent(out) :: shift(:,:,:)
 
     !> spin resolved charges for each shell
-    real(dp), intent(in) :: chargePerShell(:,:,0:)
+    real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> Species of each atom
     integer, intent(in) :: species(:)
@@ -69,12 +69,11 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(shift,dim=2)==nAtom)
     @:ASSERT(all(shape(chargePerShell)==shape(shift)))
-    ! counts from 0 for unpolarized
-    nSpin = size(chargePerShell, dim=3) - 1
-    @:ASSERT(nSpin == 1 .or. nSpin == 3)
+    nSpin = size(chargePerShell, dim=3)
+    @:ASSERT(nSpin == 2 .or. nSpin == 4)
 
     shift(:,:,:) = 0.0_dp
-    do iSpin = 1, nSpin
+    do iSpin = 2, nSpin
       do iAtom = 1, nAtom
         iSpecies = species(iAtom)
         do iShell = 1, orb%nShell(iSpecies)
