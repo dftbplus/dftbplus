@@ -1774,7 +1774,7 @@ contains
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
     allocate(ctrl%tbliteInp)
-    call ctrl%tbliteInp%setupGeometry(geo%nAtom, geo%species, geo%coords, geo%speciesNames, &
+    call ctrl%tbliteInp%setupGeometry(geo%nAtom, geo%species, geo%coords, geo%speciesNames,&
         & geo%latVecs)
 
     call getChildValue(node, "Method", buffer, child=child)
