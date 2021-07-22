@@ -23,7 +23,6 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -190,10 +189,12 @@ contains
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
       energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
+    end if
 
+    if (allocated(sccCalc) .or. allocated(tblite)) then
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
-            & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
+          & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
       end if
     end if
