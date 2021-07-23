@@ -549,6 +549,7 @@ contains
 
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
+    call symmetrizeHS(tmpHH)
     HH(:,:) = HH + tmpHH
     this%lrEnergy = this%lrEnergy + evaluateEnergy(tmpHH, tmpDRho)
 
@@ -745,7 +746,7 @@ contains
 
     complex(dp), allocatable :: Smat(:,:)
     complex(dp), allocatable :: Dmat(:,:)
-    real(dp), allocatable :: LRgammaAO(:,:)
+    real(dp), allocatable :: LrGammaAO(:,:)
     complex(dp), allocatable :: gammaCmplx(:,:)
     complex(dp), allocatable :: Hlr(:,:)
 
@@ -755,11 +756,11 @@ contains
 
     allocate(Smat(nOrb,nOrb))
     allocate(Dmat(nOrb,nOrb))
-    allocate(LRgammaAO(nOrb,nOrb))
+    allocate(LrGammaAO(nOrb,nOrb))
     allocate(gammaCmplx(nOrb,nOrb))
     allocate(Hlr(nOrb,nOrb))
 
-    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO, gammaCmplx)
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LrGammaAO, gammaCmplx)
 
     call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hlr)
 
@@ -769,7 +770,7 @@ contains
 
   contains
 
-    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO,&
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LrGammaAO,&
         & gammaCmplx)
 
       !> instance
@@ -794,7 +795,7 @@ contains
       complex(dp), intent(out) :: Dmat(:,:)
 
       !> Symmetrized long-range gamma matrix
-      real(dp), intent(out) :: LRgammaAO(:,:)
+      real(dp), intent(out) :: LrGammaAO(:,:)
 
       !> Symmetrized long-range gamma matrix
       complex(dp), intent(out) :: gammaCmplx(:,:)
@@ -811,14 +812,14 @@ contains
       call hermitianSquareMatrix(Dmat)
 
       ! Get long-range gamma variable
-      LRgammaAO(:,:) = 0.0_dp
+      LrGammaAO(:,:) = 0.0_dp
       do iAt = 1, nAtom
         do jAt = 1, nAtom
-          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+          LrGammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
               & this%lrGammaEval(jAt,iAt)
         end do
       end do
-      gammaCmplx = LRgammaAO
+      gammaCmplx = LrGammaAO
 
     end subroutine allocateAndInit
 

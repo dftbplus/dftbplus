@@ -2753,10 +2753,10 @@ contains
 
         if (isRangeSep) then
 
-          tmpL1 = LRgammaAO(mu,gam)
-          tmpL2 = LRgammaAO(mu,nu)
-          tmpL3 = LRgammaAO(tau,gam)
-          tmpL4 = LRgammaAO(tau,nu)
+          tmpL1 = LrGammaAO(mu,gam)
+          tmpL2 = LrGammaAO(mu,nu)
+          tmpL3 = LrGammaAO(tau,gam)
+          tmpL4 = LrGammaAO(tau,nu)
 
           HxcSqrS(mu,nu,tau,gam) = HxcSqrS(mu,nu,tau,gam) - 0.25_dp &
               & * overSqr(mu,tau) * overSqr(nu,gam) * (tmpL1+tmpL2+tmpL3+tmpL4)
