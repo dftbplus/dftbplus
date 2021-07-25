@@ -40,12 +40,13 @@ module dftbp_extlibs_tblite
   use tblite_cutoff, only : get_lattice_points
   use tblite_disp_cache, only : dispersion_cache
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
+  use tblite_param, only : param_record
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
       & not_used
   use tblite_scf_potential, only : potential_type, new_potential
   use tblite_version, only : get_tblite_version
   use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
-  use tblite_xtb_calculator, only : xtb_calculator
+  use tblite_xtb_calculator, only : xtb_calculator, new_xtb_calculator
   use tblite_xtb_gfn1, only : new_gfn1_calculator
   use tblite_xtb_gfn2, only : new_gfn2_calculator
   use tblite_xtb_h0, only : get_selfenergy, get_hamiltonian, get_occupation, &
@@ -78,6 +79,15 @@ module dftbp_extlibs_tblite
   type(EnumMethod), parameter :: tbliteMethod = EnumMethod()
 
 
+  !> Information on the library setup
+  type :: TBLiteInfo
+
+    !> Parametrization name
+    character(len=:), allocatable :: name
+
+  end type TBLiteInfo
+
+
   !> Input for the library
   type :: TTBLiteInput
 
@@ -89,13 +99,18 @@ module dftbp_extlibs_tblite
     type(xtb_calculator) :: calc
   #:endif
 
+    !> Parametrization info
+    type(TBLiteInfo) :: info
+
   contains
 
     !> Create geometry data for library
     procedure :: setupGeometry
 
     !> Create parametrization data for library
-    procedure :: setupCalculator
+    generic :: setupCalculator => setupCalculatorFromEnum, setupCalculatorFromFile
+    procedure :: setupCalculatorFromEnum
+    procedure :: setupCalculatorFromFile
 
     !> Create orbital information from input data
     procedure :: setupOrbitals
@@ -127,6 +142,9 @@ module dftbp_extlibs_tblite
     !> Reuseable data for Dispersion interactions
     type(dispersion_cache) :: dcache
   #:endif
+
+    !> Parametrization info
+    type(TBLiteInfo) :: info
 
     !> Mapping between species and identifiers
     integer, allocatable :: sp2id(:)
@@ -257,7 +275,7 @@ contains
 
 
   !> Setup calculator for input data
-  subroutine setupCalculator(this, method)
+  subroutine setupCalculatorFromEnum(this, method)
 
     !> Input data
     class(TTBLiteInput), intent(inout) :: this
@@ -270,7 +288,35 @@ contains
   #:else
     call notImplementedError
   #:endif
-  end subroutine setupCalculator
+  end subroutine setupCalculatorFromEnum
+
+
+  !> Setup calculator for input data
+  subroutine setupCalculatorFromFile(this, method)
+
+    !> Input data
+    class(TTBLiteInput), intent(inout) :: this
+
+    !> Selected method
+    character(len=*), intent(in) :: method
+
+  #:if WITH_TBLITE
+    type(param_record) :: param
+    type(error_type), allocatable :: err
+
+    call param%load(method, err)
+    if (allocated(err)) then
+      call error(err%message)
+    end if
+    call new_xtb_calculator(this%calc, this%mol, param, err)
+    if (allocated(err)) then
+      call error(err%message)
+    end if
+    this%info%name = param%name
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine setupCalculatorFromFile
 
 
   !> Setup orbital information from input data
@@ -322,6 +368,7 @@ contains
 
     this%mol = input%mol
     this%calc = input%calc
+    this%info = input%info
 
     info = this%calc%variable_info()
     if (info%charge > shell_resolved) then
@@ -418,11 +465,34 @@ contains
     !> Data structure
     type(TTBLite), intent(in) :: this
 
-    character(len=:), allocatable :: version_string
-
   #:if WITH_TBLITE
+    character(len=:), allocatable :: version_string
+    character(len=*), parameter :: fmt = '(a, ":", t30, a)'
+
     call get_tblite_version(string=version_string)
-    write(unit, '(a, ":", t30, a)') "tblite library version", version_string
+    write(unit, fmt) "tblite library version", version_string
+    if (allocated(this%info%name)) then
+      write(unit, fmt) "-> parametrization", this%info%name
+    end if
+    write(unit, fmt) "-> repulsion", abool(allocated(this%calc%repulsion))
+    write(unit, fmt) "-> dispersion", abool(allocated(this%calc%dispersion))
+    write(unit, fmt) "-> halogen bonding", abool(allocated(this%calc%halogen))
+    write(unit, fmt) "-> electrostatics", abool(allocated(this%calc%coulomb))
+    if (allocated(this%calc%coulomb)) then
+      write(unit, fmt) "   -> isotropic", abool(allocated(this%calc%coulomb%es2))
+      write(unit, fmt) "   -> anisotropic", abool(allocated(this%calc%coulomb%aes2))
+      write(unit, fmt) "   -> third-order", abool(allocated(this%calc%coulomb%es3))
+    end if
+  contains
+    pure function abool(cond) result(str)
+      logical, intent(in) :: cond
+      character(len=merge(3, 2, cond)) :: str
+      if (cond) then
+        str = "Yes"
+      else
+        str = "No"
+      end if
+    end function abool
   #:else
     call notImplementedError
   #:endif
