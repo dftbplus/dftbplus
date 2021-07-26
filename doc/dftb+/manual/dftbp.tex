@@ -1448,6 +1448,7 @@ is built with support for a communication bridge to the \texttt{tblite} library.
 
 \begin{ptable}
   \kw{Method} & s & & & \\
+  \kw{ParameterFile} & s & & & \\
   \kw{SCCTolerance} &r& & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& & 100 & \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
@@ -1466,6 +1467,16 @@ is built with support for a communication bridge to the \texttt{tblite} library.
   \texttt{tblite} library.
   Supported methods are GFN1-xTB\cite{grimme2017}, IPEA1-xTB\cite{asgeirsson2017},
   and GFN2-xTB\cite{bannwarth2019}.
+  If present \kw{ParameterFile} must not be provided.
+
+\item[\is{ParameterFile}]
+  Request library to initialize the xTB parametrisation from a parameter file.
+  Doing so will hand over the energy, potential and force evaluation to the
+  \texttt{tblite} library.
+  The parameter format is documented in
+  \url{https://tblite.readthedocs.io/en/latest/spec/parameter.html} and can
+  be generated using the \texttt{tblite} command line driver.
+  If present \kw{Method} must not be provided.
 
 \item[\is{SCCTolerance}] Stopping criteria for the SCC.  Specifies the
   tolerance for the maximum difference in any charge between two SCC

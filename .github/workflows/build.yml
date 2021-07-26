@@ -12,6 +12,7 @@ env:
   CMAKE_OPTIONS: >-
     -DWITH_API=true
     -DWITH_DFTD3=true
+    -DWITH_TBLITE=true
     -DWITH_MBD=true
     -DWITH_TRANSPORT=true
     -DFYPP_FLAGS='-n;-DTRAVIS'

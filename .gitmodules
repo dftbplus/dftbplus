@@ -35,3 +35,6 @@
 [submodule "external/mstore/origin"]
 	path = external/mstore/origin
 	url = https://github.com/grimme-lab/mstore
+[submodule "external/toml-f/origin"]
+	path = external/toml-f/origin
+	url = https://github.com/toml-f/toml-f

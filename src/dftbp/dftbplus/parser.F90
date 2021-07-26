@@ -1777,18 +1777,25 @@ contains
     call ctrl%tbliteInp%setupGeometry(geo%nAtom, geo%species, geo%coords, geo%speciesNames,&
         & geo%latVecs)
 
-    call getChildValue(node, "Method", buffer, child=child)
-    select case(unquote(char(buffer)))
-    case default
-      call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
-    case("GFN1-xTB")
-      method = tbliteMethod%gfn1xtb
-    case("GFN2-xTB")
-      method = tbliteMethod%gfn2xtb
-    case("IPEA1-xTB")
-      method = tbliteMethod%ipea1xtb
-    end select
-    call ctrl%tbliteInp%setupCalculator(method)
+    call getChild(node, "Method", child, requested=.false.)
+    if (associated(child)) then
+      call getChildValue(child, "", buffer)
+      select case(unquote(char(buffer)))
+      case default
+        call detailedError(child, "Unknown method "//char(buffer)//" for xTB Hamiltonian")
+      case("GFN1-xTB")
+        method = tbliteMethod%gfn1xtb
+      case("GFN2-xTB")
+        method = tbliteMethod%gfn2xtb
+      case("IPEA1-xTB")
+        method = tbliteMethod%ipea1xtb
+      end select
+      call ctrl%tbliteInp%setupCalculator(method)
+      ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
+    else
+      call getChildValue(node, "ParameterFile", buffer)
+      call ctrl%tbliteInp%setupCalculator(unquote(char(buffer)))
+    end if
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
 
