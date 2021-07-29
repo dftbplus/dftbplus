@@ -266,6 +266,10 @@ contains
     real(dp) :: temperature, shift, radScale
     type(TSolventData) :: solvent
 
+    if (geo%tPeriodic) then
+      call detailedError(node, "COSMO solvation currently not available with PBCs")
+    end if
+
     call readSolvent(node, solvent)
     input%dielectricConst = solvent%dielectricConstant
     input%keps = 0.5_dp * (1.0_dp - 1.0_dp/solvent%dielectricConstant)
