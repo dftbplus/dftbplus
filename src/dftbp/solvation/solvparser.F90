@@ -101,8 +101,9 @@ contains
     type(TSolventData) :: solvent
     real(dp), parameter :: alphaDefault = 0.571412_dp
 
-    if (geo%tPeriodic) then
-      call detailedError(node, "Generalized Born model currently not available with PBCs")
+    if (geo%tPeriodic .or. geo%tHelical) then
+      call detailedError(node, "Generalized Born model currently not available with the&
+         & selected boundary conditions")
     end if
 
     call getChild(node, "ParamFile", value1, requested=.false.)
@@ -266,8 +267,9 @@ contains
     real(dp) :: temperature, shift, radScale
     type(TSolventData) :: solvent
 
-    if (geo%tPeriodic) then
-      call detailedError(node, "COSMO solvation currently not available with PBCs")
+    if (geo%tPeriodic .or. geo%tHelical) then
+      call detailedError(node, "COSMO solvation currently not available with the&
+         & selected boundary conditions")
     end if
 
     call readSolvent(node, solvent)
@@ -350,8 +352,9 @@ contains
     character(lc) :: errorStr
     real(dp), allocatable :: vdwRadDefault(:)
 
-    if (geo%tPeriodic) then
-      call detailedError(node, "SASA model currently not available with PBCs")
+    if (geo%tPeriodic .or. geo%tHelical) then
+      call detailedError(node, "SASA model currently not available with the&
+         & selected boundary conditions")
     end if
 
     call getChildValue(node, "ProbeRadius", input%probeRad, probeRadDefault, &
