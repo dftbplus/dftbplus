@@ -17,6 +17,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -2588,12 +2589,15 @@ contains
 
 
   !> Charge data to go to detailed.out
-  subroutine writeDetailedOut2(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
-      & tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion,&
-      & cm5Cont, qNetAtom)
+  subroutine writeDetailedOut2(fd, hamiltonianType, q0, qInput, qOutput, orb, species, tDFTBU,&
+      & tImHam, tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion, cm5Cont,&
+      & qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
+
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
 
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
@@ -2716,29 +2720,31 @@ contains
             end do
           end do
           write(fd,*)
-          write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
-          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)") " Atom", "Sh.","  l","  m",&
-              & " Population", " Label"
-          do ii = 1, size(iAtInCentralRegion)
-            iAt = iAtInCentralRegion(ii)
-            iSp = species(iAt)
-            call getShellNames(iSp, orb, shellNamesTmp)
-            do iSh = 1, orb%nShell(iSp)
-              ang = orb%angShell(iSh, iSp)
-              if (ang > 0) then
-                write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
-              else
-                write(strtmp,"(A)")trim(shellNamesTmp(iSh))
-              end if
-              do kk = 0, 2 * ang
-                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
-                    & kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
-                    & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+          if (hamiltonianType == hamiltonianTypes%dftb) then
+            write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
+            write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)") " Atom", "Sh.","  l","  m",&
+                & " Population", " Label"
+            do ii = 1, size(iAtInCentralRegion)
+              iAt = iAtInCentralRegion(ii)
+              iSp = species(iAt)
+              call getShellNames(iSp, orb, shellNamesTmp)
+              do iSh = 1, orb%nShell(iSp)
+                ang = orb%angShell(iSh, iSp)
+                if (ang > 0) then
+                  write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
+                else
+                  write(strtmp,"(A)")trim(shellNamesTmp(iSh))
+                end if
+                do kk = 0, 2 * ang
+                  write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
+                      & kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
+                      & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+                end do
               end do
+              deallocate(shellNamesTmp)
             end do
-            deallocate(shellNamesTmp)
-          end do
-          write(fd, *)
+            write(fd, *)
+          end if
         end do
       end if
 
@@ -2832,29 +2838,31 @@ contains
             end do
           end do
           write(fd, *)
-          write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
-          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)")&
-              & " Atom", "Sh.", "  l", "  m", " Population", " Label"
-          do ii = 1, size(iAtInCentralRegion)
-            iAt = iAtInCentralRegion(ii)
-            iSp = species(iAt)
-            call getShellNames(iSp, orb, shellNamesTmp)
-            do iSh = 1, orb%nShell(iSp)
-              ang = orb%angShell(iSh, iSp)
-              if (ang > 0) then
-                write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
-              else
-                write(strTmp,"(A)")trim(shellNamesTmp(iSh))
-              end if
-              do kk = 0, 2 * ang
-                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
-                    & kk - ang, qOutputUpDown(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
-                    & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+          if (hamiltonianType == hamiltonianTypes%dftb) then
+            write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
+            write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)")&
+                & " Atom", "Sh.", "  l", "  m", " Population", " Label"
+            do ii = 1, size(iAtInCentralRegion)
+              iAt = iAtInCentralRegion(ii)
+              iSp = species(iAt)
+              call getShellNames(iSp, orb, shellNamesTmp)
+              do iSh = 1, orb%nShell(iSp)
+                ang = orb%angShell(iSh, iSp)
+                if (ang > 0) then
+                  write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
+                else
+                  write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+                end if
+                do kk = 0, 2 * ang
+                  write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
+                      & kk - ang, qOutputUpDown(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
+                      & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+                end do
               end do
+              deallocate(shellNamesTmp)
             end do
-            deallocate(shellNamesTmp)
-          end do
-          write(fd, *)
+            write(fd, *)
+          end if
         end if
         if (tDFTBU .or. tOnSite) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
@@ -2876,12 +2884,15 @@ contains
 
   !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
   !> currently only for two spin channels
-  subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
-      & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
+  subroutine writeDetailedOut2Dets(fdDetailedOut, hamiltonianType, userOut, tAppendDetailedOut,&
+      & dftbEnergy, electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
       & iAtInCentralRegion, tPrintMulliken, cm5Cont)
 
     !> File ID
     integer, intent(inout) :: fdDetailedOut
+
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
 
     !> File name for output
     character(*), intent(in) :: userOut
@@ -2936,7 +2947,7 @@ contains
       if (allocated(qBlockDets)) then
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
       end if
-      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
+      call writeDetailedOut2(fdDetailedOut, hamiltonianType, q0, qDets(:,:,:,deltaDftb%iGround),&
           & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
           & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
@@ -2945,7 +2956,7 @@ contains
       if (allocated(qBlockDets)) then
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
-      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
+      call writeDetailedOut2(fdDetailedOut, hamiltonianType, q0, qDets(:,:,:,deltaDftb%iTriplet),&
           & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
           & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
           & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
@@ -2963,9 +2974,9 @@ contains
       end if
     end if
 
-    call writeDetailedOut2(fdDetailedOut, q0, qOutput, qOutput, orb, species, allocated(blockTmp),&
-        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
-        & cm5Cont)
+    call writeDetailedOut2(fdDetailedOut, hamiltonianType, q0, qOutput, qOutput, orb, species,&
+        & allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp),&
+        & iAtInCentralRegion, cm5Cont)
 
     call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
 
@@ -5160,7 +5171,7 @@ contains
 
 
   !> First group of data to go to detailed.out
-  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
+  subroutine writeReksDetailedOut1(fd, hamiltonianType, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
@@ -5168,6 +5179,9 @@ contains
 
     !> File ID
     integer, intent(in) :: fd
+
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
 
     !> Total number of geometry steps
     integer, intent(in) :: nGeoSteps
@@ -5398,29 +5412,31 @@ contains
           end do
         end do
         write(fd, *)
-        write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
-        write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)")&
-            & " Atom", "Sh.", "  l", "  m", " Population", " Label"
-        do ii = 1, size(iAtInCentralRegion)
-          iAt = iAtInCentralRegion(ii)
-          iSp = species(iAt)
-          call getShellNames(iSp, orb, shellNamesTmp)
-          do iSh = 1, orb%nShell(iSp)
-            ang = orb%angShell(iSh, iSp)
-            if (ang > 0) then
-              write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
-            else
-              write(strTmp,"(A)")trim(shellNamesTmp(iSh))
-            end if
-            do kk = 0, 2 * ang
-              write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
-                  & kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
-                  & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+        if (hamiltonianType == hamiltonianTypes%dftb) then
+          write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
+          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)")&
+              & " Atom", "Sh.", "  l", "  m", " Population", " Label"
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
+            iSp = species(iAt)
+            call getShellNames(iSp, orb, shellNamesTmp)
+            do iSh = 1, orb%nShell(iSp)
+              ang = orb%angShell(iSh, iSp)
+              if (ang > 0) then
+                write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
+              else
+                write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+              end if
+              do kk = 0, 2 * ang
+                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
+                    & kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
+                    & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+              end do
             end do
+            deallocate(shellNamesTmp)
           end do
-          deallocate(shellNamesTmp)
-        end do
-        write(fd, *)
+          write(fd, *)
+        end if
       end if
     end do lpSpinPrint2_REKS
 

@@ -240,10 +240,10 @@ contains
           & this%tripletStress, this%mixedStress, this%derivs, this%tripletderivs, this%mixedderivs)
 
       if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() > 1) then
-        call writeDetailedOut2Dets(this%fdDetailedOut, userOut, tAppendDetailedOut,&
-            & this%dftbEnergy, this%electronicSolver, this%deltaDftb, this%q0, this%orb,&
-            & this%qOutput, this%qDets, this%qBlockDets, this%species, this%iAtInCentralRegion,&
-            & this%tPrintMulliken, this%cm5Cont)
+        call writeDetailedOut2Dets(this%fdDetailedOut, this%hamiltonianType, userOut,&
+            & tAppendDetailedOut, this%dftbEnergy, this%electronicSolver, this%deltaDftb, this%q0,&
+            & this%orb, this%qOutput, this%qDets, this%qBlockDets, this%species,&
+            & this%iAtInCentralRegion, this%tPrintMulliken, this%cm5Cont)
       end if
 
       if (.not.this%tRestartNoSC .and.&
@@ -852,14 +852,14 @@ contains
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
             call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
-            call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
-                & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-                & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
-                & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
-                & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
-                & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
-                & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
-                & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
+            call writeReksDetailedOut1(this%fdDetailedOut, this%hamiltonianType, this%nGeoSteps,&
+                & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+                & iSccIter, this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom,&
+                & this%pCoord0Out, this%q0, this%qOutput, this%orb, this%species,&
+                & this%tPrintMulliken, this%extPressure, this%cellVol, this%dftbEnergy(1)%TS,&
+                & this%tAtomicEnergy, this%dispersion, this%tPeriodic, this%tSccCalc,&
+                & this%invLatVec, this%kPoint, this%iAtInCentralRegion, this%electronicSolver,&
+                & this%reks, allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
             call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -1086,11 +1086,11 @@ contains
               & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
               & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
               & this%invLatVec, this%kPoint)
-          call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-              & this%species, allocated(this%dftbU), this%tImHam .or. this%tSpinOrbit,&
-              & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
-              & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont,&
-              & this%qNetAtom)
+          call writeDetailedOut2(this%fdDetailedOut, this%hamiltonianType, this%q0, this%qInput,&
+              & this%qOutput, this%orb, this%species, allocated(this%dftbU),&
+              & this%tImHam .or. this%tSpinOrbit, this%tPrintMulliken, this%orbitalL,&
+              & this%qBlockOut, this%nSpin, allocated(this%onSiteElements),&
+              & this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
           call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
               & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
@@ -1125,10 +1125,10 @@ contains
       close(this%fdDetailedOut)
       call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
       if (allocated(this%reks)) then
-        call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
-            & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-            & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
-            & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
+        call writeReksDetailedOut1(this%fdDetailedOut, this%hamiltonianType, this%nGeoSteps,&
+            & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+            & iSccIter, this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom,&
+            & this%pCoord0Out, this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
             & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
             & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
@@ -1139,10 +1139,11 @@ contains
             & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
             & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
             & this%invLatVec, this%kPoint)
-        call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-            & this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
-            & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
-            & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
+        call writeDetailedOut2(this%fdDetailedOut, this%hamiltonianType, this%q0, this%qInput,&
+            & this%qOutput, this%orb, this%species, allocated(this%dftbU),&
+            & this%tImHam.or.this%tSpinOrbit, this%tPrintMulliken, this%orbitalL, this%qBlockOut,&
+            & this%nSpin, allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont,&
+            & this%qNetAtom)
         call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
