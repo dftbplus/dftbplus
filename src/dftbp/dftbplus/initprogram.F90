@@ -1786,7 +1786,8 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%isRangeSep
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isRangeSep .or.&
+        & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt

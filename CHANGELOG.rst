@@ -29,6 +29,8 @@ Fixed
 - self-consistent DFT-D4 uses populations instead of partial charges
   in potential shift, energy expression and derivatives
 
+- Number of electrons for Fixed / spin-common Fermi energies and transport in results.tag
+
 21.1 (2021-05-12)
 =================
 

@@ -37,6 +37,7 @@ module dftbp_dftb_spin
 
   !> swap from charge/magnetisation to up/down
   interface qm2ud
+    module procedure qm2ud1
     module procedure qm2ud2
     module procedure qm2ud3
     module procedure qm2ud4
@@ -174,6 +175,30 @@ contains
     end do
 
   end subroutine Spin_getOrbitalEquiv
+
+
+  !> converts a charge/magnetization set into a up/down
+  subroutine qm2ud1(x)
+
+    !> array of data [spin]
+    real(dp), intent(inout) :: x(:)
+
+    integer :: nSpin
+
+    nSpin = size(x)
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
+
+    select case(nSpin)
+    case (1)
+      ! nothing to do
+    case (2)
+      x(1) = 0.5_dp * ( x(1) + x(2) )
+      x(2) = x(1) - x(2)
+    case (4)
+      ! nothing to do
+    end select
+
+  end subroutine qm2ud1
 
 
   !> converts a charge/magnetization set into a up/down
