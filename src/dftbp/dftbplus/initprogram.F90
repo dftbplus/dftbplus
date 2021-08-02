@@ -2943,16 +2943,31 @@ contains
       select case (this%nSpin)
       case(1)
         write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
-        write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
-            & 0.5_dp*this%nEl(1), "Nr. of down electrons", 0.5_dp*this%nEl(1)
       case(2)
         write(stdOut, "(A,':',T30,A)") "Spin polarisation", "Yes"
-        write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", this%nEl(1),&
-            & "Nr. of down electrons", this%nEl(2)
       case(4)
         write(stdOut, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
-        write(stdOut, "(A,':',T30,F12.6)") "Nr. of electrons", this%nEl(1)
       end select
+      if (any(this%electronicSolver%iSolver ==&
+          & [electronicSolverTypes%GF,electronicSolverTypes%onlyTransport]) .or. this%tFixEf) then
+        ! number of electrons not determined at this stage
+      else
+        select case (this%nSpin)
+        case(1)
+          write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
+              & 0.5_dp*this%nEl(1), "Nr. of down electrons", 0.5_dp*this%nEl(1)
+        case(2)
+          if (this%tSpinSharedEf) then
+            write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Initial nr. of up electrons",&
+                & this%nEl(1), "Initial Nr. of down electrons", this%nEl(2)
+          else
+            write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons",&
+                & this%nEl(1), "Nr. of down electrons", this%nEl(2)
+          end if
+        case(4)
+          write(stdOut, "(A,':',T30,F12.6)") "Nr. of electrons", this%nEl(1)
+        end select
+      end if
     end if
 
     if (this%tPeriodic) then
