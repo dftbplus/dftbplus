@@ -972,6 +972,14 @@ contains
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
               & qNetAtom=this%qNetAtom, dipAtom=this%multipoleOut%dipoleAtom, &
               & quadAtom=this%multipoleOut%quadrupoleAtom)
+
+          if (this%tSpinSharedEf .or. this%tFixEf .or.&
+              & this%electronicSolver%iSolver == electronicSolverTypes%GF) then
+            this%nEl(:) = sum(sum(this%qOutput(:, this%iAtInCentralRegion, :size(this%nEl)),dim=1),&
+                & dim=1)
+            call qm2ud(this%nEl)
+          end if
+
         end if
 
       #:if WITH_TRANSPORT
@@ -2289,7 +2297,8 @@ contains
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef,&
           & energy%E0, energy%TS)
     #:else
-      call error("Internal error: getDensity : GF-solver although code compiled without transport")
+      call error("Internal error: getDensity : GF solver called although code compiled without&
+          & transport")
     #:endif
       call ud2qm(rhoPrim)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
