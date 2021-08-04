@@ -1794,7 +1794,7 @@ contains
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
       call getChildValue(node, "ParameterFile", buffer)
-      call ctrl%tbliteInp%setupCalculator(unquote(char(buffer)))
+      call ctrl%tbliteInp%setupCalculator(trim(unquote(char(buffer))))
     end if
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
