@@ -3644,10 +3644,6 @@ contains
         call error("Electron dynamics does not work with MD")
       end if
 
-      if (this%isRangeSep) then
-        call error("Electron dynamics does not work with range separated calculations yet.")
-      end if
-
       if (.not. this%tRealHS .and. input%ctrl%elecDynInp%tBondE) then
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
       end if

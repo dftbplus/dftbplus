@@ -45,6 +45,8 @@ timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and 
 timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
 
+timeprop/benzene_rs                    #? OMP_THREADS <= 1 and not WITH_MPI
+
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1
 helical/10-0CtubeC_10_origin           #? MPI_PROCS == 1
