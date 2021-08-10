@@ -9,8 +9,21 @@
 
 !> Proxy module for interfacing with the tblite library.
 !>
-!> Todo: Conventions for spherical harmonics are different in tblite and DFTB+.
-!>       This requires shuffling them correctly when returned from the library.
+!> @note
+!> The library calculates energies, gradients (∂E/∂R) and strain derivatives (∂E/∂ε = –V·σ),
+!> while DFTB+ works with atom-resolved energies, gradients and the stress tensor.
+!> The atom-resolved energy partitioning is archived by distributing the energy equivalently
+!> over all atoms. The strain derivative is saved as such in the container and only
+!> transformed to the stress tensor on demand using σ = –1/V·∂E/∂ε.
+!>
+!> @warning
+!> This module has to account for changing between sign conventions between DFTB+ and tblite.
+!> Generally, all intermediate quantities passed from DFTB+ to the library are using the
+!> conventions of DFTB+, while all intermediate quantities passed from the library to DFTB+
+!> will follow tblite's conventions (usually encapsulated in derived types already).
+!>
+!> Conventions for spherical harmonics are different in tblite and DFTB+.
+!> This requires shuffling them correctly when returned from the library.
 !>
 !> ang.  | DFTB+
 !> ----- | ------------------------------
@@ -634,7 +647,9 @@ contains
   end subroutine addGradients
 
 
-  !> Get stress tensor contributions
+  !> Get stress tensor contributions, by converting the saved strain derivatives.
+  !> Calculating the stress tensor includes a sign change from the strain derivatives
+  !> and a normalization with the cell volume
   subroutine getStress(this, stress)
 
     !> Data structure
@@ -644,7 +659,7 @@ contains
     real(dp), intent(out) :: stress(:,:)
 
   #:if WITH_TBLITE
-    stress(:, :) = this%sigma / abs(determinant33(this%mol%lattice))
+    stress(:, :) = -this%sigma / abs(determinant33(this%mol%lattice))
   #:else
     call notImplementedError
   #:endif
@@ -1180,6 +1195,7 @@ contains
     real(dp), intent(inout) :: hamiltonian(:)
 
     integer :: iAt, iZp, ind, iOrb, ii, jj, nBlk, is, io, ish, jsh, iao, jao, ij, iblk, nao
+    integer :: li, lj
     real(dp), parameter :: r2 = 0.0_dp, vec(3) = 0.0_dp
     real(dp), allocatable :: stmp(:)
     real(dp), allocatable :: dtmp(:, :), qtmp(:, :)
@@ -1191,7 +1207,7 @@ contains
     !$omp shared(iAtFirst, iAtLast, species, bas, iPair, nOrbAtom, selfenergy, &
     !$omp& overlap, hamiltonian, dpintBra, dpintKet, qpintBra, qpintKet) &
     !$omp private(iAt, iZp, is, io, ind, ish, jsh, ii, jj, iao, jao, nBlk, ij, iblk, nao, &
-    !$omp& stmp, dtmp, qtmp)
+    !$omp& stmp, dtmp, qtmp, li, lj)
     do iAt = iAtFirst, iAtLast
       iZp = species(iAt)
       is = bas%ish_at(iAt)
@@ -1218,10 +1234,12 @@ contains
           !call overlap_cgto(bas%cgto(jSh, iZp), bas%cgto(iSh, iZp), &
           !    & r2, vec, bas%intcut, stmp)
 
-          nao = msao(bas%cgto(jSh, iZp)%ang)
-          do iao = 1, msao(bas%cgto(iSh, iZp)%ang)
+          li = bas%cgto(iSh, iZp)%ang
+          lj = bas%cgto(jSh, iZp)%ang
+          nao = msao(lj)
+          do iao = 1, msao(li)
             do jao = 1, nao
-              ij = jao + nao*(iao-1)
+              ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
               iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
               dpintBra(:, iblk) = dtmp(:, ij)
@@ -1300,7 +1318,7 @@ contains
     !> Effective Hamiltonian
     real(dp), intent(inout) :: hamiltonian(:)
 
-    integer :: iAt, jAt, iZp, jZp, iNeigh, img, ind, io, jo, iblk, ij
+    integer :: iAt, jAt, iZp, jZp, iNeigh, img, ind, io, jo, iblk, ij, li, lj
     integer :: iSh, jSh, is, js, ii, jj, iao, jao, nao, nBlk
     real(dp) :: rr, r2, vec(3), hij, shpoly, dtmpj(dimDipole), qtmpj(dimQuadrupole)
     real(dp), allocatable :: stmp(:)
@@ -1315,7 +1333,7 @@ contains
     !$omp& dpintBra, dpintKet, qpintBra, qpintKet) &
     !$omp private(iAt, jAt, iZp, jZp, is, js, iSh, jSh, ii, jj, iao, jao, nao, nBlk, &
     !$omp& io, jo, iNeigh, img, ind, r2, vec, stmp, dtmpj, dtmpi, qtmpj, qtmpi, hij, &
-    !$omp& shpoly, rr, iblk, ij)
+    !$omp& shpoly, rr, iblk, ij, li, lj)
     do iAt = iAtFirst, iAtLast
       iZp = species(iAt)
       is = bas%ish_at(iAt)
@@ -1348,10 +1366,12 @@ contains
               * h0%hscale(jSh, iSh, jZp, iZp) * shpoly
 
 
-            nao = msao(bas%cgto(jSh, jZp)%ang)
-            do iao = 1, msao(bas%cgto(iSh, iZp)%ang)
+            li = bas%cgto(iSh, iZp)%ang
+            lj = bas%cgto(jSh, jZp)%ang
+            nao = msao(lj)
+            do iao = 1, msao(li)
               do jao = 1, nao
-                ij = jao + nao*(iao-1)
+                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
                 call shiftOperator(vec, stmp(ij), dtmpi(:, ij), qtmpi(:, ij), dtmpj, qtmpj)
 
@@ -1654,7 +1674,7 @@ contains
     !> Energy derivative w.r.t. strain deformations
     real(dp), intent(inout) :: sigma(:, :)
 
-    integer :: iat, jat, izp, jzp, itr, io, jo, nblk, iNeigh, img, ind
+    integer :: iat, jat, izp, jzp, itr, io, jo, nblk, iNeigh, img, ind, li, lj
     integer :: ish, jsh, is, js, ii, jj, iao, jao, nao, ij, iSpin, nSpin, iblk
     real(dp) :: rr, r2, vec(3), cutoff2, hij, shpoly, dshpoly, dG(3), hscale
     real(dp) :: sval, dcni, dcnj, dhdcni, dhdcnj, hpij, pij
@@ -1676,7 +1696,7 @@ contains
     !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao, ij, ind, &
     !$omp& iNeigh, io, jo, nblk, img, r2, vec, stmp, dtmp, qtmp, dstmp, ddtmpi, ddtmpj, &
     !$omp& dqtmpi, dqtmpj, hij, shpoly, dshpoly, dG, dcni, dcnj, dhdcni, dhdcnj, hpij, rr, &
-    !$omp& sval, hscale, pij, iSpin, iblk)
+    !$omp& sval, hscale, pij, iSpin, iblk, li, lj)
     do iat = iAtFirst, iAtLast
       izp = species(iat)
       is = bas%ish_at(iat)
@@ -1717,10 +1737,12 @@ contains
             dG(:) = 0.0_dp
             dcni = 0.0_dp
             dcnj = 0.0_dp
-            nao = msao(bas%cgto(jsh, jzp)%ang)
-            do iao = 1, msao(bas%cgto(ish, izp)%ang)
+            li = bas%cgto(iSh, iZp)%ang
+            lj = bas%cgto(jSh, jZp)%ang
+            nao = msao(lj)
+            do iao = 1, msao(li)
               do jao = 1, nao
-                ij = jao + nao*(iao-1)
+                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
                 pij = pmat(iblk, 1)
@@ -1761,6 +1783,35 @@ contains
     end do
   end subroutine buildDiatomicDerivs
 #:endif
+
+
+  !> Index gymnastic to transfer angular momentum from one convention to another
+  elemental function mlIdx(ml, l) result(idx)
+    integer, intent(in) :: ml, l
+    integer :: idx
+
+    ! -1, 0, +1 -> +1, -1, 0
+    integer, parameter :: p(3) = [2, 3, 1]
+    ! -2, -1, 0, +1, +2 -> 0, +1, -1, +2, -2
+    integer, parameter :: d(5) = [5, 3, 1, 2, 4]
+    ! -3, -2, -1, 0, +1, +2, +3 -> 0, +1, -1, +2, -2, 3, -3
+    integer, parameter :: f(7) = [7, 5, 3, 1, 2, 4, 6]
+    ! -4, -3, -2, -1, 0, +1, +2, +3, +4 -> 0, +1, -1, +2, -2, +3, -3, +4, -4
+    integer, parameter :: g(9) = [9, 7, 5, 3, 1, 2, 4, 6, 8]
+
+    select case(l)
+    case default
+      idx = ml
+    case(1)
+      idx = p(ml)
+    case(2)
+      idx = d(ml)
+    case(3)
+      idx = f(ml)
+    case(4)
+      idx = g(ml)
+    end select
+  end function mlIdx
 
 
 #:if not WITH_TBLITE
