@@ -1785,7 +1785,7 @@ contains
 #:endif
 
 
-  !> Index gymnastic to transfer angular momentum from one convention to another
+  !> Index gymnastic to transfer magnetic quantum number ordering from one convention to another
   elemental function mlIdx(ml, l) result(idx)
     integer, intent(in) :: ml, l
     integer :: idx
