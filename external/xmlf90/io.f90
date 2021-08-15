@@ -30,7 +30,7 @@ logical :: unit_used
 
 do i = 10, 99
    lun = i
-   inquire(unit=lun,opened=unit_used)
+   inquire(lun,opened=unit_used)
    if (.not. unit_used) then
       iostat = 0
       return
@@ -56,41 +56,32 @@ call get_unit(lun,iostat)
 
 if (iostat /= 0) stop "Out of unit numbers"
 
-open(unit=lun,status="scratch",form="formatted", &
+open(newunit=lun,status="scratch",form="formatted", &
      action="readwrite",position="rewind",iostat=iostat)
 if (iostat /= 0)   stop "Cannot open test file"
 
-write(unit=lun,fmt=*)  "a"
-write(unit=lun,fmt=*)  "b"
+write(lun,fmt=*)  "a"
+write(lun,fmt=*)  "b"
 
-rewind(unit=lun)
+rewind(lun)
 
 io_eor = 0
 do
-  read(unit=lun,fmt="(a1)",advance="NO",iostat=io_eor) c
+  read(lun,fmt="(a1)",advance="NO",iostat=io_eor) c
   if (io_eor /= 0) exit
 enddo
 
 io_eof = 0
 do
-  read(unit=lun,fmt=*,iostat=io_eof)
+  read(lun,fmt=*,iostat=io_eof)
   if (io_eof /= 0) exit
 enddo
 
 !!!!!!!!print *, "IO_EOR, IO_EOF: ", io_eor, io_eof
 
-close(unit=lun,status="delete")
+close(lun,status="delete")
 
 end subroutine find_eor_eof
 
 ! ----------------------------------------------------------------------
 end module xmlf90_io
-
-
-
-
-
-
-
-
-

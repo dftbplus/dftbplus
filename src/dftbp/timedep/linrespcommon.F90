@@ -1143,7 +1143,7 @@ contains
 
     if (fdSPTrans > 0) then
       ! single particle excitations
-      open(fdSPTrans, file=singlePartOut, position="rewind", status="replace")
+      open(newunit=fdSPTrans, file=singlePartOut, position="rewind", status="replace")
       write(fdSPTrans,*)
       write(fdSPTrans,'(7x,a,7x,a,8x,a)') '#      w [eV]',&
           & 'Osc.Str.', 'Transition'
@@ -1201,7 +1201,7 @@ contains
     @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
-    open(fdMulliken, file=excitedQOut,position="append")
+    open(newunit=fdMulliken, file=excitedQOut,position="append")
     write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
         & sym, nstat
     write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
@@ -1216,7 +1216,7 @@ contains
     dipol(:) = -1.0_dp * matmul(coord0, dq + dqex)
     dipabs = sqrt(sum(dipol**2))
 
-    open(fdMulliken, file=excitedDipoleOut, position="append")
+    open(newunit=fdMulliken, file=excitedDipoleOut, position="append")
     write(fdMulliken, "(a,a,i2)") "Mulliken analysis of excited state ",&
         & sym, nstat
     write(fdMulliken, '(42("="))')

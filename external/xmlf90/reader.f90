@@ -61,10 +61,10 @@ else
 endif
 
 if (present(record_size)) then
-   open(unit=fb%lun,file=fname,form="formatted",status="old", &
+   open(newunit=fb%lun,file=fname,form="formatted",status="old", &
         action="read",position="rewind",recl=record_size,iostat=iostat)
 else
-   open(unit=fb%lun,file=fname,form="formatted",status="old", &
+   open(newunit=fb%lun,file=fname,form="formatted",status="old", &
         action="read",position="rewind",recl=65536,iostat=iostat)
 endif
 if (iostat /= 0) then
@@ -96,7 +96,7 @@ fb%pos = 0
 fb%nchars = 0
 fb%buffer = ""
 
-rewind(unit=fb%lun)
+rewind(fb%lun)
 
 end subroutine rewind_file
 !-----------------------------------------
@@ -112,7 +112,7 @@ subroutine close_file_buffer(fb)
 type(file_buffer_t), intent(inout)  :: fb
 
 if (fb%connected) then
-    close(unit=fb%lun)
+    close(fb%lun)
     fb%connected = .false.
 endif
 
@@ -140,7 +140,7 @@ character(len=41)  :: str       ! 40 seems like a good compromise?
                                 ! (1 extra for added newline, see below)
 integer            :: len
 !
-read(unit=fb%lun,iostat=iostat,advance="no",size=len,fmt="(a40)") str
+read(fb%lun,iostat=iostat,advance="no",size=len,fmt="(a40)") str
 
 if (iostat == io_eof) then
    
@@ -289,12 +289,3 @@ enddo
 end subroutine sync_file
 
 end module xmlf90_reader
-
-
-
-
-
-
-
-
-

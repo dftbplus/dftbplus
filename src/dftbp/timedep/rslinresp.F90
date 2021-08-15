@@ -869,15 +869,15 @@ contains
     tXplusY = (fdXplusY > 0)
 
     if (tMulliken) then
-      open(fdMulliken, file=excitedQOut, position="rewind", status="replace")
+      open(newunit=fdMulliken, file=excitedQOut, position="rewind", status="replace")
       close(fdMulliken)
-      open(fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
+      open(newunit=fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
       close(fdMulliken)
     end if
 
     @:ASSERT(fdArnoldi > 0)
     if (tArnoldi) then
-      open(fdArnoldi, file=arpackOut, position="rewind", status="replace")
+      open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
 
     ! Transition charges
@@ -1083,17 +1083,17 @@ contains
     !end if
 
     if (tXplusY) then
-      open(fdXplusY, file=XplusYOut, position="rewind", status="replace")
+      open(newunit=fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
 
     if(tTrans) then
-      open(fdTrans, file=transitionsOut, position="rewind", status="replace")
+      open(newunit=fdTrans, file=transitionsOut, position="rewind", status="replace")
       write(fdTrans,*)
     end if
 
     ! single particle transition dipole file
     if (tTraDip) then
-      open(fdTraDip, file=transDipOut, position="rewind", status="replace")
+      open(newunit=fdTraDip, file=transDipOut, position="rewind", status="replace")
       write(fdTraDip,*)
       write(fdTraDip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(fdTraDip,*)
@@ -1102,7 +1102,7 @@ contains
     end if
 
     ! excitation energies
-    open(fdExc, file=excitationsOut, position="rewind", status="replace")
+    open(newunit=fdExc, file=excitationsOut, position="rewind", status="replace")
     write(fdExc,*)
     if (tSpin) then
       write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)')&
@@ -1779,7 +1779,7 @@ contains
     integer :: nAtom, i
     nAtom = size(atomicTransQ)
 
-    open(fdTransQ, file=transChargesOut, action="write", status="replace")
+    open(newunit=fdTransQ, file=transChargesOut, action="write", status="replace")
     write(fdTransQ, '(a)') "#"
     write(fdTransQ, '(a,2x,a,5x,a)') "#", "atom", "transition charge"
     write(fdTransQ, '(a)') "#"

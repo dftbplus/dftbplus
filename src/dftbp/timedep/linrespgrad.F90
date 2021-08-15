@@ -228,15 +228,15 @@ contains
     tTradip = (this%fdTradip > 0)
 
     if (tMulliken) then
-      open(this%fdMulliken, file=excitedQOut,position="rewind", status="replace")
+      open(newunit=this%fdMulliken, file=excitedQOut,position="rewind", status="replace")
       close(this%fdMulliken)
-      open(this%fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
+      open(newunit=this%fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
       close(this%fdMulliken)
     end if
 
     @:ASSERT(this%fdArnoldi > 0)
     if (this%tArnoldi) then
-      open(this%fdArnoldi, file=arpackOut, position="rewind", status="replace")
+      open(newunit=this%fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
 
     nSpin = size(grndEigVal, dim=2)
@@ -451,17 +451,17 @@ contains
         & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
 
     if (this%fdXplusY >  0) then
-      open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
+      open(newunit=this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
 
     if(this%fdTrans>0) then
-      open(this%fdTrans, file=transitionsOut, position="rewind", status="replace")
+      open(newunit=this%fdTrans, file=transitionsOut, position="rewind", status="replace")
       write(this%fdTrans,*)
     endif
 
     ! Many-body transition dipole file to excited states
     if (this%fdTradip > 0) then
-      open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
+      open(newunit=this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(this%fdTradip,*)
@@ -470,7 +470,7 @@ contains
     endif
 
     ! excitation energies
-    open(this%fdExc, file=excitationsOut, position="rewind", status="replace")
+    open(newunit=this%fdExc, file=excitationsOut, position="rewind", status="replace")
     write(this%fdExc,*)
     if (tSpin) then
       write(this%fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
@@ -818,7 +818,7 @@ contains
 
     if (fdArnoldiDiagnosis > 0) then
       ! tests for quality of returned eigenpairs
-      open(fdArnoldiDiagnosis, file=testArpackOut, position="rewind", status="replace")
+      open(newunit=fdArnoldiDiagnosis, file=testArpackOut, position="rewind", status="replace")
       ALLOCATE(Hv(nxov))
       ALLOCATE(orthnorm(nxov,nxov))
       orthnorm = matmul(transpose(evec(:,:nExc)),evec(:,:nExc))
@@ -2056,7 +2056,7 @@ contains
       ! Better to get this by post-processing DFTB+ output, but here for
       ! compatibility at the moment
       if (tCoeffs) then
-        open(fdCoeffs, file=excitedCoefsOut, position="append")
+        open(newunit=fdCoeffs, file=excitedCoefsOut, position="append")
         write(fdCoeffs,*) 'T F'
         if (.not. tSpin) then
           do ii = 1, norb

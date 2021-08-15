@@ -2445,7 +2445,7 @@ contains
       isOpen = .false.
     end if
     if (.not.isOpen) then
-      open(fd, file=fileName, status="replace", action="write")
+      open(newunit=fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
@@ -5531,7 +5531,7 @@ contains
     select type(solvation)
     class is (TCosmo)
       write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
-      open(file=cosmoFile, newunit=unit)
+      open(newunit=unit, file=cosmoFile)
       call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
       close(unit)
     end select

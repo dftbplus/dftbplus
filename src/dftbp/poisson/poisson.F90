@@ -1660,13 +1660,13 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
 
-       open(fp,file='box2d.dat')
+       open(newunit=fp,file='box2d.dat')
        write(fp,'(I6,I6)') iparm(14),iparm(16)
        close(fp)
 
      case(3)
        nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1
-       open(fp,file='pot2D.dat')
+       open(newunit=fp,file='pot2D.dat')
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do j = 1,iparm(15)

@@ -55,7 +55,7 @@ integer :: iostat
 
 call get_unit(xf%lun,iostat)
 if (iostat /= 0) stop "cannot open file"
-open(unit=xf%lun, file=filename, form="formatted", status="replace", &
+open(newunit=xf%lun, file=filename, form="formatted", status="replace", &
      action="write", position="rewind") ! , recl=65536)
 
 call reset_elstack(xf%stack)
@@ -174,7 +174,7 @@ i = 1
 do
    jmax = min(i+chunk_size-1,n)
 !   print *, "writing chunk: ", i, jmax
-   write(unit=xf%lun,fmt="(a)",advance="no") pcdata(i:jmax)
+   write(xf%lun,fmt="(a)",advance="no") pcdata(i:jmax)
    if (jmax == n) exit
    i = jmax + 1
 enddo
@@ -235,8 +235,8 @@ end subroutine xml_EndElement
 subroutine xml_Close(xf)
 type(xmlf_t), intent(in)   :: xf
 
-write(unit=xf%lun,fmt="(a)") char(xf%buffer)
-close(unit=xf%lun)
+write(xf%lun,fmt="(a)") char(xf%buffer)
+close(xf%lun)
 
 end subroutine xml_Close
 
@@ -272,7 +272,7 @@ integer :: indent_level
 character(len=100), parameter  ::  blanks =  ""
 
 indent_level = len(xf%stack) - 1
-write(unit=xf%lun,fmt="(a)") char(xf%buffer)
+write(xf%lun,fmt="(a)") char(xf%buffer)
 call reset_buffer(xf%buffer)
 
 if (xf%indenting_requested) &
@@ -286,12 +286,12 @@ logical, intent(in), optional :: lf
 
 if (present(lf)) then
    if (lf) then
-      write(unit=xf%lun,fmt="(a)",advance="yes") char(xf%buffer)
+      write(xf%lun,fmt="(a)",advance="yes") char(xf%buffer)
    else
-      write(unit=xf%lun,fmt="(a)",advance="no") char(xf%buffer)
+      write(xf%lun,fmt="(a)",advance="no") char(xf%buffer)
    endif
 else
-   write(unit=xf%lun,fmt="(a)",advance="no") char(xf%buffer)
+   write(xf%lun,fmt="(a)",advance="no") char(xf%buffer)
 endif
 call reset_buffer(xf%buffer)
 
@@ -380,4 +380,3 @@ end subroutine write_attributes
     end subroutine xml_AddArray_real_sp
 
 end module xmlf90_wxml_core
-
