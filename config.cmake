@@ -55,8 +55,6 @@ option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instan
 # is not relevant for the standalone DFTB+ binary, only for the API (if WITH_API had been turned
 # on).
 
-option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
-
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
 # dynamically linked to their applications. This results in smaller applications, but the libraries
@@ -64,6 +62,16 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # that they can be found by the operating system). If you want use the DFTB+ library from other
 # software packages (see WITH_API option above), they may also require a shared library (e.g.
 # calling DFTB+ functions from Python or Julia).
+
+if(WITH_API AND BUILD_SHARED_LIBS)
+  set(_WITH_PYTHON TRUE)
+else()
+  set(_WITH_PYTHON FALSE)
+endif()
+option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" ${_WITH_PYTHON})
+unset(_WITH_PYTHON)
+# Use this option to install the Python components of DFTB+. Requires building a shared library
+# and enabling support for the general API.
 
 
 #
