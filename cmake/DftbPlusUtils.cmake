@@ -559,7 +559,7 @@ endfunction()
 macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts subdir subdiropts
     git_repository git_tag)
 
-  set(_allowed_methods "submodule;find;fetch")
+  set(_allowed_methods "submodule;find;fetch;pkgconf")
   string(TOLOWER "${package}" _package_lower)
   string(TOUPPER "${package}" _package_upper)
 
@@ -579,6 +579,31 @@ macro(dftbp_config_hybrid_dependency package target config_methods findpkgopts s
         break()
       else()
         message(STATUS "${package}: Installed package could not be found")
+      endif()
+
+    elseif("${_config_lower}" STREQUAL "pkgconf")
+      message(STATUS "${package}: Trying to find installed package (pkg-config)")
+
+      find_package(PkgConfig QUIET)
+      if(PkgConfig_FOUND)
+        pkg_check_modules("${_package_upper}" QUIET "${package}")
+        if("${${_package_upper}_FOUND}")
+          message(STATUS "${package}: Installed package found (pkg-config)")
+          add_library("${target}" INTERFACE IMPORTED)
+          target_link_libraries(
+            "${target}"
+            INTERFACE
+            "${${_package_upper}_LINK_LIBRARIES}"
+          )
+          target_include_directories(
+            "${target}"
+            INTERFACE
+            "${${_package_upper}_INCLUDE_DIRS}"
+          )
+          break()
+        else()
+          message(STATUS "${package}: Installed package could not be found (pkg-config)")
+        endif()
       endif()
 
     elseif("${_config_lower}" STREQUAL "submodule")

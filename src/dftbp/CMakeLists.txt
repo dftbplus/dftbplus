@@ -100,7 +100,7 @@ endif()
 target_link_libraries(dftbplus PUBLIC mudpack)
 
 if(WITH_TBLITE)
-  target_link_libraries(dftbplus PUBLIC tblite::tblite)
+  target_link_libraries(dftbplus PUBLIC tblite::tblite mctc-lib::mctc-lib)
 endif()
 
 if(WITH_ELSI)
