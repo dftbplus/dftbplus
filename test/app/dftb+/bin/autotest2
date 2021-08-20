@@ -127,12 +127,16 @@ echo_n () {
 
 # cp $1 to $2/$1, maintaining tree depth; exclude some file patterns
 deepcopydir_filtered () {
+    [ -d $1 ] || {
+      echo "Error: Source directory '$1' does not exist" >&2
+      exit 1
+    }
     dst=$2/$1
     [ -d $dst ] || mkdir -p $dst
     [ -d $dst ] || exit 1		# exit if dest. dir cannot be created
     for i in `ls $1/`; do
-	case "$i" in CVS*|_*) continue ;; esac	# filter
-	cp -p -f $1/$i $dst
+      case "$i" in CVS*|_*) continue ;; esac	# filter
+      cp -p -f $1/$i $dst
     done
 }
 
@@ -307,7 +311,6 @@ do
 	todo_list="$todo_list $testname"
 	continue
     }
-
     safecd $workroot/$testname
 
     test -n "$show_tests" && echo_n "${testname}:	"

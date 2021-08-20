@@ -42,11 +42,10 @@ timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI and 
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
 timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_rangesep              #? OMP_THREADS <= 1 and not WITH_MPI
 
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1
-helical/10-0CtubeC_10_origins          #? MPI_PROCS == 1
+helical/10-0CtubeC_10_origin           #? MPI_PROCS == 1
 helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
 helical/C6H6_stack                     #? MPI_PROCS == 1
 helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
@@ -410,7 +409,7 @@ scc/SiC64+V_dynforce                   #? (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
-poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4 
+poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
