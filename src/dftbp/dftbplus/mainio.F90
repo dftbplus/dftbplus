@@ -2429,7 +2429,7 @@ contains
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
 
     !> File  ID
-    integer, intent(in) :: fd
+    integer:: fd
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -3639,7 +3639,7 @@ contains
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
 
     !> File ID
-    integer, intent(in) :: fd
+    integer :: fd
 
     !> File name
     character(*), intent(in) :: fileName

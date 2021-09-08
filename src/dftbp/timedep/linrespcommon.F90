@@ -1123,7 +1123,7 @@ contains
     integer, intent(in) :: getia(:,:)
 
     !> file descriptor for the single particle excitation data
-    integer, intent(in) :: fdSPTrans
+    integer :: fdSPTrans
 
     !> single particle oscilation strengths
     real(dp), intent(in) :: sposz(:)
@@ -1190,7 +1190,7 @@ contains
     real(dp), intent(in) :: coord0(:,:)
 
     !> file unit for Mulliken data
-    integer, intent(in) :: fdMulliken
+    integer :: fdMulliken
 
     integer :: natom, m
     real(dp) :: dipol(3), dipabs

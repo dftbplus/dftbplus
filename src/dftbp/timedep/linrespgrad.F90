@@ -701,7 +701,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> file handle for ARPACK eigenstate tests
-    integer, intent(in) :: fdArnoldiDiagnosis
+    integer:: fdArnoldiDiagnosis
 
     !> atomic resolved spin constants
     real(dp), intent(in) :: spinW(:)
@@ -2006,7 +2006,7 @@ contains
     real(dp), intent(in) :: occ(:,:)
 
     !> file descriptor to write data into
-    integer, intent(in) :: fdCoeffs
+    integer :: fdCoeffs
 
     !> save the coefficients of the natural orbitals
     logical, intent(in) :: tCoeffs

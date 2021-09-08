@@ -22,6 +22,7 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
+  ! use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
