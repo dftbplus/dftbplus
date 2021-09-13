@@ -18,6 +18,7 @@ module dftbp_timedep_timeprop
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
@@ -213,6 +214,7 @@ module dftbp_timedep_timeprop
     logical :: tPopulations, tSpinPol=.false.
     logical :: tReadRestart, tWriteRestart, tRestartAscii, tWriteRestartAscii, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
+    integer :: hamiltonianType
     type(TScc), allocatable :: sccCalc
     type(TTBLite), allocatable :: tblite
     type(TMultipole) :: multipole
@@ -337,7 +339,7 @@ contains
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation,&
-      & errStatus)
+      & hamiltonianType, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -414,6 +416,9 @@ contains
     !> Solvation data and calculations
     class(TSolvation), allocatable, intent(in) :: solvation
 
+    !> Type of Hamiltonian used
+    integer, intent(in) :: hamiltonianType
+
     !> Error status
     type(TStatus), intent(out) :: errStatus
 
@@ -441,11 +446,13 @@ contains
     this%tRealHS = tRealHS
     this%kPoint = kPoint
     this%KWeight = KWeight
+    this%hamiltonianType = hamiltonianType
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
-    if (.not. allocated(sccCalc)) then
+    if (.not.any([allocated(sccCalc), allocated(tblite)])) then
       @:RAISE_ERROR(errStatus, -1, "SCC calculations are currently required for dynamics")
-    else
+    end if
+    if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
     if (allocated(tblite)) then
@@ -2704,17 +2711,34 @@ contains
     if (this%tPeriodic) then
       call initLatticeVectors(this)
     end if
-    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll)
+    end if
 
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
     end if
 
-    call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
-        & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
-    call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
-        & this%speciesAll, iSparseStart, orb)
+    select case(this%hamiltonianType)
+    case default
+      @:ASSERT(.false.)
+    case(hamiltonianTypes%dftb)
+      call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
+          & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
+      call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
+          & this%speciesAll, iSparseStart, orb)
+    case(hamiltonianTypes%xtb)
+      @:ASSERT(allocated(this%tblite))
+      call this%tblite%buildSH0(env, this%speciesAll, coordAll, nNeighbourSk, &
+          & neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, ham0,&
+          & ints%overlap, ints%dipoleBra, ints%dipoleKet, &
+          & ints%quadrupoleBra, ints%quadrupoleKet)
+    end select
 
     if (this%tRealHS) then
       allocate(Sreal(this%nOrbs,this%nOrbs))
@@ -2846,6 +2870,7 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     real(dp), allocatable :: T1R(:,:), T2R(:,:)
+    real(dp), allocatable :: dipAtom(:,:), quadAtom(:,:)
     complex(dp), allocatable :: T1C(:,:), T2C(:,:)
     real(dp) :: derivs(3,this%nAtom), repulsiveDerivs(3,this%nAtom), totalDeriv(3, this%nAtom)
     integer :: iSpin, iDir, iKS, iK
@@ -2899,12 +2924,24 @@ contains
     derivs(:,:) = 0.0_dp
 
 
-    call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
-        & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
-        & img2CentCell, iSparseStart, orb, potential%intBlock)
-    call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
-    call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
-        & img2CentCell)
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCharges(env, this%speciesAll, neighbourList, qq, q0,&
+          & dipAtom, quadAtom, img2CentCell, orb)
+      call this%tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coordAll, this%speciesAll,&
+          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb,&
+          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
+      call this%tblite%addGradients(env, neighbourList, this%speciesAll, coordAll,&
+          & img2CentCell, derivs)
+    else
+      call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
+          & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
+          & img2CentCell, iSparseStart, orb, potential%intBlock)
+    end if
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
+      call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
+          & img2CentCell)
+    end if
     if (allocated(repulsive)) then
       call repulsive%getGradients(coordAll, this%speciesAll, img2CentCell, neighbourList,&
           & repulsiveDerivs)
@@ -3074,8 +3111,14 @@ contains
     call matinv(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
-    call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
-    this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
+      this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateLatVecs(this%latVec)
+      this%mCutOff = max(this%mCutOff, this%tblite%getRCutOff())
+    end if
 
     if (allocated(this%dispersion)) then
       call this%dispersion%updateLatVecs(this%latVec)
@@ -3435,7 +3478,13 @@ contains
       call initLatticeVectors(this)
     end if
 
-    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll)
+    end if
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
