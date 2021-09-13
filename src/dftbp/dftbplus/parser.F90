@@ -1840,6 +1840,9 @@ contains
     !end if
     ctrl%tReadShifts = .false.
 
+    ! External fields and potentials
+    call readExternal(node, ctrl, geo)
+
     ! Electronic solver
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
