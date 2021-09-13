@@ -1025,10 +1025,10 @@ contains
         end if
 
         call calcEnergies(this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
-            & this%species, this%isExtField, this%isXlbomd, this%dftbU, this%tDualSpinOrbit,&
-            & this%rhoPrim, this%H0, this%orb, this%neighbourList, this%nNeighbourSk,&
-            & this%img2CentCell, this%iSparseStart, this%cellVol, this%extPressure,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
+            & this%multipoleOut, this%species, this%isExtField, this%isXlbomd, this%dftbU,&
+            & this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb, this%neighbourList,&
+            & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
+            & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
             & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
             & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
@@ -7256,10 +7256,11 @@ contains
       end if
 
       call calcEnergies(sccCalc, tblite, reks%qOutputL(:,:,:,iL), q0,&
-          & reks%chargePerShellL(:,:,:,iL), species, isExtField, isXlbomd, dftbU, tDualSpinOrbit,&
-          & rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol,&
-          & extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot,&
-          & qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & reks%chargePerShellL(:,:,:,iL), multipole, species, isExtField, isXlbomd, dftbU,&
+          & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
+          & rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef,&
+          & onSiteElements)
 
       if (allocated(dispersion)) then
         ! For dftd4 dispersion, update charges
