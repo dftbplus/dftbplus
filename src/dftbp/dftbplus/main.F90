@@ -1227,7 +1227,7 @@ contains
     end if
 
     if (this%tDipole .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      call getDipoleMoment(this%qOutput, this%q0, this%coord,&
+      call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
@@ -4551,13 +4551,16 @@ contains
 
 
   !> Calculates dipole moment.
-  subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
+  subroutine getDipoleMoment(qOutput, q0, dipAtom, coord, dipoleMoment, iAtInCentralRegion)
 
     !> electrons in orbitals
     real(dp), intent(in) :: qOutput(:,:,:)
 
     !> reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Dipole populations for each atom
+    real(dp), intent(in), optional :: dipAtom(:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -4577,6 +4580,13 @@ contains
       dipoleMoment(:) = dipoleMoment(:)&
           & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
     end do
+
+    if (present(dipAtom)) then
+      do ii = 1, size(iAtInCentralRegion)
+        iAtom = iAtInCentralRegion(ii)
+        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom)
+      end do
+    end if
 
   end subroutine getDipoleMoment
 
