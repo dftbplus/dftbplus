@@ -37,5 +37,5 @@ foreach(test IN LISTS tests)
   set_tests_properties(
     dftb+_${test}
     PROPERTIES
-    ENVIRONMENT "DFTBPLUS_PATH=${PROJECT_SOURCE_DIR}/external/slakos/origin")
+    ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
 endforeach()

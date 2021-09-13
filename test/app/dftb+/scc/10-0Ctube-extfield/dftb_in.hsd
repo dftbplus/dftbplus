@@ -58,7 +58,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 77
   }
   SlaterKosterFiles = {
-    C-C = "pbc-0-3/C-C.skf"
+    C-C = "slakos/origin/pbc-0-3/C-C.skf"
   }
   KPointsAndWeights = SupercellFolding {
    1 0 0

@@ -15,7 +15,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0
   }
   SlaterKosterFiles = {
-    H-H = "mio-1-1/H-H.skf" "mio-1-1/H-H.skf" "mio-1-1/H-H.skf" "mio-1-1/H-H.skf"
+    H-H = "slakos/origin/mio-1-1/H-H.skf" "slakos/origin/mio-1-1/H-H.skf" "slakos/origin/mio-1-1/H-H.skf" "slakos/origin/mio-1-1/H-H.skf"
   }
 
   CustomisedOccupations{

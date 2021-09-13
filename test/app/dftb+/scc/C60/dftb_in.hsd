@@ -77,7 +77,7 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 400.000000000000
   }
   SlaterKosterFiles = {
-    C-C = "mio-1-1/C-C.skf"
+    C-C = "slakos/origin/mio-1-1/C-C.skf"
   }
 }
 
