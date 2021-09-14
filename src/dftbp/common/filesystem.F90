@@ -54,7 +54,7 @@ contains
     !> Name of variable
     character(len=*), intent(in) :: var
 
-    !> Value of variable
+    !> Value of variable. Unallocated, if variable could not be retrieved.
     character(len=:), allocatable, intent(out) :: val
 
     integer :: length, stat
