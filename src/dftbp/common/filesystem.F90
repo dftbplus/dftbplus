@@ -13,7 +13,7 @@ module dftbp_common_filesystem
   implicit none
   private
 
-  public :: getEnvVar, isAbsolutePath, pathJoin, findFile, getParamSearchPath
+  public :: getEnvVar, isAbsolutePath, joinPaths, findFile, getParamSearchPath
 
 
   !> Whether the operating system we are using is UNIX (FIXME: use preprocessor here instead)
@@ -80,7 +80,7 @@ contains
 
 
   !> Join two paths together
-  pure function pathJoin(prefix, suffix) result(path)
+  pure function joinPaths(prefix, suffix) result(path)
 
     !> First path component
     character(len=*), intent(in) :: prefix
@@ -96,7 +96,7 @@ contains
     else
       path = prefix // separator // suffix
     end if
-  end function pathJoin
+  end function joinPaths
 
 
   !> Find a file in a PATH-like context
@@ -126,7 +126,7 @@ contains
     end if
 
     do ip = 1, size(searchPath)
-      outName = pathJoin(char(searchPath(ip)), trim(inName))
+      outName = joinPaths(char(searchPath(ip)), trim(inName))
       inquire(file=outName, exist=exists)
       if (exists) exit
     end do
