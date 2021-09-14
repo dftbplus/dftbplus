@@ -2714,7 +2714,9 @@ description of the methods see the following subsections):
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
-  strengths (see section \ref{sec:dftbp.hcorr}).
+  strengths (see section \ref{sec:dftbp.hcorr}). Note: It is recommended to use
+  the \is{SimpleDftD3} for including D3-dispersion.
+\item \is{SimpleDftD3}: DFTB+ internal implementation of the D3-dispersion model.
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
   section~\ref{sec:dftbp.DftD4}).
@@ -2878,13 +2880,16 @@ which have already been used by some DFTB-users for a few elements.
 \subsubsection{DftD3}
 \label{sec:dftbp.DftD3}
 
+\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
+enabled to use this feature. It is recommended to use the \is{SimpleDftD3}
+dispersion model instead, which offers similar functionality without any library
+dependence.
+
 The DFT-D3 dispersion correction in \dftbp{} is an implementation of the method
 used in the code 'dftd3' by Stefan Grimme and coworkers.  It is based on the
 {\it ansatz} described in Refs.~\cite{grimme-jcp-132-154104} and
 \cite{grimme-jcp-32-1456-1465}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
-enabled to use this feature.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn-Sham-like energy
@@ -3002,6 +3007,58 @@ parameters are taken to be the same as in the dftd3 code.
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
 \end{description}
+
+
+\subsubsection{SimpleDftD3}
+\label{sec:dftbp.SimpleDftD3}
+
+D3-dispersion with Becke-Johnson damping. See section \ref{sec:dftbp.DftD3} for
+details and references.
+
+\begin{ptable}
+  \kw{s6} & r & & 1.0 & \\
+  \kw{s8} & r & & & \\
+  \kw{s10} & r & & 0.0 & \\
+  \kw{a1} & r & & & \\
+  \kw{a2} & r & & & \\
+  \kw{alpha} & r & & 16.0 & \\
+  \kw{WeightingFactor} & r & & 6.0 & \\
+  \kw{CutoffInter} & r & & 64 & \\
+  \kw{CoordinationNumber} & m & & \is{Exp} & \pref{sec:dftbp.CoordinationNumber} \\
+\end{ptable}
+
+\begin{description}
+\item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
+  parameters, see equations above.
+
+\item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
+  interaction, should always be set to 1.0.
+
+\item[\is{s10}] Parameter for pairwise quadrupole--quadrupole dispersion
+  interactions, should be kept set to 0.0.
+
+\item[\is{alpha}] Zero damping exponent for three-body damping function.
+
+\item[\is{WeightingFactor}] Coordination number based interpolation.
+
+\item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
+  calculating two-body interactions.
+
+\item[\is{CoordinationNumber}] Method to determine the coordination numbers. See
+  \pref{sec:dftbp.CoordinationNumber} for details.
+
+\end{description}
+
+Example using adjusted parameters:
+\begin{verbatim}
+  Dispersion = SimpleDftD3 {
+    a1 = 0.5719
+    a2 = 3.6017
+    s6 = 1.0
+    s8 = 0.5883
+  }
+\end{verbatim}
+
 
 \subsubsection{DftD4}
 \label{sec:dftbp.DftD4}
