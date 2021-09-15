@@ -1865,13 +1865,6 @@ contains
         call error(tmpStr)
       end if
 
-      #:if WITH_OMP
-        if (omp_get_max_threads() > 1) then
-          call error("The ELSI-solvers should not be run with multiple threads. Set the&
-              & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
-        end if
-      #:endif
-
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
         this%tWriteHS = .false.
 
