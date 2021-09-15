@@ -12,7 +12,7 @@ module dftbp_common_timerarray
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_timer, only : TTimer
   implicit none
-  
+
   private
   public :: TTimerItem
   public :: TTimerArray, TTimerArray_init
@@ -188,7 +188,7 @@ contains
       else
         operation = " "
       end if
-      write(fp, "(A,A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+      write(fp, "(A,A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
           & prefix, trim(this%timerNames(iTimer)), operation, cpuTime,&
           & (cpuTime / totalCpu) * 100.0_dp, wallTime, (wallTime / totalWall) * 100.0_dp
       if (this%timerLevels(iTimer) == 1) then
@@ -197,10 +197,10 @@ contains
       end if
     end do
     write(fp, "(A)") repeat("-", 80)
-    write(fp, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+    write(fp, "(A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
         & "Missing", "+", abs(totalCpu - allCpu), abs(totalCpu - allCpu) / totalCpu * 100.0_dp,&
         & abs(totalWall - allWall), abs(totalWall - allWall) / totalWall * 100.0_dp
-    write(fp, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+    write(fp, "(A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
         & "Total", "=", totalCpu, 100.0_dp, totalWall, 100.0_dp
     write(fp, "(A)") repeat("-", 80)
 
