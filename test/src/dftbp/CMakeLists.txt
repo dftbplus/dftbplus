@@ -4,7 +4,7 @@ endif()
 
 if(WITH_API)
   add_subdirectory(api/mm)
-  if(BUILD_SHARED_LIBS)
+  if(BUILD_SHARED_LIBS AND WITH_PYTHON)
     add_subdirectory(api/pyapi)
   endif()
 endif()
