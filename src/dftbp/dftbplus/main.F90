@@ -1326,7 +1326,8 @@ contains
               & this%orb, this%potential, this%coord, this%latVec, this%invLatVec,&
               & this%cellVol, this%coord0, this%totalStress, this%totalLatDeriv,&
               & this%intPressure, this%iRhoPrim, this%solvation, this%dispersion,&
-              & this%halogenXCorrection, this%deltaDftb, this%tripletStress, this%mixedStress)
+              & this%halogenXCorrection, this%deltaDftb, this%derivs, this%tripletStress,&
+              & this%mixedStress)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
 
@@ -5804,7 +5805,7 @@ contains
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec,&
       & cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation,&
-      & dispersion, halogenXCorrection, deltaDftb, tripletStress, mixedStress)
+      & dispersion, halogenXCorrection, deltaDftb, derivs, tripletStress, mixedStress)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5905,6 +5906,9 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
+    !> Derivatives of the energy with respect to atomic displacements
+    real(dp), intent(in) :: derivs(:,:)
+
     !> Stress tensor in triplet state (TI-DFTB excited states)
     real(dp), intent(inout), optional :: tripletStress(:,:)
 
@@ -5987,7 +5991,9 @@ contains
     end if
 
     intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
-    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    ! dE/da = -V·σ·A⁻¹ - Σi dE/dRi·Ri·A⁻¹
+    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec) &
+        & - matmul(derivs, matmul(transpose(coord0), invLatVec))
 
   end subroutine getStress
 
