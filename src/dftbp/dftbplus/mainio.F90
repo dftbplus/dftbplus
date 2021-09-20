@@ -1886,7 +1886,6 @@ contains
     integer :: fdTmp
 
     if (present(fd)) then
-      !fd = getFileId()
       open(newunit=fd, file=fileName, action="write", status="replace")
       close(fd)
     else

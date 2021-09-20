@@ -196,8 +196,15 @@ contains
 
     !> transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
-
-
+    
+    logical :: writeTradip
+    logical :: writeCoeffsFile
+    logical :: writeMulliken
+    logical :: writeTrans
+    logical :: writeXplusY
+    logical :: writeArnoldiDiagnosis
+    integer :: fdExc
+    
     if (withArpack) then
 
       ! ARPACK library variables
@@ -220,12 +227,9 @@ contains
 
     end if
 
-    @:ASSERT(this%fdExc > 0)
-
-    ! work out which data files are required, based on whether they have valid file IDs (>0)
-    tMulliken = (this%fdMulliken > 0)
-    tCoeffs = (this%fdCoeffs > 0)
-    tTradip = (this%fdTradip > 0)
+    tMulliken = writeMulliken
+    tCoeffs = writeCoeffsFile
+    tTradip = writeTradip
 
     if (tMulliken) then
       open(newunit=this%fdMulliken, file=excitedQOut,position="rewind", status="replace")
@@ -234,7 +238,7 @@ contains
       close(this%fdMulliken)
     end if
 
-    @:ASSERT(this%fdArnoldi > 0)
+    @:ASSERT(this%tArnoldi)
     if (this%tArnoldi) then
       open(newunit=this%fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
@@ -450,17 +454,17 @@ contains
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), &
         & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
 
-    if (this%fdXplusY >  0) then
+    if (writeXplusY) then
       open(newunit=this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
 
-    if(this%fdTrans>0) then
+    if(writeTrans) then
       open(newunit=this%fdTrans, file=transitionsOut, position="rewind", status="replace")
       write(this%fdTrans,*)
     endif
 
     ! Many-body transition dipole file to excited states
-    if (this%fdTradip > 0) then
+    if (tTradip) then
       open(newunit=this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
@@ -470,19 +474,19 @@ contains
     endif
 
     ! excitation energies
-    open(newunit=this%fdExc, file=excitationsOut, position="rewind", status="replace")
-    write(this%fdExc,*)
+    open(newunit=fdExc, file=excitationsOut, position="rewind", status="replace")
+    write(fdExc,*)
     if (tSpin) then
-      write(this%fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
           & 'Weight', 'KS [eV]','D<S*S>'
     else
-      write(this%fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
           & 'Weight', 'KS [eV]','Sym.'
     end if
 
-    write(this%fdExc,*)
-    write(this%fdExc,'(1x,80("="))')
-    write(this%fdExc,*)
+    write(fdExc,*)
+    write(fdExc,'(1x,80("="))')
+    write(fdExc,*)
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
@@ -495,7 +499,7 @@ contains
       if (withArpack) then
         call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd,&
             & iAtomStart, stimc, grndEigVecs, filling, getia, gammaMat, species0, this%spinW,&
-            & transChrg, this%fdArnoldiDiagnosis, eval, evec, this%onSiteMatrixElements, orb)
+            & transChrg, writeArnoldiDiagnosis, eval, evec, this%onSiteMatrixElements, orb)
       else
         call error("No suitable eigensolver was compiled with this binary")
       end if
@@ -508,12 +512,12 @@ contains
         call getExcSpin(Ssq, nxov_ud(1), getia, win, eval, evec, wij(:nxov_rd), filling, stimc,&
             & grndEigVecs)
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getia, win, eval, evec,&
-            & wij(:nxov_rd), this%fdXplusY, this%fdTrans, this%fdTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, this%fdExc, Ssq)
+            & wij(:nxov_rd), writeXplusY, writeTrans, writeTradip, transitionDipoles,&
+            & tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
       else
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getia, win, eval, evec,&
-            & wij(:nxov_rd), this%fdXplusY, this%fdTrans, this%fdTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, this%fdExc)
+            & wij(:nxov_rd), writeXplusY, writeTrans, writeTradip, transitionDipoles,&
+            & tWriteTagged, fdTagged, taggedWriter, fdExc)
       end if
 
       if (allocated(allOmega)) then
@@ -532,10 +536,10 @@ contains
       close(this%fdArnoldi)
     end if
 
-    if (this%fdTrans > 0) close(this%fdTrans)
-    if (this%fdXplusY > 0) close(this%fdXplusY)
-    if (this%fdExc > 0) close(this%fdExc)
-    if (this%fdTradip > 0) close(this%fdTradip)
+    if (writeTrans) close(this%fdTrans)
+    if (writeXplusY) close(this%fdXplusY)
+    close(fdExc)
+    if (writeTradip) close(this%fdTradip)
 
     ! Remove some un-used memory
     deallocate(snglPartTransDip)
@@ -658,7 +662,7 @@ contains
 
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
-      & grndEigVecs, filling, getia, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
+      & grndEigVecs, filling, getia, gammaMat, species0, spinW, transChrg, writeArnoldiDiagnosis,&
       & eval, evec, onsMEs, orb)
 
     !> spin polarisation?
@@ -732,6 +736,8 @@ contains
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
+
+    logical :: writeArnoldiDiagnosis
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
@@ -816,7 +822,7 @@ contains
 
     end if
 
-    if (fdArnoldiDiagnosis > 0) then
+    if (writeArnoldiDiagnosis) then
       ! tests for quality of returned eigenpairs
       open(newunit=fdArnoldiDiagnosis, file=testArpackOut, position="rewind", status="replace")
       ALLOCATE(Hv(nxov))
@@ -2111,8 +2117,9 @@ contains
 
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
-  subroutine writeExcitations(sym, osz, nexc, nmatup, getia, win, eval, evec, wij, fdXplusY,&
-      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
+  subroutine writeExcitations(sym, osz, nexc, nmatup, getia, win, eval, evec, wij, writeXplusY,&
+      & writeTrans, writeTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc,&
+      & Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2148,13 +2155,13 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file unit for transition dipoles
-    integer, intent(in) :: fdTradip
+    integer :: fdTradip
 
     !> file unit for X+Y data
-    integer, intent(in) :: fdXplusY
+    integer :: fdXplusY
 
     !> file unit for transitions
-    integer, intent(in) :: fdTrans
+    integer :: fdTrans
 
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
@@ -2181,7 +2188,9 @@ contains
     integer, allocatable :: degenerate(:,:)
     real(dp), allocatable :: oDeg(:)
 
-    @:ASSERT(fdExc > 0)
+    logical :: writeTradip
+    logical :: writeXplusY
+    logical :: writeTrans
 
     tSpin = present(Ssq)
     nmat = size(wij)
@@ -2193,7 +2202,7 @@ contains
     wvin(:) = 0
     xply(:) = 0.0_dp
 
-    if(fdXplusY > 0) then
+    if(writeXplusY) then
       write(fdXplusY,*) nmat, nexc
     end if
 
@@ -2232,7 +2241,7 @@ contains
               & Hartree__eV * wij(iWeight), sign
         end if
 
-        if(fdXplusY > 0) then
+        if(writeXplusY) then
           if (tSpin) then
             updwn = (win(iweight) <= nmatup)
             sign = "D"
@@ -2242,7 +2251,7 @@ contains
           write(fdXplusY,'(6(1x,ES17.10))') xply
         endif
 
-        if (fdTrans > 0) then
+        if (writeTrans) then
           write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)')&
               & 'Energy ', ii,  Hartree__eV * sqrt(eval(ii)), 'eV', sign
           write(fdTrans,*)
@@ -2265,7 +2274,7 @@ contains
           write(fdTrans,*)
         end if
 
-        if (fdTradip > 0) then
+        if (writeTradip) then
           write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
               & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
               & * au__Debye, jj=1,3)
@@ -2295,7 +2304,7 @@ contains
               & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * wij(iWeight), sign
         end if
 
-        if(fdXplusY > 0) then
+        if(writeXplusY) then
           if (tSpin) then
             updwn = (win(iweight) <= nmatup)
             sign = "D"
@@ -2304,13 +2313,13 @@ contains
           write(fdXplusY,'(1x,i5,3x,a,3x,A)') ii,sign, '-'
         endif
 
-        if (fdTrans > 0) then
+        if (writeTrans) then
           write(fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)')&
               & 'Energy ', ii,  '-', 'eV', sign
           write(fdTrans,*)
         end if
 
-        if(fdTradip > 0) then
+        if(writeTradip) then
           write(fdTradip, '(1x,i5,1x,A)') ii, '-'
         endif
 
@@ -2329,7 +2338,7 @@ contains
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
-        if (fdTradip > 0) then
+        if (writeTradip) then
           call taggedWriter%write(fdTagged, tagLabels%excDipole,&
               & sqrt(sum(transitionDipoles**2,dim=2)))
         end if
@@ -2342,7 +2351,7 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
-        if (fdTradip > 0) then
+        if (writeTradip) then
           oDeg(:) = 0.0_dp
           do ii = 1, size(oDeg)
             oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))

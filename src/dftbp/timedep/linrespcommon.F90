@@ -1123,7 +1123,8 @@ contains
     integer, intent(in) :: getia(:,:)
 
     !> file descriptor for the single particle excitation data
-    integer :: fdSPTrans
+    integer, intent(out) :: fdSPTrans
+    logical :: writeSPTrans
 
     !> single particle oscilation strengths
     real(dp), intent(in) :: sposz(:)
@@ -1141,7 +1142,7 @@ contains
 
     @:ASSERT(size(sposz)>=nxov)
 
-    if (fdSPTrans > 0) then
+    if (writeSPTrans) then
       ! single particle excitations
       open(newunit=fdSPTrans, file=singlePartOut, position="rewind", status="replace")
       write(fdSPTrans,*)

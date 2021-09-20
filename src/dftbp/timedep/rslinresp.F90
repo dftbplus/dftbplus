@@ -727,7 +727,7 @@ contains
       & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
       & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
       & fdMulliken, fdCoeffs, fdXplusY, fdTrans, fdSPTrans, fdTraDip, fdTransQ, tArnoldi,&
-      & fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow,&
+      & fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow,&
       & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
@@ -860,13 +860,12 @@ contains
     @:ASSERT(present(shift) .eqv. present(skHamCont))
     @:ASSERT(present(skHamCont) .eqv. present(skOverCont))
 
-    ! work out which data files are required, based on whether they have valid file IDs (>0)
-    tMulliken = (fdMulliken > 0)
-    tCoeffs = (fdCoeffs > 0)
-    tTraDip = (fdTraDip > 0)
-    tTransQ = (fdTransQ > 0)
-    tTrans = (fdTrans > 0)
-    tXplusY = (fdXplusY > 0)
+    tMulliken = writeMulliken
+    tCoeffs = writeCoeffsFile
+    tTradip = writeTradip
+    tTransQ = writeTransQ
+    tTrans = writeTrans 
+    tXplusY = writeXplusY
 
     if (tMulliken) then
       open(newunit=fdMulliken, file=excitedQOut, position="rewind", status="replace")
@@ -875,7 +874,7 @@ contains
       close(fdMulliken)
     end if
 
-    @:ASSERT(fdArnoldi > 0)
+    @:ASSERT(this%tArnoldi)
     if (tArnoldi) then
       open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
@@ -1193,10 +1192,10 @@ contains
       close(fdArnoldi)
     end if
 
-    if (fdTrans > 0) close(fdTrans)
-    if (fdXplusY > 0) close(fdXplusY)
-    if (fdExc > 0) close(fdExc)
-    if (fdTraDip > 0) close(fdTraDip)
+    if (writeTrans) close(fdTrans)
+    if (writeXplusY) close(fdXplusY)
+    close(fdExc)
+    if (writeTradip) close(fdTraDip)
 
     if (nStat == 0) then
       omega = 0.0_dp
@@ -1624,8 +1623,6 @@ contains
     logical :: lUpdwn, tSpin
     character :: cSign
 
-    @:ASSERT(fdExc > 0)
-
     tSpin = present(Ssq)
     nMat = size(wIJ)
     allocate(vecW(nMat))
@@ -1637,7 +1634,7 @@ contains
     eDeg = 0.0_dp
     oDeg = 0.0_dp
 
-    if(fdXplusY > 0) then
+    if(writeXplusY) then
       write(fdXplusY,*) nMat, nExc
     end if
 
@@ -1669,7 +1666,7 @@ contains
               & Hartree__eV * wIJ(iWeight), cSign
         end if
 
-        if (fdXplusY > 0) then
+        if (writeXplusY) then
           if (tSpin) then
             lUpdwn = (win(iWeight) <= nMatUp)
             cSign = "D"
@@ -1679,7 +1676,7 @@ contains
           write(fdXplusY, '(6(1x,ES17.10))') mXpYall(:,i)
         end if
 
-        if (fdTrans > 0) then
+        if (writeTrans) then
           write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)')&
               & 'Energy ', i, Hartree__eV * sqrt(eval(i)), 'eV', cSign
           write(fdTrans, *)
@@ -1701,7 +1698,7 @@ contains
           write(fdTrans, *)
         end if
 
-        if(fdTraDip > 0) then
+        if(writeTradip) then
           write(fdTraDip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
               & i, Hartree__eV * sqrt(eval(i)), (transitionDipoles(i,j) * au__Debye, j=1,3)
         end if
@@ -1726,7 +1723,7 @@ contains
               & '< 0', oscStrength(i), m, '->', n, weight, Hartree__eV * wIJ(iWeight), cSign
         end if
 
-        if (fdXplusY > 0) then
+        if (writeXplusY) then
           if (tSpin) then
             lUpdwn = (win(iWeight) <= nMatUp)
             cSign = "D"
@@ -1735,12 +1732,12 @@ contains
           write(fdXplusY, '(1x,i5,3x,a,3x,A)') i, cSign, '-'
         end if
 
-        if (fdTrans > 0) then
+        if (writeTrans) then
           write (fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)') 'Energy ', i,  '-', 'eV', cSign
           write (fdTrans,*)
         end if
 
-        if(fdTraDip > 0) then
+        if(writeTradip) then
           write(fdTraDip, '(1x,i5,1x,A)') i, '-'
         end if
 
@@ -1853,7 +1850,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
           & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
@@ -1867,7 +1864,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
           & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
