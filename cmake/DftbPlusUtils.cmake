@@ -223,6 +223,10 @@ function (dftbp_ensure_config_consistency)
 
   endif()
 
+  # Check minimal compiler versions
+  set(fortran_minimal_versions "GNU;9.0" "Intel;18.0" "NAG;7.0")
+  dftbp_check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
+
   # Note: The consistency check below will / can not be executed in multi-config mode
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND CMAKE_BUILD_TYPE)
     string(TOUPPER "${CMAKE_BUILD_TYPE}" _buildtype)
@@ -231,27 +235,6 @@ function (dftbp_ensure_config_consistency)
         "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
 Disable OpenMP (WITH_OMP) when compiling in debug mode")
     endif()
-  endif()
-
-  # Make sure Intel has the proper flag
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel" AND CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 18.0)
-    if(CMAKE_BUILD_TYPE)
-      set(_buildtypes "${CMAKE_BUILD_TYPE}")
-    else()
-      set(_buildtypes "${CMAKE_CONFIGURATION_TYPES}")
-    endif()
-    foreach(_buildtype IN LISTS _buildtypes)
-      string(TOUPPER "${_buildtype}" _buildtype_upper)
-      set(_flags "${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${_buildtype_upper}}")
-      string(FIND "${_flags} "  "-standard-semantics" pos1)
-      string(FIND "${_flags}" "realloc_lhs" pos2)
-      string(FIND "${_flags}" "norealloc_lhs" pos3)
-      if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-        message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
-          "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
-          "code (missing flag in build type '${_buildtype}'")
-      endif()
-    endforeach()
   endif()
 
   set(pkgconfig_languages C Fortran)
@@ -699,4 +682,26 @@ function (dftbp_create_lcov_targets lcov genhtml lcov_output_dir lcov_base_dir l
 
   endif()
 
+endfunction()
+
+
+# Checks whether the current compiler fullfills minimal version requirements.
+#
+#
+# Arguments:
+#   lang [in]: Language for which the compiler should be checked (e.g. Fortran, C, CXX)
+#   compiler_versions [in]: List with alternating compiler ids and minimal version numbers, e.g.
+#       "Intel;19.0;GNU;9.0". If the compiler is amoung the listed ones and its version number is
+#       less than the specified one, a fatal error message will be issued. Otherwise the function
+#       returns silently.
+#
+function (dftbp_check_minimal_compiler_version lang compiler_versions)
+  while(compiler_versions)
+    list(POP_FRONT compiler_versions compiler version)
+    if("${CMAKE_${lang}_COMPILER_ID}" STREQUAL "${compiler}"
+        AND CMAKE_${lang}_COMPILER_VERSION VERSION_LESS "${version}")
+      message(FATAL_ERROR "${compiler} ${lang} compiler is too old "
+          "(found \"${CMAKE_${lang}_COMPILER_VERSION}\", required >= \"${version}\")")
+    endif()
+  endwhile()
 endfunction()
