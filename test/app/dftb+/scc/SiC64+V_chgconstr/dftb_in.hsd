@@ -88,10 +88,10 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 40.0
   }
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
-    Si-C = "./Si-C.skf"
-    C-Si = "./C-Si.skf"
-    C-C = "./C-C.skf"
+    Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
+    Si-C = "slakos/origin/pbc-0-3/Si-C.skf"
+    C-Si = "slakos/origin/pbc-0-3/C-Si.skf"
+    C-C = "slakos/origin/pbc-0-3/C-C.skf"
   }
   LocalPotentials = {
     ChargeConstraint = {

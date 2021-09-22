@@ -11,6 +11,7 @@
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
+  use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
@@ -1269,6 +1270,8 @@ contains
     integer :: nShell, skInterMeth
     logical :: tBadIntegratingKPoints
     real(dp) :: rSKCutOff
+    type(string), allocatable :: searchPath(:)
+    character(len=:), allocatable :: strOut
 
     !> For range separation
     type(TRangeSepSKTag) :: rangeSepSK
@@ -1283,6 +1286,7 @@ contains
     call setupOrbitals(slako%orb, geo, angShells)
 
     ! Slater-Koster files
+    call getParamSearchPath(searchPath)
     allocate(skFiles(geo%nSpecies, geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       do iSp2 = 1, geo%nSpecies
@@ -1314,6 +1318,8 @@ contains
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) &
               &// trim(elem2) // trim(suffix)
+          call findFile(searchPath, strTmp, strOut)
+          if (allocated(strOut)) strTmp = strOut
           call append(skFiles(iSp2, iSp1), strTmp)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
@@ -1336,6 +1342,8 @@ contains
           end if
           do ii = 1, len(lStr)
             call get(lStr, strTmp, ii)
+            call findFile(searchPath, strTmp, strOut)
+            if (allocated(strOut)) strTmp = strOut
             inquire(file=strTmp, exist=tExist)
             if (.not. tExist) then
               call detailedError(child2, "SK file '" // trim(strTmp) &
@@ -1767,9 +1775,11 @@ contains
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
+    type(string), allocatable :: searchPath(:)
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
     integer :: method
+    character(len=:), allocatable :: paramFile, paramTmp
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
@@ -1794,7 +1804,12 @@ contains
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
       call getChildValue(node, "ParameterFile", buffer)
-      call ctrl%tbliteInp%setupCalculator(trim(unquote(char(buffer))))
+      paramFile = trim(unquote(char(buffer)))
+      call getParamSearchPath(searchPath)
+      call findFile(searchPath, paramFile, paramTmp)
+      if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
+      write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
+      call ctrl%tbliteInp%setupCalculator(paramFile)
     end if
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
@@ -3346,6 +3361,7 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
+            write(stdOut, "(a)") trim(fileName)
             if (.not. present(rangeSepSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1)
@@ -7643,5 +7659,6 @@ contains
     call detailedError(node, "Program version '"// trim(versionString) // "' is not recognized")
 
   end function parserVersionFromInputVersion
+
 
 end module dftbp_dftbplus_parser

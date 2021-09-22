@@ -1478,6 +1478,9 @@ is built with support for a communication bridge to the \texttt{tblite} library.
   be generated using the \texttt{tblite} command line driver.
   If present \kw{Method} must not be provided.
 
+  This file is additionally searched for in the directory specified with the
+  \texttt{DFTBPLUS\_PARAM\_DIR} environment variable.
+
 \item[\is{SCCTolerance}] Stopping criteria for the SCC.  Specifies the
   tolerance for the maximum difference in any charge between two SCC
   cycles.
@@ -2256,6 +2259,9 @@ S0 -> S1:                            0.2615036445 H            7.1159 eV
 There are two different ways to specify the Slater-Koster files for
 the atom type pairs, explicit specification and using the
 \iscb{Type2FileNames} method.
+
+All specified Slater-Koster files are additionally searched for in directory specified in the
+\texttt{DFTBPLUS\_PARAM\_DIR} environment variable.
 
 \subsubsection{Explicit specification}
 
@@ -3475,6 +3481,9 @@ systems.
     values for \is{FreeEnergyShift}, \is{BornOffset}, \is{BornScale}, \is{SASA\cb}
     \is{Descreening}, \is{HBondCorr} and \is{HBondStrength}.
     Usually no other keywords need to be specified when \is{ParamFile} is present.
+
+    This file is additionally searched for in the directory specified with the
+    \texttt{DFTBPLUS\_PARAM\_DIR} environment variable.
 
   \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
     by providing the solvent name as string in the \is{FromName\cb} method or

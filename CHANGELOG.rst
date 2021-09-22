@@ -15,6 +15,9 @@ Addded
 
 - Support for extended tight binding (xTB) Hamiltonian via tblite library
 
+- DFTBPLUS_PARAM_DIR for searching Slater-Koster parameter files, solvation parameter files,
+  and xTB parameter files
+
 Changed
 -------
 

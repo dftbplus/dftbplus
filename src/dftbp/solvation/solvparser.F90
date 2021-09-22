@@ -13,6 +13,7 @@ module dftbp_solvation_solvparser
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, massUnits, &
       & massDensityUnits, inverseLengthUnits
@@ -98,8 +99,10 @@ contains
     type(fnode), pointer :: child, value1, field
     logical :: found, tHBondCorr, tALPB
     real(dp) :: temperature, shift, alphaALPB
+    type(string), allocatable :: searchPath(:)
     type(TSolventData) :: solvent
     real(dp), parameter :: alphaDefault = 0.571412_dp
+    character(len=:), allocatable :: paramFile, paramTmp
 
     if (geo%tPeriodic .or. geo%tHelical) then
       call detailedError(node, "Generalized Born model currently not available with the&
@@ -110,10 +113,12 @@ contains
     if (associated(value1)) then
       allocate(defaults)
       call getChildValue(node, "ParamFile", buffer, "", child=child)
-      write(stdOut, '(a)') "Reading GBSA parameter file "//char(buffer)
-      call readParamGBSA(unquote(char(buffer)), defaults, solvent, &
-          & geo%speciesNames, node=child)
-
+      paramFile = trim(unquote(char(buffer)))
+      call getParamSearchPath(searchPath)
+      call findFile(searchPath, paramFile, paramTmp)
+      if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
+      write(stdOut, '(a)') "Reading GBSA parameter file '"//paramFile//"'"
+      call readParamGBSA(paramFile, defaults, solvent, geo%speciesNames, node=child)
     else
       call readSolvent(node, solvent)
     end if
