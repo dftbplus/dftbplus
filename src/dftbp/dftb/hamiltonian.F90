@@ -72,6 +72,9 @@ contains
     if (allocated(potential%extOnSiteAtom)) then
       potential%extOnSiteAtom(:,:) = 0.0_dp
     end if
+    if (allocated(potential%extDipoleAtom)) then
+      potential%extDipoleAtom(:, :) = 0.0_dp
+    end if
 
   end subroutine resetExternalPotentials
 
@@ -90,6 +93,9 @@ contains
 
     call totalShift(potential%extShell, potential%extAtom, orb, species)
     call totalShift(potential%extBlock, potential%extShell, orb, species)
+    if (allocated(potential%extDipoleAtom)) then
+      potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad
+    end if
 
   end subroutine mergeExternalPotentials
 
@@ -356,6 +362,7 @@ contains
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom
+    real(dp), allocatable :: dipoleAtom(:, :)
 
     nAtom = size(orb%nOrbAtom)
 
@@ -375,9 +382,13 @@ contains
     end if
 
     if (allocated(potential%dipoleAtom)) then
+      dipoleAtom = potential%dipoleAtom
+      if (allocated(potential%extDipoleAtom)) then
+        dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+      end if
       call addAtomicMultipoleShift(ham, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
           & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
-          & potential%dipoleAtom)
+          & dipoleAtom)
     end if
 
     if (allocated(potential%quadrupoleAtom)) then

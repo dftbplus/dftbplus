@@ -1560,11 +1560,11 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
-    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%speciesAll,&
-        & this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList,&
-        & nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy,&
-        & thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
-        & tFixEf, Ef, onSiteElements)
+    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
+        & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
+        & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
+        & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
+        & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies

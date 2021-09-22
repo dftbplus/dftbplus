@@ -31,6 +31,7 @@ module dftbp_dftb_getenergies
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_multipole, only : TMultipole
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only: TDispMbd
 #:endif
@@ -43,11 +44,12 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, tblite, qOrb, q0, chargePerShell, species, isExtField,&
-      & isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK,&
-      & img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd,&
-      & solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
-      & tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt, vOnSiteAtomExt)
+  subroutine calcEnergies(sccCalc, tblite, qOrb, q0, chargePerShell, multipole, species,&
+      & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
+      & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, &
+      & energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt,&
+      & vOnSiteAtomExt)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -161,6 +163,9 @@ contains
     !> On-site only (external) potential
     real(dp), intent(in), optional :: vOnSiteAtomExt(:,:)
 
+    !> Multipole moments
+    type(TMultipole), intent(in) :: multipole
+
     integer :: nSpin
     real(dp) :: nEl(2)
 
@@ -176,6 +181,10 @@ contains
     if (isExtField) then
       energy%atomExt(:) = energy%atomExt&
           & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
+      if (allocated(potential%extDipoleAtom) .and. allocated(multipole%dipoleAtom)) then
+        energy%atomExt(:) = energy%atomExt &
+            & - sum(potential%extDipoleAtom * multipole%dipoleAtom, 1)
+      end if
     end if
     if (allocated(qDepExtPot)) then
       call qDepExtPot%addEnergy(energy%atomExt)

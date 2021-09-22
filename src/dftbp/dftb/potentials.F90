@@ -73,6 +73,9 @@ module dftbp_dftb_potentials
     !> Atomic quadrupolar contribution to the Hamiltonian
     real(dp), allocatable :: quadrupoleAtom(:,:)
 
+    !> External dipolar contribution to the Hamiltonian
+    real(dp), allocatable :: extDipoleAtom(:,:)
+
   end type TPotentials
 
 
@@ -149,6 +152,8 @@ contains
     if (nDipole > 0) then
       allocate(this%dipoleAtom(nDipole, nAtom))
       this%dipoleAtom(:,:) = 0.0_dp
+      allocate(this%extDipoleAtom(nDipole, nAtom))
+      this%extDipoleAtom(:,:) = 0.0_dp
     end if
     if (nQuadrupole > 0) then
       allocate(this%quadrupoleAtom(nQuadrupole, nAtom))
