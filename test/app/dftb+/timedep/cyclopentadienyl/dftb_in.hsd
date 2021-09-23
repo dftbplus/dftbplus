@@ -31,7 +31,7 @@ Hamiltonian = DFTB {
         UnpairedElectrons = 1
     }
     SlaterKosterFiles = Type2FileNames {
-        Prefix = "./"
+        Prefix = "slakos/origin/mio-1-1/"
         Separator = "-"
         Suffix = ".skf"
     }

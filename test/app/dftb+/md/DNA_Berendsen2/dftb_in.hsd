@@ -84,7 +84,7 @@ Driver = VelocityVerlet {
 Hamiltonian = DFTB {
   SCC = Yes
   SlaterKosterFiles = Type2FileNames {
-    Prefix = "./"
+    Prefix = "slakos/origin/mio-1-1/"
     Separator = "-"
     Suffix = ".skf"
   }

@@ -14,6 +14,7 @@ Hamiltonian = DFTB {
         Temperature [Kelvin] = 40
     }
     SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/mio-1-1/}
         Separator = "-"
         Suffix = ".skf"
     }
