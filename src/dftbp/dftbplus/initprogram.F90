@@ -1275,7 +1275,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized, tGeoOptRequiresEgy
+    logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
 
     !> Format for two using exponential notation values with units
@@ -2304,9 +2304,11 @@ contains
         call error("This binary has been compiled without support for linear response&
             & calculations.")
       end if
+      isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
-          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec, input)
+          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
+          & isOnsiteCorrected, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(this%nType))
@@ -5148,32 +5150,14 @@ contains
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
-    if (this%isRS_LinResp) then
-
-      if (allocated(this%onSiteElements)) then
-        call error("Excited state range separated calculations not implemented for onsite&
-            & corrections")
-      end if
-
-      if (this%nSpin > 1) then
-        call error("Excited state range separated calculations not implemented for spin polarized&
-            & calculations")
-      end if
-
-      if (this%linearResponse%symmetry /= "S") then
-        call error("Excited state range separated calculations currently only implemented for&
-            & singlet excitaions")
-      end if
-
-    end if
-
   end subroutine ensureRangeSeparatedReqs
 
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, input)
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected,&
+      & input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5213,6 +5197,9 @@ contains
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
+
+    !> Is this a onsite corrected TD-DFTB calculation?
+    logical, intent(in) :: isOnsiteCorrected
 
     !> Holds the parsed input data.
     type(TInputData), intent(in), target :: input
@@ -5273,15 +5260,27 @@ contains
       end if
     end if
 
+    if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
+      call error("Onsite corrections not implemented for Stratmann diagonalizer.")  
+    end if
+
     if (isRS_LinResp) then
+      if (input%ctrl%lrespini%tUseArpack) then
+        call error("TD-LC-DFTB implemented only for Stratmann diagonalizer.")  
+      end if
       if (tPeriodic) then
         call error("Range separated excited states for periodic geometries are currently&
             & unavailable")
       end if
-      if (nSpin > 1) then
-        call error("Range separated excited states for spin polarized calculations are currently&
-            & unavailable")
+      if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
+        call error("Range separated excited states not available for window options.")
+      end if 
+      if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
+        call warning("Range separated excited states not well tested for triplet excited states!")
       end if
+      if (input%ctrl%tSpin) then
+        call warning("Range separated excited states not well tested for spin-polarized systems!")
+      end if 
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")

@@ -17,7 +17,7 @@ module dftbp_common_constants
   public :: Hartree__cm, Debye__au, au__Debye, pascal__au, au__pascal, V_m__au, au__V_m
   public :: avogadConst, Hartree__kJ_mol, Bohr__nm, au__ps, goldenMeanP1, maxL, nShellName
   public :: shellNames, spinName, quaternionName, imag, elementSymbol
-  public :: symbolToNumber
+  public :: symbolToNumber, cExchange
 
   !! Natural constants
 
@@ -135,7 +135,10 @@ module dftbp_common_constants
   real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
 
   !> a.u. to ps
-  real(dp), parameter :: au__ps = au__fs / 1000.0_dp 
+  real(dp), parameter :: au__ps = au__fs / 1000.0_dp
+
+  !> fraction of Hartree-Fock exchange in LC functionals
+  real(dp), parameter :: cExchange = 1.0_dp
 
   !> Golden mean plus one
   real(dp), parameter :: goldenMeanP1 = 1.6180339887498949_dp

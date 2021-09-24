@@ -92,6 +92,8 @@ rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
 rangesep/C4H6-Casida-S1-Force          #? not WITH_MPI and WITH_ARPACK
 rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI and WITH_ARPACK
+rangesep/C4H6-TD-LC-Triplet            #? not WITH_MPI and WITH_ARPACK
+rangesep/Benzene-TD-LC-Spinpol         #? not WITH_MPI and WITH_ARPACK	
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
