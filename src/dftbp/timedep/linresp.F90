@@ -29,6 +29,7 @@ module dftbp_timedep_linresp
   use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   implicit none
   
   private
@@ -247,7 +248,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, excEnergy, allExcEnergies)
+      & taggedWriter, rangeSep, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
@@ -300,10 +301,13 @@ contains
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> excitation energy (only when nStat /=0, otherwise set numerically 0)
+    !> Data for rangeseparated calcualtion
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
-    !> energies of all solved states
+    !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     if (withArpack) then
@@ -311,7 +315,7 @@ contains
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, excEnergy, allExcEnergies)
+          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
@@ -322,8 +326,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & tWriteTagged, fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
+      & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -340,7 +344,7 @@ contains
     !> ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix (must be symmetrized)
+    !> square overlap matrix (must be symmetriezed)
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> ground state occupations
@@ -379,6 +383,9 @@ contains
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
+    !> difference density matrix (vs. uncharged atoms)
+    real(dp), intent(inout) :: deltaRho(:,:,:)
+
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -388,10 +395,13 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
+    !> Data for range-separated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
 
-    !> energies of all solved states
+    !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     !> contribution to forces from derivative of excited state energy
@@ -420,13 +430,13 @@ contains
       if (allocated(occNatural)) then
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, &
+            & skOverCont, excgradient, derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, shiftPerAtom, skHamCont,&
+            & skOverCont, excgradient, derivator, rhoSqr, deltaRho)
       end if
 
     else
