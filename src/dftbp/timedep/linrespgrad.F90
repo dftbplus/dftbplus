@@ -3479,7 +3479,6 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
-        call indXov(win, ibs, getIA, i, b, s)
         qIJ = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(a,b,s)
       end do
