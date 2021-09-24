@@ -836,7 +836,7 @@ contains
     natom = size(gammaMat, dim=1)
     
     @:ASSERT(all(shape(xpy) == [ nxov_rd, nexc ]))
-    @:ASSERT(tRangeSep == .false.)
+    @:ASSERT(tRangeSep .eqv. .false.)
 
     ! Three times more Lanczos vectors than desired eigenstates
     ncv = min(3 * nexc, nxov_rd)
