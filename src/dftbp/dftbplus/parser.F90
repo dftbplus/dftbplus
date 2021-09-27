@@ -47,6 +47,7 @@ module dftbp_dftbplus_parser
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
       & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
   use dftbp_geoopt_geoopt, only : geoOptTypes
+  use dftbp_geoopt_parser, only : readGeoOptimizer
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
@@ -462,9 +463,20 @@ contains
     case ("none")
       modeName = ""
       continue
+    case ("geometryoptimization")
+      modeName = "geometry optimization"
+
+      allocate(ctrl%geoOpt)
+      call readGeoOptimizer(node, ctrl%geoOpt, geom)
+
+      ctrl%tForces = .true.
+      ctrl%restartFreq = 1
+
     case ("steepestdescent")
 
       modeName = "geometry relaxation"
+      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+          & "Please use the GeometryOptimization driver instead.")
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
@@ -477,6 +489,8 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
+      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+          & "Please use the GeometryOptimization driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -489,6 +503,8 @@ contains
     case("gdiis")
 
       modeName = "geometry relaxation"
+      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+          & "Please use the GeometryOptimization driver instead.")
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
@@ -503,6 +519,8 @@ contains
     case ("lbfgs")
 
       modeName = "geometry relaxation"
+      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+          & "Please use the GeometryOptimization driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
 
@@ -528,6 +546,8 @@ contains
     case ("fire")
 
       modeName = "geometry relaxation"
+      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+          & "Please use the GeometryOptimization driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
       #:if WITH_TRANSPORT
@@ -3787,7 +3807,7 @@ contains
         &.false.)
 
 
-    if (.not.(ctrl%tMD.or.ctrl%isGeoOpt)) then
+    if (.not.(ctrl%tMD.or.ctrl%isGeoOpt.or.allocated(ctrl%geoOpt))) then
       if (ctrl%tSCC) then
         call getChildValue(node, "RestartFrequency", ctrl%restartFreq, 20)
       else

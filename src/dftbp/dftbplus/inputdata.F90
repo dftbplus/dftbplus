@@ -24,6 +24,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
+  use dftbp_geoopt_input, only : TGeoOptInput
   use dftbp_io_message, only : error, warning
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_reks_reks, only : TReksInp
@@ -489,6 +490,9 @@ module dftbp_dftbplus_inputdata
 
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
+
+    !> Geometry optimizer input
+    type(TGeoOptInput), allocatable :: geoOpt
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
