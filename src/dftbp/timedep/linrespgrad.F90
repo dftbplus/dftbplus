@@ -806,7 +806,7 @@ contains
     real(dp), intent(out) :: xpy(:,:)
 
     !> eigenvectors (X-Y), only evaluated if Z-vector is needed
-    real(dp), intent(out) :: xmy(:,:)
+    real(dp), intent(inout), allocatable :: xmy(:,:)
 
     !> onsite corrections if in use
     real(dp), allocatable :: onsMEs(:,:,:,:)
@@ -940,6 +940,10 @@ contains
       close(fdArnoldiDiagnosis)
     end if
 
+    if (tZVector) then
+      xmy(:,:) = 0.0_dp
+    end if
+
     ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
     do iState = 1, nExc
       omega = sqrt(eval(iState))
@@ -1049,7 +1053,7 @@ contains
     real(dp), intent(out) :: xpy(:,:)
 
     !> eigenvectors (X-Y), only evaluated if Z-vector is needed
-    real(dp), intent(out) :: xmy(:,:)
+    real(dp), intent(inout), allocatable :: xmy(:,:)
 
     !> onsite corrections if in use
     real(dp), allocatable :: onsMEs(:,:,:,:)
@@ -1123,6 +1127,10 @@ contains
     do ii = 1, subSpaceDim
       vecB(ii, ii) = 1.0_dp
     end do
+
+    if (tZVector) then
+      xmy(:,:) = 0.0_dp
+    end if
 
     prevSubSpaceDim = 0
     didConverge = .false.

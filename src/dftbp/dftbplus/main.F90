@@ -4227,7 +4227,7 @@ contains
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> difference density matrix (vs. uncharged atoms) in dense form
-    real(dp), intent(inout) :: deltaRhoOutSqr(:,:,:)
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
     !> excited state energy derivative with respect to atomic coordinates
     real(dp), intent(inout), allocatable :: excitedDerivs(:,:)
