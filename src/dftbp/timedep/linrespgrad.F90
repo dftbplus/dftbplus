@@ -80,8 +80,8 @@ contains
   !> based on Time Dependent DFRT
   subroutine LinRespGrad_old(tSpin, this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
       & SSqr, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, rangeSep, omega, allOmega, shift, skHamCont, skOverCont, excgrad, derivator,&
-      & rhoSqr, deltaRho, occNatural, naturalOrbs)
+      & taggedWriter, rangeSep, omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad,&
+      & derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -142,6 +142,9 @@ contains
     !> excitation energy of all states that have been solved
     real(dp), allocatable, intent(inout) :: allOmega(:)
 
+    !> difference density matrix (vs. uncharged atoms)
+    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -159,9 +162,6 @@ contains
 
     !> ground state density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
-
-    !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout), optional :: deltaRho(:,:,:)
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
@@ -2393,7 +2393,7 @@ contains
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout) :: deltaRho(:,:,:)
+    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
 
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep

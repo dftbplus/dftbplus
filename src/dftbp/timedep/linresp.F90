@@ -310,12 +310,14 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
+    real(dp), pointer :: dummyPtr(:,:,:) => null()
+
     if (withArpack) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies)
+          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
@@ -384,7 +386,7 @@ contains
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout) :: deltaRho(:,:,:)
+    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
 
     !> print tag information
     logical, intent(in) :: tWriteTagged
@@ -430,13 +432,13 @@ contains
       if (allocated(occNatural)) then
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, rangeSep, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, &
-            & skOverCont, excgradient, derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
+            & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, rangeSep, excEnergy, allExcEnergies, shiftPerAtom, skHamCont,&
-            & skOverCont, excgradient, derivator, rhoSqr, deltaRho)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
+            & skOverCont, excgradient, derivator, rhoSqr)
       end if
 
     else
