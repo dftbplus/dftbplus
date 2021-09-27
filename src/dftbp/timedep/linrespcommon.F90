@@ -907,7 +907,7 @@ contains
     real(dp), intent(in) :: gamma(:,:)
 
     !> DFTB gamma matrix (long-range corrected)
-    real(dp), intent(in) :: lrGamma(:,:)
+    real(dp), intent(in), allocatable :: lrGamma(:,:)
 
     !> index array for excitations
     integer, intent(in) :: getIA(:,:)
