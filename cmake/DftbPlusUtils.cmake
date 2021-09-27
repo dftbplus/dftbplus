@@ -224,7 +224,7 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   # Check minimal compiler versions
-  set(fortran_minimal_versions "GNU;9.0" "Intel;18.0" "NAG;7.0")
+  set(fortran_minimal_versions "GNU;7.5" "Intel;18.0" "NAG;7.0")
   dftbp_check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
   # Note: The consistency check below will / can not be executed in multi-config mode
