@@ -1108,7 +1108,7 @@ contains
 
 
   !> Write single particle excitations to a file
-  subroutine writeSPExcitations(wij, win, nmatup, getia, fdSPTrans, sposz, nxov, tSpin)
+  subroutine writeSPExcitations(wij, win, nmatup, getia, writeSPTrans, sposz, nxov, tSpin)
 
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
@@ -1123,7 +1123,7 @@ contains
     integer, intent(in) :: getia(:,:)
 
     !> file descriptor for the single particle excitation data
-    integer, intent(out) :: fdSPTrans
+    integer :: fdSPTrans
     logical :: writeSPTrans
 
     !> single particle oscilation strengths

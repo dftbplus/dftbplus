@@ -726,7 +726,7 @@ contains
   subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc,&
       & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
       & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
-      & fdMulliken, fdCoeffs, fdXplusY, fdTrans, fdSPTrans, fdTraDip, fdTransQ, tArnoldi,&
+      & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip, writeTransQ, tArnoldi,&
       & fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow,&
       & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
@@ -755,26 +755,35 @@ contains
     !logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTraDip, tArnoldi
 
     !> file unit for excited Mulliken populations?
-    integer, intent(in) :: fdMulliken
+    integer :: fdMulliken
     !> file unit if the coefficients for the excited states should be written to disc
-    integer, intent(in) :: fdCoeffs
+    integer :: fdCoeffs
     !> file for X+Y data
-    integer, intent(in) :: fdXplusY
+    integer :: fdXplusY
     !> File unit for single particle (KS) transitions if required
-    integer, intent(in) :: fdTrans
+    integer :: fdTrans
     !> File unit for single particle transition dipole strengths
-    integer, intent(in) :: fdSPTrans
+    integer :: fdSPTrans
     !> File unit for transition dipole data
-    integer, intent(in) :: fdTraDip
+    integer :: fdTraDip
     !> File unit for transition charges
-    integer, intent(in) :: fdTransQ
+    integer :: fdTransQ
     !> write state of Arnoldi solver to disc
     logical, intent(in) :: tArnoldi
     !> file unit for Arnoldi write out
-    integer, intent(in) :: fdArnoldi
+    integer :: fdArnoldi
     !> file handle for excitation energies
-    integer, intent(in) :: fdExc
-
+    integer:: fdExc
+    
+    logical :: writeXplusY
+    logical :: writeCoeffsFile
+    logical :: writeMulliken
+    logical :: writeTrans
+    logical :: writeTransQ
+    logical :: writeSPTrans
+    logical :: writeExc
+    logical :: writeTradip
+    
     !real(dp), intent(in) :: ons_en(:,:), ons_dip(:,:)
     logical, intent(in) :: tEnergyWindow, tOscillatorWindow
     real(dp), intent(in) :: energyWindow, oscillatorWindow
@@ -1117,7 +1126,7 @@ contains
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nXovRD =
     ! size(wIJ), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wIJ, win, nXovUD(1), getIA, fdSPTrans, snglPartOscStrength, nXovRD,&
+    call writeSPExcitations(wIJ, win, nXovUD(1), getIA, writeSPTrans, snglPartOscStrength, nXovRD,&
         & tSpin)
 
     ! redefine if needed (generalize it for spin-polarized and fractional occupancy)

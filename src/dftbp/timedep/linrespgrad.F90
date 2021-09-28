@@ -203,6 +203,7 @@ contains
     logical :: writeTrans
     logical :: writeXplusY
     logical :: writeArnoldiDiagnosis
+    logical :: writeSPTrans
     integer :: fdExc
     
     if (withArpack) then
@@ -490,7 +491,7 @@ contains
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wij, win, nxov_ud(1), getia, this%fdSPTrans, sposz, nxov_rd, tSpin)
+    call writeSPExcitations(wij, win, nxov_ud(1), getia, writeSPTrans, sposz, nxov_rd, tSpin)
     ALLOCATE(evec(nxov_rd, this%nExc))
 
     do isym = 1, size(symmetries)
