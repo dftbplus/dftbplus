@@ -883,7 +883,6 @@ contains
       close(fdMulliken)
     end if
 
-    @:ASSERT(this%tArnoldi)
     if (tArnoldi) then
       open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
@@ -1601,13 +1600,16 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file unit for transition dipoles
-    integer, intent(in) :: fdTraDip
+    integer :: fdTraDip
+    logical :: writeTradip
 
     !> file unit for X+Y data
-    integer, intent(in) :: fdXplusY
+    integer :: fdXplusY
+    logical :: writeXplusY
 
     !> file unit for transitions
-    integer, intent(in) :: fdTrans
+    integer :: fdTrans
+    logical :: writeTrans
 
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
@@ -1778,7 +1780,7 @@ contains
   !> Write atomic transition charges to file
   subroutine writeTransitionChargesRS(fdTransQ, atomicTransQ)
     !> file unit for transition charges
-    integer, intent(in)  :: fdTransQ
+    integer :: fdTransQ
     !> transition charges to write
     real(dp), intent(in) :: atomicTransQ(:)
 
@@ -1842,6 +1844,7 @@ contains
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
     integer :: nAtom !, i
     real(dp), allocatable :: occNr(:,:)
+    integer :: fdExc
 
     if (any(abs(mod(filling, 2.0_dp)) > epsilon(0.0_dp))) then
       call error("Fractionally occupied states not currently supported for range separated linear&
