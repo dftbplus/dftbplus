@@ -5568,7 +5568,7 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
-    real(dp), allocatable :: tmpDerivs(:,:)
+    real(dp), allocatable :: tmpDerivs(:,:), dipoleAtom(:, :)
     real(dp), allocatable :: dQ(:,:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
@@ -5584,9 +5584,13 @@ contains
     if (.not. (tSccCalc .or. isExtField)) then
       ! No external or internal potentials
       if (allocated(tblite)) then
+        dipoleAtom = potential%dipoleAtom
+        if (allocated(potential%extDipoleAtom)) then
+          dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+        end if
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
-          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
+            & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
+            & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
@@ -5601,9 +5605,13 @@ contains
       end if
     else
       if (allocated(tblite)) then
+        dipoleAtom = potential%dipoleAtom
+        if (allocated(potential%extDipoleAtom)) then
+          dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+        end if
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
-          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
+            & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
+            & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
