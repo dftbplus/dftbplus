@@ -58,7 +58,7 @@ Geometry = genFormat {
 Driver {}
 
 Hamiltonian = xtb {
-  method = "GFN1-xTB"
+  method = "GFN2-xTB"
   KPointsAndWeights {
     0.0 0.0 0.0  1.0
   }
