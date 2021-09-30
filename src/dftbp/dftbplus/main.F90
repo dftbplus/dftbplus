@@ -1230,9 +1230,11 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
-          & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell, this%solvation)
+      if (this%hamiltonianType == hamiltonianTypes%dftb) then
+        call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
+            & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+            & this%img2CentCell, this%solvation)
+      end if
     #:endblock DEBUG_CODE
     end if
 
