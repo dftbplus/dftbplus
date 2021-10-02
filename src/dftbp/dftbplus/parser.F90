@@ -1803,13 +1803,19 @@ contains
       call ctrl%tbliteInp%setupCalculator(method)
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
-      call getChildValue(node, "ParameterFile", buffer)
-      paramFile = trim(unquote(char(buffer)))
-      call getParamSearchPath(searchPath)
-      call findFile(searchPath, paramFile, paramTmp)
-      if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-      write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
-      call ctrl%tbliteInp%setupCalculator(paramFile)
+      call getChildValue(node, "ParameterFile", value1, "", child=child, &
+          &allowEmptyValue=.true., dummyValue=.true.)
+      if (associated(value1)) then
+        call getChildValue(child, "", buffer)
+        paramFile = trim(unquote(char(buffer)))
+        call getParamSearchPath(searchPath)
+        call findFile(searchPath, paramFile, paramTmp)
+        if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
+        write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
+        call ctrl%tbliteInp%setupCalculator(paramFile)
+      else
+        call detailedError(node, "Either a Method or ParameterFile must be specified for xTB")
+      end if
     end if
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
