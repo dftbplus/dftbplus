@@ -606,7 +606,9 @@ contains
 
     this%skCutoff = skCutoff
     this%mCutoff = mCutoff
-    allocate(this%atomEigVal, source=atomEigVal)
+    if (allocated(atomEigVal)) then
+      allocate(this%atomEigVal, source=atomEigVal)
+    end if
 
     this%tPump = inp%tPump
     if (inp%tPump) then
