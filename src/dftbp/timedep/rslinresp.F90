@@ -1845,6 +1845,15 @@ contains
     integer :: nAtom !, i
     real(dp), allocatable :: occNr(:,:)
     integer :: fdExc
+    
+    logical :: writeXplusY
+    logical :: writeCoeffsFile
+    logical :: writeMulliken
+    logical :: writeTrans
+    logical :: writeTransQ
+    logical :: writeSPTrans
+    logical :: writeExc
+    logical :: writeTradip
 
     if (any(abs(mod(filling, 2.0_dp)) > epsilon(0.0_dp))) then
       call error("Fractionally occupied states not currently supported for range separated linear&
