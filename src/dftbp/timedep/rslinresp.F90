@@ -1860,8 +1860,8 @@ contains
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
-          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
+          & writeSPTrans, writeTradip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
           & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
@@ -1874,8 +1874,8 @@ contains
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
-          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
+          & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
           & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
