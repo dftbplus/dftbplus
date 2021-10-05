@@ -725,7 +725,7 @@ contains
   !> version by A. Dominguez.
   subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc,&
       & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
-      & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,
+      & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,&
       & writeTransQ, tArnoldi, fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow,&
       & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho,&
       & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
@@ -1869,11 +1869,11 @@ contains
     if (.not. present(excGrad)) then
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
-          & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
+          & hubbUAtom, this%spinW, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTradip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
           & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy)
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, this%nEl, iNeighbor,&
+          & img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter)
     else
       allocate(shiftPerAtom(nAtom))
       allocate(shiftPerL(orb%mShell, nAtom))
@@ -1887,8 +1887,9 @@ contains
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
           & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
-          & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, this%nEl, iNeighbor,&
+          & img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter, shiftPerAtom,&
+          & skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
 
   end subroutine linRespCalcExcitationsRS

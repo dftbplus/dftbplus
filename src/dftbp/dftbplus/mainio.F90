@@ -2436,7 +2436,7 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    logical isOpen
+    logical :: isOpen
 
     inquire(unit=fd, opened=isOpen)
     if (isOpen .and. .not. tAppendDetailedOut) then
