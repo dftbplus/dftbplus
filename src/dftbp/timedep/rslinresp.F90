@@ -726,7 +726,7 @@ contains
   subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc,&
       & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
       & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,
-      & writeTransQ, tArnoldi, fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow,&
+      & writeTransQ, tArnoldi, fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow,&
       & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho,&
       & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
       & excGrad, dQAtomEx)
@@ -1872,7 +1872,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTradip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
@@ -1886,7 +1886,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
