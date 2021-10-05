@@ -725,10 +725,10 @@ contains
   !> version by A. Dominguez.
   subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc,&
       & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
-      & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
       & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,
-      & writeTransQ, tArnoldi, fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow,&
+      & writeTransQ, tArnoldi, fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow,&
       & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho,&
+      & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
       & excGrad, dQAtomEx)
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
@@ -1872,7 +1872,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTradip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
@@ -1886,7 +1886,7 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
