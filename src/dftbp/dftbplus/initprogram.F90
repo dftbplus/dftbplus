@@ -16,9 +16,9 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_error, only : TError
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions
@@ -1263,7 +1263,7 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tInitialized, tGeoOptRequiresEgy
-    type(TStatus) :: errStatus
+    type(TError), allocatable :: errorStat
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1406,13 +1406,13 @@ contains
 
   #:if WITH_SCALAPACK
     call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
-        & this%t2Component, env, errStatus)
-    if (errStatus%hasError()) then
-      if (errStatus%code == -1) then
+        & this%t2Component, env, errorStat)
+    #:block CATCH_ERROR("errorStat")
+      if (errorStat%code == -1) then
         call warning("Insufficient atoms for this number of MPI processors")
       end if
-      call error(errStatus%message)
-    end if
+      call error(errorStat%message)
+    #:endblock
   #:endif
     call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
 
@@ -2995,7 +2995,7 @@ contains
           write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
        else
           write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
        end if
     end if
 
@@ -3539,10 +3539,10 @@ contains
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
-          & errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+          & errorStat)
+      #:block CATCH_ERROR("errorStat")
+        call error(errorStat%message)
+      #:endblock
 
     end if
 
@@ -4733,7 +4733,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
+  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, error)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4754,7 +4754,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: errStatus
+    type(TError), allocatable, intent(out) :: error
 
     integer :: sizeHS
 
@@ -4763,8 +4763,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, error)
+    @:PROPAGATE_ERROR(error)
 
   end subroutine initScalapack
 

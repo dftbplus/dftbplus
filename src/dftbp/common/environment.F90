@@ -10,9 +10,9 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
+  use dftbp_common_error, only : TError
   use dftbp_common_fileregistry, only : TFileRegistry, TFileRegistry_init
   use dftbp_common_globalenv, only : shutdown, stdOut
-  use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
 #:if WITH_GPU
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
@@ -25,7 +25,7 @@ module dftbp_common_environment
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
   implicit none
-  
+
   private
   public :: TEnvironment, TEnvironment_init
   public :: globalTimers
@@ -263,7 +263,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, errStatus)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, error)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -281,10 +281,10 @@ contains
     integer, intent(in) :: nAtom
 
     !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: errStatus
+    type(TError), allocatable, intent(out) :: error
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, error)
+    @:PROPAGATE_ERROR(error)
     this%blacsInitialised = .true.
 
   end subroutine TEnvironment_initBlacs

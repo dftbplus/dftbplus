@@ -13,9 +13,9 @@ module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_error, only : TError
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_staticperturb, only : staticPerturWrtE
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
@@ -194,7 +194,7 @@ contains
     integer :: iDet
     logical :: isUnReduced
 
-    type(TStatus) :: errStatus
+    type(TError), allocatable :: errorStat
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -359,10 +359,10 @@ contains
           & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
           & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
           & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
-          & this%taggedWriter, this%refExtPot, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+          & this%taggedWriter, this%refExtPot, errorStat)
+      #:block CATCH_ERROR("errorStat")
+        call error(errorStat%message)
+      #:endblock
     end if
 
   #:if WITH_TRANSPORT

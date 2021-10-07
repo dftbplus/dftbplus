@@ -58,8 +58,6 @@
   #:endif
 #:enddef DEBUG_CODE
 
-#:endif
-
 
 #! Adds a code block depending on the availability of an optional build component.
 #!
@@ -102,4 +100,6 @@
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
 #:enddef
 
+
+#:endif
 #:endmute

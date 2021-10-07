@@ -8,6 +8,7 @@ set(sources-fpp
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90
+  ${curdir}/error.F90
   ${curdir}/fileregistry.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
