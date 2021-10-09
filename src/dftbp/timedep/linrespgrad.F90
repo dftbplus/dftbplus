@@ -259,13 +259,13 @@ contains
 
     norb = orb%nOrb
 
-    @:ASSERT(present(excgrad) .eqv. present(shift))
-    @:ASSERT(present(excgrad) .eqv. present(skHamCont))
-    @:ASSERT(present(excgrad) .eqv. present(skOverCont))
-    @:ASSERT(present(excgrad) .eqv. present(derivator))
   #:block DEBUG_CODE
     if (present(excgrad)) then
-    @:ASSERT(present(rhoSqr))
+      @:ASSERT(present(rhoSqr))
+      @:ASSERT(present(shift))
+      @:ASSERT(present(skHamCont))
+      @:ASSERT(present(skOverCont))
+      @:ASSERT(present(derivator))
     end if
   #:endblock DEBUG_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
@@ -542,6 +542,10 @@ contains
     ! set up transition indexing
     ALLOCATE(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
+
+    if (this%tUseArpack .and. tRangeSep) then
+      call error("Range separation requires the Stratmann solver for excitations")
+    end if
 
     do isym = 1, size(symmetries)
 
@@ -869,8 +873,8 @@ contains
     do
 
       ! call the reverse communication interface from arpack
-      call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd,&
-          & workl, lworkl, info)
+      call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr,&
+          & workd, workl, lworkl, info)
 
       if (ido == 99) then
         ! has terminated normally, exit loop

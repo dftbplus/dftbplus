@@ -100,7 +100,7 @@ module dftbp_dftbplus_main
       & getReksStress
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, addGradients
+  use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, LinResp_addGradients
   use dftbp_timedep_pprpa, only : ppRpaEnergies
   use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
@@ -4250,8 +4250,8 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen, work,&
-          & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
+      call LinResp_addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen,&
+          & work, filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter,&
           & rangeSep, dftbEnergy%Eexcited, energies, excitedDerivs, nonSccDeriv,&
           & rhoSqrReal, deltaRhoOutSqr, occNatural, naturalOrbs)
