@@ -2297,6 +2297,9 @@ contains
       end if
     end if
 
+    ! turn on if LinResp and RangSep turned on, no extra input required for now
+    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
+
     if (this%isLinResp) then
 
       ! input checking for linear response
@@ -2354,9 +2357,6 @@ contains
           & this%onSiteElements)
 
     end if
-
-    ! turn on if LinResp and RangSep turned on, no extra input required for now
-    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -4533,7 +4533,6 @@ contains
       allocate(this%iRhoPrim(0, this%nSpin))
     end if
 
-    allocate(this%excitedDerivs(0,0))
     if (this%tForces) then
       if (.not.isREKS) then
         allocate(this%ERhoPrim(0))
@@ -4551,8 +4550,7 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect) then
-        deallocate(this%excitedDerivs)
+      if (this%tLinRespZVect .and. this%tCasidaForces) then
         allocate(this%excitedDerivs(3, this%nAtom))
       end if
     end if
@@ -5266,7 +5264,7 @@ contains
 
     if (isRS_LinResp) then
       if (input%ctrl%lrespini%tUseArpack) then
-        call error("TD-LC-DFTB implemented only for Stratmann diagonalizer.")  
+        call error("TD-LC-DFTB implemented only for Stratmann diagonalizer.")
       end if
       if (tPeriodic) then
         call error("Range separated excited states for periodic geometries are currently&

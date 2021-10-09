@@ -34,7 +34,7 @@ module dftbp_timedep_linresp
   
   private
   public :: TLinresp, TLinrespini
-  public :: LinResp_init, linResp_calcExcitations, addGradients
+  public :: LinResp_init, linResp_calcExcitations, LinResp_addGradients
 
   !> Data type for initial values for linear response calculations
   type :: TLinrespini
@@ -117,11 +117,6 @@ module dftbp_timedep_linresp
 
   end type TLinrespini
 
-
-  !> excitations plus forces and some other properties (excited
-  interface addGradients
-    module procedure LinResp_addGradients
-  end interface addGradients
 
 contains
 
@@ -301,13 +296,13 @@ contains
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> Data for rangeseparated calcualtion
+    !> Data for range separated calcualtion
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     real(dp), pointer :: dummyPtr(:,:,:) => null()
@@ -403,11 +398,11 @@ contains
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     !> contribution to forces from derivative of excited state energy
-    real(dp), intent(out) :: excgradient(:,:)
+    real(dp), intent(inout), allocatable :: excgradient(:,:)
 
     !> occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), allocatable :: occNatural(:)
