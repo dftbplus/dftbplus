@@ -427,10 +427,10 @@ module dftbp_dftbplus_initprogram
     !> Use block like dual representation for spin orbit
     logical :: tDualSpinOrbit
 
-    !> Number of dipole moment components
+    !> Number of atomic dipole moment components
     integer :: nDipole = 0
 
-    !> Number of quadrupole moment components
+    !> Number of atomic quadrupole moment components
     integer :: nQuadrupole = 0
 
     !> Is there a complex hamiltonian contribution in real space
@@ -661,10 +661,10 @@ module dftbp_dftbplus_initprogram
     !> nr. of inequivalent quadrupoles
     integer :: nIneqQuad
 
-    !> Multipole moments
+    !> Multipole moments for the input charges
     type(TMultipole) :: multipoleInp
 
-    !> Multipole moments
+    !> Multipole moments for the output charges
     type(TMultipole) :: multipoleOut
 
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
@@ -3842,17 +3842,19 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, this%nAtom)
+            & this%qiBlockIn, this%deltaRhoIn, this%nAtom, multipoles=this%multipoleInp)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl))
+              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl),&
+              & multipoles=this%multipoleInp)
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
-              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2))
+              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2),&
+              & multipoles=this%multipoleInp)
         end if
       end if
 
@@ -3974,6 +3976,17 @@ contains
     end if
 
     call OrbitalEquiv_reduce(this%qInput, this%iEqOrbitals, this%orb, this%qInpRed(1:this%nIneqOrb))
+
+    if (allocated(this%multipoleInp%dipoleAtom)) then
+      ! FIXME: Assumes we always mix all dipole moments
+      this%qInpRed(this%nIneqOrb+1:this%nIneqOrb+this%nIneqDip) =&
+          & reshape(this%multipoleInp%dipoleAtom, [this%nIneqDip])
+    end if
+    if (allocated(this%multipoleInp%quadrupoleAtom)) then
+      ! FIXME: Assumes we always mix all quadrupole moments
+      this%qInpRed(this%nIneqOrb+this%nIneqDip+1:this%nIneqOrb+this%nIneqDip+this%nIneqQuad) =&
+          & reshape(this%multipoleInp%quadrupoleAtom, [this%nIneqQuad])
+    end if
 
     if (allocated(this%onSiteElements)) then
       call appendBlockReduced(this%qBlockIn, this%iEqBlockOnSite, this%orb, this%qInpRed)
