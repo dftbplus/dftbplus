@@ -45,6 +45,7 @@ module dftbp_dftbplus_mainio
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_type_multipole, only : TMultipole
   use dftbp_type_orbitals, only : orbitalNames, getShellNames
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
@@ -3799,7 +3800,7 @@ contains
 
   !> Write out charges.
   subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
-      & nAtInCentralRegion)
+      & nAtInCentralRegion, multipoles)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3826,8 +3827,11 @@ contains
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Atomic multipoles, if relevant
+    type(TMultipole), intent(in), optional :: multipoles
+
     call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
-        & nAtInCentralRegion)
+        & nAtInCentralRegion, multipoles)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else

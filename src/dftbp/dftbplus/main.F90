@@ -283,7 +283,7 @@ contains
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
       end if
 
       if (this%tForces) then
@@ -814,8 +814,7 @@ contains
         call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-            & qNetAtom=this%qNetAtom, &
-            & dipAtom=this%multipoleOut%dipoleAtom, quadAtom=this%multipoleOut%quadrupoleAtom)
+            & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
 
         ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -970,8 +969,7 @@ contains
           call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-              & qNetAtom=this%qNetAtom, dipAtom=this%multipoleOut%dipoleAtom, &
-              & quadAtom=this%multipoleOut%quadrupoleAtom)
+              & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
 
           if (this%tSpinSharedEf .or. this%tFixEf .or.&
               & this%electronicSolver%iSolver == electronicSolverTypes%GF) then
@@ -1074,7 +1072,7 @@ contains
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
           end if
         end if
 
@@ -3448,7 +3446,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, ints, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, dipAtom, quadAtom)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, multipoles)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3486,11 +3484,8 @@ contains
     !> Onsite Mulliken charges per atom
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
-    !> Cumulative atomic dipole moment
-    real(dp), intent(inout), optional :: dipAtom(:, :)
-
-    !> Cumulative atomic quadrupole moment
-    real(dp), intent(inout), optional :: quadAtom(:, :)
+    !> Multipole moments
+    type(TMultipole), intent(inout), optional :: multipoles
 
     integer :: iSpin
 
@@ -3520,16 +3515,20 @@ contains
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
-    if (present(dipAtom)) then
-      call getAtomicMultipolePopulation(dipAtom, ints%dipoleBra, ints%dipoleKet, &
-          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-          & iSparseStart)
-    end if
+    if (present(multipoles)) then
 
-    if (present(quadAtom)) then
-      call getAtomicMultipolePopulation(quadAtom, ints%quadrupoleBra, ints%quadrupoleKet, &
-          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-          & iSparseStart)
+      if (allocated(multipoles%dipoleAtom)) then
+        call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
+            & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+            & iSparseStart)
+      end if
+
+      if (allocated(multipoles%quadrupoleAtom)) then
+        call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
+            & ints%quadrupoleKet, rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK,&
+            & img2CentCell, iSparseStart)
+      end if
+
     end if
 
   end subroutine getMullikenPopulation
@@ -3674,11 +3673,13 @@ contains
     if (nIneqDip > 0) then
       ! FIXME: Assumes we always mix all dipole moments
       nMix = nIneqOrb
+      @:ASSERT(allocated(multipoleOut%dipoleAtom))
       qOutRed(nMix+1:nMix+nIneqDip) = reshape(multipoleOut%dipoleAtom, [nIneqDip])
     end if
     if (nIneqQuad > 0) then
       ! FIXME: Assumes we always mix all quadrupole moments
       nMix = nIneqOrb + nIneqDip
+      @:ASSERT(allocated(multipoleOut%quadrupoleAtom))
       qOutRed(nMix+1:nMix+nIneqQuad) = reshape(multipoleOut%quadrupoleAtom, [nIneqQuad])
     end if
     qDiffRed = qOutRed - qInpRed
@@ -3718,7 +3719,7 @@ contains
         if (nIneqQuad > 0) then
           ! FIXME: Assumes we always mix all quadrupole moments
           nMix = nIneqOrb + nIneqDip
-          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad), &
+          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
               & shape(multipoleInp%quadrupoleAtom))
         end if
       end if
