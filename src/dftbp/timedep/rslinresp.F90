@@ -724,12 +724,12 @@ contains
   !> is outsourced to rsLinRespCalc. Most code copied from non range-separated
   !> version by A. Dominguez.
   subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc,&
-      & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
-      & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,&
-      & writeTransQ, tArnoldi, fdArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow,&
-      & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho,&
-      & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
-      & excGrad, dQAtomEx)
+        & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
+        & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
+        & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,&
+        & writeTransQ, tArnoldi, fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow,&
+        & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator,&
+        & deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
     integer, intent(in) :: nAtom, iAtomStart(:)
@@ -1868,12 +1868,12 @@ contains
 
     if (.not. present(excGrad)) then
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
-          & hubbUAtom, this%spinW, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
-          & writeSPTrans, writeTradip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy, this%nEl, iNeighbor,&
-          & img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter)
+                & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0,&
+                & this%nAtom, hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb,&
+                & rsData, tWriteTagged, fdTagged, taggedWriter, writeMulliken, writeCoeffsFile,&
+                & writeXplusY, writeTrans, writeSPTrans, writeTradip, writeTransQ, this%tArnoldi,&
+                & this%fdArnoldi, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+                & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
       allocate(shiftPerL(orb%mShell, nAtom))
@@ -1886,10 +1886,9 @@ contains
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
           & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy, this%nEl, iNeighbor,&
-          & img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter, shiftPerAtom,&
-          & skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
+          & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
 
   end subroutine linRespCalcExcitationsRS
