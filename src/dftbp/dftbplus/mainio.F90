@@ -2438,14 +2438,14 @@ contains
 
     logical :: isOpen
 
-    inquire(unit=fd, opened=isOpen)
-    if (isOpen .and. .not. tAppendDetailedOut) then
-      close(fd)
-      isOpen = .false.
-    end if
-    if (.not.isOpen) then
-      open(newunit=fd, file=fileName, status="replace", action="write")
-    end if
+    ! inquire(unit=fd, opened=isOpen)
+    ! if (isOpen .and. .not. tAppendDetailedOut) then
+    !   close(fd)
+    !   isOpen = .false.
+    ! end if
+    ! if (.not.isOpen) then
+    open(newunit=fd, file=fileName, status="replace", action="write")
+    ! end if
 
   end subroutine openDetailedOut
 
