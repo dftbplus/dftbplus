@@ -191,6 +191,9 @@ module dftbp_io_taggedoutput
     !> atomic masses
     character(lenLabel) :: atomMass = 'atomic_masses'
 
+    !> Atomic dipole moments
+    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
+
   end type TTagLabelsEnum
 
 
