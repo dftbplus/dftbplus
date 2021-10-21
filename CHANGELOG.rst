@@ -15,14 +15,16 @@ Addded
 
 - Support for extended tight binding (xTB) Hamiltonian via tblite library
 
-- DFTBPLUS_PARAM_DIR for searching Slater-Koster parameter files, solvation parameter files,
-  and xTB parameter files
+- DFTBPLUS_PARAM_DIR for searching Slater-Koster parameter files, solvation
+  parameter files, and xTB parameter files
+
 
 Changed
 -------
 
 - Source tree reorganised to match the `Fortran package manager
   <https://fpm.fortran-lang.org/>`_ preferred structure.
+
 
 Fixed
 -----
@@ -32,7 +34,11 @@ Fixed
 - self-consistent DFT-D4 uses populations instead of partial charges
   in potential shift, energy expression and derivatives
 
-- Number of electrons for Fixed / spin-common Fermi energies and transport in results.tag
+- Number of electrons for Fixed / spin-common Fermi energies and transport in
+  results.tag
+
+- Updated version of dftd3-lib fixes a numerical typo in the Ba parameters
+
 
 21.1 (2021-05-12)
 =================
