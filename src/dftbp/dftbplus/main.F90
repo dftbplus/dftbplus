@@ -17,7 +17,7 @@ module dftbp_dftbplus_main
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
-  use dftbp_derivs_staticperturb, only : staticPerturWrtE
+  use dftbp_derivs_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
@@ -74,7 +74,7 @@ module dftbp_dftbplus_main
       & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
       & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
       & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
-      & writeDetailedOut8
+      & writeDetailedOut8, writeDetailedOut9
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
@@ -393,32 +393,54 @@ contains
 
   #:endif
 
-    if (this%isDFTBPT) then
-      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
-        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
-            & this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom,&
-            & this%species, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
-            & this%iSparseStart, this%img2CentCell, this%coord, this%scc, this%maxSccIter,&
-            & this%sccTol, this%isSccConvRequired, this%nMixElements, this%nIneqOrb,&
-            & this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd,&
-            & this%dftbU, this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite,&
-            & this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight,&
-            & this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability, this%dEidE,&
-            & this%dqOut, this%neFermi, this%dEfdE)
+    if (this%isDFTBPT .and. .not.this%tNegf) then
+      if (this%isStatEResp .and. .not.this%tPeriodic) then
+        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%tolDegenDFTBPT,&
+            & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
+            & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
+            & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
+            & this%maxSccIter, this%sccTol, this%isSccConvRequired, this%nMixElements,&
+            & this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW,&
+            & this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
+            & this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint,&
+            & this%kWeight, this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability,&
+            & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
+        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
+          call writeDetailedOut9(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+              & this%dEfdE)
+        end if
       end if
-
+      if (this%isRespKernelPert) then
+        call polarizabilityKernel(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
+            & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
+            & this%fdDetailedOut, this%tWriteDetailedOut, this%filling, this%eigen,&
+            & this%tolDegenDFTBPT, this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian,&
+            & this%ints%overlap, this%orb, this%nAtom, this%species, this%neighbourList,&
+            & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell,&
+            & this%isRespKernelRPA, this%scc, this%maxSccIter, this%sccTol, this%isSccConvRequired,&
+            & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
+            & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+            & this%onSiteElements, this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC,&
+            & this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+            & this%neFermi, errStatus, this%tHelical, this%coord)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
+        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
+        end if
+      end if
     end if
 
-    if (env%tGlobalLead) then
-      if (this%tWriteDetailedOut) then
-        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
-            & this%neFermi, this%dEfdE)
-
-        close(this%fdDetailedOut)
-      end if
+    if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+      close(this%fdDetailedOut)
     end if
 
     if (allocated(this%pipekMezey)) then

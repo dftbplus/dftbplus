@@ -1060,9 +1060,14 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \section{Hamiltonian}
 \label{sec:dftbp.Hamiltonian}
 
-Currently, DFTB and xTB Hamiltonians are implemented. To select the DFTB
-Hamiltonian you must set \is{Hamiltonian = DFTB\cb}. The \iscb{DFTB} method
-may contain the following properties:
+Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Hamiltonians are
+implemented.
+
+\subsection{Density Functional based Tight Binding}
+\label{sec:dftbp.DFTB}
+
+To select the DFTB Hamiltonian you must set \is{Hamiltonian =
+  DFTB\cb}. The \iscb{DFTB} method may contain the following properties:
 
 \begin{ptable}
   \kw{SCC} &l &  & No  & \\
@@ -1443,8 +1448,9 @@ expressions, as described in appendix \ref{sec:index_selection}.):
 \subsection{Extended Tight Binding Hamiltonian}
 \label{sec:dftbp.XTB}
 
-The extended tight binding~(xTB) Hamiltonian\cite{bannwarth2020} is available if \dftbp{}
-is built with support for a communication bridge to the \texttt{tblite} library.
+The extended tight binding~(xTB) Hamiltonian\cite{bannwarth2020} is available if
+\dftbp{} is built with support for a communication bridge to the \texttt{tblite}
+library.
 
 \begin{ptable}
   \kw{Method} & s & & & \\
@@ -4375,7 +4381,10 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
-  \kw{Polarisability} & m & Molecular system & \cb & \pref{sec:dftbp.perturbation} \\
+  \kw{Polarisability} & m & Hamiltonian = DFTB & \cb &
+  \pref{sec:dftbp.eperturb} \\
+  \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
+  \pref{sec:dftbp.rperturb} \\
 \end{ptable}
 
 \begin{description}
@@ -4396,7 +4405,7 @@ calculation and/or calculate properties.
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
 
-\subsubsection{ProjectStates} \kw{ProjectStates}
+\subsection{ProjectStates} \kw{ProjectStates}
 \label{sec:dftbp.ProjectStates} evaluates the Mulliken
 projection of electronic states onto specific regions of the system being
 modelled (partial density of states -- PDOS). The format of the projected data
@@ -4445,7 +4454,7 @@ Examples:
   }
 \end{verbatim}
 
-\subsubsection{Localise}
+\subsection{Localise}
 \label{sec:dftbp.Localise} Convert the single particle states of the calculation
 to localised orbitals via a unitary transformation. Localised orbitals span the
 same states as the occupied orbitals, so are equivalent to the usual valence
@@ -4515,7 +4524,7 @@ method which {\em may} have better scaling properties.
 
 \end{description}
 
-\subsubsection{ElectrostaticPotential}
+\subsection{ElectrostaticPotential}
 \label{sec:dftbp.esp}
 
 Evaluates the electrostatic potential at specified points in space for SCC
@@ -4564,13 +4573,19 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
-\subsubsection{Polarisability}
-\label{sec:dftbp.perturbation}
+\subsection{Response properties}
 
-Evaluates electric polarisability using coupled-perturbed linear
-response. Currently only molecular (i.e.\ not periodic, helical or transport)
-geometries are supported for perturbation. REKS calculations are not currently
-supported.
+For cases where the ground state eigenvalues are available, the  output of the
+eigenvalue derivatives are described in are  section~\ref{sec:dftbp.dEbandout}.
+
+\subsubsection{Polarisability}
+\label{sec:dftbp.eperturb}
+
+Evaluates electric polarisability using coupled-perturbed linear response for
+finite structures (hence can only be used with cases evaluating unperturbed
+eigenvalues). Currently only the DFTB hamiltonian is supported (see
+section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
+supported).
 
 In the case of degenerate single particle levels, the reported level derivatives
 (see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
@@ -4578,14 +4593,45 @@ value.
 
 \begin{ptable}
   \kw{Static} & l & & \is{Yes} & \\
+  \kw{DegeneracyTolerance} & r & & 128\\
 \end{ptable}
 \begin{description}
 \item[\is{Static}] Evaluates static polarisability with respect to cartesian
   directions of a static uniform electric field. At the moment, if the
   \is{Polarisability} block is included, this option should be enabled. In a
   future release, dynamical polarisability at a finite frequency, $\omega$, will
-  be an alternative possibility in this block.
+  be an alternative possibility for this block.
+\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
+  the number of times machine epsilon that separated eigenvalues are considered
+  non-degenerate.
 \end{description}
+
+\subsubsection{ResponseKernel}
+\label{sec:dftbp.rperturb}
+
+Evaluates response to a potential added at atomic sites, using coupled-perturbed
+linear response (hence can only be used with cases evaluating unperturbed
+eigenvalues). Currently only the DFTB hamiltonian is supported (see
+section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
+supported).
+
+In the case of degenerate single particle levels, the reported level derivatives
+(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
+value.
+
+\begin{ptable}
+  \kw{RPA} & l & SCC = Yes & \is{No} & \\
+  \kw{DegeneracyTolerance} & r & & 128\\
+\end{ptable}
+\begin{description}
+\item[\is{RPA}] For self-consistent calculations, enables RPA evaluation,
+  instead of self-consistent calculation of the response. This is equivalent to
+  evaluating response without relaxation of the system.
+\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
+  the number of times machine epsilon that separated eigenvalues are considered
+  non-degenerate.
+\end{description}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -5491,11 +5537,11 @@ See the \dptools{} package for utilities for converting the data in this file
 into band-structures and density of states information suitable for plotting.
 
 \subsection{dE\_band.out}
-\label{sec:dftbp.bandout}
+\label{sec:dftbp.dEbandout}
 \index{dE\_band.out}
 
 If perturbation calculations of electric field polarizability
-(p.~\pref{sec:dftbp.perturbation}) is enabled and \is{WriteBandOut} = \is{Yes},
+(p.~\pref{sec:dftbp.eperturb}) is enabled and \is{WriteBandOut} = \is{Yes},
 this file contains the derivatives of the band energies in electron volts /
 a.u.\ for each field direction, k-point and spin channel.
 
