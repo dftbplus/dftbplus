@@ -455,7 +455,8 @@ contains
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
-          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
+          & this%coord0, this%multipoleOut)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &

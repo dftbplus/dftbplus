@@ -2063,7 +2063,8 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE)
+      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE,&
+      & coord0, multipole)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2134,6 +2135,12 @@ contains
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
 
+    !> Final atomic coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Multipole moments
+    type(TMultipole), intent(in) :: multipole
+
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
@@ -2200,6 +2207,15 @@ contains
       if (allocated(cm5Cont)) then
         call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
       end if
+    end if
+
+    if (allocated(multipole%dipoleAtom)) then
+      block
+        real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
+        qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
+        dipoleAtom = -multipole%dipoleAtom - coord0 * spread(qAtom, 1, 3)
+        call taggedWriter%write(fd, tagLabels%dipoleAtom, dipoleAtom)
+      end block
     end if
 
     if (allocated(polarisability)) then
