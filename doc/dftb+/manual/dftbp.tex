@@ -6113,7 +6113,22 @@ Detail of the magnitude and direction of the transition dipole between all elect
 \subsection{relaxed\_charge.dat}
 \index{relaxed\_charge.dat}
 
-Charges on atoms in the specified state. The top line contains the total charge of the system.
+Charges on atoms in the specified state. The top line contains the total charge
+of the system.
+
+\section{Halting \dftbp{}}
+\label{sec:dftbp.HaltFiles}
+
+In addition to stopping on successful completion, if there errors in the input,
+or if the limits for the iterative stages of a calculation are exceeded (for
+example exceeding \kw{MaxSccIterations} or \kw{MaxSteps}), \dftbp{} can be
+externally halted manually.
+
+During operation if files called \index{stop\_scc}\texttt{stop\_scc} or
+\index{stop\_driver}\texttt{stop\_driver} are present in the directory, \dftbp{}
+will halt at the next SCC or geometry step respectively. If these files are
+present at the start of the calculation, \dftbp{} will halt immediately (hence
+these files should be removed manually if used to halt the code).
 
 %%% Local Variables:
 %%% mode: latex
