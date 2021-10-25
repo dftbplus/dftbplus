@@ -19,7 +19,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
-      & getGrossCharges, getExtChargeGradients, getStressTensor, getGradients, getEnergy,&
+      & getGrossCharges, getPotential, getExtChargeGradients, getStressTensor, getGradients, getEnergy,&
       & setQDepExtPotProxy, setExternalCharges, setGeometry
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
@@ -98,6 +98,10 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
+
+    !> get potential
+    procedure :: getPotential => TDftbPlus_getPotential
+
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Check that the list of species names has not changed
@@ -568,6 +572,24 @@ contains
     call getGrossCharges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
+
+  !> Returns the potential
+  subroutine TDftbPlus_getPotential(this, pot, locations)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: pot(:)
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    call this%checkInit()
+
+    call getPotential(this%env, this%main, pot, locations)
+
+  end subroutine TDftbPlus_getPotential
 
 
   !> Returns the nr. of atoms in the system.

@@ -298,6 +298,8 @@ void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
  */
 void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
 
+void dftbp_get_potential(DftbPlus *instance, int n_locations, double *charges, const double *locations);
+
 #ifdef __cplusplus
 }
 #endif
