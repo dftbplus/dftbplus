@@ -183,7 +183,7 @@ contains
 
   end subroutine getGrossCharges
 
-  !> get potential
+  !>  get electrostatic potential in specified points
   subroutine getPotential(env, main, pot, locations)
 
     !> instance
@@ -195,10 +195,10 @@ contains
     !> Resulting potentials
     real(dp), intent(out) :: pot(:)
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> optional potential softening
+    !> Default potential softening
     real(dp) :: epsSoften = 1E-6
 
     call main%scc%getInternalElStatPotential(pot, env, locations, epsSoften)

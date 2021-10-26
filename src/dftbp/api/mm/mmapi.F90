@@ -98,10 +98,8 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
-
-    !> get potential
+    !> get electrostatic potential in specified points
     procedure :: getPotential => TDftbPlus_getPotential
-
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Check that the list of species names has not changed
@@ -573,7 +571,7 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
-  !> Returns the potential
+  !> Returns electrostatic potential in specified points
   subroutine TDftbPlus_getPotential(this, pot, locations)
 
     !> Instance
@@ -582,7 +580,7 @@ contains
     !> Resulting potentials
     real(dp), intent(out) :: pot(:)
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
     call this%checkInit()

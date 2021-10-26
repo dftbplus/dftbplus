@@ -250,24 +250,23 @@ contains
 
   end subroutine c_DftbPlus_processInput
 
-  !> return electrostatic potential
+  !> Obtain electrostatic potential in specified points
   subroutine c_DftbPlus_get_potential(handler, n_locations, pot, locations)&
       & bind(C, name='dftbp_get_potential')
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
+    !> Number of requsted points
     integer, value, intent(in) :: n_locations
 
     !> Resulting potentials
     real(dp), intent(out) :: pot(*)
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(c_double), intent(in) :: locations(3,*)
 
     type(TDftbPlusC), pointer :: instance
-
-    print *, "n_locations", n_locations
 
     call c_f_pointer(handler%instance, instance)
 
