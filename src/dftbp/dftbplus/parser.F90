@@ -4964,13 +4964,31 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ctrl%isDFTBPT = .false.
+
       ! electric field polarisability of system
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
         call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
-      else
-        ctrl%isDFTBPT = .false.
+      end if
+      call getChild(node, "ResponseKernel", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        ctrl%isRespKernelPert = .true.
+        if (ctrl%tSCC) then
+          call getChildValue(child, "RPA", ctrl%isRespKernelRPA, .false.)
+        else
+          ctrl%isRespKernelRPA = .true.
+        end if
+      end if
+      if (ctrl%isDFTBPT) then
+        call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
+            & child=child)
+        if (ctrl%tolDegenDFTBPT < 1.0_dp) then
+          call detailedError(child, "Degeneracy tolerance must be above 1x")
+        end if
+        ctrl%tolDegenDFTBPT = ctrl%tolDegenDFTBPT * epsilon(0.0_dp)
       end if
 
     end if
