@@ -10,6 +10,7 @@ external/slakos/status
 build
 custom.cmake
 __pycache__
+*.egg-info
 .idea
 tools/dptools/build
 .nfs*
