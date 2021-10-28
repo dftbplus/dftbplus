@@ -779,7 +779,7 @@ contains
     if (tRangeSep) then
       natom = size(lrGamma, dim=1)
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels 
-      nxvv_a = sum(nxvv_ud**2) 
+      nxvv_a = sum(nvir_ud**2) 
       allocate(qij(natom))
       allocate(otmp(natom))
       allocate(qv(natom, max(sum(nxov_ud),nxvv_a)))
@@ -833,7 +833,7 @@ contains
         end do
       end do          
 
-      do abs = 1, sum(nxvv_ud)
+      do abs = 1, nxvv_a
         otmp(:) = qv(:,abs)
         call hemv(qv(:,abs), lrGamma, otmp)
       end do
@@ -853,7 +853,7 @@ contains
        end do
       end do
     endif
-    
+
     ! orb. energy difference diagonal contribution
     vout(:) = vout + wij * vin 
 
