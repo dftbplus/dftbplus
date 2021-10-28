@@ -605,7 +605,7 @@ contains
  
     if (tRangeSep) then
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels 
-      nxvv_a = sum(nxvv_ud**2) 
+      nxvv_a = sum(nvir_ud**2) 
       allocate(qv(natom, max(sum(nxov_ud), nxvv_a)))
       qv(:,:) = 0.0_dp
       do jbs = 1, nmat
