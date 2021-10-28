@@ -1080,7 +1080,7 @@ contains
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal
 
-    integer :: nExc, nAtom, info, dummyInt, newVec
+    integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
     integer :: ii, jj, ia, ij, ab
     character(lc) :: tmpStr
@@ -1104,6 +1104,10 @@ contains
       call error(tmpStr)
     endif
     subSpaceDim = min(subSpaceFactor * nExc, nxov_rd)
+    iterStrat = 1
+    write(*,'(A)')
+    write(*,'(A)') '>> Stratmann diagonalization of response matrix'
+    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ', subSpaceDim 
     ! Memory available for subspace calcs
     memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
     workDim = 3 * memDim + 1
@@ -1244,7 +1248,8 @@ contains
       end if
 
       if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nxov_rd)) then
-        write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!'
+        write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
+             & Increase SubspaceFactor.'
         call error(tmpStr)
       end if
 
@@ -1257,6 +1262,7 @@ contains
         if (tZVector) then
           xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
         end if
+        write(*,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
       end if
 
@@ -1289,6 +1295,12 @@ contains
 
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
+      if(iterStrat == 1) then
+         write(*,'(3x,A)') 'Iteration  Subspace dimension' 
+      end if
+      
+      write(*,'(3x,i6,10x,i6)') iterStrat, subSpaceDim  
+      iterStrat = iterStrat + 1
 
       ! create orthogonal basis
       call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, vecB) 
