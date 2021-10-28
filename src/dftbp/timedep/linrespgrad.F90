@@ -1265,41 +1265,6 @@ contains
       newVec = 0
       do ii = 1, nExc
         if (vecNorm(ii) .gt. CONV_TRESH_STRAT) then
-          didConverge = .false.
-        end if
-      end do
-
-      if (didConverge) then
-        do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
-          vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-          if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
-            didConverge = .false.
-          end if
-        end do
-      end if
-
-      if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nxov_rd)) then
-        write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!'
-        call error(tmpStr)
-      end if
-
-      ! if converged then exit loop:
-      if (didConverge) then
-        eval(:) = evalInt(1:nExc)
-        ! Calc. X+Y
-        xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
-        ! Calc. X-Y, only when needed
-        if (tZVector) then
-          xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
-        end if
-        exit solveLinResp ! terminate diag. routine
-      end if
-
-      ! Otherwise calculate new basis vectors and extend subspace with them
-      ! only include new vectors if they add meaningful residue component
-      newVec = 0
-      do ii = 1, nExc
-        if (vecNorm(ii) .gt. CONV_TRESH_STRAT) then
           newVec = newVec + 1
           dummyReal = sqrt(evalInt(ii))
           info = subSpaceDim + ii
@@ -1318,6 +1283,7 @@ contains
           do jj = 1, nxov_rd
             vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
           end do
+
         end if
       end do
 
