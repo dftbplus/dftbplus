@@ -9,6 +9,7 @@
 
 !> Contains the routines for initialising waveplot.
 module waveplot_initwaveplot
+
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : lengthUnits
@@ -22,21 +23,29 @@ module waveplot_initwaveplot
   use dftbp_io_hsdutils2, only : getModifierIndex, readHSDAsXML, warnUnprocessedNodes
   use dftbp_io_message, only : warning, error
   use dftbp_io_xmlutils, only : removeChildNodes
+  use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
       & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
-  use waveplot_gridcache, only : TGridCache, init
-  use waveplot_molorb, only : TMolecularOrbital, TSpeciesBasis
+
+  ! use waveplot_gridcache, only : TGridCache, init
+  use waveplot_molorb, only : TMolecularOrbital, init, TSpeciesBasis
+  use waveplot_slater, only : init
+
+
   implicit none
 
   private
-  public :: TProgramVariables, TProgramVariables_init
+  save
+
+  public :: TProgramVariables
+  public :: TProgramVariables_init
 
 
   !> Data type containing variables from detailed.xml
-  type TInput
+  type TXml
 
-    !> Geometry instance
+    !> Geometry
     type(TGeometry) :: geo
 
     !> Identity of the run
@@ -45,20 +54,38 @@ module waveplot_initwaveplot
     !> Nr. of orbitals per state
     integer :: nOrb
 
-    !> True, if eigenvectors/hamiltonian is real-valued
+    !> If eigvecs/hamiltonian is real
     logical :: tRealHam
 
     !> Occupations
     real(dp), allocatable :: occupations(:,:,:)
 
-  end type TInput
+  end type TXml
+
+
+  !> Data type containing variables from eigenvec.bin
+  type TEig
+
+    !> Nr. of states
+    integer :: nState
+
+    !> Real eigenvectors
+    real(dp), allocatable :: eigvecsReal(:,:)
+
+    !> Complex eigenvectors
+    complex(dp), allocatable :: eigvecsCplx(:,:)
+
+  end type TEig
 
 
   !> Data type containing variables from the Option block
   type TOption
 
-    !> Nr of grid points along 3 directions
-    integer :: nPoints(3)
+    !> Number of (total) grid points along 3 directions
+    integer :: nTotPoints(3)
+
+    !> Number of (species) grid points along 3 directions
+    integer :: nSpPoints(3)
 
     !> Repeat box along 3 directions
     integer :: repeatBox(3)
@@ -117,11 +144,14 @@ module waveplot_initwaveplot
     !> Origin of the box
     real(dp) :: origin(3)
 
-    !> Origin of the grid in the box
-    real(dp) :: gridOrigin(3)
+    !> Origin of the (total) grid in the box
+    real(dp) :: totGridOrig(3)
 
     !> List of levels to plot, whereby insignificant occupations were filtered out
     integer, allocatable :: levelIndex(:,:)
+
+    ! !> Origin of the (species) grids in the box
+    ! real(dp), allocatable :: spGridOrigs(:,:)
 
   end type TOption
 
@@ -129,34 +159,16 @@ module waveplot_initwaveplot
   !> Data type containing variables from the Basis block
   type TBasis
 
-    !> Definition of the wfcs
+    !> definition of the wfcs
     type(TSpeciesBasis), allocatable :: basis(:)
 
-    !> Resolution of the radial wfcs
-    real(dp) :: basisResolution
-
   end type TBasis
-
-
-  !> Data type containing variables from eigenvec.bin
-  type TEig
-
-    !> Nr. of states
-    integer :: nState
-
-    !> Real eigenvectors
-    real(dp), allocatable :: eigvecsReal(:,:)
-
-    !> Complex eigenvectors
-    complex(dp), allocatable :: eigvecsCplx(:,:)
-
-  end type TEig
 
 
   !> Data type containing variables from the AtomicNumbers block
   type TAtomicNumber
 
-    !> Species-atomic nr. corresp.
+    !> species-atomic nr. corresp.
     integer, allocatable :: atomicNumbers(:)
 
   end type TAtomicNumber
@@ -171,17 +183,29 @@ module waveplot_initwaveplot
     !> pointer to the orbital
     type(TMolecularOrbital), pointer :: pMolOrb
 
-    !> Grid cache
-    type(TGridCache) :: grid
+    !> (total) grid vectors
+    real(dp) :: totGridVec(3,3)
 
-    !> Grid vectors
-    real(dp) :: gridVec(3,3)
+    !> (species) grids vectors
+    real(dp), allocatable :: speciesGridsVecs(:,:,:)
 
     !> Volume of the grid
     real(dp) :: gridVol
 
-    !> List of levels to plot
-    integer, allocatable :: levelIndex(:,:)
+    !> Center coordinate of total grid
+    real(dp) :: totGridCenter(3)
+
+    !> m-resolved orbital occupations
+    real(dp), allocatable :: orbitalOcc(:,:)
+
+    !> Origins of species grids
+    real(dp), allocatable :: speciesGridsOrigs(:,:)
+
+    !> Index mappin orbital --> atom
+    integer, allocatable :: orbitalToAtom(:)
+
+    !> Index mappin orbital --> species
+    integer, allocatable :: orbitalToSpecies(:)
 
   end type TInternal
 
@@ -190,22 +214,22 @@ module waveplot_initwaveplot
   type TProgramVariables
 
     !> Data of detailed.xml
-    type(TInput) :: input
+    type(TXml) :: xml
 
     !> Data of eigenvec.bin
     type(TEig) :: eig
 
     !> Data of Option block
-    type(TOption) :: opt
+    type(TOption) :: option
 
     !> Data of Basis block
     type(TBasis) :: basis
 
     !> Data of AtomicNumber block
-    type(TAtomicNumber) :: aNr
+    type(TAtomicNumber) :: atomicNumber
 
     !> Locally created data
-    type(TInternal) :: loc
+    type(TInternal) :: internal
 
   end type TProgramVariables
 
@@ -225,6 +249,13 @@ module waveplot_initwaveplot
   !> version of the input document
   integer, parameter :: parserVersion = 3
 
+
+  interface readEigenvecs
+    module procedure readRealEigenvecs
+    module procedure readCplxEigenvecs
+  end interface readEigenvecs
+
+
 contains
 
 
@@ -232,40 +263,28 @@ contains
   subroutine TProgramVariables_init(this)
 
     !> Container of program variables
-    type(TProgramVariables), intent(out), target :: this
+    type(TProgramVariables), intent(inout), target :: this
 
-    !> Pointers to input nodes
     type(fnode), pointer :: root, tmp, detailed, hsdTree
+
+    !> File with binary eigenvectors
+    character(len=1024) :: eigVecBin
 
     !> String buffer instance
     type(string) :: strBuffer
 
-    !> Id of input/parser version
-    integer :: inputVersion
-
-    !> Nr. of cached grids
-    integer :: nCached
-
-    !> Nr. of K-points
+    !> Nr. of K-Points
     integer :: nKPoint
 
     !> Nr. of spins
     integer :: nSpin
 
-    !> Wether to look for ground state occupations (True) or excited (False)
-    logical :: tGroundState
+    integer :: inputVersion
 
     !> If grid should shifted by a half cell
     logical :: tShiftGrid
 
-    !> K-points and weights
-    real(dp), allocatable :: kPointsWeights(:,:)
-
-    !> File with binary eigenvectors
-    character(len=1024) :: eigVecBin
-
-    !> Auxiliary variable
-    integer :: ii
+    logical :: tGroundState
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
@@ -291,183 +310,183 @@ contains
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
-    call readDetailed(this, detailed, tGroundState, kPointsWeights)
+    call readDetailed(this, detailed, tGroundState, nKPoint, nSpin, this%eig%nState)
     call destroyNode(tmp)
-
-    nKPoint = size(kPointsWeights, dim=2)
-    nSpin = size(this%input%occupations, dim=3)
-    this%eig%nState = size(this%input%occupations, dim=1)
 
     !! Read basis
     call getChild(root, "Basis", tmp)
-    call readBasis(this, tmp, this%input%geo%speciesNames)
+    call readBasis(this, tmp,  this%xml%geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
-    call checkEigenvecs(eigVecBin, this%input%identity)
+    call checkEigenvecs(eigVecBin, this%xml%identity)
 
     !! Read options
     call getChild(root, "Options", tmp)
-    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
+    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, tShiftGrid)
+
+    !! Read eigenvectors
+    if (this%xml%tRealHam) then
+      allocate(this%eig%eigvecsReal(this%xml%nOrb, this%eig%nState))
+      call readEigenvecs(eigVecBin, this%eig%eigvecsReal)
+    else
+      allocate(this%eig%eigvecsCplx(this%xml%nOrb, this%eig%nState))
+      call readEigenvecs(eigVecBin, this%eig%eigvecsCplx)
+    end if
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
 
     !! Finish parsing, dump parsed and processed input
     call dumpHSD(hsdTree, hsdParsedInput)
-    write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
-        &//"'"
-    write(stdout, "(A,/)") repeat("-", 80)
-    call destroyNode(hsdTree)
 
-    !! Create grid vectors, shift them if necessary
-    do ii = 1, 3
-      this%loc%gridVec(:, ii) = this%opt%boxVecs(:, ii) / real(this%opt%nPoints(ii), dp)
-    end do
-    if (tShiftGrid) then
-      this%opt%gridOrigin(:) = this%opt%origin(:) + 0.5_dp * sum(this%loc%gridVec, dim=2)
-    else
-      this%opt%gridOrigin(:) = this%opt%origin(:)
-    end if
-    this%loc%gridVol = determinant(this%loc%gridVec)
+    write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput //"'"
+    write(stdout, "(A)") repeat("-", 80)
+    write(stdout, *)
+
+    call destroyNode(hsdTree)
 
     write(stdout, "(A)") "Doing initialisation"
 
-    !! Initialize necessary (molecular orbital, grid) objects
-    allocate(this%loc%molOrb)
-    this%loc%pMolOrb => this%loc%molOrb
-    call init(this%loc%molOrb, this%input%geo, this%basis%basis)
+    !! Initialize necessary objects
+    allocate(this%internal%molOrb)
+    this%internal%pMolOrb => this%internal%molOrb
+    call init(this%internal%molOrb, this%xml%geo, this%basis%basis)
 
-    call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
-        & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&
-        & nPoints=this%opt%nPoints, tVerbose=this%opt%tVerbose, eigVecBin=eigVecBin,&
-        & gridVec=this%loc%gridVec, origin=this%opt%gridOrigin,&
-        & kPointCoords=kPointsWeights(1:3, :), tReal=this%input%tRealHam, molorb=this%loc%pMolOrb)
+    !! Determine useful index mappings
+    call getIndexMappings(this)
+
+    !! Repeat boxes if necessary
+    call getRepeatedBox(this)
 
   end subroutine TProgramVariables_init
 
 
   !> Interpret the information stored in detailed.xml
-  subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
+  subroutine readDetailed(this, detailed, tGroundState, nKPoint, nSpin, nState)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
 
-    !> Pointer to the node, containing the information
-    type(fnode), pointer :: detailed
+    !> Pointer to the node, containing the info
+    type(fnode), intent(in), pointer :: detailed
 
-    !> Wether to look for ground state occupations (True) or excited (False)
+    !> look for ground state occupations (True) or excited (False)
     logical, intent(in) :: tGroundState
 
-    !> K-points and weights
-    real(dp), intent(out), allocatable :: kPointsWeights(:,:)
-
-    !> Pointers to input nodes
-    type(fnode), pointer :: tmp, occ, spin
-
-    !> Nr. of K-points
-    integer :: nKPoint
+    !> Nr. of K-Points
+    integer, intent(out) :: nKPoint
 
     !> Nr. of spins
-    integer :: nSpin
+    integer, intent(out) :: nSpin
 
     !> Nr. of states
-    integer :: nState
+    integer, intent(out) :: nState
 
-    !> Auxiliary variables
-    integer :: iSpin, iKpoint
+    type(fnode), pointer :: tmp, occ, spin
 
-    call getChildValue(detailed, "Identity", this%input%identity)
+    !> K-Points & weights
+    real(dp), allocatable :: kPointsWeights(:,:)
+
+    integer :: iSpin, iK
+
+    call getChildValue(detailed, "Identity", this%xml%identity)
     call getChild(detailed, "Geometry", tmp)
-    call readGeometry(this%input%geo, tmp)
+    call readGeometry(this, tmp)
 
-    call getChildValue(detailed, "Real", this%input%tRealHam)
+    call getChildValue(detailed, "Real", this%xml%tRealHam)
     call getChildValue(detailed, "NrOfKPoints", nKPoint)
     call getChildValue(detailed, "NrOfSpins", nSpin)
     call getChildValue(detailed, "NrOfStates", nState)
-    call getChildValue(detailed, "NrOfOrbitals", this%input%nOrb)
+    call getChildValue(detailed, "NrOfOrbitals", this%xml%nOrb)
 
     allocate(kPointsWeights(4, nKPoint))
-    allocate(this%input%occupations(nState, nKPoint, nSpin))
+    allocate(this%xml%occupations(nState, nKPoint, nSpin))
 
     call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
 
     if (tGroundState) then
+
       call getChild(detailed, "Occupations", occ)
       do iSpin = 1, nSpin
         call getChild(occ, "spin" // i2c(iSpin), spin)
-        do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
+        do iK = 1, nKPoint
+          call getChildValue(spin, "k" // i2c(iK), this%xml%occupations(:, iK, iSpin))
         end do
       end do
-      do iKpoint = 1, nKPoint
-        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
-            & * kPointsWeights(4, iKpoint)
+      do iK = 1, nKPoint
+        this%xml%occupations(:, iK, :) = this%xml%occupations(:, iK, :) *&
+            & kPointsWeights(4, iK)
       end do
+
     else
+
       call getChild(detailed, "ExcitedOccupations", occ)
       do iSpin = 1, nSpin
         call getChild(occ, "spin" // i2c(iSpin), spin)
-        do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
+        do iK = 1, nKPoint
+          call getChildValue(spin, "k" // i2c(iK), this%xml%occupations(:, iK, iSpin))
         end do
       end do
-      do iKpoint = 1, nKPoint
-        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
-            & * kPointsWeights(4, iKpoint)
+      do iK = 1, nKPoint
+        this%xml%occupations(:, iK, :) = this%xml%occupations(:, iK, :) *&
+            & kPointsWeights(4, iK)
       end do
+
     end if
 
   end subroutine readDetailed
 
 
   !> Read in the geometry stored as xml in internal or gen format.
-  subroutine readGeometry(geo, geonode)
+  subroutine readGeometry(this, geonode)
 
-    !> Geometry instance
-    type(TGeometry), intent(out) :: geo
+    !> Container of program variables
+    type(TProgramVariables), intent(inout) :: this
 
     !> Node containing the geometry
     type(fnode), pointer :: geonode
 
-    !> Pointers to input nodes
     type(fnode), pointer :: child
-
-    !> String buffer instance
     type(string) :: buffer
 
     call getChildValue(geonode, "", child)
     call getNodeName(child, buffer)
 
     select case (char(buffer))
+
     case ("genformat")
-      call readTGeometryGen(child, geo)
+      call readTGeometryGen(child, this%xml%geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, this%xml%geo)
+
     case ("xyzformat")
-      call readTGeometryXyz(child, geo)
+      call readTGeometryXyz(child, this%xml%geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, this%xml%geo)
+
     case ("vaspformat")
-      call readTGeometryVasp(child, geo)
+      call readTGeometryVasp(child, this%xml%geo)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, this%xml%geo)
+
     case default
-      call readTGeometryHSD(geonode, geo)
+      call readTGeometryHSD(geonode, this%xml%geo)
+
     end select
 
   end subroutine readGeometry
 
 
   !> Interpret the options.
-  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
+  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, tShiftGrid)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
 
-    !> Node containing the information
+    !> Node containig the information
     type(fnode), pointer :: node
 
-    !> Nr. of states in the calculation
+    !> Nr. of states in the dftb+ calc.
     integer, intent(in) :: nLevel
 
     !> Nr. of K-points
@@ -476,95 +495,86 @@ contains
     !> Nr. of spins
     integer, intent(in) :: nSpin
 
-    !> Nr. of cached grids
-    integer, intent(out) :: nCached
-
-    !> If grid should be shifted by half a cell
+    !> If grid should shifted by a half cell
     logical, intent(out) :: tShiftGrid
 
-    !> Pointer to the nodes, containing the information
+    !> List of levels to plot, whereby insignificant occupations were filtered out
+    integer, allocatable :: levelIndex(:,:)
+
     type(fnode), pointer :: subnode, field, value
-
-    !> String buffer instances
     type(string) :: buffer, modifier
-
-    !> Onedimensional integer-valued index list
     type(TListIntR1) :: indexBuffer
-
-    !> Id of calculation at hand
-    integer :: curId
-
-    !> If current level is found be calculated explicitely
-    logical :: tFound
-
-    !> Warning issued, if the detailed.xml id does not match the eigenvector id
-    character(len=63) :: warnId(3) = [&
-        & "The external files you are providing differ from those provided", &
-        & "when this input file was generated. The results you obtain with", &
-        & "the current files could therefore be different.                "]
-
-    !> Auxiliary variables
+    integer :: curId, curVec(3)
     integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
+    logical :: tFound
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
     real(dp), allocatable :: mcutoffs(:)
     real(dp) :: minEdge
 
+    character(len=63) :: warnId(3) = (/ &
+        & "The external files you are providing differ from those provided",&
+        & "when this input file was generated. The results you obtain with",&
+        & "the current files could be, therefore, different.              "&
+        & /)
+
     !! Warning, if processed input is read in, but eigenvectors are different
-    call getChildValue(node, "Identity", curId, this%input%identity)
-    if (curId /= this%input%identity) then
+    call getChildValue(node, "Identity", curId, this%xml%identity)
+    if (curId /= this%xml%identity) then
       call warning(warnId)
     end if
 
-    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
+    call getChildValue(node, "TotalChargeDensity", this%option%tPlotTotChrg, .false.)
 
     if (nSpin == 2) then
-      call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, .false.)
+      call getChildValue(node, "TotalSpinPolarisation", this%option%tPlotTotSpin, .false.)
     else
-      this%opt%tPlotTotSpin = .false.
+      this%option%tPlotTotSpin = .false.
     end if
 
-    call getChildValue(node, "TotalChargeDifference", this%opt%tPlotTotDiff, .false., child=field)
-    call getChildValue(node, "TotalAtomicDensity", this%opt%tPlotAtomDens, .false.)
-    call getChildValue(node, "ChargeDensity", this%opt%tPlotChrg, .false.)
-    call getChildValue(node, "ChargeDifference", this%opt%tPlotChrgDiff, .false.)
+    call getChildValue(node, "TotalChargeDifference", this%option%tPlotTotDiff, .false.,&
+        &child=field)
+    call getChildValue(node, "TotalAtomicDensity", this%option%tPlotAtomDens, .false.)
+    call getChildValue(node, "ChargeDensity", this%option%tPlotChrg, .false.)
+    call getChildValue(node, "ChargeDifference", this%option%tPlotChrgDiff, .false.)
 
-    this%opt%tCalcTotChrg = this%opt%tPlotTotChrg .or. this%opt%tPlotTotSpin&
-        & .or. this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff
-    this%opt%tCalcAtomDens = this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff&
-        & .or. this%opt%tPlotAtomDens
+    this%option%tCalcTotChrg = this%option%tPlotTotChrg .or. this%option%tPlotTotSpin .or.&
+        & this%option%tPlotTotDiff .or. this%option%tPlotChrgDiff
+    this%option%tCalcAtomDens = this%option%tPlotTotDiff .or. this%option%tPlotChrgDiff .or.&
+        & this%option%tPlotAtomDens
 
-    call getChildValue(node, "RealComponent", this%opt%tPlotReal, .false.)
-    call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
+    call getChildValue(node, "RealComponent", this%option%tPlotReal, .false.)
+    call getChildValue(node, "ImagComponent", this%option%tPlotImag, .false., child=field)
 
-    if (this%opt%tPlotImag .and. this%input%tRealHam) then
+    if (this%option%tPlotImag .and. this%xml%tRealHam) then
       call detailedWarning(field, "Wave functions are real, no imaginary part will be plotted")
-      this%opt%tPlotImag = .false.
+      this%option%tPlotImag = .false.
     end if
 
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels)
+    call getSelectedIndices(node, char(buffer), [1, nLevel], this%option%plottedLevels)
 
-    if (this%input%geo%tPeriodic) then
+    if (this%xml%geo%tPeriodic) then
       call getChildValue(node, "PlottedKPoints", buffer, child=field, multiple=.true.)
-      call getSelectedIndices(node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
+      call getSelectedIndices(node, char(buffer), [1, nKPoint], this%option%plottedKPoints)
     else
-      allocate(this%opt%plottedKPoints(1))
-      this%opt%plottedKPoints(1) = 1
+      allocate(this%option%plottedKPoints(1))
+      this%option%plottedKPoints(1) = 1
     end if
 
     call getChildValue(node, "PlottedSpins", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nSpin], this%opt%plottedSpins)
+    call getSelectedIndices(node, char(buffer), [1, nSpin], this%option%plottedSpins)
 
     !! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)
+
     do iSpin = 1, nSpin
       do iKPoint = 1, nKPoint
         do iLevel = 1, nLevel
-          tFound = any(this%opt%plottedLevels == iLevel)&
-              & .and. any(this%opt%plottedKPoints == iKPoint)&
-              & .and. any(this%opt%plottedSpins == iSpin)
-          if ((.not. tFound) .and. this%opt%tCalcTotChrg) then
-            tFound = this%input%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
+          tFound = any(this%option%plottedLevels == iLevel) &
+              &.and. any(this%option%plottedKPoints == iKPoint) &
+              &.and. any(this%option%plottedSpins == iSpin)
+          if ((.not. tFound) .and. this%option%tCalcTotChrg) then
+            tFound = this%xml%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
           end if
           if (tFound) then
             call append(indexBuffer, [iLevel, iKPoint, iSpin])
@@ -577,18 +587,36 @@ contains
       call error("No levels specified for plotting")
     end if
 
-    allocate(this%loc%levelIndex(3, len(indexBuffer)))
-    call asArray(indexBuffer, this%loc%levelIndex)
+    allocate(levelIndex(3, len(indexBuffer)))
+    call asArray(indexBuffer, levelIndex)
     call destruct(indexBuffer)
 
-    call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
+    allocate(this%option%levelIndex(3, size(levelIndex, dim=2)))
 
-    if (nCached < 1 .and. nCached /= -1) then
-      call detailedError(field, "Value must be -1 or greater than zero.")
-    end if
+    ! Make sure, level entries are correctly sorted in the list
+    ind = 1
+    do iSpin = 1, nSpin
+      do iKPoint = 1, nKPoint
+        do iLevel = 1, nLevel
+          curVec = [iLevel, iKPoint, iSpin]
+          tFound = .false.
+          lpLevelIndex: do ii = 1, size(levelIndex, dim=2)
+            tFound = all(levelIndex(:, ii) == curVec)
+            if (tFound) then
+              exit lpLevelIndex
+            end if
+          end do lpLevelIndex
+          if (tFound) then
+            this%option%levelIndex(:, ind) = curVec(:)
+            ind = ind + 1
+          end if
+        end do
+      end do
+    end do
 
-    if (nCached == -1) then
-      nCached = size(this%loc%levelIndex, dim=2)
+    call getChildValue(node, "SpGridPoints", this%option%nSpPoints, child=field)
+    if (any(this%option%nSpPoints <= 0)) then
+      call detailedError(field, "Specified numbers must be greater than zero")
     end if
 
     !! Plotted region: if last (and hopefully only) childnode is not an allowed method -> assume
@@ -596,28 +624,31 @@ contains
     call getChildValue(node, "PlottedRegion", value, child=subnode)
     call getNodeName(value, buffer)
 
+    allocate(this%internal%speciesGridsOrigs(3, this%xml%geo%nSpecies))
+
     select case (char(buffer))
+
     case ("unitcell")
       !! Unit cell for the periodic case, smallest possible cuboid for cluster
-      if (this%input%geo%tPeriodic) then
-        this%opt%origin(:) = [0.0_dp, 0.0_dp, 0.0_dp]
-        this%opt%boxVecs(:,:) = this%input%geo%latVecs(:,:)
+      if (this%xml%geo%tPeriodic) then
+        this%option%origin(:) = [0.0_dp, 0.0_dp, 0.0_dp]
+        this%option%boxVecs(:,:) = this%xml%geo%latVecs
       else
         call getChildValue(value, "MinEdgeLength", minEdge, child=field, default=1.0_dp)
         if (minEdge < 0.0_dp) then
           call detailedError(field, "Minimal edge length must be positive")
         end if
-        this%opt%origin = minval(this%input%geo%coords, dim=2)
-        tmpvec = maxval(this%input%geo%coords, dim=2) - this%opt%origin
+        this%option%origin = minval(this%xml%geo%coords, dim=2)
+        tmpvec = maxval(this%xml%geo%coords, dim=2) - this%option%origin
         do ii = 1, 3
           if (tmpvec(ii) < minEdge) then
-            this%opt%origin(ii) = this%opt%origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
+            this%option%origin(ii) = this%option%origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
             tmpvec(ii) = minEdge
           end if
         end do
-        this%opt%boxVecs(:,:) = 0.0_dp
+        this%option%boxVecs(:,:) = 0.0_dp
         do ii = 1, 3
-          this%opt%boxVecs(ii, ii) = tmpvec(ii)
+          this%option%boxVecs(ii, ii) = tmpvec(ii)
         end do
       end if
 
@@ -627,44 +658,54 @@ contains
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
       end if
-      allocate(mcutoffs(this%input%geo%nSpecies))
-      do iSpecies = 1 , this%input%geo%nSpecies
+      allocate(mcutoffs(this%xml%geo%nSpecies))
+      do iSpecies = 1, this%xml%geo%nSpecies
         mcutoffs(iSpecies) = maxval(this%basis%basis(iSpecies)%cutoffs)
+        this%internal%speciesGridsOrigs(:, iSpecies) = - mcutoffs(iSpecies)
       end do
-      minvals = this%input%geo%coords(:,1)
-      maxvals = this%input%geo%coords(:,1)
-      do iAtom = 1, this%input%geo%nAtom
-        iSpecies = this%input%geo%species(iAtom)
-        maxvals(:) = max(maxvals, this%input%geo%coords(:, iAtom) + mcutoffs(iSpecies))
-        minvals(:) = min(minvals, this%input%geo%coords(:, iAtom) - mcutoffs(iSpecies))
+      minvals = this%xml%geo%coords(:, 1)
+      maxvals = this%xml%geo%coords(:, 1)
+      do iAtom = 1, this%xml%geo%nAtom
+        iSpecies = this%xml%geo%species(iAtom)
+        maxvals(:) = max(maxvals, this%xml%geo%coords(:, iAtom) + mcutoffs(iSpecies))
+        minvals(:) = min(minvals, this%xml%geo%coords(:, iAtom) - mcutoffs(iSpecies))
       end do
-      this%opt%origin(:) = minvals(:)
+      this%option%origin(:) = minvals(:)
       tmpvec(:) = maxvals(:) - minvals(:)
       do ii = 1, 3
         if (tmpvec(ii) < minEdge) then
-          this%opt%origin(ii) = this%opt%origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
+          this%option%origin(ii) = this%option%origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
           tmpvec(ii) = minEdge
         end if
       end do
-      this%opt%boxVecs(:,:) = 0.0_dp
+      this%option%boxVecs(:,:) = 0.0_dp
+      allocate(this%internal%speciesGridsVecs(3, 3, this%xml%geo%nSpecies))
+      this%internal%speciesGridsVecs(:,:,:) = 0.0_dp
+      do iSpecies = 1, this%xml%geo%nSpecies
+        do ii = 1, 3
+          this%internal%speciesGridsVecs(ii, ii, iSpecies) = 2.0_dp * mcutoffs(iSpecies)&
+              & / (real(this%option%nSpPoints(ii), dp) - 1.0_dp)
+        end do
+      end do
       do ii = 1, 3
-        this%opt%boxVecs(ii, ii) = tmpvec(ii)
+        this%option%boxVecs(ii, ii) = tmpvec(ii)
       end do
 
-    case ("origin","box")
-      !! Those nodes are part of an explicit specification -> explitic specif
-      call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
-      if (abs(determinant(this%opt%boxVecs)) < 1e-08_dp) then
+    case ("origin", "box")
+      !! Those nodes are part of an explicit specification
+      call getChildValue(subnode, "Box", this%option%boxVecs, modifier=modifier,&
+          &child=field)
+      if (abs(determinant(this%option%boxVecs)) < 1e-08_dp) then
         call detailedError(field, "Vectors are linearly dependent")
       end if
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%boxVecs(:,:) = this%opt%boxVecs(:,:) * lengthUnits(ind)%convertValue
+        this%option%boxVecs(:,:) = this%option%boxVecs(:,:) * lengthUnits(ind)%convertValue
       end if
-      call getChildValue(subnode, "Origin", this%opt%origin, modifier=modifier, child=field)
+      call getChildValue(subnode, "Origin", this%option%origin, modifier=modifier, child=field)
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%origin(:) = this%opt%origin(:) * lengthUnits(ind)%convertValue
+        this%option%origin(:) = this%option%origin * lengthUnits(ind)%convertValue
       end if
 
     case default
@@ -674,35 +715,182 @@ contains
 
     !! Replace existing PlottedRegion definition
     call setChild(node, "PlottedRegion", field, replace=.true.)
-    call setChildValue(field, "Origin", this%opt%origin, replace=.true.)
-    call setChildValue(field, "Box", this%opt%boxVecs, replace=.true.)
+    call setChildValue(field, "Origin", this%option%origin, .true.)
+    call setChildValue(field, "Box", this%option%boxVecs, .true.)
 
-    call getChildValue(node, "NrOfPoints", this%opt%nPoints, child=field)
+    call getChildValue(node, "TotGridPoints", this%option%nTotPoints, child=field)
 
-    if (any(this%opt%nPoints <= 0)) then
+    if (any(this%option%nTotPoints <= 0)) then
       call detailedError(field, "Specified numbers must be greater than zero")
     end if
 
     call getChildValue(node, "ShiftGrid", tShiftGrid, default=.true.)
 
-    if (this%input%geo%tPeriodic) then
-      call getChildValue(node, "FoldAtomsToUnitCell", this%opt%tFoldCoords, default=.false.)
-      call getChildValue(node, "FillBoxWithAtoms", this%opt%tFillBox, default=.false.)
-      this%opt%tFoldCoords = this%opt%tFoldCoords .or. this%opt%tFillBox
+    if (this%xml%geo%tPeriodic) then
+      call getChildValue(node, "FoldAtomsToUnitCell", this%option%tFoldCoords, default=.false.)
+      call getChildValue(node, "FillBoxWithAtoms", this%option%tFillBox, default=.false.)
+      this%option%tFoldCoords = this%option%tFoldCoords .or. this%option%tFillBox
     else
-      this%opt%tFillBox = .false.
-      this%opt%tFoldCoords = .false.
+      this%option%tFillBox = .false.
+      this%option%tFoldCoords = .false.
     end if
 
-    call getChildValue(node, "RepeatBox", this%opt%repeatBox, default=[1, 1, 1], child=field)
+    call getChildValue(node, "RepeatBox", this%option%repeatBox, default=[1, 1, 1], child=field)
 
-    if (.not. all(this%opt%repeatBox > 0)) then
+    if (.not. all(this%option%repeatBox > 0)) then
       call detailedError(field, "Indexes must be greater than zero")
     end if
 
-    call getChildValue(node, "Verbose", this%opt%tVerbose, default=.false.)
+    call getChildValue(node, "Verbose", this%option%tVerbose, .false.)
+
+    !! Create grid vectors, shift them if necessary
+    do ii = 1, 3
+      this%internal%totGridVec(:, ii) = this%option%boxVecs(:, ii)&
+          & / real(this%option%nTotPoints(ii), dp)
+    end do
+
+    if (char(buffer) == 'origin' .or. char(buffer) == 'box' .or. char(buffer) == 'unitcell') then
+      call calculateSpeciesGridsVecs(this)
+    end if
+
+    if (tShiftGrid) then
+      this%option%totGridOrig(:) = this%option%origin(:) +&
+          & 0.5_dp * sum(this%internal%totGridVec, dim=2)
+      ! do iSpecies = 1, this%xml%geo%nSpecies
+      !   this%internal%speciesGridsOrigs(:, iSpecies) =&
+      !       & this%internal%speciesGridsOrigs(:, iSpecies) + 0.5_dp *&
+      !       & sum(this%internal%totGridVec, dim=2)
+      ! end do
+    else
+      this%option%totGridOrig(:) = this%option%origin(:)
+    end if
+    this%internal%gridVol = determinant(this%internal%totGridVec)
+
+    !! Calculate the center coordinate of the total grid
+    this%internal%totGridCenter(:) = 0.0_dp
+    do ii = 1, 3
+      this%internal%totGridCenter(:) = this%internal%totGridCenter + 0.5_dp *&
+          & real(this%option%nTotPoints(ii), dp) * this%internal%totGridVec(:, ii)
+    end do
 
   end subroutine readOptions
+
+
+  !> Calculates box vectors of species grids for given total grid vectors
+  subroutine calculateSpeciesGridsVecs(this)
+
+    !> Container of program variables
+    type(TProgramVariables), intent(inout) :: this
+
+    !> cartesian total grid coordinates
+    real(dp), allocatable :: subcubeCartCoords(:,:)
+
+    !> integer total grid coordinates
+    integer :: gridcoords(3,8)
+
+    !> Inverse of total grid basis
+    real(dp) :: totGridInvBasis(3,3)
+
+    !> Box vectors for current species
+    real(dp) :: speciesBoxVecs(3,3)
+
+    !> Maximum cutoff radius for a species
+    real(dp) :: maxSpeciesCutoff
+
+    !> Integer total grid ranges that contain the cutoff subcube
+    integer :: maxRanges(3)
+
+    !> Auxiliary variables
+    integer :: ii, iSpecies
+
+    allocate(this%internal%speciesGridsVecs(3, 3, this%xml%geo%nSpecies))
+
+    call invert33(totGridInvBasis, this%internal%totGridVec)
+
+    do iSpecies = 1, this%xml%geo%nSpecies
+
+      maxSpeciesCutoff = maxval(this%basis%basis(iSpecies)%cutoffs)
+      subcubeCartCoords = reshape([&
+          0.0_dp, 0.0_dp, 0.0_dp,&
+          0.0_dp, 0.0_dp, 1.0_dp,&
+          0.0_dp, 1.0_dp, 0.0_dp,&
+          0.0_dp, 1.0_dp, 1.0_dp,&
+          1.0_dp, 0.0_dp, 0.0_dp,&
+          1.0_dp, 0.0_dp, 1.0_dp,&
+          1.0_dp, 1.0_dp, 0.0_dp,&
+          1.0_dp, 1.0_dp, 1.0_dp],&
+          & [3, 8]) * 2.0_dp * maxSpeciesCutoff
+
+      do ii = 1, size(subcubeCartCoords, dim=2)
+        gridcoords(:, ii) = floor(matmul(subcubeCartCoords(:, ii), totGridInvBasis))
+      end do
+
+      maxRanges = maxval(gridcoords, dim=2) - minval(gridcoords, dim=2)
+
+      do ii = 1, 3
+        speciesBoxVecs(:, ii) = this%internal%totGridVec(:, ii) * maxRanges(ii)
+      end do
+
+      this%internal%speciesGridsOrigs(:, iSpecies) = [0.0_dp, 0.0_dp, 0.0_dp]
+      do ii = 1, 3
+        this%internal%speciesGridsVecs(:, ii, iSpecies) = speciesBoxVecs(:, ii)&
+            & / real(this%option%nSpPoints(ii), dp)
+        this%internal%speciesGridsOrigs(:, iSpecies) = this%internal%speciesGridsOrigs(:, iSpecies)&
+            & - 0.5_dp * real(this%option%nSpPoints(ii), dp) *&
+            & this%internal%speciesGridsVecs(:, ii, iSpecies)
+      end do
+
+    end do
+
+  end subroutine calculateSpeciesGridsVecs
+
+
+#:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
+
+  !> Read external eigenvector file (eigenvec.bin)
+  subroutine read${NAME}$Eigenvecs(filename, eigenvecs, jobId)
+
+    !> File to read eigenvectors from
+    character(len=*), intent(in) :: filename
+
+    !> Resulting eigenvectors read from file
+    ${DTYPE}$(dp), intent(out) :: eigenvecs(:,:)
+
+    !> ID of the calculation which produced the file
+    integer, intent(out), optional :: jobId
+
+    !> Number of orbitals per state
+    integer :: nOrb
+
+    integer :: fd, iOrb, dummy
+    logical :: exst
+
+    nOrb = size(eigenvecs, dim=1)
+
+    inquire(file=filename, exist=exst)
+
+    if (exst) then
+
+      open(newunit=fd, file=filename, action="read", form="unformatted", position='rewind')
+      read(fd) dummy
+
+      if (present(jobId)) then
+        jobId = dummy
+      end if
+
+      do iOrb = 1, nOrb
+        read(fd) eigenvecs(:, iOrb)
+      end do
+
+      close(fd)
+
+    else
+      call error('no ' // filename // ' file!')
+    end if
+
+  end subroutine read${NAME}$Eigenvecs
+
+#:endfor
 
 
   !> Read in the basis related informations
@@ -714,65 +902,44 @@ contains
     !> Node containing the basis definition
     type(fnode), pointer :: node
 
-    !> Names of the species for which the basis should be read in
+    !> Names of the species for which basis should be read in
     character(len=*), intent(in) :: speciesNames(:)
 
-    !> Name of current species
     character(len=len(speciesNames)) :: speciesName
-
-    !> Input node instance, containing the information
     type(fnode), pointer :: speciesNode
-
-    !> Total number of species in the system
     integer :: nSpecies
-
-    !> Auxiliary variable
     integer :: ii
 
     nSpecies = size(speciesNames)
 
     @:ASSERT(nSpecies > 0)
 
-    call getChildValue(node, "Resolution", this%basis%basisResolution)
-
     allocate(this%basis%basis(nSpecies))
-    allocate(this%aNr%atomicNumbers(nSpecies))
+    allocate(this%atomicNumber%atomicNumbers(nSpecies))
 
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
-      call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii))
-      this%aNr%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
+      call readSpeciesBasis(speciesNode, this%basis%basis(ii))
+      this%atomicNumber%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
     end do
 
   end subroutine readBasis
 
 
   !> Read in basis function for a species.
-  subroutine readSpeciesBasis(node, basisResolution, spBasis)
+  subroutine readSpeciesBasis(node, spBasis)
 
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
 
-    !> Grid distance for discretising the basis functions
-    real(dp), intent(in) :: basisResolution
-
     !> Contains the basis on return
     type(TSpeciesBasis), intent(out) :: spBasis
 
-    !> Input node instances, containing the information
     type(fnode), pointer :: tmpNode, child
-
-    !> Node list instance
     type(fnodeList), pointer :: children
-
-    !> Real-valued buffer lists
-    type(TListReal) :: bufferExps, bufferCoeffs
-
-    !> Basis coefficients and exponents
-    real(dp), allocatable :: coeffs(:), exps(:)
-
-    !> Auxiliary variable
+    type(TListReal) :: bufferRwf
+    real(dp), allocatable :: rwf(:)
     integer :: ii
 
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
@@ -785,41 +952,177 @@ contains
 
     allocate(spBasis%angMoms(spBasis%nOrb))
     allocate(spBasis%occupations(spBasis%nOrb))
-    allocate(spBasis%stos(spBasis%nOrb))
+    allocate(spBasis%rwfs(spBasis%nOrb))
     allocate(spBasis%cutoffs(spBasis%nOrb))
 
     do ii = 1, spBasis%nOrb
+
       call getItem1(children, ii, tmpNode)
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
       call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
       call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
-      call init(bufferExps)
 
-      call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
-      if (len(bufferExps) == 0) then
-        call detailedError(child, "Missing exponents")
+      call init(bufferRwf)
+      call getChildValue(tmpNode, "RadialWaveFunc", bufferRwf, child=child)
+
+      if (len(bufferRwf) == 0) then
+        call detailedError(child, "Missing radial wavefunction")
       end if
-      call init(bufferCoeffs)
-      call getChildValue(tmpNode, "Coefficients", bufferCoeffs, child=child)
-      if (len(bufferCoeffs) == 0) then
-        call detailedError(child, "Missing coefficients")
-      end if
-      if (mod(len(bufferCoeffs), len(bufferExps)) /= 0) then
-        call detailedError(child, "Number of coefficients incompatible with number of exponents")
-      end if
-      allocate(exps(len(bufferExps)))
-      call asArray(bufferExps, exps)
-      call destruct(bufferExps)
-      allocate(coeffs(len(bufferCoeffs)))
-      call asArray(bufferCoeffs, coeffs)
-      call destruct(bufferCoeffs)
-      call init(spBasis%stos(ii), reshape(coeffs, [size(coeffs) / size(exps), size(exps)]),&
-          & exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
-      deallocate(exps)
-      deallocate(coeffs)
+
+      allocate(rwf(len(bufferRwf)))
+
+      call asArray(bufferRwf, rwf)
+      call destruct(bufferRwf)
+
+      call init(spBasis%rwfs(ii), transpose(reshape(rwf, [3, size(rwf) / 3])))
+
+      deallocate(rwf)
+
     end do
 
   end subroutine readSpeciesBasis
+
+
+  !> Determines convenient index mappings
+  subroutine getIndexMappings(this)
+
+    !> Container of program variables
+    type(TProgramVariables), intent(inout) :: this
+
+    !> Auxiliary arrays
+    integer, allocatable :: tmp1(:), tmp2(:), tmp3(:,:)
+
+    !> Auxiliary variables
+    integer :: iAtom, iOrb, iSpecies, iAng, iL, iM, iOrbPerSpecies, mAng, ind
+
+    allocate(this%internal%orbitalOcc(this%xml%nOrb, 1))
+    allocate(this%internal%orbitalToAtom(this%xml%nOrb))
+    allocate(this%internal%orbitalToSpecies(this%xml%nOrb))
+    allocate(tmp1(this%xml%geo%nSpecies + 1))
+    allocate(tmp2(this%xml%nOrb))
+    allocate(tmp3(2, this%xml%nOrb))
+
+    iOrb = 1
+
+    do iAtom = 1, this%xml%geo%nAtom
+      ind = 1
+      iSpecies = this%xml%geo%species(iAtom)
+      do iAng = 1, size(this%basis%basis(iSpecies)%angMoms)
+        mAng = 2 * this%basis%basis(iSpecies)%angMoms(iAng) + 1
+        this%internal%orbitalOcc(iOrb:iOrb + mAng - 1, 1) =&
+            & this%basis%basis(iSpecies)%occupations(iAng) / real(mAng, dp)
+        do iM = 1, mAng
+          tmp3(1, iOrb) = iSpecies
+          tmp3(2, iOrb) = ind
+          this%internal%orbitalToAtom(iOrb) = iAtom
+          iOrb = iOrb + 1
+          ind = ind + 1
+        end do
+      end do
+    end do
+
+    ind = 1
+
+    do iAtom = 1, this%xml%geo%nAtom
+      iSpecies = this%xml%geo%species(iAtom)
+      do iAng = 1, size(this%basis%basis(iSpecies)%angMoms)
+        mAng = 2 * this%basis%basis(iSpecies)%angMoms(iAng) + 1
+        this%internal%orbitalOcc(ind:ind + mAng - 1, 1) =&
+            & this%basis%basis(iSpecies)%occupations(iAng) / real(mAng, dp)
+        ind = ind + mAng
+      end do
+    end do
+
+    ind = 1
+
+    do iSpecies = 1, this%xml%geo%nSpecies
+      tmp1(iSpecies) = ind
+      mAng = maxval(this%basis%basis(iSpecies)%angMoms)
+      do iAng = this%internal%molorb%iStos(iSpecies), this%internal%molorb%iStos(iSpecies + 1) - 1
+        iL = this%internal%molorb%angMoms(iAng)
+        ind = ind + 2 * iL + 1
+      end do
+    end do
+
+    tmp1(this%xml%geo%nSpecies + 1) = ind
+
+
+    do iOrb = 1, this%xml%nOrb
+      iSpecies = tmp3(1, iOrb)
+      iOrbPerSpecies = tmp3(2, iOrb)
+      this%internal%orbitalToSpecies(iOrb) = tmp1(iSpecies) + iOrbPerSpecies - 1
+    end do
+
+    deallocate(tmp1)
+    deallocate(tmp2)
+    deallocate(tmp3)
+
+  end subroutine getIndexMappings
+
+
+  !> Repeat box if necessary
+  subroutine getRepeatedBox(this)
+
+    !> Container of program variables
+    type(TProgramVariables), intent(inout) :: this
+
+    !> Temporary storage
+    real(dp), allocatable :: tmpCoords(:,:)
+    integer, allocatable :: tmpSpecies(:)
+
+    !> Amount to shift
+    real(dp) :: shift(3)
+
+    !> Total number of boxes
+    integer :: nBox
+
+    !> Auxiliary variables
+    integer :: i1, i2, i3, iAtom, ind
+
+    nBox = product(this%option%repeatBox)
+
+    if (nBox > 1) then
+
+      ! If tFillBox is off, coordinates must be repeated here.
+      ! Otherwise the part for filling with atoms will do that.
+      if (.not. this%option%tFillBox) then
+
+        allocate(tmpCoords(3, size(this%xml%geo%coords)))
+        allocate(tmpSpecies(size(this%xml%geo%species)))
+
+        ! temporarily save unrepeated coordinates and species
+        tmpCoords(:,:) = this%xml%geo%coords(:,:)
+        tmpSpecies(:) = this%xml%geo%species(:)
+
+        deallocate(this%xml%geo%coords)
+        deallocate(this%xml%geo%species)
+        allocate(this%xml%geo%coords(3, nBox * this%xml%geo%nAtom))
+        allocate(this%xml%geo%species(nBox * this%xml%geo%nAtom))
+
+        ind = 0
+
+        do i1 = 0, this%option%repeatBox(1) - 1
+          do i2 = 0, this%option%repeatBox(2) - 1
+            do i3 = 0, this%option%repeatBox(3) - 1
+              shift(:) = matmul(this%option%boxVecs, real([i1, i2, i3], dp))
+              do iAtom = 1, this%xml%geo%nAtom
+                this%xml%geo%coords(:, ind + iAtom) = tmpCoords(:, iAtom) + shift(:)
+              end do
+              this%xml%geo%species(ind + 1:ind + this%xml%geo%nAtom) = tmpSpecies(:)
+              ind = ind + this%xml%geo%nAtom
+            end do
+          end do
+        end do
+        this%xml%geo%nAtom = nBox * this%xml%geo%nAtom
+      end if
+      do i1 = 1, 3
+        this%option%boxVecs(:, i1) = this%option%boxVecs(:, i1) *&
+            & real(this%option%repeatBox(i1), dp)
+      end do
+
+    end if
+
+  end subroutine getRepeatedBox
 
 
   !> Checks, if the eigenvector file has the right identity number.
@@ -828,12 +1131,13 @@ contains
     !> File to check
     character(len=*), intent(in) :: fileName
 
-    !> Identity number
+    !> Identity number.
     integer, intent(in) :: identity
 
     integer :: fd, id, iostat
 
     fd = getFileId()
+
     open(fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
 
     if (iostat /= 0) then
@@ -852,26 +1156,25 @@ contains
   end subroutine checkEigenvecs
 
 
-  !> Determinant of a 3x3 matrix (only temporary!)
-  function determinant(matrix)
+  !> Determinant of a 3x3 matrix (Only temporary!)
+  function  determinant(matrix)
 
-    !> Matrix to calculate the determinant for
-    real(dp), intent(in) :: matrix(:,:)
+    !> The matrix to calculate the determinant from.
+    real(dp), intent(in) :: matrix(:, :)
 
-    !> Calculated determinant
+    !> Determinant of the matrix.
     real(dp) :: determinant
 
-    !> Auxiliary variable
     real(dp) :: tmp
 
-    @:ASSERT(all(shape(matrix) == [3, 3]))
+    @:ASSERT(all(shape(matrix) == (/3, 3/)))
 
-    tmp = matrix(1, 1)&
-        & * (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
-    tmp = tmp - matrix(1, 2)&
-        & * (matrix(2, 1) * matrix(3, 3) - matrix(3, 1) * matrix(2, 3))
-    tmp = tmp + matrix(1, 3)&
-        & * (matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2))
+    tmp = matrix(1, 1) &
+        &* (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
+    tmp = tmp - matrix(1, 2) &
+        &* (matrix(2, 1) * matrix(3, 3) - matrix(3, 1) * matrix(2, 3))
+    tmp = tmp + matrix(1, 3) &
+        &* (matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2))
 
     determinant = abs(tmp)
 

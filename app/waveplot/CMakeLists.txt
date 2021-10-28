@@ -1,9 +1,11 @@
 set(projectdir ${PROJECT_SOURCE_DIR})
 
 set(sources-fpp
-  gridcache.F90
+  grids.F90
   initwaveplot.F90
+  interp.F90
   molorb.F90
+  parallel.F90
   slater.F90
   waveplot.F90)
 
