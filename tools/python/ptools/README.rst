@@ -1,0 +1,36 @@
+**************************************************************
+dftbplus-ptools: Python Tools for the DFTB+ Simulation Package
+**************************************************************
+
+dftbplus-ptools provides a collection of pythonic tools for the simulation
+package `DFTB+ <https://github.com/dftbplus/dftbplus>`_.
+
+Installation
+============
+
+The package can be installed via conda-forge::
+
+  conda install dftbplus-ptools
+
+Alternatively, the package can be downloaded and installed via pip into the
+active Python interpreter (preferably using a virtual python environment) by ::
+
+  pip install dftbplus-ptools
+
+or into the user space issueing ::
+
+  pip install --user dftbplus-ptools
+
+Documentation
+=============
+
+Consult following resources for documentation:
+
+* `Step-by-step instructions with selected examples (DFTB+ Recipes)
+  <http://dftbplus-recipes.readthedocs.io/>`_
+
+License
+=======
+
+dftbplus-ase is released under the BSD 2-clause license. See the included
+`LICENSE <LICENSE>`_ file for the detailed licensing conditions.
