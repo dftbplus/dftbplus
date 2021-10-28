@@ -1,0 +1,11 @@
+LICENSE
+MANIFEST.in
+README.rst
+pyproject.toml
+setup.cfg
+setup.py
+src/dftbplus_ptools.egg-info/PKG-INFO
+src/dftbplus_ptools.egg-info/SOURCES.txt
+src/dftbplus_ptools.egg-info/dependency_links.txt
+src/dftbplus_ptools.egg-info/requires.txt
+src/dftbplus_ptools.egg-info/top_level.txt

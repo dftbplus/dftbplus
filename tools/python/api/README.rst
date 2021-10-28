@@ -44,7 +44,7 @@ For developers
 To perform pylint static checking from the top level directory of the
 DFTB+ project, use
 
-pylint3 --rcfile utils/srccheck/pylint/pylintrc-3.ini tools/pythonapi/src/*
+pylint3 --rcfile utils/srccheck/pylint/pylintrc-3.ini tools/python/api/src/*
 
 
 Installation
@@ -58,10 +58,10 @@ System install
 
 You can install the script package via the standard 'python setup'
 mechanism. If you want to install it system-wide into your normal
-python installation, for the script in the tools/pythonapi/
+python installation, for the script in the tools/python/api/
 sub-directory you simply issue::
 
-  python setup.py
+  python -m pip install .
 
 with an appropriate level of permission.
 
