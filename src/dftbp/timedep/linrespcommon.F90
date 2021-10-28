@@ -1,4 +1,3 @@
-
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
 !  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
