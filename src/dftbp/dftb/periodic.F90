@@ -82,6 +82,7 @@ module dftbp_dftb_periodic
 
     !> initialised data
     logical :: initialized = .false.
+
   end type TNeighbourList
 
 contains

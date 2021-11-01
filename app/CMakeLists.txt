@@ -10,5 +10,7 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY)
   endif()
 endif()
 
+add_subdirectory(neightester)
+
 # Propagate PKG_CONFIG_LIBS upwards
 set(PKG_CONFIG_LIBS "${PKG_CONFIG_LIBS}" PARENT_SCOPE)
