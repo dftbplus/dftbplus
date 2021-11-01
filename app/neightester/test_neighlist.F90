@@ -132,12 +132,15 @@ contains
 
     nAtom = size(neighList%nNeighbour)
     res = 0.0_dp
+    !$omp parallel do default(none) reduction(+:res) private(iAt1, iNeigh, iAt2)&
+    !$omp& shared(neighList, nAtom)
     do iAt1 = 1, nAtom
       do iNeigh = 1, neighList%nNeighbour(iAt1)
         iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         res = res + 1.0_dp / sqrt(neighList%neighDist2(iNeigh, iAt1))
       end do
     end do
+    !$omp end parallel do
 
   end subroutine iterateOverNeighArray
 
@@ -156,7 +159,13 @@ contains
     integer :: iAt1, iAt2, iNeigh, nNeigh
 
     res = 0.0_dp
+    !$omp parallel default(none) reduction(+:res)&
+    !$omp& firstprivate(neighIter)&
+    !$omp& private(iAt1, nNeigh, iNeigh, iAt2, iNeighs, distances2)&
+    !$omp& shared(cutoff, nAtom, chunkSize, neighIterFact)
     neighIter = neighIterFact%getIterator(cutoff)
+
+    !$omp do
     do iAt1 = 1, nAtom
       call neighIter%start(iAt1, cutoff, .false., chunkSize)
       do
@@ -168,6 +177,9 @@ contains
         if (nNeigh < chunkSize) exit
       end do
     end do
+    !$omp end do
+    deallocate(neighIter)
+    !$omp end parallel
 
   end subroutine iterateOverNeighIter
 

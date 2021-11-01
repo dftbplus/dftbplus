@@ -9,9 +9,10 @@
 
 !> Provides a neighour list iterator over a pre-generated static list of neighours.
 module dftbp_dftb_staticneighiter
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, tolSameDist2
   use dftbp_dftb_neighbouriter, only : TNeighbourIter, TNeighbourIterFact
   use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_math_bisect, only : bisection
   implicit none
 
   private
@@ -23,7 +24,7 @@ module dftbp_dftb_staticneighiter
     private
     type(TNeighbourList), pointer :: pNeighList => null()
     integer :: iAtom = 0
-    real(dp) :: cutoff2 = 0.0_dp
+    integer :: nAllNeighbours = 0
     integer :: lastServed = -1
     integer :: chunkSize = 0
   contains
@@ -58,7 +59,9 @@ contains
     integer, intent(in) :: chunkSize
 
     this%iAtom = iAtom
-    this%cutoff2 = cutoff**2
+    call bisection(this%nAllNeighbours,&
+        & this%pNeighList%neighDist2(1 : this%pNeighList%nNeighbour(iAtom), iAtom), cutoff**2,&
+        & tolSameDist2)
     if (includeSelf) then
       this%lastServed = -1
     else
@@ -77,10 +80,7 @@ contains
 
     integer :: iFirst, iLast
 
-    do nNeighs = 1, min(this%chunkSize, this%pNeighList%nNeighbour(this%iAtom) - this%lastServed)
-      if (this%pNeighList%neighDist2(this%lastServed + nNeighs, this%iAtom) > this%cutoff2) exit
-    end do
-    nNeighs = nNeighs - 1
+    nNeighs = min(this%chunkSize, this%nAllNeighbours - this%lastServed)
     iFirst = this%lastServed + 1
     iLast = this%lastServed + nNeighs
     if (present(iNeighs)) then
