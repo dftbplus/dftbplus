@@ -2352,7 +2352,9 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy, fd
+    integer :: iSpin, iK, iEgy
+    
+    integer :: fd
 
     open(newunit=fd, file=fileName, action="write", status="replace")
     do iSpin = 1, size(eigen, dim=3)
@@ -2428,7 +2430,7 @@ contains
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
 
     !> File  ID
-    integer:: fd
+    integer, intent(inout) :: fd
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2438,14 +2440,15 @@ contains
 
     logical :: isOpen
 
-    ! inquire(unit=fd, opened=isOpen)
-    ! if (isOpen .and. .not. tAppendDetailedOut) then
-    !   close(fd)
-    !   isOpen = .false.
-    ! end if
-    ! if (.not.isOpen) then
-    open(newunit=fd, file=fileName, status="replace", action="write")
-    ! end if
+    inquire(unit=fd, opened=isOpen)
+    if (isOpen .and. .not. tAppendDetailedOut) then
+       open(fd)
+       close(fd)
+       isOpen = .false.
+    end if
+    if (.not.isOpen) then
+      open(newunit=fd, file=fileName, status="replace", action="write")
+    end if
 
   end subroutine openDetailedOut
 
