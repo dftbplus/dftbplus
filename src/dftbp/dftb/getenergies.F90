@@ -66,6 +66,9 @@ contains
     !> electrons in each atomi shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
+    !> Multipole moments
+    type(TMultipole), intent(in) :: multipole
+
     !> chemical species
     integer, intent(in) :: species(:)
 
@@ -162,9 +165,6 @@ contains
 
     !> On-site only (external) potential
     real(dp), intent(in), optional :: vOnSiteAtomExt(:,:)
-
-    !> Multipole moments
-    type(TMultipole), intent(in) :: multipole
 
     integer :: nSpin
     real(dp) :: nEl(2)

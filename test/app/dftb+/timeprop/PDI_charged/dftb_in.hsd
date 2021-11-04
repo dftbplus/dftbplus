@@ -46,6 +46,7 @@ Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1.0E-10 # abnormally tight tolerance used for accuracy
   SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/mio-1-1/}
        Separator = "-"
        Suffix = ".skf"
    }   

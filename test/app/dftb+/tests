@@ -66,6 +66,8 @@ xtb/gfn1_succinic                      #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/ipea1_h2                           #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/ipea1_mindless02                   #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_h2_restart                    #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_h2_Ascii                      #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_mindless05                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_benzene                       #? WITH_TBLITE and MPI_PROCS <= 1
 spin/gfn2_H2                           #? WITH_TBLITE and MPI_PROCS <= 1
@@ -159,6 +161,13 @@ derivatives/Au2_LSmetalPol             #? MPI_PROCS <= 2
 derivatives/C18H12_rangesepPol         #? not WITH_MPI
 derivatives/C60                        #? MPI_PROCS <= 4
 derivatives/C60+                       #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 2 == 0) and LONG_TEST
+
+derivatives/CH4_onsite                 #? MPI_PROCS <= 1
+derivatives/CH4_kpt_ons                #? MPI_PROCS <= 1
+derivatives/As4S4_LS_ons               #? MPI_PROCS <= 2
+derivatives/10-0Ctube_onsite           #? MPI_PROCS <= 4
+derivatives/C6H6_onsite                #? MPI_PROCS == 1
+derivatives/CH4_RPA                    #? MPI_PROCS == 1
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1

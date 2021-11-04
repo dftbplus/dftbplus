@@ -173,7 +173,7 @@ module dftbp_io_taggedoutput
     !> Static electric polarizability from linear response/perturbation
     character(lenLabel) :: dmudEPerturb = 'staticPolResponse'
 
-    !> Static electric polarizability from linear response/perturbation
+    !> Static gross charge (Mulliken) response from linear response/perturbation
     character(lenLabel) :: dqdEPerturb = 'staticChargeReponse'
 
     !> Derivatives of ground state single particle eigenvalues wrt. k
@@ -185,11 +185,26 @@ module dftbp_io_taggedoutput
     !> Derivative of the Fermi energy with respect to electric field
     character(lenLabel) :: dEfdE = 'dEfdE'
 
+    !> Derivatives of ground state single particle eigenvalues wrt. onsite potentials
+    character(lenLabel) :: dEigenDVons = 'dEidVons'
+
+    !> Derivatives of ground state single particle eigenvalues wrt. potential at an atom
+    character(lenLabel) :: dEigenDV = 'dEidV'
+
+    !> Static gross charge (Mulliken) response with respect to potential at an atom
+    character(lenLabel) :: dqdV = 'dqdV'
+
+    !> Static net charge (onsite) response with respect to potential at an atom
+    character(lenLabel) :: dqnetdV = 'dqnetdV'
+
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
     !> atomic masses
     character(lenLabel) :: atomMass = 'atomic_masses'
+
+    !> Atomic dipole moments
+    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
 
   end type TTagLabelsEnum
 

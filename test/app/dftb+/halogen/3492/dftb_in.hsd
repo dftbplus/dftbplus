@@ -16,7 +16,7 @@ Hamiltonian = DFTB {
        Br = "d"
     }
     SlaterKosterFiles = Type2FileNames {
-       Prefix = "./"
+       Prefix = "slakos/origin/3ob-3-1/"
        Separator = "-"
        Suffix  = ".skf"
     }

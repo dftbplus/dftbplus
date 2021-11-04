@@ -17,7 +17,7 @@ module dftbp_dftbplus_main
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
-  use dftbp_derivs_staticperturb, only : staticPerturWrtE
+  use dftbp_derivs_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
@@ -74,7 +74,7 @@ module dftbp_dftbplus_main
       & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
       & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
       & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
-      & writeDetailedOut8
+      & writeDetailedOut8, writeDetailedOut9
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
@@ -280,7 +280,7 @@ contains
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+            & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
       end if
 
       if (this%tForces) then
@@ -390,32 +390,54 @@ contains
 
   #:endif
 
-    if (this%isDFTBPT) then
-      if (this%isStatEResp .and. .not.(this%tPeriodic .or. this%tNegf)) then
-        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
-            & this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom,&
-            & this%species, this%neighbourList, this%nNeighbourSK, this%denseDesc,&
-            & this%iSparseStart, this%img2CentCell, this%coord, this%scc, this%maxSccIter,&
-            & this%sccTol, this%isSccConvRequired, this%nMixElements, this%nIneqOrb,&
-            & this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW, this%thirdOrd,&
-            & this%dftbU, this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite,&
-            & this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint, this%kWeight,&
-            & this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability, this%dEidE,&
-            & this%dqOut, this%neFermi, this%dEfdE)
+    if (this%isDFTBPT .and. .not.this%tNegf) then
+      if (this%isStatEResp .and. .not.this%tPeriodic) then
+        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%tolDegenDFTBPT,&
+            & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
+            & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
+            & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
+            & this%maxSccIter, this%sccTol, this%isSccConvRequired, this%nMixElements,&
+            & this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW,&
+            & this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
+            & this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint,&
+            & this%kWeight, this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability,&
+            & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
+        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
+          call writeDetailedOut9(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
+              & this%dEfdE)
+        end if
       end if
-
+      if (this%isRespKernelPert) then
+        call polarizabilityKernel(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
+            & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
+            & this%fdDetailedOut, this%tWriteDetailedOut, this%filling, this%eigen,&
+            & this%tolDegenDFTBPT, this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian,&
+            & this%ints%overlap, this%orb, this%nAtom, this%species, this%neighbourList,&
+            & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell,&
+            & this%isRespKernelRPA, this%scc, this%maxSccIter, this%sccTol, this%isSccConvRequired,&
+            & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
+            & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+            & this%onSiteElements, this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC,&
+            & this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+            & this%neFermi, errStatus, this%tHelical, this%coord)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
+        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
+        end if
+      end if
     end if
 
-    if (env%tGlobalLead) then
-      if (this%tWriteDetailedOut) then
-        call writeDetailedOut8(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
-            & this%neFermi, this%dEfdE)
-
-        close(this%fdDetailedOut)
-      end if
+    if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+      close(this%fdDetailedOut)
     end if
 
     if (allocated(this%pipekMezey)) then
@@ -452,7 +474,8 @@ contains
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
-          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
+          & this%coord0, this%multipoleOut)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -811,8 +834,7 @@ contains
         call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-            & qNetAtom=this%qNetAtom, &
-            & dipAtom=this%multipoleOut%dipoleAtom, quadAtom=this%multipoleOut%quadrupoleAtom)
+            & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
 
         ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -967,8 +989,7 @@ contains
           call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-              & qNetAtom=this%qNetAtom, dipAtom=this%multipoleOut%dipoleAtom, &
-              & quadAtom=this%multipoleOut%quadrupoleAtom)
+              & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
 
           if (this%tSpinSharedEf .or. this%tFixEf .or.&
               & this%electronicSolver%iSolver == electronicSolverTypes%GF) then
@@ -1071,7 +1092,7 @@ contains
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
-                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion))
+                & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
           end if
         end if
 
@@ -1215,9 +1236,11 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
-          & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell, this%solvation)
+      if (this%hamiltonianType == hamiltonianTypes%dftb) then
+        call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
+            & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+            & this%img2CentCell, this%solvation)
+      end if
     #:endblock DEBUG_CODE
     end if
 
@@ -3431,7 +3454,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, ints, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, dipAtom, quadAtom)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, multipoles)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3469,11 +3492,8 @@ contains
     !> Onsite Mulliken charges per atom
     real(dp), intent(inout), allocatable :: qNetAtom(:)
 
-    !> Cumulative atomic dipole moment
-    real(dp), intent(inout), optional :: dipAtom(:, :)
-
-    !> Cumulative atomic quadrupole moment
-    real(dp), intent(inout), optional :: quadAtom(:, :)
+    !> Multipole moments
+    type(TMultipole), intent(inout), optional :: multipoles
 
     integer :: iSpin
 
@@ -3503,16 +3523,20 @@ contains
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
-    if (present(dipAtom)) then
-      call getAtomicMultipolePopulation(dipAtom, ints%dipoleBra, ints%dipoleKet, &
-          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-          & iSparseStart)
-    end if
+    if (present(multipoles)) then
 
-    if (present(quadAtom)) then
-      call getAtomicMultipolePopulation(quadAtom, ints%quadrupoleBra, ints%quadrupoleKet, &
-          & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-          & iSparseStart)
+      if (allocated(multipoles%dipoleAtom)) then
+        call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
+            & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+            & iSparseStart)
+      end if
+
+      if (allocated(multipoles%quadrupoleAtom)) then
+        call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
+            & ints%quadrupoleKet, rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK,&
+            & img2CentCell, iSparseStart)
+      end if
+
     end if
 
   end subroutine getMullikenPopulation
@@ -3657,11 +3681,13 @@ contains
     if (nIneqDip > 0) then
       ! FIXME: Assumes we always mix all dipole moments
       nMix = nIneqOrb
+      @:ASSERT(allocated(multipoleOut%dipoleAtom))
       qOutRed(nMix+1:nMix+nIneqDip) = reshape(multipoleOut%dipoleAtom, [nIneqDip])
     end if
     if (nIneqQuad > 0) then
       ! FIXME: Assumes we always mix all quadrupole moments
       nMix = nIneqOrb + nIneqDip
+      @:ASSERT(allocated(multipoleOut%quadrupoleAtom))
       qOutRed(nMix+1:nMix+nIneqQuad) = reshape(multipoleOut%quadrupoleAtom, [nIneqQuad])
     end if
     qDiffRed = qOutRed - qInpRed
@@ -3701,7 +3727,7 @@ contains
         if (nIneqQuad > 0) then
           ! FIXME: Assumes we always mix all quadrupole moments
           nMix = nIneqOrb + nIneqDip
-          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad), &
+          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
               & shape(multipoleInp%quadrupoleAtom))
         end if
       end if

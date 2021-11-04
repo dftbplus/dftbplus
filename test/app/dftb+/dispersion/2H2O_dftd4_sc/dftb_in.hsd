@@ -25,6 +25,7 @@ Hamiltonian = DFTB {
   Solver = DivideAndConquer {}
   Filling = Fermi { Temperature [Kelvin] = 0.0 }
   SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/mio-1-1/}
     Separator = "-"
     Suffix = ".skf"
   }

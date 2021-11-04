@@ -1803,13 +1803,19 @@ contains
       call ctrl%tbliteInp%setupCalculator(method)
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
-      call getChildValue(node, "ParameterFile", buffer)
-      paramFile = trim(unquote(char(buffer)))
-      call getParamSearchPath(searchPath)
-      call findFile(searchPath, paramFile, paramTmp)
-      if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-      write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
-      call ctrl%tbliteInp%setupCalculator(paramFile)
+      call getChildValue(node, "ParameterFile", value1, "", child=child, &
+          &allowEmptyValue=.true., dummyValue=.true.)
+      if (associated(value1)) then
+        call getChildValue(child, "", buffer)
+        paramFile = trim(unquote(char(buffer)))
+        call getParamSearchPath(searchPath)
+        call findFile(searchPath, paramFile, paramTmp)
+        if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
+        write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
+        call ctrl%tbliteInp%setupCalculator(paramFile)
+      else
+        call detailedError(node, "Either a Method or ParameterFile must be specified for xTB")
+      end if
     end if
 
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
@@ -4954,13 +4960,31 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
+      ctrl%isDFTBPT = .false.
+
       ! electric field polarisability of system
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
         call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
-      else
-        ctrl%isDFTBPT = .false.
+      end if
+      call getChild(node, "ResponseKernel", child=child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isDFTBPT = .true.
+        ctrl%isRespKernelPert = .true.
+        if (ctrl%tSCC) then
+          call getChildValue(child, "RPA", ctrl%isRespKernelRPA, .false.)
+        else
+          ctrl%isRespKernelRPA = .true.
+        end if
+      end if
+      if (ctrl%isDFTBPT) then
+        call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
+            & child=child)
+        if (ctrl%tolDegenDFTBPT < 1.0_dp) then
+          call detailedError(child, "Degeneracy tolerance must be above 1x")
+        end if
+        ctrl%tolDegenDFTBPT = ctrl%tolDegenDFTBPT * epsilon(0.0_dp)
       end if
 
     end if

@@ -45,6 +45,7 @@ module dftbp_dftbplus_mainio
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_type_multipole, only : TMultipole
   use dftbp_type_orbitals, only : orbitalNames, getShellNames
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
@@ -73,7 +74,7 @@ module dftbp_dftbplus_mainio
   public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
-  public :: writeDetailedOut7, writeDetailedOut8
+  public :: writeDetailedOut7, writeDetailedOut8, writeDetailedOut9
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeEsp
@@ -128,6 +129,12 @@ module dftbp_dftbplus_mainio
     module procedure readRealEigenvecs
     module procedure readCplxEigenvecs
   end interface readEigenvecs
+
+  !> Derivatives of eigenvalues with respect to perturbations
+  interface writeDerivBandOut
+    module procedure writeDBandCart
+    module procedure writeDBand
+  end interface writeDerivBandOut
 
 contains
 
@@ -2062,7 +2069,8 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE)
+      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE,&
+      & coord0, multipole)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2133,6 +2141,12 @@ contains
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
 
+    !> Final atomic coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Multipole moments
+    type(TMultipole), intent(in) :: multipole
+
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
@@ -2199,6 +2213,15 @@ contains
       if (allocated(cm5Cont)) then
         call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
       end if
+    end if
+
+    if (allocated(multipole%dipoleAtom)) then
+      block
+        real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
+        qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
+        dipoleAtom = -multipole%dipoleAtom - coord0 * spread(qAtom, 1, 3)
+        call taggedWriter%write(fd, tagLabels%dipoleAtom, dipoleAtom)
+      end block
     end if
 
     if (allocated(polarisability)) then
@@ -2374,20 +2397,36 @@ contains
 
 
   !> Write the derivative band structure data out
-  subroutine writeDerivBandOut(fileName, dEigen, kWeight)
+  subroutine writeDBandCart(fileName, dEigen, kWeight, isFileAppended)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
 
-    !> Eigenvalues for states, k-points and spin indices
+    !> Derivative of eigenvalues for states, k-points, spin indices and directions
     real(dp), intent(in) :: dEigen(:,:,:,:)
 
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy, fd, iCart
+    !> If true, append onto the file, if false replace the file
+    logical, intent(in), optional :: isFileAppended
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+    integer :: iSpin, iK, iEgy, fd, iCart
+    logical :: isFileAppended_
+
+    @:ASSERT(size(dEigen, dim=4) == 3)
+
+    if (present(isFileAppended)) then
+      isFileAppended_ = isFileAppended
+    else
+      isFileAppended_ = .false.
+    end if
+
+    if (isFileAppended_) then
+      open(newunit=fd, file=fileName, action="write", status="old", position="append")
+    else
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
     do iCart = 1, 3
       do iSpin = 1, size(dEigen, dim=3)
         do iK = 1, size(dEigen, dim=2)
@@ -2402,7 +2441,56 @@ contains
     end do
     close(fd)
 
-  end subroutine writeDerivBandOut
+  end subroutine writeDBandCart
+
+
+  !> Write the derivative band structure data out
+  subroutine writeDBand(fileName, dEigen, kWeight, isFileAppended, preLabel)
+
+    !> Name of file to write to
+    character(*), intent(in) :: fileName
+
+    !> Derivatives of eigenvalues for states, k-points and spin indices
+    real(dp), intent(in) :: dEigen(:,:,:)
+
+    !> Weights of the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> If true, append onto the file, if false replace the file
+    logical, intent(in), optional :: isFileAppended
+
+    !> Extra text to print at start of data
+    character(*), intent(in), optional :: preLabel
+
+    integer :: iSpin, iK, iEgy, fd
+    logical :: isFileAppended_
+
+    if (present(isFileAppended)) then
+      isFileAppended_ = isFileAppended
+    else
+      isFileAppended_ = .false.
+    end if
+
+    if (isFileAppended_) then
+      open(newunit=fd, file=fileName, action="write", status="old", position="append")
+    else
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+    do iSpin = 1, size(dEigen, dim=3)
+      do iK = 1, size(dEigen, dim=2)
+        if (present(preLabel)) then
+          write(fd, "(A)", advance="NO")trim(preLabel) // " "
+        end if
+        write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
+        do iEgy = 1, size(dEigen, dim=1)
+          write(fd, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin)
+        end do
+        write(fd,*)
+      end do
+    end do
+    close(fd)
+
+  end subroutine writeDBand
 
 
   !> Write the second derivative matrix
@@ -3548,8 +3636,29 @@ contains
   end subroutine writeDetailedOut7
 
 
-  !> Eighth group of data for detailed.out
-  subroutine writeDetailedOut8(fd, orb, polarisability, dqOut, neFermi, dEfdE)
+  !> Eighth group of data for detailed.out (density of states at Fermi energy)
+  subroutine writeDetailedOut8(fd, neFermi)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Electrons at the Fermi energy (if metallic and evaluated)
+    real(dp), allocatable, intent(in) :: neFermi(:)
+
+    if (allocated(neFermi)) then
+      write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
+      if (size(neFermi)==2) then
+        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+      else
+        write(fd,"(F12.8)")neFermi
+      end if
+    end if
+
+  end subroutine writeDetailedOut8
+
+
+  !> Nineth group of data for detailed.out (derivatives with respect to an external electric field)
+  subroutine writeDetailedOut9(fd, orb, polarisability, dqOut, dEfdE)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3562,9 +3671,6 @@ contains
 
     !> Derivative of Mulliken charges wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
-
-    !> Electrons at the Fermi energy (if metallic and evaluated)
-    real(dp), allocatable, intent(in) :: neFermi(:)
 
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
@@ -3608,15 +3714,6 @@ contains
       end do
     end if
 
-    if (allocated(neFermi)) then
-      write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
-      if (size(neFermi)==2) then
-        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
-      else
-        write(fd,"(F12.8)")neFermi
-      end if
-    end if
-
     if (allocated(dEfdE)) then
       write(fd,"(A)")'Derivative of Fermi energy with respect to electric field'
       do iCart = 1, 3
@@ -3634,7 +3731,8 @@ contains
       write(fd,*)
     end if
 
-  end subroutine writeDetailedOut8
+  end subroutine writeDetailedOut9
+
 
   !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
@@ -3799,7 +3897,7 @@ contains
 
   !> Write out charges.
   subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
-      & nAtInCentralRegion)
+      & nAtInCentralRegion, multipoles)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3826,8 +3924,11 @@ contains
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Atomic multipoles, if relevant
+    type(TMultipole), intent(in), optional :: multipoles
+
     call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
-        & nAtInCentralRegion)
+        & nAtInCentralRegion, multipoles)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else

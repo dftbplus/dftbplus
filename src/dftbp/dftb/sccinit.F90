@@ -13,6 +13,7 @@ module dftbp_dftb_sccinit
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_multipole, only : TMultipole
   implicit none
   
   private
@@ -20,7 +21,7 @@ module dftbp_dftb_sccinit
   public :: initQFromUsrChrg
 
   !> version number for restart format, please increment if you change the interface.
-  integer, parameter :: restartFormat = 5
+  integer, parameter :: restartFormat = 6
 
 contains
 
@@ -174,7 +175,7 @@ contains
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
-      & nAtInCentralRegion, magnetisation, nEl)
+      & nAtInCentralRegion, magnetisation, nEl, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -210,6 +211,9 @@ contains
     !> Nr. of electrons for each spin channel
     real(dp), intent(in), optional :: nEl
 
+    !> Atomic multipoles, if relevant
+    type(TMultipole), intent(inout), optional :: multipoles
+
     !> nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
 
@@ -222,7 +226,7 @@ contains
     !> total charge is present at the top of the file
     real(dp) :: CheckSum(size(qq, dim=3))
 
-    integer :: iOrb, iAtom, iSpin, ii, nAtomInFile
+    integer :: iOrb, iAtom, iSpin, ii, nAtomInFile, nDipole, nQuadrupole
     integer :: fileFormat
     real(dp) :: sumQ
 
@@ -230,7 +234,7 @@ contains
     logical :: tBlockPresent, tiBlockPresent, tRhoPresent
 
     !> requested to be re-loaded
-    logical :: tBlock, tiBlock, tRho
+    logical :: tBlock, tiBlock, tRho, isMultipolar
 
     character(len=120) :: error_string
 
@@ -285,6 +289,7 @@ contains
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
     end if
+    isMultipolar = .false.
     select case(fileFormat)
     case(4)
       if (tReadAscii) then
@@ -300,6 +305,14 @@ contains
       else
         read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
             & CheckSum
+      end if
+    case(6)
+      if (tReadAscii) then
+        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
+            & nAtomInFile, iSpin, CheckSum
+      else
+        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
+            & nAtomInFile, iSpin, CheckSum
       end if
     case default
       call error("Incompatible file type for external charge data")
@@ -351,6 +364,75 @@ contains
         write(error_string, 99010) sumQ, magnetisation
 99010   format ('External file of charges has a total magnetisation:', F18.6,', instead of ',F18.6)
         call error(error_string)
+      end if
+    end if
+
+    if (isMultipolar) then
+
+      if (tReadAscii) then
+        read(file, "(2I2)", iostat=iErr) nDipole, nQuadrupole
+      else
+        read(file, iostat=iErr)  nDipole, nQuadrupole
+      end if
+      if (allocated(multipoles%dipoleAtom)) then
+        if (nDipole /= size(multipoles%dipoleAtom, dim=1)) then
+          call error("Mismatch between expected and actual dipoles in charge restart")
+        end if
+      else
+        if (nDipole /= 0) then
+          call error("Mismatch between expected and actual dipoles in charge restart")
+        end if
+      end if
+      if (allocated(multipoles%dipoleAtom)) then
+        multipoles%dipoleAtom(:,:) = 0.0_dp
+      end if
+      if (allocated(multipoles%quadrupoleAtom)) then
+        if (nQuadrupole /= size(multipoles%quadrupoleAtom, dim=1)) then
+          call error("Mismatch between expected and actual quadrupoles in charge restart")
+        end if
+      else
+        if (nQuadrupole /= 0) then
+          call error("Mismatch between expected and actual quadrupoles in charge restart")
+        end if
+      end if
+      if (allocated(multipoles%quadrupoleAtom)) then
+        multipoles%quadrupoleAtom(:,:) = 0.0_dp
+      end if
+      if (tReadAscii) then
+        do iAtom = 1, nAtom
+          do ii = 1, nDipole
+            read (file, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom)
+            if (iErr /= 0) then
+              write (error_string, *) "Failure to read file for atomic dipoles"
+              call error(error_string)
+            end if
+          end do
+        end do
+        do iAtom = 1, nAtom
+          do ii = 1, nQuadrupole
+            read (file, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom)
+            if (iErr /= 0) then
+              write (error_string, *) "Failure to read file for atomic quadrupoles"
+              call error(error_string)
+            end if
+          end do
+        end do
+      else
+        if (nDipole > 0) then
+          read(file, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom)
+          if (iErr /= 0) then
+            write(error_string, *)"Failure to read external dipoles from file for atomic multipoles"
+            call error(error_string)
+          end if
+        end if
+        if (nQuadrupole > 0) then
+          read(file, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom)
+          if (iErr /= 0) then
+            write(error_string, *) "Failure to read external quadrupoles from file for atomic&
+                & multipoles"
+            call error(error_string)
+          end if
+        end if
       end if
     end if
 
@@ -431,7 +513,7 @@ contains
 
   !> Write the current charges to an external file
   subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, deltaRhoIn,&
-      & nAtInCentralRegion)
+      & nAtInCentralRegion, multipoles)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
@@ -458,9 +540,12 @@ contains
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Atomic multipoles, if relevant
+    type(TMultipole), intent(in), optional :: multipoles
+
     character(len=120) :: error_string
 
-    integer :: nAtom, nOrb, nSpin
+    integer :: nAtom, nOrb, nSpin, nDipole, nQuadrupole
     integer :: iAtom, iOrb, iSpin, ii
     integer :: iErr, fd
     logical :: tqBlock, tqiBlock, tRho
@@ -508,10 +593,10 @@ contains
     end if
 
     if (tWriteAscii) then
-      write(fd, *, iostat=iErr) tqBlock, tqiBlock, tRho, nAtom, nSpin,&
+      write(fd, *, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom, nSpin,&
           & sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     else
-      write(fd, iostat=iErr) tqBlock, tqiBlock, tRho, nAtom,&
+      write(fd, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom,&
           & nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     end if
 
@@ -534,6 +619,67 @@ contains
         end if
       end do
     end do
+
+    if (present(multipoles)) then
+      if (allocated(multipoles%dipoleAtom)) then
+        nDipole = size(multipoles%dipoleAtom, dim=1)
+        @:ASSERT(size(multipoles%dipoleAtom, dim=2) >= nAtom)
+        @:ASSERT(nDipole > 0 .and. nDipole <= 3)
+      else
+        nDipole = 0
+      end if
+      if (allocated(multipoles%quadrupoleAtom)) then
+        nQuadrupole = size(multipoles%quadrupoleAtom, dim=1)
+        @:ASSERT(size(multipoles%quadrupoleAtom, dim=2) >= nAtom)
+        @:ASSERT(nQuadrupole > 0 .and. nQuadrupole <= 6)
+      else
+        nQuadrupole =  0
+      end if
+      if (tWriteAscii) then
+        write(fd, "(2I2)", iostat=iErr) nDipole, nQuadrupole
+      else
+        write(fd, iostat=iErr) nDipole, nQuadrupole
+      end if
+      if (iErr /= 0) then
+        write(error_string, *) "Failure to write file for number of atomic multipoles"
+        call error(error_string)
+      end if
+      if (tWriteAscii) then
+        do iAtom = 1, nAtom
+          do ii = 1, nDipole
+            write(fd, *, iostat=iErr) multipoles%dipoleAtom(ii, iAtom)
+            if (iErr /= 0) then
+              write(error_string, "(A,I0)") "Failure to write dipole for atom ",iAtom
+              call error(error_string)
+            end if
+          end do
+        end do
+        do iAtom = 1, nAtom
+          do ii = 1, nQuadrupole
+            write(fd, "(3E20.12)", iostat=iErr) multipoles%quadrupoleAtom(ii, iAtom)
+            if (iErr /= 0) then
+              write(error_string, "(A,I0)") "Failure to write quadrupole for atom ",iAtom
+              call error(error_string)
+            end if
+          end do
+        end do
+      else
+        if (nDipole > 0) then
+          write(fd, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom)
+          if (iErr /= 0) then
+            write(error_string, *) "Failure to write atom dipoles"
+            call error(error_string)
+          end if
+        end if
+        if (nQuadrupole > 0) then
+          write(fd, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom)
+          if (iErr /= 0) then
+            write(error_string, *) "Failure to write atom quadrupoles"
+            call error(error_string)
+          end if
+        end if
+      end if
+    end if
 
     if (tqBlock) then
       do iSpin = 1, nSpin
