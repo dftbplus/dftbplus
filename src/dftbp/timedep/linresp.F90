@@ -103,7 +103,7 @@ module dftbp_timedep_linresp
     !> RPA solver is Arpack (or Stratmann if .false.)
     logical :: tUseArpack
 
-    !> subspace dimension factor Stratmann diagonalizer
+    !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
 
     !> print state of Arnoldi solver

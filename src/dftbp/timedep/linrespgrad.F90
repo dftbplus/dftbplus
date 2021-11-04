@@ -721,8 +721,8 @@ contains
   !> The hermitian EV problem is given by \Omega F = w^2 F, with
   !>  S = -C (A-B)^{-1} C, \Omega = - S^{-1/2} (A+B) S^{-1/2} and F = (X+Y) * sqrt(w/wia)
   !>
-  !> In this routine \Omega is diagonalized by the iterative ARPACK diagonalizer.
-  !> The code deals with closed shell systems by diagonalizing dedicated singlet/triplet 
+  !> In this routine \Omega is diagonalised by the iterative ARPACK diagonaliser.
+  !> The code deals with closed shell systems by diagonalising dedicated singlet/triplet
   !> submatrices. 
   !> See Dominguez JCTC 9 4901 (2013) 
   !>  
@@ -968,10 +968,10 @@ contains
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !>
-  !> The RPA eqs are diagonalized by the Stratmann algorithm (JCP 109 8218 (1998).
+  !> The RPA eqs are diagonalised by the Stratmann algorithm (JCP 109 8218 (1998).
   !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) 
   !>
-  !> Returns w^2 and (X+Y) (to be consistent with ARPACK diagonalizer)
+  !> Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !> 
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
@@ -1092,7 +1092,7 @@ contains
     logical :: didConverge
 
     if (allocated(onsMEs)) then
-      write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonalizer.'
+      write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
     endif
 
@@ -1110,8 +1110,9 @@ contains
     subSpaceDim = min(subSpaceFactor * nExc, nxov_rd)
     iterStrat = 1
     write(*,'(A)')
-    write(*,'(A)') '>> Stratmann diagonalization of response matrix'
-    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ', subSpaceDim 
+    write(*,'(A)') '>> Stratmann diagonalisation of response matrix'
+    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
+        & subSpaceDim
     ! Memory available for subspace calcs
     memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
     workDim = 3 * memDim + 1
@@ -1182,10 +1183,10 @@ contains
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
           & 0.0_dp, mH, memDim)
 
-      ! Diagonalize in subspace
+      ! Diagonalise in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
       if (info /= 0) then
-        write(tmpStr,'(A)') 'TDDFT diagonalization. Increase SubSpaceStratmann.'
+        write(tmpStr,'(A)') 'TDDFT diagonalisation. Increase SubSpaceStratmann.'
         call error(tmpStr)
       endif
 
@@ -3141,8 +3142,8 @@ contains
 
     if (tWriteTagged) then
 
-      call DegeneracyFind%init(elecTolMax)
-      call DegeneracyFind%degeneracyTest(eval, tDegenerate)
+      call degeneracyFind%init(elecTolMax)
+      call degeneracyFind%degeneracyTest(eval, tDegenerate)
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)

@@ -1025,7 +1025,7 @@ module dftbp_dftbplus_initprogram
     !> Whether Poisson solver is invoked
     logical :: tPoisson
 
-    !> Whether the scc (2nd-order) potentials should be updated after the diagonalization
+    !> Whether the scc (2nd-order) potentials should be updated after the diagonalisation
     logical :: updateSccAfterDiag
 
     !> Calculate terminal tunneling and current
@@ -3339,7 +3339,7 @@ contains
       case(forceTypes%orig)
         write(stdOut, "(A,T30,A)") "Force type", "original"
       case(forceTypes%dynamicT0)
-        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalised eigenvalues"
         write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
       case(forceTypes%dynamicTFinite)
         write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
@@ -5259,12 +5259,12 @@ contains
     end if
 
     if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
-      call error("Onsite corrections not implemented for Stratmann diagonalizer.")  
+      call error("Onsite corrections not implemented for Stratmann diagonaliser.")
     end if
 
     if (isRS_LinResp) then
       if (input%ctrl%lrespini%tUseArpack) then
-        call error("TD-LC-DFTB implemented only for Stratmann diagonalizer.")
+        call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then
         call error("Range separated excited states for periodic geometries are currently&
@@ -5684,7 +5684,7 @@ contains
     if (reks%tReadMO) then
       write (stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
     else
-      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalize H0 matrix"
+      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
     end if
 
     write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
