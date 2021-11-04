@@ -341,7 +341,7 @@ contains
     !> ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix (must be symmetriezed)
+    !> square overlap matrix (must be symmetrised)
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> ground state occupations

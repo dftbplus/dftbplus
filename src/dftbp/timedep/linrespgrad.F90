@@ -740,7 +740,7 @@ contains
     !> symmetry to calculate transitions
     character, intent(in) :: sym
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> occupied orbitals per spin channel
@@ -990,7 +990,7 @@ contains
     !> symmetry to calculate transitions
     character, intent(in) :: sym
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> occupied orbitals per spin channel
@@ -2369,7 +2369,7 @@ contains
     !> overlap data
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> Differentiatior for the non-scc matrices
+    !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix
@@ -2954,7 +2954,7 @@ contains
     !> index array between transitions in square and 1D representations
     integer, intent(in) :: getIA(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> excitation energies
@@ -3237,7 +3237,7 @@ contains
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getAB(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> indexing array for square matrices
@@ -3331,7 +3331,7 @@ contains
     !> index array for occ-occ single particle excitations
     integer, intent(in) :: getIJ(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> indexing array for square matrices
@@ -3429,7 +3429,7 @@ contains
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getAB(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> indexing array for square matrices
@@ -3549,7 +3549,7 @@ contains
     !> index array for occ-occ single particle excitations
     integer, intent(in) :: getIJ(:,:)
 
-    !> index array for single particle excitions
+    !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
     !> indexing array for square matrices

@@ -4217,7 +4217,7 @@ contains
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: dftbEnergy
 
-    !> energes of all solved states
+    !> energies of all solved states
     real(dp), intent(inout), allocatable :: energies(:)
 
     !> Working array of the size of the dense matrices.

@@ -8,12 +8,12 @@ Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-8
     Charge = 2
-    MaxAngularMomentum = {
+    MaxAngularMomentum = {y
         C = "p"
         H = "s"
     }
     SlaterKosterFiles = Type2FileNames {
-        Prefix = "./"
+        Prefix = "slakos/origin/ob2-1-1/shift/"
         Separator = "-"
         Suffix = ".skf"
     }
