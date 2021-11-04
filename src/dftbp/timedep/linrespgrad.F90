@@ -52,8 +52,8 @@ module dftbp_timedep_linrespgrad
   !> Tolerance for ARPACK solver.
   real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
 
-  !> Treshold for Stratmann solver
-  real(dp), parameter :: CONV_TRESH_STRAT = epsilon(1.0_rsp)
+  !> Threshold for Stratmann solver
+  real(dp), parameter :: CONV_THRESH_STRAT = epsilon(1.0_rsp)
 
   !> Maximal allowed iteration in the ARPACK solver.
   integer, parameter :: MAX_AR_ITER = 300
@@ -1237,7 +1237,7 @@ contains
       didConverge = .true.
       do ii = subSpaceDim + 1, subSpaceDim + nExc
         vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-        if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
+        if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
           didConverge = .false.
         end if
       end do
@@ -1245,7 +1245,7 @@ contains
       if (didConverge) then
         do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
           vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-          if (vecNorm(ii-subSpaceDim) .gt. CONV_TRESH_STRAT) then
+          if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
             didConverge = .false.
           end if
         end do
@@ -1274,7 +1274,7 @@ contains
       ! only include new vectors if they add meaningful residue component
       newVec = 0
       do ii = 1, nExc
-        if (vecNorm(ii) .gt. CONV_TRESH_STRAT) then
+        if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
           newVec = newVec + 1
           dummyReal = sqrt(evalInt(ii))
           info = subSpaceDim + ii
@@ -1286,7 +1286,7 @@ contains
       end do
 
       do ii = 1, nExc
-        if (vecNorm(nExc+ii) .gt. CONV_TRESH_STRAT) then
+        if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
           newVec = newVec + 1
           info = subSpaceDim + nExc + ii
           dummyInt = subSpaceDim + newVec

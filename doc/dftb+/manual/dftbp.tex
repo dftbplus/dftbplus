@@ -4678,7 +4678,7 @@ available.
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
     \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - &\\
-    \kw{Diagonalizer}           & m & & Arpack\{\} &\\
+    \kw{Diagonaliser}           & m & & \{\} & \pref{sec:dftbp.casdiag}\\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
@@ -4692,8 +4692,6 @@ available.
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
-    \kw{WriteStatusArnoldi}     & l & & No & \\
-    \kw{TestArnoldi}            & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
   \end{ptable}
@@ -4715,29 +4713,6 @@ available.
     that the state with the largest dipole transition moment be found (again a
     single-point calculation).
   
-  \item[\is{Diagonalizer}] Specifies which iterative diagonalizer
-    should be used to solve the Casida equations. The keyword expects
-    either a \is{Arpack\{\}} or \is{Stratmann\{\}} block.
-    \is{Arpack\{\}} refers to the Implicitly Restarted Arnoldi Method \cite{Lehoucq97arpackusers}
-    and is available only for the conventional TD-DFTB method with
-    local functionals (\kw{RangeSeparated=None}). The
-    Stratmann diagonalizer \cite{Stratmann1998} is available for local and range seperated
-    functionals and is the recommended choice for small systems and/or
-    a small number of excited states to solve for. The latter has the following option:  
-
-    \begin{ptable}
-      \kw{SubSpaceFactor} & i & & 20 & \\
-    \end{ptable}
-
-    \begin{description}
-     \item[\is{SubSpaceFactor}] The initial subspace for the
-       diagonalization is given by \is{SubSpaceFactor} times the
-       number of excited states to solve for. Small values of
-       \is{SubSpaceFactor} speed up the calculation, but might lead to
-       convergence problems. In this case the calculation needs to be
-       restarted with increased values of \is{SubSpaceFactor}.   
-    \end{description}
-
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
     computed: ``singlet'', ``triplet'' or ``both''. This tag is only applicable
     for spin restricted calculation. For calculations in the ``triplet'' or
@@ -4800,13 +4775,6 @@ available.
     created. This file contains the Mulliken transition dipole for each excited
     state.
 
-  \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is
-    created, which allows the user to follow the progress of the Arnoldi
-    diagonalisation.
-
-  \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is
-    created, which gives data on the quality of the resulting eigenstates.
-
   \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
     the contributions from an excited state of interest. By default, it is set
     to \is{Yes} if forces are being calculated (for example in geometry
@@ -4820,7 +4788,48 @@ available.
     decrease memory use substantially, if you are short on memory.
 
   \end{description}
+  
+  \subsubsection{Diagonaliser}
+  \label{sec:dftbp.casdiag}
+  Specifies which iterative diagonaliser should be used to solve the Casida
+  equations. The keyword expects either a \iscb{Arpack} or \iscb{Stratmann}
+  block.
+  \begin{ptable}
+    \kw{Arpack}    & p & \is{RangeSeparated} = \is{No} & & \\
+    \kw{Stratmann} & p & & & \\
+  \end{ptable}
+  
+  \iscb{Arpack} refers to the Implicitly Restarted Arnoldi Method
+  \cite{Lehoucq97arpackusers} and is available only for the conventional TD-DFTB
+  method with local functionals (\kw{RangeSeparated=None}). It has two options:
+  \begin{ptable}
+    \kw{WriteStatusArnoldi}     & l & & No & \\
+    \kw{TestArnoldi}            & l & & No & \\
+  \end{ptable}
+  \begin{description}
+  \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is
+    created, which allows the user to follow the progress of the Arnoldi
+    diagonalisation.
+  \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is
+    created, which gives data on the quality of the resulting eigenstates.
+  \end{description}
 
+  The \iscb{Stratmann} diagonaliser~\cite{Stratmann1998} (see
+  also~\cite{kranz-JCTC-13-1737,garcia13}) is available for local and range
+  separated functionals and is the recommended choice for small systems and/or a
+  small number of excited states to solve for. It has one option:
+  \begin{ptable}
+    \kw{SubSpaceFactor} & i & & 20 & \\
+  \end{ptable}
+  \begin{description}
+  \item[\is{SubSpaceFactor}] The initial subspace for the diagonalisation is
+    given by \is{SubSpaceFactor} times the number of excited states to solve
+    for. Small values of \is{SubSpaceFactor} speed up the calculation, but might
+    lead to convergence problems. In this case the calculation needs to be
+    restarted with an increased value of \is{SubSpaceFactor}.
+  \end{description}
+
+  
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}
 

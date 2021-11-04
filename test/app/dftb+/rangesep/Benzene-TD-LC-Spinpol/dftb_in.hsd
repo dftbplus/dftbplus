@@ -34,7 +34,7 @@ ExcitedState {
     Casida {
         NrOfExcitations = 20
         StateOfInterest = 0
-	Diagonalizer = Stratmann {SubSpaceFactor = 100}	
+	Diagonaliser = Stratmann {SubSpaceFactor = 100}	
     }
 }
 ParserOptions {

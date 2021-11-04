@@ -38,7 +38,7 @@ ExcitedState {
         Symmetry = Singlet
         OscillatorWindow = 1E-2
 	WriteTransitionDipole = Yes
-        Diagonalizer = Stratmann {}
+        Diagonaliser = Stratmann {}
     }
 }
 

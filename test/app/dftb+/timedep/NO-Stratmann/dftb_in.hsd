@@ -44,7 +44,7 @@ ExcitedState {
         StateOfInterest = 0
         WriteTransitions = Yes
         WriteSPTransitions = Yes
-        Diagonalizer = Stratmann {}
+        Diagonaliser = Stratmann {}
     }
 }
 

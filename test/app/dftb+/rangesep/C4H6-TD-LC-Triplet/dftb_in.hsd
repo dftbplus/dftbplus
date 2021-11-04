@@ -36,7 +36,7 @@ ExcitedState {
         NrOfExcitations = 5
         StateOfInterest = 0
         Symmetry = Triplet
-	Diagonalizer = Stratmann {SubSpaceFactor = 30}	
+	Diagonaliser = Stratmann {SubSpaceFactor = 30}	
     }
 }
 

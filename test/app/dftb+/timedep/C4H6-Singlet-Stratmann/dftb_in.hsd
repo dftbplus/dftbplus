@@ -23,7 +23,7 @@ ExcitedState {
         NrOfExcitations = 5
         StateOfInterest = 0
         Symmetry = Singlet
-	Diagonalizer = Stratmann {}
+	Diagonaliser = Stratmann {}
     }
 }
 

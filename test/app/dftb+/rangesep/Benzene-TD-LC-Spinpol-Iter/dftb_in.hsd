@@ -13,7 +13,7 @@ Hamiltonian = DFTB {
         H = "s"
     }
     SlaterKosterFiles = Type2FileNames {
-        Prefix = "./"
+        Prefix = "slakos/origin/ob2-1-1/shift/"
         Separator = "-"
         Suffix = ".skf"
     }
@@ -34,7 +34,7 @@ ExcitedState {
     Casida {
         NrOfExcitations = 20
         StateOfInterest = 0
-	Diagonalizer = Stratmann {SubSpaceFactor = 5}	
+	Diagonaliser = Stratmann {SubSpaceFactor = 5}	
     }
 }
 ParserOptions {

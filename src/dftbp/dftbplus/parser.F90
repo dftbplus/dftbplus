@@ -4758,7 +4758,7 @@ contains
       end if
       ctrl%lrespini%tUseArpack = .true.
 
-      call getChildValue(child, "Diagonalizer", child2)
+      call getChildValue(child, "Diagonaliser", child2)
       call getNodeName(child2, buffer)
       select case(char(buffer))
         case ("arpack")
@@ -4769,7 +4769,7 @@ contains
           ctrl%lrespini%tUseArpack = .false.
           call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
         case default
-          call detailedError(child2, "Invalid diagonalizer method '" // char(buffer) // "'")
+          call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
@@ -5969,7 +5969,7 @@ contains
     !> Lattice vectors if periodic
     real(dp), allocatable, intent(in) :: latVecs(:,:)
 
-    !> Whether Scc should be updated with the output charges (obtained after diagonalization)
+    !> Whether Scc should be updated with the output charges (obtained after diagonalisation)
     logical, intent(out) :: updateSccAfterDiag
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
@@ -7553,7 +7553,7 @@ contains
 
     !> Read initial guess for eigenvectors in REKS
     !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
-    !> If false, initial eigenvectors are obtained from diagonalization of H0
+    !> If false, initial eigenvectors are obtained from diagonalisation of H0
     call getChildValue(node, "ReadEigenvectors", ctrl%reksInp%tReadMO, default=.false.)
     !> Maximum iteration used in FON optimization
     call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
