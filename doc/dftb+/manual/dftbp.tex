@@ -4623,13 +4623,16 @@ available for collinear spin-polarised systems but not for fractional occupation
 specifications for this block have the following properties:
 
 \textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
-functionals (Section \ref{sec:dftbp.RangeSep}) can be performed for spin free
-molecular (non-periodic) singlet systems that do not have fractional fillings.
+functionals (Section \ref{sec:dftbp.RangeSep}) can be performed for
+molecular (non-periodic) systems that do not have fractional
+fillings. The various window options (see below) are not yet
+available.   
 
   \begin{ptable}
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
-    \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - & \\
+    \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - &\\
+    \kw{Diagonalizer}           & m & & Arpack\{\} &\\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
@@ -4665,6 +4668,29 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     be left empty (forces will not be available). A value less than 0 requests
     that the state with the largest dipole transition moment be found (again a
     single-point calculation).
+  
+  \item[\is{Diagonalizer}] Specifies which iterative diagonalizer
+    should be used to solve the Casida equations. The keyword expects
+    either a \is{Arpack\{\}} or \is{Stratmann\{\}} block.
+    \is{Arpack\{\}} refers to the Implicitly Restarted Arnoldi Method \cite{Lehoucq97arpackusers}
+    and is available only for the conventional TD-DFTB method with
+    local functionals (\kw{RangeSeparated=None}). The
+    Stratmann diagonalizer \cite{Stratmann1998} is available for local and range seperated
+    functionals and is the recommended choice for small systems and/or
+    a small number of excited states to solve for. The latter has the following option:  
+
+    \begin{ptable}
+      \kw{SubSpaceFactor} & i & & 20 & \\
+    \end{ptable}
+
+    \begin{description}
+     \item[\is{SubSpaceFactor}] The initial subspace for the
+       diagonalization is given by \is{SubSpaceFactor} times the
+       number of excited states to solve for. Small values of
+       \is{SubSpaceFactor} speed up the calculation, but might lead to
+       convergence problems. In this case the calculation needs to be
+       restarted with increased values of \is{SubSpaceFactor}.   
+    \end{description}
 
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
     computed: ``singlet'', ``triplet'' or ``both''. This tag is only applicable
