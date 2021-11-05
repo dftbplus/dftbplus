@@ -619,8 +619,8 @@ contains
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
         call buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
-            & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy)
-
+            & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy,&
+            & this%isSpectrumFolded, this%shiftSpace)
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
             & denseDesc, ovrXev, grndEigVecs, gammaMat, lrGamma, species0, eval, sym, xpy, xmy)
@@ -951,7 +951,7 @@ contains
   !!                W
   !!  [B  A] Y   =    [0 -C] Y
   !!
-  !! (see definitions by Mark Casida, in Recent Advances in Density Functional Methods,
+  !! (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !!  World Scientific, 1995, Part I, p. 155.)
   !!
   !! The hermitian EV problem is given by \Omega F = w^2 F, with
@@ -962,7 +962,8 @@ contains
   !! submatrices.
   !! See Dominguez JCTC 9 4901 (2013)
   subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
-      & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy)
+      & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy, isSpectrumFolded,&
+      & shiftSpace)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -1012,13 +1013,17 @@ contains
     !> Eigenvectors (X-Y), only evaluated if Z-vector is needed
     real(dp), intent(inout), allocatable :: xmy(:,:)
 
-    integer :: iparam(11), ipntr(11)
-    integer :: ido, ncv, lworkl, info
-    integer :: nexc, natom, nLoc
-    integer :: iState, comm
-    real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
-    real(dp), allocatable :: Hv(:), orthnorm(:,:)
+    !> Is a folded spectrum method used to get higher lying states
+    logical, intent(in) :: isSpectrumFolded
+
+    !> If the spectrum is folded, what is the value around which the eigenvalues are obtained
+    real(dp), intent(in) :: shiftSpace
+
+    real(dp), allocatable :: Hv(:), orthnorm(:,:), qij(:), resid(:), vv(:,:)
+    real(dp), allocatable :: workd(:), workl(:), workTmp(:)
     real(dp) :: sigma, omega
+    integer :: iparam(11), ipntr(11), ido, ncv, lworkl, info, nexc, natom, nLoc, iState, comm
+    integer, allocatable :: indxEigVals(:)
     logical, allocatable :: selection(:)
     logical :: rvec
     character(lc) :: tmpStr
@@ -1087,10 +1092,23 @@ contains
         call error(tmpStr)
       end if
 
-      ! Action of excitation supermatrix on supervector
-      call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-          & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),&
-          & workd(ipntr(2):ipntr(2)+nLoc-1))
+      if (isSpectrumFolded) then
+        allocate(workTmp(nLoc))
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1), workTmp)
+        workTmp(:) = workTmp -shiftSpace * workd(ipntr(1):ipntr(1)+nLoc-1)
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+            & ovrXev, grndEigVecs, gammaMat, .false., workTmp, workd(ipntr(2):ipntr(2)+nLoc-1))
+        workd(ipntr(2):ipntr(2)+nLoc-1) = workd(ipntr(2):ipntr(2)+nLoc-1) - shiftSpace * workTmp
+        deallocate(workTmp)
+      else
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),&
+            & workd(ipntr(2):ipntr(2)+nLoc-1))
+      end if
 
     end do
 
@@ -1125,6 +1143,27 @@ contains
           & nexc, arTol, resid, ncv, vv, rpa%nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
     #:endif
+
+      if (isSpectrumFolded) then
+        ! eval(:) = sqrt(eval) + shiftSpace is not very accurate and does not preserve order in the
+        ! original spectrum, as eigenvalues < shift become > shift, so instead get eigenvalues from
+        ! eigenvectors via <c | H | c> and sort them
+        allocate(workTmp(fGlobal - iGlobal + 1))
+        do iState = 1, nExc
+
+          call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
+              & species0, ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
+              & workTmp)
+
+          eval(iState) = dot_product(xpy(iGlobal:fGlobal,iState), workTmp)
+          call assembleChunks(env, eval(iState))
+        end do
+        deallocate(workTmp)
+        allocate(indxEigVals(size(eval)))
+        call index_heap_sort(indxEigVals, eval)
+        eval(:) = eval(indxEigVals)
+        xpy(:,:) = xpy(:,indxEigVals)
+      end if
 
       ! check for error on return
       if (info  /=  0) then
