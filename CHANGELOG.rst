@@ -25,12 +25,15 @@ Addded
   (except self-consistent dispersion) with molecular, periodic and helical
   boundary conditions.
 
+- Stratmann solver for excited state, including range separated calculations
+
 Changed
 -------
 
 - Source tree reorganised to match the `Fortran package manager
   <https://fpm.fortran-lang.org/>`_ preferred structure.
 
+- Updated parser version to 10.
 
 Fixed
 -----

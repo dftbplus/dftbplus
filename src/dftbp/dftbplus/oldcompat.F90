@@ -18,7 +18,7 @@ module dftbp_dftbplus_oldcompat
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
   implicit none
-  
+
   private
   public :: convertOldHSD
 
@@ -67,6 +67,9 @@ contains
       case (8)
         call convert_8_9(root)
         version = 9
+      case (9)
+        call convert_9_10(root)
+        version = 10
       end select
     end do
 
@@ -522,6 +525,20 @@ contains
       call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
     end if
 
+  end subroutine convert_8_9
+
+
+  !> Converts input from version 9 to 10. (Version 10 introduced in November 2021)
+  subroutine convert_9_10(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    logical :: tVal1, tVal2
+    type(fnode), pointer :: pTaskType
+    type(string) :: buffer
+
     call getDescendant(root, "ExcitedState/Casida", ch1)
     if (associated(ch1)) then
       call getChildValue(ch1, "WriteStatusArnoldi", tVal1, default=.false., child=ch2)
@@ -539,8 +556,8 @@ contains
       call setChildValue(ch3, "TestArnoldi", tVal2, child=ch4)
       call setUnprocessed(ch4)
     end if
-    
-  end subroutine convert_8_9
+
+  end subroutine convert_9_10
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

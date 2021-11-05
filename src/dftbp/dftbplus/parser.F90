@@ -96,8 +96,7 @@ module dftbp_dftbplus_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 9
-
+  integer, parameter :: parserVersion = 10
 
   !> Version of the oldest parser for which compatibility is still maintained
   integer, parameter :: minVersion = 1
@@ -125,7 +124,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("21.1", 9),&
+      & TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
 
@@ -317,8 +316,8 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in case it needs to be converted, for example because of compatibility
-    !> options)
+    !> Root of the entire tree (in case it needs to be converted, for example because of
+    !> compatibility options)
     type(fnode), pointer :: root
 
     !> Contains parser flags on exit.
