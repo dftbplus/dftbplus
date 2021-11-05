@@ -943,7 +943,7 @@ contains
     !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in) :: side
 
-    !> symmetric matrix, size
+    !> symmetric matrix
     real(rdp), intent(in) :: A(:,:)
 
     !> general matrix

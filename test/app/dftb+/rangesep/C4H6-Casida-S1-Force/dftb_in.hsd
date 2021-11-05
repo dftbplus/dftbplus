@@ -30,6 +30,7 @@ ExcitedState {
         StateOfInterest = 1
         Symmetry = Singlet
         WriteMulliken = Yes
+	Diagonaliser = Stratmann {SubSpaceFactor = 50}
     }
 }
 
@@ -38,7 +39,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 5
+    ParserVersion = 10
 }
 
 Parallel {

@@ -1,12 +1,13 @@
 Geometry = GenFormat {
-    <<< "benzene.gen"
+    <<< "geo.gen"
 }
 
-Driver = ConjugateGradient{MaxSteps=0}
+Driver = {}
 
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-8
+    Charge = 2
     MaxAngularMomentum = {
         C = "p"
         H = "s"
@@ -16,34 +17,33 @@ Hamiltonian = DFTB {
         Separator = "-"
         Suffix = ".skf"
     }
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 2
+    }
     Filling = Fermi {Temperature [K] = 0}
     RangeSeparated = LC {
-      Screening = Thresholded {
-        Threshold = 1.0e-16
-      }
+      Screening = MatrixBased {}
     }
-}
+    SpinConstants = {
+        C = {-0.023} # HOMO Wpp
+        H = {-0.072} # HOMO Wss
+    }
 
+}
 ExcitedState {
     Casida {
         NrOfExcitations = 20
-        StateOfInterest = 5
-        Symmetry = Singlet
-	Diagonaliser = Stratmann {}
+        StateOfInterest = 0
+	Diagonaliser = Stratmann {SubSpaceFactor = 100}	
     }
+}
+ParserOptions {
+    ParserVersion = 10
 }
 
 Options {
     WriteAutotestTag = Yes
 }
 
-ParserOptions {
-    ParserVersion = 10
-}
 
-Parallel {
-  # Allow OMP threads explicitely to test for hybrid parallelisation with
-  # MPI-binary. (Check the manual before using this in production runs!)
-  UseOmpThreads = Yes
-}
 

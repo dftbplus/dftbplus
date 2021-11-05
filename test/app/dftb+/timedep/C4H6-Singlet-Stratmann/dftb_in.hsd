@@ -23,7 +23,7 @@ ExcitedState {
         NrOfExcitations = 5
         StateOfInterest = 0
         Symmetry = Singlet
-	Diagonalizer = Stratmann {}
+	Diagonaliser = Stratmann {}
     }
 }
 
@@ -32,7 +32,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }            
 
 Parallel {

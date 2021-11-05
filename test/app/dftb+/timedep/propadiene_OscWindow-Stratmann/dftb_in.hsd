@@ -38,12 +38,12 @@ ExcitedState {
         Symmetry = Singlet
         OscillatorWindow = 1E-2
 	WriteTransitionDipole = Yes
-        Diagonalizer = Stratmann {}
+        Diagonaliser = Stratmann {}
     }
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }
 
 Parallel {

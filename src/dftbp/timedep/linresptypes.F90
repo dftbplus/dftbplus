@@ -108,7 +108,7 @@ module dftbp_timedep_linresptypes
     !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
     integer :: fdArnoldiDiagnosis = -1
 
-    !> subspace dimension factor Stratmann diagonalizer
+    !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
 
     !> Is the data structure initialised?

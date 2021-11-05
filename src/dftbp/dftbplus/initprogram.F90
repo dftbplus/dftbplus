@@ -1025,7 +1025,7 @@ module dftbp_dftbplus_initprogram
     !> Whether Poisson solver is invoked
     logical :: tPoisson
 
-    !> Whether the scc (2nd-order) potentials should be updated after the diagonalization
+    !> Whether the scc (2nd-order) potentials should be updated after the diagonalisation
     logical :: updateSccAfterDiag
 
     !> Calculate terminal tunneling and current
@@ -1275,7 +1275,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized, tGeoOptRequiresEgy
+    logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
 
     !> Format for two using exponential notation values with units
@@ -2297,6 +2297,9 @@ contains
       end if
     end if
 
+    ! turn on if LinResp and RangSep turned on, no extra input required for now
+    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
+
     if (this%isLinResp) then
 
       ! input checking for linear response
@@ -2304,9 +2307,11 @@ contains
         call error("This binary has been compiled without support for linear response&
             & calculations.")
       end if
+      isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
-          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec, input)
+          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
+          & isOnsiteCorrected, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(this%nType))
@@ -2352,9 +2357,6 @@ contains
           & this%onSiteElements)
 
     end if
-
-    ! turn on if LinResp and RangSep turned on, no extra input required for now
-    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -3337,7 +3339,7 @@ contains
       case(forceTypes%orig)
         write(stdOut, "(A,T30,A)") "Force type", "original"
       case(forceTypes%dynamicT0)
-        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalised eigenvalues"
         write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
       case(forceTypes%dynamicTFinite)
         write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
@@ -4531,7 +4533,6 @@ contains
       allocate(this%iRhoPrim(0, this%nSpin))
     end if
 
-    allocate(this%excitedDerivs(0,0))
     if (this%tForces) then
       if (.not.isREKS) then
         allocate(this%ERhoPrim(0))
@@ -4549,8 +4550,7 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect) then
-        deallocate(this%excitedDerivs)
+      if (this%tLinRespZVect .and. this%tCasidaForces) then
         allocate(this%excitedDerivs(3, this%nAtom))
       end if
     end if
@@ -5148,32 +5148,14 @@ contains
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
-    if (this%isRS_LinResp) then
-
-      if (allocated(this%onSiteElements)) then
-        call error("Excited state range separated calculations not implemented for onsite&
-            & corrections")
-      end if
-
-      if (this%nSpin > 1) then
-        call error("Excited state range separated calculations not implemented for spin polarized&
-            & calculations")
-      end if
-
-      if (this%linearResponse%symmetry /= "S") then
-        call error("Excited state range separated calculations currently only implemented for&
-            & singlet excitaions")
-      end if
-
-    end if
-
   end subroutine ensureRangeSeparatedReqs
 
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, input)
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected,&
+      & input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5213,6 +5195,9 @@ contains
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
+
+    !> Is this a onsite corrected TD-DFTB calculation?
+    logical, intent(in) :: isOnsiteCorrected
 
     !> Holds the parsed input data.
     type(TInputData), intent(in), target :: input
@@ -5273,15 +5258,27 @@ contains
       end if
     end if
 
+    if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
+      call error("Onsite corrections not implemented for Stratmann diagonaliser.")
+    end if
+
     if (isRS_LinResp) then
+      if (input%ctrl%lrespini%tUseArpack) then
+        call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
+      end if
       if (tPeriodic) then
         call error("Range separated excited states for periodic geometries are currently&
             & unavailable")
       end if
-      if (nSpin > 1) then
-        call error("Range separated excited states for spin polarized calculations are currently&
-            & unavailable")
+      if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
+        call error("Range separated excited states not available for window options.")
+      end if 
+      if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
+        call warning("Range separated excited states not well tested for triplet excited states!")
       end if
+      if (input%ctrl%tSpin) then
+        call warning("Range separated excited states not well tested for spin-polarized systems!")
+      end if 
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")
@@ -5687,7 +5684,7 @@ contains
     if (reks%tReadMO) then
       write (stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
     else
-      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalize H0 matrix"
+      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
     end if
 
     write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
