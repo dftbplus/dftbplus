@@ -112,6 +112,9 @@ module dftbp_timedep_linresp
     !> diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
+    !> Shift eigenspectrum and fold if requiring interior states for higher energy transitions
+    real(dp), allocatable :: shiftSpace
+
     !> Initialised data structure?
     logical :: tInit = .false.
 
@@ -215,6 +218,20 @@ contains
             & size(onSiteMatrixElements,dim=2), size(onSiteMatrixElements,dim=3),&
             & size(onSiteMatrixElements,dim=4)))
         this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
+      end if
+
+      if (this%tUseArpack) then
+        if (allocated(ini%shiftSpace)) then
+          this%isSpectrumFolded = .true.
+          this%shiftSpace = ini%shiftSpace**2
+        else
+          this%isSpectrumFolded = .false.
+          this%shiftSpace = 0.0_dp
+        end if
+      else
+        if (allocated(ini%shiftSpace)) then
+          call error("Folded spectrum not implemented for this method")
+        end if
       end if
 
       this%tinit = .true.

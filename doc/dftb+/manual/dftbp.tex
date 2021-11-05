@@ -4805,6 +4805,7 @@ available for range separated calculations.
   \begin{ptable}
     \kw{WriteStatusArnoldi}     & l & & No & \\
     \kw{TestArnoldi}            & l & & No & \\
+    \kw{StatesAround}           & r & & & \\
   \end{ptable}
   \begin{description}
   \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is
@@ -4812,6 +4813,10 @@ available for range separated calculations.
     diagonalisation.
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is
     created, which gives data on the quality of the resulting eigenstates.
+  \item[\is{StatesAround}]\modif{\modtype{energy}} Optional shift the energy
+    range over which to solve states, for example to find higher lying
+    transitions in systems. Note that this may lead to slight changes in
+    transition intensities.
   \end{description}
 
   The \iscb{Stratmann} diagonaliser~\cite{Stratmann1998} (see

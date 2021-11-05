@@ -111,6 +111,12 @@ module dftbp_timedep_linresptypes
     !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
 
+    !> Is a spectral folding used to get interior eigenvalues
+    logical :: isSpectrumFolded = .false.
+
+    !> shift value for RPA eigen-problem
+    real(dp) :: shiftSpace = 0.0_dp
+
     !> Is the data structure initialised?
     logical :: tInit = .false.
 

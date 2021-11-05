@@ -4666,9 +4666,7 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child
-    type(fnode), pointer :: child2
-    type(fnode), pointer :: value
+    type(fnode), pointer :: child, child2, child3, value
     type(string) :: buffer
 
   #:if WITH_ARPACK
@@ -4763,6 +4761,12 @@ contains
         case ("arpack")
           call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
           call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+          call getChild(child2, "StatesAround", child3, requested=.false., modifier=modifier)
+          if (associated(child3)) then
+            allocate(ctrl%lrespini%shiftSpace)
+            call getChildValue(child3, "", ctrl%lrespini%shiftSpace, modifier=modifier)
+            call convertByMul(char(modifier), energyUnits, child3, ctrl%lrespini%shiftSpace)
+          end if
           ctrl%lrespini%tUseArpack = .true.
         case ("stratmann")
           ctrl%lrespini%tUseArpack = .false.

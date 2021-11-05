@@ -431,7 +431,7 @@ contains
       ! do not require stability, use the usual routine to sort, saving an O(N) workspace
       call index_heap_sort(win, wij)
     end if
-    wij = wij(win)
+    wij(:) = wij(win)
 
     ! Build square root of occupation difference between virtual and occupied states
     call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, tSpin, sqrOccIA)
@@ -555,7 +555,7 @@ contains
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,&
             & transChrg, this%fdArnoldiDiagnosis, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
-            & tRangeSep, tZVector)
+            & tRangeSep, tZVector, this%isSpectrumFolded, this%shiftSpace)
       else
         call buildAndDiagExcMatrixStratmann(tSpin, this%subSpaceFactorStratmann, wij(:nxov_rd),&
             & sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA,&
@@ -729,7 +729,7 @@ contains
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
-      & eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector)
+      & eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector, isSpectrumFolded, shiftSpace)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -824,7 +824,13 @@ contains
     !> is the Z-vector equation to be solved later?
     logical, intent(in) :: tZVector
 
-    real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
+    !> Is a folded spectrum method used to get higher lying states
+    logical, intent(in) :: isSpectrumFolded
+
+    !> If the spectrum is folded, what is the value around which the eigenvalues are obtained
+    real(dp), intent(in) :: shiftSpace
+
+    real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:), workTmp(:)
     real(dp) :: sigma, omega
     integer :: iparam(11), ipntr(11), ii
     integer :: ido, ncv, lworkl, info
@@ -835,6 +841,8 @@ contains
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
+
+    integer, allocatable :: indxEigVals(:)
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
@@ -888,11 +896,30 @@ contains
         call error(tmpStr)
       end if
 
-      ! Action of excitation supermatrix on supervector
-      call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-          & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
-          & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
-          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+      if (isSpectrumFolded) then
+        allocate(workTmp(nxov_rd))
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
+            & workd(ipntr(1):ipntr(1)+nxov_rd-1), workTmp, tRangeSep)
+        workTmp(:) = workTmp -shiftSpace * workd(ipntr(1):ipntr(1)+nxov_rd-1)
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
+            & workTmp, workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+        workd(ipntr(2):ipntr(2)+nxov_rd-1) = workd(ipntr(2):ipntr(2)+nxov_rd-1)&
+            & -shiftSpace * workTmp
+
+        deallocate(workTmp)
+      else
+        ! Action of excitation supermatrix on supervector
+        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
+            & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+      end if
 
     end do
 
@@ -912,8 +939,26 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.
       ! Note: At this point xpy holds the hermitian eigenvectors F
-      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM", nexc, ARTOL,&
-          & resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
+      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM", nexc,&
+          & ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
+      if (isSpectrumFolded) then
+        ! eval(:) = sqrt(eval) + shiftSpace is not very accurate and does not preserve order in the
+        ! original spectrum, as eigenvalues < shift become > shift, so instead get eigenvalues from
+        ! eigenvectors via <c | H | c> and sort them
+        allocate(workTmp(nxov_rd))
+        do iState = 1, nExc
+          call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+              & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+              & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
+              & xpy(:,iState), workTmp, tRangeSep)
+          eval(iState) = dot_product(xpy(:,iState), workTmp)
+        end do
+        deallocate(workTmp)
+        allocate(indxEigVals(size(eval)))
+        call index_heap_sort(indxEigVals, eval)
+        eval(:) = eval(indxEigVals)
+        xpy(:,:) = xpy(:,indxEigVals)
+      end if
 
       ! check for error on return
       if (info  /=  0) then
