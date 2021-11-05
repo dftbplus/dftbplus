@@ -4948,9 +4948,7 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child
-    type(fnode), pointer :: child2, child3
-    type(fnode), pointer :: value
+    type(fnode), pointer :: child, child2, child3, value
     type(string) :: buffer, modifier
 
     ! Linear response stuff
@@ -5059,6 +5057,12 @@ contains
           call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
           call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
           ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Arpack
+          call getChild(child2, "StatesAround", child3, requested=.false., modifier=modifier)
+          if (associated(child3)) then
+            allocate(ctrl%lrespini%shiftSpace)
+            call getChildValue(child3, "", ctrl%lrespini%shiftSpace, modifier=modifier)
+            call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%lrespini%shiftSpace)
+          end if
         case ("stratmann")
           ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
           call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)

@@ -131,6 +131,9 @@ module dftbp_timedep_linresp
     !> Diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
+    !> Shift eigenspectrum and fold if requiring interior states for higher energy transitions
+    real(dp), allocatable :: shiftSpace
+
   end type TLinrespini
 
 
@@ -167,6 +170,21 @@ contains
     this%iLinRespSolver = ini%iLinRespSolver
 
     if (any([linrespSolverTypes%Arpack, linrespSolverTypes%Stratmann] == this%iLinRespSolver)) then
+
+      if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+        if (allocated(ini%shiftSpace)) then
+          this%isSpectrumFolded = .true.
+          this%shiftSpace = ini%shiftSpace**2
+        else
+          this%isSpectrumFolded = .false.
+          this%shiftSpace = 0.0_dp
+        end if
+      else
+        if (allocated(ini%shiftSpace)) then
+          call error("Folded spectrum not implemented for this method")
+        end if
+      end if
+
       this%tinit = .true.
     else
       call error('Internal error: Illegal routine call to LinResp_init.')
