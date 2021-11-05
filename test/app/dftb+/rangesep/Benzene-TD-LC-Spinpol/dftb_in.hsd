@@ -8,7 +8,7 @@ Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-8
     Charge = 2
-    MaxAngularMomentum = {y
+    MaxAngularMomentum = {
         C = "p"
         H = "s"
     }
