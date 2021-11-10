@@ -16,7 +16,7 @@
   & ("Angular", "angularUnits"), ("Mass Density", "massDensityUnits")]
 
 !> Printing out the conversion factors for the different units
-program testUnitConversion
+program printunits
   use dftbp_common_unitconversion
   use dftbp_common_constants
   implicit none
@@ -25,11 +25,11 @@ program testUnitConversion
 
   write(*,*)"Convert from unit to a.u. by multiplying with"
   #:for names, units in CONVERSIONS
-  write(*,*)
-  write(*,"(A)")"${names}$:"
-  do ii = 1, size(${units}$)
-    write(*,"(1X,A20,E24.15)") ${units}$(ii)%name, ${units}$(ii)%convertValue
-  end do
+    write(*,*)
+    write(*,"(A)")"${names}$:"
+    do ii = 1, size(${units}$)
+      write(*,"(1X,A20,E24.15)") ${units}$(ii)%name, ${units}$(ii)%convertValue
+    end do
   #:endfor
   
-end program testUnitConversion
+end program printunits
