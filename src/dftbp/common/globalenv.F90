@@ -174,7 +174,6 @@ contains
 
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
-
     integer :: errorCode0
   #:if WITH_MPI
     integer :: error
@@ -185,7 +184,6 @@ contains
     else
       errorCode0 = errorCode
     end if
-
   #:if WITH_MPI
     call mpifx_abort(globalMpiComm, errorCode0, error)
     if (error /= 0) then

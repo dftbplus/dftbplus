@@ -205,13 +205,13 @@ contains
     logical :: writeArnoldiDiagnosis
     logical :: writeSPTrans
     integer :: fdExc
+    integer :: fdArnoldi
     
     if (withArpack) then
 
       ! ARPACK library variables
       ndigit = -3
       ! Output unit:
-      logfil = this%fdArnoldi
       msgets = 0
       msaitr = 0
       msapps = 0
@@ -241,7 +241,8 @@ contains
 
     @:ASSERT(this%tArnoldi)
     if (this%tArnoldi) then
-      open(newunit=this%fdArnoldi, file=arpackOut, position="rewind", status="replace")
+      open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
+      if (withArpack) logfil=fdArnoldi
     end if
 
     nSpin = size(grndEigVal, dim=2)
@@ -534,7 +535,7 @@ contains
     end do
 
     if (this%tArnoldi) then
-      close(this%fdArnoldi)
+      close(fdArnoldi)
     end if
 
     if (writeTrans) close(this%fdTrans)
