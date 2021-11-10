@@ -203,7 +203,7 @@ if(WITH_TBLITE)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
   set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
-    external/mctc-lib "${exclude}" "${MCTC_GIT_REPOSITORY}" "${MCTC_GIT_TAG}")
+    external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
 
   set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
