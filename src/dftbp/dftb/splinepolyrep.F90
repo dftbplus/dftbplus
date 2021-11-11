@@ -45,10 +45,10 @@ module dftbp_dftb_splinepolyrep
     private
 
     !> Container for two body repulsives
-    type(TRepCont), allocatable :: twoBodyCont_
+    type(TRepCont), allocatable, public :: twoBodyCont_
 
     !> Nr. of neighbours for the two body repulsive
-    integer, allocatable :: nNeighTwoBody_(:)
+    integer, allocatable, public :: nNeighTwoBody_(:)
 
     !> Whether repulsive must be calculated for a helical system
     logical :: isHelical_

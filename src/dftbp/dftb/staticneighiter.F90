@@ -103,10 +103,10 @@ contains
   end subroutine TStaticNeighIterFact_init
 
 
-  function TStaticNeighIterFact_getIterator(this, maxCutoff) result(neighIter)
+  subroutine TStaticNeighIterFact_getIterator(this, maxCutoff, neighIter)
     class(TStaticNeighIterFact), intent(in) :: this
     real(dp), intent(in) :: maxCutoff
-    class(TNeighbourIter), allocatable :: neighIter
+    class(TNeighbourIter), allocatable, intent(out) :: neighIter
 
     type(TStaticNeighIter), allocatable :: staticNeighIter
 
@@ -116,7 +116,7 @@ contains
     call TStaticNeighIter_init(staticNeighIter, this%pNeighList)
     call move_alloc(staticNeighIter, neighIter)
 
-  end function TStaticNeighIterFact_getIterator
+  end subroutine TStaticNeighIterFact_getIterator
 
 
 end module dftbp_dftb_staticneighiter

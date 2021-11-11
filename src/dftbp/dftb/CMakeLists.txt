@@ -34,6 +34,7 @@ set(sources-fpp
   ${curdir}/halogenx.F90
   ${curdir}/hamiltonian.F90
   ${curdir}/neighbouriter.F90
+  ${curdir}/neighbourmap.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
@@ -60,6 +61,7 @@ set(sources-fpp
   ${curdir}/spin.F90
   ${curdir}/spinorbit.F90
   ${curdir}/staticneighiter.F90
+  ${curdir}/staticneighmap.F90
   ${curdir}/stress.F90
   ${curdir}/thirdorder.F90
   ${curdir}/uniquehubbard.F90

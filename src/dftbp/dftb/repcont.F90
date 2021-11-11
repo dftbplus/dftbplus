@@ -17,7 +17,7 @@ module dftbp_dftb_repcont
   use dftbp_dftb_reppoly, only : TRepPoly, getEnergyDeriv, getEnergy, getCutoff
   use dftbp_dftb_repspline, only : TRepSpline, getEnergyDeriv, getEnergy, getCutoff
   implicit none
-  
+
   private
   public :: TRepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
@@ -39,7 +39,7 @@ module dftbp_dftb_repcont
 
   !> Contains the repulsive interactions for the species pairs.
   type TRepCont
-    private
+    !private
 
     !> repulsive functions
     type(PRep_), allocatable :: repulsives(:,:)

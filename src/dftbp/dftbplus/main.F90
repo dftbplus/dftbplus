@@ -135,7 +135,7 @@ module dftbp_dftbplus_main
 
   private
   public :: runDftbPlus
-  public :: processGeometry
+  public :: processGeometry, handleLatticeChange, handleCoordinateChange
 
   !> O(N^2) density matrix creation
   logical, parameter :: tDensON2 = .false.

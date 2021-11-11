@@ -48,13 +48,13 @@ module dftbp_dftb_neighbouriter
     end subroutine TNeighbourIter_get
 
 
-    function TNeighbourIterFact_getIterator(this, maxCutoff) result(neighIter)
+    subroutine TNeighbourIterFact_getIterator(this, maxCutoff, neighIter)
       import :: TNeighbourIterFact, TNeighbourIter, dp
       implicit none
       class(TNeighbourIterFact), intent(in) :: this
       real(dp), intent(in) :: maxCutoff
-      class(TNeighbourIter), allocatable :: neighIter
-    end function TNeighbourIterFact_getIterator
+      class(TNeighbourIter), allocatable, intent(out) :: neighIter
+    end subroutine TNeighbourIterFact_getIterator
 
   end interface
 
