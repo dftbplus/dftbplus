@@ -28,6 +28,7 @@
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set WITH_POISSON = defined('WITH_POISSON')
 #:set WITH_TBLITE = defined('WITH_TBLITE')
+#:set WITH_CHIMES = defined('WITH_CHIMES')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')

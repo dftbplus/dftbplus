@@ -22,6 +22,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_chimesrep, only : TChimesRepInput, TChimesRep, TChimesRep_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
@@ -1343,7 +1344,6 @@ contains
       end do
     end do
 
-
     select case(this%hamiltonianType)
     case default
       call error("Invalid Hamiltonian")
@@ -1468,7 +1468,8 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont,&
+          & input%ctrl%chimesRepInput, this%speciesName, this%species0, this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -5985,18 +5986,30 @@ contains
 
 
   !> Initializes the repulsive interactions
-  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, chimesRepInput, speciesNames,&
+        & species0, repulsive)
     integer, intent(in) :: nAtom
     logical, intent(in) :: isHelical
     type(TRepCont), intent(in) :: twoBodyCont
+    type(TChimesRepInput), allocatable, intent(in) :: chimesRepInput
+    character(*), intent(in) :: speciesNames(:)
+    integer, intent(in) :: species0(:)
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
     type(TSplinePolyRepInput) :: input
     type(TSplinePolyRep), allocatable :: splinePolyRep
+    type(TChimesRep), allocatable :: chimesRep
 
     input%nAtom = nAtom
     input%isHelical = isHelical
     input%twoBodyCont = twoBodyCont
+    #:if WITH_CHIMES
+      if (allocated(chimesRepInput)) then
+        allocate(input%chimesRep)
+        call TChimesRep_init(input%chimesRep, chimesRepInput, speciesNames, species0)
+      end if
+    #:endif
+
     allocate(splinePolyRep)
     call TSplinePolyRep_init(splinePolyRep, input)
     call move_alloc(splinePolyRep, repulsive)

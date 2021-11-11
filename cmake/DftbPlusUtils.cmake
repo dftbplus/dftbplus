@@ -78,6 +78,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_PLUMED)
   endif()
 
+  if(WITH_CHIMES)
+    list(APPEND _fyppflags -DWITH_CHIMES)
+  endif()
+
   if(WITH_MPI)
     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()
@@ -219,6 +223,10 @@ function (dftbp_ensure_config_consistency)
 
     if(WITH_DFTD3)
       message(FATAL_ERROR "Instance safe build with D3 dispersion is not supported")
+    endif()
+
+    if(WITH_CHIMES)
+      message(FATAL_ERROR "Instance safe build with ChIMES is not supported")
     endif()
 
   endif()

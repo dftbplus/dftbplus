@@ -17,6 +17,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits
+  use dftbp_dftb_chimesrep, only : TChimesRepInput
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -1379,6 +1380,8 @@ contains
             & be defined for using polynomial repulsive)")
       end if
     end select
+
+    call parseChimes(node, ctrl%chimesRepInput)
 
     ! SCC
     call getChildValue(node, "SCC", ctrl%tSCC, .false.)
@@ -7652,6 +7655,30 @@ contains
     end if
 
   end subroutine readSpinTuning
+
+
+  !> Parses Chimes related options.
+  subroutine parseChimes(root, chimesRepInput)
+    type(fnode), pointer, intent(in) :: root
+    type(TChimesRepInput), allocatable, intent(out) :: chimesRepInput
+
+    type(fnode), pointer :: chimes
+    type(string) :: buffer
+
+    call getChild(root, "Chimes", chimes, requested=.false.)
+    if (.not. associated(chimes)) then
+      return
+    end if
+    #:if WITH_CHIMES
+      allocate(chimesRepInput)
+      call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
+      chimesRepInput%chimesFile = unquote(char(buffer))
+    #:else
+      call detailedError(chimes, "ChIMES repuslive correction requested, but code was compiled&
+          & without ChIMES support")
+    #:endif
+
+  end subroutine parseChimes
 
 
   !> Returns parser version for a given input version or throws an error if not possible.

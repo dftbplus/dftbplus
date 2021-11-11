@@ -6,6 +6,7 @@ set(sources-fpp
   ${curdir}/boundarycond.F90
   ${curdir}/chargeconstr.F90
   ${curdir}/charges.F90
+  ${curdir}/chimesrep.F90
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90
   ${curdir}/densitymatrix.F90
@@ -41,6 +42,7 @@ set(sources-fpp
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
   ${curdir}/rangeseparated.F90
+  #${curdir}/repchimes.F90
   ${curdir}/repcont.F90
   ${curdir}/reppoly.F90
   ${curdir}/repspline.F90
