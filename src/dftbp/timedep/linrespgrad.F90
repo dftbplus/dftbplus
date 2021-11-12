@@ -206,6 +206,10 @@ contains
     logical :: writeSPTrans
     integer :: fdExc
     integer :: fdArnoldi
+    integer :: fdXplusY
+    integer :: fdMulliken
+    integer :: fdTrans
+    integer :: fdTraDip
     
     if (withArpack) then
 
@@ -233,13 +237,12 @@ contains
     tTradip = writeTradip
 
     if (tMulliken) then
-      open(newunit=this%fdMulliken, file=excitedQOut,position="rewind", status="replace")
-      close(this%fdMulliken)
-      open(newunit=this%fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
-      close(this%fdMulliken)
+      open(newunit=fdMulliken, file=excitedQOut,position="rewind", status="replace")
+      close(fdMulliken)
+      open(newunit=fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
+      close(fdMulliken)
     end if
 
-    @:ASSERT(this%tArnoldi)
     if (this%tArnoldi) then
       open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
       if (withArpack) logfil=fdArnoldi
@@ -457,22 +460,22 @@ contains
         & nxoo_ud, nxvv_ud, getia, getij, getab, win, this%tCacheCharges)
 
     if (writeXplusY) then
-      open(newunit=this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
+      open(newunit=fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
 
     if(writeTrans) then
-      open(newunit=this%fdTrans, file=transitionsOut, position="rewind", status="replace")
-      write(this%fdTrans,*)
+      open(newunit=fdTrans, file=transitionsOut, position="rewind", status="replace")
+      write(fdTrans,*)
     endif
 
     ! Many-body transition dipole file to excited states
     if (tTradip) then
-      open(newunit=this%fdTradip, file=transDipOut, position="rewind", status="replace")
-      write(this%fdTradip,*)
-      write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
-      write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,60("="))')
-      write(this%fdTradip,*)
+      open(newunit=fdTradip, file=transDipOut, position="rewind", status="replace")
+      write(fdTradip,*)
+      write(fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
+      write(fdTradip,*)
+      write(fdTradip,'(1x,60("="))')
+      write(fdTradip,*)
     endif
 
     ! excitation energies
@@ -538,8 +541,8 @@ contains
       close(fdArnoldi)
     end if
 
-    if (writeTrans) close(this%fdTrans)
-    if (writeXplusY) close(this%fdXplusY)
+    if (writeTrans) close(fdTrans)
+    if (writeXplusY) close(fdXplusY)
     close(fdExc)
     if (writeTradip) close(this%fdTradip)
 
@@ -626,8 +629,8 @@ contains
             & stimc, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, this%spinW)
         call calcPMatrix(t, rhs, win, getia, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, this%fdCoeffs,&
-            & tCoeffs, this%tGrndState, occNatural, naturalOrbs)
+        call writeCoeffs(pc, grndEigVecs, filling, tCoeffs, this%tGrndState, occNatural,&
+            & naturalOrbs)
 
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
@@ -641,7 +644,7 @@ contains
 
         if (tMulliken) then
           !> for now, only total Mulliken charges
-          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0, this%fdMulliken)
+          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
         end if
 
         if (tForces) then
@@ -2001,7 +2004,7 @@ contains
 
 
   !> Write out excitations projected onto ground state
-  subroutine writeCoeffs(tt, grndEigVecs, occ, fdCoeffs, tCoeffs, tIncGroundState,&
+  subroutine writeCoeffs(tt, grndEigVecs, occ, tCoeffs, tIncGroundState,&
       & occNatural, naturalOrbs)
 
     !> T part of the matrix

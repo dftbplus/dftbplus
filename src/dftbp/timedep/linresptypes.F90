@@ -88,7 +88,6 @@ module dftbp_timedep_linresptypes
     integer :: fdExc = -1
     logical :: writeExc
     
-
     !> File unit for transition dipole data
     integer :: fdTradip = -1
     logical :: writeTradip

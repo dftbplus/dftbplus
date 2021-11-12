@@ -1173,7 +1173,7 @@ contains
   end subroutine writeSPExcitations
 
   !> Excited state Mulliken charges and dipole moments written to disc
-  subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0, fdMulliken)
+  subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0)
 
     !> symmetry label
     character, intent(in) :: sym

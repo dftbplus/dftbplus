@@ -727,7 +727,7 @@ contains
         & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, HubbardU, spinW,&
         & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter,&
         & writeMulliken, writeCoeffsFile, writeXplusY, writeTrans, writeSPTrans, writeTradip,&
-        & writeTransQ, tArnoldi, fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow,&
+        & writeTransQ, tArnoldi, tEnergyWindow, energyWindow, tOscillatorWindow,&
         & oscillatorWindow, tCacheCharges, omega, shift, skHamCont, skOverCont, derivator,&
         & deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
@@ -767,8 +767,6 @@ contains
     integer :: fdSPTrans
     !> File unit for transition dipole data
     integer :: fdTraDip
-    !> File unit for transition charges
-    integer :: fdTransQ
     !> write state of Arnoldi solver to disc
     logical, intent(in) :: tArnoldi
     !> file unit for Arnoldi write out
@@ -1188,11 +1186,19 @@ contains
       end if
 
       if (tTransQ) then
+        
+        ! block
+        !   use iso_fortran_env, only : output_unit
+        !   print *, "DEBUG_1B_Helmut", shape(allXpY(:,nStat))
+        !   print *, "DEBUG_2B_Helmut", shape(tQov)
+        !   flush(output_unit)
+        ! end block
+        
         call transitionChargesRS(allXpY(:,nStat), tQov, atomicTransQ)
         if (.not. tZVector) then
           deallocate(tQov)
         end if
-        call writeTransitionChargesRS(fdTransQ, atomicTransQ)
+        call writeTransitionChargesRS(atomicTransQ)
       end if
 
     end do
@@ -1239,7 +1245,7 @@ contains
 
       call getExcMulliken(iAtomStart, pc, SSqr, dQAtomEx)
       if (tMulliken) then
-        call writeExcMulliken(cSym2, nStat, dQ, dQAtomEx, coord0, fdMulliken)
+        call writeExcMulliken(cSym2, nStat, dQ, dQAtomEx, coord0)
       end if
 
       if (tGrads) then
@@ -1779,7 +1785,7 @@ contains
 
 
   !> Write atomic transition charges to file
-  subroutine writeTransitionChargesRS(fdTransQ, atomicTransQ)
+  subroutine writeTransitionChargesRS(atomicTransQ)
     !> file unit for transition charges
     integer :: fdTransQ
     !> transition charges to write
@@ -1872,7 +1878,7 @@ contains
                 & this%nAtom, hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb,&
                 & rsData, tWriteTagged, fdTagged, taggedWriter, writeMulliken, writeCoeffsFile,&
                 & writeXplusY, writeTrans, writeSPTrans, writeTradip, writeTransQ, this%tArnoldi,&
-                & this%fdArnoldi, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+                & this%tEnergyWindow, this%energyWindow,&
                 & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
@@ -1885,8 +1891,8 @@ contains
           & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
           & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
           & fdTagged, taggedWriter, writeMulliken, writeCoeffsFile, writeXplusY, writeTrans,&
-          & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi, this%fdArnoldi,&
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & writeSPTrans, writeTraDip, writeTransQ, this%tArnoldi,&
+          & this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
@@ -2865,9 +2871,16 @@ contains
     real(dp), intent(in) :: vecXpY(:), tQov(:,:)
     real(dp), intent(out) :: atomicTransQ(:)
     real(dp) :: prefactor
-
+    
+    ! block
+    !   use iso_fortran_env, only : output_unit
+    !   print *, "DEBUG_1_Helmut", shape(vecXpY)
+    !   print *, "DEBUG_2_Helmut", shape(tQov)
+    !   flush(output_unit)
+    ! end block
+    
     prefactor = sqrt(2.0_dp) ! Check sqrt(2.0) !-> should be fine
-    atomicTransQ(:) = prefactor * matmul(tQov, vecXpY)
+    atomicTransQ(:) = prefactor * matmul(tQov, vecXpY) 
 
   end subroutine transitionChargesRS
 
