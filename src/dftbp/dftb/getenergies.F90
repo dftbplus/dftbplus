@@ -20,8 +20,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repcont, only : TRepCont
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder

@@ -45,8 +45,7 @@ module dftbp_dftbplus_main
       & getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repcont, only : TRepCont
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift
   use dftbp_dftb_slakocont, only : TSlakoCont

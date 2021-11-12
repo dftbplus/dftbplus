@@ -36,8 +36,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repcont, only : TRepCont
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
