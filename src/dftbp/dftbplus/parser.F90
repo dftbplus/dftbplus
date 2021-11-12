@@ -28,9 +28,8 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
       & getCellTranslations, updateNeighbourList
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
-  use dftbp_dftb_repcont, only : init, addRepulsive
-  use dftbp_dftb_reppoly, only : TRepPoly, TRepPolyIn, init
-  use dftbp_dftb_repspline, only : TRepSpline, TRepSplineIn, init
+  use dftbp_dftb_repulsives_polyrep, only : TPolyRepInp, TPolyRep
+  use dftbp_dftb_repulsives_splinerep, only : TSplineRepInp, TSplineRep
   use dftbp_dftb_slakocont, only : init, addTable
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
@@ -3321,10 +3320,8 @@ contains
     real(dp) :: dist
     type(TOldSKData), allocatable :: skData12(:,:), skData21(:,:)
     type(TSlakoEqGrid), allocatable :: pSlakoEqGrid1, pSlakoEqGrid2
-    type(TRepSplineIn) :: repSplineIn1, repSplineIn2
-    type(TRepPolyIn) :: repPolyIn1, repPolyIn2
-    type(TRepSpline), allocatable :: pRepSpline
-    type(TRepPoly), allocatable :: pRepPoly
+    type(TSplineRepInp) :: repSplineIn1, repSplineIn2
+    type(TPolyRepInp) :: repPolyIn1, repPolyIn2
 
     ! if artificially cutting the SK tables
     integer :: nEntries
@@ -3345,8 +3342,7 @@ contains
     call init(slako%skHamCont, nSpecies)
     allocate(slako%skOverCont)
     call init(slako%skOverCont, nSpecies)
-    allocate(slako%repCont)
-    call init(slako%repCont, nSpecies)
+    allocate(slako%pairRepulsives(nSpecies, nSpecies))
 
     write(stdout, "(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
@@ -3364,20 +3360,20 @@ contains
             write(stdOut, "(a)") trim(fileName)
             if (.not. present(rangeSepSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & repSplineIn=repSplineIn1)
+                    & splineRepIn=repSplineIn1)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1,&
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
                     & rangeSepSK=rangeSepSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & repSplineIn=repSplineIn1, rangeSepSK=rangeSepSK)
+                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
               end if
@@ -3417,10 +3413,10 @@ contains
               call get(sKFiles(iSp1, iSp2), fileName, ind)
               if (readRep .and. repPoly(iSp1, iSp2)) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &repPolyIn=repPolyIn2)
+                    &polyRepIn=repPolyIn2)
               elseif (readRep) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &iSp2, iSp1, repSplineIn=repSplineIn2)
+                    &iSp2, iSp1, splineRepIn=repSplineIn2)
               else
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic)
               end if
@@ -3476,31 +3472,21 @@ contains
         deallocate(skData12)
         deallocate(skData21)
 
+        ! Create repulsive container
+
         ! Add repulsives to the containers.
         if (repPoly(iSp2, iSp1)) then
-          allocate(pRepPoly)
-          call init(pRepPoly, repPolyIn1)
-          call addRepulsive(slako%repCont, pRepPoly, iSp1, iSp2)
-          deallocate(pRepPoly)
+          slako%pairRepulsives(iSp2, iSp1)%item = TPolyRep(repPolyIn1)
         else
-          allocate(pRepSpline)
-          call init(pRepSpline, repSplineIn1)
-          call addRepulsive(slako%repCont, pRepSpline, iSp1, iSp2)
-          deallocate(pRepSpline)
+          slako%pairRepulsives(iSp2, iSp1)%item = TSplineRep(repSplineIn1)
           deallocate(repSplineIn1%xStart)
           deallocate(repSplineIn1%spCoeffs)
         end if
         if (iSp1 /= iSp2) then
           if (repPoly(iSp1, iSp2)) then
-            allocate(pRepPoly)
-            call init(pRepPoly, repPolyIn2)
-            call addRepulsive(slako%repCont, pRepPoly, iSp2, iSp1)
-            deallocate(pRepPoly)
+            slako%pairRepulsives(iSp1, iSp2)%item = TPolyRep(repPolyIn2)
           else
-            allocate(pRepSpline)
-            call init(pRepSpline, repSplineIn2)
-            call addRepulsive(slako%repCont, pRepSpline, iSp2, iSp1)
-            deallocate(pRepSpline)
+            slako%pairRepulsives(iSp1, iSp2)%item = TSplineRep(repSplineIn2)
             deallocate(repSplineIn2%xStart)
             deallocate(repSplineIn2%spCoeffs)
           end if
@@ -3570,10 +3556,10 @@ contains
   subroutine checkSKCompRepSpline(repIn1, repIn2, sp1, sp2)
 
     !> Repulsive spline for interaction A-B
-    type(TRepSplineIn), intent(in) :: repIn1
+    type(TSplineRepInp), intent(in) :: repIn1
 
     !> Repulsive spline for interaction B-A
-    type(TRepSplineIn), intent(in) :: repIn2
+    type(TSplineRepInp), intent(in) :: repIn2
 
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1
@@ -3625,10 +3611,10 @@ contains
   subroutine checkSKCompRepPoly(repIn1, repIn2, sp1, sp2)
 
     !> Repulsive polynomial for interaction A-B
-    type(TRepPolyIn), intent(in) :: repIn1
+    type(TPolyRepInp), intent(in) :: repIn1
 
     !> Repulsive polynomial for interaction B-A
-    type(TRepPolyIn), intent(in) :: repIn2
+    type(TPolyRepInp), intent(in) :: repIn2
 
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1

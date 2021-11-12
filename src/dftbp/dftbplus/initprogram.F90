@@ -38,21 +38,21 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+  use dftbp_dftb_repulsives_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex,&
       & getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_dftb_repcont, only : TRepCont, getCutOff
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
   use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
       & initQFromShellChrg
   use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGammaDamp
   use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftb_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
+  use dftbp_dftb_repulsives_twobodyrep, only : TTwoBodyRep, TTwoBodyRep_init, TTwoBodyRepInput
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
@@ -1463,7 +1463,8 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
+      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%pairRepulsives,&
+          & this%repulsive)
 
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
@@ -5976,21 +5977,21 @@ contains
 
 
   !> Initializes the repulsive interactions
-  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+  subroutine initSplinePolyRepulsive_(nAtom, isHelical, pairRepulsives, repulsive)
     integer, intent(in) :: nAtom
     logical, intent(in) :: isHelical
-    type(TRepCont), intent(in) :: twoBodyCont
+    type(TPairRepulsiveItem), allocatable, intent(inout) :: pairRepulsives(:,:)
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
-    type(TSplinePolyRepInput) :: input
-    type(TSplinePolyRep), allocatable :: splinePolyRep
+    type(TTwoBodyRep), allocatable :: twoBodyRep
+    type(TTwoBodyRepInput) :: input
 
     input%nAtom = nAtom
     input%isHelical = isHelical
-    input%twoBodyCont = twoBodyCont
-    allocate(splinePolyRep)
-    call TSplinePolyRep_init(splinePolyRep, input)
-    call move_alloc(splinePolyRep, repulsive)
+    call move_alloc(pairRepulsives, input%pairRepulsives)
+    allocate(twoBodyRep)
+    call TTwoBodyRep_init(twoBodyRep, input)
+    call move_alloc(twoBodyREp, repulsive)
 
   end subroutine initSplinePolyRepulsive_
 
