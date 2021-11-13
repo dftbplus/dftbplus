@@ -251,6 +251,31 @@ contains
   end subroutine c_DftbPlus_processInput
 
 
+  !> Obtain electrostatic potential at specified points
+  subroutine c_DftbPlus_get_elstat_potential(handler, nLocations, pot, locations)&
+      & bind(C, name='dftbp_get_elstat_potential')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of requested points
+    integer, value, intent(in) :: nLocations
+
+    !> Resulting potentials
+    real(dp), intent(out) :: pot(*)
+
+    !> Sites to calculate potential
+    real(c_double), intent(in) :: locations(3,*)
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+
+    call instance%getElStatPotential(pot(1:nLocations), locations(:, 1:nLocations))
+
+  end subroutine c_DftbPlus_get_elstat_potential
+
+
   !> set an external potential on the DFTB+ calculation
   subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
       & bind(C, name='dftbp_set_external_potential')

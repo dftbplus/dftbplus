@@ -298,6 +298,20 @@ void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
  */
 void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
 
+
+/**
+ * Queries electrostatic potential in specific points.
+ * 
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nLocations Number of requested points
+ *
+ * \param[out] potential Values of electrostatic potential
+ *
+ * \param[in] locations Coordinates of requested points. Shape [natom, 3]. Unit: Bohr.
+ */
+void dftbp_get_elstat_potential(DftbPlus *instance, int nLocations, double *potential, const double *locations);
+
 #ifdef __cplusplus
 }
 #endif

@@ -30,8 +30,8 @@ module dftbp_dftbplus_mainapi
   
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
-  public :: nrOfAtoms, getAtomicMasses
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
+  public :: getStressTensor, nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
@@ -182,6 +182,29 @@ contains
     end if
 
   end subroutine getGrossCharges
+
+
+  !>  get electrostatic potential at specified points
+  subroutine getElStatPotential(env, main, pot, locations)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Resulting potentials
+    real(dp), intent(out) :: pot(:)
+
+    !> Sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Default potential softening
+    real(dp) :: epsSoften = 1E-6
+
+    call main%scc%getInternalElStatPotential(pot, env, locations, epsSoften)
+
+  end subroutine getElStatPotential
 
 
   !> Sets up an external population independent electrostatic potential.

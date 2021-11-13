@@ -33,8 +33,8 @@ extern "C" {
  * \param ext_charges_gradients[in]  Pointer to the array with the gradients of the external charges
  *     Pass NULL if not available.
  */
-void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, double mermin_energy, double *gradients,
-                              double *stress_tensor, double *gross_charges, double * ext_charge_gradients);
+void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, int n_pot_locations, double mermin_energy, double *gradients,
+                              double *stress_tensor, double *gross_charges, double * ext_charge_gradients, double *potential);
 
 #ifdef __cplusplus
 }

@@ -94,6 +94,15 @@ int main()
     5.2278583974043830, 5.1278583974043830, 0.0000000000000000
   };
 
+  /* Electrostatic potential points */
+  const double esp_locations[2*3] = {
+    1.00000000000E+00,   0.00000000000E+00,   0.00000000000E+00,
+    1.00000000000E+00,   0.10000000000E+00,   0.00000000000E+00,
+  };
+
+  double potential[2] = {0, 0};
+  double potential_total[2] = {0, 0};
+
   double mermin_energy, mermin_energy_total;
   double *gradients, *gradients_total, *stress_tensor, *stress_tensor_total, *gross_charges, *gross_charges_total;
   int natom, natom0;
@@ -201,6 +210,18 @@ int main()
 	     0.3314953102, 0.3204992261);
     }
 
+    /* Get electrostatic potential in the calculation */
+    dftbp_get_elstat_potential(&calculator, 2, potential, esp_locations);
+    printf("Obtained potential: %15.10f %15.10f\n", potential[0], potential[1]);
+    if (si2) {
+      /* non-scc example, so zero potential : */
+      printf("Expected potential si2: %15.10f %15.10f\n",  0.0000000000,  0.0000000000);
+    } else {
+      printf("Expected potential h2o: %15.10f %15.10f\n", -0.0397892716, -0.0607664211);
+    }
+    potential_total[0] += potential[0];
+    potential_total[1] += potential[1];
+
     update_collective_variables(natom0, mermin_energy, gradients, stress_tensor,
                                 gross_charges, &mermin_energy_total, gradients_total,
                                 stress_tensor_total, gross_charges_total);
@@ -214,8 +235,8 @@ int main()
          In order to include the results of all performed calculations,
          the summed up values (collective variables) are written out.
       */
-      dftbp_write_autotest_tag(MAX_ATOMS, 0, mermin_energy_total, gradients_total,
-                               stress_tensor_total, gross_charges_total, NULL);
+      dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
+                               stress_tensor_total, gross_charges_total, NULL, potential_total);
     }
 
     free(gradients);
