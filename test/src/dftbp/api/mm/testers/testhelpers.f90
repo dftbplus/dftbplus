@@ -108,8 +108,9 @@ contains
 
 
   !> C wrapper for the write autotest tag routine.
-  subroutine c_writeAutotestTag(nAtom, nExtCharge, nPotLocations, merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, potential) bind(C, name='dftbp_write_autotest_tag')
+  subroutine c_writeAutotestTag(nAtom, nExtCharge, nPotLocations, merminEnergy, gradients,&
+      & stressTensor, grossCharges, extChargeGradients, potential)&
+      & bind(C, name='dftbp_write_autotest_tag')
 
     !> Number of atoms
     integer(c_int), intent(in), value :: nAtom

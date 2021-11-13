@@ -19,8 +19,8 @@ module dftbp_mmapi
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
-      & getGrossCharges, getPotential, getExtChargeGradients, getStressTensor, getGradients, getEnergy,&
-      & setQDepExtPotProxy, setExternalCharges, setGeometry
+      & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
+      & getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -98,8 +98,8 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
-    !> get electrostatic potential in specified points
-    procedure :: getPotential => TDftbPlus_getPotential
+    !> get electrostatic potential at specified points
+    procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Check that the list of species names has not changed
@@ -571,8 +571,9 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
-  !> Returns electrostatic potential in specified points
-  subroutine TDftbPlus_getPotential(this, pot, locations)
+
+  !> Returns electrostatic potential at specified points
+  subroutine TDftbPlus_getElStatPotential(this, pot, locations)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -580,14 +581,14 @@ contains
     !> Resulting potentials
     real(dp), intent(out) :: pot(:)
 
-    !> Sites to calculate potential
+    !> Sites at which to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
     call this%checkInit()
 
-    call getPotential(this%env, this%main, pot, locations)
+    call getElStatPotential(this%env, this%main, pot, locations)
 
-  end subroutine TDftbPlus_getPotential
+  end subroutine TDftbPlus_getElStatPotential
 
 
   !> Returns the nr. of atoms in the system.

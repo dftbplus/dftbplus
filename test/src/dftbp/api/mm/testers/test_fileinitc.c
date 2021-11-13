@@ -210,9 +210,11 @@ int main()
 	     0.3314953102, 0.3204992261);
     }
 
-    dftbp_get_potential(&calculator, 2, potential, esp_locations);
+    /* Get electrostatic potential in the calculation */
+    dftbp_get_elstat_potential(&calculator, 2, potential, esp_locations);
     printf("Obtained potential: %15.10f %15.10f\n", potential[0], potential[1]);
     if (si2) {
+      /* non-scc example, so zero potential : */
       printf("Expected potential si2: %15.10f %15.10f\n",  0.0000000000,  0.0000000000);
     } else {
       printf("Expected potential h2o: %15.10f %15.10f\n", -0.0397892716, -0.0607664211);
