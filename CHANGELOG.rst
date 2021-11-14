@@ -35,6 +35,8 @@ Changed
 
 - Updated parser version to 10.
 
+- Fortran API nrOfAtoms => getNrOfAtoms (and increased version to 0.3)
+
 Fixed
 -----
 

@@ -56,7 +56,7 @@ program test_fileinit
   call dftbp%setupCalculator(input)
 
   ! a simple check for data values in the file
-  if (dftbp%nrOfAtoms() /= size(coords, dim=2)) then
+  if (dftbp%getNrOfAtoms() /= size(coords, dim=2)) then
     print *, "Mismatch between expected number of atoms and dftb_in.hsd file"
     call TDftbPlus_destruct(dftbp)
     stop

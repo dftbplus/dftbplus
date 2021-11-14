@@ -294,7 +294,7 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
 
     if (c_associated(extPotGrad)) then
       call c_f_pointer(extPotGrad, pExtPotGrad, [3, nAtom])
@@ -349,7 +349,7 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
     call instance%setGeometry(coords(:, 1:nAtom))
 
   end subroutine c_DftbPlus_setCoords
@@ -372,7 +372,7 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
     call instance%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3))
 
   end subroutine c_DftbPlus_setCoordsAndLatticeVecs
@@ -398,23 +398,23 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
     call instance%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3), origin(1:3))
 
   end subroutine c_DftbPlus_setCoordsLatticeVecsOrigin
 
 
-  !> Obtain nr. of atoms.
-  function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
+  !> Obtain nr. of atoms in central calculation
+  function c_DftbPlus_getNrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
     type(c_DftbPlus), intent(inout) :: handler
     integer(c_int) :: nAtom
 
     type(TDftbPlusC), pointer :: instance
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
 
-  end function c_DftbPlus_nrOfAtoms
+  end function c_DftbPlus_getNrOfAtoms
 
 
   !> Obtain the DFTB+ energy
@@ -447,7 +447,7 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
     call instance%getGradients(gradients(:, 1:nAtom))
 
   end subroutine c_DftbPlus_getGradients
@@ -486,7 +486,7 @@ contains
     integer :: nAtom
 
     call c_f_pointer(handler%instance, instance)
-    nAtom = instance%nrOfAtoms()
+    nAtom = instance%getNrOfAtoms()
     call instance%getGrossCharges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getGrossCharges

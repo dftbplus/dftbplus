@@ -16,7 +16,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, getNrOfAtoms,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
       & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
@@ -101,7 +101,7 @@ module dftbp_mmapi
     !> get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
-    procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    procedure :: getNrOfAtoms => TDftbPlus_getNrOfAtoms
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -592,7 +592,7 @@ contains
 
 
   !> Returns the nr. of atoms in the system.
-  function TDftbPlus_nrOfAtoms(this) result(nAtom)
+  function TDftbPlus_getNrOfAtoms(this) result(nAtom)
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
@@ -602,9 +602,9 @@ contains
 
     call this%checkInit()
 
-    nAtom = nrOfAtoms(this%main)
+    nAtom = getNrOfAtoms(this%main)
 
-  end function TDftbPlus_nrOfAtoms
+  end function TDftbPlus_getNrOfAtoms
 
 
   !> Returns the atomic masses for each atom in the system.

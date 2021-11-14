@@ -31,7 +31,7 @@ module dftbp_dftbplus_mainapi
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
-  public :: getStressTensor, nrOfAtoms, getAtomicMasses
+  public :: getStressTensor, getNrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
@@ -310,17 +310,18 @@ contains
   end subroutine getExtChargeGradients
 
 
-  !> Obtains number of atoms in the system
-  function nrOfAtoms(main)
+  !> Obtains number of atoms in the system (in transport calculations this corresponds to the device
+  !> region, in supercells the central cell)
+  function getNrOfAtoms(main)
 
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
-    integer :: nrOfAtoms
+    integer :: getNrOfAtoms
 
-    nrOfAtoms = main%nAtom
+    getNrOfAtoms = size(main%iAtInCentralRegion)
 
-  end function nrOfAtoms
+  end function getNrOfAtoms
 
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
