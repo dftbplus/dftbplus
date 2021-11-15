@@ -5399,9 +5399,11 @@ contains
     tExtChrg = allocated(chrgForces)
     nAtom = size(derivs, dim=2)
 
-    dipoleAtom = potential%dipoleAtom
-    if (allocated(potential%extDipoleAtom)) then
-      dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+    if (allocated(tblite)) then
+      dipoleAtom = potential%dipoleAtom
+      if (allocated(potential%extDipoleAtom)) then
+        dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+      end if
     end if
 
     allocate(tmpDerivs(3, nAtom))
