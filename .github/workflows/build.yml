@@ -27,14 +27,17 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
+        version: [9]
         include:
           - os: ubuntu-latest
             mpi: nompi
             config: Coverage
+            version: 9
         exclude:
           - os: macos-latest
             mpi: openmpi
             config: Debug
+            version: 9
 
     steps:
     - name: Checkout code
@@ -43,6 +46,27 @@ jobs:
     - uses: actions/setup-python@v1
       with:
         python-version: '3.x'
+
+    - name: Install GCC (OSX)
+      if: ${{ contains(matrix.os, 'macos') }}
+      run: |
+        brew install gcc@${{ matrix.version }} openblas
+        ln -s /usr/local/bin/gfortran-${{ matrix.version }} /usr/local/bin/gfortran
+        ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
+        ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++
+        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+
+    - name: Install GCC (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install -y gcc-${{ matrix.version}} gfortran-${{ matrix.version }}
+        sudo update-alternatives \
+          --install /usr/bin/gcc gcc /usr/bin/gcc-${{ matrix.version }} 100 \
+          --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ matrix.version }} \
+          --slave /usr/bin/g++ g++ /usr/bin/g++-${{ matrix.version }} \
+          --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ matrix.version }}
 
     - name: Enable MPI build
       if: contains(matrix.mpi, 'openmpi') || contains(matrix.mpi, 'mpich')
