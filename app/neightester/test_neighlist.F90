@@ -22,10 +22,10 @@ module test_neighlist
 #:endif
   implicit none
 
-  integer, parameter :: maxAtom = 512
-  integer, parameter :: maxNeigh = 1000
-  integer, parameter :: nRepeat = 10000
-  real(dp), parameter :: cutoff = 20.0_dp
+  integer :: maxAtom
+  integer :: maxNeigh
+  integer :: nRepeat
+  real(dp), parameter :: cutoff = 100.0_dp
   integer, parameter :: chunkSize = 1000
 
 contains
@@ -48,6 +48,19 @@ contains
     integer :: cArr1, cArr2, cIter1, cIter2, cMap1, cMap2, countRate
     integer :: nAtom
     integer :: iRep, errStatus
+    character(100) :: arg
+
+    if (command_argument_count() /= 3) then
+      error stop "Needs 3 arguments: nRepeat maxAtom maxNeigh"
+    end if
+    call get_command_argument(1, arg)
+    read(arg, *) nRepeat
+    call get_command_argument(2, arg)
+    read(arg, *) maxAtom
+    call get_command_argument(3, arg)
+    read(arg, *) maxNeigh
+
+    print *, nRepeat, maxAtom, maxNeigh
 
     call initialize(env, dpmain)
 
@@ -93,17 +106,17 @@ contains
     tArrSum = real(cArr2 - cArr1, dp) / real(countRate, dp)
 
     resIterSum = 0.0_dp
-    call system_clock(count=cIter1)
+    call system_clock(count=cIter1, count_rate=countRate)
     do iRep = 1, nRepeat
       call iterateOverNeighIter(neighIterFact, pRepCont, dpmain%coord, dpmain%species,&
-          & dpmain%img2CentCell, cutoff, nAtom, chunkSize, resIter)
+      & dpmain%img2CentCell, cutoff, nAtom, chunkSize, resIter)
       resIterSum = resIterSum + resIter
     end do
     call system_clock(count=cIter2)
     tIterSum = real(cIter2 - cIter1, dp) / real(countRate, dp)
 
     resMapSum = 0.0_dp
-    call system_clock(count=cMap1)
+    call system_clock(count=cMap1, count_rate=countRate)
     do iRep = 1, nRepeat
       call iterateOverNeighMap(neighMap, pRepCont, dpmain%coord, dpmain%species, cutoff, nAtom,&
           & resMap)
@@ -199,7 +212,7 @@ contains
     nAtom = size(neighList%nNeighbour)
     resAtom(:) = 0.0_dp
     !$omp parallel do default(none) private(iAt1, iNeigh, iAt2, iAt2f, intermed, vect, dist)&
-    !$omp& shared(neighList, repCont, img2CentCell, coords, species, resAtom, nAtom)
+    !$omp& shared(neighList, repCont, img2CentCell, coords, species, resAtom, nAtom, maxAtom, maxNeigh)
     do iAt1 = 1, min(maxAtom, nAtom)
       do iNeigh = 1, min(maxNeigh, neighList%nNeighbour(iAt1))
         iAt2 = neighList%iNeighbour(iNeigh, iAt1)
@@ -238,7 +251,7 @@ contains
     !$omp parallel default(none)&
     !$omp& firstprivate(neighIter)&
     !$omp& private(iAt1, nNeigh, iNeigh, iAt2, iAt2f, dist, iNeighs, distances2, vect, intermed)&
-    !$omp& shared(cutoff, nAtom, chunkSize, neighIterFact, repCont, resAtom, img2CentCell, coords, species)
+    !$omp& shared(cutoff, nAtom, chunkSize, neighIterFact, repCont, resAtom, img2CentCell, coords, species, maxAtom, maxNeigh)
     call neighIterFact%getIterator(cutoff, neighIter)
 
     !$omp do
@@ -289,7 +302,7 @@ contains
     !$omp parallel do default(none)&
     !$omp& firstprivate(distances2, iNeighs)&
     !$omp& private(iAt1, iNeigh, iAt2, vect, dist, intermed)&
-    !$omp& shared(nAtom, cutoff, neighMap, coords, species, repCont, resAtom)
+    !$omp& shared(nAtom, cutoff, neighMap, coords, species, repCont, resAtom, maxAtom, maxNeigh)
     do iAt1 = 1, min(maxAtom, nAtom)
       call neighMap%getNeighbours(iAt1, cutoff, includeSelf=.false., iNeighs=iNeighs,&
           & distances2=distances2)
