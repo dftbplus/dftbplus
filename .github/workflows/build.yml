@@ -32,6 +32,10 @@ jobs:
           - os: ubuntu-latest
             mpi: nompi
             config: Coverage
+            version: 9
+          - os: ubuntu-latest
+            mpi: nompi
+            config: Coverage
             version: 10
           - os: ubuntu-latest
             mpi: nompi

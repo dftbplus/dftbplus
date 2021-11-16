@@ -237,7 +237,7 @@ if(WITH_TBLITE)
   #list(APPEND PKG_CONFIG_REQUIRES dftd4)
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/awvwgk/tblite.git")
-  set(TBLITE_GIT_TAG "56f9f4c6664966dec95fe829e1f58d489ddb478a")  # do not change manually!
+  set(TBLITE_GIT_TAG "d0c47eaa951d9eaa9611b860dd1c48e41b237d3c")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
