@@ -1,3 +1,5 @@
+#:include "common.fypp"
+
 module test_neighlist
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
@@ -15,9 +17,14 @@ module test_neighlist
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourList_init, updateNeighbourList,&
       & getCellTranslations
   use dftbp_math_lapackroutines, only : matinv
+#:if WITH_OMP
+  use omp_lib, only : omp_get_max_threads
+#:endif
   implicit none
 
-  integer, parameter :: nRepeat = 1000
+  integer, parameter :: maxAtom = 512
+  integer, parameter :: maxNeigh = 1000
+  integer, parameter :: nRepeat = 10000
   real(dp), parameter :: cutoff = 20.0_dp
   integer, parameter :: chunkSize = 1000
 
@@ -38,6 +45,7 @@ contains
     type(TRepCont), pointer :: pRepCont
 
     real :: tArr1, tArr2, tArrSum, tIter1, tIter2, tIterSum, tMap1, tMap2, tMapSum
+    integer :: cArr1, cArr2, cIter1, cIter2, cMap1, cMap2, countRate
     integer :: nAtom
     integer :: iRep, errStatus
 
@@ -74,43 +82,51 @@ contains
       error stop "Can not repulsive handle class"
     end select
 
-    tArrSum = 0.0_dp
-    tIterSum = 0.0_dp
-    tMapSum = 0.0_dp
     resArrSum = 0.0_dp
-    resIterSum = 0.0_dp
-    resMapSum = 0.0_dp
-
+    call system_clock(count=cArr1, count_rate=countRate)
     do iRep = 1, nRepeat
-      call cpu_time(tArr1)
       call iterateOverNeighArray(dpmain%neighbourList, pRepCont, dpmain%img2CentCell, dpmain%coord,&
           & dpmain%species, resArr)
-      call cpu_time(tArr2)
       resArrSum = resArrSum + resArr
-      tArrSum = tArrSum + (tArr2 - tArr1)
+    end do
+    call system_clock(count=cArr2)
+    tArrSum = real(cArr2 - cArr1, dp) / real(countRate, dp)
 
-      call cpu_time(tIter1)
+    resIterSum = 0.0_dp
+    call system_clock(count=cIter1)
+    do iRep = 1, nRepeat
       call iterateOverNeighIter(neighIterFact, pRepCont, dpmain%coord, dpmain%species,&
           & dpmain%img2CentCell, cutoff, nAtom, chunkSize, resIter)
-      call cpu_time(tIter2)
       resIterSum = resIterSum + resIter
-      tIterSum = tIterSum + (tIter2 - tIter1)
+    end do
+    call system_clock(count=cIter2)
+    tIterSum = real(cIter2 - cIter1, dp) / real(countRate, dp)
 
-      call cpu_time(tMap1)
+    resMapSum = 0.0_dp
+    call system_clock(count=cMap1)
+    do iRep = 1, nRepeat
       call iterateOverNeighMap(neighMap, pRepCont, dpmain%coord, dpmain%species, cutoff, nAtom,&
           & resMap)
-      call cpu_time(tMap2)
       resMapSum = resMapSum + resMap
-      tMapSum = tMapSum + (tMap2 - tMap1)
     end do
+    call system_clock(count=cMap2)
+    tMapSum = real(cMap2 - cMap1, dp) / real(countRate, dp)
 
-    print *, "CUTOFF:", cutoff
-    print *, "REPETITIONS:", nRepeat
-    print *, "RES ARRAY:", resArrSum, tArrSum / real(nRepeat, dp)
-    print *, "RES ITER :", resIterSum, tIterSum / real(nRepeat, dp)
-    print *, "RES Map :", resMapSum, tMapSum / real(nRepeat, dp)
-    print *, "TIMEDIFF/ITER:", (tIterSum - tArrSum) / real(nRepeat, dp),&
-        & (tMapSum - tArrSum) / real(nRepeat, dp)
+    print "(a, 1x, f5.2)", "CUTOFF:", cutoff
+    print "(a, 1x, i0)", "MAX ATOM:", maxAtom
+    print "(a, 1x, i0)", "MAX NEIGHS:", maxNeigh
+    print "(a, 1x, i0)", "REPETITIONS:", nRepeat
+    #:if WITH_OMP
+      print "(a, 1x, i0)", "OMP_THREADS:", omp_get_max_threads()
+    #:endif
+    print "(a, 1x, es16.8, 1x, es10.2, 1x, es10.2, 1x, es10.2, 1x, es10.2)", "ARRAY", resArrSum,&
+        & tArrSum, tArrSum / real(nRepeat, dp), 0.0_dp, 0.0_dp
+    print "(a, 1x, es16.8, 1x, es10.2, 1x, es10.2, 1x, es10.2, 1x, es10.2)", "ITER ", resIterSum,&
+        & tIterSum, tIterSum / real(nRepeat, dp),  (tIterSum - tArrSum) / real(nRepeat, dp),&
+        & (tIterSum - tArrSum) / (real(nRepeat, dp) * min(maxAtom, nAtom))
+    print "(a, 1x, es16.8, 1x, es10.2, 1x, es10.2, 1x, es10.2, 1x, es10.2)", "MAP  ", resMapSum,&
+        & tMapSum, tMapSum / real(nRepeat, dp), (tMapSum - tArrSum) / real(nRepeat, dp),&
+        & (tMapSum - tArrSum) / (real(nRepeat, dp) * min(maxAtom, nAtom))
 
     call finalize(env, dpmain)
 
@@ -184,8 +200,8 @@ contains
     resAtom(:) = 0.0_dp
     !$omp parallel do default(none) private(iAt1, iNeigh, iAt2, iAt2f, intermed, vect, dist)&
     !$omp& shared(neighList, repCont, img2CentCell, coords, species, resAtom, nAtom)
-    do iAt1 = 1, nAtom
-      do iNeigh = 1, min(4, neighList%nNeighbour(iAt1))
+    do iAt1 = 1, min(maxAtom, nAtom)
+      do iNeigh = 1, min(maxNeigh, neighList%nNeighbour(iAt1))
         iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
         dist = sqrt(sum(vect**2))
@@ -226,11 +242,11 @@ contains
     call neighIterFact%getIterator(cutoff, neighIter)
 
     !$omp do
-    do iAt1 = 1, nAtom
+    do iAt1 = 1, min(maxAtom, nAtom)
       call neighIter%start(iAt1, cutoff, .false., chunkSize)
       do
         call neighIter%get(nNeigh, iNeighs=iNeighs, distances2=distances2)
-        do iNeigh = 1, min(4, nNeigh)
+        do iNeigh = 1, min(maxNeigh, nNeigh)
           iAt2 = iNeighs(iNeigh)
           vect(:) = coords(:,iAt1) - coords(:,iAt2)
           dist = sqrt(sum(vect**2))
@@ -274,10 +290,10 @@ contains
     !$omp& firstprivate(distances2, iNeighs)&
     !$omp& private(iAt1, iNeigh, iAt2, vect, dist, intermed)&
     !$omp& shared(nAtom, cutoff, neighMap, coords, species, repCont, resAtom)
-    do iAt1 = 1, nAtom
+    do iAt1 = 1, min(maxAtom, nAtom)
       call neighMap%getNeighbours(iAt1, cutoff, includeSelf=.false., iNeighs=iNeighs,&
           & distances2=distances2)
-      do iNeigh = 1, min(4, size(iNeighs))
+      do iNeigh = 1, min(maxNeigh, size(iNeighs))
           iAt2 = iNeighs(iNeigh)
           vect(:) = coords(:,iAt1) - coords(:,iAt2)
           dist = sqrt(sum(vect**2))
@@ -290,7 +306,6 @@ contains
     res = sum(resAtom)
 
   end subroutine iterateOverNeighMap
-
 
 end module test_neighlist
 
