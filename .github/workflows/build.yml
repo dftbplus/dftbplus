@@ -33,14 +33,6 @@ jobs:
             mpi: nompi
             config: Coverage
             version: 9
-          - os: ubuntu-latest
-            mpi: nompi
-            config: Coverage
-            version: 10
-          - os: ubuntu-latest
-            mpi: nompi
-            config: Coverage
-            version: 11
         exclude:
           - os: macos-latest
             mpi: openmpi
