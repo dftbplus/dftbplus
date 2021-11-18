@@ -63,10 +63,6 @@ set(sources-fpp
   ${curdir}/uniquehubbard.F90
   ${curdir}/vdwdata.F90)
 
-if(WITH_DFTD3)
-  list(APPEND sources-fpp ${curdir}/dispdftd3.F90)
-endif(WITH_DFTD3)
-
 if(WITH_MBD)
   list(APPEND sources-fpp ${curdir}/dispmbd.F90)
 endif(WITH_MBD)

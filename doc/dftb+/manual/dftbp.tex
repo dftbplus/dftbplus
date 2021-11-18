@@ -2723,11 +2723,12 @@ description of the methods see the following subsections):
 \item \is{SlaterKirkwood}: The dispersion interaction between atoms is
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
-\item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+\item \is{DftD3}: Dispersion is calculated as in the s-dftd3
+  library~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
-  strengths (see section \ref{sec:dftbp.hcorr}). Note: It is recommended to use
-  the \is{SimpleDftD3} for including D3-dispersion.
+  strengths (see section \ref{sec:dftbp.hcorr}).
+  Note: If DFTB+ is compiled without the s-dftd3 library, the
+  \is{SimpleDftD3} can be used to include D3(BJ)-dispersion.
 \item \is{SimpleDftD3}: DFTB+ internal implementation of the D3-dispersion model.
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see

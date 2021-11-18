@@ -13,12 +13,9 @@ set(sources-fpp
   ${curdir}/plumed.F90
   ${curdir}/poisson.F90
   ${curdir}/scalapackfx.F90
+  ${curdir}/sdftd3.F90
   ${curdir}/tblite.F90
   ${curdir}/xmlf90.F90)
-
-if(WITH_DFTD3)
-  list(APPEND sources-fpp ${curdir}/dftd3.F90)
-endif()
 
 if(WITH_SOCKETS)
   list(APPEND sources-fpp ${curdir}/fsockets.F90)

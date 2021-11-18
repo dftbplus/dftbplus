@@ -11,7 +11,7 @@ env:
   BUILD_DIR: _build
   CMAKE_OPTIONS: >-
     -DWITH_API=true
-    -DWITH_DFTD3=true
+    -DWITH_SDFTD3=true
     -DWITH_TBLITE=true
     -DWITH_MBD=true
     -DWITH_TRANSPORT=true
@@ -187,7 +187,7 @@ jobs:
       CMAKE_OPTIONS: >-
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DWITH_API=true
-        -DWITH_DFTD3=true
+        -DWITH_SDFTD3=true
         -DWITH_MBD=true
         -DWITH_TRANSPORT=true
         -DFYPP_FLAGS='-DTRAVIS'

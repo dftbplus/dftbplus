@@ -145,19 +145,6 @@ download these components by using the `get_opt_externals` utility, e.g.::
 This will download all license compatible optional external components. These
 include the Slater-Koster (slako) data for testing the compiled code.
 
-If you also wish to download and use any of the optional components which have
-*conflicting licenses* (e.g. the `DftD3 library
-<https://github.com/aradi/dftd3-lib>`_), you must explicitly request it::
-
-  ./utils/get_opt_externals ALL
-
-This will then prompt for confirmation when downloading components with other
-licenses.
-
-*Note*: if you include components with conflicting licenses into your
-compilation of DFTB+, you are only allowed to use the resulting binary for your
-personal research and are not permitted to distribute it.
-
 For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
 
@@ -321,7 +308,7 @@ should like something like below::
   target_link(testprogram DftbPlus::DftbPlus)
 
 Note, that this will link all libraries in the correct order, which where
-compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will
+compiled during the DFTB+ build (e.g. libs-dftd3, libnegf, etc.). It will
 additionally contain target dependencies on the external libraries needed to
 create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Scalapack::Scalapack``, ``Arpack::Arpack``, ``Plumed::Plumed``,

@@ -158,10 +158,6 @@ if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
 
-if(WITH_DFTD3)
-  add_subdirectory(external/dftd3 ${exclude})
-endif()
-
 # Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
 
 if(WITH_MPI)
@@ -199,7 +195,7 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
-if(WITH_TBLITE)
+if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
   set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
@@ -212,17 +208,19 @@ if(WITH_TBLITE)
     external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mstore)
 
-  set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-  set(TOML_F_GIT_TAG "a1f3b693ba10e83dc2f69a2d798493aed2083c3e")  # do not change manually!
-  dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
-    external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
-  #list(APPEND PKG_CONFIG_REQUIRES toml-f)
-
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
   set(S_DFTD3_GIT_TAG "c2f03fe563ac3ee280f553038c7bc37f9117325f")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
+endif()
+
+if(WITH_TBLITE)
+  set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
+  set(TOML_F_GIT_TAG "a1f3b693ba10e83dc2f69a2d798493aed2083c3e")  # do not change manually!
+  dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES toml-f)
 
   set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
   set(MULTICHARGE_GIT_TAG "dde0d67dadb6efba414cf634f697dc252eb902dc")  # do not change manually!
