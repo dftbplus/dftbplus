@@ -48,6 +48,8 @@ Fixed
 
 - Updated version of dftd3-lib fixes a numerical typo in the Ba parameters
 
+- D3(BJ)-ATM calculator did not pass exponent for ATM zero damping function
+
 
 21.1 (2021-05-12)
 =================

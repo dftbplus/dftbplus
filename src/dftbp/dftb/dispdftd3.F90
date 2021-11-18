@@ -147,7 +147,7 @@ contains
     allocate(this%calculator)
     call dftd3_init(this%calculator, d3inp)
     if (inp%tBeckeJohnson) then
-      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, inp%a2, 0.0_dp], 4)
+      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, inp%a2, inp%alpha6], 4)
     else
       call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, inp%sr8, inp%alpha6], 3)
     end if
