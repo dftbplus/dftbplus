@@ -204,12 +204,8 @@ contains
     !> Status of operation
     integer, intent(out), optional :: stat
 
-    if (allocated(this%hydrogen)) then
-      call addHHRepulsion(this, coords, neigh, img2CentCell)
-    end if
   #:if WITH_SDFTD3
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
-
     this%energy = 0.0_dp
     this%gradient(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
@@ -217,6 +213,9 @@ contains
     call get_dispersion(this%mol, this%model, this%param, this%cutoff, &
         & this%energy, this%gradient, this%sigma)
 
+    if (allocated(this%hydrogen)) then
+      call addHHRepulsion(this, coords, neigh, img2CentCell)
+    end if
   #:else
     call notImplementedError
   #:endif
@@ -293,7 +292,9 @@ contains
   end subroutine addGradients
 
 
-  !> Returns the stress tensor.
+  !> Get stress tensor contributions, by converting the saved strain derivatives.
+  !> Calculating the stress tensor includes a sign change from the strain derivatives
+  !> and a normalization with the cell volume
   subroutine getStress(this, stress)
 
     !> Instance of DFTD3 data
@@ -303,7 +304,7 @@ contains
     real(dp), intent(out) :: stress(:,:)
 
   #:if WITH_SDFTD3
-    stress = this%sigma / abs(determinant33(this%mol%lattice))
+    stress = -this%sigma / abs(determinant33(this%mol%lattice))
   #:else
     call notImplementedError
   #:endif
