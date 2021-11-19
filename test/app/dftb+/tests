@@ -190,6 +190,7 @@ dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 dispersion/2H2O_dftd3_zero             #? WITH_SDFTD3 and MPI_PROCS <= 1
 dispersion/2H2O_dftd3_bj               #? WITH_SDFTD3 and MPI_PROCS <= 1
+dispersion/2H2O_dftd3_mzero            #? WITH_SDFTD3 and MPI_PROCS <= 1
 dispersion/specieslist_dftd3_bj        #? WITH_SDFTD3 and MPI_PROCS <= 1
 dispersion/GaAs_sdftd3                 #? MPI_PROCS <= 2
 dispersion/2H2O_sdftd3                 #? MPI_PROCS <= 1
@@ -361,6 +362,7 @@ md/H3-plumed                           #? WITH_PLUMED and MPI_PROCS <= 1
 
 
 dispersion/DNA_dftd3_zero              #? WITH_SDFTD3 and MPI_PROCS <= 4
+dispersion/DNA_dftd3_mzero             #? WITH_SDFTD3 and MPI_PROCS <= 4
 
 sockets/diamond                        #? WITH_SOCKETS and MPI_PROCS <= 1
 sockets/diamond_exit                   #? WITH_SOCKETS and MPI_PROCS <= 1

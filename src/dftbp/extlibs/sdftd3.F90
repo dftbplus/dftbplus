@@ -20,19 +20,38 @@ module dftbp_extlibs_sdftd3
   use mctc_env, only : error_type
   use mctc_io, only : structure_type, new
   use dftd3, only : d3_model, new_d3_model, damping_param, rational_damping_param, &
-      & zero_damping_param, realspace_cutoff, get_dispersion, get_dftd3_version
+      & zero_damping_param, mzero_damping_param, realspace_cutoff, get_dispersion, &
+      & get_dftd3_version
 #:endif
   implicit none
   private
 
-  public :: TSDFTD3, TSDFTD3Input, TSDFTD3_init, writeSDFTD3Info
+  public :: TSDFTD3, TSDFTD3Input, TSDFTD3_init, writeSDFTD3Info, dampingFunction
+
+
+  !> Possible damping functions
+  type :: EnumDampingFunction
+
+    !> Rational damping function
+    integer :: rational = 1
+
+    !> Zero damping function
+    integer :: zero = 2
+
+    !> Modified zero damping
+    integer :: mzero = 3
+
+  end type EnumDampingFunction
+
+  !> Actual enumerator for available damping functions
+  type(EnumDampingFunction), parameter :: dampingFunction = EnumDampingFunction()
 
 
   !> Input for the library
   type :: TSDFTD3Input
 
-    !> Use rational damping function
-    logical :: tBeckeJohnson
+    !> Selected damping function
+    integer :: dampingFunction
 
     !> Scaling parameter for C6 contributions
     real(dp) :: s6
@@ -54,6 +73,9 @@ module dftbp_extlibs_sdftd3
 
     !> Exponent for zero damping
     real(dp) :: alpha6
+
+    !> Offset parameter for modified zero damping
+    real(dp) :: beta
 
     !> Real-space cutoff for two-body dispersion contributions
     real(dp) :: cutoff
@@ -160,19 +182,26 @@ contains
     num = input%izp(species0)
     call new(this%mol, num, coords0, lattice=latVecs)
     call new_d3_model(this%model, this%mol)
-    if (input%tBeckeJohnson) then
+    select case(input%dampingFunction)
+    case(dampingFunction%rational)
       this%param = rational_damping_param(s6=input%s6, s8=input%s8, s9=input%s9, &
           & a1=input%a1, a2=input%a2, alp=alpha6_default)
-    else
+    case(dampingFunction%zero)
       this%param = zero_damping_param(s6=input%s6, s8=input%s8, s9=input%s9, &
           & rs6=input%sr6, rs8=rs8_default, alp=input%alpha6)
-    end if
+    case(dampingFunction%mzero)
+      this%param = mzero_damping_param(s6=input%s6, s8=input%s8, s9=input%s9, &
+          & rs6=input%sr6, rs8=rs8_default, alp=input%alpha6, bet=input%beta)
+    case default
+      call error("Invalid damping function selected")
+    end select
     this%cutoff = realspace_cutoff(cn=input%cutoffCN, disp3=input%cutoffCN, &
         & disp2=input%cutoff)
 
     allocate(this%gradient(3, nAtom), this%sigma(3, 3))
     if (input%hhrepulsion) then
       this%hydrogen = num == 1
+      if (.not.any(this%hydrogen)) deallocate(this%hydrogen)
     end if
   #:else
     call notImplementedError
@@ -400,10 +429,12 @@ contains
       param_string = "rational damping"
     type is (zero_damping_param)
       param_string = "zero damping"
+    type is (mzero_damping_param)
+      param_string = "modified zero damping"
     class default
       param_string = "unknown damping"
     end select
-    write(unit, fmt) " -> damping function", param_string
+    write(unit, fmt) "-> damping function", param_string
   #:else
     call notImplementedError
   #:endif

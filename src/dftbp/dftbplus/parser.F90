@@ -43,7 +43,7 @@ module dftbp_dftbplus_parser
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
-  use dftbp_extlibs_sdftd3, only : TSDFTD3Input
+  use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
   use dftbp_extlibs_tblite, only : tbliteMethod
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
       & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
@@ -4092,12 +4092,17 @@ contains
     call getNodeName(childval, buffer)
     select case (char(buffer))
     case ("beckejohnson")
-      input%tBeckeJohnson = .true.
+      input%dampingFunction = dampingFunction%rational
       call getChildValue(childval, "a1", input%a1)
       call getChildValue(childval, "a2", input%a2)
     case ("zerodamping")
-      input%tBeckeJohnson = .false.
+      input%dampingFunction = dampingFunction%zero
       call getChildValue(childval, "sr6", input%sr6)
+      call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
+    case ("modifiedzerodamping")
+      input%dampingFunction = dampingFunction%mzero
+      call getChildValue(childval, "sr6", input%sr6)
+      call getChildValue(childval, "beta", input%beta)
       call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
     case default
       call getNodeHSDName(childval, buffer)

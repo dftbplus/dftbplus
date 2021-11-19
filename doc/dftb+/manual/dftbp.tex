@@ -2938,11 +2938,22 @@ factor:
   \begin{equation*}
     f_{d,n} = \frac{1}{1 + 6(r_{AB}/(s_{\text{r},n} R_0^{AB}))^{-\alpha_n}}
   \end{equation*}
+
+\item Modified zero-damping (dispersion at short distances is damped to zero):
+  \begin{equation*}
+    E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A \neq B} s_n
+    \frac{C_n^{AB}}{r_{AB}^n} f_{d,n}(r_{AB})
+  \end{equation*}
+  with
+  \begin{equation*}
+    f_{d,n} = \frac{1}{1 + 6(r_{AB}/(s_{\text{r},n} R_0^{AB} + \beta))^{-\alpha_n}}
+  \end{equation*}
 \end{itemize}
 
 In order to adjust the dispersion for various energy functionals, the choice of
 $s_6$, $s_8$ and the damping parameters $a_1$ and $a_2$ (for
-Becke-Johnson-damping) or $s_{\text{r},6}$ and $\alpha_6$ (for zero damping) are
+Becke-Johnson-damping), $s_{\text{r},6}$ and $\alpha_6$ (for zero damping)
+or $s_{\text{r},6}$, $\alpha_6$ and $\beta$ (for modified zero damping) are
 treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
