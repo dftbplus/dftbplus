@@ -124,7 +124,7 @@ module dftbp_common_unitconversion
 
 
   !> Number of frequency units
-  integer, parameter :: nFreqUnit = 4
+  integer, parameter :: nFreqUnit = 5
 
 
   !> Frequency units
@@ -132,7 +132,8 @@ module dftbp_common_unitconversion
       & unit("au                  ", 1.0_dp),&
       & unit("hz                  ", 1e-15_dp * au__fs),&
       & unit("thz                 ", 1e-3_dp * au__fs),&
-      & unit("cm^-1               ", 1e-8_dp * Bohr__AA * c)&
+      & unit("cm^-1               ", 1e-8_dp * Bohr__AA * c),&
+      & unit("ev                  ", eV__Hartree ) &
       & ]
 
 

@@ -216,13 +216,22 @@ module dftbp_dftbplus_inputdata
     real(dp) :: tolDegenDFTBPT = 128.0_dp
 
     !> Is this is a static electric field perturbation calculation
-    logical :: isStatEPerturb = .false.
+    logical :: isEPerturb = .false.
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynEFreq(:)
+
+    !> Frequency dependent perturbation eta
+    real(dp), allocatable :: etaFreq
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
     logical :: isRespKernelPert = .false.
 
     !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
     logical :: isRespKernelRPA
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynKernelFreq(:)
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
