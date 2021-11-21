@@ -1187,12 +1187,12 @@ contains
 
       if (tTransQ) then
         
-        ! block
-        !   use iso_fortran_env, only : output_unit
-        !   print *, "DEBUG_1B_Helmut", shape(allXpY(:,nStat))
-        !   print *, "DEBUG_2B_Helmut", shape(tQov)
-        !   flush(output_unit)
-        ! end block
+        block
+          use iso_fortran_env, only : output_unit
+          print *, "DEBUG_1B_Helmut", shape(allXpY(:,nStat))
+          print *, "DEBUG_2B_Helmut", shape(tQov)
+          flush(output_unit)
+        end block
         
         call transitionChargesRS(allXpY(:,nStat), tQov, atomicTransQ)
         if (.not. tZVector) then
@@ -2872,12 +2872,12 @@ contains
     real(dp), intent(out) :: atomicTransQ(:)
     real(dp) :: prefactor
     
-    ! block
-    !   use iso_fortran_env, only : output_unit
-    !   print *, "DEBUG_1_Helmut", shape(vecXpY)
-    !   print *, "DEBUG_2_Helmut", shape(tQov)
-    !   flush(output_unit)
-    ! end block
+    block
+      use iso_fortran_env, only : output_unit
+      print *, "DEBUG_1_Helmut", shape(vecXpY)
+      print *, "DEBUG_2_Helmut", shape(tQov)
+      flush(output_unit)
+    end block
     
     prefactor = sqrt(2.0_dp) ! Check sqrt(2.0) !-> should be fine
     atomicTransQ(:) = prefactor * matmul(tQov, vecXpY) 
