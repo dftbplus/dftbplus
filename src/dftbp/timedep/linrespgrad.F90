@@ -79,7 +79,7 @@ contains
     !> spin polarized calculation
     logical, intent(in) :: tSpin
 
-    type(TLinResp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> index vector for S and H matrices
     integer, intent(in) :: iAtomStart(:)
@@ -210,6 +210,7 @@ contains
     integer :: fdMulliken
     integer :: fdTrans
     integer :: fdTraDip
+    logical :: tOscillatorWindow2
     
     if (withArpack) then
 
@@ -407,10 +408,13 @@ contains
     ! single particle excitation oscillator strengths
     sposz(:) = twothird * wij(:) * sum(snglPartTransDip**2, dim=2)
 
+    !tOscillatorWindow2 = .false.
+    !tZVector = .false.
     if (this%tOscillatorWindow .and. tZVector ) then
       call error("Incompabilitity between excited state property evaluation and an oscillator&
           & strength window at the moment.")
     end if
+    !nxov_d = 0
 
     if (this%tOscillatorWindow .or. this%tEnergyWindow) then
 
@@ -518,11 +522,11 @@ contains
             & grndEigVecs)
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getia, win, eval, evec,&
             & wij(:nxov_rd), writeXplusY, writeTrans, writeTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
+            & tWriteTagged, fdXplusY, fdTagged, taggedWriter, fdExc, Ssq)
       else
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getia, win, eval, evec,&
             & wij(:nxov_rd), writeXplusY, writeTrans, writeTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, fdExc)
+            & tWriteTagged, fdXplusY, fdTagged, taggedWriter, fdExc)
       end if
 
       if (allocated(allOmega)) then
@@ -544,7 +548,7 @@ contains
     if (writeTrans) close(fdTrans)
     if (writeXplusY) close(fdXplusY)
     close(fdExc)
-    if (writeTradip) close(this%fdTradip)
+    if (writeTradip) close(fdTradip)
 
     ! Remove some un-used memory
     deallocate(snglPartTransDip)
@@ -2123,8 +2127,8 @@ contains
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
   subroutine writeExcitations(sym, osz, nexc, nmatup, getia, win, eval, evec, wij, writeXplusY,&
-      & writeTrans, writeTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc,&
-      & Ssq)
+      & writeTrans, writeTradip, transitionDipoles, tWriteTagged, fdXplusY, fdTagged,&
+      & taggedWriter, fdExc, Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2163,7 +2167,7 @@ contains
     integer :: fdTradip
 
     !> file unit for X+Y data
-    integer :: fdXplusY
+    integer, intent(inout) :: fdXplusY
 
     !> file unit for transitions
     integer :: fdTrans

@@ -31,7 +31,7 @@ module dftbp_timedep_linresptypes
 
     !> is an oscillator window specified
     logical :: tOscillatorWindow
-
+    
     !> the window for transitions not included in nexc and energy window (if used)
     real(dp) :: oscillatorWindow
 
