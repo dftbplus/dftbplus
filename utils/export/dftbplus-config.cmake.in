@@ -13,6 +13,7 @@ set(DftbPlus_WITH_MBD @WITH_MBD@)
 set(DftbPlus_WITH_PLUMED @WITH_PLUMED@)
 set(DftbPlus_WITH_SDFTD3 @WITH_SDFTD3@)
 set(DftbPlus_WITH_TBLITE @WITH_TBLITE@)
+set(DftbPlus_WITH_CHIMES @WITH_CHIMES@)
 
 set(DftbPlus_EXTERNAL_LIBRARIES @EXPORTED_EXTERNAL_LIBRARIES@)
 set(DftbPlus_EXTERNAL_LIBRARY_DIRS @EXPORTED_EXTERNAL_LIBRARY_DIRS@)
@@ -43,19 +44,19 @@ if(NOT TARGET DftbPlus::DftbPlus)
       find_dependency(MpiFx)
     endif()
   endif()
-  
+
   if(DftbPlus_WITH_ELSI AND NOT TARGET elsi::elsi)
     find_dependency(elsi)
   endif()
-  
+
   if(DftbPlus_WITH_GPU AND NOT TARGET Magma::Magma)
     find_dependency(CustomMagma)
   endif()
-  
+
   if(DftbPlus_WITH_ARPACK AND NOT TARGET Arpack::Arpack)
     find_dependency(CustomArpack)
   endif()
-  
+
   if(DftbPlus_WITH_PLUMED AND NOT TARGET Plumed::Plumed)
     find_dependency(CustomPlumed)
   endif()
@@ -74,6 +75,10 @@ if(NOT TARGET DftbPlus::DftbPlus)
 
   if(DftbPlus_WITH_TBLITE AND NOT TARGET tblite::tblite)
     find_dependency(tblite)
+  endif()
+
+  if(DftbPlus_WITH_CHIMES AND NOT TARGET ChimesCalc::ChimesCalc_Fortran)
+    find_dependency(ChimesCalc)
   endif()
 
   include("${CMAKE_CURRENT_LIST_DIR}/dftbplus-targets.cmake")

@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
-module dftbp_dftb_repulsives_polyrep
+module dftbp_dftb_repulsive_polyrep
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_repulsives_pairrepulsive, only : TPairRepulsive
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive
   implicit none
 
   private
@@ -181,4 +181,4 @@ contains
 
   end subroutine TPolyRep_getValue
 
-end module dftbp_dftb_repulsives_polyrep
+end module dftbp_dftb_repulsive_polyrep

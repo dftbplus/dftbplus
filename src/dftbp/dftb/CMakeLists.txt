@@ -62,6 +62,6 @@ if(WITH_MBD)
   list(APPEND sources-fpp ${curdir}/dispmbd.F90)
 endif(WITH_MBD)
 
-add_subdirectory(repulsives)
+add_subdirectory(repulsive)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

@@ -31,12 +31,12 @@ module dftbp_timedep_timeprop
       & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildH0, buildS
   use dftbp_dftb_onsitecorrection, only : addOnsShift
-  use dftbp_dftb_periodic, only : TNeighbourList, foldCoordToUnitCell,& 
+  use dftbp_dftb_periodic, only : TNeighbourList, foldCoordToUnitCell,&
       & updateNeighbourListAndSpecies, getNrOfNeighboursForAll, getSparseDescriptor
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -50,7 +50,7 @@ module dftbp_timedep_timeprop
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
-  use dftbp_math_lapackroutines, only : matinv, gesv 
+  use dftbp_math_lapackroutines, only : matinv, gesv
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_md_dummytherm, only : TDummyThermostat
@@ -68,7 +68,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
   implicit none
-  
+
   private
   public :: runDynamics, TElecDynamics_init
   public :: initializeDynamics, doTdStep

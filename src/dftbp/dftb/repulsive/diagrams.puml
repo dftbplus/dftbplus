@@ -4,8 +4,8 @@ hide empty field
 
 abstract class TRepulsive {
     + {abstract} getRCutoff()
-    + {abstract} updateLatticeVectors()
-    + {abstract} updateCoordinates()
+    + {abstract} updateLatVecs()
+    + {abstract} updateCoords()
     + {abstract} getEnergy()
     + {abstract} getGradients()
     + {abstract} getStress()
@@ -19,7 +19,6 @@ class TChimesRep
 
 class TRepulsiveCont {
     - repulsives: TRepulsiveList
-    + pushRepulsive()
 }
 
 class TRepulsiveList

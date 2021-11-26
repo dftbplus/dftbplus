@@ -27,6 +27,9 @@ Addded
 
 - Stratmann solver for excited state, including range separated calculations
 
+- ChIMES force field corrections of the repulsive potentials implemented
+
+
 Changed
 -------
 
@@ -39,6 +42,7 @@ Changed
   Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
   `dftd3-lib <https://github.com/dftbplus/dftd3-lib>`_.
   Option ``WITH_DFTD3`` is removed and replaced with ``WITH_SDFTD3``.
+
 
 Fixed
 -----
@@ -53,7 +57,8 @@ Fixed
 - Number of electrons for Fixed / spin-common Fermi energies and transport in
   results.tag
 
-- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping calculations
+- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
+  calculations
 
 
 21.1 (2021-05-12)

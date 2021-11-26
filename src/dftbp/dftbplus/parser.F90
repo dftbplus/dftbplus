@@ -28,8 +28,9 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
       & getCellTranslations, updateNeighbourList
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
-  use dftbp_dftb_repulsives_polyrep, only : TPolyRepInp, TPolyRep
-  use dftbp_dftb_repulsives_splinerep, only : TSplineRepInp, TSplineRep
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
   use dftbp_dftb_slakocont, only : init, addTable
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
@@ -1372,6 +1373,8 @@ contains
             & be defined for using polynomial repulsive)")
       end if
     end select
+
+    call parseChimes(node, ctrl%chimesRepInput)
 
     ! SCC
     call getChildValue(node, "SCC", ctrl%tSCC, .false.)
@@ -7611,6 +7614,37 @@ contains
     end if
 
   end subroutine readSpinTuning
+
+
+  !> Parses Chimes related options.
+  subroutine parseChimes(root, chimesRepInput)
+    type(fnode), pointer, intent(in) :: root
+    type(TChimesRepInp), allocatable, intent(out) :: chimesRepInput
+
+    type(fnode), pointer :: chimes
+    type(string) :: buffer
+    type(string), allocatable :: searchPath(:)
+    character(:), allocatable :: chimesFile
+
+    call getChild(root, "Chimes", chimes, requested=.false.)
+    if (.not. associated(chimes)) return
+    #:if WITH_CHIMES
+      allocate(chimesRepInput)
+      call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
+      print *, "LENS:", len(unquote(char(buffer))), len_trim(unquote(char(buffer)))
+      print *, "|", unquote(char(buffer)), "|"
+      chimesFile = unquote(char(buffer))
+      call getParamSearchPath(searchPath)
+      call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
+      if (.not. allocated(chimesRepInput%chimesFile)) then
+        call error("Could not find ChIMES parameter file '" // chimesFile // "'")
+      end if
+    #:else
+      call detailedError(chimes, "ChIMES repuslive correction requested, but code was compiled&
+          & without ChIMES support")
+    #:endif
+
+  end subroutine parseChimes
 
 
   !> Returns parser version for a given input version or throws an error if not possible.
