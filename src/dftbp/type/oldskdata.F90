@@ -13,8 +13,8 @@ module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
-  use dftbp_dftb_repulsives_polyrep, only : TPolyRepInp
-  use dftbp_dftb_repulsives_splinerep, only : TSplineRepInp
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
   use dftbp_io_message, only : error
   implicit none
 

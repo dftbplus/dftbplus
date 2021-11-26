@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Implements a two body repulsive potential interface
-module dftbp_dftb_repulsives_pairrepulsive
+module dftbp_dftb_repulsive_pairrepulsive
   use dftbp_common_accuracy, only : dp
   implicit none
 
@@ -22,8 +22,8 @@ module dftbp_dftb_repulsives_pairrepulsive
   procedure(TPairRepulsive_getCutoff), deferred :: getCutoff
   procedure(TPairRepulsive_getValue), deferred :: getValue
   end type TPairRepulsive
-  
-  
+
+
   !> Wrapper for a TPairRepulsive class item
   type :: TPairRepulsiveItem
     class(TPairRepulsive), allocatable :: item
@@ -31,7 +31,7 @@ module dftbp_dftb_repulsives_pairrepulsive
 
 
   abstract interface
-  
+
     !> Returns the real-space cutoff of the two-body repulsive
     function TPairRepulsive_getCutoff(this) result(cutoff)
       import :: TPairRepulsive, dp
@@ -71,4 +71,4 @@ module dftbp_dftb_repulsives_pairrepulsive
   end interface
 
 
-end module dftbp_dftb_repulsives_pairrepulsive
+end module dftbp_dftb_repulsive_pairrepulsive

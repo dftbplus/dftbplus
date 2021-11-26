@@ -38,13 +38,17 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_repulsives_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex,&
       & getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_dftb_repulsives_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont
+  use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
+  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep
   use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
   use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
       & initQFromShellChrg
@@ -52,7 +56,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
-  use dftbp_dftb_repulsives_twobodyrep, only : TTwoBodyRep, TTwoBodyRep_init, TTwoBodyRepInput
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
@@ -1343,7 +1346,6 @@ contains
       end do
     end do
 
-
     select case(this%hamiltonianType)
     case default
       call error("Invalid Hamiltonian")
@@ -1468,9 +1470,8 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%pairRepulsives,&
-          & this%repulsive)
-
+      call initRepulsive_(this%nAtom, this%tPeriodic, this%tHelical, input%slako%pairRepulsives,&
+          & input%ctrl%chimesRepInput, this%speciesName, this%species0, this%repulsive)
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
       @:ASSERT(size(input%slako%skSelf, dim=2) == size(this%atomEigVal, dim=2))
@@ -3027,7 +3028,7 @@ contains
           write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
        else
           write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
        end if
     end if
 
@@ -5273,13 +5274,13 @@ contains
       end if
       if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
         call error("Range separated excited states not available for window options.")
-      end if 
+      end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
         call warning("Range separated excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
         call warning("Range separated excited states not well tested for spin-polarized systems!")
-      end if 
+      end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")
@@ -5985,24 +5986,72 @@ contains
   end subroutine initSccCalculator_
 
 
-  !> Initializes the repulsive interactions
-  subroutine initSplinePolyRepulsive_(nAtom, isHelical, pairRepulsives, repulsive)
+  subroutine initRepulsive_(nAtom, isPeriodic, isHelical, pairRepulsives, chimesInp, speciesNames,&
+        & species0, repulsive)
     integer, intent(in) :: nAtom
-    logical, intent(in) :: isHelical
+    logical, intent(in) :: isPeriodic, isHelical
     type(TPairRepulsiveItem), allocatable, intent(inout) :: pairRepulsives(:,:)
+    type(TChimesRepInp), allocatable, intent(in) :: chimesInp
+    character(*), intent(in) :: speciesNames(:)
+    integer, intent(in) :: species0(:)
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
-    type(TTwoBodyRep), allocatable :: twoBodyRep
-    type(TTwoBodyRepInput) :: input
+    type(TRepulsiveList), allocatable :: repulsiveList
+    type(TTwoBodyRepInp) :: twoBodyInp
 
-    input%nAtom = nAtom
-    input%isHelical = isHelical
-    call move_alloc(pairRepulsives, input%pairRepulsives)
-    allocate(twoBodyRep)
-    call TTwoBodyRep_init(twoBodyRep, input)
-    call move_alloc(twoBodyREp, repulsive)
+    allocate(repulsiveList)
 
-  end subroutine initSplinePolyRepulsive_
+    twoBodyInp%nAtom = nAtom
+    twoBodyInp%isHelical = isHelical
+    call move_alloc(pairRepulsives, twoBodyInp%pairRepulsives)
+    ! repulsive = TTwoBodyRep(twoBodyInp)
+    ! Workaround: ifort 19 - 2021 - ?
+    block
+      use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRep_init
+      type(TTwoBodyRep), allocatable :: twoBodyRep
+      allocate(twoBodyRep)
+      call TTwoBodyRep_init(twoBodyRep, twoBodyInp)
+      call move_alloc(twoBodyRep, repulsive)
+    end block
+    call repulsiveList%push(repulsive)
+
+    #:if WITH_CHIMES
+      if (allocated(chimesInp)) then
+        if (.not. isPeriodic) then
+          call error("ChIMES repulsive requires currently periodic boundary conditions")
+        end if
+        if (isHelical) then
+          call error("ChIMES repulsive is not compatible with helical boundary conditions")
+        end if
+        ! repulsive = TChimesRep(chimesInp, speciesNames, species0)
+        ! Workaround: ifort 19 - 2021 - ?
+        block
+          use dftbp_dftb_repulsive_chimesrep, only : TChimesRep_init
+          type(TChimesRep), allocatable :: chimesRep
+          allocate(chimesRep)
+          call TChimesRep_init(chimesRep, chimesInp, speciesNames, species0)
+          call move_alloc(chimesRep, repulsive)
+        end block
+        call repulsiveList%push(repulsive)
+      end if
+    #:endif
+
+    ! If multiple repulsives, wrap via container, otherwise use the one directly
+    if (repulsiveList%size() > 1) then
+      ! repulsive = TRepulsiveCont(repulsiveList)
+      ! Workaround: ifort 19 - 2021 - ?
+      block
+        use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont_init
+        type(TRepulsiveCont), allocatable :: repulsiveCont
+        allocate(repulsiveCont)
+        call TRepulsiveCont_init(repulsiveCont, repulsiveList)
+        call move_alloc(repulsiveCont, repulsive)
+      end block
+    else
+      call repulsiveList%pop(repulsive)
+    end if
+
+  end subroutine initRepulsive_
 
 
   ! Decides how many Cholesky-decompositions should be buffered

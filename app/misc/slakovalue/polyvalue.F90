@@ -10,7 +10,7 @@
 program polyvalue
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_repulsives_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
   use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
   implicit none

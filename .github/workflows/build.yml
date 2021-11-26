@@ -17,6 +17,7 @@ env:
     -DWITH_TRANSPORT=true
     -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
+    -DWITH_CHIMES=true
 
 jobs:
   gcc-build:

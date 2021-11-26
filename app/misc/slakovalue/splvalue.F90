@@ -12,7 +12,7 @@
 program splvalue
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_repulsives_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
   use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep

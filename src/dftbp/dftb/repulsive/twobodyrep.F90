@@ -8,29 +8,37 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
-module dftbp_dftb_repulsives_twobodyrep
+module dftbp_dftb_repulsive_twobodyrep
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_dftb_boundarycond, only : zAxis
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_dftb_repulsives_pairrepulsive, only : TPairRepulsive, TPairRepulsiveItem
-  use dftbp_dftb_repulsives_repulsive, only :TRepulsive
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive, TPairRepulsiveItem
+  use dftbp_dftb_repulsive_repulsive, only :TRepulsive
   use dftbp_math_quaternions, only : rotate3
   implicit none
 
   private
-  public :: TTwoBodyRepInput
+  public :: TTwoBodyRepInp
   public :: TTwoBodyRep, TTwoBodyRep_init
 
 
-  type :: TTwoBodyRepInput
-    type(TPairRepulsiveItem), allocatable :: pairRepulsives(:,:)
-    integer :: nAtom = 0
-    logical :: isHelical = .false.
-  end type TTwoBodyRepInput
-  
+  !> Input for two body repulsives
+  type :: TTwoBodyRepInp
 
-  !> Repulsive composed of two-body pair terms  
+    !> Array of pairwise repulsives
+    type(TPairRepulsiveItem), allocatable :: pairRepulsives(:,:)
+
+    !> Nr. of atoms in the system.
+    integer :: nAtom = 0
+
+    !> Whether the system has helical boundary conditions
+    logical :: isHelical = .false.
+
+  end type TTwoBodyRepInp
+
+
+  !> Repulsive composed of two-body pair terms
   type, extends(TRepulsive) :: TTwoBodyRep
     private
     integer :: nAtom = 0
@@ -47,16 +55,23 @@ module dftbp_dftb_repulsives_twobodyrep
     procedure :: getStress
   end type TTwoBodyRep
 
+
+  !> Structure constructor
+  interface TTwoBodyRep
+    module procedure TTwoBodyRep_construct
+  end interface
+
 contains
 
-  
+
+  !> Initializer.
   subroutine TTwoBodyRep_init(this, input)
 
-    !> Instacne
+    !> Instance
     type(TTwoBodyRep), intent(out) :: this
 
     !> Input data
-    type(TTwoBodyRepInput), intent(inout) :: input
+    type(TTwoBodyRepInp), intent(inout) :: input
 
     @:ASSERT(allocated(input%pairRepulsives))
     @:ASSERT(size(input%pairRepulsives, dim=1) == size(input%pairRepulsives, dim=2))
@@ -68,6 +83,20 @@ contains
     allocate(this%nNeighbours(this%nAtom))
 
   end subroutine TTwoBodyRep_init
+
+
+  !> Constructor
+  function TTwoBodyRep_construct(input) result(this)
+
+    !> Input data
+    type(TTwoBodyRepInp), intent(inout) :: input
+
+    !> Pointer to initialized instance
+    type(TTwoBodyRep) :: this
+
+    call TTwoBodyRep_init(this, input)
+
+  end function TTwoBodyRep_construct
 
 
   !> Returns the real space cutoff needed by the neighbour lists
@@ -367,4 +396,4 @@ contains
   end subroutine getTwoBodyStress_
 
 
-end module dftbp_dftb_repulsives_twobodyrep
+end module dftbp_dftb_repulsive_twobodyrep

@@ -27,6 +27,9 @@ Addded
 
 - Stratmann solver for excited state, including range separated calculations
 
+- ChIMES force field corrections of the repulsive potentials implemented
+
+
 Changed
 -------
 
@@ -34,6 +37,7 @@ Changed
   <https://fpm.fortran-lang.org/>`_ preferred structure.
 
 - Updated parser version to 10.
+
 
 Fixed
 -----
@@ -48,7 +52,8 @@ Fixed
 
 - Updated version of dftd3-lib fixes a numerical typo in the Ba parameters
 
-- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping calculations
+- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
+  calculations
 
 
 21.1 (2021-05-12)

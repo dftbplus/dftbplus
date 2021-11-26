@@ -162,6 +162,11 @@ if(WITH_DFTD3)
   add_subdirectory(external/dftd3 ${exclude})
 endif()
 
+if(WITH_CHIMES)
+  enable_language(CXX)
+  set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+endif()
+
 # Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
 
 if(WITH_MPI)
@@ -241,6 +246,16 @@ if(WITH_TBLITE)
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
+
+endif()
+
+# ChIMES currently can only be integrated as a submodule
+if(WITH_CHIMES)
+  #set(CHIMES_GIT_REPOSITORY "https://github.com/rk-lindsey/chimes_calculator.git")
+  set(CHIMES_GIT_REPOSITORY "https://github.com/aradi/chimes_calculator.git")
+  set(CHIMES_GIT_TAG "5a5a9fe85bc37b48ea67f4109ac63904906ee92d")  # do not change manually!
+  dftbp_config_hybrid_dependency(ChimesCalc ChimesCalc::ChimesCalc_Fortran "${HYBRID_CONFIG_METHODS}" "QUIET"
+  external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")
 endif()
 
 # FyTest currently can only be integrated as a submodule
@@ -250,6 +265,7 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   dftbp_config_hybrid_dependency(Fytest FyTest::FyTest "Submodule" "QUIET"
   external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
 endif()
+
 
 #
 # Add internal components

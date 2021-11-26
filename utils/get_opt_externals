@@ -29,7 +29,9 @@ Possible choices for OPTEXT:
   RESTRICTED -- download optional components with stricter license than the
       LGPLv3 license of DFTB+ (typically GPL). The distribution of the compiled
       code will be restricted beyond the LGPL license and governed by the
-      strictest license of the included optional components (typically GPLv3).
+      strictest license of the included optional components (typically GPLv3)
+      or even forbidden in case of conflicting licenses (as with GPLv2). In
+      that case the binary is restricted to your personal use, only.
 
   ALL -- download all optional external components.
 
@@ -38,7 +40,8 @@ Possible choices for OPTEXT:
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
-  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
+  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED,
+           resulting binary can only be distributed under GPL license]
 
   gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
@@ -130,9 +133,9 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    url = 'https://github.com/dftbplus/testparams/archive/26439495c4b5b0d07be6ceec4dade3d149425465.tar.gz'
+    url = 'https://github.com/aradi/testparams/archive/cd7536f659be2665cd78d0297f00d377544840aa.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
-    unpackname = os.path.join(destdir, 'testparams-26439495c4b5b0d07be6ceec4dade3d149425465')
+    unpackname = os.path.join(destdir, 'testparams-cd7536f659be2665cd78d0297f00d377544840aa')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)

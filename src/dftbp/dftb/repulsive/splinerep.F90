@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by cubic splines.
-module dftbp_dftb_repulsives_splinerep
+module dftbp_dftb_repulsive_splinerep
   use dftbp_common_accuracy, only : dp, minNeighDist
-  use dftbp_dftb_repulsives_pairrepulsive, only : TPairRepulsive
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsive
   use dftbp_math_bisect, only : bisection
   implicit none
 
@@ -109,7 +109,7 @@ contains
 
     !> Input parameters for the spline repulsive.
     type(TSplineRepInp), intent(in) :: inp
-    
+
     !> Spline repulsive.
     type(TSplineRep) :: this
 
@@ -265,4 +265,4 @@ contains
 
   end subroutine getSpline
 
-end module dftbp_dftb_repulsives_splinerep
+end module dftbp_dftb_repulsive_splinerep
