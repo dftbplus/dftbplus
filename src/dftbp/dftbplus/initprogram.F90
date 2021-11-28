@@ -43,12 +43,12 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_newPtr
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
-  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
-  use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsive, TRepulsivePtr
+  use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont, TRepulsiveCont_newPtr
   use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
-  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep
+  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep, TTwoBodyRep_newPtr
   use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
   use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
       & initQFromShellChrg
@@ -337,7 +337,7 @@ module dftbp_dftbplus_initprogram
     type(TSlakoCont) :: skOverCont
 
     !> Repulsive (force-field like) interactions
-    class(TRepulsive), allocatable :: repulsive
+    type(TRepulsivePtr) :: repulsive
 
     !> Cut off distances for various types of interaction
     type(TCutoffs) :: cutOff
@@ -1526,8 +1526,8 @@ contains
       ! Cut-offs for SlaKo, repulsive
       this%cutOff%skCutOff = max(getCutOff(this%skHamCont), getCutOff(this%skOverCont))
       this%cutOff%mCutoff = this%cutOff%skCutOff
-      if (allocated(this%repulsive)) then
-        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
+      if (associated(this%repulsive%ptr)) then
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%ptr%getRCutOff())
       end if
     case(hamiltonianTypes%xtb)
       ! TODO
@@ -5994,7 +5994,7 @@ contains
     type(TChimesRepInp), allocatable, intent(in) :: chimesInp
     character(*), intent(in) :: speciesNames(:)
     integer, intent(in) :: species0(:)
-    class(TRepulsive), allocatable, intent(out) :: repulsive
+    type(TRepulsivePtr), intent(out) :: repulsive
 
     type(TRepulsiveList), allocatable :: repulsiveList
     type(TTwoBodyRepInp) :: twoBodyInp
@@ -6004,16 +6004,8 @@ contains
     twoBodyInp%nAtom = nAtom
     twoBodyInp%isHelical = isHelical
     call move_alloc(pairRepulsives, twoBodyInp%pairRepulsives)
-    ! repulsive = TTwoBodyRep(twoBodyInp)
-    ! Workaround: ifort 19 - 2021 - ?
-    block
-      use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRep_init
-      type(TTwoBodyRep), allocatable :: twoBodyRep
-      allocate(twoBodyRep)
-      call TTwoBodyRep_init(twoBodyRep, twoBodyInp)
-      call move_alloc(twoBodyRep, repulsive)
-    end block
-    call repulsiveList%push(repulsive)
+    repulsive%ptr => TTwoBodyRep_newPtr(twoBodyInp)
+    call repulsiveList%push(repulsive%ptr)
 
     #:if WITH_CHIMES
       if (allocated(chimesInp)) then
@@ -6023,32 +6015,16 @@ contains
         if (isHelical) then
           call error("ChIMES repulsive is not compatible with helical boundary conditions")
         end if
-        ! repulsive = TChimesRep(chimesInp, speciesNames, species0)
-        ! Workaround: ifort 19 - 2021 - ?
-        block
-          use dftbp_dftb_repulsive_chimesrep, only : TChimesRep_init
-          type(TChimesRep), allocatable :: chimesRep
-          allocate(chimesRep)
-          call TChimesRep_init(chimesRep, chimesInp, speciesNames, species0)
-          call move_alloc(chimesRep, repulsive)
-        end block
-        call repulsiveList%push(repulsive)
+        repulsive%ptr => TChimesRep_newPtr(chimesInp, speciesNames, species0)
+        call repulsiveList%push(repulsive%ptr)
       end if
     #:endif
 
     ! If multiple repulsives, wrap via container, otherwise use the one directly
     if (repulsiveList%size() > 1) then
-      ! repulsive = TRepulsiveCont(repulsiveList)
-      ! Workaround: ifort 19 - 2021 - ?
-      block
-        use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont_init
-        type(TRepulsiveCont), allocatable :: repulsiveCont
-        allocate(repulsiveCont)
-        call TRepulsiveCont_init(repulsiveCont, repulsiveList)
-        call move_alloc(repulsiveCont, repulsive)
-      end block
+      repulsive%ptr => TRepulsiveCont_newPtr(repulsiveList)
     else
-      call repulsiveList%pop(repulsive)
+      call repulsiveList%pop(repulsive%ptr)
     end if
 
   end subroutine initRepulsive_

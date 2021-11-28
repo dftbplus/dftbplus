@@ -20,7 +20,7 @@ module dftbp_dftb_repulsive_twobodyrep
 
   private
   public :: TTwoBodyRepInp
-  public :: TTwoBodyRep, TTwoBodyRep_init
+  public :: TTwoBodyRep, TTwoBodyRep_init, TTwoBodyRep_newPtr
 
 
   !> Input for two body repulsives
@@ -97,6 +97,21 @@ contains
     call TTwoBodyRep_init(this, input)
 
   end function TTwoBodyRep_construct
+
+
+  !> Constructor for allocated pointer
+  function TTwoBodyRep_newPtr(input) result(thisPtr)
+
+    !> Input data
+    type(TTwoBodyRepInp), intent(inout) :: input
+
+    !> Pointer to initialized instance
+    type(TTwoBodyRep), pointer :: thisPtr
+
+    allocate(thisPtr)
+    call TTwoBodyRep_init(thisPtr, input)
+
+  end function TTwoBodyRep_newPtr
 
 
   !> Returns the real space cutoff needed by the neighbour lists

@@ -36,7 +36,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsivePtr
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -678,7 +678,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -846,7 +846,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -2825,7 +2825,7 @@ contains
     real(dp), intent(inout) :: q0(:,:,:)
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
@@ -2905,8 +2905,8 @@ contains
     call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
         & img2CentCell)
-    if (allocated(repulsive)) then
-      call repulsive%getGradients(coordAll, this%speciesAll, img2CentCell, neighbourList,&
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%getGradients(coordAll, this%speciesAll, img2CentCell, neighbourList,&
           & repulsiveDerivs)
     else
       repulsiveDerivs(:,:) = 0.0_dp
@@ -3107,14 +3107,14 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Repulsive interaction data
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)
 
-    if (allocated(repulsive)) then
-      call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
-      call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
+      call repulsive%ptr%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
           & energy%atomRep, energy%Erep, iAtInCentralRegion=iAtInCentralRegion)
     else
       energy%atomRep(:) = 0.0_dp
@@ -3282,7 +3282,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3601,7 +3601,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb

@@ -45,7 +45,7 @@ module dftbp_dftbplus_main
       & getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsivePtr
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -732,8 +732,8 @@ contains
 
     call this%electronicSolver%updateElectronicTemp(this%tempElec)
 
-    if (allocated(this%repulsive)) then
-      call this%repulsive%getEnergy(this%coord, this%species, this%img2CentCell,&
+    if (associated(this%repulsive%ptr)) then
+      call this%repulsive%ptr%getEnergy(this%coord, this%species, this%img2CentCell,&
           & this%neighbourList,this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
           & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep,&
           & iAtInCentralRegion=this%iAtInCentralRegion)
@@ -1615,7 +1615,7 @@ contains
     real(dp), intent(inout) :: mCutOff
 
     !> Repulsive interaction
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1665,8 +1665,8 @@ contains
       call tblite%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, tblite%getRCutOff())
     end if
-    if (allocated(repulsive)) then
-      call repulsive%updateLatVecs(latVecs)
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%updateLatVecs(latVecs)
     end if
     if (allocated(dispersion)) then
       call dispersion%updateLatVecs(latVecs)
@@ -1726,7 +1726,7 @@ contains
     type(TTBLite), allocatable, intent(inout) :: tblite
 
     !> Repulsive
-    class(TRepulsive), allocatable, intent(inout) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> Dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1834,8 +1834,8 @@ contains
       call tblite%updateCoords(env, neighbourList, img2CentCell, coord, species)
     end if
 
-    if (allocated(repulsive)) then
-      call repulsive%updateCoords(coord, species, img2CentCell, neighbourList)
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%updateCoords(coord, species, img2CentCell, neighbourList)
     end if
 
     if (allocated(dispersion)) then
@@ -5310,7 +5310,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -5523,8 +5523,8 @@ contains
       end if
     end if
 
-    if (allocated(repulsive)) then
-      call repulsive%getGradients(coord, species, img2CentCell, neighbourList, tmpDerivs)
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%getGradients(coord, species, img2CentCell, neighbourList, tmpDerivs)
     else
       tmpDerivs(:,:) = 0.0_dp
     end if
@@ -5676,7 +5676,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -5803,8 +5803,8 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    if (allocated(repulsive)) then
-      call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
+    if (associated(repulsive%ptr)) then
+      call repulsive%ptr%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
     else
       tmpStress(:,:) = 0.0_dp
     end if

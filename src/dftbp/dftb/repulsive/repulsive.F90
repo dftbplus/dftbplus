@@ -14,7 +14,7 @@ module dftbp_dftb_repulsive_repulsive
   implicit none
 
   private
-  public :: TRepulsive
+  public :: TRepulsive, TRepulsivePtr
 
 
   !> Generic wrapper for force field-like (a.k.a. repulsive) contributions
@@ -172,6 +172,26 @@ module dftbp_dftb_repulsive_repulsive
     end subroutine getStress
 
   end interface
+
+
+  type :: TRepulsivePtr
+    class(TRepulsive), pointer :: ptr => null()
+  contains
+    final :: TRepulsivePtr_final
+  end type TRepulsivePtr
+
+
+contains
+
+  !> Finalizer.
+  subroutine TRepulsivePtr_final(this)
+
+    !> Instance to finalize.
+    type(TRepulsivePtr), intent(inout) :: this
+
+    if (associated(this%ptr)) deallocate(this%ptr)
+
+  end subroutine TRepulsivePtr_final
 
 
 end module dftbp_dftb_repulsive_repulsive

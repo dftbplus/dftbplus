@@ -17,7 +17,7 @@ module dftbp_dftb_repulsive_chimesrep
   implicit none
 
   private
-  public :: TChimesRepInp, TChimesRep, TChimesRep_init
+  public :: TChimesRepInp, TChimesRep, TChimesRep_init, TChimesRep_newPtr
 
 
 #:if WITH_CHIMES
@@ -127,6 +127,27 @@ contains
     call TChimesRep_init(this, input, speciesNames, species0)
 
   end function TChimesRep_construct
+
+
+  !> Constructs ChIMES repulsive ptr.
+  function TChimesRep_newPtr(input, speciesNames, species0) result(thisPtr)
+
+    !> Name of the Chimes input file
+    type(TChimesRepInp), intent(in) :: input
+
+    !> Name of the species in the system. Shape: [nSpecies]
+    character(*), intent(in) :: speciesNames(:)
+
+    !> Species index of each atom in the central cell. Shape: [nAtom]
+    integer, intent(in) :: species0(:)
+
+    !> Instance on exit
+    type(TChimesRep), pointer :: thisPtr
+
+    allocate(thisPtr)
+    call TChimesRep_init(thisPtr, input, speciesNames, species0)
+
+  end function TChimesRep_newPtr
 
 
   !> Notifies the calculator, that order of the species has been changed.
@@ -310,6 +331,12 @@ contains
   !> Dummy initializer in case code was compiled without ChIMES
   subroutine TChimesRep_init()
   end subroutine TChimesRep_init
+
+  !> Dummy pointer constructor
+  function TChimesRep_newPtr() result(ptr)
+    type(TChimesRep), pointer :: ptr
+    ptr => null()
+  end function TChimesRep_newPtr
 
 #:endif
 

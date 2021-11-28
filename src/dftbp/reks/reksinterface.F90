@@ -22,7 +22,7 @@ module dftbp_reks_reksinterface
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsivePtr
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS
@@ -272,7 +272,7 @@ module dftbp_reks_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -634,7 +634,7 @@ module dftbp_reks_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -756,8 +756,9 @@ module dftbp_reks_reksinterface
         totalStress(:,:) = totalStress + tmpStress
       end if
 
-      if (allocated(repulsive)) then
-        call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
+      if (associated(repulsive%ptr)) then
+        call repulsive%ptr%getStress(coord, species, img2CentCell, neighbourList, cellVol,&
+            & tmpStress)
       else
         tmpStress(:,:) = 0.0_dp
       end if
@@ -815,7 +816,7 @@ module dftbp_reks_reksinterface
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    class(TRepulsive), allocatable, intent(in) :: repulsive
+    type(TRepulsivePtr), intent(in) :: repulsive
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -919,8 +920,8 @@ module dftbp_reks_reksinterface
               & dispDerivs)
         end if
 
-        if (allocated(repulsive)) then
-          call repulsive%getGradients(coord, species, img2CentCell, neighbourList, repDerivs)
+        if (associated(repulsive%ptr)) then
+          call repulsive%ptr%getGradients(coord, species, img2CentCell, neighbourList, repDerivs)
         else
           repDerivs(:,:) = 0.0_dp
         end if

@@ -6,17 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-#:include 'allocatablelist.fypp'
+#:include 'pointerlist.fypp'
 
 !> Implements interface for the repulsive (force-field like) potential
 module dftbp_dftb_repulsive_repulsivelist
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   implicit none
 
-  @:declare_allocatable_list(NAME=TRepulsiveList, TYPE=class(TRepulsive))
+  @:declare_pointer_list(NAME=TRepulsiveList, TYPE=class(TRepulsive))
 
 contains
 
-  @:implement_allocatable_list(NAME=TRepulsiveList, TYPE=class(TRepulsive))
+  @:implement_pointer_list(NAME=TRepulsiveList, TYPE=class(TRepulsive))
 
 end module dftbp_dftb_repulsive_repulsivelist

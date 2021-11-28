@@ -17,7 +17,7 @@ module dftbp_dftb_repulsive_repulsivecont
   implicit none
 
   private
-  public :: TRepulsiveCont, TRepulsiveCont_init
+  public :: TRepulsiveCont, TRepulsiveCont_init, TRepulsiveCont_newPtr
 
 
   !> Repulsives container, wrapping a list of repulsives with the repulsive interface.
@@ -68,6 +68,21 @@ contains
     call TRepulsiveCont_init(this, repulsives)
 
   end function TRepulsiveCont_construct
+
+
+  !> Pointer constructor.
+  function TRepulsiveCont_newPtr(repulsives) result(thisPtr)
+
+    !> List of repulsive to consider, will be transfered into the container.
+    type(TRepulsiveList), allocatable, intent(inout) :: repulsives
+
+    !> Instance on exit
+    type(TRepulsiveCont), pointer :: thisPtr
+
+    allocate(thisPtr)
+    call TRepulsiveCont_init(thisPtr, repulsives)
+
+  end function TRepulsiveCont_newPtr
 
 
   !> Returns the real space cutoff needed by the neighbour lists
