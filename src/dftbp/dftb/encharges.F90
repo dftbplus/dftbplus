@@ -535,16 +535,16 @@ contains
     !> Contains the `trace' derivative on exit.
     real(dp), intent(out) :: aTrace(:, :)
 
-    integer :: iAt1, iAt2f, iSp1, iSp2
-    real(dp) :: dist, vec(3), aTmp(3), arg, eta12
+    integer :: iAt1, iAt2f, iSp1, iSp2, ic
+    real(dp) :: dist, vec(3), aTmp(3), arg, eta12, aij, aji
 
     aMatdr(:,:,:) = 0.0_dp
     aTrace(:,:) = 0.0_dp
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr) &
-    !$OMP SHARED(nAtom, species, rad, coords, qVec) &
-    !$OMP PRIVATE(iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, eta12)
-    !$OMP DO SCHEDULE(RUNTIME)
+    !$omp parallel default(none) shared(aTrace, aMatdr) &
+    !$omp shared(nAtom, species, rad, coords, qVec) &
+    !$omp private(iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, eta12, aij, aji, ic)
+    !$omp do schedule(runtime)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iAt2f = 1, iAt1 - 1
@@ -554,14 +554,22 @@ contains
         eta12 = 1.0_dp / sqrt(rad(iSp1)**2 + rad(iSp2)**2)
         arg = dist * eta12
         aTmp = vec * (2.0_dp * eta12 / sqrtpi * exp(-arg*arg) - erfwrap(arg)/dist) / dist**2
-        aTrace(:, iAt1) = aTrace(:, iAt1) + aTmp * qVec(iAt2f)
-        aTrace(:, iAt2f) = aTrace(:, iAt2f) - aTmp * qVec(iAt1)
-        aMatdr(:, iAt1, iAt2f) = aMatdr(:, iAt1, iAt2f) + aTmp * qVec(iAt1)
-        aMatdr(:, iAt2f, iAt1) = aMatdr(:, iAt2f, iAt1) - aTmp * qVec(iAt2f)
+        do ic = 1, 3
+          aij = aTmp(ic) * qVec(iAt2f)
+          aji = aTmp(ic) * qVec(iAt1)
+          !$omp atomic
+          aTrace(ic, iAt1) = aTrace(ic, iAt1) + aij
+          !$omp atomic
+          aTrace(ic, iAt2f) = aTrace(ic, iAt2f) - aji
+          !$omp atomic
+          aMatdr(ic, iAt1, iAt2f) = aMatdr(ic, iAt1, iAt2f) + aji
+          !$omp atomic
+          aMatdr(ic, iAt2f, iAt1) = aMatdr(ic, iAt2f, iAt1) - aij
+        end do
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$omp end do
+    !$omp end parallel
 
   end subroutine getCoulombDerivsCluster
 
@@ -717,20 +725,21 @@ contains
 
     ! Reciprocal space part of the Ewald sum.
     ! Workaround:nagfor 7.0 with combined DO and PARALLEL
-    !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
-    !$OMP& SHARED(nAtom, alpha, volume, coords, recPoint)&
-    !$OMP& PRIVATE(iAt2f, vec, rTerm)&
-    !$OMP& SCHEDULE(RUNTIME)
+    !$omp parallel do default(none) shared(aMat)&
+    !$omp& shared(nAtom, alpha, volume, coords, recPoint)&
+    !$omp& private(iAt2f, vec, rTerm)&
+    !$omp& schedule(runtime)
     do iAt1 = 1, nAtom
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - alpha / sqrt(pi) + pi / (volume * alpha**2)
       do iAt2f = iAt1, nAtom
         vec(:) = coords(:, iAt1)-coords(:, iAt2f)
         rTerm = ewaldReciprocal(vec, recPoint, alpha, volume) - pi / (volume * alpha**2)
+        !$omp atomic
         aMat(iAt2f, iAt1) = aMat(iAt2f, iAt1) + rTerm
+        !$omp atomic
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
-    !$OMP END PARALLEL DO
 
   end subroutine addEwaldContribs
 
@@ -766,25 +775,39 @@ contains
     !> Contains the `trace' derivative on exit.
     real(dp), intent(inout) :: aTrace(:, :)
 
-    integer :: iAt1, iAt2f
-    real(dp) :: vec(3), aTmp(3), sigma(3, 3)
+    integer :: iAt1, iAt2f, ic, jc
+    real(dp) :: vec(3), aTmp(3), sigma(3, 3), aij, aji, sij, sji
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr, aMatdL) &
+    !$OMP PARALLEL DEFAULT(NONE) shared(aTrace, aMatdr, aMatdL) &
     !$OMP SHARED(nAtom, coords, recPoint, alpha, volume, qVec) &
-    !$OMP PRIVATE(iAt2f, vec, aTmp, sigma)
+    !$OMP PRIVATE(iAt2f, vec, aTmp, sigma, aij, aji, sij, sji, ic, jc)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       do iAt2f = iAt1, nAtom
         vec(:) = coords(:, iAt1) - coords(:, iAt2f)
         call derivStressEwaldRec(vec, recPoint, alpha, volume, aTmp, sigma)
-        aTrace(:, iAt1) = aTrace(:, iAt1) + aTmp * qVec(iAt2f)
-        aTrace(:, iAt2f) = aTrace(:, iAt2f) - aTmp * qVec(iAt1)
-        aMatdr(:, iAt1, iAt2f) = aMatdr(:, iAt1, iAt2f) + aTmp * qVec(iAt1)
-        aMatdr(:, iAt2f, iAt1) = aMatdr(:, iAt2f, iAt1) - aTmp * qVec(iAt2f)
-        aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + sigma * qVec(iAt2f)
-        if (iAt1 /= iAt2f) then
-          aMatdL(:, :, iAt2f) = aMatdL(:, :, iAt2f) + sigma * qVec(iAt1)
-        end if
+        do ic = 1, 3
+          aij = aTmp(ic) * qVec(iAt2f)
+          aji = aTmp(ic) * qVec(iAt1)
+          !$omp atomic
+          aTrace(ic, iAt1) = aTrace(ic, iAt1) + aij
+          !$omp atomic
+          aTrace(ic, iAt2f) = aTrace(ic, iAt2f) - aji
+          !$omp atomic
+          aMatdr(ic, iAt1, iAt2f) = aMatdr(ic, iAt1, iAt2f) + aji
+          !$omp atomic
+          aMatdr(ic, iAt2f, iAt1) = aMatdr(ic, iAt2f, iAt1) - aij
+          do jc = 1, 3
+            sij = sigma(jc, ic) * qVec(iAt2f)
+            sji = sigma(jc, ic) * qVec(iAt1)
+            !$omp atomic
+            aMatdL(jc, ic, iAt1) = aMatdL(jc, ic, iAt1) + sij
+            if (iAt1 /= iAt2f) then
+              !$omp atomic
+              aMatdL(jc, ic, iAt2f) = aMatdL(jc, ic, iAt2f) + sji
+            end if
+          end do
+        end do
       end do
     end do
     !$OMP END DO
@@ -831,7 +854,7 @@ contains
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
     ! Workaround:nagfor 7.0 with combined DO and PARALLEL
-    !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
+    !$OMP PARALLEL DO DEFAULT(NONE) shared(aMat)&
     !$OMP& SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell, neighDist2)&
     !$OMP& SHARED(alpha)&
     !$OMP& PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)&
@@ -846,7 +869,9 @@ contains
         dist = sqrt(neighDist2(iNeigh, iAt1))
         eta12 = 1.0_dp/sqrt(rad(iSp1)**2 + rad(iSp2)**2)
         rTerm = (erfwrap(eta12 * dist) - erfwrap(alpha * dist)) / dist
+        !$omp atomic
         aMat(iAt2f, iAt1) = aMat(iAt2f, iAt1) + rTerm
+        !$omp atomic
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
@@ -898,13 +923,14 @@ contains
     !> Contains the `trace' derivative on exit.
     real(dp), intent(inout) :: aTrace(:, :)
 
-    real(dp) :: dist, vec(3), aTmp(3), arg, eta12, ewl, sigma(3, 3)
-    integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
+    real(dp) :: dist, vec(3), aTmp(3), arg, eta12, ewl, sigma(3, 3), aij, aji, sij, sji
+    integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh, ic, jc
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr, aMatdL) &
+    !$OMP PARALLEL DEFAULT(NONE) shared(aTrace, aMatdr, aMatdL) &
     !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
     !$OMP SHARED(neighDist2, rad, qVec, alpha) &
-    !$OMP PRIVATE(iAt2, iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12, sigma)
+    !$OMP PRIVATE(iAt2, iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12, sigma) &
+    !$OMP PRIVATE(aij, aji, sij, sji, ic, jc)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
@@ -919,15 +945,28 @@ contains
         ewl = dist * alpha
         aTmp = ((2*eta12 / sqrtpi * exp(-arg *arg) - erfwrap(arg) / dist) &
             & - (2*alpha / sqrtpi * exp(-ewl *ewl) - erfwrap(ewl) / dist)) * vec / dist**2
-        aTrace(:, iAt1) = aTrace(:, iAt1) + aTmp * qVec(iAt2f)
-        aTrace(:, iAt2f) = aTrace(:, iAt2f) - aTmp * qVec(iAt1)
-        aMatdr(:, iAt1, iAt2f) = aMatdr(:, iAt1, iAt2f) + aTmp * qVec(iAt1)
-        aMatdr(:, iAt2f, iAt1) = aMatdr(:, iAt2f, iAt1) - aTmp * qVec(iAt2f)
-        sigma(:,:) = spread(aTmp, 1, 3) * spread(vec, 2, 3)
-        aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + sigma * qVec(iAt2f)
-        if (iAt1 /= iAt2f) then
-          aMatdL(:, :, iAt2f) = aMatdL(:, :, iAt2f) + sigma * qVec(iAt1)
-        end if
+        do ic = 1, 3
+          aij = aTmp(ic) * qVec(iAt2f)
+          aji = aTmp(ic) * qVec(iAt1)
+          !$omp atomic
+          aTrace(ic, iAt1) = aTrace(ic, iAt1) + aij
+          !$omp atomic
+          aTrace(ic, iAt2f) = aTrace(ic, iAt2f) - aji
+          !$omp atomic
+          aMatdr(ic, iAt1, iAt2f) = aMatdr(ic, iAt1, iAt2f) + aji
+          !$omp atomic
+          aMatdr(ic, iAt2f, iAt1) = aMatdr(ic, iAt2f, iAt1) - aij
+          do jc = 1, 3
+            sij = aTmp(ic) * vec(jc) * qVec(iAt2f)
+            sji = aTmp(ic) * vec(jc) * qVec(iAt1)
+            !$omp atomic
+            aMatdL(jc, ic, iAt1) = aMatdL(jc, ic, iAt1) + sij
+            if (iAt1 /= iAt2f) then
+              !$omp atomic
+              aMatdL(jc, ic, iAt2f) = aMatdL(jc, ic, iAt2f) + sji
+            end if
+          end do
+        end do
       end do
     end do
     !$OMP END DO
