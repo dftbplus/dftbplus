@@ -304,6 +304,9 @@ module dftbp_dftbplus_inputdata
     real(dp), allocatable :: conVec(:,:)
     character(lc) :: outFile       = ''
 
+    !> Compute derivatives for all atoms 
+    logical :: tAllAtomsDerivs = .false.
+
     !> do we have MD velocities
     logical :: tReadMDVelocities = .false.
 

@@ -6074,8 +6074,15 @@ contains
     logical, intent(out) :: tGeomEnd
 
     real(dp) :: newCoords(3, size(indMovedAtoms))
+    real(dp), pointer :: pHessian(:,:)
 
-    call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
+    call getHessianMatrix(derivDriver, pHessian)
+
+    if (size(pHessian,1) > size(indMovedAtoms)) then
+      call next(derivDriver, newCoords, derivs, tGeomEnd)
+    else
+      call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
+    end if
     coord(:, indMovedAtoms) = newCoords
 
   end subroutine getNextDerivStep
