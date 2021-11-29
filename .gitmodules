@@ -40,5 +40,5 @@
 	url = https://github.com/toml-f/toml-f
 [submodule "external/chimes/origin"]
 	path = external/chimes/origin
-	url = https://github.com/rk-lindsey/chimes_calculator
-    branch = master
+	url = https://github.com/dftbplus/chimes_calculator
+    branch = dftbplus

@@ -252,8 +252,8 @@ endif()
 # ChIMES currently can only be integrated as a submodule
 if(WITH_CHIMES)
   #set(CHIMES_GIT_REPOSITORY "https://github.com/rk-lindsey/chimes_calculator.git")
-  set(CHIMES_GIT_REPOSITORY "https://github.com/aradi/chimes_calculator.git")
-  set(CHIMES_GIT_TAG "5a5a9fe85bc37b48ea67f4109ac63904906ee92d")  # do not change manually!
+  set(CHIMES_GIT_REPOSITORY "https://github.com/dftbplus/chimes_calculator.git")
+  set(CHIMES_GIT_TAG "060090a065270b1f19de9b975ccb406c3ed45414")  # do not change manually!
   dftbp_config_hybrid_dependency(ChimesCalc ChimesCalc::ChimesCalc_Fortran "${HYBRID_CONFIG_METHODS}" "QUIET"
   external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")
 endif()
