@@ -556,7 +556,6 @@ contains
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
-      ctrl%isSccConvRequired = .true.
 
     case ("velocityverlet")
       ! molecular dynamics
@@ -589,8 +588,6 @@ contains
 
       call getChildValue(node, "Thermostat", value1, child=child)
       call getNodeName(value1, buffer2)
-
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
 
       thermostat: select case(char(buffer2))
       case ("berendsen")
@@ -922,7 +919,6 @@ contains
     call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
     ctrl%outFile = unquote(char(buffer2))
     call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-    call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
     call readGeoConstraints(node, ctrl, geom%nAtom)
     if (ctrl%tLatOpt) then
       if (ctrl%nrConstr/=0) then
@@ -1647,8 +1643,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
-        & ctrl%isSccConvRequired)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1881,8 +1876,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
-        & ctrl%isSccConvRequired)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -2992,6 +2986,9 @@ contains
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
     end if
 
+    ! self consistency required or not to proceed
+    call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+
   end subroutine readSccOptions
 
 
@@ -3826,7 +3823,7 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input, nrChrg, tSCC, isSccConvRequired)
+  subroutine readDispersion(node, geo, input, nrChrg, tSCC)
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -3842,9 +3839,6 @@ contains
 
     !> SCC calculation?
     logical, intent(in) :: tScc
-
-    !> use only converged SCC charges
-    logical :: isSccConvRequired
 
     type(fnode), pointer :: dispModel
     type(string) :: buffer
@@ -3887,13 +3881,6 @@ contains
   #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
-    end select
-
-    select case (char(buffer))
-    case ("ts", "mbd")
-      if (tSCC) then
-        call getChildValue(node, "ConvergentSCCOnly", isSccConvRequired, .true.)
-      end if
     end select
 
   end subroutine readDispersion

@@ -180,6 +180,8 @@ scc/H3                                 #? MPI_PROCS <= 1
 scc/H3_skipcheck                       #? MPI_PROCS <= 1
 spin/H2                                #? MPI_PROCS <= 1
 
+scc/CH4_nonconverged                   #? MPI_PROCS <= 1
+
 #! MPI implementation not available
 analysis/C2H4_localise                 #? not WITH_MPI
 analysis/graphene_localise             #? not WITH_MPI
