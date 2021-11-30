@@ -129,7 +129,7 @@ if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE Arpack::Arpack)
 endif()
 
-target_link_libraries(dftbplus INTERFACE LAPACK::LAPACK)
+target_link_libraries(dftbplus PUBLIC LAPACK::LAPACK)
 
 if (WITH_GPU)
   target_link_libraries(dftbplus PUBLIC Magma::Magma)
