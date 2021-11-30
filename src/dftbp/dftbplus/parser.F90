@@ -575,13 +575,12 @@ contains
       ! Partial calculation of the Hessian useful for distributed jobs.
       ! Easily achieved when the movable atoms are restricted and derivatives are
       ! computed for ALL atoms.  computeAtoms overrides the movable atoms
-      call getChild(node, "computeAtoms", child=child, requested=.false.)
+      call getChildValue(node, "computeAtoms", buffer2, trim(atomsRange), child=child)
       if (associated(child)) then
         if (ctrl%nrMoved == geom%nAtom) then
-          call getChildValue(child, "", buffer2, trim(atomsRange), multiple=.true.)
           deallocate(ctrl%indMovedAtom)
-          call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, child,&
-            & ctrl%indMovedAtom)
+          call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
+             & ctrl%indMovedAtom)
           ctrl%nrMoved = size(ctrl%indMovedAtom)
           if (ctrl%nrMoved == 0) then
             call error("No atoms specified for calculation of partial Hessian.")
