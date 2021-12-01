@@ -15,6 +15,10 @@ if(ELSI_FOUND)
     "${ELSI_INCLUDE_DIRS}"
   )
 
+  if("${ELSI_LINK_LIBRARIES}" MATCHES "pexsi")
+    add_library(elsi::pexsi INTERFACE IMPORTED)
+  endif()
+
   # DFTB+ checks for the lowercase variable name
   set(elsi_VERSION "${ELSI_VERSION}")
 endif()
