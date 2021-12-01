@@ -38,6 +38,8 @@ Changed
 Fixed
 -----
 
+- CM5 correction added with incorrect sign to charge populations
+
 - External fields disabled for XLBOMD
 
 - self-consistent DFT-D4 uses populations instead of partial charges
