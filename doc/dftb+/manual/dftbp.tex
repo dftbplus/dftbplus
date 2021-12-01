@@ -2440,6 +2440,21 @@ due to symmetry reasons.) For those cases, you should explicitly
 specify $k$-points with the correct symmetry.
 
 
+\subsubsection{MonkhorstPack\cb}
+\label{sec:dftbp.MonkhorstPack}
+
+Special variant of the supercell folding method to automatically use
+the Monkhorst--Pack scheme\cite{monkhorst-prb-13-5188} for creating
+k-point meshes corresponding to a supercell folding with a diagnal matrix.
+
+\begin{verbatim}
+KPointsAndWeights = MonkhorstPack {
+  Repeat = 2 2 3
+  GammaCentered = No
+}
+\end{verbatim}
+
+
 \subsubsection{KLines\cb}
 \label{sec:dftbp.KLines}
 

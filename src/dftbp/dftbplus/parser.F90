@@ -2706,13 +2706,14 @@ contains
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
-    integer :: ind, ii, jj, kk
-    real(dp) :: coeffsAndShifts(3, 4)
+    integer :: ind, ii, jj, kk, coeffs(3)
+    real(dp) :: coeffsAndShifts(3, 4), shifts(3)
     real(dp) :: rTmp3(3)
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
+    logical :: gammaCentered
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child, &
         &modifier=modifier)
@@ -2742,6 +2743,24 @@ contains
         call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
             & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
       end if
+      ctrl%nKPoint = size(ctrl%kPoint, dim=2)
+
+    case ("monkhorstpack")
+      call getChildValue(value1, "Repeat", coeffs)
+      call getChildValue(value1, "GammaCentered", gammaCentered, .false.)
+      if (gammaCentered) then
+        shifts = 0.0_dp
+      else
+        shifts = merge(0.5_dp, 0.0_dp, mod(coeffs, 2) == 0)
+      end if
+
+      coeffsAndShifts(:, :) = 0.0_dp
+      do kk = 1, 3
+        coeffsAndShifts(kk, kk) = real(coeffs(kk), dp)
+      end do
+
+      call getSuperSampling(coeffsAndShifts(:,1:3), shifts,&
+          & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.not.ctrl%tSpinOrbit)
       ctrl%nKPoint = size(ctrl%kPoint, dim=2)
 
     case ("klines")
