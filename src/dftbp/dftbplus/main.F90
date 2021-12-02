@@ -3601,13 +3601,13 @@ contains
 
       if (allocated(multipoles%dipoleAtom)) then
         call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
-            & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+            & rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
             & iSparseStart)
       end if
 
       if (allocated(multipoles%quadrupoleAtom)) then
         call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
-            & ints%quadrupoleKet, rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK,&
+            & ints%quadrupoleKet, rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK,&
             & img2CentCell, iSparseStart)
       end if
 
@@ -3795,13 +3795,13 @@ contains
         if (nIneqDip > 0) then
           ! FIXME: Assumes we always mix all dipole moments
           nMix = nIneqOrb
-          multipoleInp%dipoleAtom(:, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
+          multipoleInp%dipoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
               & shape(multipoleInp%dipoleAtom))
         end if
         if (nIneqQuad > 0) then
           ! FIXME: Assumes we always mix all quadrupole moments
           nMix = nIneqOrb + nIneqDip
-          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
+          multipoleInp%quadrupoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
               & shape(multipoleInp%quadrupoleAtom))
         end if
       end if
@@ -4454,7 +4454,7 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Dipole populations for each atom
-    real(dp), intent(in), optional :: dipAtom(:,:)
+    real(dp), intent(in), optional :: dipAtom(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -4478,7 +4478,7 @@ contains
     if (present(dipAtom)) then
       do ii = 1, size(iAtInCentralRegion)
         iAtom = iAtInCentralRegion(ii)
-        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom)
+        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom, 1)
       end do
     end if
 

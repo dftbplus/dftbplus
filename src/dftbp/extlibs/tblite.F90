@@ -715,10 +715,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: dipAtom(:,:)
+    real(dp), intent(in), optional :: dipAtom(:,:,:)
 
-    !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: quadAtom(:,:)
+    !> Cumulative atomic quadrupole populations
+    real(dp), intent(in), optional :: quadAtom(:,:,:)
 
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -746,11 +746,11 @@ contains
     end do
 
     if (present(dipAtom)) then
-      this%wfn%dpat(:, :) = -dipAtom
+      this%wfn%dpat(:, :) = -dipAtom(:, :, 1)
     end if
 
     if (present(quadAtom)) then
-      this%wfn%qpat(:, :) = -quadAtom
+      this%wfn%qpat(:, :) = -quadAtom(:, :, 1)
     end if
 
     if (allocated(this%calc%coulomb)) then

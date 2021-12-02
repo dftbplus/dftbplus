@@ -1689,7 +1689,8 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole)
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+        & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
     ! Initialize Hamilton and overlap
