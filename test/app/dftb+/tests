@@ -190,9 +190,10 @@ onsite/H2O                             #? MPI_PROCS <= 1
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
-dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
-dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
-dispersion/specieslist_dftd3_bj        #? WITH_DFTD3 and MPI_PROCS <= 1
+dispersion/2H2O_dftd3_zero             #? WITH_SDFTD3 and MPI_PROCS <= 1
+dispersion/2H2O_dftd3_bj               #? WITH_SDFTD3 and MPI_PROCS <= 1
+dispersion/2H2O_dftd3_mzero            #? WITH_SDFTD3 and MPI_PROCS <= 1
+dispersion/specieslist_dftd3_bj        #? WITH_SDFTD3 and MPI_PROCS <= 1
 dispersion/GaAs_sdftd3                 #? MPI_PROCS <= 2
 dispersion/2H2O_sdftd3                 #? MPI_PROCS <= 1
 dispersion/2H2O_dftd4                  #? MPI_PROCS <= 1
@@ -204,7 +205,7 @@ dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
-h-bonds/D3H5_water_dimer               #? WITH_DFTD3 and MPI_PROCS <= 1
+h-bonds/D3H5_water_dimer               #? WITH_SDFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
 non-scc/decapentaene                   #? MPI_PROCS <= 2
 scc/2H2O-3rdorder                      #? MPI_PROCS <= 1
@@ -326,12 +327,12 @@ dangerous/C_SkCutoff_hard_default      #? MPI_PROCS <= 4
 dangerous/C_SkCutoff_soft_old          #? MPI_PROCS <= 4
 dangerous/C_SkCutoff_hard_old          #? MPI_PROCS <= 4
 
-halogen/3492                           #? WITH_DFTD3 and MPI_PROCS <= 1
-halogen/3499                           #? WITH_DFTD3 and MPI_PROCS <= 1
-halogen/3500                           #? WITH_DFTD3 and MPI_PROCS <= 1
-halogen/3501                           #? WITH_DFTD3 and MPI_PROCS <= 1
-halogen/3502                           #? WITH_DFTD3 and MPI_PROCS <= 1
-halogen/3518                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3492                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3499                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3500                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3501                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3502                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3518                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 
 timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
@@ -342,7 +343,7 @@ timedep/OCH2-md                        #? WITH_ARPACK and MPI_PROCS <= 1
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 2
-h-bonds/D3H5_ice                       #? WITH_DFTD3 and MPI_PROCS <= 4
+h-bonds/D3H5_ice                       #? WITH_SDFTD3 and MPI_PROCS <= 4
 
 md/Si_8_restart                        #? MPI_PROCS <= 1
 spin/GaAs_2                            #? MPI_PROCS <= 1
@@ -362,7 +363,8 @@ md/H3                                  #? MPI_PROCS <= 1
 md/H3-plumed                           #? WITH_PLUMED and MPI_PROCS <= 1
 
 
-dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and MPI_PROCS <= 4
+dispersion/DNA_dftd3_zero              #? WITH_SDFTD3 and MPI_PROCS <= 4
+dispersion/DNA_dftd3_mzero             #? WITH_SDFTD3 and MPI_PROCS <= 4
 
 sockets/diamond                        #? WITH_SOCKETS and MPI_PROCS <= 1
 sockets/diamond_exit                   #? WITH_SOCKETS and MPI_PROCS <= 1
@@ -400,7 +402,7 @@ md/Si_8-tempprofile                    #? MPI_PROCS <= 1
 md/Si_8-tempprofile0                   #? MPI_PROCS <= 1
 md/Vsi+O-plumed                        #? WITH_PLUMED and MPI_PROCS <= 4
 
-dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and MPI_PROCS <= 4
+dispersion/DNA_dftd3_bj                #? WITH_SDFTD3 and MPI_PROCS <= 4
 
 geoopt/Vsi+O-nonscc                    #? MPI_PROCS <= 4
 non-scc/Si_384                         #? MPI_PROCS <= 4

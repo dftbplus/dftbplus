@@ -35,6 +35,11 @@ Changed
 
 - Updated parser version to 10.
 
+- Replace backend to implement DFT-D3 dispersion correction.
+  Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
+  `dftd3-lib <https://github.com/dftbplus/dftd3-lib>`_.
+  Option ``WITH_DFTD3`` is removed and replaced with ``WITH_SDFTD3``.
+
 Fixed
 -----
 
@@ -47,8 +52,6 @@ Fixed
 
 - Number of electrons for Fixed / spin-common Fermi energies and transport in
   results.tag
-
-- Updated version of dftd3-lib fixes a numerical typo in the Ba parameters
 
 - D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping calculations
 
