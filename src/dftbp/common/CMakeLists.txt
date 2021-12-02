@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/assert.F90
   ${curdir}/atomicrad.F90
   ${curdir}/atomicmass.F90
+  ${curdir}/cell.F90
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90

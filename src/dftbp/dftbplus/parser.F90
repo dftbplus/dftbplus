@@ -10,6 +10,7 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
+  use dftbp_common_cell, only : hexagonalCAxes
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
@@ -2749,9 +2750,10 @@ contains
       call getChildValue(value1, "Repeat", coeffs)
       call getChildValue(value1, "GammaCentered", gammaCentered, .false.)
       if (gammaCentered) then
-        shifts = 0.0_dp
+        shifts(:) = 0.0_dp
       else
-        shifts = merge(0.5_dp, 0.0_dp, mod(coeffs, 2) == 0)
+        shifts(:) = merge(0.5_dp, 0.0_dp, &
+            & mod(coeffs, 2) == 0 .and. .not.hexagonalCAxes(geo%latVecs))
       end if
 
       coeffsAndShifts(:, :) = 0.0_dp
