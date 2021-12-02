@@ -15,11 +15,13 @@ if(ELSI_FOUND)
     "${ELSI_INCLUDE_DIRS}"
   )
 
-  # Set this for ELSI detection in libmbd
-  set(ELSI_LIBRARIES "${ELSI_LINK_LIBRARIES}")
-
   if("${ELSI_LINK_LIBRARIES}" MATCHES "pexsi")
     add_library(elsi::pexsi INTERFACE IMPORTED)
+    target_link_libraries(
+      elsi::elsi
+      INTERFACE
+      "stdc++"
+    )
   endif()
 
   # DFTB+ checks for the lowercase variable name
