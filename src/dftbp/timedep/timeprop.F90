@@ -1480,6 +1480,9 @@ contains
 
     deltaQ(:,:) = sum((qq - q0), dim=1)
     dipole(:,:) = -matmul(coord, deltaQ)
+    if (allocated(multipole%dipoleAtom)) then
+      dipole(:,:) = dipole - sum(multipole%dipoleAtom(:, :, :), dim=2)
+    end if
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
@@ -4088,6 +4091,12 @@ contains
     deallocate(this%totalForce)
     deallocate(this%trho)
     deallocate(this%trhoOld)
+    if (allocated(this%Dsqr)) then
+      deallocate(this%Dsqr)
+    end if
+    if (allocated(this%Qsqr)) then
+      deallocate(this%Qsqr)
+    end if
 
     deallocate(this%rhoPrim)
     deallocate(this%ErhoPrim)
