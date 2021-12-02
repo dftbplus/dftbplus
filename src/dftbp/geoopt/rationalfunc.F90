@@ -11,27 +11,27 @@
 !> augmented Hessian matrix. The eigenvector provides the optimal displacement for the
 !> optimization. This rational function implementation will update the approximate Hessian
 !> matrix using a BFGS-like update procedure.
-module dftbp_geoopt_rf
+module dftbp_geoopt_rationalfunc
   use dftbp_common_accuracy, only : dp
-  use dftbp_geoopt_filter, only : TFilter
-  use dftbp_geoopt_class, only : TOptimizer
+  use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_math_eigensolver, only : syev => heev
   implicit none
-  private
 
-  public :: TRationalFunction, TRationalFunctionInput, TRationalFunction_init
+  private
+  public :: TRationalFunc, TRationalFuncInput, TRationalFunc_init
 
 
   !> Input for the rational function optimizer
-  type :: TRationalFunctionInput
+  type, extends(TOptimizerInput) :: TRationalFuncInput
 
     !> Lower limit of diagonal Hessian elements
     real(dp) :: diagLimit = 1.0e-2_dp
 
-  end type TRationalFunctionInput
+  end type TRationalFuncInput
+
 
   !> Rational function optimization driver
-  type, extends(TOptimizer) :: TRationalFunction
+  type, extends(TOptimizer) :: TRationalFunc
 
     !> Number of variables to optimize
     integer :: nvar
@@ -53,26 +53,26 @@ module dftbp_geoopt_rf
     !> Calculate displacement from gradient
     procedure :: step
 
-  end type TRationalFunction
+  end type TRationalFunc
 
 contains
 
 
   !> Create new rational function optimization driver
-  subroutine TRationalFunction_init(this, input, filter)
+  subroutine TRationalFunc_init(this, input, nVar)
 
     !> Instance of the optimizer
-    type(TRationalFunction), intent(out) :: this
+    type(TRationalFunc), intent(out) :: this
 
     !> Input for the rational function optimizer
-    type(TRationalFunctionInput), intent(in) :: input
+    type(TRationalFuncInput), intent(in) :: input
 
-    !> Transformation filter
-    type(TFilter), intent(in) :: filter
+    !> Number of variables to optimize
+    integer, intent(in) :: nVar
 
     integer :: ii, nvar1, npvar, npvar1
 
-    this%nvar = filter%getDimension()
+    this%nvar = nVar
     this%diagLimit = input%diagLimit
 
     nvar1  = this%nvar+1
@@ -86,14 +86,14 @@ contains
     do ii = 1, this%nvar
       this%hess(ii*(1+ii)/2) = 1.0_dp
     end do
-  end subroutine TRationalFunction_init
+  end subroutine TRationalFunc_init
 
 
   !> Calculate displacement from gradient
   subroutine step(this, val, gcurr, glast, displ)
 
     !> Instance of geometry optimization driver
-    class(TRationalFunction), intent(inout) :: this
+    class(TRationalFunc), intent(inout) :: this
 
     !> Current function value
     real(dp), intent(in) :: val
@@ -400,4 +400,4 @@ contains
   end subroutine spmv
 
 
-end module dftbp_geoopt_rf
+end module dftbp_geoopt_rationalfunc

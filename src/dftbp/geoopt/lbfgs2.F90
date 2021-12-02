@@ -7,25 +7,24 @@
 
 module dftbp_geoopt_lbfgs2
   use dftbp_common_accuracy, only : dp
-  use dftbp_geoopt_filter, only : TFilter
-  use dftbp_geoopt_class, only : TOptimizer
+  use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   implicit none
   private
 
-  public :: TLBFGS, TLBFGSInput, TLBFGS_init
+  public :: TLbfgs, TLbfgsInput, TLbfgs_init
 
 
   !> Input for the LBFGS optimizer
-  type :: TLBFGSInput
+  type, extends(TOptimizerInput) :: TLbfgsInput
 
     !> Memory limit for the LBFGS update
     integer :: memory = 20
 
-  end type TLBFGSInput
+  end type TLbfgsInput
 
 
   !> Limited-memory BFGS optimizer
-  type, extends(TOptimizer) :: TLBFGS
+  type, extends(TOptimizer) :: TLbfgs
 
     !> Current iteration step
     integer :: iter
@@ -53,40 +52,40 @@ module dftbp_geoopt_lbfgs2
     !> Calculate displacement from gradient
     procedure :: step
 
-  end type TLBFGS
+  end type TLbfgs
 
 
 contains
 
 
   !> Create new limited memory BFGS optimization driver
-  subroutine TLBFGS_init(this, input, filter)
+  subroutine TLbfgs_init(this, input, nVar)
 
     !> Instance of the optimizer
-    type(TLBFGS), intent(out) :: this
+    type(TLbfgs), intent(out) :: this
 
     !> Input for the LBFGS optimizer
-    type(TLBFGSInput), intent(in) :: input
+    type(TLbfgsInput), intent(in) :: input
 
-    !> Transformation filter
-    type(TFilter), intent(in) :: filter
+    !> Number of variables to optimize
+    integer, intent(in) :: nVar
 
     this%iter = 0
-    this%nvar = filter%getDimension()
+    this%nvar = nVar
     this%memory = input%memory
     allocate(this%s(this%nvar, input%memory), source=0.0_dp)
     allocate(this%y(this%nvar, input%memory), source=0.0_dp)
     allocate(this%rho(input%memory), source=0.0_dp)
     allocate(this%hdiag(this%nvar), source=1.0_dp)
 
-  end subroutine TLBFGS_init
+  end subroutine TLbfgs_init
 
 
   !> Calculate displacement from gradient
   subroutine step(this, val, gcurr, glast, displ)
 
     !> Instance of geometry optimization driver
-    class(TLBFGS), intent(inout) :: this
+    class(TLbfgs), intent(inout) :: this
 
     !> Current function value
     real(dp), intent(in) :: val

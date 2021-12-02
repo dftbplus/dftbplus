@@ -74,7 +74,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_geoopt_gdiis, only : TDIIS
   use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
-  use dftbp_geoopt_init, only : TOptimizer, TOptimizer_init, TOptConv
+  use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
   use dftbp_geoopt_steepdesc, only : TSteepDesc
   use dftbp_io_formatout, only : clearFile
   use dftbp_io_message, only : error, warning
@@ -602,7 +602,7 @@ module dftbp_dftbplus_initprogram
     class(TOptimizer), allocatable :: geoOpt
 
     !> Convergence thresholds for geometry optimizer
-    type(TOptConv) :: optConv
+    type(TOptTolerance) :: optTol
 
     real(dp) :: elast
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
@@ -1965,8 +1965,9 @@ contains
     if (allocated(input%ctrl%geoOpt)) then
       allocate(this%filter)
       call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
-      call TOptimizer_init(this%geoOpt, input%ctrl%geoOpt, this%filter)
-      this%optConv = input%ctrl%geoOpt%conv
+      call createOptimizer(input%ctrl%geoOpt%optimizer, this%filter%getDimension(),&
+          & this%geoOpt)
+      this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
       allocate(this%glast(this%filter%getDimension()))
       allocate(this%displ(this%filter%getDimension()))
@@ -3056,7 +3057,7 @@ contains
           write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
        else
           write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
        end if
     end if
 
@@ -5302,13 +5303,13 @@ contains
       end if
       if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
         call error("Range separated excited states not available for window options.")
-      end if 
+      end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
         call warning("Range separated excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
         call warning("Range separated excited states not well tested for spin-polarized systems!")
-      end if 
+      end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")

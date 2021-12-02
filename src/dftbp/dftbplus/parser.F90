@@ -47,7 +47,7 @@ module dftbp_dftbplus_parser
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
       & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
   use dftbp_geoopt_geoopt, only : geoOptTypes
-  use dftbp_geoopt_parser, only : readGeoOptimizer
+  use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
@@ -467,7 +467,7 @@ contains
       modeName = "geometry optimization"
 
       allocate(ctrl%geoOpt)
-      call readGeoOptimizer(node, ctrl%geoOpt, geom)
+      call readGeoOptInput(node, geom, ctrl%geoOpt)
 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1

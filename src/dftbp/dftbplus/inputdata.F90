@@ -21,10 +21,10 @@ module dftbp_dftbplus_inputdata
   use dftbp_dftb_potentials, only : TAtomExtPotInput
   use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
-  use dftbp_geoopt_input, only : TGeoOptInput
   use dftbp_io_message, only : error, warning
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_reks_reks, only : TReksInp
@@ -44,7 +44,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_transport_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
   implicit none
-  
+
   private
   public :: TControl, TSlater, TInputData, TParallelOpts
   public :: TBlacsOpts

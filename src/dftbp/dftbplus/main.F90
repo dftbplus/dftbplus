@@ -1495,9 +1495,9 @@ contains
         gamax = maxval(abs(this%gcurr))
         write(stdOut, '(a)') stepSummary(energy, ediff, gnorm, gamax, dnorm, damax, 2)
 
-        econv = ediff <= epsilon(0.0_dp) .and. abs(ediff) < this%optConv%ethr
-        dconv = dnorm/this%filter%nvar < this%optConv%dthr .and. damax < this%optConv%dmax
-        gconv = gnorm/this%filter%nvar < this%optConv%gthr .and. gamax < this%optConv%gmax
+        econv = ediff <= epsilon(0.0_dp) .and. abs(ediff) < this%optTol%energy
+        dconv = dnorm / this%filter%nvar < this%optTol%dispNorm .and. damax < this%optTol%dispElem
+        gconv = gnorm / this%filter%nvar < this%optTol%gradNorm .and. gamax < this%optTol%gradElem
         converged = econv .and. gconv .and. dconv
       end block
 

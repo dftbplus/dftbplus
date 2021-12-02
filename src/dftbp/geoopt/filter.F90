@@ -17,7 +17,7 @@ module dftbp_geoopt_filter
   public :: TFilter, TFilterInput, TFilter_init
 
 
-  !> Input for the cartesian transformation filter
+  !> Input for the cartesian constraints
   type :: TFilterInput
 
     !> Transform lattice
@@ -29,7 +29,7 @@ module dftbp_geoopt_filter
   end type TFilterInput
 
 
-  !> Cartesian transformation filter
+  !> Cartesian transformation constraints
   type :: TFilter
 
     !> Number of resulting variables

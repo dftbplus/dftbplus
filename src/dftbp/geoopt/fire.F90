@@ -8,15 +8,14 @@
 !> FIRE optimiser
 module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
-  use dftbp_geoopt_filter, only : TFilter
-  use dftbp_geoopt_class, only : TOptimizer
+  use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   implicit none
-  
+
   private
   public :: TFire, TFireInput, TFire_init
 
 
-  type :: TFireInput
+  type, extends(TOptimizerInput) :: TFireInput
 
     !> Minimum steps before step size changes are allowed
     integer :: nMin
@@ -100,7 +99,7 @@ module dftbp_geoopt_fire
 contains
 
   !> Initialise type
-  subroutine TFire_init(this, input, filter)
+  subroutine TFire_init(this, input, nVar)
 
     !> instance
     type(TFire), intent(out) :: this
@@ -108,10 +107,10 @@ contains
     !> Input for the optimizer
     type(TFireInput), intent(in) :: input
 
-    !> Transformation filter
-    type(TFilter), intent(in) :: filter
+    !> Number of variables to optimize
+    integer, intent(in) :: nVar
 
-    allocate(this%velocity(filter%getDimension()))
+    allocate(this%velocity(nVar))
     this%velocity(:) = 0.0_dp
 
     this%nMin = input%nMin
@@ -126,6 +125,7 @@ contains
     this%resetStep = 0
     this%a = this%a_start
     this%dt = this%dt_init
+
   end subroutine TFire_init
 
 
@@ -145,9 +145,6 @@ contains
     real(dp), intent(in) :: maxStep
 
     type(TFireInput) :: input
-    type(TFilter) :: filter
-
-    filter%nvar = nElem
 
     ! default values from the paper
     input = TFireInput( &
@@ -159,7 +156,7 @@ contains
         & dt_max = maxStep &
         & )
 
-    call TFire_init(this, input, filter)
+    call TFire_init(this, input, nElem)
 
     this%tol = tol
 
@@ -167,6 +164,7 @@ contains
     this%x(:) = 0.0_dp
 
   end subroutine TFire_init_old
+
 
   !> Reset the integrator state
   subroutine reset(this, x0)
@@ -183,7 +181,7 @@ contains
     this%dt = this%dt_init
     this%velocity(:) = 0.0_dp
     this%x(:) = x0
-    
+
   end subroutine reset
 
 
