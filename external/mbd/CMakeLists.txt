@@ -6,14 +6,6 @@ set(ENABLE_C_API OFF)
 if(WITH_MPI)
   get_target_property(SCALAPACK_LIBRARIES Scalapack::Scalapack INTERFACE_LINK_LIBRARIES)
 endif()
-if(WITH_ELSI)
-  # FIXME: Hacky CMake magic
-  #
-  # libmbd will link against ELSI using the ELSI_LIBRARIES variable and ignore the
-  # elsi::elsi target, but that doesn't mean we can't trick it via CMake variable
-  # expansion to still use the correct target:
-  set(ELSI_LIBRARIES elsi::elsi)
-endif()
 get_target_property(LAPACK_LIBRARIES LAPACK::LAPACK INTERFACE_LINK_LIBRARIES)
 set(MKL_LIBRARIES "")
 set(BUILD_TESTING FALSE)
