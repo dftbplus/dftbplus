@@ -20,7 +20,7 @@ Geometry = GenFormat {
 }
 
 Driver = GeometryOptimization {
-  Optimizer = RF {}
+  Optimizer = Rational {}
   Filter = Cartesian { LatticeOpt = Yes }
   Accuracy = 0.5
   MaxSteps = 100

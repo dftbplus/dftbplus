@@ -299,7 +299,7 @@ methods are available:
 \end{ptable}
 
 
-\subsubsection{Optimizer: RF}
+\subsubsection{Optimizer: Rational}
 \label{sec:dftbp.Optimizer.RF}
 
 Provides a rational function based optimizer.
@@ -4923,7 +4923,7 @@ available for range separated calculations.
     decrease memory use substantially, if you are short on memory.
 
   \end{description}
-  
+
   \subsubsection{Diagonaliser}
   \label{sec:dftbp.casdiag}
   Specifies which iterative diagonaliser should be used to solve the Casida
@@ -4933,7 +4933,7 @@ available for range separated calculations.
     \kw{Arpack}    & p & \is{RangeSeparated} = \is{No} & & \\
     \kw{Stratmann} & p & & & \\
   \end{ptable}
-  
+
   \iscb{Arpack} refers to the Implicitly Restarted Arnoldi Method
   \cite{Lehoucq97arpackusers} and is available only for the conventional TD-DFTB
   method with local functionals (\kw{RangeSeparated=None}). It has two options:
@@ -4964,7 +4964,7 @@ available for range separated calculations.
     restarted with an increased value of \is{SubSpaceFactor}.
   \end{description}
 
-  
+
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}
 

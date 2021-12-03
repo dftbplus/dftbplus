@@ -11,7 +11,7 @@ module dftbp_geoopt_lbfgs2
   implicit none
   private
 
-  public :: TLbfgs, TLbfgsInput, TLbfgs_init
+  public :: TLbfgsInput, TLbfgs, TLbfgs_init
 
 
   !> Input for the LBFGS optimizer

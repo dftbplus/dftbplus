@@ -7,7 +7,7 @@ Geometry = GenFormat {
 }
 
 Driver = GeometryOptimization {
-  Optimizer = RF {}
+  Optimizer = Rational {}
   MaxSteps = 100
   OutputPrefix = "geom.out"
 }

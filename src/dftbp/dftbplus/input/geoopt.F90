@@ -112,7 +112,7 @@ contains
       allocate(lbfgsInput)
       call readLbfgsInput(node, lbfgsInput)
       call move_alloc(lbfgsInput, input)
-    case("rf")
+    case("rational")
       allocate(rationalFuncInput)
       call readRationalFuncInput(node, rationalFuncInput)
       call move_alloc(rationalFuncInput, input)
@@ -191,7 +191,7 @@ contains
     call getChildValue(node, "aPar", input%a_start, 0.1_dp)
     call getChildValue(node, "fInc", input%f_inc, 1.1_dp)
     call getChildValue(node, "fDec", input%f_dec, 0.5_dp)
-    call getChildValue(node, "fAlp", input%f_alpha, 0.99_dp)
+    call getChildValue(node, "fAlpha", input%f_alpha, 0.99_dp)
     call getChildValue(node, "StepSize", input%dt_max, 1.0_dp, modifier=modifier, child=field)
     call convertByMul(char(modifier), timeUnits, field, input%dt_max)
 

@@ -19,7 +19,7 @@ module dftbp_geoopt_rationalfunc
   implicit none
 
   private
-  public :: TRationalFunc, TRationalFuncInput, TRationalFunc_init
+  public :: TRationalFuncInput, TRationalFunc, TRationalFunc_init
 
 
   !> Input for the rational function optimizer

@@ -12,7 +12,7 @@ module dftbp_geoopt_fire
   implicit none
 
   private
-  public :: TFire, TFireInput, TFire_init
+  public :: TFireInput, TFire, TFire_init
 
 
   type, extends(TOptimizerInput) :: TFireInput
