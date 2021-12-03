@@ -1346,7 +1346,7 @@ contains
     real(dp) :: eta1, zEff1, qRef1, refc6(size(dispMat, 1))
     real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
     real(dp) :: dEr, rc, r2, r4, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
-    real(dp) :: f6, f8, f10
+    real(dp) :: f6, f8, f10, dd
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -1396,11 +1396,11 @@ contains
 
     dispMat(:, :, :, :) = 0.0_dp
 
-    !$omp parallel do default(none) schedule(runtime) reduction(+:dispMat) &
+    !$omp parallel do default(none) schedule(runtime) shared(dispMat) &
     !$omp shared(iAtFirst, iAtLast, calc, ref, species, nNeighbour, neigh) &
     !$omp shared(img2CentCell, gwVec) private(iAt1, iSp1, iNeigh, iAt2) &
     !$omp private(iRef1, iRef2, nRef1, nRef2, iAt2f, iSp2, r2, r4, r6, r8, r10) &
-    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, refc6)
+    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, refc6, dd)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
@@ -1428,16 +1428,22 @@ contains
         nRef1 = ref%nRef(iSp1)
         nRef2 = ref%nRef(iSp2)
         do iRef1 = 1, nRef1
-          refc6(:nRef2) = ref%c6(:nRef2, iRef1, iSp2, iSp1) * gwVec(:nRef2, iAt2f)
-          dispMat(:nRef2, iAt2f, iRef1, iAt1) = dispMat(:nRef2, iAt2f, iRef1, iAt1) &
-              & - (dEr * gwVec(iRef1, iAt1)) * refc6(:nRef2)
+          do iRef2 = 1, nRef2
+            dd = - dEr * gwVec(iRef1, iAt1) * gwVec(iRef2, iAt2f) &
+                & * ref%c6(iRef2, iRef1, iSp2, iSp1)
+            !$omp atomic
+            dispMat(iRef2, iAt2f, iRef1, iAt1) = dispMat(iRef2, iAt2f, iRef1, iAt1) + dd
+          end do
         end do
 
         if (iAt1 /= iAt2) then
           do iRef2 = 1, nRef2
-            refc6(:nRef1) = ref%c6(:nRef1, iRef2, iSp1, iSp2) * gwVec(:nRef1, iAt1)
-            dispMat(:nRef1, iAt1, iRef2, iAt2f) = dispMat(:nRef1, iAt1, iRef2, iAt2f) &
-                & - (dEr * gwVec(iRef2, iAt2f)) * refc6(:nRef1)
+            do iRef1 = 1, nRef1
+              dd = - dEr * gwVec(iRef2, iAt2f) * gwVec(iRef1, iAt1) &
+                  & * ref%c6(iRef1, iRef2, iSp1, iSp2)
+              !$omp atomic
+              dispMat(iRef1, iAt1, iRef2, iAt2f) = dispMat(iRef1, iAt1, iRef2, iAt2f) + dd
+            end do
           end do
         end if
 
