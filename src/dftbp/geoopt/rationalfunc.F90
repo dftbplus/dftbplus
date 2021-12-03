@@ -14,6 +14,7 @@
 module dftbp_geoopt_rationalfunc
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
+  use dftbp_math_blasroutines, only : spmv
   use dftbp_math_eigensolver, only : syev => heev
   implicit none
 
@@ -164,7 +165,7 @@ contains
 
     ! H * C for initialization
     call mwrite(lun1, C, 1)
-    call spmv(HP, C, vecf2)
+    call spmv(HP, C, vecf2, uplo='u')
     call mwrite(lun2, vecf2, 1)
 
     e = 0
@@ -334,70 +335,6 @@ contains
     end do
 
   end subroutine bfgsUpdate
-
-
-  !> Performs the matrix-vector operation
-  !>
-  !>    y := alpha*A*x + beta*y,
-  !>
-  !> where alpha and beta are scalars, x and y are n element vectors and
-  !> A is an n by n symmetric matrix, supplied in packed form.
-  pure subroutine spmv(amat, xvec, yvec, uplo, alpha, beta)
-    interface blas_spmv
-      pure subroutine sspmv(uplo, n, alpha, ap, x, incx, beta, y, incy)
-        use dftbp_common_accuracy, only : sp => rsp
-        real(sp), intent(in) :: ap(*)
-        real(sp), intent(in) :: x(*)
-        real(sp), intent(inout) :: y(*)
-        character(len=1), intent(in) :: uplo
-        real(sp), intent(in) :: alpha
-        real(sp), intent(in) :: beta
-        integer, intent(in) :: incx
-        integer, intent(in) :: incy
-        integer, intent(in) :: n
-      end subroutine sspmv
-      pure subroutine dspmv(uplo, n, alpha, ap, x, incx, beta, y, incy)
-        use dftbp_common_accuracy, only : dp => rdp
-        real(dp), intent(in) :: ap(*)
-        real(dp), intent(in) :: x(*)
-        real(dp), intent(inout) :: y(*)
-        character(len=1), intent(in) :: uplo
-        real(dp), intent(in) :: alpha
-        real(dp), intent(in) :: beta
-        integer, intent(in) :: incx
-        integer, intent(in) :: incy
-        integer, intent(in) :: n
-      end subroutine dspmv
-    end interface blas_spmv
-    character(len=1), intent(in), optional :: uplo
-    real(dp), intent(in), optional :: alpha
-    real(dp), intent(in), optional :: beta
-    real(dp), intent(in) :: amat(:)
-    real(dp), intent(in) :: xvec(:)
-    real(dp), intent(inout) :: yvec(:)
-    character(len=1) :: ula
-    real(dp) :: a, b
-    integer :: incx, incy, n
-    if (present(alpha)) then
-      a = alpha
-    else
-      a = 1.0_dp
-    end if
-    if (present(beta)) then
-      b = beta
-    else
-      b = 0
-    end if
-    if (present(uplo)) then
-      ula = uplo
-    else
-      ula = 'u'
-    end if
-    incx = 1
-    incy = 1
-    n = size(xvec)
-    call blas_spmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
-  end subroutine spmv
 
 
 end module dftbp_geoopt_rationalfunc

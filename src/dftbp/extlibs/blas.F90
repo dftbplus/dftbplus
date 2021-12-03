@@ -1354,6 +1354,25 @@ module dftbp_extlibs_blas
       complex(rdp), intent(inout) :: bb(ldb, *)
     end subroutine ztrmm
 
+
+#:for VPREC, VTYPE, NAME in [('rsp', 'real', 'sspmv'), ('rdp', 'real', 'dspmv')]
+
+    pure subroutine ${NAME}$(uplo, n, alpha, ap, x, incx, beta, y, incy)
+      import :: ${VPREC}$
+      implicit none
+      character(len=1), intent(in) :: uplo
+      integer, intent(in) :: n
+      real(${VPREC}$), intent(in) :: alpha
+      real(${VPREC}$), intent(in) :: ap(*)
+      real(${VPREC}$), intent(in) :: x(*)
+      integer, intent(in) :: incx
+      real(${VPREC}$), intent(in) :: beta
+      real(${VPREC}$), intent(inout) :: y(*)
+      integer, intent(in) :: incy
+    end subroutine ${NAME}$
+
+#:endfor
+
   end interface
 
 end module dftbp_extlibs_blas
