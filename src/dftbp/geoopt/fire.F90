@@ -186,7 +186,7 @@ contains
 
 
   !> Leap frog Verlet integrator with fire modification
-  subroutine step(this, val, gcurr, glast, displ)
+  subroutine step(this, val, grad, displ)
 
     !> Instance
     class(TFire), intent(inout) :: this
@@ -195,17 +195,14 @@ contains
     real(dp), intent(in) :: val
 
     !> Current gradient
-    real(dp), intent(in) :: gcurr(:)
-
-    !> Last gradient
-    real(dp), intent(in) :: glast(:)
+    real(dp), intent(in) :: grad(:)
 
     !> Next displacement step
     real(dp), intent(out) :: displ(:)
 
-    call fireModifyVelocity(this, gcurr)
-    ! all masses 1, so f = a, note that f = - gcurr
-    this%velocity(:) = this%velocity - this%dt * gcurr
+    call fireModifyVelocity(this, grad)
+    ! all masses 1, so f = a, note that f = - grad
+    this%velocity(:) = this%velocity - this%dt * grad
     displ(:) = this%velocity * this%dt
 
     this%iter = this%iter + 1
@@ -232,7 +229,7 @@ contains
       xNew(:) = 0.0_dp
       isConverged = .true.
     else
-      call this%step(0.0_dp, dx, dx, xNew)
+      call this%step(0.0_dp, dx, xNew)
       isConverged = .false.
     end if
     this%x(:) = this%x + xNew

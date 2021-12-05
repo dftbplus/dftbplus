@@ -26,7 +26,7 @@ module dftbp_geoopt_optimizer
 
   abstract interface
     !> Calculate displacement from gradient
-    subroutine step(this, val, gcurr, glast, displ)
+    subroutine step(this, val, grad, displ)
       import :: TOptimizer, dp
       implicit none
 
@@ -37,10 +37,7 @@ module dftbp_geoopt_optimizer
       real(dp), intent(in) :: val
 
       !> Current gradient
-      real(dp), intent(in) :: gcurr(:)
-
-      !> Last gradient
-      real(dp), intent(in) :: glast(:)
+      real(dp), intent(in) :: grad(:)
 
       !> Next displacement step
       real(dp), intent(out) :: displ(:)

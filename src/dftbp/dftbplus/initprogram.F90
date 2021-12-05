@@ -1969,10 +1969,8 @@ contains
           & this%geoOpt)
       this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
-      allocate(this%glast(this%filter%getDimension()))
       allocate(this%displ(this%filter%getDimension()))
       this%gcurr(:) = 0.0_dp
-      this%glast(:) = 0.0_dp
       this%displ(:) = 0.0_dp
       this%elast = 0.0_dp
       this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps

@@ -1486,7 +1486,7 @@ contains
         call this%filter%transformDerivative(this%coord0, this%latVec, &
             & this%derivs, this%totalStress, this%gcurr)
         call this%geoOpt%step(this%dftbEnergy(this%deltaDftb%iFinal)%Emermin, &
-            & this%gcurr, this%glast, this%displ)
+            & this%gcurr, this%displ)
         call this%filter%transformStructure(this%coord0, this%latVec, this%displ)
 
         energy = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
@@ -1501,7 +1501,6 @@ contains
         converged = econv .and. gconv .and. dconv
       end block
 
-      this%glast(:) = this%gcurr
       this%elast = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
 
       if (tGeomEnd) then

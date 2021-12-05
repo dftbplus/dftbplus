@@ -35,6 +35,9 @@ module dftbp_geoopt_lbfgs2
     !> Memory limit for the LBFGS update
     integer :: memory
 
+    !> Last gradient
+    real(dp), allocatable :: gLast(:)
+
     !> *Inverse* Hessian in diagonal form
     real(dp), allocatable :: hdiag(:)
 
@@ -73,6 +76,7 @@ contains
     this%iter = 0
     this%nvar = nVar
     this%memory = input%memory
+    allocate(this%gLast(this%nVar), source=0.0_dp)
     allocate(this%s(this%nvar, input%memory), source=0.0_dp)
     allocate(this%y(this%nvar, input%memory), source=0.0_dp)
     allocate(this%rho(input%memory), source=0.0_dp)
@@ -82,7 +86,7 @@ contains
 
 
   !> Calculate displacement from gradient
-  subroutine step(this, val, gcurr, glast, displ)
+  subroutine step(this, val, grad, displ)
 
     !> Instance of geometry optimization driver
     class(TLbfgs), intent(inout) :: this
@@ -91,18 +95,17 @@ contains
     real(dp), intent(in) :: val
 
     !> Current gradient
-    real(dp), intent(in) :: gcurr(:)
-
-    !> Last gradient
-    real(dp), intent(in) :: glast(:)
+    real(dp), intent(in) :: grad(:)
 
     !> Next displacement step
     real(dp), intent(out) :: displ(:)
 
     this%iter = this%iter + 1
 
-    call lbfgs_step(this%iter, this%memory, this%nvar, gcurr, glast, displ, this%hdiag, &
+    call lbfgs_step(this%iter, this%memory, this%nvar, grad, this%glast, displ, this%hdiag, &
         & this%s, this%y, this%rho)
+    this%gLast(:) = grad
+
   end subroutine step
 
 

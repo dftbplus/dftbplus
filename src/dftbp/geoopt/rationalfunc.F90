@@ -40,6 +40,9 @@ module dftbp_geoopt_rationalfunc
     !> Lower limit of diagonal Hessian elements
     real(dp) :: diagLimit
 
+    !> Last gradient
+    real(dp), allocatable :: gLast(:)
+
     !> Approximate Hessian matrix, will be updated every displacement step
     real(dp), allocatable :: hess(:)
 
@@ -79,6 +82,7 @@ contains
     nvar1  = this%nvar+1
     npvar = this%nvar*nvar1/2
     npvar1 = nvar1*(1+nvar1)/2
+    allocate(this%gLast(nVar), source=0.0_dp)
     allocate(this%hess(npvar), source=0.0_dp)
     allocate(this%aaug(npvar1), source=0.0_dp)
     allocate(this%uaug(nvar1), source=0.0_dp)
@@ -91,7 +95,7 @@ contains
 
 
   !> Calculate displacement from gradient
-  subroutine step(this, val, gcurr, glast, displ)
+  subroutine step(this, val, grad, displ)
 
     !> Instance of geometry optimization driver
     class(TRationalFunc), intent(inout) :: this
@@ -100,10 +104,7 @@ contains
     real(dp), intent(in) :: val
 
     !> Current gradient
-    real(dp), intent(in) :: gcurr(:)
-
-    !> Last gradient
-    real(dp), intent(in) :: glast(:)
+    real(dp), intent(in) :: grad(:)
 
     !> Next displacement step
     real(dp), intent(out) :: displ(:)
@@ -117,13 +118,15 @@ contains
     npvar1 = nvar1*(1+nvar1)/2
 
     displ(:) = this%uaug(:this%nvar) / this%uaug(nvar1)
-    call bfgsUpdate(gcurr, glast, displ, this%diagLimit, this%hess)
+    call bfgsUpdate(grad, this%gLast, displ, this%diagLimit, this%hess)
 
-    this%aaug(:) = [this%hess, gcurr, 0.0_dp]
-    this%uaug(:) = [-gcurr, 1.0_dp]
+    this%aaug(:) = [this%hess, grad, 0.0_dp]
+    this%uaug(:) = [-grad, 1.0_dp]
     this%uaug(:) = this%uaug(:) / norm2(this%uaug)
     call davidson(nvar1, sqrt(epsilon(1.0_dp)), this%aaug, this%uaug, eaug, fail)
     displ(:) = this%uaug(:this%nvar) / this%uaug(nvar1)
+    this%gLast(:) = grad
+
   end subroutine step
 
 
