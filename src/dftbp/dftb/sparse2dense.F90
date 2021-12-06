@@ -499,9 +499,10 @@ contains
           iOldVec = iVec
         end if
         square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
-            & + phase * reshape(origBra(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb2, nOrb1])
+            & + phase * reshape(origKet(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb2, nOrb1])
+        if (iAtom2f == iAtom1) cycle
         square(:, ii:ii+nOrb1-1, jj:jj+nOrb2-1) = square(:, ii:ii+nOrb1-1, jj:jj+nOrb2-1)&
-            & + phase * reshape(origKet(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb1, nOrb2], &
+            & + phase * reshape(origBra(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb1, nOrb2], &
             &                   order=[1, 3, 2])
       end do
     end do
@@ -567,9 +568,10 @@ contains
         @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
-            & + reshape(origBra(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb2, nOrb1])
+            & + reshape(origKet(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb2, nOrb1])
+        if (iAtom2f == iAtom1) cycle
         square(:, ii:ii+nOrb1-1, jj:jj+nOrb2-1) = square(:, ii:ii+nOrb1-1, jj:jj+nOrb2-1)&
-            & + reshape(origKet(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb1, nOrb2], &
+            & + reshape(origBra(:, iOrig:iOrig+nOrb1*nOrb2-1), [nmp, nOrb1, nOrb2], &
             &           order=[1, 3, 2])
       end do
     end do

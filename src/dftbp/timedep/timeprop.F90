@@ -1441,7 +1441,7 @@ contains
             iOrb2 = iSquare(iAt+1)-1
             do ii = iOrb1, iOrb2
               multipole%dipoleAtom(:,iAt,iSpin) = multipole%dipoleAtom(:,iAt,iSpin) &
-                & + this%kWeight(ik)*real(matmul(Dsqr(:,:,ii,iKS), conjg(rho(:,ii,iKS))), dp)
+                & + this%kWeight(ik)*real(matmul(conjg(Dsqr(:,:,ii,iKS)), rho(:,ii,iKS)), dp)
             end do
           end do
         end do
@@ -1471,7 +1471,7 @@ contains
             iOrb2 = iSquare(iAt+1)-1
             do ii = iOrb1, iOrb2
               multipole%quadrupoleAtom(:,iAt,iSpin) = multipole%quadrupoleAtom(:,iAt,iSpin) &
-                & + this%kWeight(ik)*real(matmul(Qsqr(:,:,ii,iKS), conjg(rho(:,ii,iKS))), dp)
+                & + this%kWeight(ik)*real(matmul(conjg(Qsqr(:,:,ii,iKS)), rho(:,ii,iKS)), dp)
             end do
           end do
         end do
@@ -1889,7 +1889,8 @@ contains
       end do
     end if
 
-    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, 0, 0)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, &
+        & this%nDipole, this%nQuadrupole)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
