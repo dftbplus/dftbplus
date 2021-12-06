@@ -16,19 +16,17 @@ if(NOT TARGET elsi::elsi)
       "${ELSI_INCLUDE_DIRS}"
     )
 
-    if("${ELSI_LINK_LIBRARIES}" MATCHES "pexsi")
-      add_library(elsi::pexsi INTERFACE IMPORTED)
-      target_link_libraries(
-        elsi::pexsi
-        INTERFACE
-        elsi::elsi
-      )
-      target_link_libraries(
-        elsi::elsi
-        INTERFACE
-        "stdc++"
-      )
-    endif()
+    foreach(_lib IN LISTS ELSI_LINK_LIBRARIES)
+      if(_lib MATCHES "pexsi")
+        add_library(elsi::pexsi IMPORTED STATIC)
+        set_target_properties(elsi::pexsi PROPERTIES
+            IMPORTED_LOCATION ${_lib}
+            IMPORTED_LINK_INTERFACE_LANGUAGES "CXX;Fortran")
+        target_link_libraries(elsi::elsi INTERFACE elsi::pexsi)
+        break()
+      endif()
+    endforeach()
+    unset(_lib)
 
     # libmbd checks for lowercase variable name
     set(elsi_FOUND ${ELSI_FOUND})
