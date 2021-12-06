@@ -19,6 +19,11 @@ if(NOT TARGET elsi::elsi)
     if("${ELSI_LINK_LIBRARIES}" MATCHES "pexsi")
       add_library(elsi::pexsi INTERFACE IMPORTED)
       target_link_libraries(
+        elsi::pexsi
+        INTERFACE
+        elsi::elsi
+      )
+      target_link_libraries(
         elsi::elsi
         INTERFACE
         "stdc++"
