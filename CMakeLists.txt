@@ -185,7 +185,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "299a5e2232e76a1c4abb3716e1f83169fc966677")  # do not change manually!
+  set(MBD_GIT_TAG "5c201a53a7f39878552232e9d33990bd74affd2c")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
