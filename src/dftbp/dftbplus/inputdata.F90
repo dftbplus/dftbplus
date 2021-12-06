@@ -17,9 +17,10 @@ module dftbp_dftbplus_inputdata
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TElecFieldInput
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
   use dftbp_dftb_potentials, only : TAtomExtPotInput
-  use dftbp_dftb_repcont, only : TRepCont
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
@@ -532,6 +533,9 @@ module dftbp_dftbplus_inputdata
     !> Write cavity information as COSMO file
     logical :: tWriteCosmoFile = .false.
 
+    !> Whether ChIMES correction for repulsives should be applied.
+    type(TChimesRepInp), allocatable :: chimesRepInput
+
   end type TControl
 
 
@@ -544,8 +548,8 @@ module dftbp_dftbplus_inputdata
 
     type(TSlakoCont), allocatable :: skHamCont
     type(TSlakoCont), allocatable :: skOverCont
-    type(TRepCont), allocatable :: repCont
     type(TOrbitals), allocatable :: orb
+    type(TPairRepulsiveItem), allocatable :: pairRepulsives(:,:)
 
   end type TSlater
 

@@ -28,6 +28,7 @@
 #:set WITH_POISSON = defined('WITH_POISSON')
 #:set WITH_SDFTD3 = defined('WITH_SDFTD3')
 #:set WITH_TBLITE = defined('WITH_TBLITE')
+#:set WITH_CHIMES = defined('WITH_CHIMES')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
@@ -57,8 +58,6 @@
   $:code
   #:endif
 #:enddef DEBUG_CODE
-
-#:endif
 
 
 #! Adds a code block depending on the availability of an optional build component.
@@ -102,4 +101,22 @@
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
 #:enddef
 
+
+#! Creates a class instance by allocating, initializing and move_allocing a specific type
+#!
+#! Args:
+#!     cls (str): Name of the LHS variable (must be a class)
+#!     dyntype (str): Dynamic type of the actual instance to be initialized
+#!     init (str): Initialization routine to call (with allocated instance as first arg)
+#!     initargs (str): Further arguments to pass to the init routine.
+#:def CREATE_CLASS(cls, dyntype, init, *initargs)
+block
+  type(${dyntype}$), allocatable :: inst
+  allocate(inst)
+  call ${init}$(inst, ${", ".join(initargs)}$)
+  call move_alloc(inst, ${cls}$)
+end block
+#:enddef
+
+#:endif
 #:endmute

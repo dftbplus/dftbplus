@@ -29,6 +29,8 @@ Addded
 
 - Rational function geometry optimization driver
 
+- ChIMES force field corrections of the repulsive potentials implemented
+
 
 Changed
 -------
@@ -45,6 +47,7 @@ Changed
   `dftd3-lib <https://github.com/dftbplus/dftd3-lib>`_.
   Option ``WITH_DFTD3`` is removed and replaced with ``WITH_SDFTD3``.
 
+
 Fixed
 -----
 
@@ -58,7 +61,8 @@ Fixed
 - Number of electrons for Fixed / spin-common Fermi energies and transport in
   results.tag
 
-- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping calculations
+- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
+  calculations
 
 
 - LBFGS implementation fixed in new geometry optimization driver

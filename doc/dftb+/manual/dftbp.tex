@@ -1248,6 +1248,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
+  \kw{Chimes} & p & & & \\
   \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - &
   \pref{sec:dftbp.KPointsAndWeights} \\
   \kw{OrbitalPotential} &m & SpinPolarisation $\neq$ \cb~ & \cb &
@@ -1451,6 +1452,22 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   # Using polynomial repulsive functions for all interactions in GaAs
   PolynomialRepulsive = SetForAll { Yes }
 \end{verbatim}
+
+\item[\is{Chimes}] If specified, a ChIMES force field correction will be applied
+  on top of the repulsive potentials found in the SK-files, also known as
+  DFTB/ChIMES model \cite{goldman-jctc-2018}. The \is{Chimes} block contains
+  \is{ParameterFile} as only keyword, where the file with the ChIMES parameters
+  must be specified. The file is additionally searched for in the directory
+  specified with the \texttt{DFTBPLUS\_PARAM\_DIR} environment variable.
+
+  Example:
+  \begin{verbatim}
+      Chimes {
+          ParameterFile = "chimes/CNOH.txt"
+      }
+  \end{verbatim}
+
+  Note: This option requires a {\dftbp} binary built with ChIMES support.
 
 \item[\is{KPointsAndWeights}]\modif{relative|absolute} Contains the
   special $k$-points to be used for the Bril\-louin-zone integration.

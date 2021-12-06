@@ -12,9 +12,11 @@ Requirements
 
 In order to compile DFTB+, you need the following software components:
 
-* A Fortran 2003 compliant compiler
+* Fortran 2003 compliant compiler
 
-* A C-compiler
+* C compiler
+
+* C++ compiler (built with ELSI/PEXSI or ChIMES support)
 
 * CMake (version 3.16 or newer)
 
