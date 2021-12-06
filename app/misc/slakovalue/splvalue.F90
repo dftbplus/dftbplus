@@ -10,24 +10,24 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
-  use dftbp_common_accuracy
+  use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_repspline
-  use dftbp_io_fileid
-  use dftbp_io_message
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
+  use dftbp_io_fileid, only : getFileId
+  use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
 #:if WITH_MPI
-  use dftbp_common_mpienv
+  use dftbp_common_mpienv, only : TMpiEnv
 #:endif
   implicit none
 
   character(*), parameter :: fname = "test.skf"
   character(lc) :: arg
-  type(TRepSplinein) :: repsplinein
-  type(TRepSpline) :: prepspline
+  type(TSplineRepInp) :: splineRepInp
+  type(TSplineRep) :: splineRep
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
-  real(dp) :: rr(3), energy, grad(3), d2
+  real(dp) :: rr, energy, dEnergy, d2Energy
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -60,17 +60,15 @@ program splvalue
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")
   end if
-  call readsplinerep(fp, fname, repsplinein)
+  call readsplinerep(fp, fname, splineRepInp)
   close(fp)
 
-  call init(prepspline, repsplinein)
-  npoint = floor((repsplinein%cutoff - rstart) / dr) + 1
-  rr(:) = 0.0_dp
+  call TSplineRep_init(splineRep, splineRepInp)
+  npoint = floor((splineRepInp%cutoff - rstart) / dr) + 1
   do ii = 0, npoint
-    rr(1) = rstart + real(ii, dp) * dr
-    call getenergy(prepspline, energy, rr(1))
-    call getenergyderiv(prepspline, grad, rr, d2)
-    write(stdout, "(4E23.15)") rr(1), energy, grad(1), d2
+    rr = rstart + real(ii, dp) * dr
+    call splineRep%getValue(rr, energy=energy, dEnergy=dEnergy, d2Energy=d2Energy)
+    write(stdout, "(4E23.15)") rr, energy, dEnergy, d2Energy
   end do
 
 end program splvalue

@@ -41,10 +41,6 @@ set(sources-fpp
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
   ${curdir}/rangeseparated.F90
-  ${curdir}/repcont.F90
-  ${curdir}/reppoly.F90
-  ${curdir}/repspline.F90
-  ${curdir}/repulsive.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90
@@ -55,7 +51,6 @@ set(sources-fpp
   ${curdir}/slakocont.F90
   ${curdir}/slakoeqgrid.F90
   ${curdir}/sparse2dense.F90
-  ${curdir}/splinepolyrep.F90
   ${curdir}/spin.F90
   ${curdir}/spinorbit.F90
   ${curdir}/stress.F90
@@ -66,5 +61,7 @@ set(sources-fpp
 if(WITH_MBD)
   list(APPEND sources-fpp ${curdir}/dispmbd.F90)
 endif(WITH_MBD)
+
+add_subdirectory(repulsive)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

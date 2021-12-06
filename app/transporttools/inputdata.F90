@@ -10,8 +10,6 @@
 !> Contains data type representing the input data for setupgeom
 module transporttools_inputdata
   use dftbp_common_accuracy
-  use dftbp_dftb_repcont
-  use dftbp_dftb_slakocont
   use dftbp_io_message
   use dftbp_transport_negfvars
   use dftbp_type_commontypes
@@ -22,27 +20,13 @@ module transporttools_inputdata
   implicit none
   private
 
-  public :: TSlater, TInputData
+  public :: TInputData
   public :: init, destruct
-
-  !> Slater-Koster data
-  type TSlater
-    real(dp), allocatable :: skSelf(:, :)
-    real(dp), allocatable :: skHubbU(:, :)
-    real(dp), allocatable :: skOcc(:, :)
-    real(dp), allocatable :: mass(:)
-
-    type(TSlakoCont), allocatable :: skHamCont
-    type(TSlakoCont), allocatable :: skOverCont
-    type(TRepCont), allocatable :: repCont
-    type(TOrbitals), allocatable :: orb
-  end type TSlater
 
   !> container for input data constituents
   type TInputData
     logical :: tInitialized = .false.
     type(TGeometry) :: geom
-    type(TSlater) :: slako
     type(TTransPar) :: transpar
   end type TInputData
 
