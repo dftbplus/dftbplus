@@ -170,7 +170,7 @@ void dftbp_get_input_from_file(DftbPlus *instance, const char *filename, DftbPlu
  * \param[inout] input The tree containing the DFTB+ input. On return, it contains the tree
  *     extended by all the default options set by the parser.
  */
-void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input, DftbPlusAtomList *atomListHandler);
+void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
 
 
 /**
