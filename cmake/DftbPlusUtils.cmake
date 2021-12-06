@@ -66,10 +66,6 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_ARPACK)
   endif()
 
-  if(WITH_DFTD3)
-    list(APPEND _fyppflags -DWITH_DFTD3)
-  endif()
-
   if(WITH_MBD)
       list(APPEND _fyppflags -DWITH_MBD)
   endif()
@@ -104,6 +100,10 @@ function (dftbp_add_fypp_defines fyppflags)
 
   if(WITH_POISSON)
     list(APPEND _fyppflags -DWITH_POISSON)
+  endif()
+
+  if(WITH_SDFTD3)
+    list(APPEND _fyppflags -DWITH_SDFTD3)
   endif()
 
   if(WITH_TBLITE)
@@ -215,10 +215,6 @@ function (dftbp_ensure_config_consistency)
 
     if(WITH_ARPACK)
       message(FATAL_ERROR "Instance safe build with ARPACK is not supported")
-    endif()
-
-    if(WITH_DFTD3)
-      message(FATAL_ERROR "Instance safe build with D3 dispersion is not supported")
     endif()
 
   endif()

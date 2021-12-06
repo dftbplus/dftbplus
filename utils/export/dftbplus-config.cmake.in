@@ -9,9 +9,9 @@ set(DftbPlus_WITH_GPU @WITH_GPU@)
 set(DftbPlus_WITH_TRANSPORT @WITH_TRANSPORT@)
 set(DftbPlus_WITH_SOCKETS @WITH_SOCKETS@)
 set(DftbPlus_WITH_ARPACK @WITH_ARPACK@)
-set(DftbPlus_WITH_DFTD3 @WITH_DFTD3@)
 set(DftbPlus_WITH_MBD @WITH_MBD@)
 set(DftbPlus_WITH_PLUMED @WITH_PLUMED@)
+set(DftbPlus_WITH_SDFTD3 @WITH_SDFTD3@)
 set(DftbPlus_WITH_TBLITE @WITH_TBLITE@)
 
 set(DftbPlus_EXTERNAL_LIBRARIES @EXPORTED_EXTERNAL_LIBRARIES@)
@@ -66,6 +66,10 @@ if(NOT TARGET DftbPlus::DftbPlus)
 
   if(DftbPlus_WITH_TRANSPORT AND NOT TARGET Negf::Negf)
     find_dependency(Negf)
+  endif()
+
+  if(DftbPlus_WITH_SDFTD3 AND NOT TARGET s-dftd3::s-dftd3)
+    find_dependency(s-dftd3)
   endif()
 
   if(DftbPlus_WITH_TBLITE AND NOT TARGET tblite::tblite)

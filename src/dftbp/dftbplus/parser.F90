@@ -43,6 +43,7 @@ module dftbp_dftbplus_parser
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
+  use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
   use dftbp_extlibs_tblite, only : tbliteMethod
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
       & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
@@ -72,9 +73,6 @@ module dftbp_dftbplus_parser
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
       & readTGeometryVasp
   use dftbp_type_wrappedintr, only : TWrappedInt1
-#:if WITH_DFTD3
-  use dftbp_dftb_dispdftd3, only : TDispDftD3Inp
-#:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbdInp
 #:endif
@@ -576,7 +574,6 @@ contains
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
-      ctrl%isSccConvRequired = .true.
 
     case ("velocityverlet")
       ! molecular dynamics
@@ -609,8 +606,6 @@ contains
 
       call getChildValue(node, "Thermostat", value1, child=child)
       call getNodeName(value1, buffer2)
-
-      call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
 
       thermostat: select case(char(buffer2))
       case ("berendsen")
@@ -942,7 +937,6 @@ contains
     call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
     ctrl%outFile = unquote(char(buffer2))
     call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
-    call getChildValue(node, "ConvergentForcesOnly", ctrl%isSccConvRequired, .true.)
     call readGeoConstraints(node, ctrl, geom%nAtom)
     if (ctrl%tLatOpt) then
       if (ctrl%nrConstr/=0) then
@@ -1667,8 +1661,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
-        & ctrl%isSccConvRequired)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1901,8 +1894,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC,&
-        & ctrl%isSccConvRequired)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -3012,6 +3004,9 @@ contains
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
     end if
 
+    ! self consistency required or not to proceed
+    call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+
   end subroutine readSccOptions
 
 
@@ -3846,7 +3841,7 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input, nrChrg, tSCC, isSccConvRequired)
+  subroutine readDispersion(node, geo, input, nrChrg, tSCC)
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -3863,9 +3858,6 @@ contains
     !> SCC calculation?
     logical, intent(in) :: tScc
 
-    !> use only converged SCC charges
-    logical :: isSccConvRequired
-
     type(fnode), pointer :: dispModel
     type(string) :: buffer
 
@@ -3879,12 +3871,8 @@ contains
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
-  #:if WITH_DFTD3
       allocate(input%dftd3)
-      call readDispDFTD3(dispModel, geo, input%dftd3)
-  #:else
-      call detailedError(node, "Program had been compiled without DFTD3 support")
-  #:endif
+      call readDFTD3(dispModel, geo, input%dftd3)
     case ("simpledftd3")
       allocate(input%sdftd3)
       call readSimpleDFTD3(dispModel, geo, input%sdftd3)
@@ -3907,13 +3895,6 @@ contains
   #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
-    end select
-
-    select case (char(buffer))
-    case ("ts", "mbd")
-      if (tSCC) then
-        call getChildValue(node, "ConvergentSCCOnly", isSccConvRequired, .true.)
-      end if
     end select
 
   end subroutine readDispersion
@@ -4094,11 +4075,9 @@ contains
 
   end subroutine readDispVdWUFF
 
-#:if WITH_DFTD3
-
 
   !> Reads in initialization data for the DFTD3 dispersion module
-  subroutine readDispDFTD3(node, geo, input)
+  subroutine readDFTD3(node, geo, input)
 
     !> Node to process.
     type(fnode), pointer :: node
@@ -4107,33 +4086,30 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Filled input structure on exit.
-    type(TDispDftD3Inp), intent(out) :: input
+    type(TSDFTD3Input), intent(out) :: input
 
     integer :: iSp
     integer, allocatable :: izpDefault(:)
     type(fnode), pointer :: child, childval
     type(string) :: buffer
     integer, parameter :: d3MaxNum = 94
-    logical :: unknownSpecies
+    logical :: unknownSpecies, threebody
 
     call getChildValue(node, "Damping", childval, child=child)
     call getNodeName(childval, buffer)
     select case (char(buffer))
     case ("beckejohnson")
-      input%tBeckeJohnson = .true.
+      input%dampingFunction = dampingFunction%rational
       call getChildValue(childval, "a1", input%a1)
       call getChildValue(childval, "a2", input%a2)
-      ! Alpha is not used in BJ-damping, however, there are unused terms,
-      ! which are calculated with alpha nevertheless, so set the default
-      ! as found in dftd3 code.
-      input%alpha6 = 14.0_dp
     case ("zerodamping")
-      input%tBeckeJohnson = .false.
+      input%dampingFunction = dampingFunction%zero
       call getChildValue(childval, "sr6", input%sr6)
-      ! Although according to the documentation, this parameter is not used
-      ! when calculating zero damping, results do change, when this parameter
-      ! is changed. We set it to the value found in dftd3 code
-      input%sr8 = 1.0_dp
+      call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
+    case ("modifiedzerodamping")
+      input%dampingFunction = dampingFunction%mzero
+      call getChildValue(childval, "sr6", input%sr6)
+      call getChildValue(childval, "beta", input%beta)
       call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
     case default
       call getNodeHSDName(childval, buffer)
@@ -4147,7 +4123,8 @@ contains
     call getChildValue(node, "cutoffcn", input%cutoffCN, default=40.0_dp, &
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
-    call getChildValue(node, "threebody", input%threebody, default=.false.)
+    call getChildValue(node, "threebody", threebody, default=.false.)
+    input%s9 = merge(1.0_dp, 0.0_dp, threebody)
     ! D3H5 - additional H-H repulsion
     call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
 
@@ -4179,11 +4156,7 @@ contains
       call detailedError(node, "DFT-D3 does not support all species present")
     end if
 
-    input%numgrad = .false.
-
-  end subroutine readDispDFTD3
-
-#:endif
+  end subroutine readDFTD3
 
 
   !> Reads in initialization data for the simple D3 dispersion model.

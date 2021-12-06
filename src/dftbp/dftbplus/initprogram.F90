@@ -67,6 +67,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_extlibs_poisson, only : TPoissonInput
+  use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
   use dftbp_geoopt_conjgrad, only : TConjGrad
   use dftbp_geoopt_filter, only : TFilter, TFilter_init
@@ -115,9 +116,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_type_multipole, only : TMultipole, TMultipole_init
   use dftbp_type_orbitals, only : getShellNames
   use dftbp_type_wrappedintr, only : TWrappedInt1
-#:if WITH_DFTD3
-  use dftbp_dftb_dispdftd3, only : TDispDftD3, DispDftD3_init
-#:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
 #:endif
@@ -1230,9 +1228,6 @@ contains
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
     type(TDispUFF), allocatable :: uff
-  #:if WITH_DFTD3
-    type(TDispDftD3), allocatable :: dftd3
-  #:endif
     type(TSimpleDftD3), allocatable :: sdftd3
     type(TDispDftD4), allocatable :: dftd4
   #:if WITH_MBD
@@ -2098,22 +2093,20 @@ contains
         end if
         call move_alloc(uff, this%dispersion)
 
-    #:if WITH_DFTD3
-      elseif (allocated(input%ctrl%dispInp%dftd3)) then
-        allocate(dftd3)
-        tHHRepulsion = input%ctrl%dispInp%dftd3%hhrepulsion
-        if (tHHRepulsion .and. .not. any(this%speciesMass < 3.5_dp * amu__au)) then
-          call error("H-H repulsion correction used without H atoms present")
-        end if
-        if (this%tPeriodic) then
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0,&
-              & this%speciesName, this%latVec)
-        else
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0,&
-              & this%speciesName)
-        end if
-        call move_alloc(dftd3, this%dispersion)
-    #:endif
+      else if (allocated(input%ctrl%dispInp%dftd3)) then
+        block
+          type(TSDFTD3), allocatable :: dftd3
+          allocate(dftd3)
+          if (this%tPeriodic) then
+            call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
+                & this%speciesName, this%coord0, this%latVec)
+          else
+            call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
+                & this%speciesName, this%coord0)
+          end if
+          call move_alloc(dftd3, this%dispersion)
+        end block
+
       else if (allocated(input%ctrl%dispInp%sdftd3)) then
         allocate(sdftd3)
         if (this%tPeriodic) then
@@ -3211,10 +3204,8 @@ contains
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (TDispUff)
         write(stdOut, "(A)") "Using Lennard-Jones dispersion corrections"
-    #:if WITH_DFTD3
-      type is (TDispDftD3)
-        write(stdOut, "(A)") "Using DFT-D3 dispersion corrections"
-    #:endif
+      type is (TSDFTD3)
+        call writeSDFTD3Info(stdout, o)
       type is (TSimpleDftD3)
         write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)

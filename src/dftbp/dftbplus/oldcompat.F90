@@ -557,6 +557,154 @@ contains
       call setUnprocessed(ch4)
     end if
 
+    ! move ConvergentSccOnly and ConvergentForces into a common keyword
+
+    call getDescendant(root, "Hamiltonian/Dispersion/Ts/ConvergentSCCOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentSCCOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Hamiltonian/Dispersion/Mbd/ConvergentSCCOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentSCCOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/ConjugateGradient/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/VelocityVerlet/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/SteepestDescent/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/gDiis/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/LBfgs/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/Fire/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/SecondDerivatives/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/Socket/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
   end subroutine convert_9_10
 
 

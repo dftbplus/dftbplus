@@ -38,8 +38,6 @@ Possible choices for OPTEXT:
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
-  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
-
   gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
 
@@ -144,26 +142,6 @@ def get_slakos(destdir):
     os.rename(unpackname, targetname)
 
 
-def get_dftd3(destdir):
-    '''Downloads the dftd3 library.'''
-
-    url = "https://github.com/dftbplus/dftd3-lib/archive/fcda698be614f893ed6a4ecd355678b874edd0b9.tar.gz"
-    fname = os.path.join(destdir, 'dftd3-lib.tar.gz')
-    unpackname = os.path.join(destdir, 'dftd3-lib-fcda698be614f893ed6a4ecd355678b874edd0b9')
-    targetname = os.path.join(destdir, 'origin')
-    if os.path.exists(unpackname):
-        shutil.rmtree(unpackname)
-    if os.path.exists(targetname):
-        shutil.rmtree(targetname)
-    if query_download_confirmation('dftd3', False):
-        download_file(url, fname)
-        unpack_file(fname)
-        os.remove(fname)
-        os.rename(unpackname, targetname)
-    else:
-        sys.stdout.write("    Skipping dftd3 download")
-
-
 def get_gbsa(destdir):
     '''Downloads and extracts parametrizations for gbsa.'''
 
@@ -257,7 +235,6 @@ def read_input():
 # Contains (function, targetfolder, restriction) tuples
 GETTERS = {
     'slakos': (get_slakos, 'slakos', UNRESTRICTED_EXTERNAL),
-    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL),
     'gbsa': (get_gbsa, 'gbsa', UNRESTRICTED_EXTERNAL),
 }
 

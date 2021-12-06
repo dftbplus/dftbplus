@@ -134,9 +134,6 @@ module dftbp_dftbplus_main
   public :: runDftbPlus
   public :: processGeometry
 
-  !> O(N^2) density matrix creation
-  logical, parameter :: tDensON2 = .false.
-
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
@@ -3082,12 +3079,7 @@ contains
     #:else
       !> Either pack density matrix or delta density matrix
       if(.not. associated(deltaRhoOutSqr)) then
-        if (tDensON2) then
-          call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
-              & neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart, img2CentCell)
-        else
-          call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
-        end if
+        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packHelicalHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
@@ -3210,12 +3202,7 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
-      if (tDensON2) then
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin),&
-            & neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart, img2CentCell)
-      else
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
-      end if
+      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       if (tHelical) then
         call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
@@ -4902,12 +4889,7 @@ contains
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsReal(:,:,iKS), work, eigen(:,1,iS))
       #:else
-        if (tDensON2) then
-          call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS),&
-              & neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart, img2CentCell)
-        else
-          call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS))
-        end if
+        call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS))
       #:endif
 
       case(forceTypes%dynamicT0)
@@ -5116,13 +5098,7 @@ contains
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
             & filling(:,iK,iS), eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
       #:else
-        if (tDensON2) then
-          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
-              & eigen(:,iK, iS), neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart,&
-              & img2CentCell)
-        else
-          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), eigen(:,iK, iS))
-        end if
+        call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), eigen(:,iK, iS))
       #:endif
 
       case(forceTypes%dynamicT0)

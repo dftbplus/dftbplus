@@ -423,7 +423,6 @@ Please use the new \is{GeometryOptimization} driver instead.}
   \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
-  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
@@ -511,11 +510,6 @@ Please use the new \is{GeometryOptimization} driver instead.}
   calculations this is as a fraction of the lattice vectors or the
   volume respectively.
 
-\item[\is{ConvergentForcesOnly}] If using an SCC calculation, this
-  option controls whether the geometry optimisation will prematurely
-  stop (= \is{Yes}) if the SCC cycle does not converge at any
-  geometric step.
-
 \end{description}
 
 
@@ -538,7 +532,6 @@ Please use the new \is{GeometryOptimization} driver instead.}
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
-  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 See previous subsection for the description of the properties.
@@ -563,7 +556,6 @@ Please use the new \is{GeometryOptimization} driver instead.}
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
-  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 Specific properties for this method are:
@@ -600,7 +592,6 @@ Please use the new \is{GeometryOptimization} driver instead.}
     = Yes or setMaxStep = Yes} & 0.2 & \\
   \kw{MaxAtomStep}       & r & LineSearch = Yes or setMaxStep
   = Yes & 0.2 & \\
-  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 Specific properties for this method are:
@@ -696,7 +687,6 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{MDRestartFrequency} & i & & 1 & \\
   \kw{Velocities} & (3r)* & & - & \\
   \kw{Barostat} & m & Periodic = Yes & - & \pref{sec:dftbp.Barostat}\\
-  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
   \kw{Xlbomd} & p & XlbomdFast \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{XlbomdFast} & p & Xlbomd \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{Masses} & p & & & \pref{sec:dftbp.Masses} \\
@@ -746,15 +736,6 @@ selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{Barostat}] Berendsen method barostat for the MD simulation. See
   p.~\pref{sec:dftbp.Barostat}.
-
-\item[\is{ConvergentForcesOnly}] If using an SCC calculation, this option
-  controls whether the molecular dynamics will prematurely stop (= \is{Yes}) if
-  the SCC cycle does not converge at any geometric step. If the option is set to
-  \is{False}, forces will be calculated using the non-converged charges and the
-  molecular dynamics continues. In this case you should consider using
-  \is{ForceEvaluation = 'Dynamics'} (or \is{ForceEvaluation = 'DynamicsT0'}) in
-  the \is{DFTB} block as it gives more accurate forces for non-converged
-  charges.
 
 \item[\is{Xlbomd}] If present, extended Lagrangian type molecular dynamics
   is applied to speed up the simulation. For further options within the
@@ -1208,6 +1189,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{SCC} &l &  & No  & \\
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
+  \kw{ConvergentSccOnly} & l & SCC = Yes & \is{Yes}\\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
@@ -1264,7 +1246,11 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   number of steps, the program stops. However in cases where the
   calculation is not for a static structure (so \is{Driver} $\neq$
   \cb), this behaviour can be overridden using
-  \kw{ConvergentForcesOnly}.
+  \kw{ConvergentSccOnly}.
+
+\item[\is{ConvergentSccOnly}] If true, requires that the SCC cycle converges
+  before proceeding to subsequent stages of the calculation (forces, analysis,
+  etc.).
 
 \item[\is{EwaldParameter}] Sets the dimensionless parameter $\alpha$
   in the Ewald electrostatic summation for periodic calculations. This
@@ -1631,7 +1617,7 @@ library.
   number of steps, the program stops. However in cases where the
   calculation is not for a static structure (so \is{Driver} $\neq$
   \cb), this behaviour can be overridden using
-  \kw{ConvergentForcesOnly}.
+  \kw{ConvergentSccOnly}.
 
 \item[\is{Charge}] Total charge of the system in units of the electron
   charge. Negative values mean an excess of electrons. If the keyword
@@ -2858,11 +2844,12 @@ description of the methods see the following subsections):
 \item \is{SlaterKirkwood}: The dispersion interaction between atoms is
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
-\item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+\item \is{DftD3}: Dispersion is calculated as in the s-dftd3
+  library~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
-  strengths (see section \ref{sec:dftbp.hcorr}). Note: It is recommended to use
-  the \is{SimpleDftD3} for including D3-dispersion.
+  strengths (see section \ref{sec:dftbp.hcorr}).
+  Note: If DFTB+ is compiled without the s-dftd3 library, the
+  \is{SimpleDftD3} can be used to include D3(BJ)-dispersion.
 \item \is{SimpleDftD3}: DFTB+ internal implementation of the D3-dispersion model.
 \item \is{DftD4}: Dispersion is calculated using the D4
   model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
@@ -3072,11 +3059,22 @@ factor:
   \begin{equation*}
     f_{d,n} = \frac{1}{1 + 6(r_{AB}/(s_{\text{r},n} R_0^{AB}))^{-\alpha_n}}
   \end{equation*}
+
+\item Modified zero-damping (dispersion at short distances is damped to zero):
+  \begin{equation*}
+    E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A \neq B} s_n
+    \frac{C_n^{AB}}{r_{AB}^n} f_{d,n}(r_{AB})
+  \end{equation*}
+  with
+  \begin{equation*}
+    f_{d,n} = \frac{1}{1 + 6(r_{AB}/(s_{\text{r},n} R_0^{AB} + \beta))^{-\alpha_n}}
+  \end{equation*}
 \end{itemize}
 
 In order to adjust the dispersion for various energy functionals, the choice of
 $s_6$, $s_8$ and the damping parameters $a_1$ and $a_2$ (for
-Becke-Johnson-damping) or $s_{\text{r},6}$ and $\alpha_6$ (for zero damping) are
+Becke-Johnson-damping), $s_{\text{r},6}$ and $\alpha_6$ (for zero damping)
+or $s_{\text{r},6}$, $\alpha_6$ and $\beta$ (for modified zero damping) are
 treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
@@ -3438,7 +3436,6 @@ The following keywords can be used with this dispersion model:
   \kw{Damping} & r & & 20.0 & \\
   \kw{RangeSeparation} & & & 0.94 & \\
   \kw{ReferenceSet} & & & "TS" & \\
-  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
 \item[\is{Damping}] Damping factor.
@@ -3448,8 +3445,6 @@ The following keywords can be used with this dispersion model:
 \item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
   are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
   calculating surfaces).
-\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
-  before evaluating TS dispersion {\it post-hoc}.
 \end{description}
 
 \subsubsection{MBD}
@@ -3465,7 +3460,6 @@ The following keywords can be used with this dispersion model:
   \kw{KGridShift} & & & 0.5 0.5 0.5 & \\
   \kw{VacuumAxis} & & & No No No & \\
   \kw{ReferenceSet} & & & "TS" & \\
-  \kw{ConvergentSCCOnly} & l & SCC = Yes & \is{Yes}\\
 \end{ptable}
 \begin{description}
 \item[\is{Beta}] Range separation parameter. Default value is optimised for pure
@@ -3480,8 +3474,6 @@ The following keywords can be used with this dispersion model:
 \item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
   are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
   calculating surfaces).
-\item[\is{ConvergentSCCOnly}] If true, requires that the SCC cycle converges
-  before evaluating MBD dispersion {\itshape post-hoc}.
 \end{description}
 
 \subsection{DFTB3}

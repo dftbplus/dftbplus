@@ -255,7 +255,7 @@ contains
     @:ASSERT(allocated(this%cm5))
     @:ASSERT(size(charges) == this%nAtom)
 
-    charges(:) = charges + this%cm5
+    charges(:) = charges - this%cm5
 
   end subroutine addCharges
 
@@ -276,7 +276,7 @@ contains
     @:ASSERT(allocated(this%dcm5dr))
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    call gemv(gradients, this%dcm5dr, dEdcm5, beta=1.0_dp)
+    call gemv(gradients, this%dcm5dr, dEdcm5, beta=1.0_dp, alpha=-1.0_dp)
 
   end subroutine addGradients
 
@@ -297,7 +297,7 @@ contains
     @:ASSERT(allocated(this%dcm5dL))
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-    call gemv(stress, this%dcm5dL, dEdcm5, beta=1.0_dp)
+    call gemv(stress, this%dcm5dL, dEdcm5, beta=1.0_dp, alpha=-1.0_dp)
 
   end subroutine addSigma
 
