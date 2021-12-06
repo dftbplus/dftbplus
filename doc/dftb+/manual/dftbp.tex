@@ -288,8 +288,13 @@ methods are available:
 \label{sec:dftbp.GeometryOptimization}
 
 \begin{ptable}
-  \kw{Optimizer} & m &  & & \\
-  \kw{Filter} & m &  & Cartesian & \pref{sec:dftbp.Filter} \\
+  \kw{Optimizer} & m &  & Rational & \\
+  \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{LatticeOpt} & l & & \is{No} & \\
+  %\kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  %\kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
+  %\kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  %\kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{Convergence} & m &  & & \pref{sec:dftbp.Convergence} \\
   \kw{MaxSteps} &i &  & 200 & \\
   \kw{OutputPrefix} &s &  & "geo\_end" & \\
@@ -297,6 +302,15 @@ methods are available:
   %\kw{Constraints} & (1i3r)* & LatticeOpt = No & \cb            & \\
   %\kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
+
+Example for performing a full lattice optimization using the rational function optimizer:
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = Rational {}
+  LatticeOpt = Yes
+}
+\end{verbatim}
 
 
 \subsubsection{Optimizer: Rational}
@@ -319,6 +333,12 @@ Carefully evaluate the runtime of the optimization step for (very) large systems
   Lower limit of the diagonal Hessian elements in the BFGS-like update step.
 \end{description}
 
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = Rational { DiagLimit = 1.0e-2 }
+}
+\end{verbatim}
+
 
 \subsubsection{Optimizer: LBFGS}
 \label{sec:dftbp.Optimizer.LBFGS}
@@ -335,6 +355,12 @@ The scaling behaviour of the computational cost and memory usage for this optimi
   Number of past displacements and gradient vectors to keep.
 \end{description}
 
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = LBFGS { Memory = 20 }
+}
+\end{verbatim}
+
 
 \subsubsection{Optimizer: FIRE}
 \label{sec:dftbp.Optimizer.FIRE}
@@ -348,26 +374,40 @@ over other optimisers.
 The scaling behaviour of the computational cost and memory usage for this optimization step is linear in the number of optimized variables.
 
 \begin{ptable}
+  \kw{nMin} & i &  & 5 & \\
+  \kw{aPar} & r &  & 0.1 & \\
+  \kw{fInc} & r &  & 1.1 & \\
+  \kw{fDec} & r &  & 0.5 & \\
+  \kw{fAlpha} & r &  & 0.99 & \\
   \kw{StepSize} & r &  & 1.0 & \\
 \end{ptable}
 \begin{description}
 \item[\is{StepSize}]\modif{\modtype{time}}
   Step size ($\delta t$) for the propagation of the coordinates.
+\item[\is{nMin}]
+  Minimum number of steps before the step size is increased.
+\item[\is{aPar}]
+  Parameter for the update of the velocities.
+\item[\is{fInc}]
+  Factor for the increase of the step size.
+\item[\is{fDec}]
+  Factor for the decrease of the step size.
+\item[\is{fAlpha}]
+  Factor for the update the alpha parameter on reset.
 \end{description}
 
-
-\subsubsection{Filter}
-\label{sec:dftbp.Filter}
-
-\begin{ptable}
-  \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
-  %\kw{Constraints} & (1i3r)* & LatticeOpt = No & \cb            & \\
-  \kw{LatticeOpt}        & l & & \is{No}        & \\
-  %\kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  %\kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
-  %\kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  %\kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
-\end{ptable}
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = FIRE {
+    nMin = 5
+    aPar = 0.1
+    fInc = 1.1
+    fDec = 0.5
+    fAlpha = 0.99
+    StepSize = 1.0
+  }
+}
+\end{verbatim}
 
 
 \subsubsection{Convergence}

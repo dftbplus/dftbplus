@@ -62,18 +62,10 @@ contains
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
-    call getChildValue(node, "Optimizer", child)
+    call getChildValue(node, "Optimizer", child, "Rational")
     call readOptimizerInput(child, input%optimizer)
 
-    call getChildValue(node, "Filter", child, "Cartesian")
-    call getNodeName(child, buffer)
-
-    select case (char(buffer))
-    case default
-      call detailedError(node, "Invalid filter name.")
-    case("cartesian")
-      call readFilterInput(child, geom, input%filter)
-    end select
+    call readFilterInput(node, geom, input%filter)
 
     call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
     call readOptTolerance(child, input%tolerance)
