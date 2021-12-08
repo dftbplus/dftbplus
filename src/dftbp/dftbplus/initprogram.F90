@@ -22,7 +22,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+      & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
@@ -1126,12 +1127,25 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: dQAtomEx(:)
 
     !> Boundary condition
-    integer :: boundaryCond
+    type(TBoundaryConditions) :: boundaryCond
 
     !> Whether the order of the atoms matter. Typically the case, when properties were specified
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+
+  #:if WITH_SCALAPACK
+
+    !> Should the dense matrices be re-ordered for sparse operations
+    logical :: isSparseReorderRequired = .false.
+
+    !> Re-orded real eigenvectors (if required)
+    real(dp), allocatable :: eigVecsRealReordered(:,:,:)
+
+    !> Re-orded complex eigenvectors (if required)
+    complex(dp), allocatable :: eigVecsCplxReordered(:,:,:)
+
+  #:endif
 
   contains
 
@@ -1146,9 +1160,6 @@ module dftbp_dftbplus_initprogram
     procedure :: initArrays
     procedure :: initDetArrays
     procedure :: allocateDenseMatrices
-  #:if WITH_SCALAPACK
-    procedure :: initScalapack
-  #:endif
     procedure :: getDenseDescCommon
     procedure :: ensureRangeSeparatedReqs
     procedure :: initRangeSeparated
@@ -1346,7 +1357,11 @@ contains
 
     call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
-        & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol)
+        & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
+        & errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     ! Get species names and output file
     this%geoOutFile = input%ctrl%outFile
@@ -1443,7 +1458,7 @@ contains
 
 
   #:if WITH_SCALAPACK
-    call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
+    call initBlacs(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
         & this%t2Component, env, errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
@@ -1619,11 +1634,11 @@ contains
       else
         call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
             & this%uniqHubbU, shortGammaDamp, shortGammaInput)
-        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald, this%boundaryCond,&
-            & this%nAtom, coulombInput)
+        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+            & this%boundaryCond%iBoundaryCondition, this%nAtom, coulombInput)
       end if
-      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond, coulombInput,&
-          & shortGammaInput, poissonInput, this%scc)
+      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+          & coulombInput, shortGammaInput, poissonInput, this%scc)
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
@@ -2691,7 +2706,8 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
+          & this%isSparseReorderRequired)
     end associate
   #:endif
 
@@ -4814,7 +4830,6 @@ contains
     !> Computing environment
     type(TEnvironment), intent(in) :: env
 
-
     integer :: nLocalCols, nLocalRows, nLocalKS
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
@@ -4836,6 +4851,20 @@ contains
       allocate(this%eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
     end if
 
+  #:if WITH_SCALAPACK
+
+    if (this%isSparseReorderRequired) then
+      call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, this%denseDesc%blacsColumnSqr,&
+          & nLocalRows, nLocalCols)
+      if (this%t2Component .or. .not. this%tRealHS) then
+        allocate(this%eigVecsCplxReordered(nLocalRows, nLocalCols, nLocalKS))
+      else
+        allocate(this%eigVecsRealReordered(nLocalRows, nLocalCols, nLocalKS))
+      end if
+    end if
+
+  #:endif
+
   end subroutine allocateDenseMatrices
 
 
@@ -4845,10 +4874,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
-
-    !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
+  subroutine initBlacs(blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
@@ -4878,14 +4904,14 @@ contains
     call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
-  end subroutine initScalapack
+  end subroutine initBlacs
 
 
   !> Generate descriptions of large dense matrices in BLACS decomposition
   !>
   !> Note: It must be called after getDenseDescCommon() has been called.
   !>
-  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc)
+  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isSparseReorderRequired)
 
     !> parallel environment
     type(TEnvironment), intent(in) :: env
@@ -4899,11 +4925,19 @@ contains
     !> Descriptor of the dense matrix
     type(TDenseDescr), intent(inout) :: denseDesc
 
+    !> Is a data distribution for sparse with dense operations needed?
+    logical, intent(in) :: isSparseReorderRequired
+
     integer :: nn
 
     nn = denseDesc%fullSize
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
+
+    if (isSparseReorderRequired) then
+      ! Distribution to put entire rows on each processor
+      call scalafx_getdescriptor(env%blacs%rowOrbitalGrid, nn, nn, nn, 1, denseDesc%blacsColumnSqr)
+    end if
 
   end subroutine getDenseDescBlacs
 
@@ -5833,16 +5867,19 @@ contains
   ! Initializes the variables directly related to the user specified geometry.
   subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol)
+      & recCellVol, errStatus)
     type(TInputData), intent(in) :: input
     integer, intent(out) :: nAtom, nType
     logical, intent(out) :: tPeriodic, tHelical
-    integer, intent(out) :: boundaryCond
+    type(TBoundaryConditions), intent(out) :: boundaryCond
     real(dp), allocatable, intent(out) :: coord0(:,:)
     integer, allocatable, intent(out) :: species0(:)
     logical, intent(out) :: tCoordsChanged, tLatticeChanged
     real(dp), allocatable, intent(out) :: latVec(:,:), origin(:), recVec(:,:), invLatVec(:,:)
     real(dp), intent(out) :: cellVol, recCellVol
+
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
 
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
@@ -5850,13 +5887,15 @@ contains
     tPeriodic = input%geom%tPeriodic
     tHelical = input%geom%tHelical
 
+
     if (tPeriodic) then
-      boundaryCond = boundaryConditions%pbc3d
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
     else if (tHelical) then
-      boundaryCond = boundaryConditions%helical
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%helical, errStatus)
     else
-      boundaryCond = boundaryConditions%cluster
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%cluster, errStatus)
     end if
+    @:PROPAGATE_ERROR(errStatus)
 
     coord0 = input%geom%coords
     species0 = input%geom%species

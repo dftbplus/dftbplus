@@ -1,12 +1,12 @@
 [submodule "external/mpifx/origin"]
-    path = external/mpifx/origin
-    url = https://github.com/dftbplus/mpifx.git
+	path = external/mpifx/origin
+	url = https://github.com/dftbplus/mpifx.git
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
 	url = https://github.com/libnegf/libnegf.git
 [submodule "external/scalapackfx/origin"]
-    path = external/scalapackfx/origin
-    url = https://github.com/dftbplus/scalapackfx.git
+	path = external/scalapackfx/origin
+	url = https://github.com/dftbplus/scalapackfx.git
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git

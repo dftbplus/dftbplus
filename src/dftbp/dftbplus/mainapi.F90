@@ -681,7 +681,7 @@ contains
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call main%getDenseDescCommon()
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
-        & main%denseDesc)
+        & main%denseDesc, main%isSparseReorderRequired)
 
   end subroutine updateBLACSDecomposition
 
