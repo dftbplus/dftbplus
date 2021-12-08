@@ -19,6 +19,7 @@ module dftbp_dftbplus_main
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -116,7 +117,7 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
-      & pblasfx_ptranc
+      & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
 #:endif
 #:if WITH_SOCKETS
@@ -661,7 +662,7 @@ contains
     real(dp), allocatable :: dQ(:,:,:)
 
     ! loop index
-    integer :: iSpin
+    integer :: iSpin, iKS
 
     real(dp), allocatable :: dipoleTmp(:)
 
@@ -1151,6 +1152,26 @@ contains
 
     end if REKS_SCC
 
+  #:if WITH_SCALAPACK
+    if (this%isSparseReorderRequired) then
+      if (allocated(this%eigvecsReal)) then
+        do iKS = 1, this%parallelKS%nLocalKS
+          call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
+              & this%eigvecsReal(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
+              & this%eigVecsRealReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & env%blacs%orbitalGrid%ctxt)
+        end do
+      else if (allocated(this%eigvecsCplx)) then
+        do iKS = 1, this%parallelKS%nLocalKS
+          call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
+              & this%eigvecsCplx(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
+              & this%eigVecsCplxReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & env%blacs%orbitalGrid%ctxt)
+        end do
+      end if
+    end if
+  #:endif
+
     if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
@@ -1316,8 +1337,8 @@ contains
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-        call getGradients(env, this%scc, this%tblite, this%isExtField, this%isXlbomd,&
-            & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
+        call getGradients(env, this%boundaryCond, this%scc, this%tblite, this%isExtField,&
+            & this%isXlbomd, this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
             & this%skHamCont, this%skOverCont, this%repulsive, this%neighbourList,&
             & this%nNeighbourSk, this%species, this%img2CentCell, this%iSparseStart,&
             & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
@@ -5395,15 +5416,18 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tblite, isExtField, isXlbomd, nonSccDeriv, rhoPrim,&
-      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs,&
-      & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
-      & dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr, halogenXCorrection,&
-      & tHelical, coord0, deltaDftb)
+  subroutine getGradients(env, boundaryConds, sccCalc, tblite, isExtField, isXlbomd, nonSccDeriv,&
+      & rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList,&
+      & nNeighbourSK, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
+      & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
+      & chrgForces, dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
+      & halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Boundary conditions on the geometry
+    type(TBoundaryConditions), intent(in) :: boundaryConds
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
@@ -5660,7 +5684,7 @@ contains
 
     derivs(:,:) = derivs + tmpDerivs
 
-    call helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
+    call boundaryConds%alignVectorCentralCell(derivs, coord, coord0, nAtom)
 
     if(deltaDftb%isNonAufbau) then
       select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
@@ -5674,39 +5698,6 @@ contains
     end if
 
   end subroutine getGradients
-
-
-  !> Correct for z folding into central unit cell requiring a twist in helical cases
-  pure subroutine helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
-    use dftbp_dftb_boundarycond, only : zAxis
-    use dftbp_math_quaternions, only : rotate3
-
-    !> Derivatives
-    real(dp), intent(inout) :: derivs(:,:)
-
-    !> Unfolded atoms
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Central cell atoms
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> number of atoms
-    integer, intent(in) :: nAtom
-
-    !> Is this a helical geometry
-    logical, intent(in) :: tHelical
-
-    integer :: ii
-    real(dp) :: deltaTheta
-
-    if (tHelical) then
-      do ii = 1, nAtom
-        deltaTheta = atan2(coord0(2,ii),coord0(1,ii)) - atan2(coord(2,ii),coord(1,ii))
-        call rotate3(derivs(:,ii), deltaTheta, zAxis)
-      end do
-    end if
-
-  end subroutine helicalTwistFolded
 
 
   !> use plumed to update derivatives

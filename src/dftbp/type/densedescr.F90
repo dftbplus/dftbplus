@@ -21,8 +21,12 @@ module dftbp_type_densedescr
   type :: TDenseDescr
 
   #:if WITH_SCALAPACK
-    !> BLACS specifier for the matrix
+    !> BLACS specifier for the orbital sized matrix
     integer :: blacsOrbSqr(DLEN_)
+
+    !> BLACS specifier for the reordered matrix
+    integer :: blacsColumnSqr(DLEN_)
+
   #:endif
 
     !> Dense matrix indexing by the start of orbitals for each atom.
