@@ -141,10 +141,6 @@ if (WITH_GPU)
   target_link_libraries(dftbplus PUBLIC Magma::Magma)
 endif()
 
-target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})
-
-target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
-
 
 # Installation
 
