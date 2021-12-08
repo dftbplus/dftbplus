@@ -18,6 +18,7 @@ env:
     -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
     -DWITH_CHIMES=true
+    -DWITH_PYTHON=true
 
 jobs:
   gcc-build:
@@ -128,7 +129,7 @@ jobs:
     - name: Set extra CMake flags (Linux)
       if: contains(matrix.os, 'ubuntu')
       run: |
-        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DWITH_PYTHON=true" >> $GITHUB_ENV
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
     - name: Configure build
       run: >-
@@ -232,7 +233,7 @@ jobs:
 
     - name: Set extra CMake flags (Linux)
       run: |
-        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DWITH_PYTHON=true" >> $GITHUB_ENV
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
     - name: Configure build
       run: >-

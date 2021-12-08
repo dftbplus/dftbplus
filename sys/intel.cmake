@@ -70,7 +70,7 @@ set(C_FLAGS_DEBUG "-g -Wall"
 # manual settings above instead.
 if ("${BLAS_LIBRARY}" STREQUAL "")
   # In order to load the library via dlopen() in Python, special MKL library must be linked.
-  if(WITH_API AND BUILD_SHARED_LIBS AND WITH_PYTHON)
+  if(BUILD_SHARED_LIBS AND ENABLE_DYNAMIC_LOADING)
     if(WITH_MPI)
       message(FATAL_ERROR
         "Don't know how to link MKL as shared library with MPI and dlopen (Python API) support. "
