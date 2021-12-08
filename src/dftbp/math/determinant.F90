@@ -16,10 +16,10 @@ module dftbp_math_determinant
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : DLEN_, blacsgrid, CSRC_, M_, N_, NB_, scalafx_indxl2g,&
-      & scalafx_pgetrf
+      & scalafx_pgetrf, scalafx_islocal
 #:endif
   implicit none
-  
+
   private
   public :: det
 

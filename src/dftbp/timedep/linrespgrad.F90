@@ -8,6 +8,9 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
+!>
+!> Note: This module is NOT instance safe it uses a common block to communicate with ARPACK
+!>
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
@@ -16,7 +19,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime
   use dftbp_dftb_sk, only : rotateH0
-  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals 
+  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
   use dftbp_extlibs_arpack, only : withArpack, saupd, seupd
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
@@ -30,12 +33,12 @@ module dftbp_timedep_linrespgrad
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
       & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, intialSubSpaceMatrixApmB,&
       & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
-  use dftbp_timedep_linresptypes, only : TLinResp 
+  use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
 
   implicit none
-  
+
   private
   public :: LinRespGrad_old
 
@@ -62,17 +65,6 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: arpackOut = "ARPACK.DAT"
   character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
 
-  !> Communication with ARPACK for progress information
-  integer :: logfil, ndigit, mgetv0
-  integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
-  integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
-  integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
-
-  !> Common block of ARPACK variables
-  common /debug/ logfil, ndigit, mgetv0,&
-      &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
-      &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
-      &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
 contains
 
@@ -213,6 +205,18 @@ contains
     !> transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
 
+    !> Communication with ARPACK for progress information
+    integer :: logfil, ndigit, mgetv0
+    integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
+    integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
+    integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
+
+    !> Common block of ARPACK variables
+    common /debug/ logfil, ndigit, mgetv0,&
+        &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
+        &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
+        &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
+
     if (withArpack) then
 
       ! ARPACK library variables
@@ -289,7 +293,7 @@ contains
     end do
     if (tFracOcc .and. tRangeSep) then
       call error('Fractional occupations not implemented for TD-LC-DFTB.')
-    end if 
+    end if
 
     ! count initial number of transitions from occupied to empty states
     nxov_ud = 0
@@ -661,7 +665,7 @@ contains
             & nxov_ud(1), transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, &
             & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
-            
+
         call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
@@ -710,11 +714,11 @@ contains
   end subroutine LinRespGrad_old
 
   !> Solves the RPA equations in their hermitian form (valid for local functionals) at finite T
-  !> 
+  !>
   !>  [A  B] X   =    [C  0] X
-  !>                w 
+  !>                w
   !>  [B  A] Y   =    [0 -C] Y
-  !>  
+  !>
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !>
@@ -723,9 +727,9 @@ contains
   !>
   !> In this routine \Omega is diagonalised by the iterative ARPACK diagonaliser.
   !> The code deals with closed shell systems by diagonalising dedicated singlet/triplet
-  !> submatrices. 
-  !> See Dominguez JCTC 9 4901 (2013) 
-  !>  
+  !> submatrices.
+  !> See Dominguez JCTC 9 4901 (2013)
+  !>
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
@@ -838,7 +842,7 @@ contains
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
-    
+
     @:ASSERT(all(shape(xpy) == [ nxov_rd, nexc ]))
     @:ASSERT(tRangeSep .eqv. .false.)
 
@@ -956,23 +960,23 @@ contains
         xmy(:nxov_rd,iState) = xpy(:nxov_rd,iState) * omega / wij(:nxov_rd)
       end if
     end do
-    
+
   end subroutine buildAndDiagExcMatrixArpack
 
   !> Solves the RPA equations in their standard form at finite T
-  !> 
+  !>
   !>  [A  B] X   =    [C  0] X
-  !>                w 
+  !>                w
   !>  [B  A] Y   =    [0 -C] Y
-  !>  
+  !>
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !>
   !> The RPA eqs are diagonalised by the Stratmann algorithm (JCP 109 8218 (1998).
-  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) 
+  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017)
   !>
   !> Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
-  !> 
+  !>
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, eval, xpy, xmy,&
@@ -981,7 +985,7 @@ contains
     !> spin polarisation?
     logical, intent(in) :: tSpin
 
-    !> initial subspace is this factor times number of excited states 
+    !> initial subspace is this factor times number of excited states
     integer :: subSpaceFactor
 
     !> single particle excitation energies
@@ -1117,8 +1121,8 @@ contains
     memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
     workDim = 3 * memDim + 1
     allocate(vecB(nxov_rd, memDim))
-    allocate(vP(nxov_rd, memDim)) 
-    allocate(vM(nxov_rd, memDim)) 
+    allocate(vP(nxov_rd, memDim))
+    allocate(vM(nxov_rd, memDim))
     allocate(mP(memDim, memDim))
     allocate(mM(memDim, memDim))
     allocate(mMsqrt(memDim, memDim))
@@ -1201,7 +1205,7 @@ contains
 
       ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
       ! EV problem, only use first nExc vectors
-      do ii = 1, nExc 
+      do ii = 1, nExc
         dummyReal = sqrt(sqrt(evalInt(ii)))
         evecR(:,ii) = evecR(:,ii) / dummyReal
         evecL(:,ii) = evecL(:,ii) * dummyReal
@@ -1301,14 +1305,14 @@ contains
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
       if(iterStrat == 1) then
-         write(*,'(3x,A)') 'Iteration  Subspace dimension' 
+         write(*,'(3x,A)') 'Iteration  Subspace dimension'
       end if
-      
-      write(*,'(3x,i6,10x,i6)') iterStrat, subSpaceDim  
+
+      write(*,'(3x,i6,10x,i6)') iterStrat, subSpaceDim
       iterStrat = iterStrat + 1
 
       ! create orthogonal basis
-      call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, vecB) 
+      call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, vecB)
 
     end do solveLinResp
 
@@ -1474,7 +1478,7 @@ contains
     real(dp), allocatable :: vecHovT(:), vecHooT(:)
     integer :: nxov
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb 
+    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
     real(dp) :: tmp1, tmp2, fact
     logical :: tSpin
 
@@ -1606,7 +1610,7 @@ contains
 
       do b = homo(s) + 1, a
         ab = iatrans(a, b, s) - svv(s)
-        ibs = iatrans(i, b, s) 
+        ibs = iatrans(i, b, s)
         rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab, s)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
@@ -1699,7 +1703,7 @@ contains
           end if
         end if
       end do
-      
+
       ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
       do ab = 1, nxvv(s)
         a = getAB(ab + svv(s), 1)
@@ -1752,7 +1756,7 @@ contains
     end do
 
     ! Contributions due to range-separation
-    if (tRangeSep) then 
+    if (tRangeSep) then
 
       allocate(vecHvvXpY(sum(nxvv)))
       allocate(vecHvvXmY(sum(nxvv)))
@@ -1820,7 +1824,7 @@ contains
         end do
       end do
 
-    endif 
+    endif
 
   end subroutine getZVectorEqRHS
 
@@ -1914,7 +1918,7 @@ contains
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
 
-    !> long-range Gamma 
+    !> long-range Gamma
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
     integer :: nxov
@@ -1949,7 +1953,7 @@ contains
         call hemv(qTmp, lrGamma, qTr)
         aas = iaTrans(a, a, s)
         qTr = transChrg%qTransAB(aas, iAtomStart, ovrXev, grndEigVecs, getAB)
-        rs = rs - cExchange * dot_product(qTr, qTmp)        
+        rs = rs - cExchange * dot_product(qTr, qTmp)
       end if
 
       P(ia) = 1.0_dp / rs
@@ -1962,7 +1966,7 @@ contains
     rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
-    ! we need the singlet action even for triplet excitations! 
+    ! we need the singlet action even for triplet excitations!
     call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
       & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)
@@ -2035,10 +2039,10 @@ contains
     !> index array between occ-vir transitions in square and 1D representations
     integer, intent(in) :: getIA(:,:)
 
-    !> index array between occ-occ transitions 
+    !> index array between occ-occ transitions
     integer, intent(in) :: getIJ(:,:)
 
-    !> index array between vir-vir transitions 
+    !> index array between vir-vir transitions
     integer, intent(in) :: getAB(:,:)
 
     !> array from pairs of single particles states to compound index
@@ -2080,7 +2084,7 @@ contains
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
 
-    !> long-range Gamma 
+    !> long-range Gamma
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
     integer :: nxov, natom, nSpin, soo(2), svv(2)
@@ -2149,13 +2153,13 @@ contains
         end if
       end do
     end do
-   
+
     if (tRangeSep) then
 
       allocate(vecHooZ(sum(nxoo)))
       call getHooXY(1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
       & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zz, vecHooZ)
- 
+
       !! woo should be made 1D
       do s = 1, nSpin
         do ij = 1, nxoo(s)
@@ -2166,13 +2170,13 @@ contains
         end do
       end do
 
-    end if 
- 
+    end if
+
     ! Divide diagonal elements of W_ij by 2.
     do s = 1, nSpin
       do ij = 1, nxoo(s)
-        i = getIJ(ij + soo(s), 1) 
-        j = getIJ(ij + soo(s), 2) 
+        i = getIJ(ij + soo(s), 1)
+        j = getIJ(ij + soo(s), 2)
         if (i == j) then
           woo(ij,s) = 0.5_dp * woo(ij,s)
         end if
@@ -2420,7 +2424,7 @@ contains
     ALLOCATE(tmp7(nSpin))
 
     ALLOCATE(Dens(norb,norb))
-    !! TO CHANGE: For tRangeSep density from call seems to be incorrect, have 
+    !! TO CHANGE: For tRangeSep density from call seems to be incorrect, have
     !! to recreate it from eigenvectors.
     Dens = 0._dp
     if (tRangeSep) then
@@ -2479,13 +2483,13 @@ contains
       ALLOCATE(lrGammaOrb(norb, norb))
       ALLOCATE(gammaLongRangePrime(3, nAtom, nAtom))
 
-      ! Symmetrize deltaRho 
+      ! Symmetrize deltaRho
       do mu = 1, norb
         do nu = mu + 1, norb
           deltaRho(mu,nu,:) = deltaRho(nu,mu,:)
         end do
       end do
- 
+
       ! Compute long-range gamma derivative
       gammaLongRangePrime(:,:,:) = 0._dp
       call rangeSep%getSpecies(species)
@@ -2493,7 +2497,7 @@ contains
         do iAt2 = 1, nAtom
           if(iAt1 /= iAt2) then
             call getGammaPrimeValue(rangeSep, tmpVec, iAt1, iAt2, coord0, species)
-            gammaLongRangePrime(:, iAt1, iAt2) = tmpVec 
+            gammaLongRangePrime(:, iAt1, iAt2) = tmpVec
           end if
         end do
       end do
@@ -2502,7 +2506,7 @@ contains
       call getSqrS(coord0, nAtom, skOverCont, orb, iAtomStart, species0, overlap)
       call getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
 
-    end if 
+    end if
 
     excgrad = 0.0_dp
 
@@ -2582,8 +2586,8 @@ contains
         xmycc = xmycc / sqrt(2._dp)
         xpyas = xpyas / sqrt(2._dp)
         xmyas = xmyas / sqrt(2._dp)
-      end if 
-      
+      end if
+
       do iSpin = 1, nSpin
         call symm(PS(:,:,iSpin), 'R', overlap, pc(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
         call symm(SPS(:,:,iSpin), 'L', overlap, PS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
@@ -2596,7 +2600,7 @@ contains
         call symm(SY(:,:,iSpin), 'L', overlap, xmyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
         call symm(SYS(:,:,iSpin), 'L', overlap, YS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
       end do
-    end if 
+    end if
 
     ! calculate wcc = c_mu,i * W_ij * c_j,nu. We have only W_ab b > a and W_ij j > i:
     ! wcc(m,n) = sum_{pq, p <= q} w_pq (grndEigVecs(mu,p)grndEigVecs(nu,q)
@@ -2799,7 +2803,7 @@ contains
                   end do
                   ! Factor of 2 for spin-polarized calculations
                   tmprs2 = tmprs2 + cExchange * nSpin * dSo(n,m,xyz) * tmprs
-                end if 
+                end if
 
               end do
             end do
@@ -3255,7 +3259,7 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    !> RPA eigenvectors, either (X+Y) or (X-Y)  
+    !> RPA eigenvectors, either (X+Y) or (X-Y)
     real(dp), intent(in) :: XorY(:)
 
     !> Output vector H[V] virtual-virtual
@@ -3269,11 +3273,11 @@ contains
 
     allocate(qIJ(nAtom))
     allocate(gqIJ(nAtom))
-    allocate(qX(nAtom, nXov)) 
-    allocate(Gq(nAtom, nXov)) 
+    allocate(qX(nAtom, nXov))
+    allocate(Gq(nAtom, nXov))
 
     qX(:,:) = 0.0_dp
-    do ias = 1, nXov 
+    do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
@@ -3284,7 +3288,7 @@ contains
     end do
 
     Gq(:,:)  = 0.0_dp
-    do ias = 1, nXov 
+    do ias = 1, nXov
       qIJ = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ(:)
@@ -3294,7 +3298,7 @@ contains
     do abs = 1, sum(nXvv)
       a = getAB(abs, 1)
       b = getAB(abs, 2)
-      s = getAB(abs, 3) 
+      s = getAB(abs, 3)
       do i = 1, homo(s)
         ias = iaTrans(i, a, s)
         ibs = iaTrans(i, b, s)
@@ -3349,7 +3353,7 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    !> RPA eigenvectors, either (X+Y) or (X-Y)  
+    !> RPA eigenvectors, either (X+Y) or (X-Y)
     real(dp), intent(in) :: XorY(:)
 
     !> Output vector H[V] occ-occ
@@ -3363,8 +3367,8 @@ contains
 
     allocate(qIJ(nAtom))
     allocate(gqIJ(nAtom))
-    allocate(qX(nAtom, nXov)) 
-    allocate(Gq(nAtom, nXov)) 
+    allocate(qX(nAtom, nXov))
+    allocate(Gq(nAtom, nXov))
 
     qX(:,:) = 0.0_dp
     do ias = 1, nXov
@@ -3461,7 +3465,7 @@ contains
 
     allocate(qIJ(nAtom))
     allocate(gqIJ(nAtom))
-    allocate(qX(nAtom, nXov)) 
+    allocate(qX(nAtom, nXov))
     iMx = max(sum(nXoo), sum(nXvv))
     allocate(Gq(nAtom, iMx))
 
@@ -3483,7 +3487,7 @@ contains
     end do
 
     vecHovT(:) = 0.0_dp
-    do ias = 1, nXov 
+    do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
@@ -3512,7 +3516,7 @@ contains
       Gq(:,ijs) = gqIJ
     end do
 
-    do ias = 1, nXov 
+    do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
       do j = 1, homo(s)
         jas = iaTrans(j, a, s)
@@ -3585,10 +3589,10 @@ contains
     allocate(gqIJ(nAtom))
     iMx = max(sum(nXoo), nXov)
     allocate(qX(nAtom, iMx))
-    allocate(Gq(nAtom, iMx)) 
+    allocate(Gq(nAtom, iMx))
 
     qX(:,:) = 0.0_dp
-    do ias = 1, nXov 
+    do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
@@ -3608,7 +3612,7 @@ contains
     do ijs = 1, sum(nXoo)
       i = getIJ(ijs, 1)
       j = getIJ(ijs, 2)
-      s = getIJ(ijs, 3)     
+      s = getIJ(ijs, 3)
       do a = homo(s) + 1, nOrb
         ias = iaTrans(i, a, s)
         jas = iaTrans(j, a, s)
@@ -3620,7 +3624,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ijs = 1, sum(nXoo)
-      qIJ = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ) 
+      qIJ = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ijs) = gqIJ(:)
     end do
@@ -3719,7 +3723,7 @@ contains
 
   end subroutine getSqrGamma
 
-  !> Helper routine to construct overlap  
+  !> Helper routine to construct overlap
   subroutine getSOffsite(coords1, coords2, iSp1, iSp2, orb, skOverCont, Sblock)
     real(dp), intent(in) :: coords1(:), coords2(:)
     integer, intent(in) :: iSp1, iSp2
