@@ -47,6 +47,12 @@ option(WITH_API "Whether public API should be included and the DFTB+ library ins
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
 
+option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" FALSE)
+# Use this option to test and install the Python components of DFTB+. Note, that the Python API
+# based tools will only be considered, if shared library bulding (BUILD_SHARED_LIBS) and support for
+# the general API (WITH_API) and dynamic loading (ENABLE_DYNAMIC_LOADING) had been enabled.
+# Otherwise only the file I/O based tools (dptools) will be tested and installed.
+
 option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instances" FALSE)
 # Turn this on, if you want to create multiple concurrent DFTB+ instances **within one process** via
 # the API. This option will ensure that only components without writable global variables are
@@ -61,17 +67,13 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # must be present at run-time (and the correct LD_LIBRARY_PATH environment variable must be set, so
 # that they can be found by the operating system). If you want use the DFTB+ library from other
 # software packages (see WITH_API option above), they may also require a shared library (e.g.
-# calling DFTB+ functions from Python or Julia).
+# calling DFTB+ functions from Python or Julia). Note, that in order to use the library from Python
+# and Julia, you also need to turn on the ENABLE_DYNAMIC_LOADING option.
 
-if(WITH_API AND BUILD_SHARED_LIBS)
-  set(_WITH_PYTHON TRUE)
-else()
-  set(_WITH_PYTHON FALSE)
-endif()
-option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" ${_WITH_PYTHON})
-unset(_WITH_PYTHON)
-# Use this option to install the Python components of DFTB+. Requires building a shared library
-# and enabling support for the general API.
+option(ENABLE_DYNAMIC_LOADING "Whether the library should be dynamically loadable" FALSE)
+# Turn this on, if you wish to load the library dynamically (typically when you want to use
+# the library from Python or Julia). Only makes sense in combination with BUILD_SHARED_LIBS and
+# WITH_API set to True.
 
 
 #

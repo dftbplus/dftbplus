@@ -223,8 +223,7 @@ contains
 
 
   !> process a document tree to get settings for the calculation
-  subroutine c_DftbPlus_processInput(handler, inputHandler, atomListHandler)&
-      & bind(C, name='dftbp_process_input')
+  subroutine c_DftbPlus_processInput(handler, inputHandler) bind(C, name='dftbp_process_input')
 
     !> handler for the calculation instance
     type(c_DftbPlus), intent(inout) :: handler
@@ -232,21 +231,13 @@ contains
     !> input tree handler
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
-    !> atom list structure handler
-    type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
-
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
     type(TDftbPlusAtomList), pointer :: pDftbPlusAtomList
 
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
-    if (c_associated(atomListHandler%pDftbPlusAtomList)) then
-      call c_f_pointer(atomListHandler%pDftbPlusAtomList, pDftbPlusAtomList)
-      call instance%setupCalculator(pDftbPlusInput, pDftbPlusAtomList)
-    else
-      call instance%setupCalculator(pDftbPlusInput)
-    end if
+    call instance%setupCalculator(pDftbPlusInput)
 
   end subroutine c_DftbPlus_processInput
 

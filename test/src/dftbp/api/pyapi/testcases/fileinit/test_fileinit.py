@@ -19,7 +19,7 @@ import dftbplus
 from testhelpers import write_autotest_tag
 
 
-LIB_PATH = '../../../../../src/dftbp/libdftbplus'
+LIB_PATH = '../../../../../../../src/dftbp/libdftbplus'
 
 # number of atoms (should match dftb_in.hsd files)
 NATOM_SI = 2

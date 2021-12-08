@@ -195,14 +195,6 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(WITH_PYTHON AND NOT WITH_API)
-    message(FATAL_ERROR "Building Python API requires building with general API support")
-  endif()
-
-  if(WITH_PYTHON AND NOT BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "Building Python API requires shared libraries for dynamic loading")
-  endif()
-
   if(WITH_GPU AND WITH_MPI)
     message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()

@@ -18,6 +18,7 @@ env:
     -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
     -DWITH_CHIMES=true
+    -DWITH_PYTHON=true
 
 jobs:
   gcc-build:
@@ -125,6 +126,11 @@ jobs:
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
+    - name: Set extra CMake flags (Linux)
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+
     - name: Configure build
       run: >-
         cmake -B _build -G Ninja
@@ -224,6 +230,10 @@ jobs:
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
+
+    - name: Set extra CMake flags (Linux)
+      run: |
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
     - name: Configure build
       run: >-
