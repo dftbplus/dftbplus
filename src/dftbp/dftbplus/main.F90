@@ -200,8 +200,8 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, this%nGeoSteps
-      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep,&
-          & this%nGeoSteps, this%restartFreq)
+      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%isGeoOpt .or. allocated(this%geoOpt),&
+          & this%tMd, iGeoStep, this%nGeoSteps, this%restartFreq)
 
       if (.not. this%tRestartNoSC) then
         call printGeoStepInfo(this%tCoordOpt, this%tLatOpt, iLatGeoStep, iGeoStep)
@@ -320,11 +320,12 @@ contains
 
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
-        call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation)
+        call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt .or. allocated(this%geoOpt),&
+            & tGeomEnd, this%tMd, this%tDerivs, this%eField, this%dipoleMoment,&
+            & this%deltaDftb, this%solvation)
       end if
 
-      call writeFinalDriverStatus(this%isGeoOpt, tGeomEnd, this%tMd, this%tDerivs)
+      call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs)
 
       if (this%tMD) then
         call writeMdOut3(this%fdMd, mdOut)
@@ -1084,7 +1085,8 @@ contains
           end if
 
           tWriteSccRestart = env%tGlobalLead .and. needsSccRestartWriting(this%restartFreq,&
-              & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd, this%isGeoOpt,&
+              & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd, &
+              & this%isGeoOpt .or. allocated(this%geoOpt),&
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
@@ -1259,7 +1261,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
-    if (this%isGeoOpt .and. tWriteRestart) then
+    if ((this%isGeoOpt .or. allocated(this%geoOpt)) .and. tWriteRestart) then
       if (.not. (this%deltaDftb%isSpinPurify .and.&
           & this%deltaDftb%iDeterminant == determinants%triplet)) then
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
@@ -1340,16 +1342,17 @@ contains
 
     if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
       call writeDetailedOut4(this%fdDetailedOut, this%tSccCalc, tConverged, this%isXlbomd,&
-          & this%isLinResp, this%isGeoOpt, this%tMD, this%tPrintForces, this%tStress,&
+          & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD,&
+          & this%tPrintForces, this%tStress,&
           & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
           & this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol,&
           & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
-        & .and. (.not. (this%isGeoOpt .or. this%tMD)&
-        & .or. needsRestartWriting(this%isGeoOpt, this%tMd, iGeoStep, this%nGeoSteps,&
-        & this%restartFreq))) then
+        & .and. (.not. (this%isGeoOpt .or. allocated(this%geoOpt) .or. this%tMD)&
+        & .or. needsRestartWriting(this%isGeoOpt .or. allocated(this%geoOpt), this%tMd,&
+        & iGeoStep, this%nGeoSteps, this%restartFreq))) then
       call this%electrostatPot%evaluate(env, this%scc, this%eField)
       call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
@@ -1452,7 +1455,7 @@ contains
     real(dp) :: diffGeo
 
     !> Has this completed?
-    logical :: tCoordEnd
+    logical :: tCoordEnd, converged
 
     ! initially assume that coordinates and lattice vectors won't be updated
     this%tCoordsChanged = .false.
@@ -1468,6 +1471,42 @@ contains
         return
       end if
       this%tCoordsChanged = .true.
+    else if (allocated(this%geoOpt)) then
+      block
+        real(dp) :: energy, ediff, dnorm, damax, gnorm, gamax
+        logical :: econv, dconv, gconv
+
+        dnorm = norm2(this%displ)
+        damax = maxval(abs(this%displ))
+
+        call this%filter%transformDerivative(this%coord0, this%latVec, &
+            & this%derivs, this%totalStress, this%gcurr)
+        call this%geoOpt%step(this%dftbEnergy(this%deltaDftb%iFinal)%Emermin, &
+            & this%gcurr, this%displ)
+        call this%filter%transformStructure(this%coord0, this%latVec, this%displ)
+
+        energy = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
+        ediff = energy - this%elast
+        gnorm = norm2(this%gcurr)
+        gamax = maxval(abs(this%gcurr))
+        write(stdOut, '(a)') stepSummary(energy, ediff, gnorm, gamax, dnorm, damax, 2)
+
+        econv = ediff <= epsilon(0.0_dp) .and. abs(ediff) < this%optTol%energy
+        dconv = dnorm / this%filter%nvar < this%optTol%dispNorm .and. damax < this%optTol%dispElem
+        gconv = gnorm / this%filter%nvar < this%optTol%gradNorm .and. gamax < this%optTol%gradElem
+        converged = econv .and. gconv .and. dconv
+      end block
+
+      this%elast = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
+
+      if (tGeomEnd) then
+        call env%globalTimer%stopTimer(globalTimers%postSCC)
+        tExitGeoOpt = .true.
+        return
+      end if
+      tGeomEnd = converged
+      this%tCoordsChanged = .true.
+      this%tLatticeChanged = this%tPeriodic .and. this%filter%lattice
     else if (this%isGeoOpt) then
       this%tCoordsChanged = .true.
       if (tCoordStep) then
@@ -1548,6 +1587,43 @@ contains
   end subroutine getNextGeometry
 
 
+  function stepSummary(energy, ediff, gnorm, gamax, dnorm, damax, prlevel) result(str)
+    real(dp), intent(in) :: energy, ediff, gnorm, gamax, dnorm, damax
+    integer, intent(in) :: prlevel
+    character(len=:), allocatable :: str
+    character(len=*), parameter :: nl = new_line('a')
+
+    str = ""
+    if (prlevel <= 0) return
+
+    if (prlevel > 1) then
+      str = str//nl//"total energy  "//format_string(energy, '(es14.7)')//" H    "//&
+        &            "   energy change "//format_string(ediff, '(es14.7)')//" H"
+      str = str//nl//"gradient norm "//format_string(gnorm, '(es14.7)')//" H/a0 "//&
+        &            "   max. gradient "//format_string(gamax, '(es14.7)')//" H/a0"
+      str = str//nl//"step length   "//format_string(dnorm, '(es14.7)')//" a0   "//&
+        &            "   max. step     "//format_string(damax, '(es14.7)')//" a0"
+    else
+      str = str//nl//"total energy  "//format_string(energy, '(es14.7)')//" H"
+    end if
+
+  contains
+    function format_string(val, format) result(str)
+      real(dp), intent(in) :: val
+      character(len=*), intent(in) :: format
+      character(len=:), allocatable :: str
+
+      character(len=128) :: buffer
+      integer :: stat
+
+      write(buffer, format, iostat=stat) val
+      if (stat == 0) then
+        str = trim(buffer)
+      else
+        str = "*"
+      end if
+    end function format_string
+  end function stepSummary
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&

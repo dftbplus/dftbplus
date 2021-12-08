@@ -73,10 +73,12 @@ module dftbp_dftbplus_initprogram
   use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
   use dftbp_geoopt_conjgrad, only : TConjGrad
+  use dftbp_geoopt_filter, only : TFilter, TFilter_init
   use dftbp_geoopt_fire, only : TFire, TFire_init
   use dftbp_geoopt_gdiis, only : TDIIS
   use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
+  use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
   use dftbp_geoopt_steepdesc, only : TSteepDesc
   use dftbp_io_formatout, only : clearFile
   use dftbp_io_message, only : error, warning
@@ -593,6 +595,18 @@ module dftbp_dftbplus_initprogram
 
     !> Geometry optimizer for lattice consts
     type(TGeoOpt), allocatable :: pGeoLatOpt
+
+    !> Coordinate transformation filter
+    type(TFilter), allocatable :: filter
+
+    !> General geometry optimizer
+    class(TOptimizer), allocatable :: geoOpt
+
+    !> Convergence thresholds for geometry optimizer
+    type(TOptTolerance) :: optTol
+
+    real(dp) :: elast
+    real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer
     type(TMixer), allocatable :: pChrgMixer
@@ -1945,6 +1959,21 @@ contains
       allocate(this%indMovedAtom(0))
     end if
 
+    if (allocated(input%ctrl%geoOpt)) then
+      allocate(this%filter)
+      call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
+      call createOptimizer(input%ctrl%geoOpt%optimizer, this%filter%getDimension(),&
+          & this%geoOpt)
+      this%optTol = input%ctrl%geoOpt%tolerance
+      allocate(this%gcurr(this%filter%getDimension()))
+      allocate(this%displ(this%filter%getDimension()))
+      this%gcurr(:) = 0.0_dp
+      this%displ(:) = 0.0_dp
+      this%elast = 0.0_dp
+      this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps
+      this%geoOutFile = input%ctrl%geoOpt%outFile
+    end if
+
     allocate(this%pGeoCoordOpt)
     if (this%tCoordOpt) then
       allocate(tmpCoords(this%nMovedCoord))
@@ -2021,7 +2050,7 @@ contains
       end if
     end if
 
-    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket)) then
+    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket.or.allocated(this%geoOpt))) then
       this%nGeoSteps = 0
     end if
 

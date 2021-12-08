@@ -22,6 +22,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
   use dftbp_dftb_potentials, only : TAtomExtPotInput
   use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
@@ -490,6 +491,9 @@ module dftbp_dftbplus_inputdata
 
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
+
+    !> Geometry optimizer input
+    type(TGeoOptInput), allocatable :: geoOpt
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp

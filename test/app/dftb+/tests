@@ -275,6 +275,7 @@ analysis/H2O_mdESP                     #? MPI_PROCS <= 2
 geoopt/H2O_lbfgs                       #? MPI_PROCS <= 1
 geoopt/H2O_lbfgsStep                   #? MPI_PROCS <= 1
 geoopt/H2O_lbfgsLineMin                #? MPI_PROCS <= 1
+geoopt/H2O_rf                          #? MPI_PROCS <= 1
 geoopt/H2O                             #? MPI_PROCS <= 1
 geoopt/H2O_fire                        #? MPI_PROCS <= 1
 md/Si_8_NHC_restart                    #? MPI_PROCS <= 1
@@ -379,6 +380,7 @@ geoopt/Si_2_latconst                   #? MPI_PROCS <= 1
 md/SiH-surface                         #? MPI_PROCS <= 4
 geoopt/Si_2_lattice_lbfgs              #? MPI_PROCS <= 1
 geoopt/Si_2_lattice                    #? MPI_PROCS <= 1
+geoopt/Si_2_lattice_rf                 #? MPI_PROCS <= 1
 md/Si_8_NHC                            #? MPI_PROCS <= 1
 
 timedep/C66O10N4H44_Ewindow            #? WITH_ARPACK and MPI_PROCS <= 1

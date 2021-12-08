@@ -9,16 +9,16 @@
 
 !> Helper routines for the linear response modules.
 module dftbp_timedep_linrespcommon
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_constants, only: Hartree__eV, au__Debye, cExchange
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error
-  use dftbp_math_blasroutines, only : elecTolMax, hemv
+  use dftbp_math_blasroutines, only : hemv
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_transcharges, only : TTransCharges, transq
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   public
 
   !> prefactor of 2/3.
@@ -399,14 +399,14 @@ contains
 
 
   !> Multiplies the excitation supermatrix with a supervector.
-  !> For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt 
+  !> For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
   !> (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
   !>
   !> For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !> Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
-  !> occupations n_is, correct for finite T. 
+  !> occupations n_is, correct for finite T.
   !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
@@ -529,7 +529,7 @@ contains
     vout = 0.0_dp
 
     if(tAplusB) then
-       vTmp(:) = vin 
+       vTmp(:) = vin
     else
        vTmp(:) = vin * sqrt(wij)
     endif
@@ -601,10 +601,10 @@ contains
       !$OMP  END PARALLEL DO
 
     end if
- 
+
     if (tRangeSep) then
-      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels 
-      nxvv_a = sum(nvir_ud**2) 
+      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
+      nxvv_a = sum(nvir_ud**2)
       allocate(qv(natom, max(sum(nxov_ud), nxvv_a)))
       qv(:,:) = 0.0_dp
       do jbs = 1, nmat
@@ -615,10 +615,10 @@ contains
           abs = iaTrans(aa, bb, ss)
           qij(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
           jas = iaTrans(jj, aa, ss)
-          qv(:,jas) = qv(:,jas) + qij * vTmp(jbs) * sqrOccIA(jbs) 
+          qv(:,jas) = qv(:,jas) + qij * vTmp(jbs) * sqrOccIA(jbs)
         end do
       end do
-      !! Attention: Necessary to diff. between nmat/nxov_rd and all possible exc    
+      !! Attention: Necessary to diff. between nmat/nxov_rd and all possible exc
       do jas = 1, sum(nxov_ud)
         otmp(:) = qv(:,jas)
         call hemv(qv(:,jas), lrGamma, otmp)
@@ -631,16 +631,16 @@ contains
           ijs = iaTrans(ii, jj, ss)
           jas = iaTrans(jj, aa, ss)
           qij(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
-          vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas)) 
+          vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas))
         end do
       end do
- 
+
       qv(:,:) = 0.0_dp
       do jbs = 1, nmat
         jj = getIA(win(jbs), 1)
         bb = getIA(win(jbs), 2)
         ss = getIA(win(jbs), 3)
-        !! Here, index abs is different for a,b and b,a.  
+        !! Here, index abs is different for a,b and b,a.
         do aa = nocc_ud(ss) + 1, norb
           jas = iaTrans(jj, aa, ss)
           qij(:) = transChrg%qTransIA(jas, iAtomStart, ovrXev, grndEigVecs, getIA, win)
@@ -651,7 +651,7 @@ contains
           !! qv is not symmetric in a and b
           qv(:,abs) = qv(:,abs) + qij * vTmp(jbs) * sqrOccIA(jbs)
         end do
-      end do   
+      end do
 
       do abs = 1, nxvv_a
         otmp(:) = qv(:,abs)
@@ -664,11 +664,11 @@ contains
         ss = getIA(win(ias), 3)
         do bb = nocc_ud(ss) + 1, norb
           ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)           
+          qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
-          end if         
+          end if
           vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, abs))
        end do
       end do
@@ -686,7 +686,7 @@ contains
        vout(:) = vout * sqrt(wij)
     endif
 
-  end subroutine actionAplusB 
+  end subroutine actionAplusB
 
   !> Multiplies the excitation supermatrix with a supervector.
   !> (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
@@ -771,14 +771,14 @@ contains
     real(dp), allocatable :: qv(:,:)
     real(dp), allocatable :: qij(:), otmp(:)
 
-    nmat = size(vin) 
+    nmat = size(vin)
     norb = size(ovrXev, dim=1)
     vout(:) = 0.0_dp
 
     if (tRangeSep) then
       natom = size(lrGamma, dim=1)
-      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels 
-      nxvv_a = sum(nvir_ud**2) 
+      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
+      nxvv_a = sum(nvir_ud**2)
       allocate(qij(natom))
       allocate(otmp(natom))
       allocate(qv(natom, max(sum(nxov_ud),nxvv_a)))
@@ -792,11 +792,11 @@ contains
           abs = iaTrans(aa, bb, ss)
           qij(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
           jas = iaTrans(jj, aa, ss)
-          qv(:,jas) = qv(:,jas) + qij * vin(jbs) * sqrOccIA(jbs) 
+          qv(:,jas) = qv(:,jas) + qij * vin(jbs) * sqrOccIA(jbs)
         end do
       end do
 
-      !! Attention: Necessary to diff. between nmat/nxov_rd and all possible exc    
+      !! Attention: Necessary to diff. between nmat/nxov_rd and all possible exc
       do jas = 1, sum(nxov_ud)
         otmp(:) = qv(:,jas)
         call hemv(qv(:,jas), lrGamma, otmp)
@@ -810,7 +810,7 @@ contains
           ijs = iaTrans(ii, jj, ss)
           jas = iaTrans(jj, aa, ss)
           qij(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
-          vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas)) 
+          vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas))
         end do
       end do
 
@@ -819,7 +819,7 @@ contains
         jj = getIA(win(jbs), 1)
         bb = getIA(win(jbs), 2)
         ss = getIA(win(jbs), 3)
-        !! Here, index abs is different for a,b and b,a. 
+        !! Here, index abs is different for a,b and b,a.
         do aa = nocc_ud(ss) + 1, norb
           jas = iaTrans(jj, aa, ss)
           qij(:) = transChrg%qTransIA(jas, iAtomStart, ovrXev, grndEigVecs, getIA, win)
@@ -828,9 +828,9 @@ contains
             abs = abs + nvir_ud(1)**2
           end if
           !! qv is not symmetric in a and b
-          qv(:,abs) = qv(:,abs) + qij * vin(jbs) * sqrOccIA(jbs) 
+          qv(:,abs) = qv(:,abs) + qij * vin(jbs) * sqrOccIA(jbs)
         end do
-      end do          
+      end do
 
       do abs = 1, nxvv_a
         otmp(:) = qv(:,abs)
@@ -843,7 +843,7 @@ contains
         ss = getIA(win(ias), 3)
         do bb = nocc_ud(ss) + 1, norb
           ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)           
+          qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -854,13 +854,13 @@ contains
     endif
 
     ! orb. energy difference diagonal contribution
-    vout(:) = vout + wij * vin 
+    vout(:) = vout + wij * vin
 
   end subroutine actionAminusB
 
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
   !> (JCP 109 8218 (1998).
-  !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell) 
+  !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
   !> Here ias,jbt <= initDim
   !> Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
   !> Note: Routine not set up to handle onsite corrections.
@@ -872,7 +872,7 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    !> initial RPA subspace 
+    !> initial RPA subspace
     integer, intent(in) :: initDim
 
     !> number of same-spin transitions
@@ -947,8 +947,8 @@ contains
     integer :: izpAlpha, nMat, nAtom
     integer :: ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
-    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /) 
-    real(dp) :: rTmp 
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
+    real(dp) :: rTmp
     integer :: aa, bb, iat, jbs, abs, ijs, ibs, jas
 
     nMat = size(vP, dim=1) ! also known as nXov
@@ -966,12 +966,12 @@ contains
     oTmp(:) = 0.0_dp
 
     !-----------spin-unpolarized systems--------------
-    if(.not. tSpin) then 
+    if(.not. tSpin) then
 
       if (sym == 'S') then
 
         ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
-        do jb = 1, initDim 
+        do jb = 1, initDim
           qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           qTr(:) = qTr * sqrOccIA(jb)
 
@@ -1000,7 +1000,7 @@ contains
 
       end if
     !--------------spin-polarized systems--------
-    else 
+    else
 
       do jb = 1, initDim
         qTr(:) = transChrg%qTransIA(jb, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
@@ -1016,7 +1016,7 @@ contains
         end do
 
         ss = getIA(win(jb), 3)
-        
+
         oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp
 
         do ia = 1, nMat
@@ -1030,7 +1030,7 @@ contains
     end if
 
     if (tRangeSep) then
- 
+
       do jbs = 1, initDim
         jj = getIA(win(jbs), 1)
         bb = getIA(win(jbs), 2)
@@ -1041,7 +1041,7 @@ contains
           aa = getIA(win(iat), 2)
           tt = getIA(win(iat), 3)
 
-          if (ss /= tt) cycle  
+          if (ss /= tt) cycle
 
           abs = iaTrans(aa, bb, ss)
           qTr(:) = transChrg%qTransAB(abs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getAB)
@@ -1050,10 +1050,10 @@ contains
 
           ijs = iaTrans(ii, jj, ss)
           qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIJ)
-          rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp) 
+          rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(iat,jbs) = vP(iat,jbs) - rTmp
           vM(iat,jbs) = vM(iat,jbs) - rTmp
-          
+
           ibs = iaTrans(ii, bb, ss)
           qTr(:) = transChrg%qTransIA(ibs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           oTmp(:) = 0.0_dp
@@ -1061,7 +1061,7 @@ contains
 
           jas = iaTrans(jj, aa, ss)
           qTr(:) = transChrg%qTransIA(jas, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp) 
+          rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(iat,jbs) = vP(iat,jbs) - rTmp
           vM(iat,jbs) = vM(iat,jbs) + rTmp
         end do
@@ -1070,7 +1070,7 @@ contains
     endif
 
     do jb = 1, initDim
-      vP(jb,jb) = vP(jb,jb) + wIJ(jb) 
+      vP(jb,jb) = vP(jb,jb) + wIJ(jb)
       vM(jb,jb) = vM(jb,jb) + wIJ(jb)
     end do
 
@@ -1230,14 +1230,14 @@ contains
         end do
       end do
     end do
-    
+
     off = 0
 
     do iSpin = 1, nSpin
       do ii = 1, nOcc(iSpin)
         do jj = 1, ii
           ind = jj + ((ii - 1) * ii) / 2 + off
-          getIJ(ind,:) = [ii, jj, iSpin] 
+          getIJ(ind,:) = [ii, jj, iSpin]
         end do
       end do
       off = (nOcc(1) * (nOcc(1) + 1)) / 2
@@ -1247,9 +1247,9 @@ contains
 
     do iSpin = 1, nSpin
       do aa = 1, norb - nOcc(iSpin)
-        do bb = 1, aa 
-          ind = bb + ((aa  - 1) * aa) / 2 + off 
-          getAB(ind,:) = [aa + nOcc(iSpin), bb + nOcc(iSpin), iSpin] 
+        do bb = 1, aa
+          ind = bb + ((aa  - 1) * aa) / 2 + off
+          getAB(ind,:) = [aa + nOcc(iSpin), bb + nOcc(iSpin), iSpin]
         end do
       end do
       off = (nVir(1) * (nVir(1) + 1)) / 2
@@ -1288,11 +1288,11 @@ contains
       osz = osz + rtmp * rtmp
     end do
     osz = twothird * omega * osz
-    
-    ! For spin-unpolarized systems 
+
+    ! For spin-unpolarized systems
     ! (X+Y)_ia_up = (X+Y)_ia_dn = (X+Y)_ia^Singlet / sqrt(2)
     if (.not. tSpin) then
-      osz = osz * 2.0_dp 
+      osz = osz * 2.0_dp
     end if
 
   end function oscillatorStrength
@@ -1322,15 +1322,15 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
     do ii = 1, size(xpy, dim=2)
       do ll = 1, 3
-        tdip(ii,ll) = sum(transd(:,ll) * sqrOccIA * xpy(:,ii)) 
+        tdip(ii,ll) = sum(transd(:,ll) * sqrOccIA * xpy(:,ii))
       end do
     end do
     !$OMP  END PARALLEL DO
 
-    ! For spin-unpolarized systems 
-    ! (X+Y)_ia_up = (X+Y)_ia_dn = (X+Y)_ia^Singlet / sqrt(2) 
+    ! For spin-unpolarized systems
+    ! (X+Y)_ia_up = (X+Y)_ia_dn = (X+Y)_ia^Singlet / sqrt(2)
     if (.not. tSpin) then
-      tdip(:,:) = tdip * sqrt(2.0_dp) 
+      tdip(:,:) = tdip * sqrt(2.0_dp)
     end if
 
   end subroutine transitionDipole
@@ -1500,7 +1500,7 @@ contains
               tmp = tmp + MOoverlap(m,aa,ovrXev,grndEigVecs) * MOoverlap(m,bb,ovrXev,grndEigVecs)
             end do
           end if
- 
+
          s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
         end do
       end do
@@ -1728,7 +1728,7 @@ contains
 
   end subroutine incSizeMatBothDim
 
-  !> Same routine exists in rs_linresp and will be removed 
+  !> Same routine exists in rs_linresp and will be removed
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
   subroutine calcMatrixSqrt(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
 
@@ -1784,7 +1784,7 @@ contains
 
   end subroutine orthonormalizeVectors
 
-  !> Encapsulate memory extension for Stratmann solver 
+  !> Encapsulate memory extension for Stratmann solver
   subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
        &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
 

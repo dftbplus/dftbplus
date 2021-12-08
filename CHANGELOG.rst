@@ -27,6 +27,8 @@ Addded
 
 - Stratmann solver for excited state, including range separated calculations
 
+- Rational function geometry optimization driver
+
 - ChIMES force field corrections of the repulsive potentials implemented
 
 
@@ -37,6 +39,8 @@ Changed
   <https://fpm.fortran-lang.org/>`_ preferred structure.
 
 - Updated parser version to 10.
+
+- New geometry optimization driver
 
 - Replace backend to implement DFT-D3 dispersion correction.
   Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
@@ -59,6 +63,11 @@ Fixed
 
 - D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
   calculations
+
+
+- LBFGS implementation fixed in new geometry optimization driver
+
+- Coupled cartesian and lattice parameter optimization
 
 
 21.1 (2021-05-12)

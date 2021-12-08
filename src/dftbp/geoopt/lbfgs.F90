@@ -21,7 +21,7 @@ module dftbp_geoopt_lbfgs
   use dftbp_geoopt_linemin, only : TLineMin, TLineMin_init
   use dftbp_io_message, only : error, warning
   implicit none
-  
+
   private
   public :: TLbfgs, TLbfgs_init
 

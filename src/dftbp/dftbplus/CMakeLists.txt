@@ -18,4 +18,6 @@ set(sources-fpp
   ${curdir}/specieslist.F90
   ${curdir}/transportio.F90)
 
+add_subdirectory(input)
+
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

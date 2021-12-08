@@ -1,0 +1,32 @@
+Geometry = GenFormat {
+3  C
+ O H
+     1    1    0.00000000000E+00  -0.10000000000E+01   0.00000000000E+00
+     2    2    0.00000000000E+00   0.00000000000E+00   0.78306400000E+00
+     3    2    0.00000000000E+00   0.00000000000E+00  -0.78306400000E+00
+}
+
+Driver = GeometryOptimization {
+  Optimizer = Rational {}
+  MaxSteps = 100
+  OutputPrefix = "geom.out"
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-10
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+  SlaterKosterFiles = {
+    O-O = "slakos/origin/mio-1-1/O-O.skf"
+    O-H = "slakos/origin/mio-1-1/O-H.skf"
+    H-O = "slakos/origin/mio-1-1/O-H.skf"
+    H-H = "slakos/origin/mio-1-1/H-H.skf"
+  }
+}
+
+Options = { WriteAutotestTag = Yes }
+ParserOptions = { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }

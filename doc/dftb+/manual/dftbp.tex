@@ -263,15 +263,17 @@ structure during the calculation.\\ \bigskip Currently the following
 methods are available:
 \begin{description}
 \item[\iscb{}] Static calculation with the input geometry.
-\item[\iscb{SteepestDescent}] Geometry optimisation by moving atoms
+\item[\iscb{GeometryOptimization}] Geometry optimisation of the input geometry.
+  See p.~\pref{sec:dftbp.GeometryOptimization}.
+\item[\iscb{SteepestDescent}] (\textbf{deprecated}) Geometry optimisation by moving atoms
   along the acting forces. See p.~\pref{sec:dftbp.SteepestDescent}.
-\item[\iscb{ConjugateGradient}] Geometry optimisation using the
+\item[\iscb{ConjugateGradient}] (\textbf{deprecated}) Geometry optimisation using the
   conjugate gradient algorithm. See p.~\pref{sec:dftbp.ConjugateGradient}.
-\item[\iscb{gDIIS}] Geometry optimisation using the modified gDIIS
+\item[\iscb{gDIIS}] (\textbf{deprecated}) Geometry optimisation using the modified gDIIS
   method. See p.~\pref{sec:dftbp.gDIIS}.
-\item[\iscb{LBFGS}] Geometry optimisation using the LBFGS
+\item[\iscb{LBFGS}] (\textbf{deprecated}) Geometry optimisation using the LBFGS
   algorithm. See p.~\pref{sec:dftbp.LBFGS}.
-\item[\iscb{FIRE}] Geometry optimisation using the FIRE
+\item[\iscb{FIRE}] (\textbf{deprecated}) Geometry optimisation using the FIRE
   algorithm. See p.~\pref{sec:dftbp.FIRE}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
   energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
@@ -282,8 +284,169 @@ methods are available:
 \end{description}
 
 
+\subsection{GeometryOptimization}
+\label{sec:dftbp.GeometryOptimization}
+
+\begin{ptable}
+  \kw{Optimizer} & m &  & Rational & \\
+  \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{LatticeOpt} & l & & \is{No} & \\
+  %\kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  %\kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
+  %\kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  %\kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
+  \kw{Convergence} & m &  & & \pref{sec:dftbp.Convergence} \\
+  \kw{MaxSteps} &i &  & 200 & \\
+  \kw{OutputPrefix} &s &  & "geo\_end" & \\
+  %\kw{AppendGeometries} & l & & \is{No} & \\
+  %\kw{Constraints} & (1i3r)* & LatticeOpt = No & \cb            & \\
+  %\kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+\end{ptable}
+
+Example for performing a full lattice optimization using the rational function optimizer:
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = Rational {}
+  LatticeOpt = Yes
+}
+\end{verbatim}
+
+
+\subsubsection{Optimizer: Rational}
+\label{sec:dftbp.Optimizer.RF}
+
+Provides a rational function based optimizer.
+The geometry displacement step is determining obtaining the lowest eigenvalue of the augmented Hessian matrix.
+The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimization cycle.
+The augmented Hessian is build from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme.
+A unit matrix is used as guess for the model hessian.
+
+The scaling behaviour of the computational cost and memory usage for this optimization step is quadratic in the number of optimized variables.
+Carefully evaluate the runtime of the optimization step for (very) large systems together linear-scaling electronic solvers.
+
+\begin{ptable}
+  \kw{DiagLimit} & r &  & 1.0e-2 & \\
+\end{ptable}
+\begin{description}
+\item[\is{DiagLimit}]
+  Lower limit of the diagonal Hessian elements in the BFGS-like update step.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = Rational { DiagLimit = 1.0e-2 }
+}
+\end{verbatim}
+
+
+\subsubsection{Optimizer: LBFGS}
+\label{sec:dftbp.Optimizer.LBFGS}
+
+Limited memory BFGS optimizer provides a quasi-Newton optimization method using limited amount of memory.
+
+The scaling behaviour of the computational cost and memory usage for this optimization step is linear in the number of optimized variables.
+
+\begin{ptable}
+  \kw{Memory} & i &  & 20 & \\
+\end{ptable}
+\begin{description}
+\item[\is{Memory}]
+  Number of past displacements and gradient vectors to keep.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = LBFGS { Memory = 20 }
+}
+\end{verbatim}
+
+
+\subsubsection{Optimizer: FIRE}
+\label{sec:dftbp.Optimizer.FIRE}
+
+The {\itshape fast inertial relaxation engine} of Bitzek {\itshape et al.}~\cite{Bitzek-PRL-97-170201},
+using the default values from their paper and a Leap-frog integrator.
+This can be faster than conjugate gradient and competitive with LBFGS in some cases,
+but you should verify if FIRE is stable and efficient for your system before using it
+over other optimisers.
+
+The scaling behaviour of the computational cost and memory usage for this optimization step is linear in the number of optimized variables.
+
+\begin{ptable}
+  \kw{nMin} & i &  & 5 & \\
+  \kw{aPar} & r &  & 0.1 & \\
+  \kw{fInc} & r &  & 1.1 & \\
+  \kw{fDec} & r &  & 0.5 & \\
+  \kw{fAlpha} & r &  & 0.99 & \\
+  \kw{StepSize} & r &  & 1.0 & \\
+\end{ptable}
+\begin{description}
+\item[\is{StepSize}]\modif{\modtype{time}}
+  Step size ($\delta t$) for the propagation of the coordinates.
+\item[\is{nMin}]
+  Minimum number of steps before the step size is increased.
+\item[\is{aPar}]
+  Parameter for the update of the velocities.
+\item[\is{fInc}]
+  Factor for the increase of the step size.
+\item[\is{fDec}]
+  Factor for the decrease of the step size.
+\item[\is{fAlpha}]
+  Factor for the update the alpha parameter on reset.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = FIRE {
+    nMin = 5
+    aPar = 0.1
+    fInc = 1.1
+    fDec = 0.5
+    fAlpha = 0.99
+    StepSize = 1.0
+  }
+}
+\end{verbatim}
+
+
+\subsubsection{Convergence}
+\label{sec:dftbp.Convergence}
+
+Data group to provide the convergence thresholds for the geometry optimizations.
+To disable a convergence criterium a large value should be provided.
+
+\begin{ptable}
+  \kw{Energy} & r &  & inf & \\
+  \kw{GradAMax} & r &  & 1e-4 & \\
+  \kw{GradNorm} & r &  & inf & \\
+  \kw{DispAMax} & r &  & inf & \\
+  \kw{DispNorm} & r &  & inf & \\
+\end{ptable}
+\begin{description}
+\item[\is{Energy}]\modif{\modtype{energy}}
+  Maximum energy change in one geometry step to consider optimization converged.
+  Disabled by default.
+\item[\is{GradAMax}]\modif{\modtype{force}}
+  Maximum absolute gradient element in one geometry step to consider optimization converged
+  Default threshold is 1e-4 Hartree/Bohr.
+\item[\is{GradNorm}]\modif{\modtype{force}}
+  Maximum gradient norm in one geometry step to consider optimization converged
+  Disabled by default.
+\item[\is{DispAMax}]\modif{\modtype{length}}
+  Maximum absolute displacement element in one geometry step to consider optimization converged
+  Disabled by default.
+\item[\is{DispNorm}]\modif{\modtype{length}}
+  Maximum displacement norm in one geometry step to consider optimization converged
+  Disabled by default.
+\end{description}
+
+
 \subsection{SteepestDescent\cb}
 \label{sec:dftbp.SteepestDescent}
+
+\textbf{This geometry optimizer is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimization} driver instead.}
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
@@ -393,6 +556,9 @@ methods are available:
 \subsection{ConjugateGradient\cb}
 \label{sec:dftbp.ConjugateGradient}
 
+\textbf{This geometry optimizer is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimization} driver instead.}
+
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{MaxForceComponent} & r & & 1e-4 & \\
@@ -412,6 +578,9 @@ See previous subsection for the description of the properties.
 
 \subsection{gDIIS\cb}
 \label{sec:dftbp.gDIIS}
+
+\textbf{This geometry optimizer is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimization} driver instead.}
 
 \begin{ptable}
   \kw{Alpha} & r & & 0.1 & \\
@@ -442,6 +611,9 @@ properties.\footnote{This approach is distinct from
 
 \htcbsubsection{LBFGS}
 \label{sec:dftbp.LBFGS}
+
+\textbf{This geometry optimizer is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimization} driver instead.}
 
 \begin{ptable}
   \kw{Memory}            & i & & 20 & \\
@@ -475,6 +647,9 @@ Specific properties for this method are:
 
 \htcbsubsection{FIRE}
 \label{sec:dftbp.FIRE}
+
+\textbf{This geometry optimizer is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimization} driver instead.}
 
 The {\it fast inertial relaxation engine} of Bitzek {\it et
   al.}~\cite{Bitzek-PRL-97-170201}, using the default values from their paper
