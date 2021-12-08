@@ -57,18 +57,42 @@ set(C_FLAGS_DEBUG "-g -Wall"
 
 # LAPACK and BLAS
 # (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
-if(WITH_OMP)
-  set(BLAS_LIBRARY "mkl_intel_lp64;mkl_intel_thread;mkl_core" CACHE STRING "BLAS library to link")
-else()
-  set(BLAS_LIBRARY "mkl_intel_lp64;mkl_sequential;mkl_core" CACHE STRING "BLAS libraries to link")
-endif()
-set(BLAS_LIBRARY_DIR "$ENV{MKLROOT}/lib/intel64" CACHE STRING
-    "Directories where BLAS libraries can be found")
 
-set(LAPACK_LIBRARY "NONE")
+# if(WITH_OMP)
+#   set(BLAS_LIBRARY "mkl_intel_lp64;mkl_intel_thread;mkl_core" CACHE STRING "BLAS library to link")
+# else()
+#   set(BLAS_LIBRARY "mkl_intel_lp64;mkl_sequential;mkl_core" CACHE STRING "BLAS libraries to link")
+# endif()
+# set(BLAS_LIBRARY_DIR "$ENV{MKLROOT}/lib/intel64" CACHE STRING
+#     "Directories where BLAS libraries can be found")
+
+# Automatic CMake LAPACK/BLAS finder settings. If they don't work out, you may try to use the
+# manual settings above instead.
+if ("${BLAS_LIBRARY}" STREQUAL "")
+  # In order to load the library via dlopen() in Python, special MKL library must be linked.
+  if(WITH_API AND BUILD_SHARED_LIBS AND WITH_PYTHON)
+    if(WITH_MPI)
+      message(FATAL_ERROR
+        "Don't know how to link MKL as shared library with MPI and dlopen (Python API) support. "
+        "Set BLAS_LIBRARY, LAPACK_LIBRARY and SCALAPACK_LIBRARY manually, if you know how.")
+    endif()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.17")
+      set(BLA_VENDOR Intel10_64_dyn)
+    else()
+      set(BLAS_LIBRARY "mkl_rt")
+      set(BLAS_LIBRARY_DIR "$ENV{MKLROOT}/lib/intel64" CACHE STRING
+        "Directories where BLAS libraries can be found")
+    endif()
+  elseif(WITH_OMP)
+    set(BLA_VENDOR Intel10_64lp)
+  else()
+    set(BLA_VENDOR Intel10_64lp_seq)
+  endif()
+endif()
+
 #set(LAPACK_LIBRARY_DIR "$ENV{MKLROOT}/lib/intel64" CACHE STRING
 #    "Directories where LAPACK libraries can be found")
-
+set(LAPACK_LIBRARY "NONE")
 
 # ARPACK -- only needed when built with ARPACK support
 #set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack library")
