@@ -1922,11 +1922,14 @@ contains
 
   !> Performs a step backwards to boot the dynamics using the Euler algorithm.
   !> Output is rho(deltaT) called rhoNew, input is rho(t=0) (ground state) called rho
-  subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
+  subroutine initializePropagator(this, env, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
       & orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Density matrix at next step
     complex(dp), intent(inout) :: rhoNew(:,:,:)
@@ -1973,8 +1976,13 @@ contains
     allocate(RdotSprime(this%nOrbs,this%nOrbs))
 
     if (this%tIons) then
-      call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-          &neighbourList, nNeighbourSK, iSquare)
+      if (allocated(this%tblite)) then
+        call this%tblite%buildRdotSprime(env, RdotSprime, coordAll, this%movedVelo, &
+            & this%species, nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSquare, orb)
+      else
+        call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
+            &neighbourList, nNeighbourSK, iSquare)
+      end if
     else
       RdotSprime(:,:) = 0.0_dp
     end if
@@ -3752,7 +3760,7 @@ contains
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       this%trhoOld(:,:,:) = this%trho
-      call initializePropagator(this, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv,&
+      call initializePropagator(this, env, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv,&
           & coordAll, skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
