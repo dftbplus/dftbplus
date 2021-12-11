@@ -12,7 +12,8 @@ module dftbp_dftb_coulomb
   use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, nSearchIter
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2,&
+      & assembleChunks
   use dftbp_dftb_boundarycond, only : boundaryConditions
   use dftbp_dftb_periodic, only : TNeighbourList, getLatticePoints, getCellTranslations
   use dftbp_io_message, only : error
@@ -109,7 +110,7 @@ module dftbp_dftb_coulomb
     ! Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom_(:)
 
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
     !> Descriptor for 1/R matrix
     integer :: descInvRMat_(DLEN_)
 
@@ -121,7 +122,7 @@ module dftbp_dftb_coulomb
 
     !> Distributed charge vector
     real(dp), allocatable :: qGlobal_(:,:)
-#:endif
+  #:endif
 
   contains
 
