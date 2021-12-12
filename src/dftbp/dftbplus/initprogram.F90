@@ -2263,6 +2263,10 @@ contains
       else
         this%isRespKernelRPA = .false.
       end if
+      if (this%iDistribFn /= fillingTypes%Fermi) then
+        call error("Choice of filling function currently incompatible with perturbation&
+            & calculations")
+      end if
       if (this%tNegf) then
         call error("Currently the perturbation expressions for NEGF are not implemented")
       end if
