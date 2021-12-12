@@ -23,6 +23,9 @@ if(NOT TARGET DftbPlus::DftbPlus)
 
   if(DftbPlus_WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
     find_dependency(OpenMP)
+  else()
+    # DFTB+ uses dummy target for non-OMP compilation
+    add_library(OpenMP::OpenMP_Fortran INTERFACE IMPORTED)
   endif()
 
   if(NOT TARGET BLAS::BLAS)

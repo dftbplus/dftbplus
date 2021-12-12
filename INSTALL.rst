@@ -87,25 +87,22 @@ following architectures:
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
 +===============+======================+=============+==================+=====+
-| x86_64 /      | GNU Fortran/C 7.5    | OpenMPI 2.1 | OpenBlas 0.3.7,  |     |
+| x86_64 /      | GNU Fortran/C 8.4    | OpenMPI 3.1 | OpenBlas 0.3.7,  |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, |     |
+| x86_64 /      | GNU Fortran/C 11.2   | OpenMPI 4.1 | OpenBlas 0.3.18, |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
-|               |                      |             | ELSI 2.6.1       |     |
-+---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C 18.0 | MPICH 3.2   | MKL 18.0         |     |
-| Linux         |                      |             | ELSI 2.6.1       |     |
+|               |                      |             | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C 19.0 | MPICH 3.3   | MKL 19.0         |     |
 | Linux         |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   |     |
+| x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   | [1] |
 | Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.5.0       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [1] |
+| x86_64 /      | GNU Fortran/C 9.4    | --          | OpenBlas 0.3.18  | [2] |
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
@@ -114,7 +111,8 @@ libraries.
 
 Notes:
 
-[1] Only partial testing of the serial version.
+[1] Only Debug build is tested regulary with OpenMP turned off.
+[2] Only partial testing of the serial version.
 
 
 Obtaining the source

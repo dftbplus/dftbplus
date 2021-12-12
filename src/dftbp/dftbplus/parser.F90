@@ -4826,7 +4826,7 @@ contains
 
   #:if WITH_TRANSPORT
     !> Orbital
-    type(TOrbitals), intent(in) :: orb
+    type(TOrbitals), intent(in), allocatable :: orb
 
     !> Transport parameters
     type(TTransPar), intent(inout) :: transpar
@@ -5016,6 +5016,10 @@ contains
       end if
       if (.not.transpar%taskUpload) then
         call error("Block TunnelingAndDos not compatible with task=contactHamiltonian")
+      end if
+      if (.not. allocated(orb)) then
+        call error("Orbital information from SK-files missing (xTB Hamiltonian not compatible&
+            & with transport yet)")
       end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
     endif

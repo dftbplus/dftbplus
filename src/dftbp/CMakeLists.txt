@@ -166,6 +166,12 @@ if(INSTALL_INCLUDE_FILES)
     install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
   endforeach()
 
+  get_target_property(moddirs ddcosmo_objlib INTERFACE_INCLUDE_DIRECTORIES)
+  foreach(moddir IN LISTS moddirs)
+    install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
+  endforeach()
+
+
   if (WITH_SOCKETS)
     get_target_property(moddirs fsockets_objlib INTERFACE_INCLUDE_DIRECTORIES)
     foreach(moddir IN LISTS moddirs)
