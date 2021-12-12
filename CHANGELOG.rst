@@ -5,6 +5,69 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+21.2 (2021-12-13)
+=================
+
+Added
+-----
+
+- On-site potentials added
+
+- Support for extended tight binding (xTB) Hamiltonian via tblite library
+
+- DFTBPLUS_PARAM_DIR for searching Slater-Koster parameter files, solvation
+  parameter files, and xTB parameter files
+
+- Atomic potential responses (enables atom resolved response kernel evaluation
+  and condensed Fukui functions)
+
+- Internal changes for response evaluation for DFTB ground state hamiltonians
+  (except self-consistent dispersion) with molecular, periodic and helical
+  boundary conditions.
+
+- Stratmann solver for excited state, including range separated calculations
+
+- Rational function geometry optimization driver
+
+- ChIMES force field corrections of the repulsive potentials implemented
+
+- New geometry optimization drivers with coupled cartesian and lattice parameter
+  optimization
+
+
+Changed
+-------
+
+- Source tree reorganised to match the `Fortran package manager
+  <https://fpm.fortran-lang.org/>`_ preferred structure.
+
+- Updated parser version to 10.
+
+- Replace backend to implement DFT-D3 dispersion correction.
+  Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
+  `dftd3-lib <https://github.com/dftbplus/dftd3-lib>`_.
+  Option ``WITH_DFTD3`` is removed and replaced with ``WITH_SDFTD3``.
+
+
+Fixed
+-----
+
+- CM5 correction added with incorrect sign to charge populations
+
+- External fields disabled for XLBOMD
+
+- self-consistent DFT-D4 uses populations instead of partial charges
+  in potential shift, energy expression and derivatives
+
+- Number of electrons for Fixed / spin-common Fermi energies and transport in
+  results.tag
+
+- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
+  calculations
+
+- LBFGS implementation fixed in new geometry optimization driver
+
+
 21.1 (2021-05-12)
 =================
 
@@ -36,7 +99,7 @@ Fixed
 -----
 
 - Fix bug in binary eigenvector output in non-MPI builds (only eigenvectors
-  belonging to the the first k-point and spin channel were stored)
+  belonging to the first k-point and spin channel were stored)
 
 - Fix transpose of lattice vectors on return from iPI (thanks to Bingqing Cheng
   and Edgar Engel)

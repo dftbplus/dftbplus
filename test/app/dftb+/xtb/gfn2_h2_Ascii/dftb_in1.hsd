@@ -1,0 +1,14 @@
+Geometry = genFormat {
+  <<< geo.gen
+}
+
+Hamiltonian = xTB {
+  Method = "GFN2-xTB"
+  SccTolerance = 1E-8
+}
+
+Options {
+  WriteChargesAsText = Yes
+}
+ParserOptions { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }

@@ -26,24 +26,32 @@ option(WITH_POISSON "Whether the Poisson-solver should be included" ${WITH_TRANS
 # if you want to use it in a non-transport build. Note, the Poisson-solver is not
 # multi-instance safe and is therefore not allowed, if WITH_API (see below) is on.
 
+option(WITH_TBLITE "Whether xTB support should be included via tblite." FALSE)
+
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
 # Works only with non-MPI (serial) build, needed for Casida linear response
 
-option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
-# NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
-# GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
+option(WITH_SDFTD3 "Whether the s-dftd3 library should be included" FALSE)
 
 option(WITH_MBD "Whether DFTB+ should be built with many-body-dispersion support" FALSE)
 
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
+
+option(WITH_CHIMES "Whether repulsive corrections via the ChIMES library should be enabled" FALSE)
 
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)
 # This will also install necessary include and module files and further libraries needed to link the
 # DFTB+ library.
+
+option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" FALSE)
+# Use this option to test and install the Python components of DFTB+. Note, that the Python API
+# based tools will only be considered, if shared library bulding (BUILD_SHARED_LIBS) and support for
+# the general API (WITH_API) and dynamic loading (ENABLE_DYNAMIC_LOADING) had been enabled.
+# Otherwise only the file I/O based tools (dptools) will be tested and installed.
 
 option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instances" FALSE)
 # Turn this on, if you want to create multiple concurrent DFTB+ instances **within one process** via
@@ -53,15 +61,19 @@ option(INSTANCE_SAFE_BUILD "Whether build should support concurrent DFTB+ instan
 # is not relevant for the standalone DFTB+ binary, only for the API (if WITH_API had been turned
 # on).
 
-option(WITH_PYTHON "Whether the Python components of DFTB+ should be tested and installed" TRUE)
-
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
 # dynamically linked to their applications. This results in smaller applications, but the libraries
 # must be present at run-time (and the correct LD_LIBRARY_PATH environment variable must be set, so
 # that they can be found by the operating system). If you want use the DFTB+ library from other
 # software packages (see WITH_API option above), they may also require a shared library (e.g.
-# calling DFTB+ functions from Python or Julia).
+# calling DFTB+ functions from Python or Julia). Note, that in order to use the library from Python
+# and Julia, you also need to turn on the ENABLE_DYNAMIC_LOADING option.
+
+option(ENABLE_DYNAMIC_LOADING "Whether the library should be dynamically loadable" FALSE)
+# Turn this on, if you wish to load the library dynamically (typically when you want to use
+# the library from Python or Julia). Only makes sense in combination with BUILD_SHARED_LIBS and
+# WITH_API set to True.
 
 
 #
@@ -131,3 +143,14 @@ set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
 #
 # Fetch: Fetch the source into the build folder and build the dependency as part of the build
 #     process (works also in cases where the source tree is not a Git repository)
+
+
+#
+# Developer settings
+#
+option(LCOV_REPORT "Whether coverage report should be generated via lcov/genhtml" FALSE)
+# Makes only sense for build type 'Coverage'. Requires lcov and and optionally genhtml to be
+# installed on the system. After building the code, you have to build manually the 'lcov_init'
+# target (e.g. `make lcov_init`), then run the tests (e.g. `ctest`) and finally generate the report
+# with the lcov_report target (e.g. `make lcov_report`). If you only need the evaluated coverage
+# data, but no HTML report, build the `lcov_eval` target instead.

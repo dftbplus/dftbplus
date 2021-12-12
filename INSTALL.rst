@@ -3,7 +3,7 @@ Building and installing DFTB+
 *****************************
 
 If you have problems with the build, you can find suggestions for some
-frequently occuring scenarios in the `Troubleshooting <#troubleshooting>`_
+frequently occurring scenarios in the `Troubleshooting <#troubleshooting>`_
 section at the bottom.
 
 
@@ -12,9 +12,11 @@ Requirements
 
 In order to compile DFTB+, you need the following software components:
 
-* A Fortran 2003 compliant compiler
+* Fortran 2003 compliant compiler
 
-* A C-compiler
+* C compiler
+
+* C++ compiler (built with ELSI/PEXSI or ChIMES support)
 
 * CMake (version 3.16 or newer)
 
@@ -85,25 +87,22 @@ following architectures:
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
 +===============+======================+=============+==================+=====+
-| x86_64 /      | GNU Fortran/C 7.5    | OpenMPI 2.1 | OpenBlas 0.3.7,  |     |
+| x86_64 /      | GNU Fortran/C 8.4    | OpenMPI 3.1 | OpenBlas 0.3.7,  |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, |     |
+| x86_64 /      | GNU Fortran/C 11.2   | OpenMPI 4.1 | OpenBlas 0.3.18, |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
-|               |                      |             | ELSI 2.6.1       |     |
-+---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C 18.0 | MPICH 3.2   | MKL 18.0         |     |
-| Linux         |                      |             | ELSI 2.6.1       |     |
+|               |                      |             | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C 19.0 | MPICH 3.3   | MKL 19.0         |     |
 | Linux         |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   |     |
+| x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   | [1] |
 | Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.5.0       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [1] |
+| x86_64 /      | GNU Fortran/C 9.4    | --          | OpenBlas 0.3.18  | [2] |
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
@@ -112,7 +111,8 @@ libraries.
 
 Notes:
 
-[1] Only partial testing of the serial version.
+[1] Only Debug build is tested regulary with OpenMP turned off.
+[2] Only partial testing of the serial version.
 
 
 Obtaining the source
@@ -145,19 +145,6 @@ download these components by using the `get_opt_externals` utility, e.g.::
 This will download all license compatible optional external components. These
 include the Slater-Koster (slako) data for testing the compiled code.
 
-If you also wish to download and use any of the optional components which have
-*conflicting licenses* (e.g. the `DftD3 library
-<https://github.com/aradi/dftd3-lib>`_), you must explicitly request it::
-
-  ./utils/get_opt_externals ALL
-
-This will then prompt for confirmation when downloading components with other
-licenses.
-
-*Note*: if you include components with conflicting licenses into your
-compilation of DFTB+, you are only allowed to use the resulting binary for your
-personal research and are not permitted to distribute it.
-
 For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
 
@@ -189,7 +176,7 @@ In order to build DFTB+ carry out the following steps:
   compiler specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or the generic
   one (`generic.cmake`) if the detected compiler combination does not correspond
   to any of the specific settings. The selected toolchain is indicated in the
-  CMake output. (The toolchain file selection can be manually overriden by
+  CMake output. (The toolchain file selection can be manually overridden by
   setting the ``TOOLCHAIN`` CMake variable.)
 
   You may adjust any CMake variable defined in `config.make` or in the
@@ -200,7 +187,7 @@ In order to build DFTB+ carry out the following steps:
 
     -DLAPACK_LIBRARY="mkl_gf_lp64;mkl_gnu_thread;mkl_core"
 
-  When needed, you can specify the complete path to a libray or pass linker
+  When needed, you can specify the complete path to a library or pass linker
   options as defined variables, e.g.::
 
     -DLAPACK_LIBRARY="/opt/openblas/libopenblas.a"
@@ -308,7 +295,7 @@ for linking DFTB+ with C and Fortran programs.
 Linking the library in CMake based builds
 -----------------------------------------
 
-This is the prefered way of invoking the DFTB+ library into your project.  In
+This is the preferred way of invoking the DFTB+ library into your project.  In
 CMake based projects you can directly use the CMake export file of DFTB+, which
 is installed in the `lib/cmake/dftbplus/` folder in the installation folder. It
 exports the target ``DftbPlus::DftbPlus`` which you can use to obtain all
@@ -321,7 +308,7 @@ should like something like below::
   target_link(testprogram DftbPlus::DftbPlus)
 
 Note, that this will link all libraries in the correct order, which where
-compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will
+compiled during the DFTB+ build (e.g. libs-dftd3, libnegf, etc.). It will
 additionally contain target dependencies on the external libraries needed to
 create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Scalapack::Scalapack``, ``Arpack::Arpack``, ``Plumed::Plumed``,
@@ -376,7 +363,7 @@ Developer build instructions
 ============================
 
 You should avoid customizing the build by directly changing variables in the
-CMake config files, as your changes may accidently be checked in into the
+CMake config files, as your changes may accidentally be checked in into the
 repository. Instead, create a customized CMake config file, where you
 pre-populate the appropriate cache variables. Then use the `-C` option to load
 that file::

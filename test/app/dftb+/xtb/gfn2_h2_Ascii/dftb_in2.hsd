@@ -1,0 +1,16 @@
+Geometry = genFormat {
+  <<< geo.gen
+}
+
+Hamiltonian = xTB {
+  method = "GFN2-xTB"
+  ReadInitialCharges = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+  ReadChargesAsText = Yes
+}
+Analysis { CalculateForces = Yes }
+ParserOptions { ParserVersion = 9 }
+Parallel { UseOmpThreads = Yes }

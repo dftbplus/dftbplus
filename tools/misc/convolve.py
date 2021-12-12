@@ -17,7 +17,7 @@ outfile = None
 infile = None
 norm = True
 
-def useage():
+def usage():
     print("--broaden -b broadening width")
     print("--help    -h this message")
     print("--input   -i input file name")
@@ -30,12 +30,12 @@ try:
     opts, args = getopt.getopt(sys.argv[1:], "o:i:b:hwu", ["output=", "input=", "broaden=", "help","weight","unnorm"])
 except getopt.GetoptError as err:
     print(str(err)) # will print something like "option -a not recognized"
-    useage()    
+    usage()
 output = None
 input = None
 for options, argument in opts:
     if options in ("-h", "--help"):
-        useage()
+        usage()
     elif options in ("-o", "--output"):
         outfile = argument
     elif options in ("-b", "--broaden"):        
@@ -49,8 +49,8 @@ for options, argument in opts:
     else:
         assert False, "unhandled option"
 
-if outfile==None or infile==None:
-    useage()
+if outfile is None or infile is None:
+    usage()
         
 # returns numeric matches as a number
 def numGrep(pattern,fileObj):
@@ -74,12 +74,12 @@ b = - 0.5 / (sigma * sigma)
 states = {}
 
 fp = open(infile, "r")
-eigenstates = numGrep("^ *([+-]?\d+\.\d+) +([+-]?\d+\.\d+e?-?\d*)",fp)
+eigenstates = numGrep(r"^ *([+-]?\d+\.\d+) +([+-]?\d+\.\d+e?-?\d*)",fp)
 fp.close()
 
 if norm:    
     fp = open(infile, "r")
-    nKPTS = numGrep("^ *KPT *(\d+) *(.*)",fp)    
+    nKPTS = numGrep(r"^ *KPT *(\d+) *(.*)",fp)
     scale = 2.0 / size(nKPTS)
     fp.close()
 else:

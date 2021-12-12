@@ -30,4 +30,3 @@ $(TARGET): $(OBJS)
 
 clean:
 	rm -f *.o *__genmod*
-

@@ -127,5 +127,5 @@ def exists(filename):
         f = open(filename)
         f.close()
         return True
-    except:
+    except OSError:
         return False

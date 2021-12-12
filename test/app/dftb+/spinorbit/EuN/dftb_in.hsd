@@ -1,0 +1,86 @@
+Geometry = GenFormat {
+    2  F
+ Eu N
+    1 1    0.1 0.0 0.0
+    2 2    0.5 0.5 0.5
+    0.00 0.00 0.00
+    2.68 2.68 0.00
+    2.68 0.00 2.68
+    0.00 2.68 2.68
+}
+Hamiltonian = DFTB {
+  SCC = Yes
+  MaxSCCIterations = 200
+  OrbitalResolvedSCC = Yes
+  Mixer = Anderson{}
+  MaxAngularMomentum = {
+    Eu = "f"
+    N = "p"
+  }
+  ReadInitialCharges = No
+  SpinPolarisation = nonColinear {
+    InitialSpins = {
+      AllAtomSpins = {
+        5.0 0.0 0.0
+	0.0 0.0 0.0 
+      }
+    }
+  }
+  SpinConstants = {
+    N = {
+     -3.02955E-2 -2.61935E-2
+     -2.61855E-2 -2.47770E-2
+    }
+    Eu = {
+        -0.0084  -0.0064  -0.0058  -0.0005
+        -0.0063  -0.0070  -0.0032  -0.0002
+        -0.0058  -0.0032  -0.0078  -0.0016
+        -0.0005  -0.0002  -0.0016  -0.0128
+    }
+  }
+  OrbitalPotential = {
+   Functional = {FLL}
+   Eu = {
+     Shells = {4} # f shell
+     UJ = 0.25 # U/2
+   }
+   Eu = {
+     Shells = {3} # d shell
+     UJ = 0.125 # U/2
+   }
+  }
+  SpinOrbit = {
+   Dual = Yes
+   N [eV] = {0.0 0.040} # doi:10.1016/S0038-1098(00)00353-7
+   Eu [cm^-1] = {0.0 0.0 0.00 1338} 
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 250
+  }
+  SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/rare-0-2/}
+    Separator = ""
+    Suffix = ".skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5  0.5
+  }
+}
+Options = {
+  WriteAutotestTag = Yes
+  AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 4
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

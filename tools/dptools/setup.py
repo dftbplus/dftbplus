@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name="dptools",
-    version='21.1',
+    version='21.2',
     description="Tools to process DFTB+ related data",
     author="DFTB+ developers",
     url="http://www.dftbplus.org",

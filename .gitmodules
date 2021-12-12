@@ -1,19 +1,39 @@
 [submodule "external/mpifx/origin"]
-        path = external/mpifx/origin
-        url = https://github.com/dftbplus/mpifx.git
-        branch = release
+    path = external/mpifx/origin
+    url = https://github.com/dftbplus/mpifx.git
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
 	url = https://github.com/libnegf/libnegf.git
-	branch = master
 [submodule "external/scalapackfx/origin"]
-        path = external/scalapackfx/origin
-        url = https://github.com/dftbplus/scalapackfx.git
-        branch = release
+    path = external/scalapackfx/origin
+    url = https://github.com/dftbplus/scalapackfx.git
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git
-        branch = master
 [submodule "external/fytest/origin"]
 	path = external/fytest/origin
 	url = https://github.com/aradi/fytest.git
+[submodule "external/tblite/origin"]
+	path = external/tblite/origin
+	url = https://github.com/awvwgk/tblite.git
+[submodule "external/mctc-lib/origin"]
+	path = external/mctc-lib/origin
+	url = https://github.com/grimme-lab/mctc-lib
+[submodule "external/s-dftd3/origin"]
+	path = external/s-dftd3/origin
+	url = https://github.com/awvwgk/simple-dftd3
+[submodule "external/dftd4/origin"]
+	path = external/dftd4/origin
+	url = https://github.com/dftd4/dftd4
+[submodule "external/multicharge/origin"]
+	path = external/multicharge/origin
+	url = https://github.com/grimme-lab/multicharge
+[submodule "external/mstore/origin"]
+	path = external/mstore/origin
+	url = https://github.com/grimme-lab/mstore
+[submodule "external/toml-f/origin"]
+	path = external/toml-f/origin
+	url = https://github.com/toml-f/toml-f
+[submodule "external/chimes/origin"]
+	path = external/chimes/origin
+	url = https://github.com/rk-lindsey/chimes_calculator

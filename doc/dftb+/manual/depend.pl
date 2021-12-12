@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Code to pull out the dependancy tree for .tex files, knows about pdf figures
+# Code to pull out the dependency tree for .tex files, knows about pdf figures
 
 $docpath=$ENV{"PWD"};
 @Current = @ARGV;
@@ -12,13 +12,13 @@ until ($end) {
     local(%MARKER);
     grep($MARKER{$_}++,@Current);
     @clash=grep($MARKER{$_},@Depending);
-    if (@clash) {die "dependance heading immediately up the document tree!\n@clash\n"}
+    if (@clash) {die "dependence heading immediately up the document tree!\n@clash\n"}
     undef @clash;
 
     local(%MARKER);
     grep($MARKER{$_}++,@Depending);
     @clash=grep($MARKER{$_},@Previous);
-    if (@clash) {die "dependance heading up the document tree!\n@clash\n"}
+    if (@clash) {die "dependence heading up the document tree!\n@clash\n"}
     
     push(@Previous,@Current);
     undef @Current;

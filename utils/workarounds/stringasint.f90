@@ -36,7 +36,7 @@ contains
   end subroutine testWorkaround
 
 
-  !> Cheks whether a given character represents a valid staring character for an integer.
+  !> Checks whether a given character represents a valid staring character for an integer.
   pure function validIntegerStart(char) result(tValid)
 
     !> Character to check

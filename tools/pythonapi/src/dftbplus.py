@@ -17,7 +17,7 @@ import numpy as np
 
 
 # DFTB+ conversion factors
-# (according to prog/dftb+/lib_common/constants.F90)
+# (according to src/dftbp/common/constants.F90)
 HARTREE__EV = 27.2113845
 BOHR__AA = 0.529177249
 

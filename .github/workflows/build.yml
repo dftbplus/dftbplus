@@ -10,13 +10,15 @@ env:
   HOMEBREW_NO_INSTALL_CLEANUP: "ON"
   BUILD_DIR: _build
   CMAKE_OPTIONS: >-
-    -DCMAKE_BUILD_TYPE=Debug
     -DWITH_API=true
-    -DWITH_DFTD3=true
+    -DWITH_SDFTD3=true
+    -DWITH_TBLITE=true
     -DWITH_MBD=true
     -DWITH_TRANSPORT=true
-    -DFYPP_FLAGS='-DTRAVIS'
+    -DFYPP_FLAGS='-n;-DTRAVIS'
     -DWITH_UNIT_TESTS=true
+    -DWITH_CHIMES=true
+    -DWITH_PYTHON=true
 
 jobs:
   gcc-build:
@@ -24,11 +26,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         mpi: [nompi, openmpi]
+        config: [Debug]
+        version: [9]
+        include:
+          - os: ubuntu-latest
+            mpi: nompi
+            config: Coverage
+            version: 9
         exclude:
           - os: macos-latest
             mpi: openmpi
+            config: Debug
+            version: 9
 
     steps:
     - name: Checkout code
@@ -37,6 +48,27 @@ jobs:
     - uses: actions/setup-python@v1
       with:
         python-version: '3.x'
+
+    - name: Install GCC (OSX)
+      if: ${{ contains(matrix.os, 'macos') }}
+      run: |
+        brew install gcc@${{ matrix.version }} openblas
+        ln -s /usr/local/bin/gfortran-${{ matrix.version }} /usr/local/bin/gfortran
+        ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
+        ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++
+        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+
+    - name: Install GCC (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install -y gcc-${{ matrix.version}} gfortran-${{ matrix.version }}
+        sudo update-alternatives \
+          --install /usr/bin/gcc gcc /usr/bin/gcc-${{ matrix.version }} 100 \
+          --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ matrix.version }} \
+          --slave /usr/bin/g++ g++ /usr/bin/g++-${{ matrix.version }} \
+          --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ matrix.version }}
 
     - name: Enable MPI build
       if: contains(matrix.mpi, 'openmpi') || contains(matrix.mpi, 'mpich')
@@ -80,16 +112,30 @@ jobs:
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
 
+    - name: Install MPICH (Linux)
+      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'mpich')
+      run: |
+        sudo apt-get update
+        sudo apt-get install mpich libscalapack-mpich-dev
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
+        echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
+
     - name: Install cmake
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
+    - name: Set extra CMake flags (Linux)
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+
     - name: Configure build
       run: >-
         cmake -B _build -G Ninja
         -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        -DCMAKE_BUILD_TYPE=${{ matrix.config }}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
@@ -106,16 +152,27 @@ jobs:
       run: |
         cmake --install ${BUILD_DIR}
 
+    - name: Create gcov reports
+      if: contains(matrix.config, 'Coverage')
+      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
+
+    - name: Upload coverage report
+      if: contains(matrix.config, 'Coverage')
+      uses: codecov/codecov-action@v1
+      with:
+        directory: _build/gcovs
+        functionalities: gcov
+
     - name: Run integration CMake test
       run: >-
         CMAKE_PREFIX_PATH="${PWD}/_install:${CMAKE_PREFIX_PATH}"
-        ./test/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
+        ./test/src/dftbp/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
         ${CMAKE_DEP_OPTIONS}
 
     - name: Run integration pkg-config test
       run: >-
         PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
-        ./test/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
+        ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
   intel-build:
     runs-on: ${{ matrix.os }}
@@ -137,7 +194,7 @@ jobs:
       CMAKE_OPTIONS: >-
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DWITH_API=true
-        -DWITH_DFTD3=true
+        -DWITH_SDFTD3=true
         -DWITH_MBD=true
         -DWITH_TRANSPORT=true
         -DFYPP_FLAGS='-DTRAVIS'
@@ -174,10 +231,15 @@ jobs:
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
+    - name: Set extra CMake flags (Linux)
+      run: |
+        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+
     - name: Configure build
       run: >-
         cmake -B _build -G Ninja
         -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        -DCMAKE_BUILD_TYPE=Debug
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 

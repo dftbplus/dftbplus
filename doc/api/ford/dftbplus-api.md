@@ -3,10 +3,10 @@ macro:
         WITH_ARPACK=0
         WITH_DFTD3=1
         WITH_SOCKETS=0
-        RELEASE=21.1
+        RELEASE=21.2
 preprocess: true
 src_dir:
-        ../../../prog/dftb+/api/mm
+        ../../../src/dftbp/api/mm
         ../../../test/api/mm
 output_dir: ./doc
 project_github: https://github.com/dftbplus/dftbplus
@@ -14,7 +14,7 @@ project_website: http://www.dftbplus.org
 summary: The DFTB+ package for fast quantum mechanical atomistic simulations
 author: The DFTB+ developers group
 preprocessor: ../../../external/fypp/bin/fypp
-include: ../../../prog/dftb+/include
+include: ../../../src/dftbp/include
 predocmark: >
 display: public
          protected

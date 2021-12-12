@@ -1,0 +1,59 @@
+Geometry = GenFormat {
+    12 H
+    C H
+     1 1   1.39792890   0.00000000  -0.00000000
+     2 2   2.49455487  -0.00000000   0.00000000
+     3 1   0.69896445   1.21064194  -0.00000000
+     4 2   1.24727743   2.16034789   0.00000000
+     5 1  -0.69896445   1.21064194  -0.00000000
+     6 2  -1.24727743   2.16034789   0.00000000
+     7 1  -1.39792890  -0.00000000  -0.00000000
+     8 2  -2.49455487   0.00000000   0.00000000
+     9 1  -0.69896445  -1.21064194  -0.00000000
+    10 2  -1.24727743  -2.16034789   0.00000000
+    11 1   0.69896445  -1.21064194  -0.00000000
+    12 2   1.24727743  -2.16034789   0.00000000
+    0 0 0
+    3.0 30.0 1
+}
+
+Hamiltonian = DFTB {
+    #AtomSitePotential {
+    #    Gross {
+    #        Atoms = 1
+    #        Vext = 5E-6
+    #    }
+    #}
+    Charge = -0.1
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 2000
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    KPointsAndWeights = {0 0 1}
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    MullikenAnalysis = Yes
+    ResponseKernel = {}
+}
+
+ParserOptions = {
+    ParserVersion = 9
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

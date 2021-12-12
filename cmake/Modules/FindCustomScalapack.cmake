@@ -1,6 +1,6 @@
 # Distributed under the OSI-approved BSD 2-Clause License.
 #
-# Copyright (C) 2021 DFTB+ developers group
+# Copyright (C) 2020 DFTB+ developers group
 #
 
 #[=======================================================================[.rst:
@@ -18,10 +18,14 @@ ScaLAPACK is MPI-based and defines a respective dependency on
 Imported Targets
 ^^^^^^^^^^^^^^^^
 
-This module provides the following imported target, if found:
+This module provides the following imported targets, if found:
+
+``scalapack``
+  The ScaLAPACK library. The name was chosen to be compatible with the name used by the CMake
+  export file (which is unfortunately broken in several binary packages).
 
 ``Scalapack::Scalapack``
-  The ScaLAPACK library
+  Name space (and CMake-style capitalized) variant of the scalapack target.
 
 
 Result Variables
@@ -52,9 +56,8 @@ The following cache variables may be set to influence the library detection:
   ``SCALAPACK_DETECTION``) and the variable is overwritten to contain the
   libraries with their with full path.
 
-  Note: On Ubuntu (20.4 LTS and probably also previous Ubuntu versions), the
-  installed CMake export file is broken.  You should not realy on the
-  CMake-autodetection on those systems.
+  Note: On Ubuntu Focal (20.4 LTS) system, the installed CMake export file is broken.
+  You should not realy on the CMake-autodetection on those systems.
 
 ``SCALAPACK_LIBRARY_DIR``
   Directories which should be looked up in order to find the customized libraries.
@@ -64,7 +67,7 @@ The following cache variables may be set to influence the library detection:
 include(FindPackageHandleStandardArgs)
 include(CustomLibraryFinder)
 
-if(TARGET Scalapack::Scalapack)
+if(TARGET scalapack)
 
   set(CUSTOMSCALAPACK_FOUND True)
   set(CustomScalapack_FOUND True)
@@ -76,7 +79,7 @@ else()
   find_package(MPI ${Find_Scalapack_REQUIRED})
 
   option(SCALAPACK_DETECTION "Whether ScaLAPACK library should be detected" TRUE)
-  
+
   if(SCALAPACK_DETECTION)
 
     if("${SCALAPACK_LIBRARY}" STREQUAL "")
@@ -99,11 +102,11 @@ else()
         "${CustomScalapack_FIND_QUIETLY}" _libs)
       set(SCALAPACK_LIBRARY "${_libs}" CACHE STRING "List of ScaLAPACK libraries to link" FORCE)
       unset(_libs)
-      
+
     endif()
 
     set(SCALAPACK_DETECTION False CACHE BOOL "Whether ScaLAPACK libraries should be detected" FORCE)
-    
+
   endif()
 
   find_package_handle_standard_args(CustomScalapack REQUIRED_VARS SCALAPACK_LIBRARY
@@ -113,13 +116,21 @@ else()
   set(Scalapack_FOUND ${CUSTOMSCALAPACK_FOUND})
 
   if(SCALAPACK_FOUND)
-    add_library(Scalapack::Scalapack INTERFACE IMPORTED)
-    if(NOT "${SCALAPACK_LIBRARY}" STREQUAL "NONE")
-      target_link_libraries(Scalapack::Scalapack INTERFACE "${SCALAPACK_LIBRARY}")
+    if(NOT TARGET scalapack)
+      add_library(scalapack INTERFACE IMPORTED)
+      if(NOT "${SCALAPACK_LIBRARY}" STREQUAL "NONE")
+        target_link_libraries(scalapack INTERFACE "${SCALAPACK_LIBRARY}")
+      endif()
+      target_link_Libraries(scalapack INTERFACE MPI::MPI_Fortran)
     endif()
-    target_link_Libraries(Scalapack::Scalapack INTERFACE MPI::MPI_Fortran)
   endif()
 
   mark_as_advanced(SCALAPACK_DETECTION SCALAPACK_LIBRARY SCALAPACK_LIBRARY_DIR)
 
+endif()
+
+# Add namespaced library name variant
+if(TARGET scalapack AND NOT TARGET Scalapack::Scalapack)
+  add_library(Scalapack::Scalapack INTERFACE IMPORTED)
+  target_link_libraries(Scalapack::Scalapack INTERFACE scalapack)
 endif()

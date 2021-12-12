@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Creates gcov for object files in specified directories
+#
+# make_gcov_reports SOURCEDIR COVDIR OBJDIR [[OBJDIR] ..]
+#
+# SOURCEDIR: Source directory (will be stripped from path names)
+# COVDIR: Directory where .gcov files should be stored (created on demand)
+# OBJDIR: Directory with object files to investigate (recursively)
+#
+sourcedir=$1
+covdir=$2
+shift 2
+objdirs=$*
+
+mkdir -p ${covdir}
+cd ${covdir}
+
+for objdir in ${objdirs}; do
+  objfiles=$(find ${objdir} -name '*.o')
+  for objfile in $objfiles; do
+    fdir=$(dirname $objfile)
+    fname=$(basename $objfile .o)
+    if [ -f ${fdir}/${fname}.gcda ]; then
+      gcov -p -r -s ${sourcedir} ${objfile}
+    fi
+  done
+done

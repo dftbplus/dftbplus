@@ -33,10 +33,12 @@ set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
 set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check"
   CACHE STRING "Fortran compiler flags for Debug build")
 
+set(Fortran_FLAGS_COVERAGE "-O0 -g --coverage")
+
 # Use intrinsic Fortran 2008 erf/erfc functions
 set(INTERNAL_ERFC CACHE BOOL 0)
 
-set(FYPP_FLAGS "" CACHE STRING "Fypp preprocessor flags")
+set(FYPP_FLAGS "-n" CACHE STRING "Fypp preprocessor flags")
 
 
 #
@@ -54,6 +56,8 @@ set(C_FLAGS_RELWITDEBINFO "-g ${C_FLAGS_RELEASE}"
 set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
   CACHE STRING "C compiler flags for Debug build")
 
+set(C_FLAGS_COVERAGE "-O0 -g --coverage")
+
 
 #
 # External libraries
@@ -65,9 +69,11 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 # sure your CMAKE_PREFIX_PATH variable is set up accordingly.
 
 # LAPACK and BLAS
-#set(LAPACK_LIBRARY "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
-#set(LAPACK_LIBRARY_DIR "" CACHE STRING
-#  "Directories where LAPACK and BLAS libraries can be found")
+# (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
+#set(BLAS_LIBRARY "openblas" CACHE STRING "BLAS libraries to link")
+#set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
+#set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries to link")
+#set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 #set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack libraries")

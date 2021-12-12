@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "21.1")
+set(DFTBPLUS_VERSION "21.2")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -38,13 +38,23 @@ if(WITH_MPI)
   endif()
 endif()
 
-if(WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
-  find_package(OpenMP REQUIRED)
-  # Fix CMake bug on OpenMP settings for the NAG compiler
-  # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
-    set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+if(WITH_OMP)
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    find_package(OpenMP REQUIRED)
+    # Fix CMake bug on OpenMP settings for the NAG compiler
+    # See https://gitlab.kitware.com/cmake/cmake/-/issues/21280
+    if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_LIBRARIES "")
+      set_property(TARGET OpenMP::OpenMP_Fortran PROPERTY INTERFACE_LINK_OPTIONS "-openmp")
+    endif()
+  endif()
+else()
+  # Create empty targets, so that subprojects can depend on it without actual effect
+  if(NOT TARGET OpenMP::OpenMP_Fortran)
+    add_library(OpenMP::OpenMP_Fortran INTERFACE IMPORTED)
+  endif()
+  if(NOT TARGET OpenMP::OpenMP_C)
+    add_library(OpenMP::OpenMP_C INTERFACE IMPORTED)
   endif()
 endif()
 
@@ -92,8 +102,9 @@ if(WITH_PLUMED)
   list(APPEND PKG_CONFIG_REQUIRES plumed)
 endif()
 
+find_package(CustomBlas REQUIRED)
 find_package(CustomLapack REQUIRED)
-list(APPEND PKG_CONFIG_LIBS_PRIVATE ${LAPACK_LIBRARY})
+list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
   find_package(CustomArpack REQUIRED)
@@ -147,15 +158,16 @@ if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
 
-if(WITH_DFTD3)
-  add_subdirectory(external/dftd3 ${exclude})
+if(WITH_CHIMES)
+  enable_language(CXX)
+  set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
 endif()
 
 # Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "8c959ff1a4563269481bd9a9a54bf306ab7fc6c6")  # do not change manually!
+  set(MPIFX_GIT_TAG "8200a5e2603e14ab35c71d3d6afad0b226597e87")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -163,7 +175,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "cd7c2a789e7788fc42ea97cbfe92b5ea15f84ab7")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "0d5750d4b1d185e5dfae5b7e99f1828e736ec43a")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -173,7 +185,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "299a5e2232e76a1c4abb3716e1f83169fc966677")  # do not change manually!
+  set(MBD_GIT_TAG "95c95b5c1606b4576d49082a0396ea5701333375")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
@@ -188,6 +200,61 @@ if(WITH_TRANSPORT)
 endif()
 add_subdirectory(external/mudpack)
 
+if(WITH_TBLITE OR WITH_SDFTD3)
+  set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
+  set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
+  dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
+
+  set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
+  set(MSTORE_GIT_TAG "974fb59092f74c7db86a1a11b1aafb3cbf311aa3")  # do not change manually!
+  dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mstore)
+
+  set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
+  set(S_DFTD3_GIT_TAG "c2f03fe563ac3ee280f553038c7bc37f9117325f")  # do not change manually!
+  dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
+endif()
+
+if(WITH_TBLITE)
+  set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
+  set(TOML_F_GIT_TAG "f066ec6e7fb96d8faf83ab6614ee664a26ad8d57")  # do not change manually!
+  dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES toml-f)
+
+  set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
+  set(MULTICHARGE_GIT_TAG "dde0d67dadb6efba414cf634f697dc252eb902dc")  # do not change manually!
+  dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}" "${MULTICHARGE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES multicharge)
+
+  set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
+  set(DFTD4_GIT_TAG "1189af7264f3b59957545b9deb8226471886b71e")  # do not change manually!
+  dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES dftd4)
+
+  set(TBLITE_GIT_REPOSITORY "https://github.com/awvwgk/tblite.git")
+  set(TBLITE_GIT_TAG "dfc761df36b7a338c55914e32b131e28b8de23d2")  # do not change manually!
+  dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES tblite)
+
+endif()
+
+# ChIMES currently can only be integrated as a submodule
+if(WITH_CHIMES)
+  set(CHIMES_GIT_REPOSITORY "https://github.com/dftbplus/chimes_calculator.git")
+  set(CHIMES_GIT_TAG "98e365365d3b3e4b11b363b4a50dd2ad6cc825d4")  # do not change manually!
+  dftbp_config_hybrid_dependency(ChimesCalc ChimesCalc::ChimesCalc_Fortran "${HYBRID_CONFIG_METHODS}" "QUIET"
+  external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")
+endif()
+
 # FyTest currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")
@@ -196,10 +263,12 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
 endif()
 
+
 #
 # Add internal components
 #
-add_subdirectory(prog)
+add_subdirectory(src/dftbp)
+add_subdirectory(app)
 add_subdirectory(tools)
 
 
@@ -257,4 +326,16 @@ if(WITH_API)
     FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
+endif()
+
+
+#
+# Coverage testing related targets
+#
+if(LCOV_REPORT)
+  find_program(LCOV lcov REQUIRED)
+  find_program(GENHTML genhtml)
+  dftbp_create_lcov_targets("${LCOV}" "${GENHTML}" "${CMAKE_CURRENT_BINARY_DIR}/lcov"
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/prog")
 endif()

@@ -211,7 +211,7 @@ class Grid:
 
 
     def has_gridcoord(self, gridcoord):
-        """Cheks whether a given position is within the boundaries of the grid.
+        """Checks whether a given position is within the boundaries of the grid.
 
         Args:
             gridcoord: Grid coordinates. Shape: (-1, ndim) or (ndim,)

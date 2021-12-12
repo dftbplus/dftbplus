@@ -1,0 +1,122 @@
+#!-------------------------------------------------------------------------------------------------!
+#!  DFTB+: general package for performing fast atomistic simulations                               !
+#!  Copyright (C) 2006 - 2021  DFTB+ developers group                                              !
+#!                                                                                                 !
+#!  See the LICENSE file for terms of usage and distribution.                                      !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+#:if not defined('_COMMON_FYPP_')
+#:set _COMMON_FYPP_
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Default values for all preprocessor variables
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:set DEBUG = getvar('DEBUG', 0)
+#:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
+#:set WITH_GPU = defined('WITH_GPU')
+#:set WITH_MPI = defined('WITH_MPI')
+#:set WITH_OMP = defined('WITH_OMP')
+#:set WITH_ELSI = defined('WITH_ELSI')
+#:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
+#:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
+#:set WITH_MBD = defined('WITH_MBD')
+#:set WITH_SOCKETS = defined('WITH_SOCKETS')
+#:set WITH_ARPACK = defined('WITH_ARPACK')
+#:set WITH_PLUMED = defined('WITH_PLUMED')
+#:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
+#:set WITH_POISSON = defined('WITH_POISSON')
+#:set WITH_SDFTD3 = defined('WITH_SDFTD3')
+#:set WITH_TBLITE = defined('WITH_TBLITE')
+#:set WITH_CHIMES = defined('WITH_CHIMES')
+#:set EXP_TRAP = defined('EXP_TRAP')
+#:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
+#:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
+#:set INSTANCE_SAFE_BUILD = defined('INSTANCE_SAFE_BUILD')
+
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! ASSERT and DEBUG related macros
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#! Check a condition if WITH_ASSERT is True and call assertError if condition is False.
+#:def ASSERT(cond)
+  #:if WITH_ASSERT
+  if (.not. (${cond}$)) then
+    block
+      use dftbp_common_assert, only : assertError
+      call assertError("${_FILE_}$", ${_LINE_}$)
+    end block
+  end if
+  #:endif
+#:enddef ASSERT
+
+
+#! Insert code if DEBUG level is greater than zero.
+#:def DEBUG_CODE(code)
+  #:if DEBUG > 0
+  $:code
+  #:endif
+#:enddef DEBUG_CODE
+
+
+#! Adds a code block depending on the availability of an optional build component.
+#!
+#! Wraps code accessing routines or methods of an optional build component. The progamming
+#! logic outside of the wrapped code must ensure, that the wrapped block is never reached if the
+#! optional component is not available. (In debug mode the wrapped code will be replaced with an
+#! error-call if the component is not available.)
+#!
+#! Args:
+#!     name (str): Name of the external component
+#!     available (bool): Whether the external component is available
+#!     code (str): Code to wrap
+#!
+#:def REQUIRES_COMPONENT(name, available, code)
+  #:if available
+    $:code
+  #:else
+    #:if DEBUG > 0
+      block
+        use dftbp_io_message, only : error
+        call error("Internal error: trying to execute code of the non-existent component '${name}$'")
+      end block
+    #:endif
+  #:endif
+#:enddef REQUIRES_COMPONENT
+
+
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Misc macros
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#! Gives a Fortran logical values corresponding to a bool expr.
+#:def FORTRAN_LOGICAL(expr)
+#{if expr}#.true.#{else}#.false.#{endif}#
+#:enddef FORTRAN_LOGICAL
+
+#! Returns the suffix for a dummy argument for a given rank
+#:def FORTRAN_ARG_DIM_SUFFIX(rank)
+#{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
+#:enddef
+
+
+#! Creates a class instance by allocating, initializing and move_allocing a specific type
+#!
+#! Args:
+#!     cls (str): Name of the LHS variable (must be a class)
+#!     dyntype (str): Dynamic type of the actual instance to be initialized
+#!     init (str): Initialization routine to call (with allocated instance as first arg)
+#!     initargs (str): Further arguments to pass to the init routine.
+#:def CREATE_CLASS(cls, dyntype, init, *initargs)
+block
+  type(${dyntype}$), allocatable :: inst
+  allocate(inst)
+  call ${init}$(inst, ${", ".join(initargs)}$)
+  call move_alloc(inst, ${cls}$)
+end block
+#:enddef
+
+#:endif
+#:endmute

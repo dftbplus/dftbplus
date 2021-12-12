@@ -8,26 +8,50 @@
 # various reasons.
 #
 
-# Switching on all components compatible with static linking and binary distribution.
 set(WITH_OMP TRUE CACHE BOOL "Whether OpenMP thread parallisation should be enabled" FORCE)
-set(WITH_TRANSPORT TRUE CACHE BOOL "Whether transport via libNEGF should be included." FORCE)
-set(WITH_POISSON TRUE CACHE BOOL "Whether the Poisson-solver should be included" FORCE)
-set(WITH_API TRUE CACHE BOOL "Whether API should be built" FORCE)
-set(WITH_ARPACK TRUE CACHE BOOL
-  "Whether the ARPACK library should be included (needed for TD-DFTB)" FORCE)
-set(WITH_PLUMED TRUE CACHE BOOL
-  "Whether metadynamics via the PLUMED2 library should be allowed for" FORCE)
-set(WITH_MBD TRUE CACHE BOOL "Whether MBD library should be included" FORCE)
-set(WITH_SOCKETS TRUE CACHE BOOL "Whether socket communication should be allowed for" FORCE)
 
-# Switching on all components not compatible with static linking or binary distribution.
 set(WITH_MPI FALSE CACHE BOOL "Whether DFTB+ should support MPI-parallelism" FORCE)
+
 set(WITH_ELSI FALSE CACHE BOOL "Whether DFTB+ with MPI-parallelism should use the ELSI libraries"
   FORCE)
+
 set(WITH_GPU FALSE CACHE BOOL
   "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FORCE)
-# Not compatible due to license issues (GPL vs LGPL)
-set(WITH_DFTD3 FALSE CACHE BOOL "Whether the DFTD3 library should be included" FORCE)
+
+set(WITH_TRANSPORT TRUE CACHE BOOL "Whether transport via libNEGF should be included." FORCE)
+
+set(WITH_POISSON TRUE CACHE BOOL "Whether the Poisson-solver should be included" FORCE)
+
+set(WITH_TBLITE TRUE CACHE BOOL "Whether xTB support should be included via tblite." FORCE)
+
+set(WITH_SOCKETS TRUE CACHE BOOL "Whether socket communication should be allowed for" FORCE)
+
+set(WITH_ARPACK TRUE CACHE BOOL
+  "Whether the ARPACK library should be included (needed for TD-DFTB)" FORCE)
+
+set(WITH_SDFTD3 TRUE CACHE BOOL "Whether the s-dftd3 library should be included" FORCE)
+
+set(WITH_MBD TRUE CACHE BOOL "Whether MBD library should be included" FORCE)
+
+set(WITH_PLUMED TRUE CACHE BOOL
+  "Whether metadynamics via the PLUMED2 library should be allowed for" FORCE)
+
+set(WITH_CHIMES TRUE CACHE BOOL
+  "Whether repulsive corrections via the ChIMES library should be enabled" FORCE)
+
+set(WITH_API TRUE CACHE BOOL "Whether API should be built" FORCE)
+
+set(WITH_PYTHON TRUE CACHE BOOL
+  "Whether the Python components of DFTB+ should be tested and installed" FORCE)
+
+set(INSTANCE_SAFE_BUILD FALSE CACHE BOOL "Whether build should support concurrent DFTB+ instances"
+  FORCE)
+
+set(BUILD_SHARED_LIBS FALSE CACHE BOOL "Whether the libraries built should be shared" FORCE)
+
+set(ENABLE_DYNAMIC_LOADING FALSE CACHE BOOL "Whether the library should be dynamically loadable"
+  FORCE)
+
 
 #
 # Fortran compiler settings
@@ -86,10 +110,12 @@ target_link_options(OpenMP::OpenMP_Fortran INTERFACE "-fopenmp")
 # sure your CMAKE_PREFIX_PATH variable is set up accordingly.
 
 # LAPACK and BLAS
-set(LAPACK_LIBRARY "-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
-  CACHE STRING "LAPACK libraries")
-#set(LAPACK_LIBRARY_DIR "" CACHE STRING
-#  "Directories where LAPACK and BLAS libraries can be found")
+# (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
+set(BLAS_LIBRARY "-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
+  CACHE STRING "BLAS libraries")
+#set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
+set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries")
+#set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 set(ARPACK_LIBRARY "libarpack.a" CACHE STRING "Arpack libraries")
