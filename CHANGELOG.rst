@@ -5,11 +5,11 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+21.2 (2021-12-13)
+=================
 
-Addded
-------
+Added
+-----
 
 - On-site potentials added
 
@@ -31,6 +31,9 @@ Addded
 
 - ChIMES force field corrections of the repulsive potentials implemented
 
+- New geometry optimization drivers with coupled cartesian and lattice parameter
+  optimization
+
 
 Changed
 -------
@@ -39,8 +42,6 @@ Changed
   <https://fpm.fortran-lang.org/>`_ preferred structure.
 
 - Updated parser version to 10.
-
-- New geometry optimization driver
 
 - Replace backend to implement DFT-D3 dispersion correction.
   Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
@@ -64,10 +65,7 @@ Fixed
 - D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
   calculations
 
-
 - LBFGS implementation fixed in new geometry optimization driver
-
-- Coupled cartesian and lattice parameter optimization
 
 
 21.1 (2021-05-12)
