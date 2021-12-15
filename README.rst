@@ -121,7 +121,7 @@ When publishing results obtained with DFTB+, please cite following works:
   used. (See `dftb.org <https://dftb.org>`_ for the references.)
 
 * Methodological papers relevant to your calculations (e.g. excited states,
-  electron-transport, third order DFTB etc.). Those references can be found in
+  electron-transport, third order DFTB etc.). References to these can be found in
   the `DFTB+ manual
   <http://www.dftbplus.org/fileadmin/DFTBPLUS/public/dftbplus/latest/manual.pdf>`_.
 
