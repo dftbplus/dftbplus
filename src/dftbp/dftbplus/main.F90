@@ -200,8 +200,8 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, this%nGeoSteps
-      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%isGeoOpt .or. allocated(this%geoOpt),&
-          & this%tMd, iGeoStep, this%nGeoSteps, this%restartFreq)
+      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%isGeoOpt .or.&
+          & allocated(this%geoOpt), this%tMd, iGeoStep, this%nGeoSteps, this%restartFreq)
 
       if (.not. this%tRestartNoSC) then
         call printGeoStepInfo(this%tCoordOpt, this%tLatOpt, iLatGeoStep, iGeoStep)
@@ -325,7 +325,8 @@ contains
             & this%deltaDftb, this%solvation)
       end if
 
-      call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs)
+      call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
+          & this%tDerivs)
 
       if (this%tMD) then
         call writeMdOut3(this%fdMd, mdOut)
