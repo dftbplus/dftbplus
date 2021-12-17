@@ -1890,7 +1890,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iSparseStart, img2CentCell,&
-      & desc, square)
+      & desc, square, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1916,10 +1916,10 @@ contains
     !> dense matrix part of distributed whole
     real(dp), intent(out) :: square(:, :)
 
-    integer :: nAtom
-    integer :: iOrig, ii, jj, nOrb1, nOrb2
-    integer :: iNeigh
-    integer :: iAtom1, iAtom2, iAtom2f
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
+    integer :: nAtom, iOrig, ii, jj, nOrb1, nOrb2, iNeigh, iAtom1, iAtom2, iAtom2f, iLocal
 
     nAtom = size(iNeighbour, dim=2)
 
@@ -1929,25 +1929,48 @@ contains
 
     square(:, :) = 0.0_dp
 
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        call scalafx_addl2g(myBlacs%orbitalGrid,&
-            & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
-            & desc%blacsOrbSqr, jj, ii, square)
-        if (iAtom1 /= iAtom2f) then
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
-              & desc%blacsOrbSqr, ii, jj, square)
-        end if
+              & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
+                & desc%blacsOrbSqr, ii, jj, square)
+          end if
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
+              & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
+                & desc%blacsOrbSqr, ii, jj, square)
+          end if
+        end do
+      end do
+    end if
 
   end subroutine unpackHSRealBlacs
 
@@ -1957,7 +1980,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iSparseStart, img2CentCell, desc, square)
+      & iSparseStart, img2CentCell, desc, square, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1992,12 +2015,12 @@ contains
     !> dense matrix part of distributed whole
     complex(dp), intent(out) :: square(:, :)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     complex(dp) :: phase
-    integer :: nAtom
-    integer :: iOrig, nOrb1, nOrb2, ii, jj
-    integer :: iNeigh
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nAtom, iOrig, nOrb1, nOrb2, ii, jj, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    integer :: iLocal
     real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbour, dim=2)
@@ -2011,30 +2034,58 @@ contains
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        iVec = iCellVec(iAtom2)
-        if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
-        call scalafx_addl2g(myBlacs%orbitalGrid, phase&
-            & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
-            & desc%blacsOrbSqr, jj, ii, square)
-        if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(phase&
-              & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]))),&
-              & desc%blacsOrbSqr, ii, jj, square)
-        end if
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          call scalafx_addl2g(myBlacs%orbitalGrid, phase&
+              & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(phase&
+                & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]))),&
+                & desc%blacsOrbSqr, ii, jj, square)
+          end if
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          call scalafx_addl2g(myBlacs%orbitalGrid, phase&
+              & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(phase&
+                & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]))),&
+                & desc%blacsOrbSqr, ii, jj, square)
+          end if
+        end do
+      end do
+    end if
 
   end subroutine unpackHSCplxBlacs
 
@@ -2044,7 +2095,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iSparseStart, img2CentCell, mOrb, desc, square, iorig)
+      & iSparseStart, img2CentCell, mOrb, desc, square, iorig, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2085,13 +2136,17 @@ contains
     !> imaginary part of sparse matrix
     real(dp), intent(in), optional :: iorig(:, :)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     square(:, :) = cmplx(0, 0, dp)
     call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-        & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
+        & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc,&
+        & square, iLocalAts)
     if (present(iorig)) then
       call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc,&
-          & square)
+          & square, iLocalAts)
     end if
 
   end subroutine unpackHPauliBlacs
@@ -2103,7 +2158,7 @@ contains
   !! 1*orig(:, 1) + sigma1*orig(:, 2) + sigma2*orig(:, 3) + sigma3*orig(:, 4).
   !!
   subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iSparseStart, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square)
+      & cellVec, iSparseStart, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2147,8 +2202,11 @@ contains
     !> local part of distributed whole dense matrix to add to
     complex(dp), intent(inout) :: square(:, :)
 
-    integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
-    integer :: iNeigh, iOrig, ii, jj, kk, iOldVec, iVec
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
+    integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb, iNeigh, iOrig, ii, jj, kk
+    integer :: iOldVec, iVec, iLocal
     complex(dp), target :: tmpSqr(mOrb, mOrb, 4)
     complex(dp), pointer :: ptmp(:, :, :)
     real(dp) :: kPoint2p(3)
@@ -2159,67 +2217,133 @@ contains
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        iVec = iCellVec(iAtom2)
-        if (iVec /= iOldVec) then
-          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
-        ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
-        ptmp(:, :, :) = 0.5_dp * phase&
-            & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
-        ! up-up and down-down components
-        call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
-            & desc%blacsOrbSqr, jj, ii, square)
-        call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
-            & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
-        if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
-              & desc%blacsOrbSqr, ii, jj, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
-              & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
-        end if
-        ! down-up component
-        ! also upper triangle of the down-up component must be filled
-        if (iAtom1 == iAtom2f) then
-          ! symmetrize/antisymmetrize onsite block
-          do kk = 1, nOrb1
-            ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk, 2:3))
-          end do
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
-              & jj + nOrb, ii, square)
-          ! Other triangle
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
-              & desc%blacsOrbSqr, ii, jj + nOrb, square)
-        else
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
-              & jj + nOrb, ii, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
-              & desc%blacsOrbSqr, ii, jj + nOrb, square)
 
-          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac&
-              & * conjg(transpose(ptmp(:, :, 2) - imag * ptmp(:, :, 3))), desc%blacsOrbSqr,&
-              & ii + nOrb, jj, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid, conjg(imagPrefac * hermPrefac)&
-              & * (ptmp(:, :, 2) - imag * ptmp(:, :, 3))&
-              & , desc%blacsOrbSqr, jj, ii + nOrb, square)
-        end if
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
+          ptmp(:, :, :) = 0.5_dp * phase&
+              & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
+          ! up-up and down-down components
+          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
+              & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
+                & desc%blacsOrbSqr, ii, jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
+                & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
+          end if
+          ! down-up component
+          ! also upper triangle of the down-up component must be filled
+          if (iAtom1 == iAtom2f) then
+            ! symmetrize/antisymmetrize onsite block
+            do kk = 1, nOrb1
+              ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk, 2:3))
+            end do
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
+                & jj + nOrb, ii, square)
+            ! Other triangle
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:,:,3)))),&
+                & desc%blacsOrbSqr, ii, jj + nOrb, square)
+          else
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
+                & jj + nOrb, ii, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:,:,3)))),&
+                & desc%blacsOrbSqr, ii, jj + nOrb, square)
+
+            call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac&
+                & * conjg(transpose(ptmp(:, :, 2) - imag * ptmp(:, :, 3))), desc%blacsOrbSqr,&
+                & ii + nOrb, jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid, conjg(imagPrefac * hermPrefac)&
+                & * (ptmp(:, :, 2) - imag * ptmp(:, :, 3))&
+                & , desc%blacsOrbSqr, jj, ii + nOrb, square)
+          end if
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
+          ptmp(:, :, :) = 0.5_dp * phase&
+              & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
+          ! up-up and down-down components
+          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
+              & desc%blacsOrbSqr, jj, ii, square)
+          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
+              & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
+                & desc%blacsOrbSqr, ii, jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
+                & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
+          end if
+          ! down-up component
+          ! also upper triangle of the down-up component must be filled
+          if (iAtom1 == iAtom2f) then
+            ! symmetrize/antisymmetrize onsite block
+            do kk = 1, nOrb1
+              ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk, 2:3))
+            end do
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
+                & jj + nOrb, ii, square)
+            ! Other triangle
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:,:,3)))),&
+                & desc%blacsOrbSqr, ii, jj + nOrb, square)
+          else
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
+                & jj + nOrb, ii, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid,&
+                & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:,:,3)))),&
+                & desc%blacsOrbSqr, ii, jj + nOrb, square)
+
+            call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac&
+                & * conjg(transpose(ptmp(:, :, 2) - imag * ptmp(:, :, 3))), desc%blacsOrbSqr,&
+                & ii + nOrb, jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid, conjg(imagPrefac * hermPrefac)&
+                & * (ptmp(:, :, 2) - imag * ptmp(:, :, 3))&
+                & , desc%blacsOrbSqr, jj, ii + nOrb, square)
+          end if
+        end do
+      end do
+    end if
 
   end subroutine unpackHPauliBlacsHelper
 
@@ -2229,7 +2353,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iSparseStart, img2CentCell, mOrb, desc, square)
+      & iSparseStart, img2CentCell, mOrb, desc, square, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2267,8 +2391,11 @@ contains
     !> Local part of of distributed whole dense matrix
     complex(dp), intent(out) :: square(:, :)
 
-    integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
-    integer :: iNeigh, iOrig, ii, jj, iOldVec, iVec
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
+    integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb, iNeigh, iOrig, ii, jj, iOldVec
+    integer :: iVec, iLocal
     complex(dp), target :: tmpSqr(mOrb, mOrb)
     complex(dp), pointer :: ptmp(:, :)
     real(dp) :: kPoint2p(3)
@@ -2280,42 +2407,76 @@ contains
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        iVec = iCellVec(iAtom2)
-        if (iVec /= iOldVec) then
-          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
-        ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
-        ptmp(:, :) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
-        ! up-up component
-        call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj, ii, square)
-        ! down-down component
-        call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
-            & square)
-        if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii,&
-              & jj, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
-              & ii + nOrb, jj + nOrb, square)
-        end if
+
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
+          ptmp(:, :) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+          ! up-up component
+          call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj, ii, square)
+          ! down-down component
+          call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
+              & square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii,&
+                & jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
+                & ii + nOrb, jj + nOrb, square)
+          end if
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
+          ptmp(:, :) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+          ! up-up component
+          call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj, ii, square)
+          ! down-down component
+          call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
+              & square)
+          if (iAtom1 /= iAtom2f) then
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii,&
+                & jj, square)
+            call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
+                & ii + nOrb, jj + nOrb, square)
+          end if
+        end do
+      end do
+    end if
 
   end subroutine unpackSPauliBlacs
 
 
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, mOrb, iSparseStart,&
-      & img2CentCell, primitive)
+      & img2CentCell, primitive, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2344,11 +2505,10 @@ contains
     !> sparse matrix to add this contribution into
     real(dp), intent(inout) :: primitive(:)
 
-    integer :: nAtom
-    integer :: iOrig, ii, jj, kk
-    integer :: iNeigh
-    integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iLocal
     real(dp) :: tmpSqr(mOrb, mOrb)
   #:block DEBUG_CODE
     integer :: sizePrim
@@ -2361,37 +2521,61 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(nNeighbourSK) == nAtom)
 
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
-            & tmpSqr(1:nOrb2, 1:nOrb1))
-
-        ! Symmetrize the on-site block before packing, just in case
-        if (iAtom1 == iAtom2f) then
-          do kk = 1, nOrb2
-            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk + 1 : nOrb1, kk)
-          end do
-        end if
-
-        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) =&
-            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
-            & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+              & tmpSqr(1:nOrb2, 1:nOrb1))
+          ! Symmetrize the on-site block before packing, just in case
+          if (iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk + 1 : nOrb1, kk)
+            end do
+          end if
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig:iOrig+nOrb2*nOrb1 - 1) = primitive(iOrig:iOrig+nOrb2*nOrb1 - 1)&
+              & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb2*nOrb1])
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+              & tmpSqr(1:nOrb2, 1:nOrb1))
+          ! Symmetrize the on-site block before packing, just in case
+          if (iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk + 1 : nOrb1, kk)
+            end do
+          end if
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig:iOrig+nOrb2*nOrb1 - 1) = primitive(iOrig:iOrig+nOrb2*nOrb1 - 1)&
+              & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb2*nOrb1])
+        end do
+      end do
+    end if
 
   end subroutine packRhoRealBlacs
 
 
   !> Packs distributed dense matrix into sparse form (complex).
   subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2432,12 +2616,11 @@ contains
     !> sparse matrix to add this contribution into
     real(dp), intent(inout) :: primitive(:)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     complex(dp) :: phase
-    integer :: nAtom
-    integer :: iOrig, ii, jj, kk
-    integer :: iNeigh
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f, iLocal
     integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
@@ -2459,42 +2642,71 @@ contains
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        iVec = iCellVec(iAtom2)
-        if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
-        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
-            & tmpSqr(1:nOrb2, 1:nOrb1))
-
-        ! Hermitian the on-site block before packing, just in case
-        if (iAtom1 == iAtom2f) then
-          do kk = 1, nOrb2
-            tmpSqr(kk, kk + 1 : nOrb1) = conjg(tmpSqr(kk + 1 : nOrb1, kk))
-          end do
-        end if
-
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
-            & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2]), dp)
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+              & tmpSqr(1:nOrb2, 1:nOrb1))
+          ! Hermitian the on-site block before packing, just in case
+          if (iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              tmpSqr(kk, kk + 1 : nOrb1) = conjg(tmpSqr(kk + 1 : nOrb1, kk))
+            end do
+          end if
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
+              & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2]), dp)
+        end do
       end do
-    end do
+    else
+      do iAtom1 = 1, nAtom
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+              & tmpSqr(1:nOrb2, 1:nOrb1))
+          ! Hermitian the on-site block before packing, just in case
+          if (iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              tmpSqr(kk, kk + 1 : nOrb1) = conjg(tmpSqr(kk + 1 : nOrb1, kk))
+            end do
+          end if
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
+              & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2]), dp)
+        end do
+      end do
+    end if
 
   end subroutine packRhoCplxBlacs
 
 
   !> Pack square dense matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iprimitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iprimitive, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2538,12 +2750,16 @@ contains
     !> Imaginary part of sparse matrix
     real(dp), intent(inout), optional :: iprimitive(:, :)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-        & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(1, 0, dp), .true., primitive)
+        & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(1, 0, dp), .true., primitive,&
+        & iLocalAts)
     if (present(iprimitive)) then
       call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
           & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(0, -1, dp),&
-          & .false., iprimitive)
+          & .false., iprimitive, iLocalAts)
     end if
 
   end subroutine packRhoPauliBlacs
@@ -2552,14 +2768,13 @@ contains
   !> Helper routine for the Pauli packing.
   subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
       & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, imagprefac, symmetrize,&
-      & primitive)
+      & primitive, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
 
     !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
-
     !> distributed sparse matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
@@ -2599,17 +2814,15 @@ contains
     !> sparse matrix to add this contribution to
     real(dp), intent(inout) :: primitive(:, :)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     complex(dp) :: phase
     real(dp) :: zprefac
-    integer :: nAtom
-    integer :: iOrig, ii, jj, kk
-    integer :: iNeigh, iBlock
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2, nOrb
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iBlock, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb, iLocal
     real(dp) :: kPoint2p(3)
-    complex(dp), target :: tmpSqr(mOrb, mOrb)
-    complex(dp), target :: tmpSqr1(mOrb, mOrb), tmpSqr2(mOrb, mOrb)
+    complex(dp), target :: tmpSqr(mOrb, mOrb), tmpSqr1(mOrb, mOrb), tmpSqr2(mOrb, mOrb)
     complex(dp), pointer :: ptmp(:, :), ptmp1(:, :), ptmp2(:, :)
   #:block DEBUG_CODE
     integer :: sizePrim
@@ -2637,6 +2850,129 @@ contains
       zprefac = real(1 - 2 * iBlock, dp)
       iOldVec = 0
       phase = 1.0_dp
+      if (present(iLocalAts)) then
+        do iLocal = 1, size(iLocalAts)
+          iAtom1 = iLocalAts(iLocal)
+          ii = desc%iAtomStart(iAtom1)
+          nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+          do iNeigh = 0, nNeighbourSK(iAtom1)
+            iOrig = iSparseStart(iNeigh, iAtom1) + 1
+            iAtom2 = iNeighbour(iNeigh, iAtom1)
+            iAtom2f = img2CentCell(iAtom2)
+            jj = desc%iAtomStart(iAtom2f)
+            nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+            iVec = iCellVec(iAtom2)
+            if (iVec /= iOldVec) then
+              phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+              iOldVec = iVec
+            end if
+            ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
+            call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+                & ii + iBlock * nOrb, square, ptmp)
+            ! Hermitian the on-site block before packing, as only one triangle
+            ! usually supplied
+            if (iAtom1 == iAtom2f) then
+              do kk = 1, nOrb2
+                ptmp(kk, kk+1:) = conjg(ptmp(kk+1:, kk))
+              end do
+            end if
+            ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+            @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+            primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1) =&
+                & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
+                & + reshape(real(ptmp), [nOrb1 * nOrb2])
+            primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4) =&
+                & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4)&
+                & + zprefac * reshape(real(ptmp), [nOrb1 * nOrb2])
+          end do
+        end do
+      else
+        do iAtom1 = 1, nAtom
+          ii = desc%iAtomStart(iAtom1)
+          nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+          do iNeigh = 0, nNeighbourSK(iAtom1)
+            iOrig = iSparseStart(iNeigh, iAtom1) + 1
+            iAtom2 = iNeighbour(iNeigh, iAtom1)
+            iAtom2f = img2CentCell(iAtom2)
+            jj = desc%iAtomStart(iAtom2f)
+            nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+            iVec = iCellVec(iAtom2)
+            if (iVec /= iOldVec) then
+              phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+              iOldVec = iVec
+            end if
+            ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
+            call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+                & ii + iBlock * nOrb, square, ptmp)
+            ! Hermitian the on-site block before packing, as only one triangle
+            ! usually supplied
+            if (iAtom1 == iAtom2f) then
+              do kk = 1, nOrb2
+                ptmp(kk, kk+1:) = conjg(ptmp(kk+1:, kk))
+              end do
+            end if
+            ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+            @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+            primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1) =&
+                & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
+                & + reshape(real(ptmp), [nOrb1 * nOrb2])
+            primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4) =&
+                & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4)&
+                & + zprefac * reshape(real(ptmp), [nOrb1 * nOrb2])
+          end do
+        end do
+      end if
+    end do
+
+    ! sigma_x and sigma_y blocks
+    iOldVec = 0
+    phase = 1.0_dp
+    if (present(iLocalAts)) then
+      do iLocal = 1, size(iLocalAts)
+        iAtom1 = iLocalAts(iLocal)
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+          iVec = iCellVec(iAtom2)
+          if (iVec /= iOldVec) then
+            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            iOldVec = iVec
+          end if
+          ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
+          ptmp1 => tmpSqr1(1:nOrb2, 1:nOrb1)
+          ptmp2 => tmpSqr2(1:nOrb1, 1:nOrb2)
+          ! take the Pauli part of the block
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
+          ptmp(:, :) = ptmp1 + conjg(transpose(ptmp2))
+          if (symmetrize .and. iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
+            end do
+          end if
+          ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2) =&
+              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
+              & + reshape(real(ptmp), [nOrb1 * nOrb2])
+          ptmp(:, :) = ptmp1 - conjg(transpose(ptmp2))
+          if (symmetrize .and. iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
+            end do
+          end if
+          ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) =&
+              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3)&
+              & + reshape(aimag(ptmp), [nOrb1 * nOrb2])
+        end do
+      end do
+    else
       do iAtom1 = 1, nAtom
         ii = desc%iAtomStart(iAtom1)
         nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
@@ -2652,78 +2988,42 @@ contains
             iOldVec = iVec
           end if
           ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
-          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
-              & ii + iBlock * nOrb, square, ptmp)
-          ! Hermitian the on-site block before packing, as only one triangle
-          ! usually supplied
-          if (iAtom1 == iAtom2f) then
+          ptmp1 => tmpSqr1(1:nOrb2, 1:nOrb1)
+          ptmp2 => tmpSqr2(1:nOrb1, 1:nOrb2)
+          ! take the Pauli part of the block
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
+          ptmp(:, :) = ptmp1 + conjg(transpose(ptmp2))
+          if (symmetrize .and. iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
-              ptmp(kk, kk+1:) = conjg(ptmp(kk+1:, kk))
+              ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
             end do
           end if
           ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
-          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1) =&
-              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
+          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2) =&
+              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
               & + reshape(real(ptmp), [nOrb1 * nOrb2])
-          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4) =&
-              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4)&
-              & + zprefac * reshape(real(ptmp), [nOrb1 * nOrb2])
+          ptmp(:, :) = ptmp1 - conjg(transpose(ptmp2))
+          if (symmetrize .and. iAtom1 == iAtom2f) then
+            do kk = 1, nOrb2
+              ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
+            end do
+          end if
+          ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) =&
+              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3)&
+              & + reshape(aimag(ptmp), [nOrb1 * nOrb2])
         end do
       end do
-    end do
-
-    ! sigma_x and sigma_y blocks
-    iOldVec = 0
-    phase = 1.0_dp
-    do iAtom1 = 1, nAtom
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iSparseStart(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbour(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iAtomStart(iAtom2f)
-        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-        iVec = iCellVec(iAtom2)
-        if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
-          iOldVec = iVec
-        end if
-        ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
-        ptmp1 => tmpSqr1(1:nOrb2, 1:nOrb1)
-        ptmp2 => tmpSqr2(1:nOrb1, 1:nOrb2)
-        ! take the Pauli part of the block
-        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
-        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
-        ptmp(:, :) = ptmp1 + conjg(transpose(ptmp2))
-        if (symmetrize .and. iAtom1 == iAtom2f) then
-          do kk = 1, nOrb2
-            ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
-          end do
-        end if
-        ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
-        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2) =&
-            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
-            & + reshape(real(ptmp), [nOrb1 * nOrb2])
-        ptmp(:, :) = ptmp1 - conjg(transpose(ptmp2))
-        if (symmetrize .and. iAtom1 == iAtom2f) then
-          do kk = 1, nOrb2
-            ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
-          end do
-        end if
-        ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
-        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) =&
-            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3)&
-            & + reshape(aimag(ptmp), [nOrb1 * nOrb2])
-      end do
-    end do
+    end if
 
   end subroutine packRhoPauliBlacsHelper
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix.
   subroutine packERhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iLocalAts)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2764,11 +3064,12 @@ contains
     !> sparse matrix to add this contribution to
     real(dp), intent(inout) :: primitive(:)
 
+    !> Local list of atoms with dense matrix elements on this processor
+    integer, intent(in), optional :: iLocalAts(:)
+
     complex(dp) :: phase
-    integer :: nAtom, iAtom1, iAtom2, iAtom2f, iNeigh, iBlock
-    integer :: iOrig, ii, jj, kk
-    integer :: iOldVec, iVec
-    integer :: nOrb1, nOrb2, nOrb
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f, iNeigh, iBlock, iOrig, ii, jj, kk, iOldVec, iVec
+    integer :: nOrb1, nOrb2, nOrb, iLocal
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
   #:block DEBUG_CODE
@@ -2794,34 +3095,68 @@ contains
     do iBlock = 0, 1
       iOldVec = 0
       phase = 1.0_dp
-      do iAtom1 = 1, nAtom
-        ii = desc%iAtomStart(iAtom1)
-        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iSparseStart(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbour(iNeigh, iAtom1)
-          iAtom2f = img2CentCell(iAtom2)
-          jj = desc%iAtomStart(iAtom2f)
-          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
-          iVec = iCellVec(iAtom2)
-          if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
-            iOldVec = iVec
-          end if
-          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
-              & ii + iBlock * nOrb, square, tmpSqr(1:nOrb2, 1:nOrb1))
-          ! Symmetrize the on-site block before packing, as only one
-          ! triangle supplied
-          if (iAtom1 == iAtom2f) then
-            do kk = 1, nOrb2
-              tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
-            end do
-          end if
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
-              & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) + kWeight *&
-              & reshape(real(phase*tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
+      if (present(iLocalAts)) then
+        do iLocal = 1, size(iLocalAts)
+          iAtom1 = iLocalAts(iLocal)
+          ii = desc%iAtomStart(iAtom1)
+          nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+          do iNeigh = 0, nNeighbourSK(iAtom1)
+            iOrig = iSparseStart(iNeigh, iAtom1) + 1
+            iAtom2 = iNeighbour(iNeigh, iAtom1)
+            iAtom2f = img2CentCell(iAtom2)
+            jj = desc%iAtomStart(iAtom2f)
+            nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+            iVec = iCellVec(iAtom2)
+            if (iVec /= iOldVec) then
+              phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+              iOldVec = iVec
+            end if
+            call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+                & ii + iBlock * nOrb, square, tmpSqr(1:nOrb2, 1:nOrb1))
+            ! Symmetrize the on-site block before packing, as only one
+            ! triangle supplied
+            if (iAtom1 == iAtom2f) then
+              do kk = 1, nOrb2
+                tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+              end do
+            end if
+            @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+            primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
+                & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) + kWeight *&
+                & reshape(real(phase*tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
+          end do
         end do
-      end do
+      else
+        do iAtom1 = 1, nAtom
+          ii = desc%iAtomStart(iAtom1)
+          nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+          do iNeigh = 0, nNeighbourSK(iAtom1)
+            iOrig = iSparseStart(iNeigh, iAtom1) + 1
+            iAtom2 = iNeighbour(iNeigh, iAtom1)
+            iAtom2f = img2CentCell(iAtom2)
+            jj = desc%iAtomStart(iAtom2f)
+            nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+            iVec = iCellVec(iAtom2)
+            if (iVec /= iOldVec) then
+              phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+              iOldVec = iVec
+            end if
+            call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+                & ii + iBlock * nOrb, square, tmpSqr(1:nOrb2, 1:nOrb1))
+            ! Symmetrize the on-site block before packing, as only one
+            ! triangle supplied
+            if (iAtom1 == iAtom2f) then
+              do kk = 1, nOrb2
+                tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+              end do
+            end if
+            @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+            primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
+                & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) + kWeight *&
+                & reshape(real(phase*tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
+          end do
+        end do
+      end if
     end do
 
   end subroutine packERhoPauliBlacs

@@ -1871,7 +1871,7 @@ contains
       end select
     end if
 
-    call this%getDenseDescCommon() !this%orb, this%nAtom, this%t2Component, this%denseDesc)
+    call this%getDenseDescCommon()
 
     if (this%electronicSolver%isElsiSolver) then
       @:ASSERT(this%parallelKS%nLocalKS == 1)

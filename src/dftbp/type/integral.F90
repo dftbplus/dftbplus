@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Data types to handle overlap related integrals
 module dftbp_type_integral
   use dftbp_common_accuracy, only : dp
@@ -37,6 +39,16 @@ module dftbp_type_integral
 
     !> Imaginary Hamiltonian integrals in atomic block sparse form
     real(dp), allocatable :: iHamiltonian(:, :)
+
+  #:if WITH_SCALAPACK
+
+    !> Atoms corresponding to local columns of the orbital grid for dense matrix stored integrals
+    integer, allocatable :: lowerTriangleLocalAtoms(:)
+
+    !> Atoms corresponding to ocal rows of the orbital grid for dense matrix stored integrals
+    integer, allocatable :: bothTriangleLocalAtoms(:)
+
+  #:endif
 
   end type TIntegral
 
@@ -80,6 +92,11 @@ contains
       allocate(this%quadrupoleKet(nQuadrupole, 0))
       allocate(this%quadrupoleBra(nQuadrupole, 0))
     end if
+
+  #:if WITH_SCALAPACK
+    allocate(this%lowerTriangleLocalAtoms(0))
+    allocate(this%bothTriangleLocalAtoms(0))
+  #:endif
 
   end subroutine TIntegral_init
 

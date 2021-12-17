@@ -680,12 +680,12 @@ contains
     end if
 
     if (this%tCoordsChanged) then
-      call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite,&
-          & this%repulsive, this%dispersion,this%solvation, this%thirdOrd, this%rangeSep,&
-          & this%reks, this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
-          & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
-          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
+      call handleCoordinateChange(env, this%denseDesc, this%coord0, this%latVec, this%invLatVec,&
+          & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc,&
+          & this%tblite, this%repulsive, this%dispersion,this%solvation, this%thirdOrd,&
+          & this%rangeSep, this%reks, this%img2CentCell, this%iCellVec, this%neighbourList,&
+          & this%nAllAtom, this%coord0Fold, this%coord,this%species, this%rCellVec,&
+          & this%nNeighbourSk, this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
           & this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
         @:HANDLE_ERROR(errStatus)
     end if
@@ -799,7 +799,7 @@ contains
         call getDensityMatrixL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%orb, this%species, this%coord,&
             & this%tHelical, this%eigvecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal,&
-            & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
+            & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks, this%ints)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%ints,&
             & this%iRhoPrim, this%qBlockOut, this%qiBlockOut, this%qNetAtom, this%reks)
@@ -824,7 +824,7 @@ contains
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell,&
             & this%orb, this%species, this%denseDesc%iAtomStart, this%coord, this%tHelical,&
             & this%eigVecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal, this%rhoSqrReal,&
-            & this%deltaRhoOutSqr)
+            & this%deltaRhoOutSqr, this%ints)
         ! For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
           call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart, this%deltaRhoOutSqr)
@@ -1760,7 +1760,7 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
+  subroutine handleCoordinateChange(env, denseDesc, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
       & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
       & species, rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim,&
@@ -1768,6 +1768,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -1893,8 +1896,8 @@ contains
 
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
-    call reallocateSparseArrays(sparseSize, reks, ints, H0,&
-        & rhoPrim, iRhoPrim, ERhoPrim)
+    call reallocateSparseArrays(sparseSize, reks, ints, H0, rhoPrim, iRhoPrim, ERhoPrim)
+    call updateLocalAtoms(env, ints, denseDesc)
 
     if (allocated(nNeighbourLC)) then
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
@@ -2009,8 +2012,7 @@ contains
 
 
   !> Ensures that sparse array have enough storage to hold all necessary elements.
-  subroutine reallocateSparseArrays(sparseSize, reks, ints,&
-      & H0, rhoPrim, iRhoPrim, ERhoPrim)
+  subroutine reallocateSparseArrays(sparseSize, reks, ints, H0, rhoPrim, iRhoPrim, ERhoPrim)
 
     !> Size of the sparse overlap
     integer, intent(in) :: sparseSize
@@ -2115,6 +2117,81 @@ contains
     end if
 
   end subroutine reallocateSparseArrays
+
+
+  !> Updates information about atoms where dense matrices would be local to this processor (MPI)
+  subroutine updateLocalAtoms(env, ints, denseDesc)
+
+  #:if WITH_SCALAPACK
+    use dftbp_math_sorting, only : heap_sort, unique
+    use dftbp_extlibs_scalapackfx, only : MB_, NB_, RSRC_, CSRC_, scalafx_getlocalshape,&
+        & scalafx_indxl2g
+    use dftbp_math_bisect, only : bisection
+    use dftbp_type_linkedlist, only : TListInt, init, destruct, append, len, asArray
+  #:endif
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
+
+    !> Dense matrix descriptor for H and S
+    type(TDenseDescr), intent(in) :: denseDesc
+
+  #:if WITH_SCALAPACK
+
+    integer :: nLocalRows, nLocalCols, ii, iOrb, iAt, nn, maxOrbs
+    type(TListInt) :: intBuffer
+    integer, allocatable :: work(:)
+
+    if (env%blacs%orbitalGrid%iproc == -1) then
+      return
+    end if
+
+    maxOrbs = denseDesc%nOrb
+    nn = denseDesc%fullSize
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+    ! matrix size is (nLocalRows,nLocalCols)
+    call init(intBuffer)
+    do ii = 1, nLocalCols
+      iOrb = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      iOrb = mod(iOrb-1, maxOrbs)+1 ! in case of 2 component
+      call bisection(iAt, denseDesc%iAtomStart, iOrb)
+      call append(intBuffer, iAt)
+    end do
+    allocate(work(len(intBuffer)))
+    call asArray(intBuffer, work)
+    call heap_sort(work)
+    nn = unique(work)
+    deallocate(ints%lowerTriangleLocalAtoms)
+    ints%lowerTriangleLocalAtoms = work(:nn)
+    deallocate(work)
+    do ii = 1, nLocalRows
+      iOrb = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+          & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+      iOrb = mod(iOrb-1, maxOrbs)+1 ! in case of 2 component
+      call bisection(iAt, denseDesc%iAtomStart, iOrb)
+      call append(intBuffer, iAt)
+    end do
+    allocate(work(len(intBuffer)))
+    call asArray(intBuffer, work)
+    call destruct(intBuffer)
+    call heap_sort(work)
+    nn = unique(work)
+    deallocate(ints%bothTriangleLocalAtoms)
+    ints%bothTriangleLocalAtoms = work(:nn)
+    deallocate(work)
+
+  #:else
+
+    return
+
+  #:endif
+
+  end subroutine updateLocalAtoms
 
 
   !> Initialise basic variables before the scc loop.
@@ -2610,11 +2687,11 @@ contains
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, species, denseDesc%iAtomStart, coord, tHelical,&
-            & eigVecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
+            & eigVecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr, ints)
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
-            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx)
+            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx, ints)
       end if
       call ud2qm(rhoPrim)
     else
@@ -2623,7 +2700,7 @@ contains
       call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
           & tMulliken, kPoint, kWeight, filling(:,:,1), neighbourList, nNeighbourSK, orb,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, species, parallelKS, deltaDftb,&
-          & eigVecsCplx, SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
+          & eigVecsCplx, SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim, ints)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
@@ -2721,10 +2798,11 @@ contains
         end if
       else
         call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
-            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, HSqrReal)
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, HSqrReal,&
+            & ints%lowerTriangleLocalAtoms)
         if (.not. electronicSolver%hasCholesky(1)) then
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-              & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+              & iSparseStart, img2CentCell, denseDesc, SSqrReal, ints%lowerTriangleLocalAtoms)
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2853,10 +2931,11 @@ contains
       else
         call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK),&
             & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, denseDesc, HSqrCplx)
+            & img2CentCell, denseDesc, HSqrCplx, ints%lowerTriangleLocalAtoms)
         if (.not. electronicSolver%hasCholesky(iKS)) then
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx,&
+              & ints%lowerTriangleLocalAtoms)
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2962,16 +3041,16 @@ contains
       if (allocated(ints%iHamiltonian)) then
         call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & HSqrCplx, iorig=ints%iHamiltonian)
+            & HSqrCplx, iorig=ints%iHamiltonian, iLocalAts=ints%bothTriangleLocalAtoms)
       else
         call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & HSqrCplx)
+            & HSqrCplx, iLocalAts=ints%bothTriangleLocalAtoms)
       end if
       if (.not. electronicSolver%hasCholesky(iKS)) then
         call unpackSPauliBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & SSqrCplx)
+            & SSqrCplx, ints%lowerTriangleLocalAtoms)
       end if
     #:else
       if (allocated(ints%iHamiltonian)) then
@@ -3008,7 +3087,7 @@ contains
   !> Creates sparse density matrix from real eigenvectors.
   subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, species, iAtomStart, coord, tHelical, eigvecs, parallelKS,&
-      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr, ints)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3064,6 +3143,9 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
     integer :: iKS, iSpin
 
     rhoPrim(:,:) = 0.0_dp
@@ -3079,7 +3161,8 @@ contains
             & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
       else
         call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
-            & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+            & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin),&
+            & iLocalAts=ints%lowerTriangleLocalAtoms)
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
@@ -3127,7 +3210,7 @@ contains
   !> Creates sparse density matrix from complex eigenvectors.
   subroutine getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS, tHelical,&
-      & species, coord, eigvecs, rhoPrim, work)
+      & species, coord, eigvecs, rhoPrim, work, ints)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3186,6 +3269,9 @@ contains
     !> workspace array
     complex(dp), intent(out) :: work(:,:)
 
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
     integer :: iKS, iK, iSpin
 
     rhoPrim(:,:) = 0.0_dp
@@ -3204,7 +3290,7 @@ contains
       else
         call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, rhoPrim(:,iSpin))
+            & img2CentCell, rhoPrim(:,iSpin), iLocalAts=ints%lowerTriangleLocalAtoms)
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
@@ -3235,7 +3321,7 @@ contains
   subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
       & tMulliken, kPoint, kWeight, filling, neighbourList, nNeighbourSK, orb, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, species, parallelKS, deltaDftb, eigvecs, work, dftbEnergy,&
-      & rhoPrim, xi, orbitalL, iRhoPrim)
+      & rhoPrim, xi, orbitalL, iRhoPrim, ints)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3315,6 +3401,8 @@ contains
     !> imaginary part of density matrix  if required
     real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
 
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
     integer :: nAtom
@@ -3364,11 +3452,11 @@ contains
       if (tImHam) then
         call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, rhoPrim, iRhoPrim)
+            & img2CentCell, rhoPrim, iRhoPrim, iLocalAts=ints%bothTriangleLocalAtoms)
       else
         call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, rhoPrim)
+            & img2CentCell, rhoPrim, iLocalAts=ints%bothTriangleLocalAtoms)
       end if
     #:else
       if (tRealHS) then
@@ -4797,7 +4885,7 @@ contains
     if (nSpin == 4) then
       call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
+          & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim, ints)
     else
       if (tRealHS) then
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
@@ -4907,7 +4995,7 @@ contains
               & coord, denseDesc, work)
         else
           call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourList%iNeighbour,&
-              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, work)
+              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, work, ints%bothTriangleLocalAtoms)
         end if
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigVecsReal(:,:,iKS), work2)
@@ -4942,7 +5030,8 @@ contains
               & coord, denseDesc, work2)
         else
           call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourlist%iNeighbour,&
-              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, work2)
+              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, work2,&
+              & ints%bothTriangleLocalAtoms)
         end if
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
             & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
@@ -4951,7 +5040,7 @@ contains
               & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, work)
         else
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
-              & iSparseStart, img2CentCell, denseDesc, work)
+              & iSparseStart, img2CentCell, denseDesc, work, ints%bothTriangleLocalAtoms)
         end if
         call psymmatinv(denseDesc%blacsOrbSqr, work)
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
@@ -4989,7 +5078,8 @@ contains
             & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, ERhoPrim)
       else
         call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
-            & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+            & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim,&
+            & iLocalAts=ints%lowerTriangleLocalAtoms)
       end if
     #:else
       if (tHelical) then
@@ -5117,7 +5207,7 @@ contains
         else
           call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
-              & img2CentCell, denseDesc, work)
+              & img2CentCell, denseDesc, work, ints%bothTriangleLocalAtoms)
         end if
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsCplx(:,:,iKS), work2)
@@ -5152,7 +5242,7 @@ contains
         else
           call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
-              & img2CentCell, denseDesc, work2)
+              & img2CentCell, denseDesc, work2, ints%bothTriangleLocalAtoms)
         end if
         call pblasfx_phemm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
             & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
@@ -5162,7 +5252,8 @@ contains
               & img2CentCell, orb, species, coord, denseDesc, work)
         else
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work,&
+              & ints%bothTriangleLocalAtoms)
         end if
         call phermatinv(denseDesc%blacsOrbSqr, work)
         call pblasfx_phemm(work, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
@@ -5204,7 +5295,7 @@ contains
       else
         call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
             &neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-            & img2CentCell, ERhoPrim)
+            & img2CentCell, ERhoPrim, iLocalAts=ints%lowerTriangleLocalAtoms)
       end if
     #:else
       if (tHelical) then
@@ -5230,7 +5321,7 @@ contains
   !> Calculates density matrix from Pauli-type two component eigenvectors.
   subroutine getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-      & parallelKS, eigvecsCplx, work, ERhoPrim)
+      & parallelKS, eigvecsCplx, work, ERhoPrim, ints)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5286,6 +5377,9 @@ contains
     !> Sparse energy weighted density matrix
     real(dp), intent(out) :: ERhoPrim(:)
 
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
     integer :: iKS, iK
 
     ERhoPrim(:) = 0.0_dp
@@ -5296,7 +5390,7 @@ contains
           & eigvecsCplx(:,:,iKS), work, eigen(:,iK,1))
       call packERhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
           & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, ERhoPrim)
+          & img2CentCell, ERhoPrim, iLocalAts=ints%bothTriangleLocalAtoms)
     #:else
       call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,1), eigen(:,iK,1))
       if (tRealHS) then
@@ -6675,7 +6769,7 @@ contains
   !> Creates (delta) density matrix for each microstate from real eigenvectors.
   subroutine getDensityMatrixL(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, orb, species, coord, tHelical, eigvecs, parallelKS, rhoPrim, work,&
-      & rhoSqrReal, q0, deltaRhoOutSqr, reks)
+      & rhoSqrReal, q0, deltaRhoOutSqr, reks, ints)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6731,6 +6825,9 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
     integer :: iL
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
@@ -6745,7 +6842,7 @@ contains
 
       call getDensityFromRealEigvecs(env, denseDesc, reks%fillingL(:,:,iL), neighbourList,&
           & nNeighbourSK, iSparseStart, img2CentCell, orb, species, denseDesc%iAtomStart, coord,&
-          & tHelical, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+          & tHelical, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal, deltaRhoOutSqr, ints)
 
       if (reks%tForces) then
         ! reks%rhoSqrL has (my_ud) component
