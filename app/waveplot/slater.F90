@@ -14,7 +14,7 @@ module waveplot_slater
   implicit none
 
   private
-  public :: RealTessY, TRadialWavefunc, init
+  public :: RealTessY, TRadialWavefunc, init, SlaterOrbital_getValue_explicit
   save
 
 
@@ -23,6 +23,12 @@ module waveplot_slater
 
     !> Radial wavefunction components
     real(dp), allocatable :: rwf(:,:)
+
+    !> exponential coefficients
+    real(dp), allocatable :: exps(:)
+
+    !> summation coefficients, shape: [nCoeffPerAlpha, nAlpha]
+    real(dp), allocatable :: aa(:,:)
 
   end type TRadialWavefunc
 
@@ -146,16 +152,67 @@ contains
 
 
   !> Initialises a RadialWavefunc.
-  subroutine RadialWavefunc_init(this, rwf)
+  subroutine RadialWavefunc_init(this, rwf, exps, aa)
+  
+      !> RadialWavefunc instance to initialise
+      type(TRadialWavefunc), intent(inout) :: this
 
-    !> RadialWavefunc instance to initialise
-    type(TRadialWavefunc), intent(inout) :: this
+      real(dp), intent(in) :: rwf(:,:), exps(:), aa(:,:)
 
-    !> Radial wavefunction component
-    real(dp), intent(in) :: rwf(:,:)
-
-    this%rwf = rwf
-
+      this%rwf = rwf
+      this%exps = exps
+      this%aa = aa
+  
   end subroutine RadialWavefunc_init
+
+
+  !> Calculates the value of an STO analytically
+  subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, sto)
+
+    !> Angular momentum of the STO
+    integer, intent(in) :: ll
+
+    !> Maximal power of the distance in the STO
+    integer, intent(in) :: nPow
+
+    !> Number of exponential coefficients
+    integer, intent(in) :: nAlpha
+
+    !> summation coefficients, shape: [nCoeffPerAlpha, nAlpha]
+    real(dp), intent(in) :: aa(:,:)
+
+    !> exponential coefficients
+    real(dp), intent(in) :: alpha(:)
+
+    !> Distance, where the STO should be calculated
+    real(dp), intent(in) :: rr
+
+    !> Value of the STO on return
+    real(dp), intent(out) :: sto
+
+    real(dp) :: pows(nPow)
+    real(dp) :: rTmp
+    integer :: ii, jj
+
+    ! Avoid 0.0**0 as it may lead to arithmetic exception
+    if (ll == 0 .and. rr < epsilon(1.0_dp)) then
+      rTmp = 1.0_dp
+    else
+      rTmp = rr**ll
+    end if
+    do ii = 1, nPow
+      pows(ii) = rTmp
+      rTmp = rTmp * rr
+    end do
+    sto = 0.0_dp
+    do ii = 1, nAlpha
+      rTmp = 0.0_dp
+      do jj = 1, nPow
+        rTmp = rTmp + aa(jj, ii) * pows(jj)
+      end do
+      sto = sto + rTmp * exp(alpha(ii) * rr)
+    end do
+
+  end subroutine SlaterOrbital_getValue_explicit
 
 end module waveplot_slater

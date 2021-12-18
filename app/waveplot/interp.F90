@@ -19,13 +19,13 @@ module waveplot_interp
 
 contains
 
-
+  !> One dimensional linar interpolation.
   pure function linearInterpolation(lCc, uCc, ldata, udata, xx) result(interpVal)
 
     !> cartesian lower and upper bounds
     real(dp), intent(in) :: lCc, uCc
 
-    !> corresponding data at outer bounds, shape: [2]
+    !> corresponding data at outer bounds
     real(dp), intent(in) :: ldata, udata
 
     !> cartesian coordinate to calculate the interpolation value for
@@ -44,15 +44,16 @@ contains
   end function linearInterpolation
 
 
+  !> Three dimensional linear interpolation. It is also used for interpolation on a non-cubic grid.
   pure function trilinearInterpolation(lCubeCorns, uCubeCorns, data, cartcoord) result(interpVal)
 
     !> cartesian points that build up the subcube, shape: [3]
     real(dp), intent(in) :: lCubeCorns(:), uCubeCorns(:)
 
-    !> data corresponding to the corners
+    !> data corresponding to the corners, shape: [2, 2, 2]
     real(dp), intent(in) :: data(:,:,:)
 
-    !> cartesian coordinate to calculate the interpolation value for
+    !> cartesian coordinate to calculate the interpolation value for, shape: [3]
     real(dp), intent(in) :: cartcoord(:)
 
     !> weight factors of cartesian directions
@@ -84,6 +85,7 @@ contains
   end function trilinearInterpolation
 
 
+  !> One dimensional spline interpolation
   pure function splineInterpolation(xx, yy, secDerivs, xExact) result(splint)
 
     !> tabulated x- and y-values with x-values in increasing or decreasing order
@@ -106,7 +108,7 @@ contains
 
     nVals = size(xx)
 
-    !! get table index, corresponding to the next value below given x-value xExact
+    ! get table index, corresponding to the next value below given x-value xExact
     lower = max(min(locateByBisection(xx, xExact), nVals - 1), 1)
     upper = lower + 1
     delta = xx(upper) - xx(lower)
@@ -139,7 +141,7 @@ contains
 
     nVals = size(xx)
 
-    !! check if xx is in increasing or decreasing order
+    ! check if xx is in increasing or decreasing order
     tAscnd = (xx(nVals) >= xx(1))
 
     lower = 0

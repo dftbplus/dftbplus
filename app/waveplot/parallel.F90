@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Contains routines for parallelization.
 module waveplot_parallel
 
   use dftbp_common_accuracy, only : dp
@@ -15,7 +16,7 @@ module waveplot_parallel
 
   private
 
-  public :: getStartAndEndIndex, getStartAndEndIndices
+  public :: getStartAndEndIndices
 
 
 contains
