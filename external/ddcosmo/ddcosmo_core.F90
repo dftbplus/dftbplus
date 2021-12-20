@@ -398,30 +398,6 @@ contains
   end subroutine mkccav
 
 
-  !> Scalar product
-  pure function sprod(n, u, v)
-
-    integer, intent(in) :: n
-    real(dp), intent(in) :: u(n), v(n)
-    real(dp) :: sprod
-
-    integer :: i
-    real(dp) :: ss
-
-    ! initialize
-    ss = 0.0_dp
-
-    do i = 1, n
-      ! accumulate
-      ss = ss + u(i)*v(i)
-    end do
-
-    ! redirect
-    sprod = ss
-
-  end function sprod
-
-
   !> Switch function (5th degree polynomial)
   elemental function fsw(t, s, eta)
 
@@ -1388,35 +1364,6 @@ contains
     end do
 
   end subroutine calcv
-
-
-  !> Compute the xi intermediate
-  !
-  ! \xi(n, i) =
-  !
-  !  sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
-  !  l, m
-  !
-  pure subroutine ddmkxi(self, s, xi)
-
-    type(TDomainDecomposition), intent(in) :: self
-    real(dp), intent(in) :: s(:, :) ! [self%nylm, self%nat]
-    real(dp), intent(inout) :: xi(:) ! [self%ncav]
-
-    integer :: its, iat, ii
-
-    ii = 0
-    do iat = 1, self%nat
-      do its = 1, self%ngrid
-        if (self%ui(its, iat) > 0.0_dp) then
-          ii = ii + 1
-          xi(ii) = self%w(its)*self%ui(its, iat) &
-            & * dot_product(self%basis(:, its), s(:, iat))
-        end if
-      end do
-    end do
-
-  end subroutine ddmkxi
 
 
 end module ddcosmo_core
