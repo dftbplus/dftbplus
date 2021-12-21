@@ -60,32 +60,40 @@ module dftbp_timedep_linresptypes
     real(dp), allocatable :: HubbardU(:)
 
     !> file for X+Y data
-    integer :: fdXplusY = -1
+    logical :: fdXplusY
+    logical :: writeXplusY
 
     !> file unit if the coefficients for the excited states should be written to disc
-    integer :: fdCoeffs = -1
+    logical :: fdCoeffs
+    logical :: writeCoeffsFile
 
     !> Add the ground state to the excited state transition density matrix when determining the
     !> natural orbitals
     logical :: tGrndState = .true.
 
     !> file unit for excited Mulliken populations?
-    integer :: fdMulliken = -1
+    logical :: fdMulliken
+    logical :: writeMulliken
 
     !> File unit for single particle (KS) transitions if required
-    integer :: fdTrans = -1
+    logical :: fdTrans 
+    logical :: writeTrans
 
     !> File unit for single particle (KS) transition charges if required
-    integer :: fdTransQ = -1
+    logical :: fdTransQ
+    logical :: writeTransQ
 
     !> File unit for single particle transition dipole strengths
-    integer :: fdSPTrans = -1
+    logical :: fdSPTrans
+    logical :: writeSPTrans
 
     !> file handle for excitation energies
     integer :: fdExc = -1
+    logical :: writeExc
 
     !> File unit for transition dipole data
-    integer :: fdTradip = -1
+    logical :: fdTradip
+    logical :: writeTradip
 
     !> For calculations where the geometry changes, previous vectors for restarting the iterative
     !> eigensolver. Note: in the case of ARPACK this is the residual not the eigenvectors
@@ -106,7 +114,8 @@ module dftbp_timedep_linresptypes
     integer :: fdArnoldi = -1
 
     !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
-    integer :: fdArnoldiDiagnosis = -1
+    logical :: fdArnoldiDiagnosis
+    logical :: writeArnoldiDiagnosis
 
     !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann

@@ -31,7 +31,6 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_fileid, only : getFileId 
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -1894,8 +1893,7 @@ contains
     integer :: fdTmp
 
     if (present(fd)) then
-      fd = getFileId()
-      open(fd, file=fileName, action="write", status="replace")
+      open(newunit=fd, file=fileName, action="write", status="replace")
       close(fd)
     else
       open(newUnit=fdTmp, file=fileName, action="write", status="replace")
@@ -2518,7 +2516,7 @@ contains
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
 
     !> File  ID
-    integer, intent(in) :: fd
+    integer, intent(inout) :: fd
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2526,15 +2524,16 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    logical isOpen
-
+    logical :: isOpen
+    
     inquire(unit=fd, opened=isOpen)
     if (isOpen .and. .not. tAppendDetailedOut) then
+      open(fd)
       close(fd)
       isOpen = .false.
     end if
     if (.not.isOpen) then
-      open(fd, file=fileName, status="replace", action="write")
+      open(newunit=fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
@@ -3738,7 +3737,7 @@ contains
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
 
     !> File ID
-    integer, intent(in) :: fd
+    integer, intent(inout) :: fd
 
     !> File name
     character(*), intent(in) :: fileName
@@ -3750,7 +3749,7 @@ contains
     type(TMdIntegrator), intent(in) :: pMdIntegrator
 
     if (iGeoStep == 0) then
-      open(fd, file=fileName, status="replace", action="write")
+      open(newunit=fd, file=fileName, status="replace", action="write")
     end if
     write(fd, "(A, 1X, I0)") "MD step:", iGeoStep
     call state(pMdIntegrator, fd)
@@ -5633,7 +5632,7 @@ contains
     select type(solvation)
     class is (TCosmo)
       write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
-      open(file=cosmoFile, newunit=unit)
+      open(newunit=unit, file=cosmoFile)
       call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
       close(unit)
     end select

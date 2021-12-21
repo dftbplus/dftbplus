@@ -2,7 +2,6 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/charmanip.F90
-  ${curdir}/fileid.F90
   ${curdir}/formatout.F90
   ${curdir}/hsdparser.F90
   ${curdir}/hsdutils.F90

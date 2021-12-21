@@ -11,7 +11,6 @@ program integvalue
   use dftbp_common_accuracy
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_slakoeqgrid
-  use dftbp_io_fileid
   use dftbp_io_message
   use dftbp_type_oldskdata
   implicit none

@@ -891,7 +891,7 @@ module phonons_libnegfint
     call printcsr(fu,HH)
     write(fu,*) ']'
     close(fu) 
-    open(fu, file='SS.dat')
+    open(newunit=fu, file='SS.dat')
     write(fu,*) '% Size =',SS%nrow, SS%ncol
     write(fu,*) '% Nonzeros =',SS%nnz
     write(fu,*) '% '

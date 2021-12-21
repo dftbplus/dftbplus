@@ -22,7 +22,6 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_io_fileid, only : getFileId 
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
@@ -138,6 +137,9 @@ contains
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+    
+    logical :: writeXplusY, writeCoeffsFile, writeMulliken, writeTrans, writeTransQ, writeSPTrans
+    logical :: writeExc, writeTradip, writeArnoldiDiagnosis
 
     this%tinit = .false.
     this%tUseArpack = ini%tUseArpack
@@ -165,48 +167,51 @@ contains
       end if
 
       if (ini%tMulliken) then
-        this%fdMulliken = getFileId()
+        this%fdMulliken = .TRUE.
       else
-        this%fdMulliken = -1
+        this%fdMulliken = .FALSE.
       end if
+      
+      writeMulliken = ini%tMulliken
+      
       if (ini%tCoeffs) then
-        this%fdCoeffs = getFileId()
+        this%fdCoeffs = .TRUE.
       else
-        this%fdCoeffs = -1
+        this%fdCoeffs = .FALSE.
       end if
       this%tGrndState = ini%tGrndState
 
       if (ini%tTrans) then
-        this%fdTrans = getFileId()
+        this%fdTrans = .TRUE.
       else
-        this%fdTrans = -1
+        this%fdTrans = .FALSE.
       end if
 
       if (ini%tTransQ) then
-        this%fdTransQ = getFileId()
+        this%fdTransQ = .TRUE.
       else
-        this%fdTransQ = -1
+        this%fdTransQ = .FALSE.
       end if
 
       if (ini%tSPTrans) then
-        this%fdSPTrans = getFileId()
+        this%fdSPTrans = .TRUE.
       else
-        this%fdSPTrans = -1
+        this%fdSPTrans = .FALSE.
       end if
       if (ini%tXplusY) then
-        this%fdXplusY = getFileId()
+        this%fdXplusY = .TRUE.
       else
-        this%fdXplusY = -1
+        this%fdXplusY = .FALSE.
       end if
       if (ini%tTradip) then
-        this%fdTradip = getFileId()
+        this%fdTradip = .TRUE.
       else
-        this%fdTradip = -1
+        this%fdTradip = .FALSE.
       end if
 
       this%nAtom = nAtom
       this%nEl = nEl
-      this%fdExc = getFileId() ! file for excitations
+      this%fdExc = 1 ! file for excitations
 
       call move_alloc(ini%spinW, this%spinW)
       call move_alloc(ini%hubbardU, this%HubbardU)
@@ -223,12 +228,12 @@ contains
     if (withArpack) then
 
       if (ini%tDiagnoseArnoldi) then
-        this%fdArnoldiDiagnosis = getFileId()
+        this%fdArnoldiDiagnosis = .TRUE.
       else
-        this%fdArnoldiDiagnosis = -1
+        this%fdArnoldiDiagnosis = .FALSE.
       end if
       this%tArnoldi = ini%tArnoldi
-      this%fdArnoldi = getFileId()
+      this%fdArnoldi = 1
       this%tinit = .true.
 
     else

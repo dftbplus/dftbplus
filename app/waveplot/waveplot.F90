@@ -13,7 +13,6 @@ program waveplot
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : getCellTranslations, foldCoordToUnitCell
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_fileid, only : getFileId
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
   use dftbp_type_typegeometry, only : TGeometry
@@ -425,11 +424,7 @@ contains
       rep(:) = [1, 1, 1]
     end if
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-
-    open(fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     if (present(comments)) then
       write (fd, "(A)") trim(comments(1))
       write (fd, "(A)") trim(comments(2))

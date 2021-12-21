@@ -14,7 +14,6 @@ program skderivs
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_slakoeqgrid
   use dftbp_io_charmanip
-  use dftbp_io_fileid
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
@@ -82,15 +81,13 @@ contains
     write(stdout, "(A)") "Following files will be created:"
     call resize_string(buffer, 1024)
     do ii = 1, size(inp%iHam)
-      fpHam(ii) = getFileId()
       strTmp = trim(inp%output) // ".ham." // i2c(ii)
-      open(fpHam(ii), file=strTmp, status="replace", position="rewind")
+      open(newunit=fpHam(ii), file=strTmp, status="replace", position="rewind")
       write(stdout, "(2X,A)") trim(strTmp)
     end do
     do ii = 1, size(inp%iOver)
-      fpOver(ii) = getFileId()
       strTmp = trim(inp%output) // ".ovr." // i2c(ii)
-      open(fpOver(ii), file=strTmp, status="replace", position="rewind")
+      open(newunit=fpOver(ii), file=strTmp, status="replace", position="rewind")
       write(stdout, "(2X,A)") trim(strTmp)
     end do
 
