@@ -1535,7 +1535,7 @@ contains
 
 
   !> Write single particle excitations to a file
-  subroutine writeSPExcitations(wij, win, nmatup, getIA, fdSPTrans, sposz, nxov, tSpin)
+  subroutine writeSPExcitations(wij, win, nmatup, getIA, writeSPTrans, sposz, nxov, tSpin)
 
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
@@ -1549,8 +1549,8 @@ contains
     !> index from composite index to occupied and virtual single particle states
     integer, intent(in) :: getIA(:,:)
 
-    !> file descriptor for the single particle excitation data
-    logical, intent(in) :: fdSPTrans
+    !> whether single particle excitation data should be written
+    logical, intent(in) :: writeSPTrans
 
     !> single particle oscilation strengths
     real(dp), intent(in) :: sposz(:)
@@ -1565,19 +1565,19 @@ contains
     integer :: indm, m, n, s
     logical :: updwn
     character :: sign
-    integer :: newfdSPTrans
+    integer :: fdSPTrans
 
     @:ASSERT(size(sposz)>=nxov)
 
-    if (fdSPTrans) then
+    if (writeSPTrans) then
       ! single particle excitations
-      open(newunit=newfdSPTrans, file=singlePartOut, position="rewind", status="replace")
-      write(newfdSPTrans,*)
-      write(newfdSPTrans,'(7x,a,7x,a,8x,a)') '#      w [eV]',&
+      open(newunit=fdSPTrans, file=singlePartOut, position="rewind", status="replace")
+      write(fdSPTrans,*)
+      write(fdSPTrans,'(7x,a,7x,a,8x,a)') '#      w [eV]',&
           & 'Osc.Str.', 'Transition'
-      write(newfdSPTrans,*)
-      write(newfdSPTrans,'(1x,58("="))')
-      write(newfdSPTrans,*)
+      write(fdSPTrans,*)
+      write(fdSPTrans,'(1x,58("="))')
+      write(fdSPTrans,*)
       do indm = 1, nxov
         call indxov(win, indm, getIA, m, n, s)
         sign = " "
@@ -1589,12 +1589,12 @@ contains
             sign = "D"
           end if
         end if
-        write(newfdSPTrans,&
+        write(fdSPTrans,&
             & '(1x,i7,3x,f8.3,3x,f13.7,4x,i5,3x,a,1x,i5,1x,1a)')&
             & indm, Hartree__eV * wij(indm), sposz(indm), m, '->', n, sign
       end do
-      write(newfdSPTrans,*)
-      close(newfdSPTrans)
+      write(fdSPTrans,*)
+      close(fdSPTrans)
     end if
 
   end subroutine writeSPExcitations
@@ -1618,7 +1618,7 @@ contains
     real(dp), intent(in) :: coord0(:,:)
 
     !> file unit for Mulliken data
-    integer :: newfdMulliken
+    integer :: fdMulliken
     integer :: natom, m
     real(dp) :: dipol(3), dipabs
 
@@ -1628,35 +1628,35 @@ contains
     @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
-    open(newunit=newfdMulliken, file=excitedQOut,position="append")
-    write(newfdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
+    open(newunit=fdMulliken, file=excitedQOut,position="append")
+    write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
         & sym, nstat
-    write(newfdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
-    write(newfdMulliken, "('#',1X,A4,T15,A)")'Atom','netCharge'
-    write(newfdMulliken,'("#",41("="))')
+    write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
+    write(fdMulliken, "('#',1X,A4,T15,A)")'Atom','netCharge'
+    write(fdMulliken,'("#",41("="))')
     do m = 1,  natom
-      write(newfdMulliken,"(i5,1x,f16.8)") m, -dq(m) - dqex(m)
+      write(fdMulliken,"(i5,1x,f16.8)") m, -dq(m) - dqex(m)
     end do
-    close(newfdMulliken)
+    close(fdMulliken)
 
     ! Calculation of excited state dipole moment
     dipol(:) = -1.0_dp * matmul(coord0, dq + dqex)
     dipabs = sqrt(sum(dipol**2))
 
-    open(newunit=newfdMulliken, file=excitedDipoleOut, position="append")
-    write(newfdMulliken, "(a,a,i2)") "Mulliken analysis of excited state ",&
+    open(newunit=fdMulliken, file=excitedDipoleOut, position="append")
+    write(fdMulliken, "(a,a,i2)") "Mulliken analysis of excited state ",&
         & sym, nstat
-    write(newfdMulliken, '(42("="))')
-    write(newfdMulliken, "(a)") " "
-    write(newfdMulliken, "(a)") "Mulliken exc. state dipole moment [Debye]"
-    write(newfdMulliken, '(42("="))')
-    write(newfdMulliken, "(3f14.8)") (dipol(m) * au__Debye, m = 1, 3)
-    write(newfdMulliken, "(a)") " "
-    write(newfdMulliken, "(a)") "Norm of exc. state dipole moment [Debye]"
-    write(newfdMulliken, '(42("="))')
-    write(newfdMulliken, "(e20.12)") dipabs * au__Debye
-    write(newfdMulliken, *)
-    close(newfdMulliken)
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(a)") " "
+    write(fdMulliken, "(a)") "Mulliken exc. state dipole moment [Debye]"
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(3f14.8)") (dipol(m) * au__Debye, m = 1, 3)
+    write(fdMulliken, "(a)") " "
+    write(fdMulliken, "(a)") "Norm of exc. state dipole moment [Debye]"
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(e20.12)") dipabs * au__Debye
+    write(fdMulliken, *)
+    close(fdMulliken)
 
   end subroutine writeExcMulliken
 

@@ -30,7 +30,7 @@ module dftbp_timedep_linresp
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   implicit none
-  
+
   private
   public :: TLinresp, TLinrespini
   public :: LinResp_init, linResp_calcExcitations, LinResp_addGradients
@@ -137,9 +137,6 @@ contains
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
-    
-    logical :: writeXplusY, writeCoeffsFile, writeMulliken, writeTrans, writeTransQ, writeSPTrans
-    logical :: writeExc, writeTradip, writeArnoldiDiagnosis
 
     this%tinit = .false.
     this%tUseArpack = ini%tUseArpack
@@ -166,52 +163,17 @@ contains
         call error("Excited energy window should be non-zero if used")
       end if
 
-      if (ini%tMulliken) then
-        this%fdMulliken = .TRUE.
-      else
-        this%fdMulliken = .FALSE.
-      end if
-      
-      writeMulliken = ini%tMulliken
-      
-      if (ini%tCoeffs) then
-        this%fdCoeffs = .TRUE.
-      else
-        this%fdCoeffs = .FALSE.
-      end if
+      this%writeMulliken = ini%tMulliken
+      this%writeCoeffs = ini%tCoeffs
       this%tGrndState = ini%tGrndState
-
-      if (ini%tTrans) then
-        this%fdTrans = .TRUE.
-      else
-        this%fdTrans = .FALSE.
-      end if
-
-      if (ini%tTransQ) then
-        this%fdTransQ = .TRUE.
-      else
-        this%fdTransQ = .FALSE.
-      end if
-
-      if (ini%tSPTrans) then
-        this%fdSPTrans = .TRUE.
-      else
-        this%fdSPTrans = .FALSE.
-      end if
-      if (ini%tXplusY) then
-        this%fdXplusY = .TRUE.
-      else
-        this%fdXplusY = .FALSE.
-      end if
-      if (ini%tTradip) then
-        this%fdTradip = .TRUE.
-      else
-        this%fdTradip = .FALSE.
-      end if
+      this%writeTrans = ini%tTrans
+      this%writeTransQ = ini%tTransQ
+      this%writeSPTrans = ini%tSPTrans
+      this%writeXplusY = ini%tXplusY
+      this%writeTransDip = ini%tTradip
 
       this%nAtom = nAtom
       this%nEl = nEl
-      this%fdExc = 1 ! file for excitations
 
       call move_alloc(ini%spinW, this%spinW)
       call move_alloc(ini%hubbardU, this%HubbardU)
@@ -227,13 +189,8 @@ contains
 
     if (withArpack) then
 
-      if (ini%tDiagnoseArnoldi) then
-        this%fdArnoldiDiagnosis = .TRUE.
-      else
-        this%fdArnoldiDiagnosis = .FALSE.
-      end if
+      this%testArnoldi = ini%tDiagnoseArnoldi
       this%tArnoldi = ini%tArnoldi
-      this%fdArnoldi = 1
       this%tinit = .true.
 
     else

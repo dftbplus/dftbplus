@@ -59,41 +59,33 @@ module dftbp_timedep_linresptypes
     !> ground state Hubbard U values for each species
     real(dp), allocatable :: HubbardU(:)
 
-    !> file for X+Y data
-    logical :: fdXplusY
-    logical :: writeXplusY
+    !> whether X+Y data should be written
+    logical :: writeXplusY = .false.
 
-    !> file unit if the coefficients for the excited states should be written to disc
-    logical :: fdCoeffs
-    logical :: writeCoeffsFile
+    !> whether coefficients for the excited states should be written to disc
+    logical :: writeCoeffs = .false.
 
     !> Add the ground state to the excited state transition density matrix when determining the
     !> natural orbitals
     logical :: tGrndState = .true.
 
-    !> file unit for excited Mulliken populations?
-    logical :: fdMulliken
-    logical :: writeMulliken
+    !> whether excited Mulliken populations should be written
+    logical :: writeMulliken = .false.
 
-    !> File unit for single particle (KS) transitions if required
-    logical :: fdTrans 
-    logical :: writeTrans
+    !> whether single particle (KS) transitions should be written
+    logical :: writeTrans = .false.
 
-    !> File unit for single particle (KS) transition charges if required
-    logical :: fdTransQ
-    logical :: writeTransQ
+    !> whether single particle (KS) transition charges should be written
+    logical :: writeTransQ = .false.
 
-    !> File unit for single particle transition dipole strengths
-    logical :: fdSPTrans
-    logical :: writeSPTrans
+    !> whether for single particle transition dipole strengths should be written
+    logical :: writeSPTrans = .false.
 
     !> file handle for excitation energies
-    integer :: fdExc = -1
-    logical :: writeExc
+    logical :: writeExc = .false.
 
-    !> File unit for transition dipole data
-    logical :: fdTradip
-    logical :: writeTradip
+    !> whether transition dipole data should be written
+    logical :: writeTransDip = .false.
 
     !> For calculations where the geometry changes, previous vectors for restarting the iterative
     !> eigensolver. Note: in the case of ARPACK this is the residual not the eigenvectors
@@ -105,17 +97,13 @@ module dftbp_timedep_linresptypes
     ! ARPACK/Stratmann related
 
     !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
-    logical :: tUseArpack = .true. 
+    logical :: tUseArpack = .true.
 
     !> write state of Arnoldi solver to disc
     logical :: tArnoldi
 
-    !> file unit for Arnoldi solver file unit for tests on output of Arnoldi solver
-    integer :: fdArnoldi = -1
-
-    !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
-    logical :: fdArnoldiDiagnosis
-    logical :: writeArnoldiDiagnosis
+    !> whether Arnoldi solver tests should be made (with results written to file)
+    logical :: testArnoldi = .false.
 
     !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
@@ -124,5 +112,5 @@ module dftbp_timedep_linresptypes
     logical :: tInit = .false.
 
   end type TLinResp
-  
+
 end module dftbp_timedep_linresptypes

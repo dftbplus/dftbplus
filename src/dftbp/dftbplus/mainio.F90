@@ -25,7 +25,7 @@ module dftbp_dftbplus_mainio
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sccinit, only : writeQToFile
-  use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli 
+  use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
@@ -57,7 +57,7 @@ module dftbp_dftbplus_mainio
   use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
   implicit none
-  
+
   private
   public :: writeEigenvectors, writeRealEigvecs, writeCplxEigvecs
 #:if WITH_SCALAPACK
@@ -2516,7 +2516,7 @@ contains
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
 
     !> File  ID
-    integer, intent(inout) :: fd
+    integer, intent(out) :: fd
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2525,14 +2525,13 @@ contains
     logical, intent(in) :: tAppendDetailedOut
 
     logical :: isOpen
-    
-    inquire(unit=fd, opened=isOpen)
+
+    inquire(file=fileName, opened=isOpen, number=fd)
     if (isOpen .and. .not. tAppendDetailedOut) then
-      open(fd)
       close(fd)
       isOpen = .false.
     end if
-    if (.not.isOpen) then
+    if (.not. isOpen) then
       open(newunit=fd, file=fileName, status="replace", action="write")
     end if
 

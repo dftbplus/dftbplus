@@ -9,7 +9,7 @@ program makecube
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
-  
+
   integer :: i,j,k, nx,ny,nz, narg, ln, err
   real(dp), dimension(:,:,:), allocatable :: phi3d, phi3d_0
   real(dp), dimension(:), allocatable :: x,y,z
@@ -17,14 +17,14 @@ program makecube
   real(dp), parameter :: au = 0.529177_dp
   character(256) :: filebox,filex,filey,filez,filename,refname
   logical :: refpot
-  integer :: fp, fp1
+  integer :: fp
 
   narg=command_argument_count()
 
   if (.not.(narg.eq.1 .or. narg.eq.3 .or. narg.eq.8)) then
     write(*,*) 'usage:'
     write(*,*) 'makecube pot_file [-r refpot] [-b boxfile xfile yfile zfile] '
-    stop 
+    stop
   endif
 
   call get_command_argument(1,filename,ln,err)
@@ -36,7 +36,7 @@ program makecube
 
   k = index(filebox,"-r")
   if (k > 0) then
-    refpot = .true.  
+    refpot = .true.
     call get_command_argument(3,refname,ln,err)
   else
     refpot = .false.
@@ -47,7 +47,7 @@ program makecube
     filebox="box3d.dat"
     filex="Xvector.dat"
     filey="Yvector.dat"
-    filez="Zvector.dat"  
+    filez="Zvector.dat"
   else
     call get_command_argument(narg-3,filebox,ln,err)
     call get_command_argument(narg-2,filex,ln,err)
@@ -81,7 +81,7 @@ program makecube
   open(newunit=fp,file=filename)
 
   do i=1,nx
-    do j=1,ny 
+    do j=1,ny
       do k=1,nz
         read(fp,*) phi3d(i,j,k)
       enddo
@@ -93,7 +93,7 @@ program makecube
     open(newunit=fp,file=refname)
 
     do i=1,nx
-      do j=1,ny 
+      do j=1,ny
         do k=1,nz
           read(fp,*) phi3d_0(i,j,k)
         enddo
@@ -129,22 +129,22 @@ program makecube
     enddo
   enddo
 
-  open(newunit=fp1,file="poissonbox.jmol")
+  open(newunit=fp,file="poissonbox.jmol")
 
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
+  write(fp,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
       "draw p1 PLANE {",x(1),y(1),z(1),"}{", x(nx),y(1),z(1),"}{", &
       x(nx),y(ny),z(1),"}{",x(1),y(ny),z(1),"} color yellow translucent"
 
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
+  write(fp,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
       "draw p2 PLANE {",x(1),y(1),z(nz),"}{",x(nx),y(1),z(nz),"}{", &
       x(nx),y(ny),z(nz),"}{",x(1),y(ny),z(nz),"} color yellow translucent"
 
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a)') "draw l1 {",x(1),y(1),z(1),"}{",x(1),y(1),z(nz),"}"
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a)') "draw l2 {",x(nx),y(1),z(1),"}{",x(nx),y(1),z(nz),"}"
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a)') "draw l3 {",x(nx),y(ny),z(1),"}{",x(nx),y(ny),z(nz),"}"
-  write(fp1,'(a,3(F10.4),a,3(F10.4),a)') "draw l4 {",x(1),y(ny),z(1),"}{",x(1),y(ny),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l1 {",x(1),y(1),z(1),"}{",x(1),y(1),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l2 {",x(nx),y(1),z(1),"}{",x(nx),y(1),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l3 {",x(nx),y(ny),z(1),"}{",x(nx),y(ny),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l4 {",x(1),y(ny),z(1),"}{",x(1),y(ny),z(nz),"}"
 
-  close(fp1)
+  close(fp)
 
 
   deallocate(x,y,z)
