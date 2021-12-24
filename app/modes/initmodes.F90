@@ -32,7 +32,7 @@ module modes_initmodes
   public :: initProgramVariables
   public :: geo, atomicMasses, dynMatrix, modesToPlot, nModesToPlot, nCycles, nSteps
   public :: nMovedAtom, iMovedAtoms, nDerivs
-  public :: tVerbose, tPlotModes, tAnimateModes, tXmakeMol, tRemoveTranslate, tRemoveRotate
+  public :: tVerbose, tPlotModes, tAnimateModes, tRemoveTranslate, tRemoveRotate
 
 
   !> program version
@@ -68,9 +68,6 @@ module modes_initmodes
 
   !> animate mode  or as vectors
   logical :: tAnimateModes
-
-  !> use xmakemol dialect xyz
-  logical :: tXmakeMol
 
   !> Remove translation modes
   logical :: tRemoveTranslate
@@ -158,19 +155,14 @@ contains
       call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
-      call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
     else
       nModesToPlot = 0
       tPlotModes = .false.
       tAnimateModes = .false.
-      tXmakeMol = .false.
     end if
 
-    if (tAnimateModes.and.tXmakeMol) then
-      nCycles = 1
-    else
-      nCycles = 3
-    end if
+    ! oscillation cycles in animation
+    nCycles = 3
 
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))

@@ -29,6 +29,8 @@ Changed
   value is ill-defined (charged systems or periodic cases), but its
   derivative may be meaningful.
 
+- Use the DFTB+ xyz writer for the modes program, removing the
+  XMakemol output option.
 
 Fixed
 -----
