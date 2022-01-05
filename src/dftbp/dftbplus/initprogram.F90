@@ -5815,6 +5815,8 @@ contains
     species0 = input%geom%species
     tCoordsChanged = .true.
 
+    cellVol = 0.0_dp
+    recCellVol = 0.0_dp
     if (tPeriodic) then
       tLatticeChanged = .true.
       latVec = input%geom%latVecs
