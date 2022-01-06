@@ -2985,7 +2985,19 @@ contains
       end if
       if (iTmp2(2) > nint(geo%latvecs(3,1))) then
         write(errorStr, '("The k-point grid for the helix rotational operation (",I0,&
-            & ") is larger than the rotation order (",I0,").")')iTmp2(2), nint(geo%latvecs(3,1))
+            & ") is larger than the rotation order (C_",I0,").")') iTmp2(2), nint(geo%latvecs(3,1))
+        call detailedError(node, errorStr)
+      end if
+      if (mod(nint(geo%latvecs(3,1)),iTmp2(2)) /= 0) then
+        write(errorStr, '("The k-point grid for the helix rotational operation (n_k=",I0,&
+            & ") is not a divisor of the rotation order (C_",I0,").")') iTmp2(2),&
+            & nint(geo%latvecs(3,1))
+        call detailedError(node, errorStr)
+      end if
+      if (abs(rTmp22(2,2) * nint(geo%latvecs(3,1)) - nint(rTmp22(2,2) * nint(geo%latvecs(3,1))))&
+          & > epsilon(1.0_dp)) then
+        write(errorStr, '("The shift of the k-points along the rotation is incommensurate, it must&
+            & be an integer multiple of 1/",I0)') nint(geo%latvecs(3,1))
         call detailedError(node, errorStr)
       end if
       if (.not.ctrl%tSpinOrbit) then
@@ -2997,13 +3009,9 @@ contains
         kk = 1
         do ii = 0, iTmp2(1)-1
           do jj = 0, iTmp2(2)-1
-
             ctrl%kPoint(1,kk) = ii * 0.5_dp / rTmp22(1,1) + 0.5_dp*rTmp22(1,2)/rTmp22(1,1)
-
-            ctrl%kPoint(2,kk) = jj * 1.0_dp / rTmp22(2,1) + 0.5_dp*rTmp22(2,2)/rTmp22(2,1)
-
+            ctrl%kPoint(2,kk) = mod(jj * 1.0_dp / rTmp22(2,1) + rTmp22(2,2), 1.0_dp)
             kk = kk + 1
-
           end do
         end do
 
@@ -3028,6 +3036,11 @@ contains
       allocate(ctrl%kWeight(ctrl%nKPoint))
       ! first two are point values
       ctrl%kPoint(:2,:) = kpts(:2, :)
+      ! test if the second k-point is commensurate with the C_n operation
+      if (any(abs(kpts(2,:)*nint(geo%latvecs(3,1)) - nint(kpts(2,:) * nint(geo%latvecs(3,1))))&
+          & > epsilon(1.0_dp))) then
+        call error("Specified k-value(s) incommensurate with C_n operation.")
+      end if
       ! last one is the weight
       ctrl%kWeight(:) = kpts(3, :)
       deallocate(kpts)

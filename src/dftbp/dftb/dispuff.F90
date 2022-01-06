@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Dispersion a la UFF, similar to Thomas Heine's approach in the deMon code.
 !>
@@ -20,6 +21,7 @@ module dftbp_dftb_dispuff
   use dftbp_common_constants, only: pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
       & addDispEGr_per_species
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -226,14 +228,11 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
-    !> Status of operation
-    integer, intent(out), optional :: stat
+    !> Status of operation. Will appear as an unused variable, as no error can currently be set in
+    !> this routine
+    type(TStatus), intent(out) :: stat
 
     integer, allocatable :: nNeigh(:)
-
-    if (present(stat)) then
-      stat = 0
-    end if
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)

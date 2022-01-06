@@ -6,23 +6,26 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Module to wrap around the process of converting from a Hamiltonian and overlap in sparse form
 !> into eigenvectors
 module dftbp_dftbplus_eigenvects
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_extlibs_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&
       & elsi_ev_real, elsi_write_mat_real
-  use dftbp_io_message, only : error, cleanShutdown
+  use dftbp_io_message, only : cleanShutdown
   use dftbp_math_eigensolver, only : hegv, hegvd, gvr
 #:if WITH_MAGMA
   use dftbp_math_eigensolver, only : gpu_gvd
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : DLEN_, scalafx_phegv, scalafx_phegvd, scalafx_phegvr,&
-      & scalafx_psygv, scalafx_psygvd, scalafx_psygvr
+  use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, MB_, NB_, scalafx_phegv,&
+      & scalafx_phegvd, scalafx_phegvr, scalafx_psygv, scalafx_psygvd, scalafx_psygvr,&
+      & scalafx_indxl2g
 #:endif
   implicit none
 
@@ -51,7 +54,7 @@ contains
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
   !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
-  subroutine diagDenseRealMtx(env, electronicSolver, jobz, HSqrReal, SSqrReal, eigen)
+  subroutine diagDenseRealMtx(env, electronicSolver, jobz, HSqrReal, SSqrReal, eigen, errStatus)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -72,6 +75,8 @@ contains
     !> Eigen values.
     real(dp), intent(out) :: eigen(:)
 
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
 
     @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
@@ -88,10 +93,10 @@ contains
   #:if WITH_MAGMA
       call gpu_gvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
   #:else
-      call error("This binary is compiled without GPU support")
+      @:RAISE_ERROR(errStatus, -1, "This binary is compiled without GPU support")
   #:endif
     case default
-      call error('Unknown eigensolver')
+      @:RAISE_ERROR(errStatus, -1, "Unknown eigensolver")
     end select
 
   end subroutine diagDenseRealMtx
@@ -100,7 +105,7 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
   !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
   !> effect of lapack)
-  subroutine diagDenseComplexMtx(env, electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+  subroutine diagDenseComplexMtx(env, electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen, errStatus)
 
     !> Environment
     type(TEnvironment), intent(in) :: env
@@ -120,11 +125,20 @@ contains
     !> The eigenvalues of the matrices
     real(dp), intent(out) :: eigen(:)
 
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
 
     @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
     @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
     @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+  #:block DEBUG_CODE
+    call checkDiagonal(hSqrCplx, "hamiltonian", errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call checkDiagonal(sSqrCplx, "overlap", errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+  #:endblock DEBUG_CODE
 
     select case(electronicSolver%iSolver)
     case(electronicSolverTypes%QR)
@@ -137,13 +151,42 @@ contains
   #:if WITH_MAGMA
       call gpu_gvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
   #:else
-      call error("This binary is compiled without GPU support")
+      @:RAISE_ERROR(errStatus, -1, "This binary is compiled without GPU support")
   #:endif
     case default
-      call error('Unknown eigensolver')
+      @:RAISE_ERROR(errStatus, -1, "Unknown eigensolver")
     end select
 
   end subroutine diagDenseComplexMtx
+
+
+#:block DEBUG_CODE
+  !> Check diagonal elements of a matrix are real
+  subroutine checkDiagonal(matrix, label, errStatus)
+
+    !> Matrix to test
+    complex(dp), intent(in) :: matrix(:,:)
+
+    !> label string for error
+    character(*), intent(in) :: label
+
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: iOrb
+
+    @:ASSERT(size(matrix, dim=1) == size(matrix, dim=2))
+
+    do iOrb = 1, size(matrix, dim=2)
+      if (abs(aimag(matrix(iOrb, iOrb))) > 1024.0_dp*epsilon(0.0_dp)) then
+        @:RAISE_FORMATTED_ERROR(errStatus, -1,&
+            & "('Diagonal element ', I0, ' of ',A,' is complex:',2E20.12)", iOrb, trim(label),&
+            & matrix(iOrb, iOrb))
+      end if
+    end do
+
+  end subroutine checkDiagonal
+#:endblock DEBUG_CODE
 
 
 #:if WITH_SCALAPACK
@@ -152,7 +195,7 @@ contains
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
   subroutine diagDenseRealMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
-      & eigenVecs)
+      & eigenVecs, errStatus)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -178,6 +221,9 @@ contains
 
     !> Eigenvectors
     real(dp), intent(out) :: eigenVecs(:,:)
+
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
 
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
@@ -207,7 +253,7 @@ contains
       call elsi_ev_real(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
 
     case default
-      call error('Unknown eigensolver')
+      @:RAISE_ERROR(errStatus, -1, "Unknown eigensolver")
     end select
 
     if (.not. electronicSolver%hasCholesky(1)) then
@@ -217,12 +263,14 @@ contains
   end subroutine diagDenseRealMtxBlacs
 
 
-
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseCplxMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
-      & eigenVecs)
+  subroutine diagDenseCplxMtxBlacs(env, electronicSolver, iCholesky, jobz, desc, HSqr, SSqr,&
+      & eigenVals, eigenVecs, errStatus)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -249,7 +297,17 @@ contains
     !> Eigenvectors
     complex(dp), intent(out) :: eigenVecs(:,:)
 
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
+
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+  #:block DEBUG_CODE
+    call checkDiagonalBlacs(env, hSqr, "hamiltonian", desc, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call checkDiagonalBlacs(env, sSqr, "overlap", desc, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+  #:endblock DEBUG_CODE
 
     if (electronicSolver%hasCholesky(iCholesky)) then
       call electronicSolver%getCholesky(iCholesky, SSqr)
@@ -281,7 +339,7 @@ contains
       call elsi_ev_complex(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
 
     case default
-      call error('Unknown eigensolver')
+      @:RAISE_ERROR(errStatus, -1, "Unknown eigensolver")
     end select
 
     if (.not. electronicSolver%hasCholesky(iCholesky)) then
@@ -289,6 +347,47 @@ contains
     end if
 
   end subroutine diagDenseCplxMtxBlacs
+
+
+#:block DEBUG_CODE
+  !> Check for imaginary part on diagonals of (global) BLACS matrix
+  subroutine checkDiagonalBlacs(env, matrix, label, desc, errStatus)
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
+
+    !> Matrix to test the (global) diagonal elements
+    complex(dp), intent(in) :: matrix(:,:)
+
+    !> label string for error
+    character(*), intent(in) :: label
+
+    !> Dense descriptor
+    integer, intent(in) :: desc(DLEN_)
+
+    !> Status of routine
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: iOrb, jOrb, iGlob, jGlob
+
+    do jOrb = 1, size(matrix, dim=2)
+      jGlob = scalafx_indxl2g(jOrb, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, size(matrix, dim=1)
+        iGlob = scalafx_indxl2g(iOrb, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+        if (iGlob == jGlob) then
+          if (abs(aimag(matrix(iOrb, jOrb))) > 1024.0_dp*epsilon(0.0_dp)) then
+            @:RAISE_FORMATTED_ERROR(errStatus, -1,&
+                & "('Diagonal element ', I0, ' of ',A,' is complex:',2E20.12)", iGlob, trim(label),&
+                & matrix(iOrb, jOrb))
+          end if
+        end if
+      end do
+    end do
+
+  end subroutine checkDiagonalBlacs
+#:endblock DEBUG_CODE
 
 #:endif
 
