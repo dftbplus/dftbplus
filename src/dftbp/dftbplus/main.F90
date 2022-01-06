@@ -3498,9 +3498,9 @@ contains
       E0(:) = 0.0_dp
       kWeightTmp(:) = 1.0_dp
       do iK = 1, nKPoints
-        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBand, EfTmp, TSTmp, E0Tmp, nElecFill,&
+        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBandTmp, EfTmp, TSTmp, E0Tmp, nElecFill,&
             & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
-        Eband(:) = Eband + EbandTmp(1) * kWeights(iK)
+        Eband(:) = Eband + EbandTmp(:nSpinHams) * kWeights(iK)
         Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
         TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
         E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)
