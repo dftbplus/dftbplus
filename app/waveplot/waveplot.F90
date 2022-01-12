@@ -193,7 +193,8 @@ program waveplot
     ! of the lattice unit cell as possible.
     cellMiddle(:) = 0.5_dp * sum(wp%input%geo%latVecs, dim=2)
     boxMiddle(:) = wp%opt%origin(:) + 0.5_dp * sum(wp%opt%boxVecs, dim=2)
-    frac(:) = matmul(boxMiddle - cellMiddle, recVecs2p)
+    shift(:) = boxMiddle - cellMiddle
+    frac(:) = matmul(shift, recVecs2p)
     wp%opt%origin(:) = wp%opt%origin(:) - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
     wp%opt%gridOrigin(:) = wp%opt%gridOrigin(:)&
         & - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
