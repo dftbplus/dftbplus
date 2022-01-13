@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftb_stress
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 

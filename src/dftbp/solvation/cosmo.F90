@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,7 +25,7 @@ module dftbp_solvation_cosmo
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
   public :: TDomainDecompositionInput

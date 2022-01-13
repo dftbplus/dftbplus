@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -38,12 +38,12 @@ for options, argument in opts:
         usage()
     elif options in ("-o", "--output"):
         outfile = argument
-    elif options in ("-b", "--broaden"):        
+    elif options in ("-b", "--broaden"):
         sigma = float(argument)
     elif options in ("-i", "--input"):
         infile = argument
     elif options in ("-w", "--weight"):
-        weight = True 
+        weight = True
     elif options in ("-u", "--unnorm"):
         norm = None
     else:
@@ -51,7 +51,7 @@ for options, argument in opts:
 
 if outfile is None or infile is None:
     usage()
-        
+
 # returns numeric matches as a number
 def numGrep(pattern,fileObj):
     r=[]
@@ -77,7 +77,7 @@ fp = open(infile, "r")
 eigenstates = numGrep(r"^ *([+-]?\d+\.\d+) +([+-]?\d+\.\d+e?-?\d*)",fp)
 fp.close()
 
-if norm:    
+if norm:
     fp = open(infile, "r")
     nKPTS = numGrep(r"^ *KPT *(\d+) *(.*)",fp)
     scale = 2.0 / size(nKPTS)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -27,7 +27,7 @@ module dftbp_dftb_dispuff
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
-  
+
   private
   public :: TDispUffInp, TDispUff, DispUff_init
 

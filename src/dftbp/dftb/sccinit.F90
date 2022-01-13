@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_dftb_sccinit
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
   implicit none
-  
+
   private
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
   public :: initQFromUsrChrg
@@ -247,7 +247,7 @@ contains
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    
+
   #:block DEBUG_CODE
 
     if (present(magnetisation)) then

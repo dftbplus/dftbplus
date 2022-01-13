@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,7 +22,7 @@ module dftbp_type_typegeometryhsd
       & destruct, asArray
   use dftbp_type_typegeometry, only : TGeometry, normalize, reduce, setlattice
   implicit none
-  
+
   private
   !> Types/subroutines from TypeGeometry
   public :: TGeometry, normalize

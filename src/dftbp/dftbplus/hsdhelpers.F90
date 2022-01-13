@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ module dftbp_dftbplus_hsdhelpers
   use dftbp_io_hsdutils2, only : warnUnprocessedNodes
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public :: parseHsdInput, doPostParseJobs
 
@@ -46,7 +46,7 @@ contains
     call parseHsdTree(hsdTree, input, parserFlags)
     call doPostParseJobs(hsdTree, parserFlags)
     call destroyNode(hsdTree)
-    
+
   end subroutine parseHsdInput
 
 
@@ -90,7 +90,7 @@ contains
     if (parserFlags%tStop) then
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
-    
+
   end subroutine doPostParseJobs
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,7 +19,7 @@ module dftbp_dftb_spinorbit
   use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
   implicit none
-  
+
   private
   public :: getOnsiteSpinOrbitEnergy, addOnsiteSpinOrbitHam
   public :: getDualSpinOrbitEnergy, getDualSpinOrbitShift

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@
 module dftbp_io_message
   use dftbp_common_globalenv, only : stdOut, synchronizeAll, abortProgram
   implicit none
-  
+
   private
 
 
@@ -48,7 +48,7 @@ contains
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(1a)') 'WARNING!' 
+    write(stdOut, '(1a)') 'WARNING!'
     write(stdOut, '(2a)') '-> ', trim(message)
 
   end subroutine warning_single

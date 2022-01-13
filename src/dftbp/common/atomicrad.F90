@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@ module dftbp_common_atomicrad
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
   implicit none
-  
+
   private
   public :: getAtomicRad
 

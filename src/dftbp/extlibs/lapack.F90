@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -2065,10 +2065,10 @@ module dftbp_extlibs_lapack
     end subroutine cgesvd
 
   end interface cgesvd
-  
+
   !> Double complex singular value decomposition
   interface zgesvd
-    
+
     !> Double complex singular value decomposition
     subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
       import rdp

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -95,7 +95,7 @@ program test_extpot
 
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
-  
+
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 

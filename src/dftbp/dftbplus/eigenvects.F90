@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,7 +25,7 @@ module dftbp_dftbplus_eigenvects
       & scalafx_psygv, scalafx_psygvd, scalafx_psygvr
 #:endif
   implicit none
-  
+
   private
   public :: diagDenseMtx
 #:if WITH_SCALAPACK
@@ -104,7 +104,7 @@ contains
 
     !> Environment
     type(TEnvironment), intent(in) :: env
-    
+
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 

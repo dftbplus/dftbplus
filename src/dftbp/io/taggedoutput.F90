@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@
 module dftbp_io_taggedoutput
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: tagLabels
   public :: TTaggedWriter, TTaggedWriter_init

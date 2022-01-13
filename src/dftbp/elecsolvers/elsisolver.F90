@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -49,9 +49,9 @@ module dftbp_elecsolvers_elsisolver
       & elsi_get_edm_real, elsi_set_rw_mpi, elsi_get_edm_complex, elsi_get_edm_complex_sparse,&
       & elsi_dm_real, elsi_write_mat_real_sparse, elsi_dm_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-#:endif  
+#:endif
   implicit none
-  
+
   private
   public :: TElsiSolverInp
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final

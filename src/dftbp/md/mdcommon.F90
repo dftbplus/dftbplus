@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@ module dftbp_md_mdcommon
   use dftbp_common_constants, only : pi
   use dftbp_math_ranlux, only : TRanlux, getRandom
   implicit none
-  
+
   private
   public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann

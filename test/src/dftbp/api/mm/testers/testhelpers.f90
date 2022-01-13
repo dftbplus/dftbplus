@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -136,7 +136,7 @@ contains
     !> Gradients on the external charges or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: extChargeGradients
 
-    !> Electrostatic potential in nPotLocations points 
+    !> Electrostatic potential in nPotLocations points
     type(c_ptr), intent(in), value :: potential
 
     real(dp), pointer :: pGradients(:,:), pGrossCharges(:), &
@@ -147,7 +147,7 @@ contains
     else
       pGradients => null()
     end if
-    
+
     if (c_associated(stressTensor)) then
       call c_f_pointer(stressTensor, pStressTensor, [3, 3])
     else

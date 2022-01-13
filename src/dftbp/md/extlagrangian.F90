@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_md_extlagrangian
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public ::ExtLagrangian, ExtLagrangian_init
   public :: ExtLagrangianInp

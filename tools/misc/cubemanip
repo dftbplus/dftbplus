@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -24,7 +24,7 @@ patVar = re.compile(r"\((\$(?P<number>\d+))\)")
 # Help text
 helpTxt = """
 %(name)s <expr> [ <cubeFile1> [ <cubeFile2> [ ... ]]]
-      
+
 Combines the passed cube files (<cubeFile1>, <cubeFile2>, ...)  according the
 expression <expr> to a new cube file.  The cube files provided as arguments
 after the expression must be referenced in the expression as ($n), where n the
@@ -114,7 +114,7 @@ def getCubeRepr(fname):
     error(("Data in '%s' inconsistent with header (expected: %d, got: %d)"
            % (fname, nAllData, cc.data.shape[0])))
   cc.data = num.reshape(cc.data, cc.nGrid)
-  
+
   return cc
 
 
@@ -154,7 +154,7 @@ def dumpData(data):
   if not len(shape):
     print("%18.10E" % data)
     return
-  
+
   curShape = [0,] * len(data.shape)
   finished = False
   carry = False
@@ -180,7 +180,7 @@ def dumpData(data):
           carry = False
       else:
         break
-    
+
 
 
 def main():
@@ -211,7 +211,7 @@ def main():
 
   if maxArg == 0:
     error("Expression contains no parameters!")
-    
+
   if len(args) < maxArg + 1:
     error("Missing files! You must specify at least %d cube file(s)." % maxArg)
 

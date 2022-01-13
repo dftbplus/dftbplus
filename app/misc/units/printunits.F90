@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -31,5 +31,5 @@ program printunits
       write(*,"(1X,A20,E24.15)") ${units}$(ii)%name, ${units}$(ii)%convertValue
     end do
   #:endfor
-  
+
 end program printunits

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -76,7 +76,7 @@ program test_ehrenfest
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "C", "p")
   call setChildValue(pMaxAng, "H", "s")
-  
+
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "./")

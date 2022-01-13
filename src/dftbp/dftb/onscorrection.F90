@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@ module dftbp_dftb_onsitecorrection
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: addOnsShift, getEOns, getOnsME
   public :: ons_getOrbitalEquiv, ons_blockIndx, onsBlock_reduce, onsBlock_expand

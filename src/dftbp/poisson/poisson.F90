@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_poisson_poisson
   use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&     
+  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&
       & destroy_phi_bulk
   use dftbp_poisson_fancybc, only : bndyc, coef, coef_cilgate, coef_gate, coef_tip, gate_bound,&
       & cilgate_bound, tip_bound, local_bound
@@ -28,7 +28,7 @@ module dftbp_poisson_poisson
       & writePoissPeakInfo
   use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
   use dftbp_poisson_mpi_poisson, only : active_id, id0, numprocs, id
-  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,& 
+  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,&
       & biasdir, bufferBox, cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin,&
       & do_renorm, DoCilGate, DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb,&
       & fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm,&
@@ -48,7 +48,7 @@ module dftbp_poisson_poisson
       & mpifx_gatherv
 #:endif
   implicit none
-  
+
   private
   ! from parameters
   public :: MAXNCONT

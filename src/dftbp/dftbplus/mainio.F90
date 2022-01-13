@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,13 +25,13 @@ module dftbp_dftbplus_mainio
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sccinit, only : writeQToFile
-  use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli 
+  use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_fileid, only : getFileId 
+  use dftbp_io_fileid, only : getFileId
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -58,7 +58,7 @@ module dftbp_dftbplus_mainio
   use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
   implicit none
-  
+
   private
   public :: writeEigenvectors, writeRealEigvecs, writeCplxEigvecs
 #:if WITH_SCALAPACK

@@ -1,27 +1,27 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
-!  Permission is hereby granted to use, copy or redistribute this program * 
+!  Permission is hereby granted to use, copy or redistribute this program *
 !  under the LGPL licence.                                                *
 !**************************************************************************
 module dftbp_poisson_parameters
   use dftbp_common_accuracy, only : dp
 
   implicit none
-  
+
   private
   public :: init_defaults
   public :: set_verbose, set_scratch, set_contdir, set_fermi, set_potentials
   public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces
-  public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy  
+  public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy
   public :: set_cluster, set_builtin
 
   interface
@@ -30,7 +30,7 @@ module dftbp_poisson_parameters
       character C
     end function DLAMCH
   end interface
-  
+
   integer, public, parameter :: MAXNCONT=10
 
   integer,  public :: verbose
@@ -50,7 +50,7 @@ module dftbp_poisson_parameters
   integer,  public :: overrideBC(6)
   integer,  public :: overrBulkBC(6)
   integer,  public :: maxpoissiter
-  
+
   real(kind=dp),  public :: Temp
   real(kind=dp),  public :: telec
   real(kind=dp),  public :: deltaR_max
@@ -83,8 +83,8 @@ module dftbp_poisson_parameters
   real(kind=dp),  public :: y0
   real(kind=dp),  public :: z0
   real(kind=dp),  public :: bufferBox
-  
-  logical,  public :: etb 
+
+  logical,  public :: etb
   logical,  public :: cluster
   logical,  public :: SavePot
   logical,  public :: SaveNNList
@@ -102,20 +102,20 @@ module dftbp_poisson_parameters
   !! Specify if the renormalization volume needs to be calculated
   !! Modified runtime to avoid multiple evaluation
   logical, public :: do_renorm
-    !! Or you want just the "fixed" renormalization without 
+    !! Or you want just the "fixed" renormalization without
     !! discretization error and cutoff compensation?
   logical, public :: fixed_renorm
-  
+
   character(:), allocatable, public :: scratchfolder
-  
-  
+
+
   contains
-  
+
   ! -----------------------------------------------------------------
-  ! INIT DEFAULT VALUES 
+  ! INIT DEFAULT VALUES
   ! -----------------------------------------------------------------
   subroutine init_defaults()
-    
+
     verbose=0
     biasdir=0
     gatedir=0
@@ -127,14 +127,14 @@ module dftbp_poisson_parameters
     iatm(:)=0
     ncdim(:)=0
     mbound_end(:)=0
-    maxiter=30    
+    maxiter=30
     localBC=0
     poissBC=0
     overrideBC=0
     overrBulkBC=-1
     mixed = .false.
     maxpoissiter=60
-    
+
     Temp=0.0_dp
     deltaR_max=9.0_dp
     LmbMax=0.50_dp
@@ -165,7 +165,7 @@ module dftbp_poisson_parameters
     R_cont(:)=0.0_dp
     dR_cont(:)=1.0_dp
     bufferBox = 0.0_dp
-    
+
     etb=.false.
     cluster=.false.
     SavePot=.false.
@@ -184,12 +184,12 @@ module dftbp_poisson_parameters
     fixed_renorm=.true.
 
   end subroutine
- 
+
   subroutine set_scratch(scratch)
-    character(*) :: scratch      
+    character(*) :: scratch
     allocate(character(len=len(scratch))::scratchfolder)
     scratchfolder = trim(scratch)
-  end subroutine set_scratch  
+  end subroutine set_scratch
 
   subroutine set_verbose(verb)
     integer, intent(in) :: verb
@@ -212,10 +212,10 @@ module dftbp_poisson_parameters
     if (cluster) then
       iatm(1) = 1
       iatm(2) = natoms
-    else    
+    else
       iatm(1:2) = molinds(1:2)
-    end if  
-  end subroutine set_mol_indeces      
+    end if
+  end subroutine set_mol_indeces
 
   subroutine set_cont_indeces(continds,ii)
     integer, intent(in) :: continds(:)
@@ -223,7 +223,7 @@ module dftbp_poisson_parameters
     integer :: nconts
     nconts = size(continds)
     iatc(ii,1:nconts) = continds(1:nconts)
-  end subroutine set_cont_indeces      
+  end subroutine set_cont_indeces
 
   subroutine set_contdir(dir)
     integer, intent(in) :: dir(:)
@@ -233,41 +233,41 @@ module dftbp_poisson_parameters
     else
       nconts = size(dir)
       contdir(1:nconts) = dir(1:nconts)
-    end if  
-  end subroutine set_contdir    
+    end if
+  end subroutine set_contdir
 
   subroutine set_potentials(pot)
     real(dp), intent(in) :: pot(:)
     integer :: nconts
     nconts = size(pot)
     mu(1:nconts) = pot(1:nconts)
-  end subroutine set_potentials  
+  end subroutine set_potentials
 
   subroutine set_fermi(fm)
     real(dp), intent(in) :: fm(:)
     integer :: nconts
     if (cluster) then
       EFermi(1) = 0.0_dp
-    else    
+    else
       nconts = size(fm)
       EFermi(1:nconts) = fm(1:nconts)
-    end if  
-  end subroutine set_fermi  
+    end if
+  end subroutine set_fermi
 
   subroutine set_builtin()
-    integer :: i    
+    integer :: i
     if (.not.cluster) then
       do i = 1,ncont
         mu(i) = mu(i) + EFermi(i) -  minval(EFermi(1:ncont))
       enddo
     end if
-  end subroutine set_builtin      
+  end subroutine set_builtin
 
   subroutine set_ncont(nc)
     integer, intent(in) :: nc
     ncont = nc
   end subroutine set_ncont
-  
+
   subroutine set_dopoisson(logic)
     logical :: logic
     DoPoisson = logic

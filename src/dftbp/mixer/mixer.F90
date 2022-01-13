@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_mixer_mixer
   use dftbp_mixer_diismixer, only : TDIISMixer, mix, reset
   use dftbp_mixer_simplemixer, only : TSimpleMixer, mix, reset
   implicit none
-  
+
   private
   public :: TMixer
   public :: init, reset, mix

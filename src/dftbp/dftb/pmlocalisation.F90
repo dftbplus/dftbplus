@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,7 +19,7 @@ module dftbp_dftb_pmlocalisation
   use dftbp_math_blasroutines, only : hemv, hemm, symm
   use dftbp_math_sorting, only : unique, heap_sort
   implicit none
-  
+
   private
   public :: TPipekMezeyInp, TPipekMezey, initialise
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_geoopt_geoopt
   use dftbp_geoopt_lbfgs, only : TLbfgs
   use dftbp_geoopt_steepdesc, only : TSteepDesc, next, reset, init
   implicit none
-  
+
   private
   public :: Tgeoopt
   public :: init, reset, next

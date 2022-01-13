@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,7 +22,7 @@ module dftbp_dftb_sparse2dense
   use dftbp_extlibs_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
 #:endif
   implicit none
-  
+
   private
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,7 +19,7 @@ module dftbp_dftb_vdwdata
   use dftbp_io_charmanip, only : tolower
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public :: getVdwData
 
@@ -70,7 +70,7 @@ module dftbp_dftb_vdwdata
       & TVdw(113, "Nh", -1), TVdw(114, "Fl", -1), TVdw(115, "Mc", -1), TVdw(116, "Lv", -1),&
       & TVdw(117, "Ts", -1), TVdw(118, "Og", -1)&
       & ]
-  
+
   contains
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -152,7 +152,7 @@ contains
 
     !> Instance
     class(TPlumedCalc), intent(inout) :: this
-    
+
     !> Key (will be automatically extended with the necessary termination character)
     character(len=*, kind=c_char), intent(in) :: key
 

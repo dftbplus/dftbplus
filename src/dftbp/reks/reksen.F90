@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,7 +19,7 @@ module dftbp_reks_reksen
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS 
+  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS
   use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
@@ -443,7 +443,7 @@ module dftbp_reks_reksen
 
   !> Calculate filling of each microstate in REKS(2,2)
   subroutine getFillingL22_(Nc, fillingL)
-    
+
     !> Number of core orbitals
     integer, intent(in) :: Nc
 

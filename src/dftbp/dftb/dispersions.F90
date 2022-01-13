@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_dftb_dispersions
 #:endif
   use dftbp_extlibs_sdftd3, only : TSDFTD3Input
   implicit none
-  
+
   public
 
   !> Types of dispersion model
@@ -41,7 +41,7 @@ module dftbp_dftb_dispersions
 
     !> D4 dispersion model.
     type(TDispDftD4Inp), allocatable :: dftd4
-  
+
   #:if WITH_MBD
     !> Many-body dispersion
     type(TDispMbdInp), allocatable :: mbd

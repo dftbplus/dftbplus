@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_common_blacsenv
   use dftbp_extlibs_scalapackfx, only : blacsgrid
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public :: TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,7 +25,7 @@ module dftbp_common_environment
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
   implicit none
-  
+
   private
   public :: TEnvironment, TEnvironment_init
   public :: globalTimers

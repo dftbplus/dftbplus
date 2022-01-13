@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -97,7 +97,7 @@ module dftbp_timedep_linresptypes
     ! ARPACK/Stratmann related
 
     !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
-    logical :: tUseArpack = .true. 
+    logical :: tUseArpack = .true.
 
     !> write state of Arnoldi solver to disc
     logical :: tArnoldi
@@ -115,5 +115,5 @@ module dftbp_timedep_linresptypes
     logical :: tInit = .false.
 
   end type TLinResp
-  
+
 end module dftbp_timedep_linresptypes
