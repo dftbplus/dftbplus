@@ -587,7 +587,7 @@ contains
   end subroutine setTdCoordsAndVelos
 
 
-  !> gets atomic forces from td propagation
+  !> gets atomic forces from time dependent propagation
   subroutine getTdForces(main, forces)
 
     !> Instance
@@ -597,6 +597,7 @@ contains
     real(dp), intent(out) :: forces(:,:)
 
     forces(:,:) = main%electronDynamics%totalForce
+
   end subroutine getTdForces
 
 

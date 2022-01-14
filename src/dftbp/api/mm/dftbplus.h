@@ -279,6 +279,26 @@ void dftbp_get_gradients(DftbPlus *instance, double *gradients);
 
 
 /**
+ * Queries the number of basis functions for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] nOrbitals number of orbitals on each atom
+ */
+void dftbp_get_nr_basisfns(DftbPlus *instance, int *nOrbitals);
+
+
+/**
+ * Queries the masses for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] masses mass of each atom
+ */
+void dftbp_get_masses(DftbPlus *instance, double *masses);
+
+
+/**
  * Queries the stress tensor of the current periodic box
  *
  * \param[inout] instance Handler of the DFTB+ instance.

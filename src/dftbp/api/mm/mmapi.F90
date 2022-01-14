@@ -120,6 +120,8 @@ module dftbp_mmapi
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
+    !> Return the number of basis functions for each atom in the system
+    procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
   end type TDftbPlus
 
 
@@ -531,6 +533,7 @@ contains
 
   end subroutine TDftbPlus_getStressTensor
 
+
   !> Returns the gradients on the external charges.
   !>
   !> This function may only be called if TDftbPlus_setExternalCharges was called before it
@@ -615,6 +618,20 @@ contains
     call getAtomicMasses(this%main, mass)
 
   end subroutine TDftbPlus_getAtomicMasses
+
+
+  !> Returns the number of orbitals for each atom in the system
+  subroutine TDftbPlus_getNOrbAtoms(this, nOrbs)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Number of basis functions associated with each atom
+    integer, intent(out) :: nOrbs(:)
+
+    nOrbs(:) = this%main%orb%nOrbAtom
+
+  end subroutine TDftbPlus_getNOrbAtoms
 
 
   !> Checks whether the type is already initialized and stops the code if not.
@@ -703,6 +720,7 @@ contains
     end do
 
   end subroutine convertAtomTypesToSpecies
+
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
@@ -802,7 +820,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! electric field components
+    !> electric field components
     real(dp), intent(in) :: field(3)
 
     if (allocated(this%main%solvation)) then
@@ -816,15 +834,16 @@ contains
   end subroutine TDftbPlus_setTdElectricField
 
 
+  !> Set atomic coordinates and velocities for MD
   subroutine TDftbPlus_setTdCoordsAndVelos(this, coords, velos)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! coordinates
+    !> coordinates
     real(dp), intent(in) :: coords(3, this%main%nAtom)
 
-    ! velocities
+    !> velocities
     real(dp), intent(in) :: velos(3, this%main%nAtom)
 
     call setTdCoordsAndVelos(this%main, coords, velos)
@@ -832,6 +851,7 @@ contains
   end subroutine TDftbPlus_setTdCoordsAndVelos
 
 
+  !> Returns forces from time dependent propagation
   subroutine TDftbPlus_getTdForces(this, forces)
 
     !> Instance
@@ -843,6 +863,5 @@ contains
     call getTdForces(this%main, forces)
 
   end subroutine TDftbPlus_getTdForces
-
 
 end module dftbp_mmapi

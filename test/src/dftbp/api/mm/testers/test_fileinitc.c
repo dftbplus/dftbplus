@@ -109,6 +109,9 @@ int main()
   int major, minor, patch;
   _Bool instsafe;
 
+  double masses_si2[NR_OF_ATOMS_SI2];
+  int orbitals_si2[NR_OF_ATOMS_SI2];
+
   dftbp_api(&major, &minor, &patch);
   printf("API version %d.%d.%d\n", major, minor, patch);
 
@@ -156,6 +159,13 @@ int main()
 
     } else {
       dftbp_set_coords(&calculator, coords_h2o);
+    }
+
+    if (si2) {
+      dftbp_get_nr_basisfns(&calculator, orbitals_si2);
+      printf("Returned atomic basis fns.: %d %d\n", orbitals_si2[0], orbitals_si2[1]);
+      dftbp_get_masses(&calculator, masses_si2);
+      printf("Returned atomic masses (a.u.): %15.10f %15.10f\n", masses_si2[0], masses_si2[1]);
     }
 
     /* Evaluate energy */
