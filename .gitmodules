@@ -22,18 +22,6 @@
 [submodule "external/s-dftd3/origin"]
 	path = external/s-dftd3/origin
 	url = https://github.com/awvwgk/simple-dftd3
-[submodule "external/dftd4/origin"]
-	path = external/dftd4/origin
-	url = https://github.com/dftd4/dftd4
-[submodule "external/multicharge/origin"]
-	path = external/multicharge/origin
-	url = https://github.com/grimme-lab/multicharge
-[submodule "external/mstore/origin"]
-	path = external/mstore/origin
-	url = https://github.com/grimme-lab/mstore
-[submodule "external/toml-f/origin"]
-	path = external/toml-f/origin
-	url = https://github.com/toml-f/toml-f
 [submodule "external/chimes/origin"]
 	path = external/chimes/origin
 	url = https://github.com/rk-lindsey/chimes_calculator
