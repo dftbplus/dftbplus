@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Tests whether the installed DFTB+ library can be used with pkg-config based builds.
 #
