@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
 #  Copyright (C) 2018  DFTB+ developers group                                  #

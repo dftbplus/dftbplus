@@ -5,7 +5,7 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # -*- Mode: shell -*-
 
 SCRIPTNAME=`basename $0`
