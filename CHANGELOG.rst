@@ -21,6 +21,8 @@ Changed
 Fixed
 -----
 
+- incorrect atomic mass unit for xTB calculations
+
 
 
 21.2 (2021-12-13)

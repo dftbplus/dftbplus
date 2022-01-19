@@ -25,7 +25,7 @@ module dftbp_common_atomicmass
 
 
   !> Atomic masses
-  real(dp), parameter :: atomicMassNist(1:118) = [ &
+  real(dp), parameter :: atomicMassNist(1:118) = amu__au * [ &
       &   1.00794075_dp,   4.00260193_dp,   6.94003660_dp,   9.01218307_dp,&
       &  10.81102805_dp,  12.01073590_dp,  14.00670321_dp,  15.99940492_dp,&
       &  18.99840316_dp,  20.18004638_dp,  22.98976928_dp,  24.30505162_dp,&
