@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Tests whether the installed DftbPlus library can be used within a CMake project.
 #
