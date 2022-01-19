@@ -767,8 +767,8 @@ contains
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
       call getChildValue(value, geo%speciesNames(iSp), mass, defmass,&
                &modifier=modif, child= child2)
-      speciesMass(iSp) = mass * amu__au
-      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass, "amu", &
+      speciesMass(iSp) = mass
+      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
             &SpeciesMass(iSp),"a.u."
     end do
 
