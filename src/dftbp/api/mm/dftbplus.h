@@ -257,6 +257,23 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
  */
 int dftbp_get_nr_atoms(DftbPlus *instance);
 
+/**
+ * Queries the nr. of spin channels in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of spin channels
+ */
+int dftbp_get_nr_spin(DftbPlus *instance);
+
+/**
+ * Queries the nr. of k-points in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of k-points
+ */
+int dftbp_get_nr_kpoints(DftbPlus *instance);
 
 /**
  * Queries the energy of the current geometry

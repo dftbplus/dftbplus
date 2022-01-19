@@ -407,6 +407,29 @@ contains
 
   end function c_DftbPlus_nrOfAtoms
 
+  !> Obtain nr. of spin channels.
+  function c_DftbPlus_nrOfSpin(handler) result(nSpin) bind(C, name='dftbp_get_nr_spin')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nSpin
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nSpin = instance%nrOfSpin()
+
+  end function c_DftbPlus_nrOfSpin
+
+  !> Obtain nr. of k-points.
+  function c_DftbPlus_nrOfKPoints(handler) result(nKpoints) bind(C, name='dftbp_get_nr_kpoints')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nKpoints
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nKpoints = instance%nrOfKPoints()
+
+  end function c_DftbPlus_nrOfKPoints
 
   !> Obtain the DFTB+ energy
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')

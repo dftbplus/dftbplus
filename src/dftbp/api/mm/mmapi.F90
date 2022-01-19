@@ -16,7 +16,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin, nrOfKPoints, &
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
       & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
@@ -102,6 +102,10 @@ module dftbp_mmapi
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Return the number of spin channels in the system
+    procedure :: nrOfSpin => TDftbPlus_nrOfSpin
+    !> Return the number of k-points in the system
+    procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -599,6 +603,38 @@ contains
     nAtom = nrOfAtoms(this%main)
 
   end function TDftbPlus_nrOfAtoms
+
+
+  !> Returns the nr. of spin channels in the system.
+  function TDftbPlus_nrOfSpin(this) result(nSpin)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of spins channels
+    integer :: nSpin
+
+    call this%checkInit()
+
+    nSpin = nrOfSpin(this%main)
+
+  end function TDftbPlus_nrOfSpin
+
+
+  !> Returns the nr. of k-points in the system.
+  function TDftbPlus_nrOfKPoints(this) result(nKPoints)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of k-points
+    integer :: nKPoints
+
+    call this%checkInit()
+
+    nKPoints = nrOfKPoints(this%main)
+
+  end function TDftbPlus_nrOfKPoints
 
 
   !> Returns the atomic masses for each atom in the system.
