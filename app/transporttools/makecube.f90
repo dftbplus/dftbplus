@@ -17,6 +17,7 @@ program makecube
   real(dp), parameter :: au = 0.529177_dp
   character(256) :: filebox,filex,filey,filez,filename,refname
   logical :: refpot
+  integer :: fp
 
   narg=command_argument_count()
 
@@ -55,9 +56,9 @@ program makecube
   endif
 
 
-  open(110,file=trim(filebox))
-  read(110,*) nx,ny,nz
-  close(110)
+  open(newunit=fp,file=trim(filebox))
+  read(fp,*) nx,ny,nz
+  close(fp)
 
   allocate(x(nx))
   allocate(y(ny))
@@ -65,40 +66,40 @@ program makecube
   allocate(phi3d(nx,ny,nz))
   if (refpot) allocate(phi3d_0(nx,ny,nz))
 
-  open(110,file=filex)
-  read(110,*) x
-  close(110)
+  open(newunit=fp,file=filex)
+  read(fp,*) x
+  close(fp)
 
-  open(110,file=filey)
-  read(110,*) y
-  close(110)
+  open(newunit=fp,file=filey)
+  read(fp,*) y
+  close(fp)
 
-  open(110,file=filez)
-  read(110,*) z
-  close(110)
+  open(newunit=fp,file=filez)
+  read(fp,*) z
+  close(fp)
 
-  open(110,file=filename)
+  open(newunit=fp,file=filename)
 
   do i=1,nx
     do j=1,ny
       do k=1,nz
-        read(110,*) phi3d(i,j,k)
+        read(fp,*) phi3d(i,j,k)
       enddo
     enddo
   enddo
-  close(110)
+  close(fp)
 
   if (refpot) then
-    open(110,file=refname)
+    open(newunit=fp,file=refname)
 
     do i=1,nx
       do j=1,ny
         do k=1,nz
-          read(110,*) phi3d_0(i,j,k)
+          read(fp,*) phi3d_0(i,j,k)
         enddo
       enddo
     enddo
-    close(110)
+    close(fp)
   endif
 
   or(1) = x(1) !(x(1) - x(nx))/2.d0
@@ -128,22 +129,22 @@ program makecube
     enddo
   enddo
 
-  open(1000,file="poissonbox.jmol")
+  open(newunit=fp,file="poissonbox.jmol")
 
-  write(1000,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
+  write(fp,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
       "draw p1 PLANE {",x(1),y(1),z(1),"}{", x(nx),y(1),z(1),"}{", &
       x(nx),y(ny),z(1),"}{",x(1),y(ny),z(1),"} color yellow translucent"
 
-  write(1000,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
+  write(fp,'(a,3(F10.4),a,3(F10.4),a,3(F10.4),a,3(F10.4),a)') &
       "draw p2 PLANE {",x(1),y(1),z(nz),"}{",x(nx),y(1),z(nz),"}{", &
       x(nx),y(ny),z(nz),"}{",x(1),y(ny),z(nz),"} color yellow translucent"
 
-  write(1000,'(a,3(F10.4),a,3(F10.4),a)') "draw l1 {",x(1),y(1),z(1),"}{",x(1),y(1),z(nz),"}"
-  write(1000,'(a,3(F10.4),a,3(F10.4),a)') "draw l2 {",x(nx),y(1),z(1),"}{",x(nx),y(1),z(nz),"}"
-  write(1000,'(a,3(F10.4),a,3(F10.4),a)') "draw l3 {",x(nx),y(ny),z(1),"}{",x(nx),y(ny),z(nz),"}"
-  write(1000,'(a,3(F10.4),a,3(F10.4),a)') "draw l4 {",x(1),y(ny),z(1),"}{",x(1),y(ny),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l1 {",x(1),y(1),z(1),"}{",x(1),y(1),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l2 {",x(nx),y(1),z(1),"}{",x(nx),y(1),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l3 {",x(nx),y(ny),z(1),"}{",x(nx),y(ny),z(nz),"}"
+  write(fp,'(a,3(F10.4),a,3(F10.4),a)') "draw l4 {",x(1),y(ny),z(1),"}{",x(1),y(ny),z(nz),"}"
 
-  close(1000)
+  close(fp)
 
 
   deallocate(x,y,z)

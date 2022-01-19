@@ -273,10 +273,11 @@ contains
 
     !> Instance.
     class(TXLBOMD), intent(inout) :: this
+    integer :: fp
 
-    open(12, file=JacobianKernelFile, status="old", action="read")
-    read(12, *) this%invJacobian
-    close(12)
+    open(newunit=fp, file=JacobianKernelFile, status="old", action="read")
+    read(fp, *) this%invJacobian
+    close(fp)
     this%invJacobian = transpose(this%invJacobian)
     write(stdout, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"

@@ -59,7 +59,7 @@ contains
     real(dp) :: descreening(nElem), surfaceTension(nElem), hBondPar(nElem)
     character(len=lc) :: line, errorStr
 
-    open(file=file, newunit=unit, status='old', iostat=iErr, iomsg=errorStr)
+    open(newunit=unit, file=file, status='old', iostat=iErr, iomsg=errorStr)
     if (iErr /= 0) then
       if (present(node)) then
         call detailedError(node, "Could not open '"//trim(file)//"': "//trim(errorStr))

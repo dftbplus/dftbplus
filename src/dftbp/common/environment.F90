@@ -10,7 +10,6 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
-  use dftbp_common_fileregistry, only : TFileRegistry, TFileRegistry_init
   use dftbp_common_globalenv, only : shutdown, stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
@@ -46,9 +45,6 @@ module dftbp_common_environment
 
     !> Global timers
     type(TTimerArray), public, allocatable :: globalTimer
-
-    !> Registry of files, which may be open and must be closed when environment is shut down
-    type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
 
@@ -164,7 +160,7 @@ contains
     !> Instance
     type(TEnvironment), intent(out) :: this
 
-    call TFileRegistry_init(this%fileFinalizer)
+    continue
 
   end subroutine TEnvironment_init
 
@@ -178,7 +174,6 @@ contains
     if (allocated(this%globalTimer)) then
       call this%globalTimer%writeTimings()
     end if
-    call this%fileFinalizer%closeAll()
 
     #:if WITH_SCALAPACK
       if (this%blacsInitialised) then

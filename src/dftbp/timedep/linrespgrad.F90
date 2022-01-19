@@ -193,17 +193,16 @@ contains
     integer :: nStat
 
     !> control variables
-    logical :: tZVector, tCoeffs, tTradip, tFracOcc
+    logical :: tZVector, tFracOcc
     logical :: tRangeSep = .false.
-
-    !> printing data
-    logical :: tMulliken
 
     !> should gradients be calculated
     logical :: tForces
 
     !> transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
+
+    integer :: fdMulliken, fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -222,7 +221,7 @@ contains
       ! ARPACK library variables
       ndigit = -3
       ! Output unit:
-      logfil = this%fdArnoldi
+      logfil = 1
       msgets = 0
       msaitr = 0
       msapps = 0
@@ -239,23 +238,17 @@ contains
 
     end if
 
-    @:ASSERT(this%fdExc > 0)
-
-    ! work out which data files are required, based on whether they have valid file IDs (>0)
-    tMulliken = (this%fdMulliken > 0)
-    tCoeffs = (this%fdCoeffs > 0)
-    tTradip = (this%fdTradip > 0)
-
-    if (tMulliken) then
-      open(this%fdMulliken, file=excitedQOut,position="rewind", status="replace")
-      close(this%fdMulliken)
-      open(this%fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
-      close(this%fdMulliken)
+    if (this%writeMulliken) then
+      open(newunit=fdMulliken, file=excitedQOut,position="rewind", status="replace")
+      close(fdMulliken)
+      open(newunit=fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
+      close(fdMulliken)
     end if
 
-    @:ASSERT(this%fdArnoldi > 0)
     if (this%tArnoldi) then
-      open(this%fdArnoldi, file=arpackOut, position="rewind", status="replace")
+      open(newunit=fdArnoldi, file=arpackOut, position="rewind", status="replace")
+    else
+      fdArnoldi = -1
     end if
 
     nSpin = size(grndEigVal, dim=2)
@@ -355,7 +348,7 @@ contains
     end if
 
     !> is a z vector required?
-    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
+    tZVector = tForces .or. this%writeMulliken .or. this%writeCoeffs .or. present(naturalOrbs) .or.&
         & this%tWriteDensityMatrix
 
     !> occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
@@ -500,43 +493,49 @@ contains
         & nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,             &
         & this%tCacheChargesSame)
 
-    if (this%fdXplusY >  0) then
-      open(this%fdXplusY, file=XplusYOut, position="rewind", status="replace")
+    if (this%writeXplusY) then
+      open(newunit=fdXPlusY, file=XplusYOut, position="rewind", status="replace")
+    else
+      fdXPlusY = -1
     end if
 
-    if(this%fdTrans>0) then
-      open(this%fdTrans, file=transitionsOut, position="rewind", status="replace")
-      write(this%fdTrans,*)
-    endif
+    if(this%writeTrans) then
+      open(newunit=fdTrans, file=transitionsOut, position="rewind", status="replace")
+      write(fdTrans,*)
+    else
+      fdTrans = -1
+    end if
 
     ! Many-body transition dipole file to excited states
-    if (this%fdTradip > 0) then
-      open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
-      write(this%fdTradip,*)
-      write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
-      write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,60("="))')
-      write(this%fdTradip,*)
-    endif
+    if (this%writeTransDip) then
+      open(newunit=fdTransDip, file=transDipOut, position="rewind", status="replace")
+      write(fdTransDip, *)
+      write(fdTransDip, '(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
+      write(fdTransDip, *)
+      write(fdTransDip, '(1x,60("="))')
+      write(fdTransDip, *)
+    else
+      fdTransDip = -1
+    end if
 
     ! excitation energies
-    open(this%fdExc, file=excitationsOut, position="rewind", status="replace")
-    write(this%fdExc,*)
+    open(newunit=fdExc, file=excitationsOut, position="rewind", status="replace")
+    write(fdExc,*)
     if (tSpin) then
-      write(this%fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
           & 'Weight', 'KS [eV]','D<S*S>'
     else
-      write(this%fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
           & 'Weight', 'KS [eV]','Sym.'
     end if
 
-    write(this%fdExc,*)
-    write(this%fdExc,'(1x,80("="))')
-    write(this%fdExc,*)
+    write(fdExc,*)
+    write(fdExc,'(1x,80("="))')
+    write(fdExc,*)
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%fdSPTrans, sposz, nxov_rd, tSpin)
+    call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd, tSpin)
 
     ALLOCATE(xpy(nxov_rd, this%nExc))
     if (tZVector .or. tRangeSep) then
@@ -558,7 +557,7 @@ contains
         call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,&
-            & transChrg, this%fdArnoldiDiagnosis, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
+            & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
             & tRangeSep, tZVector)
       else
         call buildAndDiagExcMatrixStratmann(tSpin, this%subSpaceFactorStratmann, wij(:nxov_rd),&
@@ -570,17 +569,17 @@ contains
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy, &
-            & sqrOccIA(:nxov_rd), nstat, osz, tTradip, transitionDipoles)
+            & sqrOccIA(:nxov_rd), nstat, osz, this%writeTransDip, transitionDipoles)
 
       if (tSpin) then
         call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXev, grndEigVecs)
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getIA, win, eval, xpy,&
-            & wij(:nxov_rd), this%fdXplusY, this%fdTrans, this%fdTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, this%fdExc, Ssq)
+            & wij(:nxov_rd), fdXPlusY, fdTrans, fdTransDip,&
+            & transitionDipoles,  tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
       else
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getIA, win, eval, xpy,&
-            & wij(:nxov_rd), this%fdXplusY, this%fdTrans, this%fdTradip, transitionDipoles,&
-            & tWriteTagged, fdTagged, taggedWriter, this%fdExc)
+            & wij(:nxov_rd), fdXPlusY, fdTrans, fdTransDip,&
+            & transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc)
       end if
 
       if (allocated(allOmega)) then
@@ -595,14 +594,11 @@ contains
 
     end do
 
-    if (this%tArnoldi) then
-      close(this%fdArnoldi)
-    end if
-
-    if (this%fdTrans > 0) close(this%fdTrans)
-    if (this%fdXplusY > 0) close(this%fdXplusY)
-    if (this%fdExc > 0) close(this%fdExc)
-    if (this%fdTradip > 0) close(this%fdTradip)
+    if (fdArnoldi /= -1) close(fdArnoldi)
+    if (fdTrans /= -1) close(fdTrans)
+    if (fdXPlusY /= -1) close(fdXPlusY)
+    if (fdTransDip /= -1) close(fdTransDip)
+    close(fdExc)
 
     ! Remove some un-used memory
     deallocate(snglPartTransDip)
@@ -677,8 +673,8 @@ contains
 
         call calcPMatrix(t, rhs, win, getIA, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, this%fdCoeffs,&
-            & tCoeffs, this%tGrndState, occNatural, naturalOrbs)
+        call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
+            & naturalOrbs)
 
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
@@ -690,9 +686,9 @@ contains
           call writeDM(iLev, pc, rhoSqr)
         end if
 
-        if (tMulliken) then
+        if (this%writeMulliken) then
           !> for now, only total Mulliken charges
-          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0, this%fdMulliken)
+          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
         end if
 
         if (tForces) then
@@ -732,7 +728,7 @@ contains
   !>
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
-      & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
+      & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, testArnoldi,&
       & eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector)
 
     !> spin polarisation?
@@ -799,7 +795,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> file handle for ARPACK eigenstate tests
-    integer, intent(in) :: fdArnoldiDiagnosis
+    logical, intent(in) :: testArnoldi
 
     !> atomic resolved spin constants
     real(dp), intent(in) :: spinW(:)
@@ -839,6 +835,7 @@ contains
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
+    integer :: fdArnoldiTest
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
@@ -927,25 +924,26 @@ contains
 
     end if
 
-    if (fdArnoldiDiagnosis > 0) then
+    if (testArnoldi) then
       ! tests for quality of returned eigenpairs
-      open(fdArnoldiDiagnosis, file=testArpackOut, position="rewind", status="replace")
-      ALLOCATE(Hv(nxov_rd))
-      ALLOCATE(orthnorm(nxov_rd,nxov_rd))
+      open(newunit=fdArnoldiTest, file=testArpackOut, position="rewind", status="replace")
+      allocate(Hv(nxov_rd))
+      allocate(orthnorm(nxov_rd,nxov_rd))
       orthnorm = matmul(transpose(xpy(:,:nExc)),xpy(:,:nExc))
 
-      write(fdArnoldiDiagnosis,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
+      write(fdArnoldiTest,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
         call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
             & Hv, .false.)
-        write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,xpy(:,iState))-eval(iState),&
+        write(fdArnoldiTest,"(I4,4E16.8)")iState,&
+            & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
       end do
-      close(fdArnoldiDiagnosis)
+      close(fdArnoldiTest)
     end if
 
     if (tZVector) then
@@ -2822,7 +2820,7 @@ contains
 
 
   !> Write out excitations projected onto ground state
-  subroutine writeCoeffs(tt, grndEigVecs, occ, fdCoeffs, tCoeffs, tIncGroundState,&
+  subroutine writeCoeffs(tt, grndEigVecs, occ, tCoeffs, tIncGroundState,&
       & occNatural, naturalOrbs)
 
     !> T part of the matrix
@@ -2833,9 +2831,6 @@ contains
 
     !> ground state occupations
     real(dp), intent(in) :: occ(:,:)
-
-    !> file descriptor to write data into
-    integer, intent(in) :: fdCoeffs
 
     !> save the coefficients of the natural orbitals
     logical, intent(in) :: tCoeffs
@@ -2852,6 +2847,8 @@ contains
     real(dp), allocatable :: t2(:,:,:), occtmp(:,:)
     integer :: norb, nSpin, ii, jj, mm, iSpin
     logical :: tSpin
+
+    integer :: fdCoeffs
 
     norb = size(tt, dim=1)
     nSpin = size(tt, dim=3)
@@ -2885,7 +2882,7 @@ contains
       ! Better to get this by post-processing DFTB+ output, but here for
       ! compatibility at the moment
       if (tCoeffs) then
-        open(fdCoeffs, file=excitedCoefsOut, position="append")
+        open(newunit=fdCoeffs, file=excitedCoefsOut, position="append")
         write(fdCoeffs,*) 'T F'
         if (.not. tSpin) then
           do ii = 1, norb
@@ -2940,8 +2937,9 @@ contains
 
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
-  subroutine writeExcitations(sym, osz, nexc, nmatup, getIA, win, eval, xpy, wij, fdXplusY,&
-      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
+  subroutine writeExcitations(sym, osz, nexc, nmatup, getIA, win, eval, xpy, wij, &
+      & fdXPlusY, fdTrans, fdTransDip, transitionDipoles, tWriteTagged,&
+      & fdTagged, taggedWriter, fdExc, Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2977,10 +2975,10 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file unit for transition dipoles
-    integer, intent(in) :: fdTradip
+    integer, intent(in) :: fdTransDip
 
     !> file unit for X+Y data
-    integer, intent(in) :: fdXplusY
+    integer, intent(in) :: fdXPlusY
 
     !> file unit for transitions
     integer, intent(in) :: fdTrans
@@ -3009,8 +3007,6 @@ contains
     integer, allocatable :: degenerate(:,:)
     real(dp), allocatable :: oDeg(:)
 
-    @:ASSERT(fdExc > 0)
-
     tSpin = present(Ssq)
     nmat = size(wij)
 
@@ -3019,8 +3015,8 @@ contains
     wvec(:) = 0.0_dp
     wvin(:) = 0
 
-    if(fdXplusY > 0) then
-      write(fdXplusY,*) nmat, nexc
+    if(fdXplusY /= -1) then
+      write(fdXPlusY,*) nmat, nexc
     end if
 
     do ii = 1, nexc
@@ -3055,17 +3051,17 @@ contains
               & Hartree__eV * wij(iWeight), sign
         end if
 
-        if(fdXplusY > 0) then
+        if(fdXplusY /= -1) then
           if (tSpin) then
             updwn = (win(iweight) <= nmatup)
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,ES17.10)') ii, sign, sqrt(eval(ii))
-          write(fdXplusY,'(6(1x,ES17.10))') xpy(:,ii)
+          write(fdXPlusY,'(1x,i5,3x,a,3x,ES17.10)') ii, sign, sqrt(eval(ii))
+          write(fdXPlusY,'(6(1x,ES17.10))') xpy(:,ii)
         endif
 
-        if (fdTrans > 0) then
+        if (fdTrans /= -1) then
           write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)')&
               & 'Energy ', ii,  Hartree__eV * sqrt(eval(ii)), 'eV', sign
           write(fdTrans,*)
@@ -3088,8 +3084,8 @@ contains
           write(fdTrans,*)
         end if
 
-        if (fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
+        if (fdTransDip /= -1) then
+          write(fdTransDip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
               & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
               & * au__Debye, jj=1,3)
         end if
@@ -3118,23 +3114,23 @@ contains
               & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * wij(iWeight), sign
         end if
 
-        if(fdXplusY > 0) then
+        if(fdXplusY /= -1) then
           if (tSpin) then
             updwn = (win(iweight) <= nmatup)
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,A)') ii,sign, '-'
+          write(fdXPlusY,'(1x,i5,3x,a,3x,A)') ii,sign, '-'
         endif
 
-        if (fdTrans > 0) then
+        if (fdTrans /= -1) then
           write(fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)')&
               & 'Energy ', ii,  '-', 'eV', sign
           write(fdTrans,*)
         end if
 
-        if(fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,A)') ii, '-'
+        if (fdTransDip /= -1) then
+          write(fdTransDip, '(1x,i5,1x,A)') ii, '-'
         endif
 
       end if
@@ -3151,7 +3147,8 @@ contains
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
-        if (fdTradip > 0) then
+        ! Since the transition dipole file exists, transition dipoles had been calculated
+        if (fdTransDip /= -1) then
           call taggedWriter%write(fdTagged, tagLabels%excDipole,&
               & sqrt(sum(transitionDipoles**2,dim=2)))
         end if
@@ -3164,7 +3161,8 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
-        if (fdTradip > 0) then
+        ! Since the transition dipole file exists, transition dipoles had been calculated
+        if (fdTransDip /= -1) then
           oDeg(:) = 0.0_dp
           do ii = 1, size(oDeg)
             oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
