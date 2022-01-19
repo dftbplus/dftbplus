@@ -13,6 +13,7 @@ module dftbp_derivs_staticperturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
@@ -370,7 +371,7 @@ contains
   !> Response with respect to a potential at atomic sites
   subroutine polarizabilityKernel(env, parallelKS, isAutotestWritten, autotestTagFile,&
       & isTagResultsWritten, resultsTagFile, taggedWriter, isBandWritten, fdDetailedOut,&
-      & isDetailedWritten, filling, eigvals, tolDegen, eigVecsReal, eigVecsCplx, ham, over, orb,&
+      & filling, eigvals, tolDegen, eigVecsReal, eigVecsCplx, ham, over, orb,&
       & nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
       & isRespKernelRPA, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
@@ -402,10 +403,7 @@ contains
     logical, intent(in) :: isBandWritten
 
     !> File descriptor for the human readable output
-    integer, intent(in) :: fdDetailedOut
-
-    !> Is detailed.out being produced
-    logical, intent(in) :: isDetailedWritten
+    type(TFile), allocatable, intent(in) :: fdDetailedOut
 
     !> Filling
     real(dp), intent(in) :: filling(:,:,:)
@@ -711,22 +709,22 @@ contains
         end if
       end if
 
-      if (env%tGlobalLead .and. isDetailedWritten) then
-        write(fdDetailedOut, "(A,I0)")'Derivatives wrt. a potential at atom ', iAt
-        write(fdDetailedOut,"(1X,A)")'Frontier orbital energy derivatives (a.u.)'
-        write(fdDetailedOut,"(1X,A,T14,A,T28,A)")"Spin Kpt","Last filled","First empty"
+      if (allocated(fdDetailedOut)) then
+        write(fdDetailedOut%unit, "(A,I0)")'Derivatives wrt. a potential at atom ', iAt
+        write(fdDetailedOut%unit, "(1X,A)")'Frontier orbital energy derivatives (a.u.)'
+        write(fdDetailedOut%unit, "(1X,A,T14,A,T28,A)")"Spin Kpt","Last filled","First empty"
         do iS = 1, nIndepHam
           do iK = 1, nKpts
-            write(fdDetailedOut,"(1X,I2,I4,2F14.6)")iS, iK, dEi(nFilled(iS, iK), iK, iS),&
+            write(fdDetailedOut%unit, "(1X,I2,I4,2F14.6)")iS, iK, dEi(nFilled(iS, iK), iK, iS),&
                 & dEi(nEmpty(iS, iK), iK, iS)
           end do
         end do
-        write(fdDetailedOut,*)'Atomic population derivatives (a.u.)'
-        write(fdDetailedOut, "(1X,A,T10,A,T22,A)")"Atom","Mulliken","On-site"
+        write(fdDetailedOut%unit, *) 'Atomic population derivatives (a.u.)'
+        write(fdDetailedOut%unit, "(1X,A,T10,A,T22,A)")"Atom","Mulliken","On-site"
         do jAt = 1, nAtom
-          write(fdDetailedOut, "(I5, 2F12.6)")jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
+          write(fdDetailedOut%unit, "(I5, 2F12.6)")jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
         end do
-        write(fdDetailedOut,*)
+        write(fdDetailedOut%unit, *)
       end if
 
     end do lpAtom

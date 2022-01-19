@@ -17,6 +17,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : TFile, TFile_create, TFileOptions
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -70,11 +71,11 @@ module dftbp_dftbplus_mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeDerivBandOut, writeHessianOut
-  public :: openDetailedOut
+  public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
   public :: writeDetailedOut7, writeDetailedOut8, writeDetailedOut9
-  public :: writeMdOut1, writeMdOut2, writeMdOut3
+  public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
@@ -1882,23 +1883,15 @@ contains
 
 
   !> Open an output file and return its unit number
-  subroutine initOutputFile(fileName, fd)
+  subroutine initOutputFile(fileName)
 
     !> File name
     character(*), intent(in) :: fileName
 
-    !> Associated file ID
-    integer, intent(out), optional :: fd
+    integer :: fd
 
-    integer :: fdTmp
-
-    if (present(fd)) then
-      open(newunit=fd, file=fileName, action="write", status="replace")
-      close(fd)
-    else
-      open(newUnit=fdTmp, file=fileName, action="write", status="replace")
-      close(fdTmp)
-    end if
+    open(newUnit=fd, file=fileName, action="write", status="replace")
+    close(fd)
 
   end subroutine initOutputFile
 
@@ -2512,30 +2505,28 @@ contains
   end subroutine writeHessianOut
 
 
-  !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+  !> Opens an output file or uses the its current unit number, if the file is already open.
+  subroutine openOutputFile(fileName, append, fd)
 
-    !> File  ID
-    integer, intent(out) :: fd
-
-    !> Name of file to write to
+    !> Name of the output file
     character(*), intent(in) :: fileName
 
-    !> Append to the end of the file or overwrite
-    logical, intent(in) :: tAppendDetailedOut
+    !> Whether apppend to the end of the file or overwrite
+    logical, intent(in) :: append
 
-    logical :: isOpen
+    !> File descriptor
+    type(TFile), allocatable, intent(inout) :: fd
 
-    inquire(file=fileName, opened=isOpen, number=fd)
-    if (isOpen .and. .not. tAppendDetailedOut) then
-      close(fd)
-      isOpen = .false.
+    logical :: exists
+
+    if (allocated(fd) .and. .not. append) then
+      deallocate(fd)
     end if
-    if (.not. isOpen) then
-      open(newunit=fd, file=fileName, status="replace", action="write")
+    if (.not. allocated(fd)) then
+      call TFile_create(fd, fileName, TFileOptions(status="replace", action="write"))
     end if
 
-  end subroutine openDetailedOut
+  end subroutine openOutputFile
 
 
   !> Optimization and geometry data to go to detailed.out
@@ -2967,7 +2958,7 @@ contains
       & iAtInCentralRegion, tPrintMulliken, cm5Cont)
 
     !> File ID
-    integer, intent(inout) :: fdDetailedOut
+    type(TFile), allocatable, intent(inout) :: fdDetailedOut
 
     !> File name for output
     character(*), intent(in) :: userOut
@@ -3015,45 +3006,45 @@ contains
 
     @:ASSERT(size(q0,dim=3) == 2)
 
-    call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+    call openOutputFile(userOut, tAppendDetailedOut, fdDetailedOut)
 
     if (deltaDftb%iGround > 0) then
-      write(fdDetailedOut,*)'S0 state'
+      write(fdDetailedOut%unit, *)'S0 state'
       if (allocated(qBlockDets)) then
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
       end if
-      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iGround),&
+      call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iGround),&
           & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
           & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%iTriplet > 0) then
-      write(fdDetailedOut,*)'T1 state'
+      write(fdDetailedOut%unit, *)'T1 state'
       if (allocated(qBlockDets)) then
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
-      call writeDetailedOut2(fdDetailedOut, q0, qDets(:,:,:,deltaDftb%iTriplet),&
+      call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iTriplet),&
           & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
           & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
           & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%isSpinPurify) then
-      write(fdDetailedOut,*)'S1 state'
+      write(fdDetailedOut%unit, *)'S1 state'
       if (allocated(qBlockDets)) then
         blockTmp = 2.0_dp*qBlockDets(:,:,:,:,deltaDftb%iMixed)&
             & - qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
     else
-      write(fdDetailedOut,*)'Mixed state'
+      write(fdDetailedOut%unit, *)'Mixed state'
       if (allocated(qBlockDets)) then
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iMixed)
       end if
     end if
 
-    call writeDetailedOut2(fdDetailedOut, q0, qOutput, qOutput, orb, species, allocated(blockTmp),&
-        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
-        & cm5Cont)
+    call writeDetailedOut2(fdDetailedOut%unit, q0, qOutput, qOutput, orb, species,&
+        & allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp),&
+        & iAtInCentralRegion, cm5Cont)
 
-    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut)
+    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
 
   end subroutine writeDetailedOut2Dets
 
@@ -3733,13 +3724,10 @@ contains
 
 
   !> First group of output data during molecular dynamics
-  subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
+  subroutine writeMdOut1(fd, iGeoStep, pMdIntegrator)
 
     !> File ID
-    integer, intent(inout) :: fd
-
-    !> File name
-    character(*), intent(in) :: fileName
+    integer, intent(in) :: fd
 
     !> Number of the current geometry step
     integer, intent(in) :: iGeoStep
@@ -3747,9 +3735,6 @@ contains
     !> Molecular dynamics integrator
     type(TMdIntegrator), intent(in) :: pMdIntegrator
 
-    if (iGeoStep == 0) then
-      open(newunit=fd, file=fileName, status="replace", action="write")
-    end if
     write(fd, "(A, 1X, I0)") "MD step:", iGeoStep
     call state(pMdIntegrator, fd)
 
@@ -3877,20 +3862,6 @@ contains
     end if
 
   end subroutine writeMdOut2
-
-  !> Third and final group of output data during molecular dynamics
-  subroutine writeMdOut3(fd, fileName)
-
-    !> File ID
-    integer, intent(in) :: fd
-
-    !> Output file name
-    character(*), intent(in) :: fileName
-
-    close(fd)
-    write(stdOut, "(2A)") 'MD information accumulated in ', fileName
-
-  end subroutine writeMdOut3
 
 
   !> Write out charges.

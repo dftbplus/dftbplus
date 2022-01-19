@@ -16,6 +16,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -976,10 +977,10 @@ module dftbp_dftbplus_initprogram
     real(dp), pointer :: pDynMatrix(:,:)
 
     !> File descriptor for the human readable output
-    integer :: fdDetailedOut
+    type(TFile), allocatable :: fdDetailedOut
 
     !> File descriptor for extra MD output
-    integer :: fdMD
+    type(TFile), allocatable :: fdMd
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS) :: parallelKS
@@ -4514,12 +4515,10 @@ contains
       call initOutputFile(hessianOut)
     end if
     if (this%tWriteDetailedOut) then
-      call initOutputFile(userOut, this%fdDetailedOut)
-      call env%fileFinalizer%register(this%fdDetailedOut)
+      call initOutputFile(userOut)
     end if
     if (this%tMD) then
-      call initOutputFile(mdOut, this%fdMD)
-      call env%fileFinalizer%register(this%fdMD)
+      call initOutputFile(mdOut)
     end if
     if (this%isGeoOpt .or. this%tMD) then
       call clearFile(trim(this%geoOutFile) // ".gen")

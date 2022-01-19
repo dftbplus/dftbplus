@@ -673,8 +673,8 @@ contains
 
         call calcPMatrix(t, rhs, win, getIA, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs,&
-            & this%writeCoeffs, this%tGrndState, occNatural, naturalOrbs)
+        call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
+            & naturalOrbs)
 
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
@@ -2820,7 +2820,7 @@ contains
 
 
   !> Write out excitations projected onto ground state
-  subroutine writeCoeffs(tt, grndEigVecs, occ, fdCoeffs, tCoeffs, tIncGroundState,&
+  subroutine writeCoeffs(tt, grndEigVecs, occ, tCoeffs, tIncGroundState,&
       & occNatural, naturalOrbs)
 
     !> T part of the matrix
@@ -2831,9 +2831,6 @@ contains
 
     !> ground state occupations
     real(dp), intent(in) :: occ(:,:)
-
-    !> file descriptor to write data into
-    logical, intent(in) :: fdCoeffs
 
     !> save the coefficients of the natural orbitals
     logical, intent(in) :: tCoeffs
@@ -2851,7 +2848,7 @@ contains
     integer :: norb, nSpin, ii, jj, mm, iSpin
     logical :: tSpin
 
-    integer :: newfdCoeffs
+    integer :: fdCoeffs
 
     norb = size(tt, dim=1)
     nSpin = size(tt, dim=3)
@@ -2885,29 +2882,29 @@ contains
       ! Better to get this by post-processing DFTB+ output, but here for
       ! compatibility at the moment
       if (tCoeffs) then
-        open(newunit=newfdCoeffs, file=excitedCoefsOut, position="append")
-        write(newfdCoeffs,*) 'T F'
+        open(newunit=fdCoeffs, file=excitedCoefsOut, position="append")
+        write(fdCoeffs,*) 'T F'
         if (.not. tSpin) then
           do ii = 1, norb
             jj = norb - ii + 1
-            write(newfdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,1), 2.0_dp
-            write(newfdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,1), kind=dp),&
+            write(fdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,1), 2.0_dp
+            write(fdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,1), kind=dp),&
                 & mm = 1, norb)
           end do
         else
           do iSpin = 1, nSpin
-            write(newfdCoeffs,*)
-            write(newfdCoeffs, '(1x,a,1x,i1)') 'SPIN', iSpin
+            write(fdCoeffs,*)
+            write(fdCoeffs, '(1x,a,1x,i1)') 'SPIN', iSpin
             do ii = 1, norb
               jj = norb - ii + 1
-              write(newfdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,iSpin), 1.0_dp
-              write(newfdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,iSpin), kind=dp),&
+              write(fdCoeffs, '(1x,i3,1x,f13.10,1x,f13.10)') ii, occtmp(jj,iSpin), 1.0_dp
+              write(fdCoeffs, '(6(f13.10,1x))') (cmplx(t2(mm,jj,iSpin), kind=dp),&
                   & mm = 1, norb)
             end do
           end do
         end if
 
-        close(newfdCoeffs)
+        close(fdCoeffs)
       end if
 
     end if
