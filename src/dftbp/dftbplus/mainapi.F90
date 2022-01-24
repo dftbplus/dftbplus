@@ -30,7 +30,7 @@ module dftbp_dftbplus_mainapi
 
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges, getElStatPotential
   public :: getStressTensor, nrOfAtoms, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
@@ -182,6 +182,29 @@ contains
     end if
 
   end subroutine getGrossCharges
+
+  !> get the CM5 charges
+  subroutine getCM5charges(env, main, atomCharges)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> resulting charges
+    real(dp), intent(out) :: atomCharges(:)
+
+    allocate(main%cm5Cont)
+    call recalcGeometry(env, main)
+    atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1) + main%cm5Cont%cm5
+
+    !> Pass to the charges of the excited state if relevant
+    if (main%isLinResp) then
+      atomCharges(:) = atomCharges(:) + main%dQAtomEx(:)
+    end if
+
+  end subroutine getCM5Charges
 
 
   !>  get electrostatic potential at specified points

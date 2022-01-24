@@ -482,6 +482,25 @@ contains
 
   end subroutine c_DftbPlus_getGrossCharges
 
+  !> Obtain gross (Mulliken) charges for atoms wrt to neutral references
+  subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
+      & bind(C, name='dftbp_get_cm5_charges')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic charges
+    real(c_double), intent(out) :: atomCharges(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getCM5Charges(atomCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getCM5Charges
+
 
   !> Converts a 0-char terminated C-type string into a Fortran string.
   function fortranChar(cstring, maxlen)
