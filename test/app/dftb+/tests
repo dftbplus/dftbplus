@@ -169,6 +169,7 @@ derivatives/CH4_kpt_ons                #? MPI_PROCS <= 1
 derivatives/As4S4_LS_ons               #? MPI_PROCS <= 2
 derivatives/10-0Ctube_onsite           #? MPI_PROCS <= 4
 derivatives/C6H6_onsite                #? MPI_PROCS == 1
+derivatives/C6H6_partial               #? MPI_PROCS <= 1 
 derivatives/CH4_RPA                    #? MPI_PROCS == 1
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
