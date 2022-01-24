@@ -585,9 +585,12 @@ contains
           if (ctrl%nrMoved == 0) then
             call error("No atoms specified for calculation of partial Hessian.")
           end if
+          if (.not. checkContigousRange(ctrl%indMovedAtom)) then
+            call error("Atoms for calculation of partial Hessian must be a contigous range.")
+          end if
           ctrl%tAllAtomsDerivs = .true.
         else
-          call error("partial Hessian calculation is possible when all atoms can move")
+          call error("partial Hessian calculation is only possible when ALL atoms can move")
         end if
       end if
 
@@ -870,6 +873,34 @@ contains
 
   end subroutine readDriver
 
+  !> Simple function to check that an array of indices is a contigous range
+  function checkContigousRange(indices) result(check)
+
+    !> Array of atomic indices
+    integer, intent(in) :: indices(:)
+        
+    !> whether indices are contigous 
+    logical :: check
+
+    integer :: kk, ind
+
+    check = .true.
+    if (size(indices) == 0) then
+      return
+    end if    
+    
+    kk = 1
+    ind = indices(1) 
+    do kk = 2, size(indices)
+      ind = ind + 1
+      if (indices(kk) /= ind) then
+        check = .false.
+        exit
+      end if  
+    end do
+
+  end function checkContigousRange
+   
 
   !> Common geometry optimisation settings for various drivers
 #:if WITH_TRANSPORT

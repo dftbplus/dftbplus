@@ -2485,7 +2485,7 @@ contains
 
 
   !> Write the second derivative matrix
-  subroutine writeHessianOut(fileName, pDynMatrix)
+  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2493,14 +2493,44 @@ contains
     !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
-    integer :: ii, fd
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+
+    integer :: ii, fd
+    character(10) :: suffix1, suffix2
+    logical :: tPartialHessian = .false. 
+
+    ! Sanity check in case some bug is introduced
+    if (size(pDynMatrix,2) /= 3*size(indMovedAtoms)) then
+      call error('Internal error: incorrect number of rows of dynamical Matrix')    
+    end if       
+    ! It is a partial Hessian Calculation if DynMatrix is not squared
+    if (size(pDynMatrix,1) > size(pDynMatrix,2)) then
+      tPartialHessian = .true.
+    end if
+
+    if (tPartialHessian) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))     
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)), &
+            & action="write", status="replace")
+    else 
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+
     do ii = 1, size(pDynMatrix, dim=2)
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do
+
     close(fd)
-    write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
+
+    if (tPartialHessian) then
+      write(stdOut, "(2A)") 'Hessian matrix written to ', &
+            & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+    else
+      write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
+    end if
 
   end subroutine writeHessianOut
 

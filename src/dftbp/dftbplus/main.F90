@@ -337,7 +337,7 @@ contains
 
     if (env%tGlobalLead .and. this%tDerivs) then
       call getHessianMatrix(this%derivDriver, this%pDynMatrix)
-      call writeHessianOut(hessianOut, this%pDynMatrix)
+      call writeHessianOut(hessianOut, this%pDynMatrix, this%indMovedAtom)
     else
       nullify(this%pDynMatrix)
     end if
