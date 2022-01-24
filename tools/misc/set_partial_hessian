@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# utility to setup a partial calculation of the Hessian and rejoin all files
+# set up the 'dftb_in.hsd' input file with appropriate computation options.
+
+# SET a file "dftb_in.in" with all options for dftb+ run
+# For the script to work include the block to set the computed Atoms:
+#
+# Driver = SecondDerivatives{
+#   Delta = 1e-5
+#   computeAtoms = @ATOMS@
+# }
+
+FILE=""
+NATOMS="0"
+NP="0"
+BATCH=""
+SETJOB=1
+
+while [ True ]; do
+if [ "$1" = "--file" -o "$1" = "-f" ]; then
+   FILE=$2
+   shift 2 
+elif [ "$1" = "--natoms" -o "$1" = "-n" ]; then
+   NATOMS=$2
+   shift 2
+elif [ "$1" = "-np" ]; then
+   NP=$2
+   shift 2
+elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then  
+   BATCH=$2
+   shift 2
+elif [ "$1" = "--gather" -o "$1" = "-g" ]; then 
+   SETJOB=0
+   shift 1 
+else   
+   break
+fi
+done
+
+if [ "$NP" = "0" -o "$NATOMS" = "0" -a "$FILE" = "" ]; then
+   echo "set_partial_hess -np Np [--natoms Nat | --file filename] [--exec-batch] [--gather]"
+   exit
+fi
+
+if [ "$NATOMS" = "0" -a "$FILE" != "" ]; then
+  NATOMS=`awk '{if(NR==1){print $1}}' $FILE`
+fi
+
+echo "NATOMS=" $NATOMS
+echo "NPROCESSES=" $NP
+
+NEACH=""
+NLEFT=$NATOMS
+while [ $NLEFT -gt 0 ]; do
+  NN=`echo "scale=0; $NLEFT / $NP" | bc -l`
+  NLEFT=`echo "$NLEFT - $NN" | bc -l`
+  NEACH+="$NN "
+  let "NP--"
+done
+
+if [ $SETJOB -eq 0 ]; then
+  rm -f hessian.combined
+  touch hessian.combined
+fi
+
+NSTART=1
+for i in $NEACH; do
+  NSTOP=`echo "$NSTART + $i - 1" | bc -l`
+  FOLDER="partial."$NSTART"-"$NSTOP
+  if [ $SETJOB -eq 1 ]; then
+     mkdir -p $FOLDER
+     if [ "$FILE" != "" ]; then
+       cp -p $FILE $FOLDER
+     fi
+     sed 's/@ATOMS@/'$NSTART":"$NSTOP'/' dftb_in.in > $FOLDER/dftb_in.hsd
+     if [ "$BATCH" != "" ]; then
+       cp $BATCH $FOLDER
+       cd $FOLDER
+       sbatch $BATCH
+       cd .. 
+     fi 
+  else
+     cat $FOLDER"/hessian.out."$NSTART"-"$NSTOP >> hessian.combined
+  fi  
+  NSTART=`echo "$NSTOP + 1" | bc -l`
+done
+
+
