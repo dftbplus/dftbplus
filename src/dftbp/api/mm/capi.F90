@@ -416,7 +416,6 @@ contains
 
     call c_f_pointer(handler%instance, instance)
     nSpin = instance%nrOfSpin()
-
   end function c_DftbPlus_nrOfSpin
 
   !> Obtain nr. of k-points.
@@ -428,8 +427,20 @@ contains
 
     call c_f_pointer(handler%instance, instance)
     nKpoints = instance%nrOfKPoints()
-
   end function c_DftbPlus_nrOfKPoints
+  
+  !> Obtain nr. of (k-point,spin chanel) pairs in current process group.
+  function c_DftbPlus_nrOfLocalKS(handler) result(nLocalKS) bind(C, name='dftbp_get_nr_local_ks')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nLocalKS
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nLocalKS = instance%nrOfLocalKS()
+
+  end function c_DftbPlus_nrOfLocalKS
+
 
   !> Obtain the DFTB+ energy
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')

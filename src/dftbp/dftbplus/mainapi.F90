@@ -31,7 +31,7 @@ module dftbp_dftbplus_mainapi
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
-  public :: getStressTensor, nrOfAtoms, nrOfSpin, nrOfKPoints, getAtomicMasses
+  public :: getStressTensor, nrOfAtoms, nrOfSpin, nrOfKPoints, nrOfLocalKS, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
@@ -344,10 +344,21 @@ contains
 
     integer :: nrOfKPoints
 
-    nrOfKPoints = 1 ! TODO temporary works only for G-point or non-periodic case
+    nrOfKPoints = main%nKPoint
 
   end function nrOfKPoints
-  
+
+  !> Obtains number of (k-point,spin chanel) pairs in current process group
+  function nrOfLocalKS(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    integer :: nrOfLocalKS
+
+    nrOfLocalKS = main%parallelKS%nLocalKS
+
+  end function nrOfLocalKS
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
   !> need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters

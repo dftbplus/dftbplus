@@ -16,7 +16,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin, nrOfKPoints, &
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin, nrOfKPoints, nrOfLocalKS, &
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
       & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
@@ -106,6 +106,8 @@ module dftbp_mmapi
     procedure :: nrOfSpin => TDftbPlus_nrOfSpin
     !> Return the number of k-points in the system
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
+    !> Return the number of (k-point,spin chanel) pairs in the process group
+    procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -636,6 +638,21 @@ contains
 
   end function TDftbPlus_nrOfKPoints
 
+
+  !> Return the number of (k-point,spin chanel) pairs in the process group.
+  function TDftbPlus_nrOfLocalKS(this) result(nLocalKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of (k-point,spin chanel) pairs 
+    integer :: nLocalKS
+
+    call this%checkInit()
+
+    nLocalKS = nrOfLocalKS(this%main)
+
+  end function TDftbPlus_nrOfLocalKS
 
   !> Returns the atomic masses for each atom in the system.
   subroutine TDftbPlus_getAtomicMasses(this, mass)

@@ -276,6 +276,15 @@ int dftbp_get_nr_spin(DftbPlus *instance);
 int dftbp_get_nr_kpoints(DftbPlus *instance);
 
 /**
+ * Queries the nr. of (k-point,spin chanel) pairs in current process group.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. (k-point,spin chanel) pairs
+ */
+int dftbp_get_nr_local_ks(DftbPlus *instance);
+
+/**
  * Queries the energy of the current geometry
  *
  * \param[inout] instance Handler of the DFTB+ instance.
