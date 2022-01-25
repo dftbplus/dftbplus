@@ -11,8 +11,11 @@ module dftbp_capi
   use, intrinsic :: iso_fortran_env
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : instanceSafeBuild
+  use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
+  use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
+  use dftbp_dftbplus_parser, only : TParserFlags, parseHsdTree
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
@@ -510,10 +513,8 @@ contains
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
 
     ! translate to true input data
-    call instance%checkInit()
     call parseHsdTree(pDftbPlusInput%hsdTree, inpData, parserFlags)
     call doPostParseJobs(pDftbPlusInput%hsdTree, parserFlags)
-    call this%main%initProgramVariables(inpData, instance%env)
 
     nAtom = instance%nrOfAtoms()
     call instance%getCM5Charges(inpData, atomCharges(1:nAtom))

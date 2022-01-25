@@ -566,20 +566,22 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
-  subroutine TDftbPlus_getCM5Charges(this, atomCharges)
+  subroutine TDftbPlus_getCM5Charges(this, input, atomCharges)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
+
+    !> Holds the parsed input data.
+    type(TInputData), intent(inout) :: input
 
     !> Atomic gross charges.
     real(dp), intent(out) :: atomCharges(:)
 
     call this%checkInit()
 
-    call getCM5Charges(this%env, this%main, atomCharges)
+    call getCM5Charges(this%env, this%main, input, atomCharges)
 
   end subroutine TDftbPlus_getCM5Charges
-
 
   !> Returns electrostatic potential at specified points
   subroutine TDftbPlus_getElStatPotential(this, pot, locations)

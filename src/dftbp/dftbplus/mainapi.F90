@@ -14,10 +14,12 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
+  use dftbp_solvation_cm5, only : TChargeModel5_init
   use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
