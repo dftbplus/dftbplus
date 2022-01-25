@@ -202,6 +202,8 @@ contains
     
     print *, '1'
     if (.not. allocated(input%ctrl%cm5Input)) then
+      print *, '1.1'
+      allocate(input%ctrl%cm5Input)
       print *, '2'
       if (.not. allocated(main%cm5Cont)) then
         print *, '3'
