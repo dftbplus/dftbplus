@@ -199,24 +199,41 @@ contains
 
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
-
+    
+    print *, '1'
     if (.not. allocated(input%ctrl%cm5Input)) then
-      allocate(main%cm5Cont)
+      print *, '2'
+      if (.not. allocated(main%cm5Cont)) then
+        print *, '3'
+        allocate(main%cm5Cont)
+        print *, '4'
+      end if
+      print *, '5'
       if (main%tPeriodic) then
+        print *, '6'
         call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
             & input%geom%speciesNames, .false., input%geom%latVecs)
+        print *, '7'
       else
+        print *, '8'
         call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
             & input%geom%speciesNames, .false.)
+        print *, '9'
       end if
+      print *, '10'
       main%cutOff%mCutOff = max(main%cutOff%mCutOff, main%cm5Cont%getRCutOff())
     end if
 
+    print *, '11'
     call recalcGeometry(env, main)
+    print *, '12'
     if (.not. allocated(main%cm5Cont%cm5)) then
+      print *, '13'
       call error("CM5 could not be calculated.")
     end if
+    print *, '14'
     atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1) + main%cm5Cont%cm5
+    print *, '15'
 
     !> Pass to the charges of the excited state if relevant
     if (main%isLinResp) then
