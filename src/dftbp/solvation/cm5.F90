@@ -154,7 +154,9 @@ contains
     integer :: nSpecies
     integer :: iSp1, iSp2
 
+    print *, 'init 1'
     @:ASSERT(allocated(input%atomicRad))
+    print *, 'init 2'
 
     nSpecies = size(speciesNames)
     this%tPeriodic = present(latVecs)
@@ -162,28 +164,36 @@ contains
       call this%updateLatVecs(LatVecs)
     end if
     this%nAtom = nAtom
+    print *, 'init 3'
 
     allocate(this%cm5(nAtom))
+    print *, 'init 4'
     if (tDerivs) then
       allocate(this%dcm5dr(3, nAtom, nAtom))
       allocate(this%dcm5dL(3, 3, nAtom))
     end if
+    print *, 'init 5'
 
     this%rCutoff = input%rCutoff
+    print *, 'init 6'
 
     allocate(this%atomicRad(nSpecies))
     allocate(this%pairParam(nSpecies, nSpecies))
     this%atomicRad(:) = input%atomicRad
+    print *, 'init 7'
 
     this%alpha = input%alpha
+    print *, 'init 8'
     do iSp1 = 1, nSpecies
       do iSp2 = 1, nSpecies
         this%pairParam(iSp1, iSp2) = getPairParameter(speciesNames(iSp1), speciesnames(iSp2))
       end do
       this%pairParam(iSp1, iSp1) = 0.0_dp
     end do
+    print *, 'init 9'
 
     this%tCoordsUpdated = .false.
+    print *, 'init 10'
 
   end subroutine TChargeModel5_init
 
