@@ -297,7 +297,7 @@ void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
  *     negative charge, so negative values indicate electron excess.
  */
 void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
-void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
+void dftbp_get_cm5_charges(DftbPlus *instance, DftbPlusInput *input, double *charges);
 
 
 /**

@@ -184,7 +184,7 @@ contains
   end subroutine getGrossCharges
 
   !> get the CM5 charges
-  subroutine getCM5charges(env, main, atomCharges)
+  subroutine getCM5Charges(env, main, input, atomCharges)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
@@ -192,11 +192,28 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
+    !> Holds the parsed input data.
+    type(TInputData), intent(inout), target :: input
+
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
 
-    allocate(main%cm5Cont)
+    if (.not. allocated(input%ctrl%cm5Input)) then
+      allocate(main%cm5Cont)
+      if (main%tPeriodic) then
+        call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+            & input%geom%speciesNames, .false., input%geom%latVecs)
+      else
+        call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+            & input%geom%speciesNames, .false.)
+      end if
+      main%cutOff%mCutOff = max(main%cutOff%mCutOff, main%cm5Cont%getRCutOff())
+    end if
+
     call recalcGeometry(env, main)
+    if (.not. allocated(main%cm5Cont%cm5)) then
+      call error("CM5 could not be calculated.")
+    end if
     atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1) + main%cm5Cont%cm5
 
     !> Pass to the charges of the excited state if relevant
@@ -419,7 +436,7 @@ contains
     endif
 
     if (main%atomOrderMatters) then
-      call error("This DftbPlus instance can not cope with atom reordeirng (by initialization)")
+      call error("This DftbPlus instance can not cope with atom reordering (by initialization)")
     end if
 
     main%species0 = inputSpecies
