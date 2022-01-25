@@ -19,7 +19,7 @@ module dftbp_solvation_cm5
   implicit none
 
   private
-  public :: TChargeModel5, TCM5Input, TChargeModel5_init
+  public :: TChargeModel5, TCM5Input, TChargeModel5_init, getCorrectionDerivs, getCorrection
 
 
   !> Charge model 5 input data
@@ -229,6 +229,7 @@ contains
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
+    !> number of neighbours for all atoms
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))

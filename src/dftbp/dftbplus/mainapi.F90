@@ -13,13 +13,14 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_solvation_cm5, only : TChargeModel5_init
+  use dftbp_solvation_cm5, only : TChargeModel5_init, getCorrectionDerivs, getCorrection
   use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
@@ -199,8 +200,12 @@ contains
 
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
+
+    !> number of neighbours for all atoms
+    integer, allocatable :: nNeigh(:)
     
     print *, '1'
+    ! handle the case that CM5 was not added in the input
     if (.not. allocated(input%ctrl%cm5Input)) then
       print *, '1.1'
       allocate(input%ctrl%cm5Input)
@@ -224,6 +229,16 @@ contains
       end if
       print *, '10'
       main%cutOff%mCutOff = max(main%cutOff%mCutOff, main%cm5Cont%getRCutOff())
+      ! carry out calculation
+      allocate(nNeigh(main%nAtom))
+      call getNrOfNeighboursForAll(nNeigh, main%neighbourList, main%cm5Cont%getRCutoff())
+      if (allocated(main%cm5Cont%dcm5dr) .and. allocated(main%cm5Cont%dcm5dL)) then
+        call getCorrectionDerivs(main%cm5Cont, nNeigh, main%neighbourList%iNeighbour, &
+            & main%img2CentCell, main%neighbourList%neighDist2, main%species0, main%coord)
+      else
+        call getCorrection(main%cm5Cont, nNeigh, main%neighbourList%iNeighbour, &
+            & main%img2CentCell, main%neighbourList%neighDist2, main%species0, main%coord)
+      end if
     end if
 
     print *, '11'
