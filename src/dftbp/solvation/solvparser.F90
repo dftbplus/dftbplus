@@ -420,7 +420,7 @@ contains
     real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)
 
-    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
+    call getChildValue(node, "Alpha", input%alpha, input%alpha, &
       & modifier=modifier, child=field)
     call convertByMul(char(modifier), inverseLengthUnits, field, input%alpha)
 
@@ -447,7 +447,7 @@ contains
     end if
     input%atomicRad(:) = input%atomicRad * conv
 
-    call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
+    call getChildValue(node, "Cutoff", input%rCutoff, input%rCutoff, &
         & modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 

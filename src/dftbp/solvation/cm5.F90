@@ -13,6 +13,7 @@ module dftbp_solvation_cm5
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
@@ -25,10 +26,10 @@ module dftbp_solvation_cm5
   type :: TCM5Input
 
     !> Real space cutoff
-    real(dp) :: rCutoff
+    real(dp) :: rCutoff = 30.0_dp
 
     !> Global parameter
-    real(dp) :: alpha
+    real(dp) :: alpha = 2.474_dp/AA__Bohr
 
     !> Atomic radii
     real(dp), allocatable :: atomicRad(:)
@@ -154,8 +155,8 @@ contains
     integer :: nSpecies
     integer :: iSp1, iSp2
 
+
     print *, 'init 1'
-    @:ASSERT(allocated(input%atomicRad))
     print *, 'init 2'
 
     nSpecies = size(speciesNames)
@@ -179,7 +180,19 @@ contains
 
     allocate(this%atomicRad(nSpecies))
     allocate(this%pairParam(nSpecies, nSpecies))
-    this%atomicRad(:) = input%atomicRad
+    if (.not. allocated(input%atomicRad)) then
+      print *, 'init 6.1'
+      this%atomicRad(:) = getAtomicRad(speciesNames)
+      print *, 'init 6.2'
+    else
+      print *, 'init 6.4'
+      this%atomicRad(:) = input%atomicRad
+      print *, 'init 6.5'
+    end if
+    print *, 'init 6.6'
+    if (any(this%atomicRad <= 0.0_dp)) then
+      call error("Atomic radii must be positive for all species")
+    end if
     print *, 'init 7'
 
     this%alpha = input%alpha
