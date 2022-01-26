@@ -111,6 +111,9 @@ module dftbp_dftbplus_inputdata
     !> Choice of range separation method
     integer :: rangeSepAlg
 
+    !> Truncation of 1/r for periodic systems
+    real(dp) :: coulombTruncation
+
   end type TRangeSepInp
 
 

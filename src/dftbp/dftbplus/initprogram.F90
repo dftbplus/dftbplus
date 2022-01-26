@@ -195,6 +195,7 @@ module dftbp_dftbplus_initprogram
   type :: TCutoffs
     real(dp) :: skCutOff
     real(dp) :: lcCutOff
+    real(dp) :: lcRsCutOff
     real(dp) :: mCutOff
   end type TCutoffs
 
@@ -312,6 +313,9 @@ module dftbp_dftbplus_initprogram
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
     integer, allocatable :: nNeighbourLC(:)
+
+    !> Number of neighbours for 1/Rc cutoff of exchange interactions
+    integer, allocatable :: nNeighbourRSRc(:)
 
     !> H/S sparse matrices indexing array for atomic blocks
     integer, allocatable :: iSparseStart(:,:)
@@ -2563,7 +2567,8 @@ contains
 
     if (this%isRangeSep) then
       call this%ensureRangeSeparatedReqs(input%ctrl%tShellResolved, input%ctrl%rangeSepInp)
-      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff)
+      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff,&
+          & input%ctrl%rangeSepInp%coulombTruncation)
       call this%initRangeSeparated(this%nAtom, this%species0, hubbU, input%ctrl%rangeSepInp,&
           & this%tSpin, allocated(this%reks), this%rangeSep, this%deltaRhoIn, this%deltaRhoOut,&
           & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
@@ -2599,6 +2604,9 @@ contains
     allocate(this%nNeighbourSK(this%nAtom))
     if (this%isRangeSep) then
       allocate(this%nNeighbourLC(this%nAtom))
+      if (this%tPeriodic .or. this%tHelical) then
+        allocate(this%nNeighbourRSRc(this%nAtom))
+      end if
     end if
 
     ! Set various options
@@ -5131,8 +5139,15 @@ contains
     end if
 
     if (this%tPeriodic) then
-      call error("Range separated functionality only works with non-periodic structures at the&
-          & moment")
+      if (rangeSepInp%rangeSepAlg /= rangeSepTypes%matrixBased) then
+        call error("Range separated functionality for periodic system only current working for the&
+            & matrix based algorithm")
+      end if
+      if (size(this%kPoint, dim=2) /= 1) then
+        if (any(this%kPoint /= 0.0_dp)) then
+          call error("Range separated functionality only works with gamma point at the moment")
+        end if
+      end if
     end if
 
     if (this%tHelical) then
@@ -5314,13 +5329,16 @@ contains
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff, coulombTruncation)
 
     !> Reduction in cut-off
     real(dp), intent(in) :: cutoffRed
 
     !> Resulting cut-off
     type(TCutoffs), intent(inout) :: cutOff
+
+    !> Cut-off for 1/Rc
+    real(dp), intent(in) :: coulombTruncation
 
     cutOff%lcCutOff = 0.0_dp
     if (cutoffRed < 0.0_dp) then
@@ -5331,6 +5349,8 @@ contains
       call error("Screening cutoff for range-separated neighbours too short.")
     end if
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcCutOff)
+    cutOff%lcRsCutOff = coulombTruncation
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcRsCutOff)
 
   end subroutine getRangeSeparatedCutOff
 

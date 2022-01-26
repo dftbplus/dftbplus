@@ -690,8 +690,8 @@ contains
           & this%repulsive, this%dispersion,this%solvation, this%thirdOrd, this%rangeSep,&
           & this%reks, this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
           & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
-          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
-          & this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
+          & this%nNeighbourLC, this%nNeighbourRSRc, this%ints, this%H0, this%rhoPrim,&
+          & this%iRhoPrim, this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
         @:HANDLE_ERROR(errStatus)
     end if
 
@@ -1768,7 +1768,7 @@ contains
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
       & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
-      & species, rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim,&
+      & species, rCellVec, nNeighbourSK, nNeighbourLC, nNeighbourRSRc, ints, H0, rhoPrim, iRhoPrim,&
       & ERhoPrim, iSparseStart, cm5Cont, errStatus)
 
     !> Environment settings
@@ -1853,6 +1853,9 @@ contains
     !> functional
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
+    !> Number of neighbours for each of the atoms for the exchange contribution 1/R cutoff
+    integer, intent(inout), allocatable :: nNeighbourRSRc(:)
+
     !> Integral container
     type(TIntegral), intent(inout) :: ints
 
@@ -1902,7 +1905,13 @@ contains
         & rhoPrim, iRhoPrim, ERhoPrim)
 
     if (allocated(nNeighbourLC)) then
+      ! count neighbours for range separated interaction
       call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
+    end if
+
+    if (allocated(nNeighbourRSRc)) then
+      ! count neighbours for 1/Rc range separated cutoff
+      call getNrOfNeighboursForAll(nNeighbourRSRc, neighbourList, cutoff%lcRsCutOff)
     end if
 
     if (allocated(sccCalc)) then
@@ -1928,7 +1937,11 @@ contains
       call thirdOrd%updateCoords(neighbourList, species)
     end if
     if (allocated(rangeSep)) then
-      call rangeSep%updateCoords(coord0)
+      if (tPeriodic .or. tHelical) then
+        call rangeSep%updateCoords(coord, nNeighbourRSRc, neighbourList%iNeighbour, img2CentCell)
+      else
+        call rangeSep%updateCoords(coord0)
+      end if
     end if
     if (allocated(cm5Cont)) then
        call cm5Cont%updateCoords(neighbourList, img2CentCell, coord, species)
@@ -5577,7 +5590,8 @@ contains
         call error("Range separated forces do not support non-colinear spin")
       else
         call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
-            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
+            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK,&
+            & img2CentCell)
       end if
     end if
 

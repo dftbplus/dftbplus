@@ -21,8 +21,8 @@ module dftbp_dftb_rangeseparated
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-
   private
+
   public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue, rangeSepTypes
 
 
@@ -53,7 +53,7 @@ module dftbp_dftb_rangeseparated
   end type TRangeSepSKTag
 
 
-  !> Range-Sep module dftbp_poisson_structure
+  !> Range-Sep module structure
   type :: TRangeSepFunc
     private
 
@@ -109,7 +109,9 @@ module dftbp_dftb_rangeseparated
 
   contains
 
-    procedure :: updateCoords
+    procedure :: updateCoordsClust
+    procedure :: updateCoordsNeigh
+    generic :: updateCoords => updateCoordsClust, updateCoordsNeigh
     procedure :: addLrHamiltonian
     procedure :: addLrHamiltonianMatrixCmplx
     procedure :: addLrEnergy
@@ -236,7 +238,7 @@ contains
 
 
   !> update the rangeSep module on coordinate change
-  subroutine updateCoords(this, coords)
+  subroutine updateCoordsClust(this, coords)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -250,8 +252,8 @@ contains
     this%coords(:,:) = coords
     nAtom = size(this%species)
     do iAtom1 = 1, nAtom
+      iSp1 = this%species(iAtom1)
       do iAtom2 = 1, iAtom1
-        iSp1 = this%species(iAtom1)
         iSp2 = this%species(iAtom2)
         dist = norm2(this%coords(:, iAtom1) - this%coords(:, iAtom2))
         this%lrGammaEval(iAtom1, iAtom2) = getAnalyticalGammaValue(this, iSp1, iSp2, dist)
@@ -265,7 +267,54 @@ contains
       this%lrEnergy = 0.0_dp
     end if
 
-  end subroutine updateCoords
+  end subroutine updateCoordsClust
+
+
+  !> update the rangeSep module on coordinate change, using a neighbour map hence cutting off 1/r at
+  !> a defined radius
+  subroutine updateCoordsNeigh(this, coords, nNeigh, iNeigh, img2CentCell)
+
+    !> class instance
+    class(TRangeSepFunc), intent(inout) :: this
+
+    !> list of atomic coordinates, potentially including periodic images
+    real(dp), intent(in) :: coords(:,:)
+
+    integer, intent(in) :: nNeigh(:)
+
+    integer, intent(in) :: iNeigh(0:,:)
+
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: nAt, iAt1, iN, iAt2, iAt2f, iSp1, iSp2
+    real(dp) :: dist
+
+    nAt = size(this%species)
+    @:ASSERT(nAt == size(nNeigh))
+    this%coords = coords
+    this%lrGammaEval(:,:) = 0.0_dp
+    do iAt1 = 1, nAt
+      iSp1 = this%species(iAt1)
+      do iN = 0, nNeigh(iAt1)
+        iAt2 = iNeigh(iN, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = this%species(iAt2f)
+        dist = norm2(this%coords(:, iAt1) - this%coords(:, iAt2))
+        this%lrGammaEval(iAt2f, iAt1) = this%lrGammaEval(iAt2f, iAt1)&
+            & + getAnalyticalGammaValue(this, iSp1, iSp2, dist)
+      end do
+    end do
+    do iAt1 = 1, nAt
+      this%lrGammaEval(iAt1, iAt1+1:) = this%lrGammaEval(iAt1+1:, iAt1)
+    end do
+
+    if (this%tScreeningInited) then
+      this%hprev(:,:) = 0.0_dp
+      this%dRhoPrev(:,:) = 0.0_dp
+      this%lrEnergy = 0.0_dp
+    end if
+
+  end subroutine updateCoordsNeigh
 
 
   !> Interface routine.
@@ -819,7 +868,7 @@ contains
               & this%lrGammaEval(jAt,iAt)
         end do
       end do
-      gammaCmplx = LrGammaAO
+      gammaCmplx(:,:) = LrGammaAO
 
     end subroutine allocateAndInit
 
@@ -1320,7 +1369,7 @@ contains
 
   !> Adds gradients due to long-range HF-contribution
   subroutine addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
-      & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
+      & iSquare, ovrlapMat, iNeighbour, nNeighbourSK, img2CentCell)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -1358,6 +1407,9 @@ contains
     !> differentiation object
     class(TNonSccDiff), intent(in) :: derivator
 
+    !> Map images of atoms to the central cell
+    integer, intent(in) :: img2CentCell(:)
+
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
@@ -1386,20 +1438,21 @@ contains
           ! A > B
           loopA: do iNeighB = 0, nNeighbourSK(iAtB)
             iAtA = iNeighbour(iNeighB, iAtB)
-            tmpgamma1 = this%lrGammaEval(iAtK,iAtB) + this%lrGammaEval(iAtC,iAtB)
-            tmpgamma2 = tmpgamma1 + this%lrGammaEval(iAtK,iAtA) + this%lrGammaEval(iAtC,iAtA)
+            tmpgamma1 = this%lrGammaEval(iAtK,iAtB) + this%lrGammaEval(img2CentCell(iAtC),iAtB)
+            tmpgamma2 = tmpgamma1 + this%lrGammaEval(iAtK,img2CentCell(iAtA))&
+                & + this%lrGammaEval(img2CentCell(iAtC),img2CentCell(iAtA))
             tmpforce(:) = 0.0_dp
             tmpforce_r(:) = 0.0_dp
             tmpforce2 = 0.0_dp
             ccc = 0
-            do mu = iSquare(iAtC), iSquare(iAtC + 1) - 1
+            do mu = iSquare(img2CentCell(iAtC)), iSquare(img2CentCell(iAtC) + 1) - 1
               ccc = ccc + 1
               kkk = 0
               do kpa = iSquare(iAtK), iSquare(iAtK + 1) - 1
                 kkk = kkk + 1
                 tmpmultvar1 = 0.0_dp
                 do iSpin = 1, nSpin
-                  do alpha = iSquare(iAtA), iSquare(iAtA + 1) - 1
+                  do alpha = iSquare(img2CentCell(iAtA)), iSquare(img2CentCell(iAtA) + 1) - 1
                     do beta = iSquare(iAtB), iSquare(iAtB + 1) - 1
                       tmpmultvar1 = tmpmultvar1 + tmpOvr(beta, alpha) * (tmpRho(beta,kpa,iSpin) &
                        & * tmpRho(alpha,mu,iSpin) + tmpRho(alpha,kpa,iSpin) * tmpRho(beta,mu,iSpin))
@@ -1413,30 +1466,32 @@ contains
             end do
 
             ! C /= K
-            if( iAtK /= iAtC ) then
-              if( iAtB /= iAtA) then
+            if( iAtK /= img2CentCell(iAtC) ) then
+              if( iAtB /= img2CentCell(iAtA)) then
                 tmpforce(:) = tmpforce(:) * tmpgamma2
                 tmpforce_r(:) = tmpforce_r(:) * tmpgamma2
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,iAtA) &
+                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)) &
                     & + gammaPrimeTmp(:,iAtK,iAtB))
-                tmpforce_r(:) = tmpforce_r(:) + tmpforce2 * (gammaPrimeTmp(:,iAtC,iAtA) &
-                    & + gammaPrimeTmp(:,iAtC,iAtB))
+                tmpforce_r(:) = tmpforce_r(:) + tmpforce2 *&
+                    & (gammaPrimeTmp(:,img2CentCell(iAtC),img2CentCell(iAtA)) &
+                    & + gammaPrimeTmp(:,img2CentCell(iAtC),iAtB))
               else
                 tmpforce(:) = tmpforce(:) * tmpgamma1
                 tmpforce_r(:) = tmpforce_r(:) * tmpgamma1
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,iAtA))
-                tmpforce_r(:) = tmpforce_r(:) + tmpforce2 * (gammaPrimeTmp(:,iAtC,iAtA))
+                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)))
+                tmpforce_r(:) = tmpforce_r(:) + tmpforce2 *&
+                    & (gammaPrimeTmp(:,img2CentCell(iAtC),img2CentCell(iAtA)))
               end if
             else
-              if( iAtB /= iAtA) then
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,iAtA) &
+              if( iAtB /= img2CentCell(iAtA)) then
+                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)) &
                     & + gammaPrimeTmp(:,iAtK,iAtB))
               else
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,iAtA))
+                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)))
               end if
             end if
             tmpderiv(:,iAtK) = tmpderiv(:,iAtK) + tmpforce(:)
-            tmpderiv(:,iAtC) = tmpderiv(:,iAtC) + tmpforce_r(:)
+            tmpderiv(:,img2CentCell(iAtC)) = tmpderiv(:,img2CentCell(iAtC)) + tmpforce_r(:)
           end do loopA
         end do loopB
       end do loopC

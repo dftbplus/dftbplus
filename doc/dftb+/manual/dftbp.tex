@@ -4300,8 +4300,14 @@ has the following option:
       \is{Thresholded} block.
     \end{description}
 
-  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
-    can be faster than other two algorithms.
+  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based
+    algorithm. This can be faster than other two algorithms. This also
+    supports $\Gamma$-point periodic evaluation of range separation,
+    using ideas from~\cite{guidon-JCTC-5-3010}. For periodic
+    geometries, the additional keyword \kw{CoulombTruncation} controls
+    the length of the cutoff for the 1/$R_c$ interaction, and should
+    be chosent to be short enough that periodic images of atoms are
+    not included.
 
   \end{description}
 \end{description}

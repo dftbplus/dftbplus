@@ -906,7 +906,7 @@ module dftbp_reks_reksinterface
         lcDerivs(:,:,iL) = 0.0_dp
         call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
             & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
-            & neighbourList%iNeighbour, nNeighbourSK)
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell)
       end if
 
       ! TODO : this part should be modified after merging selfconsistent
