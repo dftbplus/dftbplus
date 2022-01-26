@@ -204,32 +204,21 @@ contains
     !> number of neighbours for all atoms
     integer, allocatable :: nNeigh(:)
     
-    print *, '1'
-    ! handle the case that CM5 was not added in the input
+    !> handle the case that CM5 was not added in the input
     if (.not. allocated(input%ctrl%cm5Input)) then
-      print *, '1.1'
       allocate(input%ctrl%cm5Input)
-      print *, '2'
       if (.not. allocated(main%cm5Cont)) then
-        print *, '3'
         allocate(main%cm5Cont)
-        print *, '4'
       end if
-      print *, '5'
       if (main%tPeriodic) then
-        print *, '6'
         call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
             & input%geom%speciesNames, .false., input%geom%latVecs)
-        print *, '7'
       else
-        print *, '8'
         call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
             & input%geom%speciesNames, .false.)
-        print *, '9'
       end if
-      print *, '10'
       main%cutOff%mCutOff = max(main%cutOff%mCutOff, main%cm5Cont%getRCutOff())
-      ! carry out calculation
+      !> carry out calculation
       allocate(nNeigh(main%nAtom))
       call getNrOfNeighboursForAll(nNeigh, main%neighbourList, main%cm5Cont%getRCutoff())
       if (allocated(main%cm5Cont%dcm5dr) .and. allocated(main%cm5Cont%dcm5dL)) then
@@ -241,16 +230,11 @@ contains
       end if
     end if
 
-    print *, '11'
     call recalcGeometry(env, main)
-    print *, '12'
     if (.not. allocated(main%cm5Cont%cm5)) then
-      print *, '13'
       call error("CM5 could not be calculated.")
     end if
-    print *, '14'
     atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1) + main%cm5Cont%cm5
-    print *, '15'
 
     !> Pass to the charges of the excited state if relevant
     if (main%isLinResp) then

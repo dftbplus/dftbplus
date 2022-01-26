@@ -484,7 +484,7 @@ contains
 
   end subroutine c_DftbPlus_getGrossCharges
 
-  !> Obtain gross (Mulliken) charges for atoms wrt to neutral references
+  !> Obtain CM5 charges
   subroutine c_DftbPlus_getCM5Charges(handler, inputHandler, atomCharges)&
       & bind(C, name='dftbp_get_cm5_charges')
 
@@ -508,11 +508,11 @@ contains
 
     integer :: nAtom
 
-    ! translate c to f objects
+    !> translate c to f objects
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
 
-    ! translate to true input data
+    !> translate to true input data
     call parseHsdTree(pDftbPlusInput%hsdTree, inpData, parserFlags)
     call doPostParseJobs(pDftbPlusInput%hsdTree, parserFlags)
 
