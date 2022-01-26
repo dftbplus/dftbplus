@@ -10,6 +10,8 @@ program test_extcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_common_constants, only : AA__Bohr
+  use dftbp_dftbplus_inputdata, only : TInputData
+  use dftbp_dftbplus_parser, only : TParserFlags, parseHsdTree
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -57,9 +59,14 @@ program test_extcharges
   character(2), allocatable :: speciesNames(:)
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
+  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
   type(fnode), pointer :: pParserOpts
+
+  !> flags required to read input
+  type(TParserFlags) :: parserFlags
+  !> we require to know this true input data object to init CM5 if not given
+  type(TInputData) :: inputData
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
@@ -118,6 +125,9 @@ program test_extcharges
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 
+  !> translate to input data
+  call parseHsdTree(input%hsdTree, inputData, parserFlags)
+
   ! convert input into settings for the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
@@ -133,11 +143,13 @@ program test_extcharges
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
+  call dftbp%getCM5Charges(inputData, cm5Charges)
   call dftbp%getAtomicMasses(atomMasses)
 
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
+  print "(A,3F15.10)", 'Obtained CM5 charges:', cm5Charges
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
   print "(A,3F15.10)", 'Obtained gradient of atom 2:', gradients(:,2)
   print "(A,3F15.10)", 'Obtained gradient of atom 3:', gradients(:,3)
@@ -149,6 +161,6 @@ program test_extcharges
 
   ! Write file for internal test system
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-      & extChargeGradients=extChargeGrads, atomMasses=atomMasses)
+      & extChargeGradients=extChargeGrads, atomMasses=atomMasses, cm5Charges=cm5Charges)
 
 end program test_extcharges

@@ -9,6 +9,8 @@ program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_common_constants, only : AA__Bohr
+  use dftbp_dftbplus_inputdata, only : TInputData
+  use dftbp_dftbplus_parser, only : TParserFlags, parseHsdTree
   use extchargepot
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
@@ -40,12 +42,17 @@ program test_extpot
 
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
+  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg)
   real(dp) :: esps(2)
   real(dp), parameter :: espLocations(3,2) = reshape([1.0_dp,0.0_dp,0.0_dp,1.0_dp,0.1_dp,0.0_dp],&
       & [3,2])
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
   type(fnode), pointer :: pParserOpts
+
+  !> flags required to read input
+  type(TParserFlags) :: parserFlags
+  !> we require to know this true input data object to init CM5 if not given
+  type(TInputData) :: inputData
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
@@ -99,6 +106,9 @@ program test_extpot
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 
+  !> translate to input data
+  call parseHsdTree(input%hsdTree, inputData, parserFlags)
+
   ! initialise the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
@@ -114,12 +124,14 @@ program test_extpot
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(atomCharges)
+  call dftbp%getCM5Charges(inputData, cm5Charges)
   call dftbp%getElStatPotential(esps, espLocations)
   call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
       & extChargeGrads)
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
+  print "(A,3F15.10)", 'Obtained cm5 charges:', cm5Charges
   print "(A,2F15.10)", 'Obtained electrostatic potentials:', esps
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
   print "(A,3F15.10)", 'Obtained gradient of atom 2:', gradients(:,2)
@@ -131,6 +143,6 @@ program test_extpot
 
   ! Write file for internal test system
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-      & extChargeGradients=extChargeGrads, potential=esps)
+      & extChargeGradients=extChargeGrads, potential=esps, cm5Charges=cm5Charges)
 
 end program test_extpot

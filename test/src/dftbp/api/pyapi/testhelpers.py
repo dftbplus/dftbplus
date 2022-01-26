@@ -17,7 +17,8 @@ import numpy as np
 # relevant tags for testing the Python interface
 TAGLABELS = {'freeEgy': 'mermin_energy',
              'forceTot': 'forces',
-             'qOutAtGross': 'gross_atomic_charges'}
+             'qOutAtGross': 'gross_atomic_charges',
+             'qOutCM5': 'cm5_charges'}
 
 
 def write_autotest_tag(filename, **kwargs):
