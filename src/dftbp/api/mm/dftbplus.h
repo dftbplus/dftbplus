@@ -297,6 +297,20 @@ void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
  *     negative charge, so negative values indicate electron excess.
  */
 void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
+
+
+/**
+ * Queries the CM5 charges on the atoms.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+
+ * \param[in] input The tree containing the DFTB+ input. It will not be manipulated but is 
+ *     required to know whether CM5 charges had been requested or not. The charges should be
+ *     returned correctly either way.
+ *
+ * \param[out] charges Net charges on each atom.  Shape [natom]. Sign convention: Electron has
+ *     negative charge, so negative values indicate electron excess.
+ */
 void dftbp_get_cm5_charges(DftbPlus *instance, DftbPlusInput *input, double *charges);
 
 
