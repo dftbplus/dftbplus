@@ -81,6 +81,8 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_formatout, only : writeSparse
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
@@ -186,9 +188,15 @@ contains
 
     !> Which state is being calculated in the determinant loop?
     integer :: iDet
+
+    !> Is reduction over determinants required to get charges
     logical :: isUnReduced
 
+    !> Error handling type
     type(TStatus) :: errStatus
+
+    ! loop index
+    integer :: iSpin
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -351,6 +359,21 @@ contains
     if (this%tWriteShifts) then
       call writeShifts(fShifts, this%orb, this%potential%intShell)
     endif
+
+    if (this%isSparseRhoWritten) then
+      do iSpin = 1, this%nSpin
+        call writeSparse("rhoReal" // i2c(iSpin) // ".dat", this%rhoPrim(:,iSpin),&
+            & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
+            & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
+      end do
+      if (allocated(this%iRhoPrim)) then
+        do iSpin = 1, this%nSpin
+          call writeSparse("rhoImag" // i2c(iSpin) // ".dat", this%iRhoPrim(:,iSpin),&
+              & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
+              & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
+        end do
+      end if
+    end if
 
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
