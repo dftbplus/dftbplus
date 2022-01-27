@@ -213,6 +213,12 @@ if(WITH_TBLITE OR WITH_SDFTD3)
     external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mstore)
 
+  set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
+  set(TOML_F_GIT_TAG "f066ec6e7fb96d8faf83ab6614ee664a26ad8d57")  # do not change manually!
+  dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
+    external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES toml-f)
+
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
   set(S_DFTD3_GIT_TAG "448b92bf5f6866a81f178080d3a6b4b75eb70ba6")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
@@ -221,12 +227,6 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 endif()
 
 if(WITH_TBLITE)
-  set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-  set(TOML_F_GIT_TAG "f066ec6e7fb96d8faf83ab6614ee664a26ad8d57")  # do not change manually!
-  dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
-    external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
-  #list(APPEND PKG_CONFIG_REQUIRES toml-f)
-
   set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
   set(MULTICHARGE_GIT_TAG "dde0d67dadb6efba414cf634f697dc252eb902dc")  # do not change manually!
   dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}" "QUIET"
