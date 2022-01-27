@@ -222,8 +222,8 @@ int main()
     } else {
       printf("Obtained CM5 charges: %15.10f %15.10f %15.10f\n", cm5_charges[0],
              cm5_charges[1], cm5_charges[2]);
-      printf("Expected CM5 charges: %15.10f %15.10f %15.10f\n", -0.64956780,
-             0.34175695, 0.30781085);
+      printf("Expected CM5 charges: %15.10f %15.10f %15.10f\n", -1.3059002570,
+             0.6447634725, 0.6611367846);
     }
 
     /* Get electrostatic potential in the calculation */
