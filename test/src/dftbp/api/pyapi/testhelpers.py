@@ -18,7 +18,7 @@ import numpy as np
 TAGLABELS = {'freeEgy': 'mermin_energy',
              'forceTot': 'forces',
              'qOutAtGross': 'gross_atomic_charges',
-             'qOutCM5': 'cm5_charges'}
+             'qOutCM5': 'cm5_atomic_charges'}
 
 
 def write_autotest_tag(filename, **kwargs):

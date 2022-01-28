@@ -146,7 +146,7 @@ def main():
 
             dummygrads = np.zeros(3)
             dummychgs = 0
-            merminentot, gradientstot, grosschgstot = \
+            merminentot, gradientstot, grosschgstot, cm5chgstot = \
             update_collective_variables(merminen,
                                         np.vstack((gradients, dummygrads)),
                                         np.hstack((grosschgs, dummychgs)),
@@ -240,10 +240,13 @@ def main():
                   .format(-0.6519945363, 0.3314953102, 0.3204992261))
 
             # evaluate CM5 charges
-            print('(Si2) Obtained CM5 charges: {:15.10f} {:15.10f}'
+            print('(H2O) Obtained Gross charges: ' +
+                  '{:15.10f} {:15.10f} {:15.10f}'
                   .format(*cm5chgs))
-            print('(Si2) Expected CM5 charges: {:15.10f} {:15.10f}\n\n'
-                  .format(-0.6519945363, 0.3314953102, 0.3204992261))
+            print('(H2O) Expected CM5 charges: ' +
+                  '{:15.10f} {:15.10f} {:15.10f}\n\n'
+                  .format(-1.3059002570, 0.6447634725, 0.6611367846))
+ 
 
 
     # --------------------------WRITE AUTOTEST.TAG------------------------------
