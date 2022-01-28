@@ -20,7 +20,7 @@ module dftbp_mmapi
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
       & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
-      & getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
+      & getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry, getLocalKS
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -108,6 +108,8 @@ module dftbp_mmapi
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Return the number of (k-point,spin chanel) pairs in the process group
     procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
+    !> get (k-point,spin chanel) pairs in current process group
+    procedure :: getLocalKS => TDftbPlus_getLocalKS
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -605,6 +607,21 @@ contains
     nAtom = nrOfAtoms(this%main)
 
   end function TDftbPlus_nrOfAtoms
+  
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine TDftbPlus_getLocalKS(this, localKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+    
+    call getLocalKS(this%main, localKS)
+
+  end subroutine TDftbPlus_getLocalKS
+
 
 
   !> Returns the nr. of spin channels in the system.

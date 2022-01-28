@@ -293,6 +293,15 @@ int dftbp_get_nr_local_ks(DftbPlus *instance);
  */
 void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
 
+/**
+ * Queries (k-point,spin chanel) pairs in current process group.
+ * Reurn number of pairs, same as dftbp_get_nr_local_ks().
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] local_ks (k-point,spin chanel) pairs in current process group Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+ */
+int dftbp_get_local_ks(DftbPlus *instance, int *local_ks);
 
 /**
  * Queries the gradients of the current geometry.

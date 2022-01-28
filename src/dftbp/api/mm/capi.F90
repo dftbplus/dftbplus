@@ -440,6 +440,22 @@ contains
     nLocalKS = instance%nrOfLocalKS()
 
   end function c_DftbPlus_nrOfLocalKS
+  
+  !> Get (k-point,spin chanel) pairs in current process group, returns number of pairs
+  function c_DftbPlus_getLocalKS(handler, localKS) result(nLocalKS) bind(C, name='dftbp_get_local_ks')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int), intent(out) :: localKS(2, *)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nLocalKS
+
+    call c_f_pointer(handler%instance, instance)
+    nLocalKS = instance%nrOfLocalKS()
+
+    call instance%getLocalKS(localKS(:,1:nLocalKS))
+
+  end function c_DftbPlus_getLocalKS
 
 
   !> Obtain the DFTB+ energy

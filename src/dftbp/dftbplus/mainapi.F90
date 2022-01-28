@@ -31,6 +31,7 @@ module dftbp_dftbplus_mainapi
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
+  public :: getLocalKS
   public :: getStressTensor, nrOfAtoms, nrOfSpin, nrOfKPoints, nrOfLocalKS, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
@@ -359,6 +360,19 @@ contains
     nrOfLocalKS = main%parallelKS%nLocalKS
 
   end function nrOfLocalKS
+
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine getLocalKS(main, localKS)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    localKS(:,:) = main%parallelKS%localKS
+
+  end subroutine getLocalKS
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
   !> need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters
