@@ -210,6 +210,8 @@ module dftbp_timedep_timeprop
     !> if bond currents should be calculated and printed
     logical :: tCurrents
 
+    !> if a time-dependent vector potential is used
+    logical :: tUseVectorPotential
   end type TElecDynamicsInp
 
 
@@ -558,6 +560,7 @@ module dftbp_timedep_timeprop
 
     !> Potential acting on the system
     type(TPotentials) :: potential
+    logical :: tUseVectorPotential
 
     !> Count of the number of times dynamics has been initialised
     integer :: nDynamicsInit = 0
@@ -812,6 +815,7 @@ contains
     this%kPoint = kPoint
     this%kWeight = kWeight
     this%hamiltonianType = hamiltonianType
+    this%tUseVectorPotential = inp%tUseVectorPotential
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
     if (.not.any([allocated(sccCalc), allocated(tblite)])) then
@@ -4606,6 +4610,7 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
+    ! TODO charly add vec pot
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
