@@ -5852,6 +5852,7 @@ contains
     call getChildValue(node, "Pump", input%tPump, .false.)
     call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)
     call getChildValue(node, "Currents", input%tCurrents, .false.)
+    call getChildValue(node, "UseVectorPotential", input%tUseVectorPotential, .false.)
 
     if (input%tPump) then
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
