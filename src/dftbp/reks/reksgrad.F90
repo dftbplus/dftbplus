@@ -528,7 +528,7 @@ contains
 
       ! get long-range gamma derivative
       LrGammaDeriv(:,:,:) = 0.0_dp
-      call rangeSep%getLrGammaDeriv(coords, species, LrGammaDeriv)
+      call rangeSep%getLrGammaDeriv(coords, species, LrGammaDeriv, img2CentCell)
       do ii = 1, 3
         call symmetrizeHS(LrGammaDeriv(:,:,ii))
       end do

@@ -13,6 +13,7 @@ module dftbp_dftb_rangeseparated
   use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_math_simplealgebra, only : invert33
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
@@ -1332,44 +1333,40 @@ contains
 
 
   !> Returns the derivative of lr-gamma for iAtom1, iAtom2
-  subroutine getGammaPrimeValue(this, grad, iAtom1, iAtom2, coords, species)
+  function getGammaPrimeValue(this, vector, iSp1, iSp2) result(grad)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
 
+    !> Vector from position of 2nd atom to position of 1st atom
+    real(dp), intent(in) :: vector(:)
+
+    !> Species of first atom
+    integer, intent(in) :: iSp1
+
+    !> Species of second atom
+    integer, intent(in) :: iSp2
+
     !> gradient of gamma between atoms
-    real(dp), intent(out) :: grad(3)
+    real(dp) :: grad(3)
 
-    !> first atom
-    integer, intent(in) :: iAtom1
+    real(dp) :: dist, vect(3)
 
-    !> second atom
-    integer, intent(in) :: iAtom2
+    dist = sum(vector(:)**2)
+    if (dist > epsilon(0.0_dp)) then
+      dist = sqrt(dist)
+      vect(:) = vector / dist
+      grad(:) = vect * getdAnalyticalGammaDeriv(this, iSp1, iSp2, dist)
+    else
+      grad(:) = 0.0_dp
+    end if
 
-    !> coordinates of atoms
-    real(dp), intent(in) :: coords(:,:)
-
-    !> list of all atomic species
-    integer, intent(in) :: species(:)
-
-    integer :: sp1, sp2
-    real(dp) :: vect(3), dist
-
-    sp1 = species(iAtom1)
-    sp2 = species(iAtom2)
-
-    ! analytical derivatives
-    vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
-    dist = sqrt(sum(vect(:)**2))
-    vect(:) = vect(:) / dist
-    grad(:) = vect(:) * getdAnalyticalGammaDeriv(this, sp1, sp2, dist)
-
-  end subroutine getGammaPrimeValue
+  end function getGammaPrimeValue
 
 
   !> Adds gradients due to long-range HF-contribution
   subroutine addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
-      & iSquare, ovrlapMat, iNeighbour, nNeighbourSK, img2CentCell)
+      & iSquare, over, iSparseStart, iNeighbour, nNeighbourSK, img2CentCell, latVecs)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -1395,8 +1392,11 @@ contains
     !> index for dense arrays
     integer, intent(in) :: iSquare(:)
 
-    !> overlap matrix
-    real(dp), intent(in) :: ovrlapMat(:,:)
+    !> Sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
@@ -1410,37 +1410,79 @@ contains
     !> Map images of atoms to the central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> lattice vectors
+    real(dp), intent(in), optional :: latVecs(:, :)
+
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
     integer :: nSpin, iSpin, mu, alpha, beta, ccc, kkk
-    real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
-    real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpOvr(:,:), tmpRho(:,:,:), tmpderiv(:,:)
+    real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3), sqrTmpKC(orb%mOrb,orb%mOrb)
+    real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3), sqrTmpAB(orb%mOrb,orb%mOrb)
+    real(dp), allocatable :: tmpRho(:,:,:), tmpderiv(:,:)
+    real(dp) :: distKB, distCB, distKA, distCA, vecKB(3), vecCB(3), vecKA(3), vecCA(3)
+    integer :: iSpK, iSpC, iSpB, iSpA, iOrig, nOrbA, nOrbB, nOrbC, nOrbK, ia, ib, nAllAtom, iAtTmp
+
+    real(dp) :: invLatVecs(3,3)
+
+    invLatVecs(:,:) = 0.0_dp
+    if (present(latVecs)) then
+      if (all(shape(latVecs) == [3,3])) then
+        call invert33(invLatVecs, latVecs)
+      end if
+    end if
 
     nSpin = size(deltaRho,dim=3)
-    call allocateAndInit(tmpOvr, tmpRho, gammaPrimeTmp, tmpderiv)
-    nAtom = size(this%species)
-    tmpderiv = 0.0_dp
+    call allocateAndInit(tmpRho, tmpderiv)
+    nAtom = size(nNeighbourSK)
+    nAllAtom = size(species)
+
+    tmpderiv(:,:) = 0.0_dp
     ! sum K
     loopK: do iAtK = 1, nAtom
+      iSpK = species(iAtK)
+      nOrbK = orb%nOrbSpecies(iSpK)
       ! C >= K
       loopC: do iNeighK = 0, nNeighbourSK(iAtK)
         iAtC = iNeighbour(iNeighK, iAtK)
+        iSpC = species(img2centcell(iAtC))
+        ! C and K block
+        iOrig = isparseStart(iNeighK, iAtK) + 1
+        nOrbC = orb%nOrbSpecies(iSpC)
+        sqrTmpKC(:,:) = 0.0_dp
+        sqrTmpKC(:nOrbC,:nOrbK) = reshape(over(iOrig:iOrig+nOrbC*nOrbK-1),[nOrbC,nOrbK])
         ! evaluate the ovr_prime
-        sPrimeTmp2 = 0.0_dp
-        sPrimeTmp = 0.0_dp
+        sPrimeTmp2(:,:,:) = 0.0_dp
+        sPrimeTmp(:,:,:) = 0.0_dp
         if ( iAtK /= iAtC ) then
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtK, iAtC, orb)
           call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, coords, species, iAtC, iAtK, orb)
         end if
         loopB: do iAtB = 1, nAtom
+          iSpB = species(iAtB)
+          nOrbB = orb%nOrbSpecies(iSpB)
+          vecKB(:) = fold(iAtK, iAtB, coords, invLatVecs, latVecs)
+          distKB = sqrt(sum(vecKB**2))
+          vecCB(:) = fold(iAtC, iAtB, coords, invLatVecs, latVecs)
+          distCB = sqrt(sum(vecCB**2))
           ! A > B
           loopA: do iNeighB = 0, nNeighbourSK(iAtB)
             iAtA = iNeighbour(iNeighB, iAtB)
-            tmpgamma1 = this%lrGammaEval(iAtK,iAtB) + this%lrGammaEval(img2CentCell(iAtC),iAtB)
-            tmpgamma2 = tmpgamma1 + this%lrGammaEval(iAtK,img2CentCell(iAtA))&
-                & + this%lrGammaEval(img2CentCell(iAtC),img2CentCell(iAtA))
+            iSpA = species(img2centcell(iAtA))
+            ! A and B block
+            iOrig = isparseStart(iNeighB, iAtB) + 1
+            nOrbA = orb%nOrbSpecies(iSpA)
+            sqrTmpAB(:,:) = 0.0_dp
+            sqrTmpAB(:nOrbA,:nOrbB) = reshape(over(iOrig:iOrig+nOrbA*nOrbB-1),[nOrbA,nOrbB])
+            iSpA = species(img2centcell(iAtA))
+            tmpgamma1 = getAnalyticalGammaValue(this, iSpK, iSpB, distKB)&
+                & + getAnalyticalGammaValue(this, iSpC, iSpB, distCB)
+            vecKA(:) = fold(iAtK, iAtA, coords, invLatVecs, latVecs)
+            distKA = sqrt(sum(vecKA**2))
+            vecCA(:) = fold(iAtC, iAtA, coords, invLatVecs, latVecs)
+            distCA = sqrt(sum(vecCA**2))
+            tmpgamma2 = tmpgamma1 + getAnalyticalGammaValue(this, iSpK, iSpA, distKA)&
+                & + getAnalyticalGammaValue(this, iSpC, iSpA, distCA)
             tmpforce(:) = 0.0_dp
             tmpforce_r(:) = 0.0_dp
             tmpforce2 = 0.0_dp
@@ -1452,42 +1494,50 @@ contains
                 kkk = kkk + 1
                 tmpmultvar1 = 0.0_dp
                 do iSpin = 1, nSpin
-                  do alpha = iSquare(img2CentCell(iAtA)), iSquare(img2CentCell(iAtA) + 1) - 1
-                    do beta = iSquare(iAtB), iSquare(iAtB + 1) - 1
-                      tmpmultvar1 = tmpmultvar1 + tmpOvr(beta, alpha) * (tmpRho(beta,kpa,iSpin) &
-                       & * tmpRho(alpha,mu,iSpin) + tmpRho(alpha,kpa,iSpin) * tmpRho(beta,mu,iSpin))
+                  ia = 0
+                  do alpha = iSquare(img2CentCell(iAtA)), iSquare(img2CentCell(iAtA)+1) - 1
+                    ia = ia + 1
+                    ib = 0
+                    do beta = iSquare(img2CentCell(iAtB)), iSquare(img2CentCell(iAtB)+1) - 1
+                      ib = ib + 1
+                      tmpmultvar1 = tmpmultvar1&
+                          & + sqrTmpAB(ia, ib) * (tmpRho(beta,kpa,iSpin) * tmpRho(alpha,mu,iSpin)&
+                          & + tmpRho(alpha,kpa,iSpin) * tmpRho(beta,mu,iSpin))
                     end do
                   end do
                 end do
-                tmpforce(:) = tmpforce(:) + tmpmultvar1 * (sPrimeTmp(ccc,kkk,:))
-                tmpforce_r(:) = tmpforce_r(:) + tmpmultvar1 * (sPrimeTmp2(kkk,ccc,:))
-                tmpforce2 = tmpforce2 + tmpmultvar1 * tmpOvr(kpa,mu)
+                tmpforce(:) = tmpforce + tmpmultvar1 * (sPrimeTmp(ccc,kkk,:))
+                tmpforce_r(:) = tmpforce_r + tmpmultvar1 * (sPrimeTmp2(kkk,ccc,:))
+                tmpforce2 = tmpforce2 + tmpmultvar1 * sqrTmpKC(ccc,kkk)
               end do
             end do
-
             ! C /= K
-            if( iAtK /= img2CentCell(iAtC) ) then
-              if( iAtB /= img2CentCell(iAtA)) then
-                tmpforce(:) = tmpforce(:) * tmpgamma2
-                tmpforce_r(:) = tmpforce_r(:) * tmpgamma2
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)) &
-                    & + gammaPrimeTmp(:,iAtK,iAtB))
-                tmpforce_r(:) = tmpforce_r(:) + tmpforce2 *&
-                    & (gammaPrimeTmp(:,img2CentCell(iAtC),img2CentCell(iAtA)) &
-                    & + gammaPrimeTmp(:,img2CentCell(iAtC),iAtB))
+            if (iAtK /= img2centcell(iAtC)) then
+              if (iAtB /= img2centcell(iAtA)) then
+                tmpforce(:) = tmpforce * tmpgamma2
+                tmpforce_r(:) = tmpforce_r * tmpgamma2
+                tmpforce(:) = tmpforce + tmpforce2 * (&
+                    & getGammaPrimeValue(this, vecKA, iSpK, iSpA)&
+                    & + getGammaPrimeValue(this, vecKB, iSpK, iSpB) )
+                tmpforce_r(:) = tmpforce_r + tmpforce2 * (&
+                    & getGammaPrimeValue(this, vecCA, iSpC, iSpA)&
+                    & + getGammaPrimeValue(this, vecCB, iSpC, iSpB) )
               else
                 tmpforce(:) = tmpforce(:) * tmpgamma1
                 tmpforce_r(:) = tmpforce_r(:) * tmpgamma1
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)))
+                tmpforce(:) = tmpforce(:) + tmpforce2 *&
+                    & getGammaPrimeValue(this, vecKA, iSpK, iSpA)
                 tmpforce_r(:) = tmpforce_r(:) + tmpforce2 *&
-                    & (gammaPrimeTmp(:,img2CentCell(iAtC),img2CentCell(iAtA)))
+                    & getGammaPrimeValue(this, vecCA, iSpC, iSpA)
               end if
             else
-              if( iAtB /= img2CentCell(iAtA)) then
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)) &
-                    & + gammaPrimeTmp(:,iAtK,iAtB))
+              if (iAtB /= img2centcell(iAtA)) then
+                tmpforce(:) = tmpforce + tmpforce2 * (&
+                    & getGammaPrimeValue(this, vecKA, iSpK, iSpA)&
+                    & + getGammaPrimeValue(this, vecKB, iSpK, iSpB) )
               else
-                tmpforce(:) = tmpforce(:) + tmpforce2 * (gammaPrimeTmp(:,iAtK,img2CentCell(iAtA)))
+                tmpforce(:) = tmpforce + tmpforce2 *&
+                    & getGammaPrimeValue(this, vecKA, iSpK, iSpA)
               end if
             end if
             tmpderiv(:,iAtK) = tmpderiv(:,iAtK) + tmpforce(:)
@@ -1503,21 +1553,15 @@ contains
       gradients(:,:) = gradients - 0.25_dp * nSpin * tmpderiv
     end if
 
-    deallocate(tmpOvr, tmpRho, gammaPrimeTmp, tmpderiv)
+    deallocate(tmpRho, tmpderiv)
 
   contains
 
     !> Initialise the
-    subroutine allocateAndInit(tmpOvr, tmpRho, gammaPrimeTmp, tmpderiv)
-
-      !> Storage for the overlap
-      real(dp), allocatable, intent(inout) :: tmpOvr(:,:)
+    subroutine allocateAndInit(tmpRho, tmpderiv)
 
       !> storage for density matrix
       real(dp), allocatable, intent(inout) :: tmpRho(:,:,:)
-
-      !> storage for derivative of gamma interaction
-      real(dp), allocatable, intent(inout) :: gammaPrimeTmp(:,:,:)
 
       !> workspace for the derivatives
       real(dp), allocatable, intent(inout) :: tmpderiv(:,:)
@@ -1526,27 +1570,55 @@ contains
       integer :: iSpin, iAt1, iAt2, nAtom
 
       nAtom = size(this%species)
-      allocate(tmpOvr(size(ovrlapMat, dim = 1), size(ovrlapMat, dim = 1)))
       allocate(tmpRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1), size(deltaRho, dim = 3)))
-      allocate(gammaPrimeTmp(3, nAtom, nAtom))
       allocate(tmpderiv(3, size(gradients, dim = 2)))
-      tmpOvr = ovrlapMat
-      tmpRho = deltaRho
-      call symmetrizeHS(tmpOvr)
+      tmpRho(:,:,:) = deltaRho
+      tmpderiv(:,:) = 0.0_dp
       do iSpin = 1, size(deltaRho, dim = 3)
         call symmetrizeHS(tmpRho(:,:,iSpin))
       enddo
-      ! precompute the gamma derivatives
-      gammaPrimeTmp = 0.0_dp
-      do iAt1 = 1, nAtom
-        do iAt2 = 1, nAtom
-          if(iAt1 /= iAt2) then
-            call getGammaPrimeValue(this, tmp, iAt1, iAt2, coords, species)
-            gammaPrimeTmp(:,iAt1, iAt2) = tmp(:)
-          end if
-        end do
-      end do
     end subroutine allocateAndInit
+
+    function fold(iAt, jAt, coords, invLatVecs, latVecs)
+
+      integer, intent(in) :: iAt, jAt
+
+      real(dp), intent(in) :: coords(:,:)
+
+      real(dp), intent(in) :: invLatVecs(:,:)
+
+      real(dp), intent(in), optional :: latVecs(:,:)
+
+      real(dp) :: fold(3)
+
+      logical :: isCluster
+      real(dp) :: iVec(3), jVec(3), origin(3), latNorm(3,3), latMag(3)
+      integer :: ii
+
+      isCluster = .true.
+      if (present(latVecs)) then
+        if (all(shape(latVecs) == [3,3])) then
+          isCluster = .false.
+          iVec(:) = matmul(invLatVecs, coords(:, iAt))
+          jVec(:) = matmul(invLatVecs, coords(:, jAt))
+          if (any(abs(iVec - jVec) > 0.5_dp)) then
+            ! shift iAt to centre of central cell
+            jVec(:) = mod(jVec - iVec + 2.5_dp, 1.0_dp)
+            iVec(:) = 0.5_dp
+            jVec(:) = matmul(latVecs, jVec)
+            iVec(:) = matmul(latVecs, iVec)
+            fold(:) = iVec - jVec
+          else
+            fold(:) = coords(:, iAt) - coords(:, jAt)
+          end if
+        end if
+      end if
+
+      if (isCluster) then
+        fold(:) = coords(:, iAt) - coords(:, jAt)
+      end if
+
+    end function fold
 
   end subroutine addLrGradients
 
@@ -1645,7 +1717,7 @@ contains
 
 
   !> Calculate long-range gamma derivative integrals
-  subroutine getLrGammaDeriv(this, coords, species, LrGammaDeriv)
+  subroutine getLrGammaDeriv(this, coords, species, LrGammaDeriv, img2CentCell)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -1659,17 +1731,22 @@ contains
     !> long-range gamma derivative integrals
     real(dp), intent(out) :: LrGammaDeriv(:,:,:)
 
-    real(dp) :: tmp(3)
-    integer :: nAtom, iAt1, iAt2
+    !> Map images of atoms to the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    real(dp) :: vect(3)
+    integer :: nAtom, iAt1, iAt2, iSp1, iSp2
 
     nAtom = size(LrGammaDeriv,dim=1)
 
     do iAt1 = 1, nAtom
-      do iAt2 = 1, nAtom
-        if (iAt1 /= iAt2) then
-          call getGammaPrimeValue(this, tmp, iAt1, iAt2, coords, species)
-          LrGammaDeriv(iAt2,iAt1,:) = tmp
-        end if
+      iSp1 = species(iAt1)
+      do iAt2 = iAt1+1, nAtom
+        iSp2 = species(iAt2)
+        vect(:) = coords(:,iAt1) - coords(:,iAt2)
+        LrGammaDeriv(iAt2,iAt1,:) = getGammaPrimeValue(this, vect, iSp1, iSp2)
+        vect(:) = -vect
+        LrGammaDeriv(iAt1,iAt2,:) = getGammaPrimeValue(this, vect, iSp2, iSp1)
       end do
     end do
 

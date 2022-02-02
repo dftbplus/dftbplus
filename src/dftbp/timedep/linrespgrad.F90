@@ -696,7 +696,7 @@ contains
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-              & tRangeSep, rangeSep, excgrad)
+              & tRangeSep, rangeSep, excgrad, img2CentCell)
         end if
 
       end do
@@ -2276,7 +2276,7 @@ contains
   subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,&
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
       & spinW, shift, woo, wov, wvv, transChrg, xpy, xmy, coord0, orb, skHamCont, skOverCont, &
-      & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad)
+      & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad, img2CentCell)
 
     !> symmetry of the transition
     character, intent(in) :: sym
@@ -2389,6 +2389,8 @@ contains
     !> resulting excited state gradient
     real(dp), intent(out) :: excgrad(:,:)
 
+    !> Mapping of atom number to central cell atom number
+    integer, intent(in) :: img2CentCell(:)
 
     real(dp), allocatable :: shift_excited(:,:), xpyq(:), xpyqds(:)
     real(dp), allocatable :: shxpyq(:,:), xpycc(:,:,:), wcc(:,:,:), tmp5(:), tmp7(:), tmp11(:)
@@ -2492,10 +2494,12 @@ contains
       gammaLongRangePrime(:,:,:) = 0._dp
       call rangeSep%getSpecies(species)
       do iAt1 = 1, nAtom
+        iSp1 = species(iAt1)
         do iAt2 = 1, nAtom
+          iSp2 = species(iAt2)
           if(iAt1 /= iAt2) then
-            call getGammaPrimeValue(rangeSep, tmpVec, iAt1, iAt2, coord0, species)
-            gammaLongRangePrime(:, iAt1, iAt2) = tmpVec
+            gammaLongRangePrime(:, iAt1, iAt2) =&
+                & getGammaPrimeValue(rangeSep, coord0(:,iAt1) - coord0(:,iAt2), iSp1, iSp2)
           end if
         end do
       end do

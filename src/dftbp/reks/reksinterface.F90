@@ -326,7 +326,7 @@ module dftbp_reks_reksinterface
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
-        & nNeighbourSK, iSparseStart, img2CentCell, orb, &
+        & nNeighbourSK, iSparseStart, over, img2CentCell, orb, &
         & nonSccDeriv, skHamCont, skOverCont, repulsive, coord, species, q0, &
         & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
@@ -777,7 +777,7 @@ module dftbp_reks_reksinterface
 
   !> Calculate Hellmann-Feynman gradient term of each microstate in REKS
   subroutine getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, &
+      & nNeighbourSK, iSparseStart, over, img2CentCell, orb, &
       & nonSccDeriv, skHamCont, skOverCont, repulsive, coord, species, q0, &
       & dispersion, rangeSep, chrgForces, eigenvecs, derivs, this)
 
@@ -798,6 +798,9 @@ module dftbp_reks_reksinterface
 
     !> Index for atomic blocks in sparse data
     integer, intent(in) :: iSparseStart(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
 
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
@@ -905,7 +908,7 @@ module dftbp_reks_reksinterface
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
         call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
-            & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
+            & skOverCont, coord, species, orb, denseDesc%iAtomStart, over, iSparseStart,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell)
       end if
 

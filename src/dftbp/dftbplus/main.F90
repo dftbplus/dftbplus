@@ -1309,7 +1309,7 @@ contains
             & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
-            & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
+            & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb, this%latVec)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -5342,7 +5342,7 @@ contains
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs,&
       & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
       & dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr, halogenXCorrection,&
-      & tHelical, coord0, deltaDftb)
+      & tHelical, coord0, deltaDftb, latVec)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5463,6 +5463,9 @@ contains
 
     !> Determinant derived type
     type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Lattice vectors if periodic
+    real(dp), intent(in) :: latVec(:,:)
 
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dQ(:,:,:)
@@ -5590,8 +5593,8 @@ contains
         call error("Range separated forces do not support non-colinear spin")
       else
         call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
-            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK,&
-            & img2CentCell)
+            & species, orb, denseDesc%iAtomStart, ints%overlap, iSparseStart,&
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, latVec)
       end if
     end if
 
