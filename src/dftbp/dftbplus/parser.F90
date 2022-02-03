@@ -2984,6 +2984,12 @@ contains
     select case(char(buffer))
 
     case ("supercellfolding")
+      call getChildValue(node, "ReduceKPointsByInversion", ctrl%tReduceByInversion, .true.)
+      if(ctrl%tReduceByInversion .and. ctrl%tSpinOrbit) then
+        call detailedWarning(node, "Kpoints will not be reduced by inversion as Spin-Orbit & 
+            & is requested.")
+      end if
+      ctrl%tReduceByInversion = ctrl%tReduceByInversion .and. .not.ctrl%tSpinOrbit
       ctrl%poorKSampling = .false.
       if (len(modifier) > 0) then
         call detailedError(child, "No modifier is allowed, if the SupercellFolding scheme is used.")
@@ -3002,11 +3008,10 @@ contains
         @:PROPAGATE_ERROR(errStatus)
         ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
-      tReduceByInversion = (.not. ctrl%tSpinOrbit)
       call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-          & ctrl%kPoint, ctrl%kWeight, reduceByInversion=tReduceByInversion)
+          & ctrl%kPoint, ctrl%kWeight, reduceByInversion=ctrl%tReduceByInversion)
       ctrl%nKPoint = size(ctrl%kPoint, dim=2)
-
+    
     case ("klines")
       ! probably unable to integrate charge for SCC
       ctrl%poorKSampling = .true.
@@ -6008,6 +6013,9 @@ contains
       input%envType = envTypes%fromFile
       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), timeUnits, child, input%Time0)
+      if (input%tUseVectorPotential) then
+        call error("Vector potential is not supported with envelope from file")
+      end if
 
     case default
       call detailedError(value1, "Unknown envelope shape " // char(buffer))

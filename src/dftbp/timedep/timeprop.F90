@@ -15,7 +15,7 @@
 !! https://doi.org/10.1021/acs.jctc.9b01217
 module dftbp_timedep_timeprop
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__fs, Bohr__AA, Hartree__eV, imag, pi
+  use dftbp_common_constants, only : au__fs, c, Bohr__AA, Hartree__eV, imag, pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr, TOpenOptions
   use dftbp_common_globalenv, only : stdOut
@@ -81,6 +81,8 @@ module dftbp_timedep_timeprop
   public :: initializeDynamics, finalizeDynamics, doTdStep
   public :: TElecDynamicsInp, TElecDynamics
   public :: pertTypes, envTypes, tdSpinTypes
+
+!  Integer :: KpointHam = 10
 
   !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
@@ -240,6 +242,9 @@ module dftbp_timedep_timeprop
 
     !> Cartesian components of time dependent electric field at each time step
     real(dp), allocatable :: tdFunction(:, :)
+
+    !> Cartesian components of time dependent vector potential
+    real(dp), allocatable :: tdVecPot(:, :)
 
     !> Complex electric field direction
     complex(dp) :: fieldDir(3)
@@ -567,7 +572,7 @@ module dftbp_timedep_timeprop
 
     !> Potential acting on the system
     type(TPotentials) :: potential
-    logical :: tUseVectorPotential
+    logical :: tUseVectorPotential, doSCC = .true.
 
     !> Count of the number of times dynamics has been initialised
     integer :: nDynamicsInit = 0
@@ -637,6 +642,9 @@ module dftbp_timedep_timeprop
 
     !> Pairwise atomic currents file ID
     type(TFileDescr) :: currentDat
+
+    complex(dp), allocatable :: Ssqr0(:,:,:)     !overlap matrix of the GS
+    real(dp), allocatable :: H0sqr(:,:)     !hamiltonian square matrix of the GS
 
   end type TElecDynamics
 
@@ -716,7 +724,7 @@ contains
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, cutoff, mass, nAtom, atomEigVal, dispersion, nonSccDeriv, tPeriodic,&
       & parallelKS, tRealHS, kPoint, kWeight, isHybridXc, sccCalc, tblite, eFieldScaling,&
-      & hamiltonianType, errStatus)
+      & hamiltonianType, errStatus, tSCC_bool)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -796,6 +804,9 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
+    !> Is calculation SCC?
+    logical, intent(in) :: tSCC_bool
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -823,12 +834,13 @@ contains
     this%kWeight = kWeight
     this%hamiltonianType = hamiltonianType
     this%tUseVectorPotential = inp%tUseVectorPotential
+    this%doSCC = tSCC_bool
     this%tVerboseDyn = inp%tVerboseDyn
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
-    if (.not.any([allocated(sccCalc), allocated(tblite)])) then
-      @:RAISE_ERROR(errStatus, -1, "SCC calculations are currently required for dynamics")
-    end if
+!    if (.not.any([allocated(sccCalc), allocated(tblite)])) then
+!      @:RAISE_ERROR(errStatus, -1, "SCC calculations are currently required for dynamics")
+!    end if
     if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
@@ -906,6 +918,11 @@ contains
       if (.not. this%tRealHS) then
         @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for complex&
             & hamiltonians (k-points, spin-orbit, ...).")
+      end if
+      if (.not. this%doSCC) then
+        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for non-SCC&
+            & calculations")
+!        call error("Ion dynamics and forces are not implemented yet for non-SCC calculations.")
       end if
       this%tForces = .true.
       this%indMovedAtom = inp%indMovedAtom
@@ -1363,6 +1380,11 @@ contains
           & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
+!      print *, 'RHO OLD'
+!      print *, this%rhoOld
+!      print *, 'RHO NEW'
+!      print *, this%rho
+
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
         timeElec  = loopTime%getWallClockTime()
@@ -1371,6 +1393,9 @@ contains
       end if
 
     end do
+    
+    !close(91)
+    !close(92)
 
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
@@ -1389,7 +1414,7 @@ contains
   subroutine updateH(this, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
-      & deltaRho, HSqrCplxCam, Ssqr, solvation, hybridXc, dispersion, rho, errStatus)
+      & deltaRho, HSqrCplxCam, Ssqr, solvation, hybridXc, dispersion, rho, coordAll, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1490,6 +1515,9 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), intent(in) :: coordAll(:,:)
+
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
@@ -1500,6 +1528,8 @@ contains
     logical :: tImHam
     ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
+    integer :: iAtom1, iStart1, iEnd1, iNeigh, iStart2, iEnd2, iAtom2, iAtom2f
+    integer :: ii, jj, nOrb1, nOrb2, iOrig
 
     allocate(T2(this%nOrbs,this%nOrbs))
 
@@ -1516,7 +1546,8 @@ contains
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
-    call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
+    if (this%doSCC) then
+      call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
         & orb, this%multipole, speciesAll, neighbourList, img2CentCell, spinW, solvation,&
         & thirdOrd, dispersion, potential, errStatus)
     @:PROPAGATE_ERROR(errStatus)
@@ -1535,7 +1566,7 @@ contains
     end if
 
     ! Add time dependent field if necessary
-    if (this%tLaser) then
+    if (this%tLaser .and. .not. this%tUseVectorPotential) then
       call setPresentField(this, iStep, errStatus)
       @:PROPAGATE_ERROR(errStatus)
       do iAtom = 1, this%nExcitedAtom
@@ -1560,19 +1591,82 @@ contains
       call qm2ud(qq)
     end if
 
+    ! Check if we need to apply Peierls phase to opverlap matrix
+!     if (this%tUseVectorPotential) then      ! apply Peierls phase 
+!       this%hamCmplx(:,:) = ints%hamiltonian ! real to complex
+! !      print *, 'DEBUGGING tdVecPot'
+! !      print *, this%tdVecPot(:,iStep)
+!       do iAtom1 = 1, this%nAtom
+!         ii = iSquare(iAtom1)
+!         nOrb1 = iSquare(iAtom1 + 1) - ii
+!         do iNeigh = 1, nNeighbourSK(iAtom1)
+!           iOrig = iSparseStart(iNeigh, iAtom1) + 1
+!           iAtom2 = neighbourList%iNeighbour(iNeigh, iAtom1)
+!           iAtom2f = img2CentCell(iAtom2)
+!           jj = iSquare(iAtom2f)
+!           @:ASSERT(jj >= ii)
+!           nOrb2 = iSquare(iAtom2f + 1) - jj
+!           do iSpin = 1, this%nSpin
+!             ! Replacing i/c by i since using SI units
+!             this%hamCmplx(iOrig:iOrig+nOrb1*nOrb2-1,iSpin) = this%hamCmplx(iOrig:iOrig+nOrb1*nOrb2-1,iSpin) &
+!                  & * exp(-imag * dot_product(this%tdVecPot(:,iStep), (coordAll(:,iAtom2) - coordAll(:,iAtom1))))
+!           end do
+!         ! the order of the coords is bc this sparse array fills the square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+!         ! before this was:
+!         ! H1(iStart1:iEnd1,iStart2:iEnd2,iKS) = H1(iStart1:iEnd1,iStart2:iEnd2,iKS) &
+!         !   & * exp(-imag/c *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom1)-coord(:,iAtom2f))))
+  
+!         !print *,'iAt1',iAtom1,'coordAll(:,iAtom1)',coordAll(:,iAtom1)
+!         !print *,'iAt2',iAtom2,'coordAll(:,iAtom2)',coordAll(:,iAtom2)
+!         !print *,'iAt2f',iAtom2f,'coordAll(:,iAtom2f)',coordAll(:,iAtom2f)
+!         !print *,'size coord',size(coord)
+!         !print *,'size coordAll',size(coordAll)
+!         end do
+!       end do
+!     end if
+
+    ! in case of vector potential
+!    if (this%tUseVectorPotential) then
+!      do iAtom1 = 1, this%nAtom
+!        iStart1 = iSquare(iAtom1)
+!        iEnd1 = iSquare(iAtom1+1)-1
+!        do iNeigh = 1, nNeighbourSK(iAtom1)
+!          iAtom2 = neighbourList%iNeighbour(iNeigh, iAtom1)
+!          iAtom2f = img2CentCell(iAtom2)
+!          iStart2 = iSquare(iAtom2f)
+!          iEnd2 = iSquare(iAtom2f+1)-1
+!          do iKS = 1, this%parallelKS%nLocalKS
+!            ! filling one side of the block
+!            H1(iStart1:iEnd1,iStart2:iEnd2,iKS) = H1(iStart1:iEnd1,iStart2:iEnd2,iKS) &
+!              & * exp(-imag/c *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom1)-coord(:,iAtom2f))))
+!            ! filling transpose block
+!            H1(iStart2:iEnd2,iStart1:iEnd1,iKS) = H1(iStart2:iEnd2,iStart1:iEnd1,iKS) &
+!              & * exp(-imag/c *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom2f)-coord(:,iAtom1))))
+!          end do
+!        end do
+!      end do
+!    end if
+    
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
-      if (this%tRealHS) then
-        call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
-            & iSquare, iSparseStart, img2CentCell)
-        call adjointLowerTriangle(T2)
-        H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
-      else
+      if (this%tUseVectorPotential) then
         call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
-            & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
-            & iSparseStart, img2CentCell)
+            & this%tdVecPot(:,iStep), coordAll, neighbourList%iNeighbour, nNeighbourSK, &
+            & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
         call adjointLowerTriangle(H1(:,:,iKS))
+      else
+        if (this%tRealHS) then
+          call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+              & iSquare, iSparseStart, img2CentCell)
+          call adjointLowerTriangle(T2)
+          H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
+        else
+          call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
+              & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
+              & iSparseStart, img2CentCell)
+          call adjointLowerTriangle(H1(:,:,iKS))
+        end if
       end if
     end do
 
@@ -1599,6 +1693,69 @@ contains
 
   end subroutine updateH
 
+  !updates overlap matrix in case of vector potential adding Peirls phase
+  subroutine updateS(this, neighbourList, nNeighbourSK, img2CentCell, coord, iSquare, iStep)
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(inout) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(inout) :: nNeighbourSK(:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> current step of the propagation
+    integer, intent(in) :: iStep
+
+    integer :: iSpin, iAtom1, iNeigh, iAtom2, iAtom2f, iEnd1, iEnd2
+    integer :: ii, jj, nOrb1, nOrb2, iOrig, iStart1, iStart2, iOrb, iKS
+    complex(dp), allocatable :: T4(:,:)
+
+    if (this%tUseVectorPotential) then
+      allocate(T4(this%nOrbs,this%nOrbs))
+      do iAtom1 = 1, this%nAtom
+        iStart1 = iSquare(iAtom1)
+        iEnd1 = iSquare(iAtom1+1)-1
+        do iNeigh = 1, nNeighbourSK(iAtom1)
+          iAtom2 = neighbourList%iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          iStart2 = iSquare(iAtom2f)
+          iEnd2 = iSquare(iAtom2f+1)-1
+          do iKS = 1, this%parallelKS%nLocalKS
+            ! filling one side of the block, using Ssqr0 (from the GS), valid only for electron dynamics
+            ! Replacing i/c by i since using SI units
+            this%Ssqr(iStart1:iEnd1,iStart2:iEnd2,iKS) = this%Ssqr0(iStart1:iEnd1,iStart2:iEnd2,iKS) &
+              & * exp(-imag *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom1)-coord(:,iAtom2f))))
+            ! filling transpose block, using Ssqr0 (from the GS), valid only for electron dynamics
+            this%Ssqr(iStart2:iEnd2,iStart1:iEnd1,iKS) = this%Ssqr0(iStart2:iEnd2,iStart1:iEnd1,iKS) &
+              & * exp(-imag *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom2f)-coord(:,iAtom1))))
+          end do
+        end do
+      end do
+      !invert overlap
+      do iKS = 1, this%parallelKS%nLocalKS
+        this%Sinv(:,:,iKS) = cmplx(0,0,dp)
+        T4 = this%Ssqr(:,:,iKS)
+        do iOrb = 1, this%nOrbs
+          this%Sinv(iOrb, iOrb, iKS) = 1.0_dp
+        end do
+        !passing T4 instead of Ssqr
+        call gesv(T4(:,:), this%Sinv(:,:,iKS))
+      end do
+      deallocate(T4)
+    end if
+
+  end subroutine updateS
 
   !> Kick the density matrix for spectrum calculations
   subroutine kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
@@ -1679,7 +1836,7 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
-    !> Starting time of the simulation, if relevant
+    !> Starting time of the simulation, if relevant (for restart or pump-probe)
     real(dp), intent(in) :: startTime
 
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
@@ -1689,10 +1846,15 @@ contains
 
     allocate(this%tdFunction(3, 0:this%nSteps))
     this%tdFunction(:,:) = 0.0_dp
+    if (this%tUseVectorPotential) then
+      allocate(this%tdVecPot(3, 0:this%nSteps))
+    end if
 
     midPulse = (this%time0 + this%time1)/2.0_dp
     deltaT = this%time1 - this%time0
     angFreq = this%omega
+  !  print *, "angular frequency"
+  !  print *, angFreq
     E0 = this%field
     if (this%tKickAndLaser) then
       E0 = this%laserField
@@ -1714,7 +1876,7 @@ contains
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
 
-      if (this%envType == envTypes%constant) then
+      if (this%envType == envTypes%constant) then   !TODO replace by select case
         envelope = 1.0_dp
       else if (this%envType == envTypes%gaussian) then
         envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
@@ -1736,6 +1898,10 @@ contains
         end if
       end if
 
+      if (this%tUseVectorPotential) then
+        this%tdVecPot(:, iStep) = E0/angFreq * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
+          & * this%fieldDir)
+      end if
     end do
 
     call closeFile(laserDat)
@@ -2039,9 +2205,10 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
-    integer :: iKS, iK, iSpin
-    real(dp) :: TS(this%nSpin)
+    integer :: iKS, iK, iSpin, iOrb
+    real(dp) :: TS(this%nSpin), ETrace
     type(TReksCalc), allocatable :: reks ! never allocated
+    real(dp), allocatable :: T1(:,:)  ! for calculation of Tr[\Rho*H]
 
     ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
@@ -2082,6 +2249,28 @@ contains
       energyKin = 0.5_dp * sum(this%movedMass * this%movedVelo**2)
       energy%Etotal = energy%Etotal + energyKin
     end if
+
+    ! AGREGAR CÁLCULO DE tr[rho*H1]
+    allocate(T1(this%nOrbs,this%nOrbs))
+    !T1(:,:) = 0.0
+    call gemm(T1, real(rho(:,:,1),dp), real(this%H1(:,:,1),dp))
+    ETrace = 0.0
+    do iOrb = 1, this%nOrbs
+      Etrace = Etrace + real(T1(iOrb,iOrb), dp)
+    end do
+    energy%Etotal_2 = ETrace
+    deallocate(T1)
+
+    ! ! AGREGAR CÁLCULO DE tr[rho*H0]
+    ! allocate(T1(this%nOrbs,this%nOrbs))
+    ! !T1(:,:) = 0.0
+    ! call gemm(T1, real(rho(:,:,1),dp), this%H0sqr(:,:))
+    ! ETrace = 0.0
+    ! do iOrb = 1, this%nOrbs
+    !   Etrace = Etrace + T1(iOrb,iOrb)
+    ! end do
+    ! energy%Etotal_2 = ETrace
+    ! deallocate(T1)
 
   end subroutine getTDEnergy
 
@@ -2254,6 +2443,9 @@ contains
       end do
       write(stdOut,"(A)")'S inverted'
 
+      !allocate(this%Ssqr0(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+      !this%Ssqr0 = Ssqr        !
+
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -2271,7 +2463,14 @@ contains
 
       call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
           & iSparseStart, Dsqr, Qsqr)
-
+      
+      !AGREGAR H0sqr
+      allocate(this%H0sqr(this%nOrbs, this%nOrbs))
+      !allocate(T5(this%nOrbs, this%nOrbs))
+      call unpackHS(this%H0sqr, ham0, iNeighbour, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell)
+      call blockSymmetrizeHS(this%H0sqr, iSquare)
+      
     end if
 
     if (this%tPopulations) then
@@ -2548,7 +2747,7 @@ contains
     type(TFileDescr), intent(out) :: atomEnergyDat
 
     !> Tdcurrents  output file ID
-    integer, intent(out) :: currentDat
+    type(TFileDescr), intent(out) :: currentDat
 
     character(20) :: dipoleFileName
     character(1) :: strSpin
@@ -2606,6 +2805,8 @@ contains
       write(energyDat%unit, "(A)", advance = "NO")"            E rep (H)       |"
       write(energyDat%unit, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
       write(energyDat%unit, "(A)", advance = "NO")"     E dispersion (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"        E total_2 (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"        E elec (H)          |"
       write(energyDat%unit, "(A)")
 
       if (this%tForces) then
@@ -2621,11 +2822,10 @@ contains
       if (this%tIons) then
         call openOutputFile(this, coorDat, 'tdcoords.xyz')
       end if
+    end if
 
-     if (this%tCurrents) then
-       call openFile(this, currentDat, 'tdcurrents.dat')
-     end if
-
+    if (this%tCurrents) then
+      call openOutputFile(this, currentDat, 'tdcurrents.dat')
     end if
 
     if (this%tPopulations) then
@@ -2641,9 +2841,9 @@ contains
           write(strK,'(i0.3)')iK
           call openOutputFile(this, populDat(iKS),&
               & 'molpopul' // trim(strSpin) // '-' // trim(strK) // '.dat')
-          write(populDat(iKS)%unit, "(A,A,A,A)")&
-              & "#  GS molecular orbital populations, spin channel : ", trim(strSpin), ",&
-              & k-point number: ", trim(strK)
+          write(populDat(iKS)%unit, "(A,A,A,A,A,3(F8.6,2x))") "#  GS molecular orbital populations, spin channel : ",&
+              & trim(strSpin), ", k-point number: ", trim(strK), &
+              & ", k-point coordinate: ", this%kPoint(:,iK)
         end if
         write(populDat(iKS)%unit, "(A)", advance = "NO")"#          time (fs)            |"
         write(populDat(iKS)%unit, "(A)", advance = "NO")"   population (orb 1)       |"
@@ -2693,8 +2893,8 @@ contains
     call closeFile(this%fdBondPopul)
     call closeFile(this%fdBondEnergy)
     call closeFile(this%atomEnergyDat)
+    call closeFile(this%currentDat)
 
-    close(currentDat)
   end subroutine closeTDOutputs
 
 
@@ -2822,8 +3022,9 @@ contains
         & iSpin=1, this%nSpin)
 
     if (this%tdWriteExtras) then
-      write(energydat%unit, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
-          & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
+      write(energyDat%unit, '(11F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
+          & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp, energy%Etotal_2, &
+          & energy%Eelec
     end if
 
     if (mod(iStep, this%writeFreq) == 0) then
@@ -2868,24 +3069,22 @@ contains
     end if
 
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
-      if (this%tdWriteExtras) then
-        write(currentDat, "(2X,2F25.15)", advance="no") time * au__fs
-        do iAtom = 1, this%nAtom
-          do iAtom2 = 1, this%nAtom
-            write(currentDat, "(F25.15)", advance="no")this%atomCurrents(iAtom, iAtom2)
-          end do
+      write(currentDat%unit, "(2X,2F25.15)", advance="no") time * au__fs
+      do iAtom = 1, this%nAtom
+        do iAtom2 = 1, this%nAllAtom
+          write(currentDat%unit, "(F25.15)", advance="no")this%atomCurrents(iAtom, iAtom2)
         end do
-        write(currentDat,*)
-      end if
+      end do
+      write(currentDat%unit,*)
     end if
 
     ! Flush output every 5% of the simulation
     if (mod(iStep, max(this%nSteps / 20, 1)) == 0 .and. iStep > this%writeFreq) then
       if (this%tdWriteExtras) then
-        flush(qDat)
-        flush(energyDat)
+        flush(qDat%unit)
+        flush(energyDat%unit)
         if (this%tCurrents) then
-          flush(currentDat)
+          flush(currentDat%unit)
         end if
         if (this%tIons) then
           flush(coorDat%unit)
@@ -3507,6 +3706,7 @@ contains
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
+        !FIXME: what about complex rhoPrim?
         call packHS(rhoPrim(:,iSpin), real(rho(:,:,iKS), dp), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
         call gemm(T1R, real(rho(:,:,iKS), dp), real(H1(:,:,iKS), dp))
@@ -3525,6 +3725,7 @@ contains
             & iSquare, iSparseStart, img2CentCell)
         call gemm(T1C, rho(:,:,iKS), H1(:,:,iKS))
         call her2k(T2C, Sinv(:,:,iKS), T1C, (0.5_dp,0.0_dp))
+        !FIXME: definition of ErhoPrim in unfolded space when implementing Ehrenfest for periodic systems
         call packHS(ErhoPrim, T2C, this%kPoint(:,iK), this%kWeight(iK), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec, iSquare, iSparseStart,&
             & img2CentCell)
@@ -3891,8 +4092,10 @@ contains
   end subroutine setPresentField
 
 
-  !> calculate pairwise currents
-  subroutine getTdCurrents(this, rho, iSquare)
+  !> calculate pairwise currents as -4e/h * (H Im(\rho) - S Im(E))
+  !> following Horsfield, A. P.; et al. Phys. Rev. B 2016, 94 (7), 1-10.
+  subroutine getTdCurrents(this, rho, iSquare, neighbourList, nNeighbourSK, orb,&
+      & iSparseStart, img2CentCell)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -3902,44 +4105,64 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
+    !> Image atom indices to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
     complex(dp), allocatable :: T1(:,:), T2(:,:)
     real(dp), allocatable :: T3(:,:)
-    integer :: iAt1, iAt2, iStart1, iStart2, iEnd1, iEnd2, iKS
+    real(dp) :: orbCurrentsPrim(orb%mOrb**2)
+    integer :: iAt1, iAt2, iStart1, iStart2, iEnd1, iEnd2, iKS, iK
+    integer :: iSpin, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iOrig, iNeigh
 
     allocate(T1(this%nOrbs,this%nOrbs))
     allocate(T2(this%nOrbs,this%nOrbs))
     allocate(T3(this%nOrbs,this%nOrbs))
+
     this%orbCurrents = 0.0_dp
     this%atomCurrents = 0.0_dp
-
+    
     do iKS = 1, this%parallelKS%nLocalKS
-      ! build E = S^{-1} H \rho
-      call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
-      call gemm(T2, T1, rho(:,:,iKS)) ! E = T1 here
+      iK = this%parallelKS%localKS(1, iKS)
 
-      ! T2 = S.Im(E), since S is defined as complex, we take real part
-      call gemm(T3, real(this%Ssqr(:,:,iKS)), aimag(T2), transB='t')
-      ! T2 = - ( H Im(\rho) - S Im(E) ), this has a minus sign already
-      ! since H is defined as complex, and S.Im(E) is real, we take real part
-      call gemm(T3, real(this%H1(:,:,iKS)), aimag(rho(:,:,iKS)), alpha=-1.0_dp, transB='t')
+     ! build E = S^{-1} H \rho
+     call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
+     call gemm(T2, T1, rho(:,:,iKS)) ! E(k) = T2 here
 
-      ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
-      ! and e = hbar = 1
-      this%orbCurrents(:,:) = this%orbCurrents + 4.0_dp * T3
+     ! T2 = S.Im(E), since S is defined as complex, we take real part
+     call gemm(T3, real(this%Ssqr(:,:,iKS)), aimag(T2), transB='t')
+     ! T2 = - ( H Im(\rho) - S Im(E) ), this has a minus sign already
+     ! since H is defined as complex, and S.Im(E) is real, we take real part
+     call gemm(T3, real(this%H1(:,:,iKS)), aimag(rho(:,:,iKS)), alpha=-1.0_dp, transB='t')
+
+     ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
+     ! and e = hbar = 1
+     this%orbCurrents(:,:) = this%orbCurrents + 4.0_dp * this%kWeight(iK) * T3
     end do
 
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
-        iStart1 = iSquare(iAt1)
-        iEnd1 = iSquare(iAt1+1)-1
-        iStart2 = iSquare(iAt2)
-        iEnd2 = iSquare(iAt2+1)-1
-        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
+       iStart1 = iSquare(iAt1)
+       iEnd1 = iSquare(iAt1+1)-1
+       iStart2 = iSquare(iAt2)
+       iEnd2 = iSquare(iAt2+1)-1
+       this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
       end do
     end do
 
     deallocate(T1, T2, T3)
-
+    
   end subroutine getTdCurrents
 
 
@@ -4089,6 +4312,10 @@ contains
 
     real(dp), allocatable :: velInternal(:,:)
 
+    integer :: iSpin, iAtom1, iNeigh, iAtom2, iAtom2f, iEnd1, iEnd2
+    integer :: ii, jj, nOrb1, nOrb2, iOrig, iStart1, iStart2, iOrb, iKS
+    complex(dp), allocatable :: T4(:,:)
+
     this%startTime = 0.0_dp
 
     this%speciesAll = speciesAll
@@ -4104,6 +4331,7 @@ contains
     end if
 
     this%nAtom = size(coord, dim=2)
+    this%nAllAtom = size(coordAll, dim=2)
     this%latVec = latVec
     this%invLatVec = invLatVec
     this%iCellVec = iCellVec
@@ -4132,8 +4360,11 @@ contains
     allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
     if (this%tCurrents) then
       allocate(this%orbCurrents(this%nOrbs, this%nOrbs))
-      allocate(this%atomCurrents(this%nAtom, this%nAtom))
+      allocate(this%atomCurrents(this%nAtom, this%nAllAtom))
     end if
+    !if (this%tUseVectorPotential) then
+    !  allocate(this%hamCmplx(size(ints%hamiltonian, dim=1), size(ints%hamiltonian, dim=2)))
+    !end if
 
     allocate(this%occ(this%nOrbs))
     allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
@@ -4173,6 +4404,14 @@ contains
     end if
     if (this%tLaser .and. .not. this%tdFieldThroughAPI .and. this%iCall == 1) then
       call getTDFunction(this, this%startTime)
+    end if
+    if (this%tKick .and. this%tUseVectorPotential) then
+      ! initialize tdVecPot array, needed when calling updateH for the Peierls phase
+      if (this%iCall == 1) then
+        allocate(this%tdVecPot(3, 0:this%nSteps))
+      end if
+      this%tdVecPot = 0.0_dp                       !so H1 = H_gs
+      this%tdVecPot(this%currPolDir,:) = -c * this%field
     end if
 
     call initializeTDVariables(this, densityMatrix, this%trho, this%H1, this%Ssqr, this%Sinv, H0,&
@@ -4233,16 +4472,42 @@ contains
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
+    
+    !print *, 'H1 previous updateH'
+    !print *, this%H1(1,1,KpointHam), this%H1(1,2,KpointHam)
+    !print *, this%H1(2,1,KpointHam), this%H1(2,2,KpointHam)
+    !open (unit=91, file="RealHam_H2_per.dat") 
+    !write(91, *) "#RealH Time (fs),         H11,          H12,            H21,            H22"
+    !write(91, '(5F30.20)') this%time * au__fs, real(this%H1(1,1,KpointHam)), real(this%H1(1,2,KpointHam)), &
+    !      & real(this%H1(2,1,KpointHam)), real(this%H1(2,2,KpointHam))
+    !close(91)
+    !open (unit=92, file="ImHam_H2_per.dat")
+    !write(92, *) "#ImagH Time (fs),          H11,         H12,            H21,            H22"
+    !write(92, '(5F30.20)') this%time * au__fs, aimag(this%H1(1,1,KpointHam)), aimag(this%H1(1,2,KpointHam)), &
+    !      & aimag(this%H1(2,1,KpointHam)), aimag(this%H1(2,2,KpointHam))
+    !close(92)
+
 
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%HSqrCplxCam, this%Ssqr, solvation,&
-        & hybridXc, this%dispersion, this%trho, errStatus)
+        & hybridXc, this%dispersion, this%trho, coordAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
+    !print *, 'H1 after first updateH'
+    !print *, this%H1(1,1,KpointHam), this%H1(1,2,KpointHam)
+    !print *, this%H1(2,1,KpointHam), this%H1(2,2,KpointHam)
+    !write(91, '(5F30.20)') this%time * au__fs, real(this%H1(1,1,KpointHam)), real(this%H1(1,2,KpointHam)), &
+    !      & real(this%H1(2,1,KpointHam)), real(this%H1(2,2,KpointHam))
+    !write(92, '(5F30.20)') this%time * au__fs, aimag(this%H1(1,1,KpointHam)), aimag(this%H1(1,2,KpointHam)), &
+    !      & aimag(this%H1(2,1,KpointHam)), aimag(this%H1(2,2,KpointHam))
+    
+    !Call updateS to apply Peierls phase to the overlap at t=0
+    !call updateS(this, neighbourList, nNeighbourSK, img2CentCell, coord, iSquare, 0) ! iStep=0
+
     if (this%tForces) then
-      this%totalForce(:,:) = 0.0_dp
+      this%totalForce(:,:) = 0.0_dp 
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, img2CentCell,&
           & iSparseStart, iSquare, this%potential, orb, skHamCont, skOverCont, this%qq, q0,&
@@ -4266,7 +4531,13 @@ contains
 
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
-      call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
+      if (.not. this%tUseVectorPotential) then
+        call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)       !Rho ya esta kickeada en este caso
+      else
+!        this%tdVecPot(this%currPolDir,:) = -c * this%field                      !PRUEBA
+!        print *, 'DEBUGGING tdVecPot'
+!        print *, this%tdVecPot(this%currPolDir,0)
+      end if
     end if
 
     call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell, neighbourList,&
@@ -4280,7 +4551,8 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tCurrents) then
-      call getTdCurrents(this, this%trho, iSquare)
+      call getTdCurrents(this, this%trho, iSquare, neighbourList, nNeighbourSK, orb,&
+          & iSparseStart, img2CentCell)
     end if
 
     if (.not. this%tReadRestart .or. this%tProbe) then
@@ -4306,6 +4578,12 @@ contains
     this%rho => this%trho
     this%rhoOld => this%trhoOld
 
+!    print *, 'RHO before kick'
+!    print *, this%rhoOld
+!    print *, 'RHO after kick'
+!    print *, this%rho
+
+    ! Updating all the variables for the first step of dynamics (Euler)
     if (this%tIons) then
       coord(:,:) = this%coordNew
       call handleCoordinateChange(this, env, boundaryCond, hybridXc, ints, orb, neighbourList,&
@@ -4331,8 +4609,20 @@ contains
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%HSqrCplxCam, this%Ssqr, solvation,&
-        & hybridXc, this%dispersion,this%rho, errStatus)
+        & hybridXc, this%dispersion,this%rho, coordAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
+
+    !print *, 'H1 after second updateH'
+    !print *, this%H1(1,1,KpointHam), this%H1(1,2,KpointHam)
+    !print *, this%H1(2,1,KpointHam), this%H1(2,2,KpointHam)
+    !write(91, '(5F30.20)') this%time * au__fs, real(this%H1(1,1,KpointHam)), real(this%H1(1,2,KpointHam)), &
+    !& real(this%H1(2,1,KpointHam)), real(this%H1(2,2,KpointHam))
+    !write(92, '(5F30.20)') this%time * au__fs, aimag(this%H1(1,1,KpointHam)), aimag(this%H1(1,2,KpointHam)), &
+    !      & aimag(this%H1(2,1,KpointHam)), aimag(this%H1(2,2,KpointHam))
+    ! Call updateS to apply Peierls phase to the overlap at t=delta_t
+    !if (this%tLaser) then
+    !  call updateS(this, neighbourList, nNeighbourSK, img2CentCell, coord, iSquare, 0) ! iStep=0
+    !end if
 
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
@@ -4511,7 +4801,8 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
-      call getTdCurrents(this, this%rho, iSquare)
+      call getTdCurrents(this, this%rho, iSquare, neighbourList, nNeighbourSK, orb,&
+          & iSparseStart, img2CentCell)
     end if
 
     if ((mod(iStep, this%writeFreq) == 0)) then
@@ -4521,7 +4812,7 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. this%isHybridXc) then
+      if (this%tIons .or. (.not. this%tRealHS) .or. this%isHybridXc .or. this%tUseVectorPotential) then
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
@@ -4616,13 +4907,24 @@ contains
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    ! TODO charly add vec pot
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%HSqrCplxCam, this%Ssqr, solvation,&
-        & hybridXc, this%dispersion,this%rho, errStatus)
+        & hybridXc, this%dispersion,this%rho, cordAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
+
+!    print *, 'H1 updateH: ', this%time
+!    print *, this%H1(1,2,KpointHam), this%H1(2,1,KpointHam)
+    !write(91, '(5F30.20)') this%time * au__fs, real(this%H1(1,1,KpointHam)), real(this%H1(1,2,KpointHam)), &
+    !      & real(this%H1(2,1,KpointHam)), real(this%H1(2,2,KpointHam))
+    !write(92, '(5F30.20)') this%time * au__fs, aimag(this%H1(1,1,KpointHam)), aimag(this%H1(1,2,KpointHam)), &
+    !      & aimag(this%H1(2,1,KpointHam)), aimag(this%H1(2,2,KpointHam))
+
+    ! When using vector potential and laser, overlap matrix should be updated with Peierl phase
+    !if (this%tLaser) then
+    !  call updateS(this, neighbourList, nNeighbourSK, img2CentCell, coord, iSquare, iStep)
+    !end if
 
     if (this%tForces) then
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
