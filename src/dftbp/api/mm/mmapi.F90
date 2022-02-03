@@ -110,6 +110,14 @@ module dftbp_mmapi
     procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
     !> get (k-point,spin chanel) pairs in current process group
     procedure :: getLocalKS => TDftbPlus_getLocalKS
+    !> TODO
+    procedure :: getBasisSize => TDftbPlus_getBasisSize
+    !> TODO
+    procedure :: isHSReal => TDftbPlus_isHSReal
+    !>TODO
+    procedure :: registerDMCallback => TDftbPlus_registerDMCallback
+    !>TODO
+    procedure :: registerSCallback => TDftbPlus_registerSCallback
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -670,6 +678,71 @@ contains
     nLocalKS = nrOfLocalKS(this%main)
 
   end function TDftbPlus_nrOfLocalKS
+  
+  !> Returns size of the basis set (NxN)
+  function TDftbPlus_getBasisSize(this) result(BasisSize)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+    
+    integer BasisSize
+
+    call this%checkInit()
+    
+    BasisSize = this%main%denseDesc%fullSize
+
+  end function TDftbPlus_getBasisSize
+
+  !> TODO
+  function TDftbPlus_isHSReal(this) result(HSReal)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+    
+    logical HSReal
+
+    call this%checkInit()
+    
+    HSReal = this%main%tRealHS
+
+  end function TDftbPlus_isHSReal
+
+  !> TODO
+  subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
+    use iso_c_binding
+    use dftbp_dftbplus_apicallback, only : TAPICallback
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the DM callback
+    type(c_ptr), value :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerDM(callback, aux_ptr)
+  end subroutine TDftbPlus_registerDMCallback
+  
+  !> TODO
+  subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
+    use iso_c_binding
+    use dftbp_dftbplus_apicallback, only : TAPICallback
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the S callback
+    type(c_ptr), value :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerS(callback, aux_ptr)
+  end subroutine TDftbPlus_registerSCallback
+
 
   !> Returns the atomic masses for each atom in the system.
   subroutine TDftbPlus_getAtomicMasses(this, mass)

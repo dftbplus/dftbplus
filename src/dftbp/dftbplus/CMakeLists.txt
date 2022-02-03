@@ -15,6 +15,7 @@ set(sources-fpp
   ${curdir}/parser.F90
   ${curdir}/qdepextpotgen.F90
   ${curdir}/qdepextpotproxy.F90
+  ${curdir}/apicallback.F90
   ${curdir}/specieslist.F90
   ${curdir}/transportio.F90)
 

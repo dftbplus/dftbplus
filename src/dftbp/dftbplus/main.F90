@@ -117,6 +117,7 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+  use dftbp_dftbplus_apicallback, only : TAPICallback
 #:endif
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
@@ -654,6 +655,24 @@ contains
     integer :: iSpin
 
     real(dp), allocatable :: dipoleTmp(:)
+    
+    
+    print *, "nOrb", this%nOrb
+    print *, "orb%nShell", this%orb%nShell
+    print *, "orb%nOrbSpecies", this%orb%nOrbSpecies
+    print *, "orb%nOrbAtom", this%orb%nOrbAtom
+    print *, "orb%angShell ", 'O:',this%orb%angShell(:,1), 'H:',this%orb%angShell(:,2)
+    print *, "orb%iShellOrb ", 'O:',this%orb%iShellOrb(:,1), 'H:',this%orb%iShellOrb(:,2)
+    @:ASSERT(size(this%orb%iShellOrb, 2) == 2)
+    
+    print *, "denseDesc%fullSize", this%denseDesc%fullSize
+    print *, "orbitalL", size(this%orbitalL,1), size(this%orbitalL,2), size(this%orbitalL,3)
+    print *, "rhoSqrReal", size(this%rhoSqrReal,1), size(this%rhoSqrReal,2), size(this%rhoSqrReal,3)
+    print *, "nKPoint", this%nKPoint
+    print *, "kWeight", this%kWeight
+    print *, "kPoint", this%kPoint
+    
+    
 
     if (this%tDipole) then
       allocate(dipoleTmp(3))
@@ -961,7 +980,7 @@ contains
             & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
-            & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb)
+            & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb, this%apicallback)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -2207,7 +2226,7 @@ contains
       & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
       & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-      & tLargeDenseMatrices, deltaDftb)
+      & tLargeDenseMatrices, deltaDftb, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2365,6 +2384,9 @@ contains
 
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
+    
+    !> TODO
+    type(TAPICallback), intent(in) :: apicallback
 
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -2404,7 +2426,7 @@ contains
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
           & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
           & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb)
+          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb, apicallback)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -2430,7 +2452,7 @@ contains
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
       & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, deltaDftb)
+      & nNeighbourLC, deltaDftb, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2580,6 +2602,10 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
 
+    !> TODO
+    type(Tapicallback), intent(in) :: apicallback
+
+
     integer :: nSpin
 
     nSpin = size(ints%hamiltonian, dim=2)
@@ -2602,6 +2628,22 @@ contains
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
+    !eigen
+    print *,'eigvecsCplx(nLocalRows, nLocalCols, nLocalKS)', size(eigvecsCplx, 1), size(eigvecsCplx, 2), size(eigvecsCplx, 3)
+      ! here is place for export SSqrReal/SSqrCplx
+    print *,'HSqrReal', size(HSqrReal,1), size(HSqrReal, 2)
+    print *,'HSqrCplx', size(HSqrCplx,1), size(HSqrCplx, 2)
+
+      ! here is place for export SSqrReal/SSqrCplx
+    print *,'SSqrReal', size(SSqrReal,1), size(SSqrReal, 2)
+    print *,'SSqrCplx', size(SSqrCplx,1), size(SSqrCplx, 2)
+    
+    if (tRealHS) then
+      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrReal)
+    else
+      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
+    endif
+
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
 
@@ -2610,11 +2652,11 @@ contains
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, species, denseDesc%iAtomStart, coord, tHelical,&
-            & eigVecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
+            & eigVecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr, apicallback)
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
-            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx)
+            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx, apicallback)
       end if
       call ud2qm(rhoPrim)
     else
@@ -3008,7 +3050,7 @@ contains
   !> Creates sparse density matrix from real eigenvectors.
   subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, species, iAtomStart, coord, tHelical, eigvecs, parallelKS,&
-      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3064,10 +3106,14 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    integer :: iKS, iSpin
+    !> TODO
+    type(Tapicallback), intent(in), optional :: apicallback
+
+    integer :: iKS, iK, iSpin
 
     rhoPrim(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
 
     #:if WITH_SCALAPACK
@@ -3111,6 +3157,10 @@ contains
       end if
     #:endif
 
+      if (present(apicallback)) then
+        call apicallback%invokeDM(iK, iSpin, denseDesc%blacsOrbSqr, work)
+      endif
+      
       if (allocated(rhoSqrReal)) then
         rhoSqrReal(:,:,iSpin) = work
       end if
@@ -3127,7 +3177,7 @@ contains
   !> Creates sparse density matrix from complex eigenvectors.
   subroutine getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS, tHelical,&
-      & species, coord, eigvecs, rhoPrim, work)
+      & species, coord, eigvecs, rhoPrim, work, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3185,6 +3235,10 @@ contains
 
     !> workspace array
     complex(dp), intent(out) :: work(:,:)
+    
+    !> TODO
+    type(Tapicallback), intent(in), optional :: apicallback
+
 
     integer :: iKS, iK, iSpin
 
@@ -3221,6 +3275,11 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:endif
+
+    if (present(apicallback)) then
+      call apicallback%invokeDM(iK, iSpin, denseDesc%blacsOrbSqr, work)
+    endif
+
     end do
 
   #:if WITH_SCALAPACK

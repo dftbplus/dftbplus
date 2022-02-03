@@ -275,6 +275,14 @@ int dftbp_get_nr_spin(DftbPlus *instance);
  */
 int dftbp_get_nr_kpoints(DftbPlus *instance);
 
+int dftbp_get_basis_size(DftbPlus *instance);
+
+_Bool dftbp_is_hs_real(DftbPlus *instance);
+
+void dftbp_register_dm_callback(DftbPlus *instance, void *callback, void *aux_ptr);
+
+void dftbp_register_s_callback(DftbPlus *instance, void *callback, void *aux_ptr);
+
 /**
  * Queries the nr. of (k-point,spin chanel) pairs in current process group.
  *

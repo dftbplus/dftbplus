@@ -327,6 +327,46 @@ contains
   end subroutine c_DftbPlus_registerExtPotGenerator
 
 
+  !> register DM exporting callback
+  subroutine c_DftbPlus_registerDMCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_dm_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    call instance%registerDMCallback(callback, aux_ptr)
+
+  end subroutine c_DftbPlus_registerDMCallback
+
+  !> register S exporting callback
+  subroutine c_DftbPlus_registerSCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_s_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    call instance%registerSCallback(callback, aux_ptr)
+
+  end subroutine c_DftbPlus_registerSCallback
+
   !> set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
 
@@ -456,6 +496,36 @@ contains
     call instance%getLocalKS(localKS(:,1:nLocalKS))
 
   end function c_DftbPlus_getLocalKS
+
+
+  !> Obtain size of the basis set (NxN)
+  function c_DftbPlus_getBasisSize(handler) result(BasisSize) bind(C, name='dftbp_get_basis_size')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: BasisSize
+
+    call c_f_pointer(handler%instance, instance)
+    
+    BasisSize = instance%getBasisSize()
+
+  end function c_DftbPlus_getBasisSize
+  
+
+  !> TODO
+  function c_DftbPlus_isHSReal(handler) result(HSReal) bind(C, name='dftbp_is_hs_real')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    type(TDftbPlusC), pointer :: instance
+    logical :: HSReal
+
+    call c_f_pointer(handler%instance, instance)
+    
+    HSReal = instance%isHSReal()
+
+  end function c_DftbPlus_isHSReal
 
 
   !> Obtain the DFTB+ energy
