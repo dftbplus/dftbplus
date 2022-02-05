@@ -15,6 +15,9 @@ Added
 
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
 
+- (Optionally) Rescale externally applied fields and dipole moments
+  when implicit solvents are used
+
 
 Changed
 -------
@@ -31,7 +34,6 @@ Fixed
 -----
 
 - incorrect atomic mass unit for xTB calculations
-
 
 
 21.2 (2021-12-13)

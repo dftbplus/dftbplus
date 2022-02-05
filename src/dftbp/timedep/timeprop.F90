@@ -62,6 +62,7 @@ module dftbp_timedep_timeprop
   use dftbp_md_velocityverlet, only : TVelocityVerlet
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
@@ -79,6 +80,7 @@ module dftbp_timedep_timeprop
 
   !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
+
     !> External field peak intensity
     real(dp) :: tdfield
 
@@ -204,7 +206,22 @@ module dftbp_timedep_timeprop
   !> Data type for electronic dynamics internal settings
   type TElecDynamics
     private
-    real(dp) :: field, omega, time0, time1, phase
+
+    !> External field peak intensity
+    real(dp) :: field
+
+    !> Electric field angular frequency
+    real(dp) :: omega
+
+    !> Initial time of pulse
+    real(dp) :: time0
+
+    !> Final time of pulse
+    real(dp) :: time1
+
+    !> Phase applied of the laser field
+    real(dp) :: phase
+
     real(dp), allocatable :: tdFunction(:, :)
     complex(dp) :: fieldDir(3)
     integer :: writeFreq, pertType, envType, spType
@@ -342,8 +359,8 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation,&
-      & hamiltonianType, errStatus)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite,&
+      & eFieldScaling, hamiltonianType, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -417,8 +434,8 @@ contains
     !> Library interface handler
     type(TTBLite), intent(in), allocatable :: tblite
 
-    !> Solvation data and calculations
-    class(TSolvation), allocatable, intent(in) :: solvation
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Type of Hamiltonian used
     integer, intent(in) :: hamiltonianType
@@ -430,7 +447,7 @@ contains
     logical :: tMDstill
     integer :: iAtom
 
-    this%field = inp%tdField
+    this%field = eFieldScaling%scaledExtEField(inp%tdField)
     this%dt = inp%dt
     this%nSteps = inp%steps
     this%pertType = inp%pertType
@@ -484,13 +501,6 @@ contains
     case default
       @:RAISE_ERROR(errStatus, -1, "Wrong type of perturbation.")
     end select
-
-    if (allocated(solvation)) then
-      if (solvation%isEFieldModified() .and. (this%tKick .or. this%tLaser)) then
-        @:RAISE_ERROR(errStatus, -1, "This type of solvation model currently unsupported for&
-            & electron dyanamics")
-      end if
-    end if
 
     if (this%tLaser) then
       if (tPeriodic) then
@@ -634,9 +644,9 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, H0, speciesAll, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-      & dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont,&
-      & latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
+      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
       & taggedWriter, refExtPot, errStatus)
 
     !> ElecDynamics instance
@@ -716,6 +726,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    type(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -782,8 +795,8 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-            & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
+            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+            & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
             & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
             & errStatus)
@@ -792,8 +805,8 @@ contains
     else
       call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-          & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
+          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+          & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
           & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
           & errStatus)
@@ -805,10 +818,10 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, eigvecsReal, H0, q0, referenceN0, ints, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, electronicSolver, speciesAll, eigvecsCplx, taggedWriter, refExtPot, latVec,&
-      & invLatVec, iCellVec, rCellVec, cellVec, errStatus)
+      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
+      & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
+      & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -891,6 +904,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -951,9 +967,9 @@ contains
     call initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
-       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
+       & refExtPot, solvation, eFieldScaling, rangeSep, referenceN0, q0, repulsive,&
+       & iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec,&
+       & invLatVec, iCellVec, rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
@@ -971,7 +987,7 @@ contains
       call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
+       & onSiteElements, refExtPot, solvation, eFieldScaling, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
@@ -1342,7 +1358,7 @@ contains
 
   !> Calculate charges, dipole moments
   subroutine getChargeDipole(this, deltaQ, qq, multipole, dipole, q0, rho, Ssqr, Dsqr, Qsqr,&
-      & coord, iSquare, qBlock, qNetAtom, errStatus)
+      & coord, iSquare, eFieldScaling, qBlock, qNetAtom, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1379,6 +1395,9 @@ contains
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
@@ -1486,6 +1505,8 @@ contains
     if (allocated(multipole%dipoleAtom)) then
       dipole(:,:) = dipole - sum(multipole%dipoleAtom(:, :, :), dim=2)
     end if
+
+    dipole(:,1) = eFieldScaling%scaledSoluteDipole(dipole(:,1))
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
@@ -3468,10 +3489,10 @@ contains
   !> Handles the initializations of the variables needed for the time propagation
   subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
-      & referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling,&
-      & qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec, speciesAll,&
-      & electronicSolver, errStatus)
+      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
+      & rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx,&
+      & filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
+      & speciesAll, electronicSolver, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3550,6 +3571,9 @@ contains
 
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
+
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
@@ -3707,7 +3731,7 @@ contains
         & this%populDat, this%forceDat, this%coorDat)
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
-        & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
+        & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
         & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
@@ -3790,7 +3814,7 @@ contains
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
-        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
+        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
         & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
@@ -3822,8 +3846,9 @@ contains
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
   subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
       & img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
-      & repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
+      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
+      & rangeSep, repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot,&
+      & errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3893,6 +3918,9 @@ contains
 
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
+
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
@@ -4058,7 +4086,7 @@ contains
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
-        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
+        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
         & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then

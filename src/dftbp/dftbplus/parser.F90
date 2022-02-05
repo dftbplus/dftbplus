@@ -94,12 +94,6 @@ module dftbp_dftbplus_parser
   !> Tag at the head of the input document tree
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
-  !> Version of the current parser
-  integer, parameter :: parserVersion = 10
-
-  !> Version of the oldest parser for which compatibility is still maintained
-  integer, parameter :: minVersion = 1
-
 
   !> Container type for parser related flags.
   type TParserFlags
@@ -123,9 +117,15 @@ module dftbp_dftbplus_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
+      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  integer, parameter :: minVersion = 1
+
+  !> Version of the current parser (as latest version)
+  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
 
 
 contains
@@ -487,8 +487,8 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')// "Please use the GeometryOptimization driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -1732,6 +1732,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -1965,6 +1966,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then

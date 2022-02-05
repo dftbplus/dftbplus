@@ -98,6 +98,7 @@ module dftbp_dftbplus_main
       & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
       & getReksStress
   use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, LinResp_addGradients
   use dftbp_timedep_pprpa, only : ppRpaEnergies
@@ -327,7 +328,8 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation, this%dipoleMessage)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling,&
+            & this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -356,11 +358,11 @@ contains
           & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
-          & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
-          & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
-          & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
-          & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
-          & this%taggedWriter, this%refExtPot, errStatus)
+          & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%eFieldScaling,&
+          & this%rangeSep, this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf,&
+          & this%Ef, this%coord, this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec,&
+          & this%invLatVec, this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver,&
+          & this%eigvecsCplx, this%taggedWriter, this%refExtPot, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -471,7 +473,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
           & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
-          & this%lCurrArray, this%polarisability, this%dEidE)
+          & this%lCurrArray, this%polarisability, this%dEidE, this%dipoleMoment, this%eFieldScaling)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
@@ -479,7 +481,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%coord0, this%dipoleMoment, this%multipoleOut)
+          & this%coord0, this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -1252,7 +1254,7 @@ contains
       if (this%hamiltonianType == hamiltonianTypes%dftb) then
         call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
             & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%solvation)
+            & this%img2CentCell, this%eFieldScaling)
       end if
     #:endblock DEBUG_CODE
     end if
@@ -1579,7 +1581,7 @@ contains
             & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%solvation, this%dipoleMessage)
+            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -4526,7 +4528,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, ints, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell, solvation)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4558,11 +4560,11 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> Instance of the solvation model
-    class(TSolvation), intent(in), allocatable :: solvation
+    !> Instance of electric/dipole scaling due to any dielectric media effects
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
-    integer :: nAtom, sparseSize, iAt, ii
+    integer :: nAtom, sparseSize, iAt, iCart
 
     sparseSize = size(ints%overlap)
     nAtom = size(q0, dim=2)
@@ -4573,10 +4575,10 @@ contains
     write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
 
     ! loop over directions
-    do ii = 1, 3
+    do iCart = 1, 3
       potentialDerivative(:,:) = 0.0_dp
       ! Potential from dH/dE
-      potentialDerivative(:,1) = -coord0(ii,:)
+      potentialDerivative(:,1) = -eFieldScaling%scaledExtEField(coord0(iCart,:))
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
       call addShift(hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
@@ -4588,16 +4590,12 @@ contains
 
       ! add nuclei term for derivative wrt E
       do iAt = 1, nAtom
-        dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) * coord0(ii, iAt)
+        dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) *&
+            & eFieldScaling%scaledExtEField(coord0(iCart, iAt))
       end do
       write(stdOut, "(F16.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
-    if (allocated(solvation)) then
-      if (solvation%isEFieldModified()) then
-        write(stdOut, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
-      end if
-    end if
 
   end subroutine checkDipoleViaHellmannFeynman
 
