@@ -137,7 +137,10 @@ def main():
         merminen = cdftb.get_energy()
         gradients = cdftb.get_gradients()
         grosschgs = cdftb.get_gross_charges()
-        cm5chgs = cdftb.get_cm5_charges()
+        if tsi2:
+            cm5chgs = cdftb.get_cm5_charges()
+        else:
+            cm5chgs = grosschgs[:]
 
         # finalize DFTB+ and clean up
         cdftb.close()
@@ -238,23 +241,19 @@ def main():
             print('(H2O) Expected Gross charges: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n\n'
                   .format(-0.6519945363, 0.3314953102, 0.3204992261))
-
-            # evaluate CM5 charges
-            print('(H2O) Obtained Gross charges: ' +
-                  '{:15.10f} {:15.10f} {:15.10f}'
-                  .format(*cm5chgs))
-            print('(H2O) Expected CM5 charges: ' +
-                  '{:15.10f} {:15.10f} {:15.10f}\n\n'
-                  .format(-1.3059002570, 0.6447634725, 0.6611367846))
  
 
 
     # --------------------------WRITE AUTOTEST.TAG------------------------------
 
     # write autotest.tag file, containing the collective variables
-    write_autotest_tag('autotest.tag', freeEgy=merminentot,
-                       forceTot=-gradientstot, qOutAtGross=grosschgstot,
-                       qOutCM5=cm5chgstot)
+    if tsi2:
+        write_autotest_tag('autotest.tag', freeEgy=merminentot,
+                           forceTot=-gradientstot, qOutAtGross=grosschgstot,
+                           qOutCM5=cm5chgstot)
+    else:
+        write_autotest_tag('autotest.tag', freeEgy=merminentot,
+                           forceTot=-gradientstot, qOutAtGross=grosschgstot)
 
 
 if __name__ == "__main__":
