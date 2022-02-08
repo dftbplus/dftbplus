@@ -283,7 +283,6 @@ module dftbp_dftbplus_initprogram
     !> normalized vectors in those directions
     real(dp) :: normOrigLatVec(3,3)
 
-
     !> reciprocal vectors in 2 pi units
     real(dp), allocatable :: invLatVec(:,:)
 
@@ -351,7 +350,6 @@ module dftbp_dftbplus_initprogram
 
     !> Integral container
     type(TIntegral) :: ints
-
 
     !> nr. of K-points
     integer :: nKPoint
