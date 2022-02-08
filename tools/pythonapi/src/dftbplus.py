@@ -309,7 +309,6 @@ class DftbPlus:
         charges = np.empty(self._natoms)
 
         self._dftbpluslib.dftbp_get_cm5_charges(self._dftb_handler,
-                                                self._dftb_input,
                                                 charges)
 
         return charges
@@ -377,7 +376,6 @@ class DftbPlus:
 
         self._wrap('dftbp_get_cm5_charges', None,
                    [ctypes.POINTER(ctypes.c_void_p),
-                    ctypes.POINTER(ctypes.c_void_p),
                     self._dp1d])
 
         self._wrap('dftbp_final', None, [ctypes.POINTER(ctypes.c_void_p)])
