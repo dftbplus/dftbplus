@@ -11,6 +11,7 @@ Unreleased
 Added
 -----
 
+- API call for CM5 charges
 
 
 Changed
