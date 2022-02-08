@@ -157,7 +157,7 @@ contains
   end subroutine c_DftbPlus_getInputFromFile
 
 
-  !> process a document tree to get settings for the calculation
+  !> Process a document tree to get settings for the calculation
   subroutine c_DftbPlus_processInput(handler, inputHandler) bind(C, name='dftbp_process_input')
 
     !> handler for the calculation instance
@@ -177,7 +177,7 @@ contains
   end subroutine c_DftbPlus_processInput
 
 
-  !> Obtain electrostatic potential at specified points
+  !> Get electrostatic potential from DFTB+ at specified points
   subroutine c_DftbPlus_get_elstat_potential(handler, nLocations, pot, locations)&
       & bind(C, name='dftbp_get_elstat_potential')
 
@@ -202,7 +202,7 @@ contains
   end subroutine c_DftbPlus_get_elstat_potential
 
 
-  !> set an external potential on the DFTB+ calculation
+  !> Set an external potential on the DFTB+ calculation
   subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
       & bind(C, name='dftbp_set_external_potential')
 
@@ -232,7 +232,7 @@ contains
   end subroutine c_DftbPlus_setExternalPotential
 
 
-  !> register a generator for an external potential
+  !> Register a generator for an external potential
   subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
       & bind(C, name='dftbp_register_ext_pot_generator')
 
@@ -262,7 +262,7 @@ contains
   end subroutine c_DftbPlus_registerExtPotGenerator
 
 
-  !> set/replace the coordinates in a DFTB+ calculation instance
+  !> Set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
 
     !> handler for the calculation
@@ -341,6 +341,49 @@ contains
     nAtom = instance%nrOfAtoms()
 
   end function c_DftbPlus_nrOfAtoms
+
+
+  !> Obtain nr. of k-points.
+  function c_DftbPlus_nrOfKPoints(handler) result(nKPoints) bind(C, name='dftbp_nr_kpoints')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nKPoints
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nKPoints = instance%nrOfKPoints()
+
+  end function c_DftbPlus_nrOfKPoints
+
+
+  !> Obtain masses of atoms in the DFTB+ calculation.
+  subroutine c_DftbPlus_get_atom_masses(handler, masses) bind(C, name='dftbp_get_masses')
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(out) :: masses(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getAtomicMasses(masses(:nAtom))
+
+  end subroutine c_DftbPlus_get_atom_masses
+
+
+  !> Obtain nr. basis functions at each atoms in the DFTB+ calculation.
+  subroutine c_DftbPlus_get_atom_nr_basis(handler, nOrbitals) bind(C, name='dftbp_get_nr_orbitals')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int), intent(out) :: nOrbitals(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getNOrbitalsOnAtoms(nOrbitals(:nAtom))
+
+  end subroutine c_DftbPlus_get_atom_nr_basis
 
 
   !> Obtain the DFTB+ energy
