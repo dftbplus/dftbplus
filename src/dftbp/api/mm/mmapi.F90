@@ -568,20 +568,17 @@ contains
   end subroutine TDftbPlus_getGrossCharges
 
   !> Returns the CM5 charges of each atom
-  subroutine TDftbPlus_getCM5Charges(this, input, atomCharges)
+  subroutine TDftbPlus_getCM5Charges(this, atomCharges)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
-
-    !> Holds the parsed input data.
-    type(TInputData), intent(inout) :: input
 
     !> Atomic gross charges.
     real(dp), intent(out) :: atomCharges(:)
 
     call this%checkInit()
 
-    call getCM5Charges(this%env, this%main, input, atomCharges)
+    call getCM5Charges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getCM5Charges
 

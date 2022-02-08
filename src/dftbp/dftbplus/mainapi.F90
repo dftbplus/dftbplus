@@ -20,7 +20,6 @@ module dftbp_dftbplus_mainapi
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_solvation_cm5, only : TChargeModel5_init, getCorrectionDerivs, getCorrection
   use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
@@ -187,16 +186,13 @@ contains
   end subroutine getGrossCharges
 
   !> get the CM5 charges
-  subroutine getCM5Charges(env, main, input, atomCharges)
+  subroutine getCM5Charges(env, main, atomCharges)
 
     !> instance
     type(TEnvironment), intent(inout) :: env
 
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
-
-    !> Holds the parsed input data.
-    type(TInputData), intent(inout), target :: input
 
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
@@ -205,29 +201,8 @@ contains
     integer, allocatable :: nNeigh(:)
     
     !> handle the case that CM5 was not added in the input
-    if (.not. allocated(input%ctrl%cm5Input)) then
-      allocate(input%ctrl%cm5Input)
-      if (.not. allocated(main%cm5Cont)) then
-        allocate(main%cm5Cont)
-      end if
-      if (main%tPeriodic) then
-        call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
-            & input%geom%speciesNames, .false., input%geom%latVecs)
-      else
-        call TChargeModel5_init(main%cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
-            & input%geom%speciesNames, .false.)
-      end if
-      main%cutOff%mCutOff = max(main%cutOff%mCutOff, main%cm5Cont%getRCutOff())
-      !> carry out calculation
-      allocate(nNeigh(main%nAtom))
-      call getNrOfNeighboursForAll(nNeigh, main%neighbourList, main%cm5Cont%getRCutoff())
-      if (allocated(main%cm5Cont%dcm5dr) .and. allocated(main%cm5Cont%dcm5dL)) then
-        call getCorrectionDerivs(main%cm5Cont, nNeigh, main%neighbourList%iNeighbour, &
-            & main%img2CentCell, main%neighbourList%neighDist2, main%species0, main%coord)
-      else
-        call getCorrection(main%cm5Cont, nNeigh, main%neighbourList%iNeighbour, &
-            & main%img2CentCell, main%neighbourList%neighDist2, main%species0, main%coord)
-      end if
+    if (.not. allocated(main%cm5Cont)) then
+      call error("CM5 analysis has not been carried out.")
     end if
 
     call recalcGeometry(env, main)

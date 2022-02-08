@@ -485,39 +485,25 @@ contains
   end subroutine c_DftbPlus_getGrossCharges
 
   !> Obtain CM5 charges
-  subroutine c_DftbPlus_getCM5Charges(handler, inputHandler, atomCharges)&
+  subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
       & bind(C, name='dftbp_get_cm5_charges')
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
-
-    !> input tree handler
-    type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     !> resulting atomic charges
     real(c_double), intent(out) :: atomCharges(*)
 
     !> f pointer of input arguments
     type(TDftbPlusC), pointer :: instance
-    type(TDftbPlusInput), pointer :: pDftbPlusInput
-
-    !> flags required to read input
-    type(TParserFlags) :: parserFlags
-    !> we require to know this true input data object to init CM5 if not given
-    type(TInputData) :: inpData
 
     integer :: nAtom
 
     !> translate c to f objects
     call c_f_pointer(handler%instance, instance)
-    call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
-
-    !> translate to true input data
-    call parseHsdTree(pDftbPlusInput%hsdTree, inpData, parserFlags)
-    call doPostParseJobs(pDftbPlusInput%hsdTree, parserFlags)
 
     nAtom = instance%nrOfAtoms()
-    call instance%getCM5Charges(inpData, atomCharges(1:nAtom))
+    call instance%getCM5Charges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getCM5Charges
 

@@ -18,7 +18,7 @@ module dftbp_solvation_cm5
   implicit none
 
   private
-  public :: TChargeModel5, TCM5Input, TChargeModel5_init, getCorrectionDerivs, getCorrection
+  public :: TChargeModel5, TCM5Input, TChargeModel5_init
 
 
   !> Charge model 5 input data
