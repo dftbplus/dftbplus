@@ -9,8 +9,6 @@ program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_common_constants, only : AA__Bohr
-  use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_parser, only : TParserFlags, parseHsdTree
   use extchargepot
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
@@ -46,13 +44,8 @@ program test_extpot
   real(dp) :: esps(2)
   real(dp), parameter :: espLocations(3,2) = reshape([1.0_dp,0.0_dp,0.0_dp,1.0_dp,0.1_dp,0.0_dp],&
       & [3,2])
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis, pCm5
   type(fnode), pointer :: pParserOpts
-
-  !> flags required to read input
-  type(TParserFlags) :: parserFlags
-  !> we require to know this true input data object to init CM5 if not given
-  type(TInputData) :: inputData
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
@@ -99,15 +92,13 @@ program test_extpot
   !  set up analysis options
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
+  call setChild(pAnalysis, "CM5", pCm5)
 
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
 
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
-
-  !> translate to input data
-  call parseHsdTree(input%hsdTree, inputData, parserFlags)
 
   ! initialise the DFTB+ calculator
   call dftbp%setupCalculator(input)
@@ -124,7 +115,7 @@ program test_extpot
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(atomCharges)
-  call dftbp%getCM5Charges(inputData, cm5Charges)
+  call dftbp%getCM5Charges(cm5Charges)
   call dftbp%getElStatPotential(esps, espLocations)
   call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
       & extChargeGrads)

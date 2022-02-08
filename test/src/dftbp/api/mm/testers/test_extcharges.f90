@@ -10,8 +10,6 @@ program test_extcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_common_constants, only : AA__Bohr
-  use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_parser, only : TParserFlags, parseHsdTree
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -60,13 +58,8 @@ program test_extcharges
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
   real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis, pCm5
   type(fnode), pointer :: pParserOpts
-
-  !> flags required to read input
-  type(TParserFlags) :: parserFlags
-  !> we require to know this true input data object to init CM5 if not given
-  type(TInputData) :: inputData
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
@@ -119,14 +112,12 @@ program test_extcharges
   call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
+  call setChild(pAnalysis, "CM5", pCm5)
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
 
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
-
-  !> translate to input data
-  call parseHsdTree(input%hsdTree, inputData, parserFlags)
 
   ! convert input into settings for the DFTB+ calculator
   call dftbp%setupCalculator(input)
@@ -143,7 +134,7 @@ program test_extcharges
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
-  call dftbp%getCM5Charges(inputData, cm5Charges)
+  call dftbp%getCM5Charges(cm5Charges)
   call dftbp%getAtomicMasses(atomMasses)
 
 
