@@ -13,9 +13,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
-  use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
