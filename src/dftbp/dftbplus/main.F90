@@ -81,6 +81,8 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_formatout, only : writeSparse
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
@@ -117,7 +119,7 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
-  use dftbp_dftbplus_apicallback, only : TAPICallback
+  use dftbp_dftbplus_apicallback, only : TAPICallback, null_apicallback
 #:endif
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
@@ -980,7 +982,8 @@ contains
             & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
-            & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb, this%apicallback)
+            & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb, &
+            & this%apicallback)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -1376,6 +1379,22 @@ contains
       call this%electrostatPot%evaluate(env, this%scc, this%eField)
       call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
+    
+    ! TODO: Remove it
+    if (.true.) then
+      do iSpin = 1, this%nSpin
+        call writeSparse("rhoReal" // i2c(iSpin) // ".dat", this%rhoPrim(:,iSpin),&
+            & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
+            & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
+      end do
+      if (allocated(this%iRhoPrim)) then
+        do iSpin = 1, this%nSpin
+          call writeSparse("rhoImag" // i2c(iSpin) // ".dat", this%iRhoPrim(:,iSpin),&
+              & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
+              & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
+        end do
+      end if
+    end if    
 
   end subroutine processGeometry
 
@@ -2426,7 +2445,8 @@ contains
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
           & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
           & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb, apicallback)
+          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb, &
+          & apicallback, iSCC)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -2452,7 +2472,7 @@ contains
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
       & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, deltaDftb, apicallback)
+      & nNeighbourLC, deltaDftb, apicallback, iSCC)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2605,8 +2625,14 @@ contains
     !> TODO
     type(Tapicallback), intent(in) :: apicallback
 
+    !> TODO
+    integer, intent(in) :: iSCC
 
     integer :: nSpin
+    
+    type(Tapicallback) :: hs_apicallback
+    
+    hs_apicallback = merge(apicallback, null_apicallback, iSCC == 1)
 
     nSpin = size(ints%hamiltonian, dim=2)
     call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -2615,11 +2641,11 @@ contains
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
             & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC,&
-            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
+            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:), hs_apicallback)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
-            & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen)
+            & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen, hs_apicallback)
       end if
     else
       call buildAndDiagDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
@@ -2627,22 +2653,6 @@ contains
           & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, xi, species)
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
-
-    !eigen
-    print *,'eigvecsCplx(nLocalRows, nLocalCols, nLocalKS)', size(eigvecsCplx, 1), size(eigvecsCplx, 2), size(eigvecsCplx, 3)
-      ! here is place for export SSqrReal/SSqrCplx
-    print *,'HSqrReal', size(HSqrReal,1), size(HSqrReal, 2)
-    print *,'HSqrCplx', size(HSqrCplx,1), size(HSqrCplx, 2)
-
-      ! here is place for export SSqrReal/SSqrCplx
-    print *,'SSqrReal', size(SSqrReal,1), size(SSqrReal, 2)
-    print *,'SSqrCplx', size(SSqrCplx,1), size(SSqrCplx, 2)
-    
-    if (tRealHS) then
-      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrReal)
-    else
-      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
-    endif
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
@@ -2677,7 +2687,7 @@ contains
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
       & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal,&
-      & SSqrReal, eigvecsReal, eigen)
+      & SSqrReal, eigvecsReal, eigen, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2746,6 +2756,10 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
+    !> TODO
+    type(Tapicallback), intent(in), optional :: apicallback
+
+
     integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
@@ -2770,8 +2784,15 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+
+      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrReal)
+      call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrReal)
+
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
+
+
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
@@ -2813,7 +2834,7 @@ contains
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver, parallelKS,&
-      & tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigvecsCplx, eigen)
+      & tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigvecsCplx, eigen, apicallback)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2875,6 +2896,9 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
 
+    !> TODO
+    type(Tapicallback), intent(in), optional :: apicallback
+
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
@@ -2902,6 +2926,8 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
+      call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrCplx)
       call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
@@ -2916,8 +2942,8 @@ contains
       else
         call unpackHS(HSqrCplx, ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call unpackHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call unpackHS(SSqrCplx, ints%overlap,              kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))

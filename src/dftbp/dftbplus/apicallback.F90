@@ -13,6 +13,7 @@ module dftbp_dftbplus_apicallback
 
   private
   public :: TAPICallback
+  public :: null_apicallback
 
 
   abstract interface
@@ -48,6 +49,11 @@ module dftbp_dftbplus_apicallback
     !> callback context
     type(c_ptr) :: s_aux_ptr
 
+    !> callback
+    type(c_funptr) :: h_callback
+    !> callback context
+    type(c_ptr) :: h_aux_ptr
+
   contains
     !> TODO
     procedure :: registerDM => TAPICallback_registerDM
@@ -59,9 +65,15 @@ module dftbp_dftbplus_apicallback
     procedure :: invokeS_real => TAPICallback_invokeS_real
     procedure :: invokeS_cplx => TAPICallback_invokeS_cplx
     generic :: invokeS => invokeS_real, invokeS_cplx
-    
+
+    procedure :: registerH => TAPICallback_registerH
+    procedure :: invokeH_real => TAPICallback_invokeH_real
+    procedure :: invokeH_cplx => TAPICallback_invokeH_cplx
+    generic :: invokeH => invokeH_real, invokeH_cplx
   end type TAPICallback
 
+  !> Empty TAPICallback. All invokeXX calls do nothing.
+  type(TAPICallback) :: null_apicallback
 
 
 contains
@@ -174,5 +186,56 @@ contains
 
   end subroutine TAPICallback_invokeS_cplx
 
+  subroutine TAPICallback_registerH(this, callback, aux_ptr)
+    class(TAPICallback) :: this
+    type(c_funptr), value :: callback
+    type(c_ptr), value :: aux_ptr
+    
+    this%h_callback = callback
+    this%h_aux_ptr = aux_ptr
+  end subroutine TAPICallback_registerH
   
+
+  subroutine TAPICallback_invokeH_real(this, blacs_descr, data_buf)
+    class(TAPICallback) :: this
+    integer, intent(in), target :: blacs_descr(:)
+    real(dp), intent(in), target :: data_buf(:,:)
+    
+    procedure(hs_callback_t), pointer :: callback_proc
+    type(c_ptr) :: blacs_descr_ptr
+    type(c_ptr) :: data_ptr
+    
+    if (.not. c_associated(this%h_callback)) then
+      return
+    endif
+    
+    call c_f_procpointer(this%h_callback, callback_proc)
+    blacs_descr_ptr = c_loc(blacs_descr(1))
+    data_ptr = c_loc(data_buf(1,1))
+
+    call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
+  
+  end subroutine TAPICallback_invokeH_real
+
+  subroutine TAPICallback_invokeH_cplx(this, blacs_descr, data_buf)
+    class(TAPICallback) :: this
+    integer, intent(in), target :: blacs_descr(:)
+    complex(dp), intent(in), target :: data_buf(:,:)
+    
+    procedure(hs_callback_t), pointer :: callback_proc
+    type(c_ptr) :: blacs_descr_ptr
+    type(c_ptr) :: data_ptr
+    
+    if (.not. c_associated(this%h_callback)) then
+      return
+    endif
+    
+    call c_f_procpointer(this%h_callback, callback_proc)
+    blacs_descr_ptr = c_loc(blacs_descr(1))
+    data_ptr = c_loc(data_buf(1,1))
+
+    call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
+
+  end subroutine TAPICallback_invokeH_cplx
+
 end module dftbp_dftbplus_apicallback

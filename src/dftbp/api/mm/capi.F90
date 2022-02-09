@@ -367,6 +367,26 @@ contains
 
   end subroutine c_DftbPlus_registerSCallback
 
+  !> register H exporting callback
+  subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_h_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    call instance%registerHCallback(callback, aux_ptr)
+
+  end subroutine c_DftbPlus_registerHCallback
+
   !> set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
 
@@ -526,6 +546,38 @@ contains
     HSReal = instance%isHSReal()
 
   end function c_DftbPlus_isHSReal
+  
+  
+  !> TODO
+  function c_DftbPlus_getOverlap(handler, blacs_descr) result(data_ptr) bind(C, name='dftbp_get_overlap')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    type(c_ptr), value :: blacs_descr
+
+    type(c_ptr) :: data_ptr
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    
+    data_ptr = instance%getOverlap(blacs_descr)
+
+  end function c_DftbPlus_getOverlap
+  
+  
+  !> TODO
+  function c_DftbPlus_getHamiltonian(handler, blacs_descr) result(data_ptr) bind(C, name='dftbp_get_hamiltonian')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    type(c_ptr), value :: blacs_descr
+
+    type(c_ptr) :: data_ptr
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    
+    data_ptr = instance%getHamiltonian(blacs_descr)
+
+  end function c_DftbPlus_getHamiltonian
 
 
   !> Obtain the DFTB+ energy

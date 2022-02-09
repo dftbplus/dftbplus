@@ -118,6 +118,12 @@ module dftbp_mmapi
     procedure :: registerDMCallback => TDftbPlus_registerDMCallback
     !>TODO
     procedure :: registerSCallback => TDftbPlus_registerSCallback
+    !>TODO
+    procedure :: registerHCallback => TDftbPlus_registerHCallback
+    !>TODO
+    procedure :: getOverlap => TDftbPlus_getOverlap
+    !>TODO
+    procedure :: getHamiltonian => TDftbPlus_getHamiltonian
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -743,6 +749,81 @@ contains
     call this%main%apicallback%registerS(callback, aux_ptr)
   end subroutine TDftbPlus_registerSCallback
 
+  !> TODO
+  subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
+    use iso_c_binding
+    use dftbp_dftbplus_apicallback, only : TAPICallback
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the S callback
+    type(c_ptr), value :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerH(callback, aux_ptr)
+  end subroutine TDftbPlus_registerHCallback
+
+  !> TODO
+  function TDftbPlus_getOverlap(this, blacs_descr_ptr) result(data_ptr)
+    use iso_c_binding
+    use dftbp_dftbplus_apicallback, only : TAPICallback
+    use dftbp_extlibs_scalapackfx, only : DLEN_
+
+    !> Instance
+    class(TDftbPlus), intent(inout), target :: this
+
+    !> callback function for S export
+    type(c_ptr), value :: blacs_descr_ptr
+    
+    !> Returned pointer to dense overlap matrix
+    type(c_ptr) :: data_ptr
+    
+    integer(c_int), pointer :: blacs_descr(:)
+
+    call this%checkInit()
+    
+    call c_f_pointer(blacs_descr_ptr, blacs_descr, [DLEN_])
+    blacs_descr(:) = this%main%denseDesc%blacsOrbSqr
+    
+    if (this%isHSReal()) then
+      data_ptr = c_loc(this%main%SSqrReal(1,1))
+    else
+      data_ptr = c_loc(this%main%SSqrCplx(1,1))
+    endif
+  end function TDftbPlus_getOverlap
+
+  !> TODO
+  function TDftbPlus_getHamiltonian(this, blacs_descr_ptr) result(data_ptr)
+    use iso_c_binding
+    use dftbp_dftbplus_apicallback, only : TAPICallback
+    use dftbp_extlibs_scalapackfx, only : DLEN_
+
+    !> Instance
+    class(TDftbPlus), intent(inout), target :: this
+
+    !> callback function for S export
+    type(c_ptr), value :: blacs_descr_ptr
+    
+    !> Returned pointer to dense overlap matrix
+    type(c_ptr) :: data_ptr
+    
+    integer(c_int), pointer :: blacs_descr(:)
+
+    call this%checkInit()
+    
+    call c_f_pointer(blacs_descr_ptr, blacs_descr, [DLEN_])
+    blacs_descr(:) = this%main%denseDesc%blacsOrbSqr
+    
+    if (this%isHSReal()) then
+      data_ptr = c_loc(this%main%HSqrReal(1,1))
+    else
+      data_ptr = c_loc(this%main%HSqrCplx(1,1))
+    endif
+  end function TDftbPlus_getHamiltonian
 
   !> Returns the atomic masses for each atom in the system.
   subroutine TDftbPlus_getAtomicMasses(this, mass)

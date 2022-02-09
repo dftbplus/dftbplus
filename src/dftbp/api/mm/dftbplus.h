@@ -283,6 +283,12 @@ void dftbp_register_dm_callback(DftbPlus *instance, void *callback, void *aux_pt
 
 void dftbp_register_s_callback(DftbPlus *instance, void *callback, void *aux_ptr);
 
+void dftbp_register_h_callback(DftbPlus *instance, void *callback, void *aux_ptr);
+
+void* dftbp_get_overlap(DftbPlus *instance, int *blacs_descr);
+
+void* dftbp_get_hamiltonian(DftbPlus *instance, int *blacs_descr);
+
 /**
  * Queries the nr. of (k-point,spin chanel) pairs in current process group.
  *
