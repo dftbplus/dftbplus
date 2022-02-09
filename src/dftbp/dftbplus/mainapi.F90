@@ -30,7 +30,7 @@ module dftbp_dftbplus_mainapi
 
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges, 
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
   public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
