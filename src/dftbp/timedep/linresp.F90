@@ -111,9 +111,6 @@ module dftbp_timedep_linresp
     !> diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
-    !> Initialised data structure?
-    logical :: tInit = .false.
-
   end type TLinrespini
 
 

@@ -4664,12 +4664,10 @@ contains
           & response calculations (requires the ARPACK/ngARPACK libraries).')
     end if
 
-    ctrl%lrespini%tInit = .false.
-    ctrl%lrespini%tPrintEigVecs = .false.
-
     if (associated(child)) then
 
-      ctrl%lrespini%tInit = .true.
+      allocate(ctrl%lrespini)
+      ctrl%lrespini%tPrintEigVecs = .false.
 
       if (ctrl%tSpin) then
         ctrl%lrespini%sym = ' '
@@ -5037,7 +5035,12 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+
+    logical :: tPrintEigVecs
+
+    tPrintEigVecs = ctrl%tPrintEigVecs
+    if (allocated(ctrl%lrespini)) tPrintEigvecs = tPrintEigvecs .or. ctrl%lrespini%tPrintEigVecs
+    if (tPrintEigVecs) then
       call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
     end if
 
@@ -5177,7 +5180,7 @@ contains
 
     tLRNeedsSpinConstants = .false.
 
-    if (ctrl%lrespini%tInit) then
+    if (allocated(ctrl%lrespini)) then
       select case (ctrl%lrespini%sym)
       case ("T", "B", " ")
         tLRNeedsSpinConstants = .true.
