@@ -696,6 +696,7 @@ frequencies.
 \begin{ptable}
   \kw{Atoms} & i+|m &  & 1:-1 & \\
   \kw{Delta} & r & & 1e-4 & \\
+  \kw{ComputeAtoms} & i+|m &  & 1:-1 & \\	
 \end{ptable}
 
 \begin{description}
@@ -705,6 +706,9 @@ frequencies.
 \item[\is{Delta}] Step size for numerical differentiation of forces to
   get the second derivatives of the energy with respect to atomic
   coordinates.
+
+\item[\is{ComputeAtoms}] Atomic range used to distribute the calculation of the Hessian.
+  The option is used when Atoms is set to 1:-1 and must be a simple contiguous range.
 \end{description}
 
 
