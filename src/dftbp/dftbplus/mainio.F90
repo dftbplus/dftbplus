@@ -2502,11 +2502,11 @@ contains
     logical :: tPartialHessian = .false. 
 
     ! Sanity check in case some bug is introduced
-    if (size(pDynMatrix,2) /= 3*size(indMovedAtoms)) then
+    if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
       call error('Internal error: incorrect number of rows of dynamical Matrix')    
     end if       
     ! It is a partial Hessian Calculation if DynMatrix is not squared
-    if (size(pDynMatrix,1) > size(pDynMatrix,2)) then
+    if (size(pDynMatrix, dim=1) > size(pDynMatrix, dim=2)) then
       tPartialHessian = .true.
     end if
 

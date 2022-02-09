@@ -3,13 +3,24 @@
 # utility to setup a partial calculation of the Hessian and rejoin all files
 # set up the 'dftb_in.hsd' input file with appropriate computation options.
 
-# SET a file "dftb_in.in" with all options for dftb+ run
-# For the script to work include the block to set the computed Atoms:
-#
-# Driver = SecondDerivatives{
-#   Delta = 1e-5
-#   computeAtoms = @ATOMS@
-# }
+
+if [ $# -lt 2 ]; then
+  echo "set_partial_hessian -np ntasks --file struture.gen [--exec-batch batchscript  --gather]"
+  echo " "
+  echo "         -np    :  Sets the number of tasks to distribute the job"
+  echo "     --file, -f :  Calculated geometry. Used to obtain the numeber of atoms"
+  echo "   --natoms, -n :  Alternative to --file used to set the number of atoms"
+  echo "--exec-batch, -e:  Optional batch script to submit the jobs automatically"
+  echo "    --gather, -g:  Gather the partial Hessians and assemble a complete file"
+  echo " USE: "
+  echo " The script requires to prepare a file named 'dftb_in.in' with all options for a dftb+ run"
+  echo " and with computeAtoms = @ATOMS@ in the SecondDerivatives block: "
+  echo " "
+  echo " Driver = SecondDerivatives{"
+  echo "   Delta = 1e-4  # (set this parameter as needed)"
+  echo "   computeAtoms = @ATOMS@  "
+  echo " }"
+fi
 
 FILE=""
 NATOMS="0"

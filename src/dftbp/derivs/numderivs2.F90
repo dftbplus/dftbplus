@@ -73,7 +73,9 @@ contains
   !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the truncation at second
   !> derivatives is only valid at the minimum position.
-  subroutine derivs_create(this, xInit, nAtoms, Delta)
+  !> The subroutine can allocate a rectangular matrix with parameter nAtomsDerivs,
+  !> Useful for distributed calculations of the Hessian
+  subroutine derivs_create(this, xInit, nAtomsDerivs, Delta)
 
     !> Pointer to the initialised object on exit.
     type(TNumDerivs), allocatable, intent(out) :: this
@@ -82,7 +84,7 @@ contains
     real(dp), intent(inout) :: xInit(:,:)
 
     !> number of computed atoms
-    integer, intent(in) :: nAtoms
+    integer, intent(in) :: nAtomsDerivs
 
     !> step size for numerical derivative
     real(dp), intent(in) :: Delta
@@ -95,7 +97,7 @@ contains
     allocate(this)
     allocate(this%x0(3, nDerivs))
     this%x0(:,:) = xInit(:,:)
-    allocate(this%derivs(3*nAtoms,3*nDerivs))
+    allocate(this%derivs(3*nAtomsDerivs,3*nDerivs))
     this%derivs(:,:) = 0.0_dp
     this%nDerivs = nDerivs
     this%Delta = Delta

@@ -882,18 +882,12 @@ contains
     !> whether indices are contigous 
     logical :: check
 
-    integer :: kk, ind
+    integer :: kk
 
     check = .true.
-    if (size(indices) == 0) then
-      return
-    end if    
     
-    kk = 1
-    ind = indices(1) 
     do kk = 2, size(indices)
-      ind = ind + 1
-      if (indices(kk) /= ind) then
+      if (indices(kk) /= indices(kk-1)+1) then
         check = .false.
         exit
       end if  
