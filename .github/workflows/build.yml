@@ -147,11 +147,7 @@ jobs:
         pushd ${BUILD_DIR}
         ctest -j 2 --output-on-failure
         popd
-      with: 
-        name: test-logs
-        path: |
-          /home/runner/work/dftbplus/dftbplus/_build/test/app/dftb+/stderror.log
-          /home/runner/work/dftbplus/dftbplus/_build/test/app/dftb+/tagdiff.log
+
     - name: Install project
       run: |
         cmake --install ${BUILD_DIR}
