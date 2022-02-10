@@ -119,8 +119,9 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
-  use dftbp_dftbplus_apicallback, only : TAPICallback, null_apicallback
 #:endif
+  use dftbp_dftbplus_apicallback, only : TAPICallback, null_apicallback
+
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
@@ -2790,9 +2791,10 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-
-      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrReal)
-      call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrReal)
+      if (present(apicallback)) then
+        call apicallback%invokeS(SSqrReal, denseDesc%blacsOrbSqr)
+        call apicallback%invokeH(HSqrReal, denseDesc%blacsOrbSqr)
+      endif
 
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
@@ -2812,6 +2814,11 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+      if (present(apicallback)) then
+        call apicallback%invokeS(SSqrReal)
+        call apicallback%invokeH(HSqrReal)
+      endif
 
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
@@ -2931,8 +2938,11 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
-      call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrCplx)
+      
+      if (present(apicallback)) then
+        call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
+        call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrCplx)
+      endif
       call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
@@ -3189,7 +3199,11 @@ contains
     #:endif
 
       if (present(apicallback)) then
-        call apicallback%invokeDM(iK, iSpin, denseDesc%blacsOrbSqr, work)
+        #:if WITH_SCALAPACK
+          call apicallback%invokeDM(iK, iSpin, work, denseDesc%blacsOrbSqr)
+        #:else
+          call apicallback%invokeDM(iK, iSpin, work)
+        #:endif
       endif
       
       if (allocated(rhoSqrReal)) then
@@ -3307,9 +3321,13 @@ contains
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:endif
 
-    if (present(apicallback)) then
-      call apicallback%invokeDM(iK, iSpin, denseDesc%blacsOrbSqr, work)
-    endif
+      if (present(apicallback)) then
+        #:if WITH_SCALAPACK
+          call apicallback%invokeDM(iK, iSpin, work, denseDesc%blacsOrbSqr)
+        #:else
+          call apicallback%invokeDM(iK, iSpin, work)
+        #:endif
+      endif
 
     end do
 

@@ -88,11 +88,11 @@ contains
   end subroutine TAPICallback_registerDM
   
 
-  subroutine TAPICallback_invokeDM_real(this, i_kpoint, i_spin, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeDM_real(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
     integer(c_int), value :: i_kpoint, i_spin
-    integer, intent(in), target :: blacs_descr(:)
     real(dp), intent(in), target :: data_buf(:,:)
+    integer, intent(in), target, optional :: blacs_descr(:)
     
     procedure(dm_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
@@ -103,18 +103,18 @@ contains
     endif
     
     call c_f_procpointer(this%dm_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%dm_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
   
   end subroutine TAPICallback_invokeDM_real
 
-  subroutine TAPICallback_invokeDM_cplx(this, i_kpoint, i_spin, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeDM_cplx(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
     integer(c_int), value :: i_kpoint, i_spin
-    integer, intent(in), target :: blacs_descr(:)
     complex(dp), intent(in), target :: data_buf(:,:)
+    integer, intent(in), target, optional :: blacs_descr(:)
 
     procedure(dm_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
@@ -125,7 +125,7 @@ contains
     endif
     
     call c_f_procpointer(this%dm_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%dm_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
@@ -144,10 +144,10 @@ contains
   end subroutine TAPICallback_registerS
   
 
-  subroutine TAPICallback_invokeS_real(this, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeS_real(this, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    integer, intent(in), target :: blacs_descr(:)
     real(dp), intent(in), target :: data_buf(:,:)
+    integer, intent(in), target, optional :: blacs_descr(:)
     
     procedure(hs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
@@ -158,18 +158,18 @@ contains
     endif
     
     call c_f_procpointer(this%s_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%s_aux_ptr, blacs_descr_ptr, data_ptr)
   
   end subroutine TAPICallback_invokeS_real
 
-  subroutine TAPICallback_invokeS_cplx(this, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeS_cplx(this, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    integer, intent(in), target :: blacs_descr(:)
     complex(dp), intent(in), target :: data_buf(:,:)
-    
+    integer, intent(in), target, optional :: blacs_descr(:)
+
     procedure(hs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
@@ -179,7 +179,7 @@ contains
     endif
     
     call c_f_procpointer(this%s_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%s_aux_ptr, blacs_descr_ptr, data_ptr)
@@ -196,11 +196,11 @@ contains
   end subroutine TAPICallback_registerH
   
 
-  subroutine TAPICallback_invokeH_real(this, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeH_real(this, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    integer, intent(in), target :: blacs_descr(:)
     real(dp), intent(in), target :: data_buf(:,:)
-    
+    integer, intent(in), target, optional :: blacs_descr(:)
+
     procedure(hs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
@@ -210,18 +210,18 @@ contains
     endif
     
     call c_f_procpointer(this%h_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
   
   end subroutine TAPICallback_invokeH_real
 
-  subroutine TAPICallback_invokeH_cplx(this, blacs_descr, data_buf)
+  subroutine TAPICallback_invokeH_cplx(this, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    integer, intent(in), target :: blacs_descr(:)
     complex(dp), intent(in), target :: data_buf(:,:)
-    
+    integer, intent(in), target, optional :: blacs_descr(:)
+
     procedure(hs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
@@ -231,7 +231,7 @@ contains
     endif
     
     call c_f_procpointer(this%h_callback, callback_proc)
-    blacs_descr_ptr = c_loc(blacs_descr(1))
+    blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
     call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
