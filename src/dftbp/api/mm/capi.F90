@@ -463,7 +463,7 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     type(TDftbPlusC), pointer :: instance
-    logical :: HSReal
+    logical(kind=C_BOOL) :: HSReal
 
     call c_f_pointer(handler%instance, instance)
     
