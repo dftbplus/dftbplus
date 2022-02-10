@@ -40,17 +40,17 @@ module dftbp_dftbplus_apicallback
   type :: TAPICallback
     private
     !> callback
-    type(c_funptr) :: dm_callback
+    type(c_funptr) :: dm_callback = c_null_funptr
     !> callback context
     type(c_ptr) :: dm_aux_ptr
 
     !> callback
-    type(c_funptr) :: s_callback
+    type(c_funptr) :: s_callback = c_null_funptr
     !> callback context
     type(c_ptr) :: s_aux_ptr
 
     !> callback
-    type(c_funptr) :: h_callback
+    type(c_funptr) :: h_callback = c_null_funptr
     !> callback context
     type(c_ptr) :: h_aux_ptr
 
