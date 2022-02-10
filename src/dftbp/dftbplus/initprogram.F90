@@ -526,6 +526,9 @@ module dftbp_dftbplus_initprogram
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
 
+    !> Index of the atoms for which forces are computed
+    integer, allocatable :: indComputedAtom(:)
+
     !> Nr. of moved coordinates
     integer :: nMovedCoord
 
@@ -1956,8 +1959,11 @@ contains
     if (this%nMovedAtom > 0) then
       allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
       this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
+      allocate(this%indComputedAtom(input%ctrl%nrComputed))
+      this%indComputedAtom(:) = input%ctrl%indComputedAtom(:)
     else
       allocate(this%indMovedAtom(0))
+      allocate(this%indComputedAtom(0))
     end if
 
     if (allocated(input%ctrl%geoOpt)) then
@@ -2550,11 +2556,7 @@ contains
     if (this%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
-      if (input%ctrl%tAllAtomsDerivs) then
-        call create(this%derivDriver, tmp3Coords, this%nAtom, input%ctrl%deriv2ndDelta)
-      else
-        call create(this%derivDriver, tmp3Coords, this%nMovedAtom, input%ctrl%deriv2ndDelta)
-      end if
+      call create(this%derivDriver, tmp3Coords, size(this%indComputedAtom), input%ctrl%deriv2ndDelta)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -2960,7 +2962,11 @@ contains
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) this%indMovedAtom
+      write(stdOut, *) this%indComputedAtom
+      if (size(this%indComputedAtom) > size(this%indMovedAtom)) then
+        write(stdOut, "('Mode:',T30,A)") "Moved atoms:"
+        write(stdOut, *) this%indMovedAtom
+      end if
     elseif (this%tSocket) then
       write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else

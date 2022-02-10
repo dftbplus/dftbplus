@@ -299,13 +299,12 @@ module dftbp_dftbplus_inputdata
     real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved       = 0
     integer, allocatable :: indMovedAtom(:)
+    integer :: nrComputed    = 0
+    integer, allocatable :: indComputedAtom(:)
     integer :: nrConstr      = 0
     integer, allocatable :: conAtom(:)
     real(dp), allocatable :: conVec(:,:)
     character(lc) :: outFile       = ''
-
-    !> Compute derivatives for all atoms 
-    logical :: tAllAtomsDerivs = .false.
 
     !> do we have MD velocities
     logical :: tReadMDVelocities = .false.

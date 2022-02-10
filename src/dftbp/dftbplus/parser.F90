@@ -563,6 +563,7 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
+      ! Indices of atoms that are moved
       call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
@@ -572,26 +573,30 @@ contains
         call error("No atoms specified for derivatives calculation.")
       end if
 
-      ! Partial calculation of the Hessian useful for distributed jobs.
-      ! Easily achieved when the movable atoms are restricted and derivatives are
-      ! computed for ALL atoms.  computeAtoms overrides the movable atoms
-      call getChildValue(node, "computeAtoms", buffer2, trim(atomsRange), child=child)
+      ! Specify the indices of the atoms for which the Hessian is computed.
+      ! It can be larger that the actual moved atoms in which case a rectangular matrix is
+      ! created. It is useful for distributed jobs. In this case the moved atoms
+      ! can be restricted but derivatives are computed for a larger set of atoms.
+      call getChild(node, "computeAtoms", child, requested=.false.)
       if (associated(child)) then
-        if (ctrl%nrMoved == geom%nAtom) then
-          deallocate(ctrl%indMovedAtom)
-          call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
-             & ctrl%indMovedAtom)
-          ctrl%nrMoved = size(ctrl%indMovedAtom)
-          if (ctrl%nrMoved == 0) then
-            call error("No atoms specified for calculation of partial Hessian.")
-          end if
-          if (.not. checkContigousRange(ctrl%indMovedAtom)) then
-            call error("Atoms for calculation of partial Hessian must be a contigous range.")
-          end if
-          ctrl%tAllAtomsDerivs = .true.
-        else
-          call error("partial Hessian calculation is only possible when ALL atoms can move")
+        call getChildValue(node, "computeAtoms", buffer2, trim(atomsRange), child=child, &
+          & multiple=.true.)
+        if (.not. checkContigousRange(ctrl%indMovedAtom)) then
+          call error("Atoms for calculation of partial Hessian must be a contigous range.")
         end if
+        call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
+           & ctrl%indComputedAtom)
+        ctrl%nrComputed = size(ctrl%indComputedAtom)
+        if (.not. checkContigousRange(ctrl%indComputedAtom)) then
+          call error("ComputeAtoms for calculation of partial Hessian must be a contigous range.")
+        end if
+        if (.not. checkIndices(ctrl%indMovedAtom, ctrl%indComputedAtom)) then
+          call error("Atoms contains indices not found in computeAtoms.")
+        end if
+      else
+        ctrl%nrComputed = ctrl%nrMoved
+        allocate(ctrl%indComputedAtom(ctrl%nrComputed))
+        ctrl%indComputedAtom = ctrl%indMovedAtom
       end if
 
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
@@ -878,23 +883,48 @@ contains
 
     !> Array of atomic indices
     integer, intent(in) :: indices(:)
-        
-    !> whether indices are contigous 
+
+    !> whether indices are contigous
     logical :: check
 
     integer :: kk
 
     check = .true.
-    
+
     do kk = 2, size(indices)
       if (indices(kk) /= indices(kk-1)+1) then
         check = .false.
         exit
-      end if  
+      end if
     end do
 
   end function checkContigousRange
-   
+
+  !> checks that the array subindices is contained in indices
+  function checkIndices(subindices, indices) result(check)
+
+    !> Array of atomic indices to check
+    integer, intent(in) :: subindices(:)
+
+    !> Array of atomic indices to check against
+    integer, intent(in) :: indices(:)
+
+    !> whether indices are contigous
+    logical :: check
+
+    integer :: kk
+
+    check = .true.
+
+    do kk = 1, size(subindices)
+      if (minval(abs(indices-subindices(kk))) /= 0) then
+        check = .false.
+        exit
+      end if
+    end do
+
+  end function checkIndices
+
 
   !> Common geometry optimisation settings for various drivers
 #:if WITH_TRANSPORT

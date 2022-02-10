@@ -1470,7 +1470,8 @@ contains
     tExitGeoOpt = .false.
 
     if (this%tDerivs) then
-      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, this%coord0, tGeomEnd)
+      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, &
+           & this%indComputedAtom, this%coord0, tGeomEnd)
       if (tGeomEnd) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         tExitGeoOpt = .true.
@@ -6056,7 +6057,7 @@ contains
 
 
   !> Returns the coordinates for the next Hessian calculation step.
-  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, coord, tGeomEnd)
+  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, indCompAtoms, coord, tGeomEnd)
 
     !> Driver for the finite difference second derivatives
     type(TNumDerivs), intent(inout) :: derivDriver
@@ -6064,8 +6065,11 @@ contains
     !> first derivatives of energy at the current coordinates
     real(dp), intent(in) :: derivs(:,:)
 
-    !> moving atoms
+    !> indices of moving atoms
     integer, intent(in) :: indMovedAtoms(:)
+
+    !> indices of computed atoms
+    integer, intent(in) :: indCompAtoms(:)
 
     !> atomic coordinates
     real(dp), intent(out) :: coord(:,:)
@@ -6074,15 +6078,8 @@ contains
     logical, intent(out) :: tGeomEnd
 
     real(dp) :: newCoords(3, size(indMovedAtoms))
-    real(dp), pointer :: pHessian(:,:)
 
-    call getHessianMatrix(derivDriver, pHessian)
-
-    if (size(pHessian,1) > size(indMovedAtoms)) then
-      call next(derivDriver, newCoords, derivs, tGeomEnd)
-    else
-      call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
-    end if
+    call next(derivDriver, newCoords, derivs(:, indCompAtoms), tGeomEnd)
     coord(:, indMovedAtoms) = newCoords
 
   end subroutine getNextDerivStep

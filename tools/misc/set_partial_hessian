@@ -4,21 +4,25 @@
 # set up the 'dftb_in.hsd' input file with appropriate computation options.
 
 
-if [ $# -lt 2 ]; then
+if [ $# -lt 2 -o "$NP" = "0" -o "$NATOMS" = "0" -a "$FILE" = "" ]; then
+  echo ""
   echo "set_partial_hessian -np ntasks --file struture.gen [--exec-batch batchscript  --gather]"
   echo " "
-  echo "         -np    :  Sets the number of tasks to distribute the job"
-  echo "     --file, -f :  Calculated geometry. Used to obtain the numeber of atoms"
-  echo "   --natoms, -n :  Alternative to --file used to set the number of atoms"
-  echo "--exec-batch, -e:  Optional batch script to submit the jobs automatically"
-  echo "    --gather, -g:  Gather the partial Hessians and assemble a complete file"
+  echo "              -np:  Sets the number of tasks to distribute the job"
+  echo "      --file, -f :  Calculated geometry. Used to obtain the number of atoms"
+  echo "    --natoms, -n :  Alternative to --file used to set the number of atoms"
+  echo "--exec-batch, -e :  Optional batch script to submit the jobs automatically"
+  echo "                    If the batch script contains Slurm '#SBATCH' commands the script is"
+  echo "                    launched with the command 'sbatch batchscript' " 
+  echo "    --gather, -g :  Gather the partial Hessians and assemble a complete file"
   echo " USE: "
   echo " The script requires to prepare a file named 'dftb_in.in' with all options for a dftb+ run"
-  echo " and with computeAtoms = @ATOMS@ in the SecondDerivatives block: "
+  echo " and with Atoms = @ATOMS@ in the block SecondDerivatives like, "
   echo " "
   echo " Driver = SecondDerivatives{"
   echo "   Delta = 1e-4  # (set this parameter as needed)"
-  echo "   computeAtoms = @ATOMS@  "
+  echo "   Atoms = @ATOMS@  "
+  echo "   computeAtoms = 1:-1"
   echo " }"
 fi
 
@@ -39,7 +43,13 @@ elif [ "$1" = "-np" ]; then
    NP=$2
    shift 2
 elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then  
-   BATCH=$2
+   COUNT=`grep -c '#SBATCH' $2`
+   if [ "$COUNT" -gt 0 ]; then
+     BATCH="sbatch $2"
+   else
+     BATCH="./$2"
+   fi  
+   echo "BATCH command applied: " $BATCH
    shift 2
 elif [ "$1" = "--gather" -o "$1" = "-g" ]; then 
    SETJOB=0
@@ -49,11 +59,19 @@ else
 fi
 done
 
-if [ "$NP" = "0" -o "$NATOMS" = "0" -a "$FILE" = "" ]; then
-   echo "set_partial_hess -np Np [--natoms Nat | --file filename] [--exec-batch] [--gather]"
-   exit
+# CHECKS THAT dftb_in.in exists and is set correctly
+if [ -f dftb_in.in ]; then
+  NC=`grep -c '@ATOMS@' dftb_in.in`
+  if [ "$NC" -eq 0 ]; then
+    echo "ERROR: @ATOMS@ not found in dftb_in.in"
+    exit
+  fi  
+else
+  echo "ERROR: file dftb_in.in not found"
+  exit
 fi
 
+# SETS NATOMS from file
 if [ "$NATOMS" = "0" -a "$FILE" != "" ]; then
   NATOMS=`awk '{if(NR==1){print $1}}' $FILE`
 fi
@@ -61,6 +79,7 @@ fi
 echo "NATOMS=" $NATOMS
 echo "NPROCESSES=" $NP
 
+# Compute atoms per process
 NEACH=""
 NLEFT=$NATOMS
 while [ $NLEFT -gt 0 ]; do
@@ -70,11 +89,14 @@ while [ $NLEFT -gt 0 ]; do
   let "NP--"
 done
 
+# prepare the assembled Hessian
 if [ $SETJOB -eq 0 ]; then
   rm -f hessian.combined
   touch hessian.combined
 fi
 
+# Create folders and optionally execute jobs
+# or gather partial Hessians into one
 NSTART=1
 for i in $NEACH; do
   NSTOP=`echo "$NSTART + $i - 1" | bc -l`
@@ -88,7 +110,7 @@ for i in $NEACH; do
      if [ "$BATCH" != "" ]; then
        cp $BATCH $FOLDER
        cd $FOLDER
-       sbatch $BATCH
+       $BATCH
        cd .. 
      fi 
   else

@@ -73,9 +73,9 @@ contains
   !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the truncation at second
   !> derivatives is only valid at the minimum position.
-  !> The subroutine can allocate a rectangular matrix with parameter nAtomsDerivs,
+  !> The subroutine can allocate a rectangular matrix with parameter nComputeAtoms,
   !> Useful for distributed calculations of the Hessian
-  subroutine derivs_create(this, xInit, nAtomsDerivs, Delta)
+  subroutine derivs_create(this, xInit, nComputeAtoms, Delta)
 
     !> Pointer to the initialised object on exit.
     type(TNumDerivs), allocatable, intent(out) :: this
@@ -84,7 +84,7 @@ contains
     real(dp), intent(inout) :: xInit(:,:)
 
     !> number of computed atoms
-    integer, intent(in) :: nAtomsDerivs
+    integer, intent(in) :: nComputeAtoms
 
     !> step size for numerical derivative
     real(dp), intent(in) :: Delta
@@ -97,7 +97,7 @@ contains
     allocate(this)
     allocate(this%x0(3, nDerivs))
     this%x0(:,:) = xInit(:,:)
-    allocate(this%derivs(3*nAtomsDerivs,3*nDerivs))
+    allocate(this%derivs(3*nComputeAtoms,3*nDerivs))
     this%derivs(:,:) = 0.0_dp
     this%nDerivs = nDerivs
     this%Delta = Delta
@@ -128,10 +128,10 @@ contains
     !> Has the process terminated? If so internally calculate the Hessian matrix.
     logical, intent(out) :: tGeomEnd
 
-    integer :: ii, jj, nAtoms
+    integer :: ii, jj, nComputeAtoms
 
     @:ASSERT(all(shape(xNew)==(/3,this%nDerivs/)))
-    nAtoms = size(this%derivs,1)/3
+    nComputeAtoms = size(this%derivs, dim=1)/3
     @:ASSERT(size(fOld,1)==3)
     @:ASSERT(size(fOld,2)==nAtoms)
 
@@ -142,7 +142,7 @@ contains
       tGeomEnd = .false.
     end if
 
-    do ii = 1, nAtoms
+    do ii = 1, nComputeAtoms
       do jj = 1, 3
         this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) = &
             & this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) &
