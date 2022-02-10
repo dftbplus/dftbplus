@@ -5293,9 +5293,9 @@ Apply time-dependent sinusoidal perturbation to the system.
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
    \omega$ of the laser.
 
- \item[\is{Phase}] Optional initial phase of laser field in radians,
-   such that sinusoidal component of the field is described by
-   $\sin(\omega t + \phi)$.
+ \item[\is{Phase}] \modif{\modtype{Angular units}} Optional initial
+   phase of laser field (inradians by default), such that sinusoidal
+   component of the field is described by $\sin(\omega t + \phi)$.
 
  \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The atoms can be
    specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
@@ -6262,7 +6262,8 @@ be zero (up to numerical presicion) for a neutral system.
 \index{mu.dat}
 
 Dipole moment cartesian components $\mu_i$ as a function of time. The
-name depends on the type or perturbation: for kicks the polarization
+units of the quantities are given at the top of the file. The name
+depends on the type or perturbation: for kicks the polarization
 direction of the Dirac-delta field is indicated in the name of the
 file; for lasers and pulses, the name is always mu.dat. The column
 order for a spin unpolarised calculation is the following:

@@ -43,7 +43,6 @@ program test_timeprop
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: force(3, nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
   type(fnode), pointer :: pPerturb, pKick
 
