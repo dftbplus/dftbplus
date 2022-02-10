@@ -2907,8 +2907,8 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       
       if (present(apicallback)) then
-        call apicallback%invokeS(denseDesc%blacsOrbSqr, SSqrCplx)
-        call apicallback%invokeH(denseDesc%blacsOrbSqr, HSqrCplx)
+        call apicallback%invokeS(SSqrCplx, denseDesc%blacsOrbSqr)
+        call apicallback%invokeH(HSqrCplx, denseDesc%blacsOrbSqr)
       endif
       call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
@@ -2928,6 +2928,10 @@ contains
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+      if (present(apicallback)) then
+        call apicallback%invokeS(SSqrCplx)
+        call apicallback%invokeH(HSqrCplx)
+      endif
       call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
