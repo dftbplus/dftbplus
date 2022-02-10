@@ -695,20 +695,22 @@ frequencies.
 
 \begin{ptable}
   \kw{Atoms} & i+|m &  & 1:-1 & \\
-  \kw{Delta} & r & & 1e-4 & \\
   \kw{ComputeAtoms} & i+|m &  & 1:-1 & \\	
+  \kw{Delta} & r & & 1e-4 & \\
 \end{ptable}
 
 \begin{description}
-\item[\is{Atoms}] Index of the atoms for which to calculate the second
-  derivatives. The index selection format is described in appendix \ref{sec:index_selection}.
+\item[\is{Atoms}] Index of the atoms that are actually moved and for which the second
+  derivatives are computed. The index selection format is described in appendix \ref{sec:index_selection}.
+
+\item[\is{ComputeAtoms}] Optional parameter to define the atoms for which the Hessian is computed.
+  It can be larger than the moved Atoms in which case a rectangular matrix is produced on output with
+  3$*$nAtoms rows and 3$*$nComputedAtoms columns. This is useful for a job distribution of the Hessian calculation.
+  See also the batch script in tools/misc/set\_partial\_hessian. 
 
 \item[\is{Delta}] Step size for numerical differentiation of forces to
   get the second derivatives of the energy with respect to atomic
   coordinates.
-
-\item[\is{ComputeAtoms}] Atomic range used to distribute the calculation of the Hessian.
-  The option is used when Atoms is set to 1:-1 and must be a simple contiguous range.
 \end{description}
 
 
