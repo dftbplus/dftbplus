@@ -2734,7 +2734,7 @@ contains
     coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt
 
-    ! This re-initializes the VVerlet propagator with coordNew
+    ! This re-initializes the Verlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
       call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
           & tHalfVelocities=.true.)
@@ -3642,12 +3642,15 @@ contains
     real(dp) :: new3Coord(3, this%nMovedAtom)
     integer :: iKS
 
+    character(sc) :: dumpIdx
+    real(dp), allocatable :: velInternal(:,:)
+
     this%startTime = 0.0_dp
     this%timeElec = 0.0_dp
 
     this%speciesAll = speciesAll
     this%nSpin = size(ints%hamiltonian(:,:), dim=2)
-    if (this%nSpin > 1) then
+    if (this%nSpin > 1 .and. this%iCall == 1) then
       call qm2ud(q0)
     end if
 
@@ -3731,6 +3734,16 @@ contains
       call initLatticeVectors(this, boundaryCond)
     end if
 
+    ! Write density at t=0
+    if (this%tPump .and. .not. this%tReadRestart) then
+      allocate(velInternal(3,size(this%movedVelo, dim=2)))
+        velInternal(:,:) = 0.0_dp
+      call writeRestartFile(this%trho, this%trho, coord, velInternal, this%startTime, this%dt,&
+          & '0ppdump', this%tWriteRestartAscii, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      deallocate(velInternal)
+    end if
+
     if (allocated(this%sccCalc)) then
       call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
     end if
@@ -3738,6 +3751,7 @@ contains
       call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
     end if
+
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll, errStatus)

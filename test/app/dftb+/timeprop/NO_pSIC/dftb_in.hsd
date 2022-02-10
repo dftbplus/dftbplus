@@ -39,7 +39,7 @@ Hamiltonian = DFTB {
     }
 
     SlaterKosterFiles = Type2FileNames {
-Prefix = {slakos/origin/mio-1-1/}
+	Prefix = {slakos/origin/mio-1-1/}
         Separator = "-"
         Suffix = ".skf"
     }
@@ -55,6 +55,7 @@ ElectronDynamics = {
     TimeStep [au] = 0.2
     Perturbation = Kick {
         PolarizationDirection = "all"
+	SpinType = singlet
     }
     FieldStrength [v/a] = 0.001
 }
