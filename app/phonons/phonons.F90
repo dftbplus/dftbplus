@@ -189,7 +189,7 @@ contains
           close(fu)
         end do
       else
-        open(fu, file="modes.xyz", position="rewind", status="replace")
+        open(newunit=fu, file="modes.xyz", position="rewind", status="replace")
         do ii = 1, nModesToPlot
           iMode = ModesToPlot(ii)
           write(fu,*)nAtom

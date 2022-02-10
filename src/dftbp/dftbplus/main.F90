@@ -65,13 +65,13 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
       & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
-      & writeMdOut2, writeDetailedOut5, writeMdOut1, openDetailedOut, printReksSccInfo,&
+      & writeMdOut2, writeDetailedOut5, writeMdOut1, openOutputFile, printReksSccInfo,&
       & writeReksDetailedOut1, writebandout, writehsandstop, printSccInfo, printBlankLine,&
       & writeCharges, writeDetailedOut1, writeDetailedOut2, writeDetailedOut3,&
       & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
       & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
       & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
-      & writeFinalDriverstatus, writeMdOut3, writeHessianout, writeAutotestTag, writeResultsTag,&
+      & writeFinalDriverstatus, writeHessianout, writeAutotestTag, writeResultsTag,&
       & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
       & writeDetailedOut8, writeDetailedOut9
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -291,7 +291,8 @@ contains
       end if
 
       if (this%tWriteDetailedOut .and. this%tMd) then
-        call writeDetailedOut6(this%fdDetailedOut, this%dftbEnergy(this%deltaDftb%iFinal), tempIon)
+        call writeDetailedOut6(this%fdDetailedOut%unit, this%dftbEnergy(this%deltaDftb%iFinal),&
+            & tempIon)
       end if
 
       if (tGeomEnd) then
@@ -323,16 +324,17 @@ contains
 
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
-        call writeDetailedOut7(this%fdDetailedOut, this%isGeoOpt .or. allocated(this%geoOpt),&
-            & tGeomEnd, this%tMd, this%tDerivs, this%eField, this%dipoleMoment,&
-            & this%deltaDftb, this%solvation)
+        call writeDetailedOut7(this%fdDetailedOut%unit,&
+            & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
           & this%tDerivs)
 
       if (this%tMD) then
-        call writeMdOut3(this%fdMd, mdOut)
+        deallocate(this%fdMd)
+        write(stdOut, "(2A)") 'MD information accumulated in ', mdOut
       end if
     end if
 
@@ -410,15 +412,15 @@ contains
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
-          call writeDetailedOut9(this%fdDetailedOut, this%orb, this%polarisability, this%dqOut,&
-              & this%dEfdE)
+          call writeDetailedOut8(this%fdDetailedOut%unit, this%neFermi)
+          call writeDetailedOut9(this%fdDetailedOut%unit, this%orb, this%polarisability,&
+              & this%dqOut, this%dEfdE)
         end if
       end if
       if (this%isRespKernelPert) then
         call polarizabilityKernel(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
             & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
-            & this%fdDetailedOut, this%tWriteDetailedOut, this%filling, this%eigen,&
+            & this%fdDetailedOut, this%filling, this%eigen,&
             & this%tolDegenDFTBPT, this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian,&
             & this%ints%overlap, this%orb, this%nAtom, this%species, this%neighbourList,&
             & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell,&
@@ -432,13 +434,13 @@ contains
           call error(errStatus%message)
         end if
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut8(this%fdDetailedOut, this%neFermi)
+          call writeDetailedOut8(this%fdDetailedOut%unit, this%neFermi)
         end if
       end if
     end if
 
     if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-      close(this%fdDetailedOut)
+      deallocate(this%fdDetailedOut)
     end if
 
     if (allocated(this%pipekMezey)) then
@@ -690,7 +692,10 @@ contains
     tExitGeoOpt = .false.
 
     if (this%tMD .and. tWriteRestart) then
-      call writeMdOut1(this%fdMd, mdOut, iGeoStep, this%pMDIntegrator)
+      if (iGeoStep == 0) then
+        call openOutputFile(mdOut, .false., this%fdMd)
+      end if
+      call writeMdOut1(this%fdMd%unit, iGeoStep, this%pMDIntegrator)
     end if
 
     if (this%tLatticeChanged) then
@@ -782,7 +787,7 @@ contains
     ! For non-scc calculations with transport only, jump out of geometry loop
     if (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
       if (this%tWriteDetailedOut) then
-        call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
+        call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       end if
       ! We need to define hamltonian by adding the potential
       call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
@@ -889,9 +894,9 @@ contains
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
-            call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
-            call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
-                & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
+            call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
+            call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep,&
+                & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
                 & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
                 & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
                 & this%extPressure, this%cellVol, this%dftbEnergy(1)%TS, this%tAtomicEnergy,&
@@ -1127,18 +1132,18 @@ contains
         call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
 
         if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
-          call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
-          call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
-              & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
+          call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
+          call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
+              & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+              & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
               & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
               & this%invLatVec, this%kPoint)
-          call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-              & this%species, allocated(this%dftbU), this%tImHam .or. this%tSpinOrbit,&
+          call writeDetailedOut2(this%fdDetailedOut%unit, this%q0, this%qInput, this%qOutput,&
+              & this%orb, this%species, allocated(this%dftbU), this%tImHam .or. this%tSpinOrbit,&
               & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
               & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont,&
               & this%qNetAtom)
-          call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
+          call writeDetailedOut3(this%fdDetailedOut%unit, this%qInput, this%qOutput,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
               & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
               & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
@@ -1169,10 +1174,10 @@ contains
     end if
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
-      close(this%fdDetailedOut)
-      call openDetailedOut(this%fdDetailedOut, userOut, tAppendDetailedOut)
+      deallocate(this%fdDetailedOut)
+      call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       if (allocated(this%reks)) then
-        call writeReksDetailedOut1(this%fdDetailedOut, this%nGeoSteps, iGeoStep, this%tMD,&
+        call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep, this%tMD,&
             & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
             & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
             & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
@@ -1181,16 +1186,16 @@ contains
             & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
             & allocated(this%thirdOrd), this%isRangeSep, qNetAtom=this%qNetAtom)
       else
-        call writeDetailedOut1(this%fdDetailedOut, this%iDistribFn, this%nGeoSteps, iGeoStep,&
-            & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
+        call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
+            & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+            & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
             & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
             & this%invLatVec, this%kPoint)
-        call writeDetailedOut2(this%fdDetailedOut, this%q0, this%qInput, this%qOutput, this%orb,&
-            & this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
+        call writeDetailedOut2(this%fdDetailedOut%unit, this%q0, this%qInput, this%qOutput,&
+            & this%orb, this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
             & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
             & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
-        call writeDetailedOut3(this%fdDetailedOut, this%qInput, this%qOutput,&
+        call writeDetailedOut3(this%fdDetailedOut%unit, this%qInput, this%qOutput,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
@@ -1364,7 +1369,7 @@ contains
     end if
 
     if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
-      call writeDetailedOut4(this%fdDetailedOut, this%tSccCalc, tConverged, this%isXlbomd,&
+      call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc, tConverged, this%isXlbomd,&
           & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD,&
           & this%tPrintForces, this%tStress,&
           & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
@@ -1596,8 +1601,8 @@ contains
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%EMermin&
               & + this%extPressure * this%cellVol
         end if
-        call writeMdOut2(this%fdMd, this%tStress, this%tBarostat, this%tPeriodic, this%isLinResp,&
-            & this%eField, this%tFixEf, this%tPrintMulliken,&
+        call writeMdOut2(this%fdMd%unit, this%tStress, this%tBarostat, this%tPeriodic,&
+            & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
             & this%dipoleMoment, this%solvation)
@@ -1608,7 +1613,7 @@ contains
       end if
       this%coord0(:,:) = this%newCoords
       if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
-        call writeDetailedOut5(this%fdDetailedOut, this%tPrintForces, this%tSetFillingTemp,&
+        call writeDetailedOut5(this%fdDetailedOut%unit, this%tPrintForces, this%tSetFillingTemp,&
             & this%tPeriodic, this%tStress, this%totalStress, this%totalLatDeriv,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%tempElec, this%extPressure,&
             & this%intPressure, tempIon)
@@ -3583,9 +3588,9 @@ contains
       E0(:) = 0.0_dp
       kWeightTmp(:) = 1.0_dp
       do iK = 1, nKPoints
-        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBand, EfTmp, TSTmp, E0Tmp, nElecFill,&
+        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBandTmp(:nSpinHams), EfTmp, TSTmp, E0Tmp, nElecFill,&
             & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
-        Eband(:) = Eband + EbandTmp(1) * kWeights(iK)
+        Eband(:) = Eband + EbandTmp(:nSpinHams) * kWeights(iK)
         Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
         TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
         E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)

@@ -299,6 +299,16 @@ void* dftbp_get_hamiltonian(DftbPlus *instance, int *blacs_descr);
 int dftbp_get_nr_local_ks(DftbPlus *instance);
 
 /**
+ * Queries the nr. of k-points in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of k-points
+ */
+int dftbp_nr_kpoints(DftbPlus *instance);
+
+
+/**
  * Queries the energy of the current geometry
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -325,6 +335,26 @@ int dftbp_get_local_ks(DftbPlus *instance, int *local_ks);
  * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
+
+
+/**
+ * Queries the number of basis functions for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] nOrbitals number of orbitals on each atom
+ */
+void dftbp_get_nr_orbitals(DftbPlus *instance, int *nOrbitals);
+
+
+/**
+ * Queries the masses for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] masses mass of each atom
+ */
+void dftbp_get_masses(DftbPlus *instance, double *masses);
 
 
 /**

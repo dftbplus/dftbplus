@@ -15,7 +15,6 @@ module waveplot_initwaveplot
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
-  use dftbp_io_fileid, only : getFileId
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
       & getSelectedIndices, detailedError, detailedWarning
@@ -833,8 +832,7 @@ contains
 
     integer :: fd, id, iostat
 
-    fd = getFileId()
-    open(fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
+    open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
 
     if (iostat /= 0) then
       call error("Can't open file '" // trim(fileName) // "'.")

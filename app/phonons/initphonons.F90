@@ -16,7 +16,6 @@ module phonons_initphonons
   use dftbp_common_unitconversion
   use dftbp_dftb_periodic
   use dftbp_io_charmanip
-  use dftbp_io_fileid
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
@@ -767,8 +766,8 @@ contains
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
       call getChildValue(value, geo%speciesNames(iSp), mass, defmass,&
                &modifier=modif, child= child2)
-      speciesMass(iSp) = mass * amu__au
-      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass, "amu", &
+      speciesMass(iSp) = mass
+      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
             &SpeciesMass(iSp),"a.u."
     end do
 

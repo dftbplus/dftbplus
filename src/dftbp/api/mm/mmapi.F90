@@ -104,8 +104,6 @@ module dftbp_mmapi
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Return the number of spin channels in the system
     procedure :: nrOfSpin => TDftbPlus_nrOfSpin
-    !> Return the number of k-points in the system
-    procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Return the number of (k-point,spin chanel) pairs in the process group
     procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
     !> get (k-point,spin chanel) pairs in current process group
@@ -124,6 +122,8 @@ module dftbp_mmapi
     procedure :: getOverlap => TDftbPlus_getOverlap
     !>TODO
     procedure :: getHamiltonian => TDftbPlus_getHamiltonian
+    !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
+    procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -142,6 +142,8 @@ module dftbp_mmapi
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
+    !> Return the number of basis functions for each atom in the system
+    procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
   end type TDftbPlus
 
 
@@ -553,6 +555,7 @@ contains
 
   end subroutine TDftbPlus_getStressTensor
 
+
   !> Returns the gradients on the external charges.
   !>
   !> This function may only be called if TDftbPlus_setExternalCharges was called before it
@@ -652,23 +655,6 @@ contains
     nSpin = nrOfSpin(this%main)
 
   end function TDftbPlus_nrOfSpin
-
-
-  !> Returns the nr. of k-points in the system.
-  function TDftbPlus_nrOfKPoints(this) result(nKPoints)
-
-    !> Instance
-    class(TDftbPlus), intent(in) :: this
-
-    !> Nr. of k-points
-    integer :: nKPoints
-
-    call this%checkInit()
-
-    nKPoints = nrOfKPoints(this%main)
-
-  end function TDftbPlus_nrOfKPoints
-
 
   !> Return the number of (k-point,spin chanel) pairs in the process group.
   function TDftbPlus_nrOfLocalKS(this) result(nLocalKS)
@@ -825,6 +811,22 @@ contains
     endif
   end function TDftbPlus_getHamiltonian
 
+  !> Returns the nr. of k-points describing the system.
+  function TDftbPlus_nrOfKPoints(this) result(nKpts)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of k-points
+    integer :: nKpts
+
+    call this%checkInit()
+
+    nKpts = nrOfKPoints(this%main)
+
+  end function TDftbPlus_nrOfKPoints
+
+
   !> Returns the atomic masses for each atom in the system.
   subroutine TDftbPlus_getAtomicMasses(this, mass)
 
@@ -839,6 +841,20 @@ contains
     call getAtomicMasses(this%main, mass)
 
   end subroutine TDftbPlus_getAtomicMasses
+
+
+  !> Returns the number of orbitals for each atom in the system
+  subroutine TDftbPlus_getNOrbAtoms(this, nOrbs)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Number of basis functions associated with each atom
+    integer, intent(out) :: nOrbs(:)
+
+    nOrbs(:) = this%main%orb%nOrbAtom
+
+  end subroutine TDftbPlus_getNOrbAtoms
 
 
   !> Checks whether the type is already initialized and stops the code if not.
@@ -927,6 +943,7 @@ contains
     end do
 
   end subroutine convertAtomTypesToSpecies
+
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
@@ -1026,7 +1043,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! electric field components
+    !> electric field components
     real(dp), intent(in) :: field(3)
 
     if (allocated(this%main%solvation)) then
@@ -1040,15 +1057,16 @@ contains
   end subroutine TDftbPlus_setTdElectricField
 
 
+  !> Set atomic coordinates and velocities for MD
   subroutine TDftbPlus_setTdCoordsAndVelos(this, coords, velos)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! coordinates
+    !> coordinates
     real(dp), intent(in) :: coords(3, this%main%nAtom)
 
-    ! velocities
+    !> velocities
     real(dp), intent(in) :: velos(3, this%main%nAtom)
 
     call setTdCoordsAndVelos(this%main, coords, velos)
@@ -1056,6 +1074,7 @@ contains
   end subroutine TDftbPlus_setTdCoordsAndVelos
 
 
+  !> Returns forces from time dependent propagation
   subroutine TDftbPlus_getTdForces(this, forces)
 
     !> Instance
@@ -1067,6 +1086,5 @@ contains
     call getTdForces(this%main, forces)
 
   end subroutine TDftbPlus_getTdForces
-
 
 end module dftbp_mmapi

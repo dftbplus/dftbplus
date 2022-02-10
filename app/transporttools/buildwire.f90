@@ -21,6 +21,7 @@ program buildwire
   character(100) :: arg
   logical :: do_super
   integer :: iargc
+  integer :: fp
 
   iargc = command_argument_count()
   if (iargc < 3) then
@@ -49,10 +50,10 @@ program buildwire
     end if
   end if
 
-  open(30,file=trim(gen_file))
+  open(newunit=fp, file=trim(gen_file))
 
-  read(30,*) pl_atm, period
-  read(30,'(A)') atm_spec
+  read(fp,*) pl_atm, period
+  read(fp,'(A)') atm_spec
 
   ALLOCATE(X(pl_atm),stat=err)
   IF (err /= 0) STOP 'no space for allocation (X)'
@@ -71,31 +72,31 @@ program buildwire
 
 
   do i = 1,pl_atm
-     read(30,*) n_atm(i),typ_atm(i),X(i),Y(i),Z(i)
+     read(fp,*) n_atm(i),typ_atm(i),X(i),Y(i),Z(i)
   end do
 
-  read(30,'(A)') cell_centre
+  read(fp,'(A)') cell_centre
   do i = 1,3
-     read(30,*) cell(i,1),cell(i,2),cell(i,3)
+     read(fp,*) cell(i,1),cell(i,2),cell(i,3)
   end do
 
-  close(30)
+  close(fp)
 
 
   tot_atm=pl_atm * (num_pl + 4)
 
 
-  open(30,file='Ordered_'//trim(gen_file))
+  open(newunit=fp,file='Ordered_'//trim(gen_file))
 
   if (.not.do_super) then
      period = "C"
   end if
 
-  write(30,'(I5,A4)') tot_atm, period
-  write(30,'(A)') trim(atm_spec)
+  write(fp,'(I5,A4)') tot_atm, period
+  write(fp,'(A)') trim(atm_spec)
   do k = 1,num_pl
      do i = 1,pl_atm
-        write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
+        write(fp,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
                                X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
                                Z(i)+(k-1)*cell(3,3)*d(3)
@@ -105,7 +106,7 @@ program buildwire
   ! build I contact
   do k = num_pl+1,num_pl+2
      do i = 1,pl_atm
-        write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
+        write(fp,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
                                X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
                                Z(i)+(k-1)*cell(3,3)*d(3)
@@ -115,7 +116,7 @@ program buildwire
   ! build II contact
   do k = 0,-1,-1
      do i = 1,pl_atm
-        write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
+        write(fp,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
                                X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
                                Z(i)+(k-1)*cell(3,3)*d(3)
@@ -123,15 +124,15 @@ program buildwire
   enddo
 
   if (do_super) then
-    write(30,'(A)') cell_centre
+    write(fp,'(A)') cell_centre
     do i = 1,3
-        if(d(1).eq.1) write(30,*) cell(i,1)*(num_pl+4)*d(1),cell(i,2),cell(i,3)
-        if(d(2).eq.1) write(30,*) cell(i,1),cell(i,2)*(num_pl+4)*d(2),cell(i,3)
-        if(d(3).eq.1) write(30,*) cell(i,1),cell(i,2),cell(i,3)*(num_pl+4)*d(3)
+        if(d(1).eq.1) write(fp,*) cell(i,1)*(num_pl+4)*d(1),cell(i,2),cell(i,3)
+        if(d(2).eq.1) write(fp,*) cell(i,1),cell(i,2)*(num_pl+4)*d(2),cell(i,3)
+        if(d(3).eq.1) write(fp,*) cell(i,1),cell(i,2),cell(i,3)*(num_pl+4)*d(3)
     end do
   end if
 
-  close(30)
+  close(fp)
 
   write(*,*) 'structure built'
   write(*,*) 'Input for dftb+:'
