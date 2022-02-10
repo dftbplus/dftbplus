@@ -661,23 +661,6 @@ contains
 
     real(dp), allocatable :: dipoleTmp(:)
     
-    
-    print *, "nOrb", this%nOrb
-    print *, "orb%nShell", this%orb%nShell
-    print *, "orb%nOrbSpecies", this%orb%nOrbSpecies
-    print *, "orb%nOrbAtom", this%orb%nOrbAtom
-    print *, "orb%angShell ", 'O:',this%orb%angShell(:,1), 'H:',this%orb%angShell(:,2)
-    print *, "orb%iShellOrb ", 'O:',this%orb%iShellOrb(:,1), 'H:',this%orb%iShellOrb(:,2)
-    @:ASSERT(size(this%orb%iShellOrb, 2) == 2)
-    
-    print *, "denseDesc%fullSize", this%denseDesc%fullSize
-    print *, "orbitalL", size(this%orbitalL,1), size(this%orbitalL,2), size(this%orbitalL,3)
-    print *, "rhoSqrReal", size(this%rhoSqrReal,1), size(this%rhoSqrReal,2), size(this%rhoSqrReal,3)
-    print *, "nKPoint", this%nKPoint
-    print *, "kWeight", this%kWeight
-    print *, "kPoint", this%kPoint
-    
-    
 
     if (this%tDipole) then
       allocate(dipoleTmp(3))
@@ -1385,22 +1368,6 @@ contains
       call this%electrostatPot%evaluate(env, this%scc, this%eField)
       call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
-    
-    ! TODO: Remove it
-    if (.true.) then
-      do iSpin = 1, this%nSpin
-        call writeSparse("rhoReal" // i2c(iSpin) // ".dat", this%rhoPrim(:,iSpin),&
-            & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
-            & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
-      end do
-      if (allocated(this%iRhoPrim)) then
-        do iSpin = 1, this%nSpin
-          call writeSparse("rhoImag" // i2c(iSpin) // ".dat", this%iRhoPrim(:,iSpin),&
-              & this%neighbourList%iNeighbour, this%nNeighbourSK, this%denseDesc%iAtomStart,&
-              & this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec)
-        end do
-      end if
-    end if    
 
   end subroutine processGeometry
 
