@@ -413,17 +413,6 @@ contains
     nSpin = instance%nrOfSpin()
   end function c_DftbPlus_nrOfSpin
 
-  !> Obtain nr. of k-points.
-  function c_DftbPlus_nrOfKPoints(handler) result(nKpoints) bind(C, name='dftbp_get_nr_kpoints')
-    type(c_DftbPlus), intent(inout) :: handler
-    integer(c_int) :: nKpoints
-
-    type(TDftbPlusC), pointer :: instance
-
-    call c_f_pointer(handler%instance, instance)
-    nKpoints = instance%nrOfKPoints()
-  end function c_DftbPlus_nrOfKPoints
-  
   !> Obtain nr. of (k-point,spin chanel) pairs in current process group.
   function c_DftbPlus_nrOfLocalKS(handler) result(nLocalKS) bind(C, name='dftbp_get_nr_local_ks')
     type(c_DftbPlus), intent(inout) :: handler
@@ -481,39 +470,6 @@ contains
     HSReal = instance%isHSReal()
 
   end function c_DftbPlus_isHSReal
-  
-  
-  !> TODO
-  function c_DftbPlus_getOverlap(handler, blacs_descr) result(data_ptr) bind(C, name='dftbp_get_overlap')
-  !> handler for the calculation
-    type(c_DftbPlus), intent(inout) :: handler
-    type(c_ptr), value :: blacs_descr
-
-    type(c_ptr) :: data_ptr
-    type(TDftbPlusC), pointer :: instance
-
-    call c_f_pointer(handler%instance, instance)
-    
-    data_ptr = instance%getOverlap(blacs_descr)
-
-  end function c_DftbPlus_getOverlap
-  
-  
-  !> TODO
-  function c_DftbPlus_getHamiltonian(handler, blacs_descr) result(data_ptr) bind(C, name='dftbp_get_hamiltonian')
-  !> handler for the calculation
-    type(c_DftbPlus), intent(inout) :: handler
-    type(c_ptr), value :: blacs_descr
-
-    type(c_ptr) :: data_ptr
-    type(TDftbPlusC), pointer :: instance
-
-    call c_f_pointer(handler%instance, instance)
-    
-    data_ptr = instance%getHamiltonian(blacs_descr)
-
-  end function c_DftbPlus_getHamiltonian
-
 
   !> Obtain nr. of k-points.
   function c_DftbPlus_nrOfKPoints(handler) result(nKPoints) bind(C, name='dftbp_nr_kpoints')

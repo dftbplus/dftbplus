@@ -118,10 +118,6 @@ module dftbp_mmapi
     procedure :: registerSCallback => TDftbPlus_registerSCallback
     !>TODO
     procedure :: registerHCallback => TDftbPlus_registerHCallback
-    !>TODO
-    procedure :: getOverlap => TDftbPlus_getOverlap
-    !>TODO
-    procedure :: getHamiltonian => TDftbPlus_getHamiltonian
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Check that the list of species names has not changed
@@ -752,64 +748,6 @@ contains
     call this%checkInit()
     call this%main%apicallback%registerH(callback, aux_ptr)
   end subroutine TDftbPlus_registerHCallback
-
-  !> TODO
-  function TDftbPlus_getOverlap(this, blacs_descr_ptr) result(data_ptr)
-    use iso_c_binding
-    use dftbp_dftbplus_apicallback, only : TAPICallback
-    use dftbp_extlibs_scalapackfx, only : DLEN_
-
-    !> Instance
-    class(TDftbPlus), intent(inout), target :: this
-
-    !> callback function for S export
-    type(c_ptr), value :: blacs_descr_ptr
-    
-    !> Returned pointer to dense overlap matrix
-    type(c_ptr) :: data_ptr
-    
-    integer(c_int), pointer :: blacs_descr(:)
-
-    call this%checkInit()
-    
-    call c_f_pointer(blacs_descr_ptr, blacs_descr, [DLEN_])
-    blacs_descr(:) = this%main%denseDesc%blacsOrbSqr
-    
-    if (this%isHSReal()) then
-      data_ptr = c_loc(this%main%SSqrReal(1,1))
-    else
-      data_ptr = c_loc(this%main%SSqrCplx(1,1))
-    endif
-  end function TDftbPlus_getOverlap
-
-  !> TODO
-  function TDftbPlus_getHamiltonian(this, blacs_descr_ptr) result(data_ptr)
-    use iso_c_binding
-    use dftbp_dftbplus_apicallback, only : TAPICallback
-    use dftbp_extlibs_scalapackfx, only : DLEN_
-
-    !> Instance
-    class(TDftbPlus), intent(inout), target :: this
-
-    !> callback function for S export
-    type(c_ptr), value :: blacs_descr_ptr
-    
-    !> Returned pointer to dense overlap matrix
-    type(c_ptr) :: data_ptr
-    
-    integer(c_int), pointer :: blacs_descr(:)
-
-    call this%checkInit()
-    
-    call c_f_pointer(blacs_descr_ptr, blacs_descr, [DLEN_])
-    blacs_descr(:) = this%main%denseDesc%blacsOrbSqr
-    
-    if (this%isHSReal()) then
-      data_ptr = c_loc(this%main%HSqrReal(1,1))
-    else
-      data_ptr = c_loc(this%main%HSqrCplx(1,1))
-    endif
-  end function TDftbPlus_getHamiltonian
 
   !> Returns the nr. of k-points describing the system.
   function TDftbPlus_nrOfKPoints(this) result(nKpts)

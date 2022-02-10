@@ -266,15 +266,6 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
  */
 int dftbp_get_nr_spin(DftbPlus *instance);
 
-/**
- * Queries the nr. of k-points in the system.
- *
- * \param[inout] instance Handler of the DFTB+ instance.
- *
- * \return Nr. of k-points
- */
-int dftbp_get_nr_kpoints(DftbPlus *instance);
-
 int dftbp_get_basis_size(DftbPlus *instance);
 
 _Bool dftbp_is_hs_real(DftbPlus *instance);
@@ -284,10 +275,6 @@ void dftbp_register_dm_callback(DftbPlus *instance, void *callback, void *aux_pt
 void dftbp_register_s_callback(DftbPlus *instance, void *callback, void *aux_ptr);
 
 void dftbp_register_h_callback(DftbPlus *instance, void *callback, void *aux_ptr);
-
-void* dftbp_get_overlap(DftbPlus *instance, int *blacs_descr);
-
-void* dftbp_get_hamiltonian(DftbPlus *instance, int *blacs_descr);
 
 /**
  * Queries the nr. of (k-point,spin chanel) pairs in current process group.
