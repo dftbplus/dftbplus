@@ -133,7 +133,7 @@ contains
     @:ASSERT(all(shape(xNew)==(/3,this%nDerivs/)))
     nComputeAtoms = size(this%derivs, dim=1)/3
     @:ASSERT(size(fOld,1)==3)
-    @:ASSERT(size(fOld,2)==nAtoms)
+    @:ASSERT(size(fOld,2)==nComputeAtoms)
 
     if (this%iAtom==this%nDerivs .and. this%iComponent == 3 .and. &
         & this%iDelta > 0.0_dp) then
