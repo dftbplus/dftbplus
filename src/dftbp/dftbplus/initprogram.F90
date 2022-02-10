@@ -1959,8 +1959,10 @@ contains
     if (this%nMovedAtom > 0) then
       allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
       this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
-      allocate(this%indComputedAtom(input%ctrl%nrComputed))
-      this%indComputedAtom(:) = input%ctrl%indComputedAtom(:)
+      if (allocated(input%ctrl%indComputedAtom)) then
+        allocate(this%indComputedAtom(input%ctrl%nrComputed))
+        this%indComputedAtom(:) = input%ctrl%indComputedAtom(:)
+      end if  
     else
       allocate(this%indMovedAtom(0))
       allocate(this%indComputedAtom(0))
