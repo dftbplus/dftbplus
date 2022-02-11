@@ -185,10 +185,10 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Number of requested points
-    integer, value, intent(in) :: nLocations
+    integer(c_int), value, intent(in) :: nLocations
 
     !> Resulting potentials
-    real(dp), intent(out) :: pot(*)
+    real(c_double), intent(out) :: pot(*)
 
     !> Sites to calculate potential
     real(c_double), intent(in) :: locations(3,*)
@@ -432,7 +432,7 @@ contains
     integer(c_int), intent(out) :: localKS(2, *)
 
     type(TDftbPlusC), pointer :: instance
-    integer :: nLocalKS
+    integer(c_int) :: nLocalKS
 
     call c_f_pointer(handler%instance, instance)
     nLocalKS = instance%nrOfLocalKS()
@@ -442,13 +442,29 @@ contains
   end function c_DftbPlus_getLocalKS
 
 
+  !> Get (k-point,spin chanel) pairs in current process group, returns number of pairs
+  subroutine c_DftbPlus_getKWeights(handler, kweights)  bind(C, name='dftbp_get_kweights')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(out) :: kweights(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nkpts
+
+    call c_f_pointer(handler%instance, instance)
+    nkpts = instance%nrOfKPoints()
+
+    call instance%getKWeights(kweights(1:nkpts))
+
+  end subroutine c_DftbPlus_getKWeights
+
   !> Obtain size of the basis set (NxN)
   function c_DftbPlus_getBasisSize(handler) result(BasisSize) bind(C, name='dftbp_get_basis_size')
   !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
     type(TDftbPlusC), pointer :: instance
-    integer :: BasisSize
+    integer(c_int) :: BasisSize
 
     call c_f_pointer(handler%instance, instance)
     

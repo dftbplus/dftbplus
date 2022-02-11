@@ -276,6 +276,8 @@ void dftbp_register_s_callback(DftbPlus *instance, void *callback, void *aux_ptr
 
 void dftbp_register_h_callback(DftbPlus *instance, void *callback, void *aux_ptr);
 
+void dftbp_get_kweights(DftbPlus *instance, double *kweights);
+
 /**
  * Queries the nr. of (k-point,spin chanel) pairs in current process group.
  *

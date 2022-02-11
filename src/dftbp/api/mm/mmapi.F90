@@ -109,6 +109,8 @@ module dftbp_mmapi
     !> get (k-point,spin chanel) pairs in current process group
     procedure :: getLocalKS => TDftbPlus_getLocalKS
     !> TODO
+    procedure :: getKWeights => TDftbPlus_getKWeights
+    !> TODO
     procedure :: getBasisSize => TDftbPlus_getBasisSize
     !> TODO
     procedure :: isHSReal => TDftbPlus_isHSReal
@@ -635,7 +637,19 @@ contains
 
   end subroutine TDftbPlus_getLocalKS
 
+  !> TODO:
+  subroutine TDftbPlus_getKWeights(this, KWeights)
 
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> TODO
+    real(dp), intent(out) :: KWeights(:)
+    
+    !call  getKWeights(this%main, KWeights)
+    KWeights(:) = this%main%kweight(:)
+
+  end subroutine TDftbPlus_getKWeights
 
   !> Returns the nr. of spin channels in the system.
   function TDftbPlus_nrOfSpin(this) result(nSpin)

@@ -14,6 +14,10 @@ if(WITH_C_EXECUTABLES)
   add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_fileinitc dftbplus)
   set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
+
+  add_executable(test_expdmhs test_expdmhs.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_expdmhs dftbplus)
+  set_target_properties(test_expdmhs PROPERTIES LINKER_LANGUAGE C)
 endif()
 
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
