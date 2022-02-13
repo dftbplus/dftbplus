@@ -1,5 +1,3 @@
-dummy_var       :real:0:
- 123.00
 natom           :integer:0:
  2
 basis_size      :integer:0:

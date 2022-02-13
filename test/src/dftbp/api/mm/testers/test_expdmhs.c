@@ -59,7 +59,6 @@ void print_matrix(FILE *f, const double complex *m)
 int main()
 {
   FILE *atf = fopen("autotest.tag", "w+");
-  fprintf(atf, "dummy_var       :real:0:\n%f\n",123.0);
   
   DftbPlus calculator;
   DftbPlusInput input;
@@ -120,8 +119,8 @@ int main()
   dftbp_register_h_callback(&calculator, (void*)h_callback, 0);
   
   assert(BASIS_SIZE == basis_size);
-  assert(N_KPTS == 4);
-  assert(N_SPIN == 1);
+  assert(N_KPTS == n_kpts);
+  assert(N_SPIN == n_spin);
 
   /* Evaluate energy */
   double mermin_energy;
