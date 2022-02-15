@@ -13,29 +13,56 @@
 
 #include "dftbplus.h"
 
+#include "blacsutils.h"
+
 int mpi_provided_threading, world_size, world_rank;
 
 #define BASIS_SIZE 8
 #define N_KPTS 1
 #define N_SPIN 2
 
-double dm[BASIS_SIZE][BASIS_SIZE];
-double overlap[BASIS_SIZE][BASIS_SIZE];
-double hamiltonian[BASIS_SIZE][BASIS_SIZE];
+typedef double hs_type;
+
+hs_type dm[BASIS_SIZE][BASIS_SIZE];
+hs_type overlap[BASIS_SIZE][BASIS_SIZE];
+hs_type hamiltonian[BASIS_SIZE][BASIS_SIZE];
+
+void gather(int *blacs_descr, void *blacs_data, void *dest)
+{
+  int blacs_ctx = blacs_descr[CTXT_];
+  int sys_ctx = get_system_context(blacs_ctx);
+
+  int gatherer_blacs_ctx = make_blacs_context(sys_ctx, 1, 1);
+  int gathered_desc[DLEN_];
+  blacs_desc_init(blacs_descr[M_], blacs_descr[N_], gatherer_blacs_ctx, gathered_desc);
+  
+  int nprow, npcol, myrow, mycol;
+  blacs_gridinfo_(&blacs_ctx, &nprow, &npcol, &myrow, &mycol);
+  //printf("gathered_desc[CTXT_], myrow, mycol = %d %d %d\n", gathered_desc[CTXT_], myrow, mycol);
+  assert((gathered_desc[CTXT_] != -1) == ((myrow == 0) && (mycol == 0)));
+  
+  int ONE = 1;
+  pdgemr2d_(&blacs_descr[M_], &blacs_descr[N_], 
+            blacs_data, &ONE, &ONE, blacs_descr, 
+            dest,  &ONE, &ONE, gathered_desc, &blacs_ctx);
+}
 
 void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
-  memcpy(dm, blacs_data, sizeof(double)*BASIS_SIZE*BASIS_SIZE);
+  memcpy(dm, blacs_data, sizeof(hs_type)*BASIS_SIZE*BASIS_SIZE);
+  gather(blacs_descr, blacs_data, &(dm[0][0]));
 }
 
 void s_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
 {
-  memcpy(overlap, blacs_data, sizeof(double)*BASIS_SIZE*BASIS_SIZE);
+  memcpy(overlap, blacs_data, sizeof(hs_type)*BASIS_SIZE*BASIS_SIZE);
+  gather(blacs_descr, blacs_data, &(overlap[0][0]));
 }
 
 void h_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
 {
-  memcpy(hamiltonian, blacs_data, sizeof(double)*BASIS_SIZE*BASIS_SIZE);
+  memcpy(hamiltonian, blacs_data, sizeof(hs_type)*BASIS_SIZE*BASIS_SIZE);
+  gather(blacs_descr, blacs_data, &(hamiltonian[0][0]));
 }
 
 
@@ -99,7 +126,7 @@ int main(int argc, char *argv[])
   for(int i = 0; i < BASIS_SIZE; ++i)
   for(int j = 0; j < BASIS_SIZE; ++j)
   {
-    double d = dm[i][j];
+    hs_type d = dm[i][j];
     if (i != j)
       d += dm[j][i];
     n_el += overlap[i][j] * d;
