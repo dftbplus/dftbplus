@@ -3937,10 +3937,7 @@ contains
         call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
       case(hamiltonianTypes%xtb)
-        block
-          use dftbp_io_message, only : error
-          call error("Nuclei dynamic not implemented for xTB Hamiltonian yet")
-        end block
+        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for xTB Hamiltonian yet")
       end select
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&
