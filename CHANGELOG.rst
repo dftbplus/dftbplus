@@ -11,6 +11,7 @@ Unreleased
 Added
 -----
 
+- Real time electronic dynamics for xTB Hamiltonian
 
 
 Changed
