@@ -2377,7 +2377,7 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
     
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(TAPICallback), intent(in) :: apicallback
 
     integer :: nSpin, iKS, iSp, iK, nAtom
@@ -2595,10 +2595,11 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
 
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in) :: apicallback
 
-    !> TODO
+    !> SCC iteration index. Used here to determine if we need invoke overlap and hamiltonian 
+    !> matrices exporting callbacks now.
     integer, intent(in) :: iSCC
 
     integer :: nSpin
@@ -2729,7 +2730,7 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in), optional :: apicallback
 
 
@@ -2875,7 +2876,7 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
 
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in), optional :: apicallback
 
     integer :: iKS, iK, iSpin
@@ -3118,7 +3119,7 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in), optional :: apicallback
 
     integer :: iKS, iK, iSpin
@@ -3252,7 +3253,7 @@ contains
     !> workspace array
     complex(dp), intent(out) :: work(:,:)
     
-    !> TODO
+    !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in), optional :: apicallback
 
 

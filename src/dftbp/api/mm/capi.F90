@@ -442,7 +442,7 @@ contains
   end function c_DftbPlus_getLocalKS
 
 
-  !> Get (k-point,spin chanel) pairs in current process group, returns number of pairs
+  !> Queries weights of k-points
   subroutine c_DftbPlus_getKWeights(handler, kweights)  bind(C, name='dftbp_get_kweights')
   !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -458,7 +458,7 @@ contains
 
   end subroutine c_DftbPlus_getKWeights
 
-  !> Obtain size of the basis set (NxN)
+  !> Obtain total size of the basis set
   function c_DftbPlus_getBasisSize(handler) result(BasisSize) bind(C, name='dftbp_get_basis_size')
   !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -473,7 +473,7 @@ contains
   end function c_DftbPlus_getBasisSize
   
 
-  !> TODO
+  !> Whether the system is described with real matrices
   function c_DftbPlus_isHSReal(handler) result(HSReal) bind(C, name='dftbp_is_hs_real')
   !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler

@@ -108,17 +108,17 @@ module dftbp_mmapi
     procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
     !> get (k-point,spin chanel) pairs in current process group
     procedure :: getLocalKS => TDftbPlus_getLocalKS
-    !> TODO
+    !> Queries weights of k-points
     procedure :: getKWeights => TDftbPlus_getKWeights
-    !> TODO
+    !> Returns size of the basis set
     procedure :: getBasisSize => TDftbPlus_getBasisSize
-    !> TODO
+    !> Whether the system is described with real matrices (complex otherwise)
     procedure :: isHSReal => TDftbPlus_isHSReal
-    !>TODO
+    !> Register callback function to be invoked on each evaluation of the desity matrix
     procedure :: registerDMCallback => TDftbPlus_registerDMCallback
-    !>TODO
+    !> Register callback function to be invoked on the first evaluation of the overlap matrix
     procedure :: registerSCallback => TDftbPlus_registerSCallback
-    !>TODO
+    !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
     procedure :: registerHCallback => TDftbPlus_registerHCallback
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
@@ -637,16 +637,15 @@ contains
 
   end subroutine TDftbPlus_getLocalKS
 
-  !> TODO:
+  !> Queries weights of k-points
   subroutine TDftbPlus_getKWeights(this, KWeights)
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
 
-    !> TODO
+    !> Weights of k-points
     real(dp), intent(out) :: KWeights(:)
-    
-    !call  getKWeights(this%main, KWeights)
+
     KWeights(:) = this%main%kweight(:)
 
   end subroutine TDftbPlus_getKWeights
@@ -681,7 +680,7 @@ contains
 
   end function TDftbPlus_nrOfLocalKS
   
-  !> Returns size of the basis set (NxN)
+  !> Returns size of the basis set
   function TDftbPlus_getBasisSize(this) result(BasisSize)
 
     !> Instance
@@ -695,7 +694,7 @@ contains
 
   end function TDftbPlus_getBasisSize
 
-  !> TODO
+  !> Whether the system is described with real matrices
   function TDftbPlus_isHSReal(this) result(HSReal)
 
     !> Instance
@@ -709,7 +708,7 @@ contains
 
   end function TDftbPlus_isHSReal
 
-  !> TODO
+  !> Register callback function to be invoked on each evaluation of the desity matrix
   subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
     use iso_c_binding
     use dftbp_dftbplus_apicallback, only : TAPICallback
@@ -727,7 +726,7 @@ contains
     call this%main%apicallback%registerDM(callback, aux_ptr)
   end subroutine TDftbPlus_registerDMCallback
   
-  !> TODO
+  !> Register callback function to be invoked on the first evaluation of the overlap matrix
   subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
     use iso_c_binding
     use dftbp_dftbplus_apicallback, only : TAPICallback
@@ -745,7 +744,7 @@ contains
     call this%main%apicallback%registerS(callback, aux_ptr)
   end subroutine TDftbPlus_registerSCallback
 
-  !> TODO
+  !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
   subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
     use iso_c_binding
     use dftbp_dftbplus_apicallback, only : TAPICallback

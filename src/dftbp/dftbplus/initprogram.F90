@@ -1125,7 +1125,8 @@ module dftbp_dftbplus_initprogram
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
     
-    ! TODO
+    !> This object incapsulates subroutines and variables that are used for registering and 
+    !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
     type(TAPICallback) :: apicallback
 
   contains
