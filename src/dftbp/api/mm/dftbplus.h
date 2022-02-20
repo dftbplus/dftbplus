@@ -87,42 +87,23 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
 
 
 /**
- * Callback function signature for density matrix export in square dense format.
- *
- * DFTB+ would call it after each density matrix evaluation. The density matrix is in BLACS dense 
- * format, with zero lower triangular part, due to it's symmetry. Type of the density matrix 
- * elements is either double or complex double, depending on dftbp_is_hs_real() output 
- * Total matrix size is returned by dftbp_get_basis_size().
+ * Callback function signature for overlap, or hamiltonian, or density matrix export in square 
+ * dense BLACS format.Type of the matrix elements is either double or complex double, depending on 
+ * the task (number of k-points), that can be obtained via dftbp_is_hs_real() call.
+ * Total matrix size is NxN, where N - number of basis functions returned by dftbp_get_basis_size().
  *
  * \param aux_ptr[in] Pointer to auxilary data that is set when callback is registered.
  *
- * \param iK[value] Index of k-point (1-based) of the current density matrix.
+ * \param iK[value] Index of k-point (1-based) of the current matrix.
  *
- * \param iS[value] Index of spin chanel (1-based) of the current density matrix.
- *
- * \param blacs_descr[in] Pointer to BLACS descriptor of the density metrix. Can be NULL if 
- *     DFTB+ is built without SCALAPACK support.
- *
- * \param blacs_data[in] Pointer to the density matrix elements.
- */
-typedef void (*DMCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data);
-
-
-/**
- * Callback function signature for the overlap or hamiltonian matrices export in square dense format.
- *
- * DFTB+ would call it after the first overlap or hamiltonian evaluation. The matrix is exported in 
-  * BLACS format. Type of the matrix elements is either double or complex double, depending on 
- * dftbp_is_hs_real() output. Total matrix size is returned by dftbp_get_basis_size().
- *
- * \param aux_ptr[in] Pointer to auxilary data that is set when callback is registered.
+ * \param iS[value] Index of spin chanel (1-based) of the current matrix.
  *
  * \param blacs_descr[in] Pointer to BLACS descriptor of the metrix. Can be NULL if 
  *     DFTB+ is built without SCALAPACK support.
  *
  * \param blacs_data[in] Pointer to the matrix elements.
  */
-typedef void (*HSCallBackFunc)(void *aux_ptr, int *blacs_descr, void *blacs_data);
+typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data);
 
 /**
  * Returns current version of the DFTB+ API
@@ -351,7 +332,7 @@ _Bool dftbp_is_hs_real(DftbPlus *instance);
  * \param[in] aux_ptr Pointer that will be passed to callback on each invocation. Meant to pass
  *                    external context to the callback.
  */
-void dftbp_register_dm_callback(DftbPlus *instance, DMCallBackFunc callback, void *aux_ptr);
+void dftbp_register_dm_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
 /**
  * Register callback function to be invoked on the first evaluation of the overlap matrix.
@@ -364,7 +345,7 @@ void dftbp_register_dm_callback(DftbPlus *instance, DMCallBackFunc callback, voi
  * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
  *                    external context to the callback.
  */
-void dftbp_register_s_callback(DftbPlus *instance, HSCallBackFunc callback, void *aux_ptr);
+void dftbp_register_s_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
 /**
  * Register callback function to be invoked on the first evaluation of the hamiltonian matrix.
@@ -377,7 +358,7 @@ void dftbp_register_s_callback(DftbPlus *instance, HSCallBackFunc callback, void
  * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
  *                    external context to the callback.
  */
-void dftbp_register_h_callback(DftbPlus *instance, HSCallBackFunc callback, void *aux_ptr);
+void dftbp_register_h_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
 /**
  * Queries weights of k-points.

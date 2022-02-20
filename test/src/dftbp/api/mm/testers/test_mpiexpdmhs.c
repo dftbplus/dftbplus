@@ -53,13 +53,13 @@ void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_da
   gather(blacs_descr, blacs_data, &(dm[0][0]));
 }
 
-void s_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
+void s_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
   memcpy(overlap, blacs_data, sizeof(hs_type)*BASIS_SIZE*BASIS_SIZE);
   gather(blacs_descr, blacs_data, &(overlap[0][0]));
 }
 
-void h_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
+void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
   memcpy(hamiltonian, blacs_data, sizeof(hs_type)*BASIS_SIZE*BASIS_SIZE);
   gather(blacs_descr, blacs_data, &(hamiltonian[0][0]));
@@ -113,10 +113,9 @@ int main(int argc, char *argv[])
   assert(N_SPIN == n_spin);
 
 
-  // TODO use  typedef
-  dftbp_register_dm_callback(&calculator, (void*)dm_callback, 0);
-  dftbp_register_s_callback(&calculator, (void*)s_callback, 0);
-  dftbp_register_h_callback(&calculator, (void*)h_callback, 0);
+  dftbp_register_dm_callback(&calculator, dm_callback, 0);
+  dftbp_register_s_callback(&calculator, s_callback, 0);
+  dftbp_register_h_callback(&calculator, h_callback, 0);
 
   /* Evaluate energy */
   double mermin_energy;

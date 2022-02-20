@@ -2734,10 +2734,11 @@ contains
     type(Tapicallback), intent(in), optional :: apicallback
 
 
-    integer :: iKS, iSpin
+    integer :: iK, iKS, iSpin
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(2, iKS)
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -2760,8 +2761,8 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
       if (present(apicallback)) then
-        call apicallback%invokeS(SSqrReal, denseDesc%blacsOrbSqr)
-        call apicallback%invokeH(HSqrReal, denseDesc%blacsOrbSqr)
+        call apicallback%invokeS(iK, iSpin, SSqrReal, denseDesc%blacsOrbSqr)
+        call apicallback%invokeH(iK, iSpin, HSqrReal, denseDesc%blacsOrbSqr)
       endif
 
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
@@ -2784,8 +2785,8 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
       if (present(apicallback)) then
-        call apicallback%invokeS(SSqrReal)
-        call apicallback%invokeH(HSqrReal)
+        call apicallback%invokeS(iK, iSpin, SSqrReal)
+        call apicallback%invokeH(iK, iSpin, HSqrReal)
       endif
 
       ! Add rangeseparated contribution
@@ -2908,8 +2909,8 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       
       if (present(apicallback)) then
-        call apicallback%invokeS(SSqrCplx, denseDesc%blacsOrbSqr)
-        call apicallback%invokeH(HSqrCplx, denseDesc%blacsOrbSqr)
+        call apicallback%invokeS(iK, iSpin, SSqrCplx, denseDesc%blacsOrbSqr)
+        call apicallback%invokeH(iK, iSpin, HSqrCplx, denseDesc%blacsOrbSqr)
       endif
       call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
@@ -2930,8 +2931,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       if (present(apicallback)) then
-        call apicallback%invokeS(SSqrCplx)
-        call apicallback%invokeH(HSqrCplx)
+        call apicallback%invokeS(iK, iSpin, SSqrCplx)
+        call apicallback%invokeH(iK, iSpin, HSqrCplx)
       endif
       call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx

@@ -16,40 +16,22 @@ module dftbp_dftbplus_apicallback
   public :: null_apicallback
 
 
-  !> Callback function signature for density matrix export in square dense format
-  !> DFTB+ would call it after *each* density matrix evaluation. The density matrix is in BLACS dense 
-  !> format, with zero lower triangular part, due to it's symmetry. Type of the density matrix 
-  !> elements is either double or complex double, depending on the task (number of k-points) 
+  !> Callback function signature for overlap, or hamiltonian, or density matrix export in square 
+  !> dense BLACS format.Type of the matrix elements is either double or complex double, depending on 
+  !> the task (number of k-points) 
   !> Total matrix size is NxN, where N - number of basis functions.
   abstract interface
-    subroutine dm_callback_t(aux_ptr, i_kpoint, i_spin, blacs_descr, data_ptr) bind(c)
+    subroutine dmhs_callback_t(aux_ptr, i_kpoint, i_spin, blacs_descr, data_ptr) bind(c)
       use iso_c_binding
       !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
       type(c_ptr), value :: aux_ptr
-      !> 1-based indices of k-point and spin chanel of the current density matrix
+      !> 1-based indices of k-point and spin chanel of the matrix
       integer(c_int), value :: i_kpoint, i_spin
       !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
       type(c_ptr), value :: blacs_descr
       !> Pointer to the matrix elements, that can be real or complex
       type(c_ptr), value :: data_ptr
-    end subroutine dm_callback_t
-  end interface
-
-  !> Callback function signature for the overlap or hamiltonian matrices export in square dense format.
-  !> DFTB+ would call it after the *first* overlap or hamiltonian evaluation. The matrix is exported in 
-  !> BLACS format. Type of the matrix elements is either double or complex double, depending on the 
-  !> task (number of k-points) 
-  !> Total matrix size is NxN, where N - number of basis functions.
-  abstract interface
-    subroutine hs_callback_t(aux_ptr,blacs_descr, data_ptr) bind(c)
-      use iso_c_binding
-      !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
-      type(c_ptr), value :: aux_ptr
-      !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
-      type(c_ptr), value :: blacs_descr
-      !> Pointer to the matrix elements, that can be real or complex
-      type(c_ptr), value :: data_ptr
-    end subroutine hs_callback_t
+    end subroutine dmhs_callback_t
   end interface
 
   
@@ -113,14 +95,14 @@ contains
 
   subroutine TAPICallback_invokeDM_real(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    !> Indices if k-point and spin chanel
+    !> Indices of k-point and spin chanel
     integer(c_int), value :: i_kpoint, i_spin
     !> Density matrix in dense format
     real(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
     
-    procedure(dm_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
     
@@ -138,14 +120,14 @@ contains
 
   subroutine TAPICallback_invokeDM_cplx(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
-    !> Indices if k-point and spin chanel
+    !> Indices of k-point and spin chanel
     integer(c_int), value :: i_kpoint, i_spin
     !> Density matrix in dense format
     complex(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
-    procedure(dm_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
 
@@ -172,14 +154,16 @@ contains
   end subroutine TAPICallback_registerS
   
 
-  subroutine TAPICallback_invokeS_real(this, data_buf, blacs_descr)
+  subroutine TAPICallback_invokeS_real(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
+    !> Indices of k-point and spin chanel
+    integer(c_int), value :: i_kpoint, i_spin
     !> Overlap matrix in dense format
     real(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
     
-    procedure(hs_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
     
@@ -191,18 +175,20 @@ contains
     blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
-    call callback_proc(this%s_aux_ptr, blacs_descr_ptr, data_ptr)
+    call callback_proc(this%s_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
   
   end subroutine TAPICallback_invokeS_real
 
-  subroutine TAPICallback_invokeS_cplx(this, data_buf, blacs_descr)
+  subroutine TAPICallback_invokeS_cplx(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
+    !> Indices of k-point and spin chanel
+    integer(c_int), value :: i_kpoint, i_spin
     !> Overlap matrix in dense format
     complex(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
-    procedure(hs_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
     
@@ -214,7 +200,7 @@ contains
     blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
-    call callback_proc(this%s_aux_ptr, blacs_descr_ptr, data_ptr)
+    call callback_proc(this%s_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
 
   end subroutine TAPICallback_invokeS_cplx
 
@@ -228,14 +214,16 @@ contains
   end subroutine TAPICallback_registerH
   
 
-  subroutine TAPICallback_invokeH_real(this, data_buf, blacs_descr)
+  subroutine TAPICallback_invokeH_real(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
+    !> Indices of k-point and spin chanel
+    integer(c_int), value :: i_kpoint, i_spin
     !> Hamiltonian matrix in dense format
     real(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
-    procedure(hs_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
     
@@ -247,18 +235,20 @@ contains
     blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
-    call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
+    call callback_proc(this%h_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
   
   end subroutine TAPICallback_invokeH_real
 
-  subroutine TAPICallback_invokeH_cplx(this, data_buf, blacs_descr)
+  subroutine TAPICallback_invokeH_cplx(this, i_kpoint, i_spin, data_buf, blacs_descr)
     class(TAPICallback) :: this
+    !> Indices of k-point and spin chanel
+    integer(c_int), value :: i_kpoint, i_spin
     !> Hamiltonian matrix in dense format
     complex(dp), intent(in), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
-    procedure(hs_callback_t), pointer :: callback_proc
+    procedure(dmhs_callback_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr
     type(c_ptr) :: data_ptr
     
@@ -270,7 +260,7 @@ contains
     blacs_descr_ptr = merge(c_loc(blacs_descr(1)), c_null_ptr, present(blacs_descr))
     data_ptr = c_loc(data_buf(1,1))
 
-    call callback_proc(this%h_aux_ptr, blacs_descr_ptr, data_ptr)
+    call callback_proc(this%h_aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
 
   end subroutine TAPICallback_invokeH_cplx
 

@@ -17,8 +17,8 @@
 #define N_SPIN 1
 
 double complex dm[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
-double complex overlap[BASIS_SIZE][BASIS_SIZE];
-double complex hamiltonian[BASIS_SIZE][BASIS_SIZE];
+double complex overlap[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
+double complex hamiltonian[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
 
 void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
@@ -28,20 +28,20 @@ void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_da
     dm[iK-1][iS-1][i][j] = dm_local[i*BASIS_SIZE + j];
 }
 
-void s_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
+void s_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
   double complex *s_local = blacs_data;
   for (int i = 0; i < BASIS_SIZE; ++i)
   for (int j = 0; j < BASIS_SIZE; ++j)
-    overlap[i][j] = s_local[i*BASIS_SIZE + j];
+    overlap[iK-1][iS-1][i][j] = s_local[i*BASIS_SIZE + j];
 }
 
-void h_callback(void *aux_ptr, int *blacs_descr, void *blacs_data)
+void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data)
 {
   double complex *h_local = blacs_data;
   for (int i = 0; i < BASIS_SIZE; ++i)
   for (int j = 0; j < BASIS_SIZE; ++j)
-    hamiltonian[i][j] = h_local[i*BASIS_SIZE + j];
+    hamiltonian[iK-1][iS-1][i][j] = h_local[i*BASIS_SIZE + j];
 }
 
 void print_matrix(FILE *f, const double complex *m)
@@ -113,10 +113,9 @@ int main()
   int nr_local_ks = dftbp_get_nr_local_ks(&calculator);
   fprintf(atf, "nr_local_ks       :integer:0:\n%d\n", nr_local_ks); 
 
-  // TODO use  typedef
-  dftbp_register_dm_callback(&calculator, (void*)dm_callback, 0);
-  dftbp_register_s_callback(&calculator, (void*)s_callback, 0);
-  dftbp_register_h_callback(&calculator, (void*)h_callback, 0);
+  dftbp_register_dm_callback(&calculator, dm_callback, 0);
+  dftbp_register_s_callback(&calculator, s_callback, 0);
+  dftbp_register_h_callback(&calculator, h_callback, 0);
   
   assert(BASIS_SIZE == basis_size);
   assert(N_KPTS == n_kpts);
@@ -131,15 +130,30 @@ int main()
   for (int iK = 1; iK <= N_KPTS; ++iK)
   for (int iS = 1; iS <= N_SPIN; ++iS)
   {
-    fprintf(atf, "dm_%d_%d       :complex:2:%d,%d\n",iK, iS,BASIS_SIZE, BASIS_SIZE);
+    fprintf(atf, "dm_%d_%d       :complex:2:%d,%d\n", iK, iS, BASIS_SIZE, BASIS_SIZE);
     print_matrix(atf, &(dm[iK-1][iS-1][0][0]));
+
+    fprintf(atf, "overlap_%d_%d       :complex:2:%d,%d\n", iK, iS, BASIS_SIZE, BASIS_SIZE);
+    print_matrix(atf, &(overlap[iK-1][iS-1][0][0]));
+
+    fprintf(atf, "hamiltonian_%d_%d       :complex:2:%d,%d\n", iK, iS, BASIS_SIZE, BASIS_SIZE);
+    print_matrix(atf, &(hamiltonian[iK-1][iS-1][0][0]));
+    
+    double complex Hsum=0, Ssum=0;
+    for (int i = 0; i < BASIS_SIZE; ++i)
+    {
+      for (int j = 0; j < BASIS_SIZE; ++j)
+      {
+        double complex d = (i < j) ? dm[iK-1][iS-1][i][j] : conj(dm[iK-1][iS-1][j][i]);
+        double complex s  = (i < j) ? overlap[iK-1][iS-1][i][j] : conj(overlap[iK-1][iS-1][j][i]);
+        double complex h  = (i < j) ? hamiltonian[iK-1][iS-1][i][j] : conj(hamiltonian[iK-1][iS-1][j][i]);
+        Ssum += d * s;
+        Hsum += d * h;
+      }
+    }
+    fprintf(atf, "Ssum_%d_%d       :complex:0:\n%f %f\n", iK, iS, creal(Ssum), cimag(Ssum));
+    fprintf(atf, "Hsum_%d_%d       :complex:0:\n%f %f\n", iK, iS, creal(Hsum), cimag(Hsum));
   }
-
-  fprintf(atf, "overlap       :complex:2:%d,%d\n",BASIS_SIZE, BASIS_SIZE);
-  print_matrix(atf, &(overlap[0][0]));
-
-  fprintf(atf, "hamiltonian       :complex:2:%d,%d\n",BASIS_SIZE, BASIS_SIZE);
-  print_matrix(atf, &(hamiltonian[0][0]));
 
   fclose(atf);
   return 0;
