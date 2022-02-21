@@ -144,9 +144,13 @@ jobs:
 
     - name: Run regression tests
       run: |
-        pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
-        popd
+        ctest --test-dir ${BUILD_DIR} -j 2 --output-on-failure
+
+    - name: Run regression tests (MPI)
+      if: ${{ ! contains(matrix.mpi, 'nompi') }}
+      run: |
+        cmake -DTEST_MPI_PROCS=2 ${BUILD_DIR}
+        ctest --test-dir ${BUILD_DIR} -j 1 --output-on-failure
 
     - name: Install project
       run: |
@@ -248,9 +252,7 @@ jobs:
 
     - name: Run regression tests
       run: |
-        pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
-        popd
+        ctest --test-dir ${BUILD_DIR} -j 2 --output-on-failure
 
     - name: Install project
       run: |
