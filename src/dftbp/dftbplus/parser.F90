@@ -2517,7 +2517,7 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     case ("magma")
       ctrl%solver%isolver = electronicSolverTypes%magma_gvd
   #:endif

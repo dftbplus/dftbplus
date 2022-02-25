@@ -3041,7 +3041,7 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      #:if WITH_GPU
+      #:if WITH_MAGMA
         call env%initGpu()
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")

@@ -13,7 +13,7 @@ module dftbp_common_environment
   use dftbp_common_globalenv, only : shutdown, stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
-#:if WITH_GPU
+#:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
 #:if WITH_MPI
@@ -65,7 +65,7 @@ module dftbp_common_environment
     logical :: blacsInitialised = .false.
   #:endif
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     !> Global GPU settings
     type(TGpuEnv), public :: gpu
   #:endif
@@ -86,7 +86,7 @@ module dftbp_common_environment
     procedure :: initBlacs => TEnvironment_initBlacs
   #:endif
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     procedure :: initGpu => TEnvironment_initGpu
   #:endif
 
@@ -287,7 +287,7 @@ contains
 #:endif
 
 
-#:if WITH_GPU
+#:if WITH_MAGMA
 
   !> Initialize GPU environment
   subroutine TEnvironment_initGpu(this)

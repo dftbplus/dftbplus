@@ -59,8 +59,8 @@ dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
-non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
-scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
+non-scc/Si_384_GPU                     #? WITH_MAGMA
+scc/SiC_512_GPU                        #? WITH_MAGMA
 
 xtb/gfn1_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1
@@ -92,11 +92,11 @@ rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
-rangesep/C4H6-Casida-S1-Force          #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-Casida-S5-Force       #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/C4H6-TD-LC-Triplet            #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-TD-LC-Spinpol         #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-TD-LC-Spinpol-Iter    #? WITH_ARPACK and (not WITH_MPI) 
+rangesep/C4H6-Casida-S1-Force          #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-Casida-S5-Force       #? WITH_ARPACK and (not WITH_MPI)
+rangesep/C4H6-TD-LC-Triplet            #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-TD-LC-Spinpol         #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-TD-LC-Spinpol-Iter    #? WITH_ARPACK and (not WITH_MPI)
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
