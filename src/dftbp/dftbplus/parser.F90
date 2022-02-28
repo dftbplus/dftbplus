@@ -1832,10 +1832,14 @@ contains
       end if
     end if
 
-    call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
-
     ! SCC parameters
     call getChildValue(node, "SCC", ctrl%tSCC, .true.)
+    if (ctrl%tSCC) then
+      call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
+    else
+      ctrl%tShellResolved = .false.
+    end if
+
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options etc.
