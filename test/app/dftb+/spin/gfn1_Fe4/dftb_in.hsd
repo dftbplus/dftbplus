@@ -13,6 +13,7 @@ Hamiltonian = xTB {
   MaxSCCIterations = 1000
   Mixer = Broyden {}
   Charge = 0.0
+  ShellResolvedSCC = yes
   SpinPolarisation = Colinear {
     UnpairedElectrons = 12
   }
