@@ -3262,6 +3262,13 @@ contains
       ctrl%tDampH = .true.
       call getChildValue(value1, "Exponent", ctrl%dampExp)
 
+    case ("dampingver2")
+      ! Switch the correction on
+      ctrl%tDampH = .true.
+      call getChildValue(value1, "Exponent", ctrl%dampExp)
+      allocate(ctrl%hqDampingFactor(size(geo%speciesNames)))
+      call readSpeciesList(value1, geo%speciesNames, ctrl%hqDampingFactor)
+
     case ("h5")
       allocate(ctrl%h5Input)
       associate (h5Input => ctrl%h5Input)

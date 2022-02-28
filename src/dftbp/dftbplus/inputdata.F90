@@ -412,6 +412,7 @@ module dftbp_dftbplus_inputdata
     !> H short range damping
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
+    real(dp), allocatable :: hqDampingFactor(:)
 
     type(TH5CorrectionInput), allocatable :: h5Input
 

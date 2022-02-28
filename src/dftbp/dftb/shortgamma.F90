@@ -14,7 +14,7 @@ module dftbp_dftb_shortgamma
   use dftbp_dftb_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
-      & expGammaDampedPrime
+      & expGammaDampedPrime, expGammaHQ, expGammaHQPrime
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
@@ -31,6 +31,9 @@ module dftbp_dftb_shortgamma
 
     !> Flag for each species, whether damping should be applied to it. Shape: [nSpecies]
     logical, allocatable :: isDamped(:)
+
+    !> Damping parameter for each species. Shape: [nSpecies]
+    real(dp), allocatable :: dampingFactor(:)
 
     !> Damping exponent
     real(dp) :: exponent
@@ -371,7 +374,12 @@ contains
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                if (allocated(this%damping_%dampingFactor)) then
+                  tmpGammaPrime = expGammaHQPrime(rab, u2, u1, this%damping_%exponent, &
+                      & this%damping_%dampingFactor(iSp2), this%damping_%dampingFactor(iSp1))
+                else
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 if (allocated(this%h5Correction_)) then
@@ -445,7 +453,12 @@ contains
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                if (allocated(this%damping_%dampingFactor)) then
+                  tmpGammaPrime = expGammaHQPrime(rab, u2, u1, this%damping_%exponent, &
+                      & this%damping_%dampingFactor(iSp2), this%damping_%dampingFactor(iSp1))
+                else
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 if (allocated(this%h5Correction_)) then
@@ -539,7 +552,12 @@ contains
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                if (allocated(this%damping_%dampingFactor)) then
+                  tmpGammaPrime = expGammaHQPrime(rab, u2, u1, this%damping_%exponent, &
+                      & this%damping_%dampingFactor(iSp2), this%damping_%dampingFactor(iSp1))
+                else
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
@@ -595,7 +613,12 @@ contains
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                if (allocated(this%damping_%dampingFactor)) then
+                  tmpGammaPrime = expGammaHQPrime(rab, u2, u1, this%damping_%exponent, &
+                      & this%damping_%dampingFactor(iSp2), this%damping_%dampingFactor(iSp1))
+                else
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 if (allocated(this%h5Correction_)) then
@@ -712,7 +735,12 @@ contains
             u2 = hubb%uniqHubbU(iU2, iSp2)
             if (iNeigh <= nNeigh(iU2, iU1, iSp2, iAt1)) then
               if (damping%isDamped(iSp1) .or. damping%isDamped(iSp2)) then
-                shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, damping%exponent)
+                if (allocated(damping%dampingFactor)) then
+                  shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaHQ(rab, u2, u1, damping%exponent, &
+                      & damping%dampingFactor(iSp2), damping%dampingFactor(iSp1))
+                else
+                  shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, damping%exponent)
+                end if
               else
                 shortGamma(iU2, iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 if (present(h5Correction)) then

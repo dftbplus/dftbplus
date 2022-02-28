@@ -5859,6 +5859,9 @@ contains
       ! Damping species: only H or any isotopes of it, but not He or anything heavier
       damping%isDamped = (speciesMass < 3.5_dp * amu__au)
       damping%exponent = ctrl%dampExp
+      if (allocated(ctrl%hqDampingFactor)) then
+        damping%dampingFactor = ctrl%hqDampingFactor
+      end if
     else
       allocate(damping%isDamped(nSpecies))
       damping%isDamped(:) = .false.

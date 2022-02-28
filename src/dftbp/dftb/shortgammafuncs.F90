@@ -15,6 +15,7 @@ module dftbp_dftb_shortgammafuncs
 
   private
   public :: expGammaCutoff, expGamma, expGammaPrime, expGammaDamped, expGammaDampedPrime
+  public :: expGammaHQ, expGammaHQPrime
 
 
 contains
@@ -263,6 +264,73 @@ contains
         &+ 2.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**2) * rab * rTmp
 
   end function expGammaDampedPrime
+
+
+  !> Determines the value of the short range contribution to gamma with the exponential form with
+  !> damping.
+  function expGammaHQ(rab, Ua, Ub, dampExp, ka, kb)
+
+    !> separation of sites a and b
+    real(dp), intent(in) :: rab
+
+    !> Hubbard U for site a
+    real(dp), intent(in) :: Ua
+
+    !> Hubbard U for site b
+    real(dp), intent(in) :: Ub
+
+    !> Damping exponent
+    real(dp), intent(in) :: dampExp
+
+    !> HQ parameter for site a
+    real(dp), intent(in) :: ka
+
+    !> HQ parameter for site b
+    real(dp), intent(in) :: kb
+
+    !> returned contribution
+    real(dp) :: expGammaHQ
+
+    real(dp) :: rTmp
+
+    rTmp = -1.0_dp * (0.5_dp * (ka + kb))**dampExp
+    expGammaHQ = expGamma(rab, Ua, Ub) * exp(rTmp * rab**4)
+
+  end function expGammaHQ
+
+
+  !> Determines the value of the derivative of the short range contribution to gamma with the
+  !> exponential form with damping
+  function expGammaHQPrime(rab, Ua, Ub, dampExp, ka, kb)
+
+    !> separation of sites a and b
+    real(dp), intent(in) :: rab
+
+    !> Hubbard U for site a
+    real(dp), intent(in) :: Ua
+
+    !> Hubbard U for site b
+    real(dp), intent(in) :: Ub
+
+    !> Damping exponent
+    real(dp), intent(in) :: dampExp
+
+    !> HQ parameter for site a
+    real(dp), intent(in) :: ka
+
+    !> HQ parameter for site b
+    real(dp), intent(in) :: kb
+
+    !> returned contribution
+    real(dp) :: expGammaHQPrime
+
+    real(dp) :: rTmp
+
+    rTmp = -1.0_dp * (0.5_dp *(ka + kb))**dampExp
+    expGammaHQPrime = expGammaPrime(rab, Ua, Ub) * exp(rTmp * rab**4) &
+        &+ 4.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**4) * rab * rTmp
+
+  end function expGammaHQPrime
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
