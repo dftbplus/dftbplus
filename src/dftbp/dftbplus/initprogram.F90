@@ -1817,7 +1817,7 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = input%ctrl%lrespini%tInit
+    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -5226,6 +5226,8 @@ contains
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+
+    @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
