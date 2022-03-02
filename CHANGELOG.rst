@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
 
 
 Changed

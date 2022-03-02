@@ -2532,6 +2532,15 @@ contains
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "Mode", ctrl%solver%elsi%elpaSolver, 2)
+      call getChildValue(value1, "Autotune", ctrl%solver%elsi%elpaAutotune, .false.)
+      call getChildValue(value1, "Gpu", ctrl%solver%elsi%elpaGpu, .false., child=child)
+      #:if not WITH_GPU
+        if (ctrl%solver%elsi%elpaGpu) then
+          call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
+              & the GPU acceleration for the ELPA solver")
+        end if
+      #:endif
+
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)

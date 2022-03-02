@@ -2160,13 +2160,34 @@ variable.)
 
 \subsubsection{ELPA}
 
-This is available with either single or two stage solution methods (the second
-of these should be more efficiently parallel for large problems).
+The ELPA solver provides an efficient and scalable diagonalizer, which is also
+able to utilize GPUs (provided the ELSI library was compiled with GPU support).
+It accepts following options
+
+\begin{ptable}
+  \kw{Autotune} & l& & No & \\
+  \kw{Gpu}    & l& & No & \\
+  \kw{Mode} & i& & 2 & \\
+  \kw{Sparse} & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{Autotune}] Whether ELPAs autotune capability should be used to
+  optimize performance (default: \is{No})
+\item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
+  that you can only enable this option, if \dftbp{} was built with GPU support.
+\item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
+  default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
+\item[\is{Sparse}] Whether the sparse matrix interface of ELPA should be used or
+  the dense one (default: dense). The sparse interface does not reduce memory
+  usage and is mainly for testing purposes.
+\end{description}
 
 Example:\invparskip
 \begin{verbatim}
   Solver = ELPA {
     Mode = 2
+    Autotune = Yes
+    Gpu = Yes
   }
 \end{verbatim}
 
@@ -2174,10 +2195,6 @@ One caveat for this solver is that the number of parallel groups (see
 p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
-
-This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
-\is{Yes}), but this does not reduce memory usage and is mainly for testing
-purposes.
 
 \subsubsection{OMM}
 
