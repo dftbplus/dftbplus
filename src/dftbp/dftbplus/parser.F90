@@ -16,7 +16,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits
+      & volumeUnits, angularUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -5386,7 +5386,8 @@ contains
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
@@ -5407,7 +5408,8 @@ contains
       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
           & child=child)
       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
