@@ -15,14 +15,14 @@ module dftbp_math_eigensolver
   use dftbp_common_accuracy, only : rsp, rdp
   use dftbp_extlibs_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
   use dftbp_io_message, only : error, warning
-#:if WITH_GPU
+#:if WITH_MAGMA
   use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
 
   private
   public :: heev, hegv, hegvd, gvr, bgv, geev
-#:if WITH_GPU
+#:if WITH_MAGMA
   public :: gpu_gvd
 #:endif
 
@@ -81,7 +81,7 @@ module dftbp_math_eigensolver
     module procedure dblecmplx_zhbgv
   end interface
 
-#:if WITH_GPU
+#:if WITH_MAGMA
   !> Divide and conquer MAGMA GPU eigensolver
   interface gpu_gvd
     module procedure real_magma_ssygvd
@@ -2022,7 +2022,7 @@ contains
   end subroutine dblecmplx_zhbgv
 
 
-#:if WITH_GPU
+#:if WITH_MAGMA
 
 #:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
   & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&

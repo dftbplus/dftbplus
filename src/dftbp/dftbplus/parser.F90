@@ -16,7 +16,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits
+      & volumeUnits, angularUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -2517,7 +2517,7 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     case ("magma")
       ctrl%solver%isolver = electronicSolverTypes%magma_gvd
   #:endif
@@ -2532,6 +2532,15 @@ contains
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "Mode", ctrl%solver%elsi%elpaSolver, 2)
+      call getChildValue(value1, "Autotune", ctrl%solver%elsi%elpaAutotune, .false.)
+      call getChildValue(value1, "Gpu", ctrl%solver%elsi%elpaGpu, .false., child=child)
+      #:if not WITH_GPU
+        if (ctrl%solver%elsi%elpaGpu) then
+          call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
+              & the GPU acceleration for the ELPA solver")
+        end if
+      #:endif
+
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
@@ -4664,12 +4673,10 @@ contains
           & response calculations (requires the ARPACK/ngARPACK libraries).')
     end if
 
-    ctrl%lrespini%tInit = .false.
-    ctrl%lrespini%tPrintEigVecs = .false.
-
     if (associated(child)) then
 
-      ctrl%lrespini%tInit = .true.
+      allocate(ctrl%lrespini)
+      ctrl%lrespini%tPrintEigVecs = .false.
 
       if (ctrl%tSpin) then
         ctrl%lrespini%sym = ' '
@@ -5037,7 +5044,12 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+
+    logical :: tPrintEigVecs
+
+    tPrintEigVecs = ctrl%tPrintEigVecs
+    if (allocated(ctrl%lrespini)) tPrintEigvecs = tPrintEigvecs .or. ctrl%lrespini%tPrintEigVecs
+    if (tPrintEigVecs) then
       call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
     end if
 
@@ -5177,7 +5189,7 @@ contains
 
     tLRNeedsSpinConstants = .false.
 
-    if (ctrl%lrespini%tInit) then
+    if (allocated(ctrl%lrespini)) then
       select case (ctrl%lrespini%sym)
       case ("T", "B", " ")
         tLRNeedsSpinConstants = .true.
@@ -5374,7 +5386,8 @@ contains
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
@@ -5395,7 +5408,8 @@ contains
       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
           & child=child)
       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)

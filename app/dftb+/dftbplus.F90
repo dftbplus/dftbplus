@@ -33,7 +33,7 @@ program dftbplus
   deallocate(input)
   call runDftbPlus(main, env)
   call main%destructProgramVariables()
-#:if WITH_GPU
+#:if WITH_MAGMA
   call magmaf_finalize()
 #:endif
   call env%destruct()

@@ -1817,7 +1817,7 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = input%ctrl%lrespini%tInit
+    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -3041,7 +3041,7 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      #:if WITH_GPU
+      #:if WITH_MAGMA
         call env%initGpu()
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
@@ -5226,6 +5226,8 @@ contains
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+
+    @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
