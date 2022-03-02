@@ -12,7 +12,7 @@ module dftbp_mmapi
   use iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -288,6 +288,10 @@ contains
       end if
       nInstance_ = 1
     #:endif
+
+    if (present(mpiComm) .and. .not. withMpi) then
+      call error("MPI Communicator supplied to initialise serial DFTB+ instance")
+    end if
 
     if (present(outputUnit)) then
       stdOut = outputUnit
