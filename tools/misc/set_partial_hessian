@@ -45,9 +45,11 @@ elif [ "$1" = "-np" ]; then
 elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then  
    COUNT=`grep -c '#SBATCH' $2`
    if [ "$COUNT" -gt 0 ]; then
-     BATCH="sbatch $2"
+     BATCHCOMM="sbatch"
+     BATCHFILE="$2"
    else
-     BATCH="./$2"
+     BATCHCOMM=""
+     BATCHFILE="./$2"
    fi  
    echo "BATCH command applied: " $BATCH
    shift 2
@@ -102,15 +104,17 @@ for i in $NEACH; do
   NSTOP=`echo "$NSTART + $i - 1" | bc -l`
   FOLDER="partial."$NSTART"-"$NSTOP
   if [ $SETJOB -eq 1 ]; then
+     echo "mkdir " $FOLDER
      mkdir -p $FOLDER
      if [ "$FILE" != "" ]; then
        cp -p $FILE $FOLDER
      fi
      sed 's/@ATOMS@/'$NSTART":"$NSTOP'/' dftb_in.in > $FOLDER/dftb_in.hsd
-     if [ "$BATCH" != "" ]; then
-       cp $BATCH $FOLDER
+     if [ "$BATCHFILE" != "" ]; then
+       cp $BATCHFILE $FOLDER
        cd $FOLDER
-       $BATCH
+       echo $BATCHCOMM " " $BATCHFILE
+       $BATCHCOMM $BATCHFILE
        cd .. 
      fi 
   else

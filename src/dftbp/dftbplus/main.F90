@@ -6072,7 +6072,7 @@ contains
     integer, intent(in) :: indCompAtoms(:)
 
     !> atomic coordinates
-    real(dp), intent(out) :: coord(:,:)
+    real(dp), intent(inout) :: coord(:,:)
 
     !> has the process terminated
     logical, intent(out) :: tGeomEnd
