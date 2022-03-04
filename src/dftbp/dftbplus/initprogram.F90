@@ -526,8 +526,8 @@ module dftbp_dftbplus_initprogram
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
 
-    !> Index of the atoms for which forces are computed
-    integer, allocatable :: indComputedAtom(:)
+    !> Index of the atoms for which second derivatives are computed
+    integer, allocatable :: indDerivAtom(:)
 
     !> Nr. of moved coordinates
     integer :: nMovedCoord
@@ -1957,15 +1957,13 @@ contains
     end if
 
     if (this%nMovedAtom > 0) then
-      allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
-      this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
-      if (allocated(input%ctrl%indComputedAtom)) then
-        allocate(this%indComputedAtom(input%ctrl%nrComputed))
-        this%indComputedAtom(:) = input%ctrl%indComputedAtom(:)
-      end if  
+      this%indMovedAtom = input%ctrl%indMovedAtom
+      if (allocated(input%ctrl%indDerivAtom)) then
+        this%indDerivAtom = input%ctrl%indDerivAtom
+      end if
     else
       allocate(this%indMovedAtom(0))
-      allocate(this%indComputedAtom(0))
+      allocate(this%indDerivAtom(0))
     end if
 
     if (allocated(input%ctrl%geoOpt)) then
@@ -2558,7 +2556,7 @@ contains
     if (this%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
-      call create(this%derivDriver, tmp3Coords, size(this%indComputedAtom), input%ctrl%deriv2ndDelta)
+      call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -2964,8 +2962,8 @@ contains
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) this%indComputedAtom
-      if (size(this%indComputedAtom) > size(this%indMovedAtom)) then
+      write(stdOut, *) this%indDerivAtom
+      if (size(this%indDerivAtom) > size(this%indMovedAtom)) then
         write(stdOut, "('Mode:',T30,A)") "Moved atoms:"
         write(stdOut, *) this%indMovedAtom
       end if

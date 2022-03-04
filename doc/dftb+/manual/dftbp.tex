@@ -695,23 +695,38 @@ frequencies.
 
 \begin{ptable}
   \kw{Atoms} & i+|m &  & 1:-1 & \\
-  \kw{ComputeAtoms} & i+|m &  & 1:-1 & \\	
+  \kw{MovedAtoms} & i+|m &  & \textrm{Value of} Atoms & \\
   \kw{Delta} & r & & 1e-4 & \\
 \end{ptable}
 
 \begin{description}
-\item[\is{Atoms}] Index of the atoms that are actually moved and for which the second
-  derivatives are computed. The index selection format is described in appendix \ref{sec:index_selection}.
+\item[\is{Atoms}] Index of the atoms for which the second derivatives should be
+  computed. The index selection format is described in appendix
+  \ref{sec:index_selection}.
 
-\item[\is{ComputeAtoms}] Optional parameter to define the atoms for which the Hessian is computed.
-  It can be larger than the moved Atoms in which case a rectangular matrix is produced on output with
-  3$*$nAtoms rows and 3$*$nComputedAtoms columns. This is useful for a job distribution of the Hessian calculation.
-  See also the batch script in tools/misc/set\_partial\_hessian. 
+\item[\is{MovedAtoms}] Optional parameter enabling to select a subset of the
+  atoms which were specified with the \is{Atoms} keyword. Only the selected
+  atoms will then be moved in the calculation, yielding a rectangular submatrix
+  ($3\,\text{nMovedAtoms} \times 3\,\text{nAtoms}$) of the full Hessian
+  ($3\,\text{nAtoms} \times 3\,\text{nAtoms}$). This is useful for splitting the
+  Hessian calculation among multiple \dftbp{} runs.  See also the batch script
+  in \texttt{tools/misc/set\_partial\_hessian}. If the keyword is not specified,
+  the full Hessian for all atoms specified in \is{Atoms} will be calculated.
+  Currently, the atom indices provided in \is{MovedAtoms} must build a
+  contiguous range, and also the atom indices listed in \is{Atoms} must be
+  contiguous if the \is{MovedAtoms} option is used.
 
-\item[\is{Delta}] Step size for numerical differentiation of forces to
-  get the second derivatives of the energy with respect to atomic
-  coordinates.
+\item[\is{Delta}]\modif{\modtype{len}} Optional step size for numerical
+  differentiation of forces to get the second derivatives of the energy with
+  respect to atomic coordinates.
 \end{description}
+
+Example:
+\begin{verbatim}
+Driver = SecondDerivatives {
+    Atoms = 1:12
+}
+\end{verbatim}
 
 
 \subsection{VelocityVerlet\cb}

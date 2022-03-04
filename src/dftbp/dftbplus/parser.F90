@@ -563,41 +563,35 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
-      ! Indices of atoms that are moved
-      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
-          & ctrl%indMovedAtom)
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      if (ctrl%nrMoved == 0) then
+
+      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
+          & multiple=.true.)
+      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
+          & ctrl%indDerivAtom)
+      if (size(ctrl%indDerivAtom) == 0) then
         call error("No atoms specified for derivatives calculation.")
       end if
 
-      ! Specify the indices of the atoms for which the Hessian is computed.
-      ! It can be larger that the actual moved atoms in which case a rectangular matrix is
-      ! created. It is useful for distributed jobs. In this case the moved atoms
-      ! can be restricted but derivatives are computed for a larger set of atoms.
-      call getChild(node, "computeAtoms", child, requested=.false.)
+      call getChild(node, "MovedAtoms", child, requested=.false.)
       if (associated(child)) then
-        call getChildValue(node, "computeAtoms", buffer2, trim(atomsRange), child=child, &
-          & multiple=.true.)
-        if (.not. checkContigousRange(ctrl%indMovedAtom)) then
-          call error("Atoms for calculation of partial Hessian must be a contigous range.")
+        if (.not. isContiguousRange(ctrl%indDerivAtom)) then
+          call detailedError(child,&
+            & "Atoms for calculation of partial Hessian must be a contiguous range.")
         end if
-        call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
-           & ctrl%indComputedAtom)
-        ctrl%nrComputed = size(ctrl%indComputedAtom)
-        if (.not. checkContigousRange(ctrl%indComputedAtom)) then
-          call error("ComputeAtoms for calculation of partial Hessian must be a contigous range.")
+        call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
+        call getSelectedAtomIndices(child2, char(buffer2), geom%speciesNames, geom%species, &
+           & ctrl%indMovedAtom)
+        if (.not. isContiguousRange(ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
+              & contiguous range.")
         end if
-        if (.not. checkIndices(ctrl%indMovedAtom, ctrl%indComputedAtom)) then
-          call error("Atoms contains indices not found in computeAtoms.")
+        if (.not. containsAll(ctrl%indDerivAtom, ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms has indices not contained in Atoms.")
         end if
       else
-        ctrl%nrComputed = ctrl%nrMoved
-        allocate(ctrl%indComputedAtom(ctrl%nrComputed))
-        ctrl%indComputedAtom = ctrl%indMovedAtom
+        ctrl%indMovedAtom = ctrl%indDerivAtom
       end if
+      ctrl%nrMoved = size(ctrl%indMovedAtom)
 
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
@@ -879,51 +873,40 @@ contains
   end subroutine readDriver
 
   !> Simple function to check that an array of indices is a contigous range
-  function checkContigousRange(indices) result(check)
+  function isContiguousRange(indices) result(isContiguous)
 
     !> Array of atomic indices
     integer, intent(in) :: indices(:)
 
     !> whether indices are contigous
-    logical :: check
+    logical :: isContiguous
 
-    integer :: kk
+    isContiguous = all(indices(: size(indices) - 1) + 1 == indices(2:))
 
-    check = .true.
+  end function isContiguousRange
 
-    do kk = 2, size(indices)
-      if (indices(kk) /= indices(kk-1)+1) then
-        check = .false.
-        exit
-      end if
-    end do
-
-  end function checkContigousRange
 
   !> checks that the array subindices is contained in indices
-  function checkIndices(subindices, indices) result(check)
-
-    !> Array of atomic indices to check
-    integer, intent(in) :: subindices(:)
+  function containsAll(indices, subindices)
 
     !> Array of atomic indices to check against
     integer, intent(in) :: indices(:)
 
+    !> Array of atomic indices to check
+    integer, intent(in) :: subindices(:)
+
     !> whether indices are contigous
-    logical :: check
+    logical :: containsAll
 
     integer :: kk
 
-    check = .true.
-
+    containsAll = .false.
     do kk = 1, size(subindices)
-      if (minval(abs(indices-subindices(kk))) /= 0) then
-        check = .false.
-        exit
-      end if
+      if (.not. any(indices == subindices(kk))) return
     end do
+    containsAll = .true.
 
-  end function checkIndices
+  end function containsAll
 
 
   !> Common geometry optimisation settings for various drivers

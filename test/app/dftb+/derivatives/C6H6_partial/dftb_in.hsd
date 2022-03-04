@@ -16,8 +16,8 @@ Geometry = GenFormat {
 }
 
 Driver = SecondDerivatives{
-  Atoms = 1:6
-  computeAtoms = 1:12
+  Atoms = 1:12
+  MovedAtoms = 1:6
 }
 
 Hamiltonian = DFTB {

@@ -13,16 +13,16 @@ if [ $# -lt 2 -o "$NP" = "0" -o "$NATOMS" = "0" -a "$FILE" = "" ]; then
   echo "    --natoms, -n :  Alternative to --file used to set the number of atoms"
   echo "--exec-batch, -e :  Optional batch script to submit the jobs automatically"
   echo "                    If the batch script contains Slurm '#SBATCH' commands the script is"
-  echo "                    launched with the command 'sbatch batchscript' " 
+  echo "                    launched with the command 'sbatch batchscript' "
   echo "    --gather, -g :  Gather the partial Hessians and assemble a complete file"
   echo " USE: "
   echo " The script requires to prepare a file named 'dftb_in.in' with all options for a dftb+ run"
-  echo " and with Atoms = @ATOMS@ in the block SecondDerivatives like, "
+  echo " and with MovedAtoms = @MOVED_ATOMS@ in the block SecondDerivatives like, "
   echo " "
   echo " Driver = SecondDerivatives{"
   echo "   Delta = 1e-4  # (set this parameter as needed)"
-  echo "   Atoms = @ATOMS@  "
-  echo "   computeAtoms = 1:-1"
+  echo "   Atoms = 1:-1  "
+  echo "   MovedAtoms = @MOVED_ATOMS@"
   echo " }"
 fi
 
@@ -35,14 +35,14 @@ SETJOB=1
 while [ True ]; do
 if [ "$1" = "--file" -o "$1" = "-f" ]; then
    FILE=$2
-   shift 2 
+   shift 2
 elif [ "$1" = "--natoms" -o "$1" = "-n" ]; then
    NATOMS=$2
    shift 2
 elif [ "$1" = "-np" ]; then
    NP=$2
    shift 2
-elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then  
+elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then
    COUNT=`grep -c '#SBATCH' $2`
    if [ "$COUNT" -gt 0 ]; then
      BATCHCOMM="sbatch"
@@ -50,24 +50,24 @@ elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then
    else
      BATCHCOMM=""
      BATCHFILE="./$2"
-   fi  
+   fi
    echo "BATCH command applied: " $BATCH
    shift 2
-elif [ "$1" = "--gather" -o "$1" = "-g" ]; then 
+elif [ "$1" = "--gather" -o "$1" = "-g" ]; then
    SETJOB=0
-   shift 1 
-else   
+   shift 1
+else
    break
 fi
 done
 
 # CHECKS THAT dftb_in.in exists and is set correctly
 if [ -f dftb_in.in ]; then
-  NC=`grep -c '@ATOMS@' dftb_in.in`
+  NC=`grep -c '@MOVED_ATOMS@' dftb_in.in`
   if [ "$NC" -eq 0 ]; then
-    echo "ERROR: @ATOMS@ not found in dftb_in.in"
+    echo "ERROR: @MOVED_ATOMS@ not found in dftb_in.in"
     exit
-  fi  
+  fi
 else
   echo "ERROR: file dftb_in.in not found"
   exit
@@ -109,18 +109,16 @@ for i in $NEACH; do
      if [ "$FILE" != "" ]; then
        cp -p $FILE $FOLDER
      fi
-     sed 's/@ATOMS@/'$NSTART":"$NSTOP'/' dftb_in.in > $FOLDER/dftb_in.hsd
+     sed 's/@MOVED_ATOMS@/'$NSTART":"$NSTOP'/' dftb_in.in > $FOLDER/dftb_in.hsd
      if [ "$BATCHFILE" != "" ]; then
        cp $BATCHFILE $FOLDER
        cd $FOLDER
        echo $BATCHCOMM " " $BATCHFILE
        $BATCHCOMM $BATCHFILE
-       cd .. 
-     fi 
+       cd ..
+     fi
   else
      cat $FOLDER"/hessian.out."$NSTART"-"$NSTOP >> hessian.combined
-  fi  
+  fi
   NSTART=`echo "$NSTOP + 1" | bc -l`
 done
-
-
