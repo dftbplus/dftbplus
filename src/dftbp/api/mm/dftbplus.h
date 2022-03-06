@@ -279,6 +279,16 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
 
 
 /**
+ * Queries the atomic geometry of the current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] coords Coordinates of each atom. Shape [natom, 3]. Unit: Bohr.
+ */
+void dftbp_get_coords(DftbPlus *instance, double *coords);
+
+
+/**
  * Queries the gradients of the current geometry.
  *
  * \param[inout] instance Handler of the DFTB+ instance.

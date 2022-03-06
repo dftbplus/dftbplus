@@ -23,6 +23,11 @@ foreach(testname_raw IN LISTS pyapi_tests_raw)
   endif()
 endforeach()
 
+# convert semicolon separated list
+string(REGEX REPLACE ";" ":" tmplibs "${LAPACK_LIBRARY};${BLAS_LIBRARY}")
+# remove any -l libs
+string(REGEX REPLACE ":-l[^:]*" "" dynlibs "${tmplibs}")
+
 foreach(test IN LISTS tests)
   add_test(
     NAME pyapi_${test}
@@ -30,4 +35,9 @@ foreach(test IN LISTS tests)
         -r ${srcdir}/testcases -w ${builddir}/testcases
 	-d ${projectdir}/test/app/dftb+/bin/tagdiff
         -P "${TEST_RUNNER}" -s P,R,C,S ${test})
+   if (NOT "${dynlibs}" STREQUAL "")
+     set_property(TEST pyapi_${test}
+       PROPERTY
+       ENVIRONMENT LD_PRELOAD=${dynlibs})
+   endif()
 endforeach()

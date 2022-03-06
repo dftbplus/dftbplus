@@ -88,6 +88,8 @@ module dftbp_mmapi
     procedure :: setExternalCharges => TDftbPlus_setExternalCharges
     !> add reactive external charges to a calculator
     procedure :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
+    !> get the atomic geometry (coordinates) of a calculator
+    procedure :: getAtomicGeometry => TDftbPlus_getAtomicGeometry
     !> obtain the DFTB+ energy
     procedure :: getEnergy => TDftbPlus_getEnergy
     !> obtain the DFTB+ gradients
@@ -490,6 +492,22 @@ contains
     call setQDepExtPotProxy(this%main, extPotProxy)
 
   end subroutine TDftbPlus_setQDepExtPotGen
+
+
+  !> Gets the atomic geometry in the calculator.
+  subroutine TDftbPlus_getAtomicGeometry(this, coords)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
+    real(dp), intent(out) :: coords(:,:)
+
+    call this%checkInit()
+
+    coords(:,:) = this%main%coord0
+
+  end subroutine TDftbPlus_getAtomicGeometry
 
 
   !> Return the energy of the current system.

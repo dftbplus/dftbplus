@@ -250,6 +250,21 @@ class DftbPlus:
 
         return energy[0]
 
+    def get_coords(self):
+        '''Obtains the atomic coordinates of the current geometry.
+
+        Returns:
+
+            coords (2darray): atomic coordinates (in atomic units)
+
+        '''
+
+        coords = np.empty((self._natoms, 3))
+
+        self._dftbpluslib.dftbp_get_coords(self._dftb_handler,
+                                           coords)
+
+        return coords
 
     def get_gradients(self):
         '''Performs the calculation of the atomic gradients and queries the
@@ -349,6 +364,9 @@ class DftbPlus:
 
         self._wrap('dftbp_get_energy', None,
                    [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
+
+        self._wrap('dftbp_get_coords', None,
+                   [ctypes.POINTER(ctypes.c_void_p), self._dp2d])
 
         self._wrap('dftbp_get_gradients', None,
                    [ctypes.POINTER(ctypes.c_void_p), self._dp2d])

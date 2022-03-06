@@ -343,6 +343,25 @@ contains
   end function c_DftbPlus_nrOfAtoms
 
 
+  !> Obtain the atomic coordinates in the calculation
+  subroutine c_DftbPlus_getAtomicGeometry(handler, coords) bind(C, name='dftbp_get_coords')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> coordinates, row major format
+    real(c_double), intent(out) :: coords(3, *)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getAtomicGeometry(coords(:, 1:nAtom))
+
+  end subroutine c_DftbPlus_getAtomicGeometry
+
+
   !> Obtain nr. of k-points.
   function c_DftbPlus_nrOfKPoints(handler) result(nKPoints) bind(C, name='dftbp_nr_kpoints')
     type(c_DftbPlus), intent(inout) :: handler
