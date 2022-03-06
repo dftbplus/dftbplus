@@ -956,6 +956,9 @@ module dftbp_dftbplus_initprogram
     !> dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
 
+    !> Additional dipole moment related message to write out
+    character(lc) :: dipoleMessage
+
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
 
@@ -2199,11 +2202,23 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and.&
-        & this%tMulliken) then
-      this%tDipole = .true.
-    else
-      this%tDipole = .false.
+    this%tDipole = this%tMulliken
+    if (this%tDipole) then
+      block
+        logical :: isDipoleDefined
+        isDipoleDefined = .true.
+        if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
+          call warning("Dipole printed for a charged system : origin dependent quantity")
+        end if
+        if (this%tPeriodic.or.this%tHelical) then
+          call warning("Dipole printed for extended system : value printed is not well defined")
+        end if
+        if (isDipoleDefined) then
+          write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
+        else
+          write(this%dipoleMessage, "(A)")""
+        end if
+      end block
     end if
 
     if (this%tMulliken) then
