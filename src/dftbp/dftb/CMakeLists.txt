@@ -9,8 +9,8 @@ set(sources-fpp
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90
   ${curdir}/dense.F90
+  ${curdir}/deltadftb.F90
   ${curdir}/densitymatrix.F90
-  ${curdir}/determinants.F90
   ${curdir}/dftbplusu.F90
   ${curdir}/dftd3param.F90
   ${curdir}/dftd4param.F90
@@ -34,6 +34,7 @@ set(sources-fpp
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
   ${curdir}/hamiltonian.F90
+  ${curdir}/modifiedham.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90

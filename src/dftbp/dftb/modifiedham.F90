@@ -7,16 +7,17 @@
 
 #:include 'common.fypp'
 
-!> Routines for (time independent excited) TI-DFTB
-module dftbp_dftb_determinants
+!> Routines for multi-determinant calculations
+module dftbp_dftb_modifiedham
   use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_deltadets, only : TDeltaDeterminants
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : Efilling
   use dftbp_io_message, only : error
   implicit none
 
   private
-  public :: determinants, TDftbDeterminants_init, TDftbDeterminants
+  public :: determinants, TModifiedHam_init, TModifiedHam
 
 
   !> Name space for determinants
@@ -34,14 +35,14 @@ module dftbp_dftb_determinants
   end type TDeterminantsEnum
 
 
-  !> Actual values for elecSolverTypes.
+  !> Actual values for Delta-SCF determinants
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
 
 
   !> Control type for Delta DFTB / TI-DFTB
-  type TDftbDeterminants
+  type TModifiedHam
 
-    !> Is this a non-Aufbau filling
+    !> Is this a non-Aufbau filled state
     logical :: isNonAufbau
 
     !> Should the non-Aufbau fillings be spin purified
@@ -51,10 +52,7 @@ module dftbp_dftb_determinants
     logical :: isGroundGuess
 
     !> Current determinant being solved
-    integer :: iDeterminant
-
-    !> Number of electrons in each spin channel
-    real(dp), allocatable :: nEl(:)
+    integer :: iDet = 0
 
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
@@ -80,17 +78,20 @@ module dftbp_dftb_determinants
     procedure :: nDeterminant
     procedure :: whichDeterminant
     procedure :: detFilling
+    procedure :: nSteps
+    procedure :: stopLoop
+    procedure :: iHam
 
-  end type TDftbDeterminants
+  end type TModifiedHam
 
 
 contains
 
-  !> Counts number of determinants to be evaluated
+  !> Counts number of determinants to be evaluated for a property calculation
   pure function nDeterminant(this) result(nDet)
 
     !> Instance
-    class(TDftbDeterminants), intent(in) :: this
+    class(TModifiedHam), intent(in) :: this
 
     integer :: nDet
 
@@ -99,24 +100,62 @@ contains
   end function nDeterminant
 
 
-  !> Converts determinant number into what type it should be
-  function whichDeterminant(this, iDet) result(det)
+  !> Counts number of steps to iterate over when setting up modified hamiltonians
+  !>
+  !> In future, can be generalized to drive constraint loop or distributed parallel determinant
+  !> evaluations
+  pure function nSteps(this) result(nDet)
 
     !> Instance
-    class(TDftbDeterminants), intent(in) :: this
+    class(TModifiedHam), intent(in) :: this
 
-    !> Number of current determinant
-    integer, intent(in) :: iDet
+    integer :: nDet
+
+    nDet = size(this%determinants)
+
+  end function nSteps
+
+
+  !> Should the determinant loop in the main code be prematurely stopped? (Use case e.g. electronic
+  !> constraints with this loop)
+  pure function stopLoop(this)
+
+    !> Instance
+    class(TModifiedHam), intent(in) :: this
+
+    logical :: stopLoop
+
+    stopLoop = .false.
+
+  end function stopLoop
+
+
+  !> Converts determinant number into what type it should be
+  function whichDeterminant(this) result(det)
+
+    !> Instance
+    class(TModifiedHam), intent(in) :: this
 
     integer :: det
 
-    if (iDet > size(this%determinants)) then
-      call error("Internal error: invalid determinant")
-    endif
-
-    det = this%determinants(iDet)
+    det = this%determinants(this%iDet)
 
   end function whichDeterminant
+
+
+  !> Which hamiltonian is currently being used in the loop over determinants
+  function iHam(this)
+
+    !> Instance
+    class(TModifiedHam), intent(in) :: this
+
+    !> Resulting determinant/hamiltonian
+    integer :: iHam
+
+    ! relevant case for Delta-DFTB
+    iHam = mod(this%iDet-1, this%nDeterminant()) + 1
+
+  end function iHam
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces
@@ -124,7 +163,7 @@ contains
       & stress, tripletStress, mixedStress, derivs, tripletderivs, mixedderivs)
 
     !> Instance
-    class(TDftbDeterminants), intent(inout) :: this
+    class(TModifiedHam), intent(inout) :: this
 
     !> energy components for whatever determinants are present
     type(TEnergies), intent(inout) :: energies(:)
@@ -250,10 +289,10 @@ contains
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl, dftbEnergy)
+  subroutine TModifiedHam_init(this, isNonAufbau, isSpinPurify, isGroundGuess, dftbEnergy)
 
     !> Instance
-    type(TDftbDeterminants), intent(out) :: this
+    type(TModifiedHam), intent(out) :: this
 
     !> Is this a non-aufbau filled TI calculation
     logical, intent(in) :: isNonAufbau
@@ -263,9 +302,6 @@ contains
 
     !> Should there be a ground state initial guess before Non-Aufbau calc?
     logical, intent(in) :: isGroundGuess
-
-    !> Number of electrons in each spin channel
-    real(dp), intent(in) :: nEl(:)
 
     !> Energy terms for each determinant (and total if post processing something other than ground
     !> state)
@@ -279,15 +315,13 @@ contains
     this%isGroundGuess = isGroundGuess
     this%isSpinPurify = isSpinPurify
 
-    this%nEl = nEl
-
     ! set to zero as initially unused.
     this%iGround = 0
     this%iTriplet = 0
     this%iMixed = 0
 
     ! assume first determinant
-    this%iDeterminant = 1
+    this%iDet = 1
 
     this%determinants = [integer ::]
 
@@ -323,15 +357,15 @@ contains
 
     this%isFinished = .false.
 
-  end subroutine TDftbDeterminants_init
+  end subroutine TModifiedHam_init
 
 
-  !> Fillings for determinants
+  !> Fillings for determinants in Delta SCF
   subroutine detFilling(this, fillings, EBand, Ef, TS, E0, nElec, eigVals, tempElec, kWeights,&
       & iDistribFn)
 
     !> Instance
-    class(TDftbDeterminants), intent(in) :: this
+    class(TModifiedHam), intent(in) :: this
 
     !> Fillings (orbital, kpoint, spin)
     real(dp), intent(out) :: fillings(:,:,:)
@@ -372,29 +406,34 @@ contains
 
     nElecFill = nElec
 
-    if (this%whichDeterminant(this%iDeterminant) == determinants%mixed) then
+    if (this%whichDeterminant() == determinants%mixed) then
+
       allocate(fillingsTmp(nLevels, nKPoints, 2, 3))
       fillingsTmp(:,:,:,:) = 0.0_dp
 
-      do iConfig = 1, 3
-        select case(iConfig)
-        case(1)
-          nElecFill(1) = nElecFill(1) + 1.0_dp
-        case(3)
-          nElecFill(1) = nElecFill(1) - 1.0_dp
-        end select
-        ! Every spin channel (but not the k-points) filled up individually
-        do iS = 1, nSpinHams
-          call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS),&
-              & fillingsTmp(:,:,iS:iS, iConfig), eigvals(:,:,iS:iS), nElecFill(iS), tempElec,&
-              & kWeights, iDistribFn)
+      if (.true.) then
+        do iConfig = 1, 3
+          nElecFill(1) = nElec(1)
+          select case(iConfig)
+          case(1)
+            nElecFill(1) = nElecFill(1) + 1.0_dp
+          case(3)
+            nElecFill(1) = nElecFill(1) - 1.0_dp
+          end select
+          ! Every spin channel (but not the k-points) filled up individually
+          do iS = 1, nSpinHams
+            call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS),&
+                & fillingsTmp(:,:,iS:iS, iConfig), eigvals(:,:,iS:iS), nElecFill(iS), tempElec,&
+                & kWeights, iDistribFn)
+          end do
         end do
-        nElecFill(1) = nElec(1)
-      end do
+      else
+      end if
       fillings(:,:,:) = fillingsTmp(:,:,:,1) - fillingsTmp(:,:,:,2) + fillingsTmp(:,:,:,3)
 
     else
-      if (this%whichDeterminant(this%iDeterminant) == determinants%triplet) then
+
+      if (this%whichDeterminant() == determinants%triplet) then
         ! transfer an electron between spin channels
         nElecFill(1) = nElecFill(1) + 1.0_dp
         nElecFill(2) = nElecFill(2) - 1.0_dp
@@ -447,4 +486,4 @@ contains
   end subroutine applyZieglerAlloc
 
 
-end module dftbp_dftb_determinants
+end module dftbp_dftb_modifiedham
