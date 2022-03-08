@@ -323,7 +323,7 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation, this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -1567,7 +1567,7 @@ contains
             & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%solvation)
+            & this%dipoleMoment, this%solvation, this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -4551,7 +4551,7 @@ contains
       do iAt = 1, nAtom
         dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) * coord0(ii, iAt)
       end do
-      write(stdOut, "(F12.8)", advance='no') sum(dipole)
+      write(stdOut, "(F16.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
     if (allocated(solvation)) then
@@ -7353,6 +7353,8 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+
+
   !> Set correct dipole moment according to type of REKS calculation
   subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
 
