@@ -563,14 +563,36 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
-      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
-          & ctrl%indMovedAtom)
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      if (ctrl%nrMoved == 0) then
+
+      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
+          & multiple=.true.)
+      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
+          & ctrl%indDerivAtom)
+      if (size(ctrl%indDerivAtom) == 0) then
         call error("No atoms specified for derivatives calculation.")
       end if
+
+      call getChild(node, "MovedAtoms", child, requested=.false.)
+      if (associated(child)) then
+        if (.not. isContiguousRange(ctrl%indDerivAtom)) then
+          call detailedError(child,&
+            & "Atoms for calculation of partial Hessian must be a contiguous range.")
+        end if
+        call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
+        call getSelectedAtomIndices(child2, char(buffer2), geom%speciesNames, geom%species, &
+           & ctrl%indMovedAtom)
+        if (.not. isContiguousRange(ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
+              & contiguous range.")
+        end if
+        if (.not. containsAll(ctrl%indDerivAtom, ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms has indices not contained in Atoms.")
+        end if
+      else
+        ctrl%indMovedAtom = ctrl%indDerivAtom
+      end if
+      ctrl%nrMoved = size(ctrl%indMovedAtom)
+
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
@@ -849,6 +871,42 @@ contains
   #:endif
 
   end subroutine readDriver
+
+  !> Simple function to check that an array of indices is a contigous range
+  function isContiguousRange(indices) result(isContiguous)
+
+    !> Array of atomic indices
+    integer, intent(in) :: indices(:)
+
+    !> whether indices are contigous
+    logical :: isContiguous
+
+    isContiguous = all(indices(: size(indices) - 1) + 1 == indices(2:))
+
+  end function isContiguousRange
+
+
+  !> checks that the array subindices is contained in indices
+  function containsAll(indices, subindices)
+
+    !> Array of atomic indices to check against
+    integer, intent(in) :: indices(:)
+
+    !> Array of atomic indices to check
+    integer, intent(in) :: subindices(:)
+
+    !> whether indices are contigous
+    logical :: containsAll
+
+    integer :: kk
+
+    containsAll = .false.
+    do kk = 1, size(subindices)
+      if (.not. any(indices == subindices(kk))) return
+    end do
+    containsAll = .true.
+
+  end function containsAll
 
 
   !> Common geometry optimisation settings for various drivers
