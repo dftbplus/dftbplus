@@ -1562,7 +1562,7 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   can differ considerably between methods.
 
 \item[\is{CustomisedHubbards}] Enables overriding of the Hubbard U values for given species. If the
-  option \is{OrbitalResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
+  option \is{ShellResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
   for each atomic shell in the basis of the given atom type, otherwise only one atomic value is
   required. For all species not specified in this block, the value(s) found in their respective
   Slater-Koster files will be used.
@@ -4627,14 +4627,31 @@ calculation and/or calculate properties.
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
 
-\subsection{ProjectStates} \kw{ProjectStates}
-\label{sec:dftbp.ProjectStates} evaluates the Mulliken
-projection of electronic states onto specific regions of the system being
-modelled (partial density of states -- PDOS). The format of the projected data
-files is similar to \verb|band.out|, but the second column is the fraction of
-the state within that region, instead of its occupation number (for
-non-collinear and spin-orbit calculations, three additional columns for the
-magnetisation of the state are also given).
+\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
+  \verb|eigenvec.bin|. For a description of the file format see
+  p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
+  text version of the data should be printed in \verb|eigenvec.out|. For a
+  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
+  which contains the band structure in a more or less human friendly format.
+
+\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
+  for the actual calculation (e.g.\ static geometry calculation).
+
+\end{description}
+
+\subsection{ProjectStates}
+\label{sec:dftbp.ProjectStates}
+
+\kw{ProjectStates} evaluates the Mulliken projection of electronic states onto
+specific regions of the system being modelled (partial density of states --
+PDOS). The format of the projected data files is similar to \verb|band.out|, but
+the second column is the fraction of the state within that region, instead of
+its occupation number (for non-collinear and spin-orbit calculations, three
+additional columns for the magnetisation of the state are also given).
 
 Each region for projection is specified within a \iscb{Region} block,
 with the following options
@@ -4730,21 +4747,6 @@ method which {\em may} have better scaling properties.
   with tighter tolerances as the localisation proceeds).
 \end{description}
 
-\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
-  \verb|eigenvec.bin|. For a description of the file format see
-  p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
-  text version of the data should be printed in \verb|eigenvec.out|. For a
-  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
-  which contains the band structure in a more or less human friendly format.
-
-\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
-  for the actual calculation (e.g.\ static geometry calculation).
-
-\end{description}
 
 \subsection{ElectrostaticPotential}
 \label{sec:dftbp.esp}
