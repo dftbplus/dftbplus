@@ -112,6 +112,10 @@ if(WITH_ELSI)
   if(ELSI_WITH_PEXSI)
     target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
   endif()
+  if(WITH_GPU)
+    target_link_libraries(dftbplus PRIVATE CUDA::cudart)
+    target_link_libraries(dftbplus PRIVATE CUDA::cublas)
+  endif()
 endif()
 
 if(WITH_PLUMED)
@@ -137,7 +141,7 @@ endif()
 
 target_link_libraries(dftbplus PUBLIC LAPACK::LAPACK)
 
-if (WITH_GPU)
+if(WITH_MAGMA)
   target_link_libraries(dftbplus PUBLIC Magma::Magma)
 endif()
 

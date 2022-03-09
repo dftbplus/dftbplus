@@ -3522,7 +3522,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, solvation)
+      & deltaDftb, solvation, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3551,7 +3551,13 @@ contains
     !> Instance of the solvation model
     class(TSolvation), intent(in), allocatable :: solvation
 
+    !> Optional extra message about dipole moments
+    character(*), intent(in) :: dipoleMessage
+
     if (allocated(dipoleMoment)) then
+      if (len(trim(dipoleMessage))>0) then
+        write(fd, "(A)")trim(dipoleMessage)
+      end if
       if (deltaDftb%isNonAufbau) then
         if (deltaDftb%iGround > 0) then
           write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
@@ -3743,7 +3749,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & qOutput, q0, dipoleMoment, solvation)
+      & qOutput, q0, dipoleMoment, solvation, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3802,6 +3808,9 @@ contains
     !> Instance of the solvation model
     class(TSolvation), intent(in), allocatable :: solvation
 
+    !> Optional extra message about dipole moments
+    character(*), intent(in) :: dipoleMessage
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3851,6 +3860,9 @@ contains
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
     if (allocated(dipoleMoment)) then
+      if (len(trim(dipoleMessage))>0) then
+        write(fd, "(A)")trim(dipoleMessage)
+      end if
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'

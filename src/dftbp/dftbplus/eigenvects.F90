@@ -17,7 +17,7 @@ module dftbp_dftbplus_eigenvects
       & elsi_ev_real, elsi_write_mat_real
   use dftbp_io_message, only : error, cleanShutdown
   use dftbp_math_eigensolver, only : hegv, hegvd, gvr
-#:if WITH_GPU
+#:if WITH_MAGMA
   use dftbp_math_eigensolver, only : gpu_gvd
 #:endif
 #:if WITH_SCALAPACK
@@ -85,7 +85,7 @@ contains
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%magma_gvd)
-  #:if WITH_GPU
+  #:if WITH_MAGMA
       call gpu_gvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
   #:else
       call error("This binary is compiled without GPU support")
@@ -134,7 +134,7 @@ contains
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%magma_gvd)
-  #:if WITH_GPU
+  #:if WITH_MAGMA
       call gpu_gvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
   #:else
       call error("This binary is compiled without GPU support")

@@ -10,7 +10,7 @@
 !> Module containing finite temperature function distributions and derivatives for the Fermi-Dirac
 !> distribution
 module dftbp_derivs_fermihelper
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, mExpArg
   implicit none
 
   private

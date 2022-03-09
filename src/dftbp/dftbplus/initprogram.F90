@@ -283,7 +283,6 @@ module dftbp_dftbplus_initprogram
     !> normalized vectors in those directions
     real(dp) :: normOrigLatVec(3,3)
 
-
     !> reciprocal vectors in 2 pi units
     real(dp), allocatable :: invLatVec(:,:)
 
@@ -351,7 +350,6 @@ module dftbp_dftbplus_initprogram
 
     !> Integral container
     type(TIntegral) :: ints
-
 
     !> nr. of K-points
     integer :: nKPoint
@@ -957,6 +955,9 @@ module dftbp_dftbplus_initprogram
 
     !> dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
+
+    !> Additional dipole moment related message to write out
+    character(lc) :: dipoleMessage
 
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
@@ -1820,7 +1821,7 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = input%ctrl%lrespini%tInit
+    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -2202,11 +2203,23 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and.&
-        & this%tMulliken) then
-      this%tDipole = .true.
-    else
-      this%tDipole = .false.
+    this%tDipole = this%tMulliken
+    if (this%tDipole) then
+      block
+        logical :: isDipoleDefined
+        isDipoleDefined = .true.
+        if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
+          call warning("Dipole printed for a charged system : origin dependent quantity")
+        end if
+        if (this%tPeriodic.or.this%tHelical) then
+          call warning("Dipole printed for extended system : value printed is not well defined")
+        end if
+        if (isDipoleDefined) then
+          write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
+        else
+          write(this%dipoleMessage, "(A)")""
+        end if
+      end block
     end if
 
     if (this%tMulliken) then
@@ -3044,7 +3057,7 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      #:if WITH_GPU
+      #:if WITH_MAGMA
         call env%initGpu()
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
@@ -5229,6 +5242,8 @@ contains
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+
+    @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
