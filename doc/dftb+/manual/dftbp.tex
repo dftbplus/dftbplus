@@ -418,22 +418,22 @@ To disable a convergence criterium a large value should be provided.
 
 \begin{ptable}
   \kw{Energy} & r &  & inf & \\
-  \kw{GradAMax} & r &  & 1e-4 & \\
+  \kw{GradElem} & r &  & 1e-4 & \\
   \kw{GradNorm} & r &  & inf & \\
-  \kw{DispAMax} & r &  & inf & \\
+  \kw{DispElem} & r &  & inf & \\
   \kw{DispNorm} & r &  & inf & \\
 \end{ptable}
 \begin{description}
 \item[\is{Energy}]\modif{\modtype{energy}}
   Maximum energy change in one geometry step to consider optimization converged.
   Disabled by default.
-\item[\is{GradAMax}]\modif{\modtype{force}}
+\item[\is{GradElem}]\modif{\modtype{force}}
   Maximum absolute gradient element in one geometry step to consider optimization converged
   Default threshold is 1e-4 Hartree/Bohr.
 \item[\is{GradNorm}]\modif{\modtype{force}}
   Maximum gradient norm in one geometry step to consider optimization converged
   Disabled by default.
-\item[\is{DispAMax}]\modif{\modtype{length}}
+\item[\is{DispElem}]\modif{\modtype{length}}
   Maximum absolute displacement element in one geometry step to consider optimization converged
   Disabled by default.
 \item[\is{DispNorm}]\modif{\modtype{length}}
