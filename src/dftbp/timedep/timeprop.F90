@@ -595,6 +595,9 @@ contains
           this%nExcitedAtom = nAtom
         end if
       end if
+      if (allocated(tblite)) then
+        @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces not available for xTB Hamiltonian")
+      end if
     end if
 
     this%tNetCharges = .false.
