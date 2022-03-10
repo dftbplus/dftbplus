@@ -104,20 +104,8 @@ module dftbp_dftb_rangeseparated
     !> total full-range Hartree-Fock energy
     real(dp) :: hfEnergy
 
-    !> spin up part of full-range Hartree-Fock energy
-    real(dp) :: hfEnergyUp
-
-    !> spin down part of full-range Hartree-Fock energy
-    real(dp) :: hfEnergyDn
-
     !> total long-range energy
     real(dp) :: lrEnergy
-
-    !> spin up part of long-range energy
-    real(dp) :: lrEnergyUp
-
-    !> spin down part of long-range energy
-    real(dp) :: lrEnergyDn
 
     !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
@@ -131,22 +119,13 @@ module dftbp_dftb_rangeseparated
     !> species of atoms
     integer, allocatable :: species(:)
 
-    !> Nr. of neighbours
-    integer, allocatable :: nNeighbours(:)
-
   contains
 
     procedure :: updateCoords
     procedure :: addCamHamiltonian
-    procedure :: addLrHamiltonian
     procedure :: addLrHamiltonianMatrixCmplx
-    procedure :: addHartreeFockHamiltonian
     procedure :: addCamEnergy
     procedure :: addCamGradients
-    procedure :: addLrEnergy
-    procedure :: addLrGradients
-    procedure :: addHartreeFockEnergy
-    procedure :: addHartreeFockGradients
     procedure :: evaluateLrEnergyDirect
     procedure :: getSpecies
     procedure :: getLrGamma
@@ -164,7 +143,7 @@ contains
   subroutine RangeSepFunc_init(this, nAtom, species, hubbu, screen, omega, camAlpha, camBeta,&
       & tSpin, tREKS, rsAlg)
 
-    !> Class instance
+    !> Instance
     type(TRangeSepFunc), intent(out) :: this
 
     !> Number of atoms
@@ -209,7 +188,7 @@ contains
         & rsAlg, tSpin, tREKS)
 
       !> Instance
-      class(TRangeSepFunc), intent(out) :: this
+      type(TRangeSepFunc), intent(out) :: this
 
       !> Number of atoms
       integer, intent(in) :: nAtom
@@ -280,7 +259,7 @@ contains
     subroutine checkRequirements(this)
 
       !> instance
-      class(TRangeSepFunc), intent(inout) :: this
+      type(TRangeSepFunc), intent(inout) :: this
 
       ! Check for current restrictions
       if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
@@ -394,13 +373,13 @@ contains
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
 
     ! always add the LR contribution
-    call this%addLrHamiltonian(densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair, orb, HH,&
+    call addLrHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair, orb, HH,&
         & overlap)
 
     ! If xc-functional is more general, also add the full-range Hartree-Fock part.
     ! For pure LC, camAlpha would be zero anyway, but we want to save as much time as possible.
     if (this%tCam) then
-      call this%addHartreeFockHamiltonian(densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
+      call addHartreeFockHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH, overlap)
     end if
 
@@ -413,8 +392,8 @@ contains
   subroutine addLrHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair, orb,&
       & HH, overlap)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(inout) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(inout) :: this
 
     ! Neighbour based screening
 
@@ -496,8 +475,8 @@ contains
 
     call allocateAndInit()
     call evaluateHamiltonian(tmpDHam)
-    this%hprev(:,:) = this%hprev + this%camBeta * tmpDHam
-    hamiltonian(:,:) = hamiltonian + this%hprev
+    this%hprev(:,:) = this%hprev + tmpDHam
+    hamiltonian(:,:) = hamiltonian + this%camBeta * this%hprev
     this%lrEnergy = this%lrEnergy + evaluateEnergy(this%hprev, tmpDRho)
 
   contains
@@ -613,7 +592,7 @@ contains
     subroutine checkAndInitScreening(this, matrixSize, tmpDRho)
 
       !> Instance
-      class(TRangeSepFunc), intent(inout) :: this
+      type(TRangeSepFunc), intent(inout) :: this
 
       !> linear dimension of matrix
       integer, intent(in) :: matrixSize
@@ -933,7 +912,7 @@ contains
 
       integer :: nAtom, iAt, jAt
 
-      nAtom = size(this%lrGammaEval,dim=1)
+      nAtom = size(this%lrGammaEval, dim=1)
 
       !! Symmetrize Hamiltonian, overlap, density matrices
       call hermitianSquareMatrix(HH)
@@ -947,7 +926,7 @@ contains
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           lrGammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
-              & this%lrGammaEval(jAt,iAt)
+              & this%lrGammaEval(jAt, iAt)
         end do
       end do
       gammaCmplx = lrGammaAO
@@ -1041,15 +1020,15 @@ contains
 
     nOrb = size(overlap,dim=1)
 
-    allocate(Smat(nOrb,nOrb))
-    allocate(Dmat(nOrb,nOrb))
-    allocate(lrGammaAO(nOrb,nOrb))
-    allocate(Hlr(nOrb,nOrb))
+    allocate(Smat(nOrb, nOrb))
+    allocate(Dmat(nOrb, nOrb))
+    allocate(lrGammaAO(nOrb, nOrb))
+    allocate(Hlr(nOrb, nOrb))
 
     call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, lrGammaAO)
     call evaluateHamiltonian(this, Smat, Dmat, lrGammaAO, Hlr)
     HH(:,:) = HH + this%camBeta * Hlr
-    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+    this%lrEnergy = this%lrEnergy + 0.5_dp * sum(Dmat * Hlr)
 
   contains
 
@@ -1096,7 +1075,7 @@ contains
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           lrGammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
-              & this%lrGammaEval(jAt,iAt)
+              & this%lrGammaEval(jAt, iAt)
         end do
       end do
 
@@ -1168,8 +1147,8 @@ contains
     !> Total energy
     real(dp), intent(inout) :: energy
 
-    call this%addLrEnergy(energy)
-    call this%addHartreeFockEnergy(energy)
+    call addLrEnergy(this, energy)
+    call addHartreeFockEnergy(this, energy)
 
   end subroutine addCamEnergy
 
@@ -1177,8 +1156,8 @@ contains
   !> Add the LR-energy contribution to the total energy.
   subroutine addLrEnergy(this, energy)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(inout) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(inout) :: this
 
     !> Total energy
     real(dp), intent(inout) :: energy
@@ -1235,8 +1214,8 @@ contains
   !> Calculates analytical long-range gamma.
   function getAnalyticalGammaValue(this, Sp1, Sp2, dist) result(gamma)
 
-    !> RangeSepFunc instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> First species
     integer, intent(in) :: Sp1
@@ -1261,7 +1240,7 @@ contains
       ! on-site case
       if (abs(tauA - tauB) < MinHubDiff) then
         tau = 0.5_dp * (tauA + tauB)
-        tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4  + omega**6
+        tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4 + omega**6
         tmp = tmp * 0.0625_dp / tau**5 - omega
         tmp = tmp * tau**8 / (tau**2 - omega**2)**4
         gamma = tau * 0.3125_dp - tmp
@@ -1284,8 +1263,8 @@ contains
             & exp(-omega * dist) / dist + tmp)
       else
         ! off-site, Ua != Ub
-        prefac = tauA**4 / (tauA * tauA - omega * omega )**2
-        prefac = prefac * tauB**4 / (tauB * tauB - omega * omega )**2
+        prefac = tauA**4 / (tauA * tauA - omega * omega)**2
+        prefac = prefac * tauB**4 / (tauB * tauB - omega * omega)**2
         prefac = prefac * exp(-omega * dist) / dist
         tmp = prefac&
             & - getYGammaSubPart(tauA, tauB, dist, omega)&
@@ -1327,7 +1306,7 @@ contains
     prefac = tauA * tauA / tmp
     tmp = (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4) / R
     tmp = tmp * prefac * prefac / (tauA * tauA - tauB * tauB)**3
-    tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA )**2 - tmp
+    tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA)**2 - tmp
     yGamma = tmp * exp(-tauA * R)
 
   end function getYGammaSubPart
@@ -1336,8 +1315,8 @@ contains
   !> Derivative of analytical long-range Gamma
   function getdAnalyticalGammaDeriv(this, iSp1, iSp2, dist) result(dAnalyticalGammaDeriv)
 
-    !> RangeSepFunc instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> Species index of first and second atom
     integer, intent(in) :: iSp1, iSp2
@@ -1441,8 +1420,8 @@ contains
   !> Returns the derivative of long-range gamma for iAtom1, iAtom2.
   subroutine getGammaPrimeValue(this, grad, iAtom1, iAtom2, coords, species)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> Gradient of gamma between atoms
     real(dp), intent(out) :: grad(3)
@@ -1518,13 +1497,13 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     ! always add the LR contribution
-    call this%addLrGradients(gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
+    call addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
         & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
     ! If xc-functional is more general, also add the full-range Hartree-Fock part.
     ! For pure LC, camAlpha would be zero anyway, but we want to save as much time as possible.
     if (this%tCam) then
-      call this%addHartreeFockGradients(gradients, derivator, deltaRho, skOverCont, coords,&
+      call addHartreeFockGradients(this, gradients, derivator, deltaRho, skOverCont, coords,&
           & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
     end if
 
@@ -1535,8 +1514,8 @@ contains
   subroutine addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
       & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -1849,8 +1828,8 @@ contains
   subroutine addHartreeFockHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare,&
       & iPair, orb, HH, overlap)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(inout) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(inout) :: this
 
     ! Neighbour based screening
 
@@ -2040,8 +2019,8 @@ contains
   !> Add the full-range Hartree-Fock Energy contribution to the total energy.
   subroutine addHartreeFockEnergy(this, energy)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(inout) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(inout) :: this
 
     !> Total energy
     real(dp), intent(inout) :: energy
@@ -2055,16 +2034,16 @@ contains
 
 
   !> Calculates analytical full-range Hartree-Fock gamma.
-  function getAnalyticalHartreeFockGammaValue(this, Sp1, Sp2, dist) result(gamma)
+  function getAnalyticalHartreeFockGammaValue(this, iSp1, iSp2, dist) result(gamma)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> First species
-    integer, intent(in) :: Sp1
+    integer, intent(in) :: iSp1
 
     !> Second species
-    integer, intent(in) :: Sp2
+    integer, intent(in) :: iSp2
 
     !> Distance between atoms
     real(dp), intent(in) :: dist
@@ -2075,14 +2054,14 @@ contains
     real(dp) :: tauA, tauB
     real(dp) :: prefac, tmp, tau
 
-    tauA = 3.2_dp * this%hubbu(Sp1)
-    tauB = 3.2_dp * this%hubbu(Sp2)
+    tauA = 3.2_dp * this%hubbu(iSp1)
+    tauB = 3.2_dp * this%hubbu(iSp2)
 
     if (dist < tolSameDist) then
       ! on-site case
       if (abs(tauA - tauB) < MinHubDiff) then
         tau = 0.5_dp * (tauA + tauB)
-        gamma = tau
+        gamma = tau * 0.3125_dp
       else
         call error("Error(RangeSep): R = 0, Ua != Ub")
       end if
@@ -2107,8 +2086,8 @@ contains
   !> Derivative of analytical full-range Hartree-Fock gamma.
   function getdAnalyticalHartreeFockGammaDeriv(this, Sp1, Sp2, dist) result(dGamma)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> First species
     integer, intent(in) :: Sp1
@@ -2161,8 +2140,8 @@ contains
   !> Returns the derivative of full-range Hartree-Fock gamma for iAtom1, iAtom2.
   subroutine getHartreeFockGammaPrimeValue(this, grad, iAtom1, iAtom2, coords, species)
 
-    !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    !> Instance
+    type(TRangeSepFunc), intent(in) :: this
 
     !> Gradient of gamma between atoms
     real(dp), intent(out) :: grad(3)
@@ -2251,7 +2230,7 @@ contains
       & species, orb, iSquare, overlapMat, iNeighbour, nNeighbourSK)
 
     !> Class instance
-    class(TRangeSepFunc), intent(in) :: this
+    type(TRangeSepFunc), intent(in) :: this
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -2290,8 +2269,8 @@ contains
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
     integer :: nSpin, iSpin, mu, alpha, beta, ccc, kkk
-    real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
+    real(dp) :: sPrimeTmp(orb%mOrb, orb%mOrb, 3)
+    real(dp) :: sPrimeTmp2(orb%mOrb, orb%mOrb, 3)
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpOvr(:,:), tmpRho(:,:,:), tmpderiv(:,:)
 
     nAtom = size(this%species)
@@ -2314,8 +2293,8 @@ contains
           ! A > B
           loopA: do iNeighB = 0, nNeighbourSK(iAtB)
             iAtA = iNeighbour(iNeighB, iAtB)
-            tmpgamma1 = this%hfGammaEval(iAtK,iAtB) + this%hfGammaEval(iAtC,iAtB)
-            tmpgamma2 = tmpgamma1 + this%hfGammaEval(iAtK,iAtA) + this%hfGammaEval(iAtC,iAtA)
+            tmpgamma1 = this%hfGammaEval(iAtK, iAtB) + this%hfGammaEval(iAtC, iAtB)
+            tmpgamma2 = tmpgamma1 + this%hfGammaEval(iAtK, iAtA) + this%hfGammaEval(iAtC, iAtA)
             tmpforce(:) = 0.0_dp
             tmpforce_r(:) = 0.0_dp
             tmpforce2 = 0.0_dp

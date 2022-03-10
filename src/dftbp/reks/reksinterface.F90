@@ -904,7 +904,7 @@ module dftbp_reks_reksinterface
       if (this%isRangeSep) then
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
-        call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
+        call rangeSep%addCamGradients(lcDerivs(:,:,iL), nonSccDeriv, this%deltaRhoSqrL(:,:,:,iL),&
             & skOverCont, coord, species, orb, denseDesc%iAtomStart, this%overSqr,&
             & neighbourList%iNeighbour, nNeighbourSK)
       end if

@@ -260,7 +260,7 @@ contains
     ! Add exchange contribution for range separated calculations
     if (allocated(rangeSep) .and. .not. allocated(reks)) then
       energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
+      call rangeSep%addCamEnergy(energy%Efock)
     end if
 
     ! Free energy contribution if attached to an electron reservoir

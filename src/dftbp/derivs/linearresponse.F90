@@ -299,8 +299,8 @@ contains
       end if
       call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call rangeSep%addLRHamiltonian(dRhoSqr(:,:,iS), over, neighbourList%iNeighbour, nNeighbourLC,&
-          & denseDesc%iAtomStart, iSparseStart, orb, dRho, workLocal)
+      call rangeSep%addCamHamiltonian(env, dRhoSqr(:,:,iS), over, neighbourList%iNeighbour,&
+          & nNeighbourLC, denseDesc%iAtomStart, iSparseStart, orb, dRho, workLocal)
     end if
 
     ! form |c> H' <c|
