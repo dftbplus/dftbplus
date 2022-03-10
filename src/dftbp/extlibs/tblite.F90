@@ -242,6 +242,9 @@ module dftbp_extlibs_tblite
     !> Evaluate shift related derivatives from Hamiltonian and overlap related integrals
     procedure :: buildDerivativeShift
 
+    !> Calculates nonadiabatic matrix: overlap gradient (Sprime) times velocities (Rdot)
+    procedure :: buildRdotSprime
+
   end type TTBLite
 
 
@@ -715,10 +718,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: dipAtom(:,:)
+    real(dp), intent(in), optional :: dipAtom(:,:,:)
 
-    !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: quadAtom(:,:)
+    !> Cumulative atomic quadrupole populations
+    real(dp), intent(in), optional :: quadAtom(:,:,:)
 
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -746,11 +749,11 @@ contains
     end do
 
     if (present(dipAtom)) then
-      this%wfn%dpat(:, :) = -dipAtom
+      this%wfn%dpat(:, :) = -dipAtom(:, :, 1)
     end if
 
     if (present(quadAtom)) then
-      this%wfn%qpat(:, :) = -quadAtom
+      this%wfn%qpat(:, :) = -quadAtom(:, :, 1)
     end if
 
     if (allocated(this%calc%coulomb)) then
@@ -1783,6 +1786,47 @@ contains
     end do
   end subroutine buildDiatomicDerivs
 #:endif
+
+
+  !> Calculates nonadiabatic matrix: overlap gradient (Sprime) times velocities (Rdot)
+  subroutine buildRdotSprime(this, env, RdotSprime, coords, dcoord, species, nNeighbour, &
+      & iNeighbour, img2CentCell, iSquare, orb)
+
+    !> Data structure
+    class(TTBLite), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Nonadiabatic coupling matrix elements
+    complex(dp), intent(out) :: RdotSprime(:,:)
+
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Change in coords of the atoms (3, nAtom)
+    real(dp), intent(in) :: dcoord(:,:)
+
+    !> List of all atomic species
+    integer, intent(in) :: species(:)
+
+    !> Number of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, intent(in) :: nNeighbour(:)
+
+    !> Neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    call error("Forces currently not available in Ehrenfest dynamic with this Hamiltonian")
+  end subroutine buildRdotSprime
 
 
   !> Index gymnastic to transfer magnetic quantum number ordering from one convention to another

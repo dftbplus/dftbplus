@@ -182,7 +182,7 @@ contains
           & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
       if (allocated(potential%extDipoleAtom) .and. allocated(multipole%dipoleAtom)) then
         energy%atomExt(:) = energy%atomExt &
-            & + sum(potential%extDipoleAtom * multipole%dipoleAtom, 1)
+            & + sum(potential%extDipoleAtom * multipole%dipoleAtom(:, :, 1), 1)
       end if
     end if
     if (allocated(qDepExtPot)) then

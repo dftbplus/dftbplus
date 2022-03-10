@@ -11,8 +11,9 @@ Unreleased
 Added
 -----
 
-- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+- Real time electronic dynamics for xTB Hamiltonian
 
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
 
 
 Changed

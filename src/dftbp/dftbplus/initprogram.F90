@@ -1693,7 +1693,8 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole)
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+        & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
     ! Initialize Hamilton and overlap
@@ -3620,7 +3621,7 @@ contains
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
-          & errStatus)
+          & this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if

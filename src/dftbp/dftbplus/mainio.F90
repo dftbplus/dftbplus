@@ -2210,7 +2210,7 @@ contains
       block
         real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
         qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
-        dipoleAtom = -multipole%dipoleAtom - coord0 * spread(qAtom, 1, 3)
+        dipoleAtom = -multipole%dipoleAtom(:, :, 1) - coord0 * spread(qAtom, 1, 3)
         call taggedWriter%write(fd, tagLabels%dipoleAtom, dipoleAtom)
       end block
     end if
