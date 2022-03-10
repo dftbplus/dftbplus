@@ -2927,7 +2927,6 @@ contains
     if (present(Dsqr)) then
       Dsqr(:,:,:,:) = 0.0_dp
       if (this%tRealHS) then
-        if (allocated(M3)) deallocate(M3)
         allocate(M3(this%nDipole, this%nOrbs, this%nOrbs))
         do iKS = 1, this%parallelKS%nLocalKS
           iK = this%parallelKS%localKS(1, iKS)
