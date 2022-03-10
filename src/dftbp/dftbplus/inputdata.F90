@@ -108,6 +108,15 @@ module dftbp_dftbplus_inputdata
     !> Separation parameter
     real(dp) :: omega
 
+    !> CAM alpha parameter
+    real(dp) :: camAlpha
+
+    !> CAM beta parameter
+    real(dp) :: camBeta
+
+    !> True, if a CAM-functional is requested, otherwise LC is assumed
+    logical :: tCam
+
     !> Choice of range separation method
     integer :: rangeSepAlg
 

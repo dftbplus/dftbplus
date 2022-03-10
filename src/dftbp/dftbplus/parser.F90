@@ -1484,12 +1484,12 @@ contains
         call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
-
     else
-
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
+          & skInterMeth, repPoly, rangeSepSK=rangeSepSK, tCam=ctrl%rangeSepInp%tCam)
       ctrl%rangeSepInp%omega = rangeSepSk%omega
+      ctrl%rangeSepInp%camAlpha = rangeSepSk%camAlpha
+      ctrl%rangeSepInp%camBeta = rangeSepSk%camBeta
     end if
 
 
@@ -3382,7 +3382,7 @@ contains
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, rangeSepSK)
+      & truncationCutOff, rangeSepSK, tCam)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3414,6 +3414,9 @@ contains
 
     !> if calculation range separated then read omega from end of SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    !> True, if CAM range-separation is requested
+    logical, intent(in), optional :: tCam
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
@@ -3473,12 +3476,13 @@ contains
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
-                    & rangeSepSK=rangeSepSK)
+                    & rangeSepSK=rangeSepSK, tCam=tCam)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK)
+                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK, tCam=tCam)
               else
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK,&
+                    & tCam=tCam)
               end if
             end if
             ind = ind + 1
@@ -7460,7 +7464,7 @@ contains
   end function is_numeric
 
 
-  !> Parse range separation input
+  !> Parses range separation input.
   subroutine parseRangeSeparated(node, input)
     type(fnode), pointer, intent(in) :: node
     type(TRangeSepInp), allocatable, intent(out) :: input
@@ -7478,6 +7482,8 @@ contains
 
     case ("lc")
       allocate(input)
+      ! True, only if a CAM-functional is requested, otherwise LC is assumed (F)
+      input%tCam = .false.
       call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
       call getNodeName(value2, buffer)
       select case(char(buffer))
@@ -7492,6 +7498,22 @@ contains
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
         call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+      case ("matrixbased")
+        input%rangeSepAlg = rangeSepTypes%matrixBased
+        ! In this case, CutoffRedunction is not used so it should be set to zero.
+        input%cutoffRed = 0.0_dp
+      case default
+        call getNodeHSdName(value2, buffer)
+        call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
+      end select
+
+    case ("cam")
+      allocate(input)
+      ! CAM-functional requested
+      input%tCam = .true.
+      call getChildValue(value1, "Screening", value2, "MatrixBased", child=child2)
+      call getNodeName(value2, buffer)
+      select case(char(buffer))
       case ("matrixbased")
         input%rangeSepAlg = rangeSepTypes%matrixBased
         ! In this case, CutoffRedunction is not used so it should be set to zero.

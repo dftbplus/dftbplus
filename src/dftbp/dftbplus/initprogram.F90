@@ -3349,7 +3349,8 @@ contains
           write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
           ii = count(shortGammaDamp%isDamped)
           write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName, shortGammaDamp%isDamped)
+          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName,&
+              & shortGammaDamp%isDamped)
         end if
       end if
 
@@ -3365,6 +3366,8 @@ contains
       write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
       write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
           & input%ctrl%rangeSepInp%omega
+      write(stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
+          & input%ctrl%rangeSepInp%camAlpha, input%ctrl%rangeSepInp%camBeta
 
       select case(input%ctrl%rangeSepInp%rangeSepAlg)
       case (rangeSepTypes%neighbour)
@@ -3381,7 +3384,6 @@ contains
         call error("Unknown range separated hybrid method")
       end select
     end if
-
 
     write(stdOut, "(A,':')") "Extra options"
     if (this%tPrintMulliken) then
@@ -5143,7 +5145,7 @@ contains
   end function getMinSccIters
 
 
-  !> Stop if any range separated incompatible setting is found
+  !> Stop if any range separated incompatible setting is found.
   subroutine ensureRangeSeparatedReqs(this, tShellResolved, rangeSepInp)
 
     !> Instance
@@ -5200,6 +5202,10 @@ contains
 
     if (allocated(this%dftbU)) then
       call error("Range separated calculations not currently implemented for DFTB+U")
+    end if
+
+    if (this%isRS_LinResp .and. rangeSepInp%tCam) then
+        call error("General CAM functionals not currently implemented for range-separation.")
     end if
 
   end subroutine ensureRangeSeparatedReqs
@@ -5413,11 +5419,13 @@ contains
     integer, intent(out) :: nMixElements
 
     allocate(rangeSep)
-    call RangeSepFunc_init(rangeSep, nAtom, species0, hubbU(1,:), rangeSepInp%screeningThreshold,&
-        & rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
+    call RangeSepFunc_init(rangeSep, nAtom, species0, hubbU(1, :), rangeSepInp%screeningThreshold,&
+        & rangeSepInp%omega, rangeSepInp%camAlpha, rangeSepInp%camBeta, tSpin, isREKS,&
+        & rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(this%nOrb * this%nOrb * this%nSpin))
     allocate(deltaRhoOut(this%nOrb * this%nOrb * this%nSpin))
     allocate(deltaRhoDiff(this%nOrb * this%nOrb * this%nSpin))
+
     deltaRhoInSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&
         & deltaRhoIn(1 : this%nOrb * this%nOrb * this%nSpin)
     deltaRhoOutSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&

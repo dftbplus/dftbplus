@@ -2782,8 +2782,8 @@ contains
       ! Should this be used elsewhere, need to pass isRangeSep
       if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
-        call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
-            & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
+        call rangeSep%addCamHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
+            & neighbourList%iNeighbour, nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
             & orb, HSqrReal, SSqrReal)
       end if
 
@@ -5504,7 +5504,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> Dense matrix descriptor,required for rangeSep
+    !> Dense matrix descriptor, required for rangeSep
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Change in density matrix during this SCC step for rangesep
@@ -5647,7 +5647,7 @@ contains
       if (size(deltaRhoOutSqr, dim=3) > 2) then
         call error("Range separated forces do not support non-colinear spin")
       else
-        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
+        call rangeSep%addCamGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
             & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
       end if
     end if
@@ -7181,12 +7181,12 @@ contains
       call qm2udL(reks%hamSqrL, reks%Lpaired)
       tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
-        ! Add rangeseparated contribution
-        call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), ints%overlap, &
+        ! Add range-separated contribution to Hamiltonian
+        call rangeSep%addCamHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), ints%overlap, &
             & neighbourList%iNeighbour, nNeighbourLC, denseDesc%iAtomStart, &
             & iSparseStart, orb, reks%hamSqrL(:,:,1,iL), reks%overSqr)
-        ! Calculate the long-range exchange energy for up spin
-        call rangeSep%addLREnergy(tmpEn(iL))
+        ! Calculate range-separated exchange energy for spin up
+        call rangeSep%addCamEnergy(tmpEn(iL))
       end do
     end if
 

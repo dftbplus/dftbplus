@@ -79,7 +79,7 @@ contains
 
   !> Reads the data from an SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, splineRepIn, polyRepIn,&
-      & rangeSepSK)
+      & rangeSepSK, tCam)
 
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
@@ -104,6 +104,9 @@ contains
 
     !> Reads rangeseparation parameter from SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    !> True, if CAM range-separation is requested
+    logical, intent(in), optional :: tCam
 
     integer :: file
     character(lc) :: chDummy
@@ -150,7 +153,7 @@ contains
       read (file,*, iostat=iostat) skData%mass, (coeffs(ii), ii = 2, 9), &
           &polyCutoff, rDummy, (rDummy, ii = 12, 20)
       call checkIoError(iostat, fileName, "Unable to read 3rd data line")
-      skData%mass = skData%mass * amu__au  !convert to atomic units
+      skData%mass = skData%mass * amu__au  ! convert to atomic units
     else
       read (file,*, iostat=iostat) rDummy, (coeffs(ii), ii = 2, 9),&
           & polyCutoff, (rDummy, ii = 11, 20)
@@ -187,11 +190,14 @@ contains
 
     call readSplineRep(file, fileName, splineRepIn, iSp1, iSp2)
 
-    !> Read range separation parameter
+    ! Read range separation parameter(s)
     if (present(rangeSepSK)) then
-       call readRangeSep(file, fileName, rangeSepSK)
+      if (tCam) then
+        call readRangeSepCam(file, fileName, rangeSepSK)
+      else
+        call readRangeSepLC(file, fileName, rangeSepSK)
+      end if
     end if
-
 
     close(file)
 
@@ -268,14 +274,14 @@ contains
   end subroutine OldSKData_readsplinerep
 
 
-  !> Reads the RangeSep data from an open file.
-  subroutine readRangeSep(fp, fname, rangeSepSK)
+  !> Reads LC RangeSep data from an open file.
+  subroutine readRangeSepLC(fp, fname, rangeSepSK)
 
     !> File identifier
     integer, intent(in) :: fp
 
     !> File name
-    character(*), intent(in) :: fname
+    character(len=*), intent(in) :: fname
 
     !> Rangesep data
     type(TRangeSepSKTag), intent(inout) :: rangeSepSK
@@ -285,7 +291,7 @@ contains
     real(dp) :: omega
     logical :: hasRangeSep
 
-    !> Seek rangesep part in SK file
+    ! Seek rangesep part in SK file
     do
       read(fp, '(A)', iostat=iostat) chdummy
       if (iostat /= 0) then
@@ -297,7 +303,7 @@ contains
       end if
     end do
 
-    if ( .not. hasRangeSep) then
+    if (.not. hasRangeSep) then
       write(chdummy, "(A,A,A)") "RangeSep extension tag not found in file '",&
           & trim(fname), "'"
       call error(chdummy)
@@ -314,11 +320,74 @@ contains
     if (omega < 0.0_dp) then
       write(chdummy, "(A)") "Range-separation parameter is negative"
       call error(chdummy)
-   end if
+    end if
 
-   rangeSepSK%omega = omega
+    rangeSepSK%omega = omega
+    rangeSepSK%camAlpha = 0.0_dp
+    rangeSepSK%camBeta = 1.0_dp
 
-  end subroutine ReadRangeSep
+  end subroutine readRangeSepLC
+
+
+  !> Reads CAM RangeSep data from an open file.
+  subroutine readRangeSepCam(fp, fname, rangeSepSK)
+
+    !> File identifier
+    integer, intent(in) :: fp
+
+    !> File name
+    character(len=*), intent(in) :: fname
+
+    !> Rangesep data
+    type(TRangeSepSKTag), intent(inout) :: rangeSepSK
+
+    !! Error status
+    integer :: iErr
+
+    !! String buffer
+    character(lc) :: chdummy
+
+    !! CAM parameters
+    real(dp) :: omega, alpha, beta
+
+    !! True, if Rangesep tag was found in SK-files
+    logical :: tHasRangeSep
+
+    ! Seek rangesep part in SK file
+    do
+      read(fp, '(A)', iostat=iErr) chdummy
+      if (iErr /= 0) then
+        tHasRangeSep = .false.
+        exit
+      elseif (chdummy == "RangeSep") then
+        tHasRangeSep = .true.
+        exit
+      end if
+    end do
+
+    if (.not. tHasRangeSep) then
+      write(chdummy, "(A,A,A)") "RangeSep extension tag not found in file '", trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    read(fp, *, iostat=iErr) chdummy, omega, alpha, beta
+    call checkioerror(iErr, fname, "Error in reading range-sep method and range-sep parameters")
+
+    if (chdummy /= "CAM") then
+      write(chdummy, "(A,A,A)") "Unknown range-separation method in SK file '", trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    if (omega < 0.0_dp) then
+      write(chdummy, "(A)") "Range-separation parameter is negative"
+      call error(chdummy)
+    end if
+
+    rangeSepSK%omega = omega
+    rangeSepSK%camAlpha = alpha
+    rangeSepSK%camBeta = beta
+
+  end subroutine readRangeSepCam
 
 
   !> Checks for IO errors and prints message.
