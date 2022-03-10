@@ -1777,8 +1777,8 @@ contains
     !> simulation time (in atomic units)
     real(dp), intent(in) :: time
 
-    real(dp), allocatable :: T2(:,:), T3(:,:), M3(:, :, :)
-    complex(dp), allocatable :: T4(:,:), M4(:, :, :)
+    real(dp), allocatable :: T2(:,:), T3(:,:)
+    complex(dp), allocatable :: T4(:,:)
     integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK
 
     allocate(rhoPrim(size(ints%hamiltonian, dim=1), this%nSpin))
@@ -2786,7 +2786,7 @@ contains
     !> Energy weighted density matrix
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
-    real(dp), allocatable :: Sreal(:,:), SinvReal(:,:), M3(:,:,:)
+    real(dp), allocatable :: Sreal(:,:), SinvReal(:,:)
     complex(dp), allocatable :: T4(:,:)
     real(dp) :: coord0Fold(3,this%nAtom)
     integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS, iK

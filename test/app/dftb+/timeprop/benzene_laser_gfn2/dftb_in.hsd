@@ -24,13 +24,6 @@ Hamiltonian = xTB {
 }
 
 ElectronDynamics = {
-   Steps = 10000
-   TimeStep [au] = 0.2
-   Perturbation = Kick { PolarizationDirection = "all" }
-   FieldStrength [v/a] = 0.001
-}
-
-!ElectronDynamics = {
    Steps = 20000
    TimeStep [au] = 0.2
    Perturbation = Laser {
