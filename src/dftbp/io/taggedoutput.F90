@@ -203,6 +203,9 @@ module dftbp_io_taggedoutput
     !> atomic masses
     character(lenLabel) :: atomMass = 'atomic_masses'
 
+    !> Total dipole moment
+    character(lenLabel) :: dipoleMoment = 'dipole_moments'
+
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
 
