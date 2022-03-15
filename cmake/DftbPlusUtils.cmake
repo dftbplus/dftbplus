@@ -98,6 +98,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_GPU)
   endif()
 
+  if(WITH_MAGMA)
+    list(APPEND _fyppflags -DWITH_MAGMA)
+  endif()
+
   if(WITH_TRANSPORT)
     list(APPEND _fyppflags -DWITH_TRANSPORT)
   endif()
@@ -195,8 +199,8 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(WITH_GPU AND WITH_MPI)
-    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
+  if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
+    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
   endif()
 
   if(INSTANCE_SAFE_BUILD)

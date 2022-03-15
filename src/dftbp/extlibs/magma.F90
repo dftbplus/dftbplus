@@ -10,22 +10,22 @@
 !> MAGMA GPU interface library
 module dftbp_extlibs_magma
   use, intrinsic :: iso_c_binding, only : c_int
-#:if WITH_GPU
+#:if WITH_MAGMA
   use magma, only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
   implicit none
 
   private
   public :: withGpu
-#:if WITH_GPU
+#:if WITH_MAGMA
   public :: getGpusAvailable, getGpusRequested
   public :: magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
 
   !> Whether code was built with GPU support
-  logical, parameter :: withGpu = ${FORTRAN_LOGICAL(WITH_GPU)}$
+  logical, parameter :: withGpu = ${FORTRAN_LOGICAL(WITH_MAGMA)}$
 
-#:if WITH_GPU
+#:if WITH_MAGMA
 
   interface
 

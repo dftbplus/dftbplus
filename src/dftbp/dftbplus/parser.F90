@@ -16,7 +16,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits
+      & volumeUnits, angularUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -563,14 +563,36 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
-      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
-          &multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
-          & ctrl%indMovedAtom)
-      ctrl%nrMoved = size(ctrl%indMovedAtom)
-      if (ctrl%nrMoved == 0) then
+
+      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
+          & multiple=.true.)
+      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
+          & ctrl%indDerivAtom)
+      if (size(ctrl%indDerivAtom) == 0) then
         call error("No atoms specified for derivatives calculation.")
       end if
+
+      call getChild(node, "MovedAtoms", child, requested=.false.)
+      if (associated(child)) then
+        if (.not. isContiguousRange(ctrl%indDerivAtom)) then
+          call detailedError(child,&
+            & "Atoms for calculation of partial Hessian must be a contiguous range.")
+        end if
+        call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
+        call getSelectedAtomIndices(child2, char(buffer2), geom%speciesNames, geom%species, &
+           & ctrl%indMovedAtom)
+        if (.not. isContiguousRange(ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
+              & contiguous range.")
+        end if
+        if (.not. containsAll(ctrl%indDerivAtom, ctrl%indMovedAtom)) then
+          call detailedError(child2, "MovedAtoms has indices not contained in Atoms.")
+        end if
+      else
+        ctrl%indMovedAtom = ctrl%indDerivAtom
+      end if
+      ctrl%nrMoved = size(ctrl%indMovedAtom)
+
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
       call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
@@ -849,6 +871,42 @@ contains
   #:endif
 
   end subroutine readDriver
+
+  !> Simple function to check that an array of indices is a contigous range
+  function isContiguousRange(indices) result(isContiguous)
+
+    !> Array of atomic indices
+    integer, intent(in) :: indices(:)
+
+    !> whether indices are contigous
+    logical :: isContiguous
+
+    isContiguous = all(indices(: size(indices) - 1) + 1 == indices(2:))
+
+  end function isContiguousRange
+
+
+  !> checks that the array subindices is contained in indices
+  function containsAll(indices, subindices)
+
+    !> Array of atomic indices to check against
+    integer, intent(in) :: indices(:)
+
+    !> Array of atomic indices to check
+    integer, intent(in) :: subindices(:)
+
+    !> whether indices are contigous
+    logical :: containsAll
+
+    integer :: kk
+
+    containsAll = .false.
+    do kk = 1, size(subindices)
+      if (.not. any(indices == subindices(kk))) return
+    end do
+    containsAll = .true.
+
+  end function containsAll
 
 
   !> Common geometry optimisation settings for various drivers
@@ -2517,7 +2575,7 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     case ("magma")
       ctrl%solver%isolver = electronicSolverTypes%magma_gvd
   #:endif
@@ -2532,6 +2590,15 @@ contains
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "Mode", ctrl%solver%elsi%elpaSolver, 2)
+      call getChildValue(value1, "Autotune", ctrl%solver%elsi%elpaAutotune, .false.)
+      call getChildValue(value1, "Gpu", ctrl%solver%elsi%elpaGpu, .false., child=child)
+      #:if not WITH_GPU
+        if (ctrl%solver%elsi%elpaGpu) then
+          call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
+              & the GPU acceleration for the ELPA solver")
+        end if
+      #:endif
+
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
@@ -4664,12 +4731,10 @@ contains
           & response calculations (requires the ARPACK/ngARPACK libraries).')
     end if
 
-    ctrl%lrespini%tInit = .false.
-    ctrl%lrespini%tPrintEigVecs = .false.
-
     if (associated(child)) then
 
-      ctrl%lrespini%tInit = .true.
+      allocate(ctrl%lrespini)
+      ctrl%lrespini%tPrintEigVecs = .false.
 
       if (ctrl%tSpin) then
         ctrl%lrespini%sym = ' '
@@ -5037,7 +5102,12 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+
+    logical :: tPrintEigVecs
+
+    tPrintEigVecs = ctrl%tPrintEigVecs
+    if (allocated(ctrl%lrespini)) tPrintEigvecs = tPrintEigvecs .or. ctrl%lrespini%tPrintEigVecs
+    if (tPrintEigVecs) then
       call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
     end if
 
@@ -5177,7 +5247,7 @@ contains
 
     tLRNeedsSpinConstants = .false.
 
-    if (ctrl%lrespini%tInit) then
+    if (allocated(ctrl%lrespini)) then
       select case (ctrl%lrespini%sym)
       case ("T", "B", " ")
         tLRNeedsSpinConstants = .true.
@@ -5374,7 +5444,8 @@ contains
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
@@ -5395,7 +5466,8 @@ contains
       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, input%omega)
-      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
           & child=child)
       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)

@@ -27,7 +27,7 @@ if(WITH_MPI)
     ${curdir}/mpienv.F90)
 endif()
 
-if(WITH_GPU)
+if(WITH_MAGMA)
   list(APPEND sources-fpp
     ${curdir}/gpuenv.F90)
 endif()

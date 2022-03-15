@@ -299,6 +299,7 @@ module dftbp_dftbplus_inputdata
     real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved       = 0
     integer, allocatable :: indMovedAtom(:)
+    integer, allocatable :: indDerivAtom(:)
     integer :: nrConstr      = 0
     integer, allocatable :: conAtom(:)
     real(dp), allocatable :: conVec(:,:)
@@ -481,7 +482,7 @@ module dftbp_dftbplus_inputdata
     type(TXLBOMDInp), allocatable :: xlbomd
 
     !> TD Linear response input
-    type(TLinrespini) :: lrespini
+    type(TLinrespini), allocatable :: lrespini
 
     !> ElectronDynamics
     type(TElecDynamicsInp), allocatable :: elecDynInp

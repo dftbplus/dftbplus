@@ -525,6 +525,9 @@ module dftbp_dftbplus_initprogram
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
 
+    !> Index of the atoms for which second derivatives are computed
+    integer, allocatable :: indDerivAtom(:)
+
     !> Nr. of moved coordinates
     integer :: nMovedCoord
 
@@ -956,6 +959,9 @@ module dftbp_dftbplus_initprogram
 
     !> dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
+
+    !> Additional dipole moment related message to write out
+    character(lc) :: dipoleMessage
 
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
@@ -1692,7 +1698,8 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole)
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+        & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
     ! Initialize Hamilton and overlap
@@ -1822,7 +1829,7 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = input%ctrl%lrespini%tInit
+    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -1957,10 +1964,13 @@ contains
     end if
 
     if (this%nMovedAtom > 0) then
-      allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
-      this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
+      this%indMovedAtom = input%ctrl%indMovedAtom
+      if (allocated(input%ctrl%indDerivAtom)) then
+        this%indDerivAtom = input%ctrl%indDerivAtom
+      end if
     else
       allocate(this%indMovedAtom(0))
+      allocate(this%indDerivAtom(0))
     end if
 
     if (allocated(input%ctrl%geoOpt)) then
@@ -2204,11 +2214,23 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and.&
-        & this%tMulliken) then
-      this%tDipole = .true.
-    else
-      this%tDipole = .false.
+    this%tDipole = this%tMulliken
+    if (this%tDipole) then
+      block
+        logical :: isDipoleDefined
+        isDipoleDefined = .true.
+        if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
+          call warning("Dipole printed for a charged system : origin dependent quantity")
+        end if
+        if (this%tPeriodic.or.this%tHelical) then
+          call warning("Dipole printed for extended system : value printed is not well defined")
+        end if
+        if (isDipoleDefined) then
+          write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
+        else
+          write(this%dipoleMessage, "(A)")""
+        end if
+      end block
     end if
 
     if (this%tMulliken) then
@@ -2553,7 +2575,7 @@ contains
     if (this%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
-      call create(this%derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
+      call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -2959,7 +2981,11 @@ contains
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) this%indMovedAtom
+      write(stdOut, *) this%indDerivAtom
+      if (size(this%indDerivAtom) > size(this%indMovedAtom)) then
+        write(stdOut, "('Mode:',T30,A)") "Moved atoms:"
+        write(stdOut, *) this%indMovedAtom
+      end if
     elseif (this%tSocket) then
       write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else
@@ -3046,7 +3072,7 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      #:if WITH_GPU
+      #:if WITH_MAGMA
         call env%initGpu()
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
@@ -3600,7 +3626,7 @@ contains
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
-          & errStatus)
+          & this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -5231,6 +5257,8 @@ contains
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+
+    @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
