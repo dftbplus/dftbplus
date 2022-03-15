@@ -2828,7 +2828,7 @@ contains
       call foldCoordToUnitCell(coord0Fold, this%latVec, this%invLatVec)
     end if
 
-    call updateNeighbourListAndSpecies(coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
+    call updateNeighbourListAndSpecies(env, coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
         &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&

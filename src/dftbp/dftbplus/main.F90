@@ -503,6 +503,8 @@ contains
     end if
   #:endif
 
+  call this%neighbourList%finalize()
+
   end subroutine runDftbPlus
 
 
@@ -1901,10 +1903,10 @@ contains
     end if
 
     if (tHelical) then
-      call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neighbourList,&
           & nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec, helicalBoundConds=latVec)
     else
-      call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neighbourList,&
           & nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
     end if
 

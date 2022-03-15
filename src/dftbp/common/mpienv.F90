@@ -12,7 +12,7 @@
 !> Contains MPI related environment settings
 module dftbp_common_mpienv
   use dftbp_common_accuracy, only : lc
-  use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_allgather
+  use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_allgather, MPI_COMM_TYPE_SHARED
   use dftbp_io_message, only : error
 #:if WITH_TRANSPORT
   use dftbp_extlibs_negf, only : negf_cart_init
@@ -34,6 +34,9 @@ module dftbp_common_mpienv
 
     !> Communicator to access equivalent processes in other groups
     type(mpifx_comm) :: interGroupComm
+
+    !> Communicator within the current node
+    type(mpifx_comm) :: nodeComm
 
     !> Size of the process groups
     integer :: groupSize
@@ -112,6 +115,8 @@ contains
     else
       this%nGroup = 1
     end if
+
+    call setup_inter_node_communicator(this)
 
     #:if WITH_TRANSPORT
       call setup_subgrids_negf(this)
@@ -230,5 +235,15 @@ contains
   end subroutine setup_subgrids_negf
 
 #:endif
+
+  !> Sets up a communicator within the node to use MPI shared memory
+  subroutine setup_inter_node_communicator(this)
+
+    !> Environment instance
+    type(TMpiEnv), intent(inout) :: this
+
+    call this%globalComm%split_type(MPI_COMM_TYPE_SHARED, this%globalComm%rank, this%nodeComm)
+
+  end subroutine setup_inter_node_communicator
 
 end module dftbp_common_mpienv

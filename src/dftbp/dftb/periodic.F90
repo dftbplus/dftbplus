@@ -11,8 +11,13 @@
 module dftbp_dftb_periodic
   use dftbp_common_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
   use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_memman, only : incrmntOfArray
+  use dftbp_common_schedule, only : getChunkRanges
   use dftbp_dftb_boundarycond, only : zAxis
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, MPI_MAX
+#:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
   use dftbp_math_quaternions, only : rotate3
@@ -32,6 +37,7 @@ module dftbp_dftb_periodic
   public :: getSuperSampling
   public :: frac2cart, cart2frac, cyl2cart, cart2cyl
   public :: getSparseDescriptor
+  public :: fillNeighbourArrays, distributeAtoms, reallocateArrays3
 
 
   !> resize sparse arrays
@@ -68,20 +74,36 @@ module dftbp_dftb_periodic
   !> Contains essential data for the neighbourlist
   type TNeighbourList
 
-    !> index of neighbour atoms
-    integer, allocatable :: iNeighbour(:,:)
-
-    !> nr. of neighbours
+    !> number of neighbours
     integer, allocatable :: nNeighbour(:)
 
-    !> temporary array for neighbour distances
-    real(dp), allocatable :: neighDist2(:,:)
+    !> index of neighbour atoms
+    integer, pointer :: iNeighbour(:,:) => null()
+
+    !> pointer to MPI shared memory segment for atom indices
+    integer, pointer :: iNeighbourMemory(:) => null()
+
+    !> neighbour distances
+    real(dp), pointer :: neighDist2(:,:) => null()
+
+    !> pointer to MPI shared memory segment for atom distances
+    real(dp), pointer :: neighDist2Memory(:) => null()
+
+#:if WITH_MPI
+    !> handle of the MPI shared memory window
+    type(mpifx_win) :: iNeighbourWin, neighDist2Win
+#:endif
 
     !> cutoff it was generated for
     real(dp) :: cutoff
 
     !> initialised data
     logical :: initialized = .false.
+
+  contains
+
+    procedure :: finalize => TNeighbourlist_finalize
+
   end type TNeighbourList
 
 contains
@@ -104,13 +126,30 @@ contains
     @:ASSERT(nInitNeighbour > 0)
 
     allocate(neighbourList%nNeighbour(nAtom))
-    allocate(neighbourList%iNeighbour(0:nInitNeighbour, nAtom))
-    allocate(neighbourList%neighDist2(0:nInitNeighbour, nAtom))
 
     neighbourList%cutoff = -1.0_dp
     neighbourList%initialized = .true.
 
   end subroutine TNeighbourlist_init
+
+
+  !> Deallocates MPI shared memory if required
+  subroutine TNeighbourlist_finalize(neighbourList)
+
+    !> Neighbourlist data.
+    class(TNeighbourList), intent(inout) :: neighbourList
+
+#:if WITH_MPI
+    if (associated(neighbourList%iNeighbourMemory)) then
+      call neighbourList%iNeighbourWin%free()
+    end if
+
+    if (associated(neighbourList%neighDist2Memory)) then
+      call neighbourList%neighDist2Win%free()
+    end if
+#:endif
+
+  end subroutine TNeighbourlist_finalize
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
@@ -323,8 +362,11 @@ contains
 
 
   !> Updates the neighbour list and the species arrays.
-  subroutine updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neigh, nAllAtom,&
-      & coord0, species0, cutoff, rCellVec, symmetric, helicalBoundConds)
+  subroutine updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neigh,&
+      & nAllAtom, coord0, species0, cutoff, rCellVec, symmetric, helicalBoundConds)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of all interacting atoms on exit
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -363,7 +405,7 @@ contains
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec, symmetric, helicalBoundConds)
+        & rCellVec, env, symmetric, helicalBoundConds)
 
     if (size(species) /= nAllAtom) then
       deallocate(species)
@@ -379,7 +421,7 @@ contains
   !> neighbour list determination is a simple N^2 algorithm, calculating the distance between the
   !> possible atom pairs.
   subroutine updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-      & rCellVec, symmetric, helicalBoundConds)
+      & rCellVec, env, symmetric, helicalBoundConds)
 
     !> Coordinates of the objects interacting with the objects in the central cell (on exit).
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -407,6 +449,9 @@ contains
     !> atoms with the central cell.
     real(dp), intent(in) :: rCellVec(:,:)
 
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
+
     !> Optional, whether the map should be symmetric (dftb default = .false.)
     logical, intent(in), optional :: symmetric
 
@@ -420,7 +465,7 @@ contains
     integer :: mAtom
 
     ! Max. nr. of neighbours without reallocation
-    integer :: maxNeighbour
+    integer :: maxNeighbour, maxNeighbourLocal
 
     ! Nr. of cell translation vectors
     integer :: nCellVec
@@ -430,15 +475,15 @@ contains
 
     real(dp) :: dist2
     real(dp) :: rCell(3), rr(3)
-    integer :: ii, iAtom1, oldIAtom1, iAtom2
+    integer :: ii, iAtom1, oldIAtom1, iAtom2, startAtom, endAtom
     integer :: nn1, iAtom2End
-    logical :: symm
-    integer, allocatable :: indx(:)
+    logical :: symm, isParallel, isParallelSetupError
+    real(dp), allocatable :: neighDist2(:,:)
+    integer, allocatable :: indx(:), iNeighbour(:,:)
     character(len=100) :: strError
 
     nAtom = size(neigh%nNeighbour, dim=1)
     mAtom = size(coord, dim=2)
-    maxNeighbour = ubound(neigh%iNeighbour, dim=1)
     nCellVec = size(rCellVec, dim=2)
 
     @:ASSERT(nAtom <= mAtom)
@@ -448,7 +493,6 @@ contains
     @:ASSERT(size(img2CentCell) == mAtom)
     @:ASSERT(allocated(iCellVec))
     @:ASSERT(size(iCellVec) == mAtom)
-    @:ASSERT(size(neigh%iNeighbour, dim=2) == nAtom)
     @:ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
     @:ASSERT(cutoff >= 0.0_dp)
 
@@ -460,16 +504,31 @@ contains
     cutoff2 = cutoff**2
     nAllAtom = 0
 
+    isParallel = .false.
+#:if WITH_MPI
+    if (present(env)) then
+      call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
+          & startAtom, endAtom, isParallelSetupError)
+      if (.not. isParallelSetupError) then
+        isParallel = .true.
+      end if
+    end if
+#:endif
+
+    if (.not. isParallel) then
+      startAtom = 1
+      endAtom = nAtom
+    end if
+
+    maxNeighbour = max(nCellVec * nAtom / 4, 1)
+    allocate(iNeighbour(1:maxNeighbour, startAtom:endAtom))
+    allocate(neighDist2(1:maxNeighbour, startAtom:endAtom))
+
     ! Clean arrays.
     !  (Every atom is the 0th neighbour of itself with zero distance square.)
     neigh%nNeighbour(:) = 0
-    neigh%iNeighbour(:,:) = 0
-    do ii = 1, nAtom
-      neigh%iNeighbour(0, ii) = ii
-    end do
-    neigh%neighDist2(:,:) = 0.0_dp
-
-    rCell(:) = 0.0_dp
+    iNeighbour(:,:) = 0
+    neighDist2(:,:) = 0.0_dp
 
     ! Loop over all possible neighbours for all atoms in the central cell.
     ! Only those neighbours are considered which map on atom with a higher
@@ -525,53 +584,162 @@ contains
             oldIAtom1 = iAtom1
           end if
 
-          ! Check if atoms are not too close to each other
-          if (dist2 < minNeighDist2) then
-            if (ii == 1 .and. iAtom1 == iAtom2) then
-              ! We calculated the distance between the same atom in the unit cell
-              cycle
-            else
-99000         format ('Atoms ',I5,' and ',I5,' too close to each other!', ' (dist=',E13.6,')')
-              write (strError, 99000) iAtom2, nAllAtom, sqrt(dist2)
-              call warning(strError)
+          if (startAtom <= iAtom2 .and. iAtom2 <= endAtom) then
+            ! Check if atoms are not too close to each other
+            if (dist2 < minNeighDist2) then
+              if (ii == 1 .and. iAtom1 == iAtom2) then
+                ! We calculated the distance between the same atom in the unit cell
+                cycle
+              else
+99000           format ('Atoms ',I5,' and ',I5,' too close to each other!', ' (dist=',E13.6,')')
+                write (strError, 99000) iAtom2, nAllAtom, sqrt(dist2)
+                call warning(strError)
+              end if
             end if
-          end if
 
-          neigh%nNeighbour(iAtom2) = neigh%nNeighbour(iAtom2) + 1
-          if (neigh%nNeighbour(iAtom2) > maxNeighbour) then
-            maxNeighbour = incrmntOfArray(maxNeighbour)
-            call reallocateArrays3(neigh%iNeighbour, neigh%neighDist2, maxNeighbour)
+            neigh%nNeighbour(iAtom2) = neigh%nNeighbour(iAtom2) + 1
+            if (neigh%nNeighbour(iAtom2) > maxNeighbour) then
+              maxNeighbour = incrmntOfArray(maxNeighbour)
+              call reallocateArrays3(iNeighbour, neighDist2, maxNeighbour)
+            end if
+            iNeighbour(neigh%nNeighbour(iAtom2), iAtom2) = nAllAtom
+            neighDist2(neigh%nNeighbour(iAtom2), iAtom2) = dist2
           end if
-          neigh%iNeighbour(neigh%nNeighbour(iAtom2), iAtom2) = nAllAtom
-          neigh%neighDist2(neigh%nNeighbour(iAtom2), iAtom2) = dist2
-
         end do lpIAtom2
       end do lpIAtom1
     end do lpCellVec
 
-    ! Sort neighbours for all atom by distance
-    allocate(indx(maxNeighbour))
-    do iAtom1 = 1, nAtom
-      nn1 = neigh%nNeighbour(iAtom1)
-      call index_heap_sort(indx(1:nn1), neigh%neighDist2(1:nn1, iAtom1), tolSameDist2)
-      neigh%iNeighbour(1:nn1, iAtom1) = neigh%iNeighbour(indx(:nn1), iAtom1)
-      neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
-    end do
-
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
-    ! check for atoms on top of each other
-    do iAtom1 = 1, nAtom
-      do nn1 = 1, neigh%nNeighbour(iAtom1)
-        if (neigh%neighDist2(nn1, iAtom1) < minNeighDist2) then
-          iAtom2 = img2CentCell(neigh%iNeighbour(nn1, iAtom1))
-          write (strError, "(A,I0,A,I0,A)") "Atoms ",iAtom1, " and ", iAtom2, " too close together"
-          call error(strError)
-        end if
-      end do
+    if (isParallel) then
+#:if WITH_MPI
+      call mpifx_allreduceip(env%mpi%nodeComm, neigh%nNeighbour, MPI_MAX)
+#:endif
+    end if
+
+    maxNeighbour = maxval(neigh%nNeighbour(1:nAtom))
+    maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
+
+    ! Sort neighbours for all atom by distance
+    allocate(indx(maxNeighbourLocal))
+    do iAtom1 = startAtom, endAtom
+      nn1 = neigh%nNeighbour(iAtom1)
+      call index_heap_sort(indx(1:nn1), neighDist2(1:nn1, iAtom1), tolSameDist2)
+      iNeighbour(1:nn1, iAtom1) = iNeighbour(indx(1:nn1), iAtom1)
+      neighDist2(1:nn1, iAtom1) = neighDist2(indx(1:nn1), iAtom1)
+
+      if (nn1 < maxNeighbourLocal) then
+        iNeighbour(nn1+1:maxNeighbourLocal, iAtom1) = 0
+        neighDist2(nn1+1:maxNeighbourLocal, iAtom1) = 0.0_dp
+      end if
+
+      ! check for atoms on top of each other
+      if (nn1 > 0 .and. neighDist2(1,iAtom1) < minNeighDist) then
+        iAtom2 = img2CentCell(iNeighbour(1,iAtom1))
+        write(strError, "(A,I0,A,I0,A)") "Atoms ", iAtom1, " and ", iAtom2, " too close together"
+        call error(strError)
+      end if
     end do
 
+    call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
+        & nAtom, isParallel, env)
+
   end subroutine updateNeighbourList
+
+
+  !> Allocate arrays for type 'neigh' and collect all data
+  subroutine fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
+      & nAtom, isParallel, env)
+
+    !> Contains all neighbour information
+    type(TNeighbourList), intent(inout) :: neigh
+
+    !> Array of neighbour indices
+    integer, allocatable, intent(in) :: iNeighbour(:,:)
+
+    !> Array if neighbour distances
+    real(dp), allocatable, intent(in) :: neighDist2(:,:)
+
+    !> First and last atomic indices for the current MPI process
+    integer, intent(in) :: startAtom, endAtom
+
+    !> Maximum number of neighbours an atom can have
+    integer, intent(in) :: maxNeighbour
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Whether computation is done in parallel
+    logical, intent(in) :: isParallel
+
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
+
+    integer :: dataLength, maxNeighbourLocal, ii
+
+    if (isParallel) then
+#:if WITH_MPI
+      if (associated(neigh%iNeighbourMemory)) then
+        call neigh%iNeighbourWin%free()
+        nullify(neigh%iNeighbourMemory)
+      end if
+      if (associated(neigh%neighDist2Memory)) then
+        call neigh%neighDist2Win%free()
+        nullify(neigh%neighDist2Memory)
+      end if
+
+      dataLength = (maxNeighbour + 1) * nAtom
+
+      call neigh%iNeighbourWin%allocate_shared(env%mpi%nodeComm, dataLength,&
+          & neigh%iNeighbourMemory)
+      call neigh%neighDist2Win%allocate_shared(env%mpi%nodeComm, dataLength,&
+          & neigh%neighDist2Memory)
+
+      neigh%iNeighbour(0:maxNeighbour,1:nAtom) => neigh%iNeighbourMemory(1:dataLength)
+      neigh%neighDist2(0:maxNeighbour,1:nAtom) => neigh%neighDist2Memory(1:dataLength)
+
+      maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
+
+      call neigh%iNeighbourWin%lock()
+      call neigh%neighDist2Win%lock()
+
+      neigh%iNeighbour(1:maxNeighbourLocal,startAtom:endAtom) =&
+          & iNeighbour(1:maxNeighbourLocal,startAtom:endAtom)
+      neigh%neighDist2(1:maxNeighbourLocal,startAtom:endAtom) =&
+          & neighDist2(1:maxNeighbourLocal,startAtom:endAtom)
+
+      if (maxNeighbourLocal < maxNeighbour) then
+        neigh%iNeighbour(maxNeighbourLocal+1:maxNeighbour,startAtom:endAtom) = 0
+        neigh%neighDist2(maxNeighbourLocal+1:maxNeighbour,startAtom:endAtom) = 0.0_dp
+      end if
+
+      call neigh%iNeighbourWin%sync()
+      call neigh%neighDist2Win%sync()
+
+      call neigh%iNeighbourWin%unlock()
+      call neigh%neighDist2Win%unlock()
+#:endif
+    else
+      if (associated(neigh%iNeighbour)) then
+        deallocate(neigh%iNeighbour)
+      end if
+      if (associated(neigh%neighDist2)) then
+        deallocate(neigh%neighDist2)
+      end if
+
+      allocate(neigh%iNeighbour(0:maxNeighbour,1:nAtom))
+      allocate(neigh%neighDist2(0:maxNeighbour,1:nAtom))
+
+      neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
+      neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
+    end if
+
+    do ii = 1, nAtom
+      neigh%iNeighbour(0, ii) = ii
+      neigh%neighDist2(0, ii) = 0.0_dp
+    end do
+
+  end subroutine fillNeighbourArrays
 
 
   !> Returns the nr. of neighbours for a given cutoff for all atoms.
@@ -695,27 +863,37 @@ contains
     !> maximum number of new atoms
     integer, intent(in) :: mNewNeighbour
 
-    integer :: mNeighbour, mAtom
+    integer :: mNeighbour, startAtom, endAtom
     integer, allocatable :: tmpIntR2(:,:)
     real(dp), allocatable :: tmpRealR2(:,:)
 
-    mNeighbour = ubound(iNeighbour, dim=1)
-    mAtom = size(iNeighbour, dim=2)
+    mNeighbour = size(iNeighbour, dim=1)
+    startAtom = lbound(iNeighbour, dim=2)
+    endAtom = ubound(iNeighbour, dim=2)
 
-    @:ASSERT(mNewNeighbour > 0 .and. mNewNeighbour > mNeighbour)
+    @:ASSERT(mNewNeighbour > 0)
     @:ASSERT(all(shape(neighDist2) == shape(iNeighbour)))
 
     call move_alloc(iNeighbour, tmpIntR2)
-    allocate(iNeighbour(0:mNewNeighbour, mAtom))
-    iNeighbour(:,:) = 0
-    iNeighbour(:mNeighbour, :mAtom) = tmpIntR2
+    allocate(iNeighbour(mNewNeighbour, startAtom:endAtom))
+    if (mNewNeighbour > mNeighbour) then
+      iNeighbour(mNeighbour+1:,:) = 0
+      iNeighbour(:mNeighbour,:) = tmpIntR2(:,:)
+    else
+      iNeighbour(:,:) = tmpIntR2(:mNewNeighbour,:)
+    end if
 
     call move_alloc(neighDist2, tmpRealR2)
-    allocate(neighDist2(0:mNewNeighbour, mAtom))
-    neighDist2(:,:) = 0.0_dp
-    neighDist2(:mNeighbour, :mAtom) = tmpRealR2
+    allocate(neighDist2(mNewNeighbour, startAtom:endAtom))
+    if (mNewNeighbour > mNeighbour) then
+      neighDist2(mNeighbour+1:,:) = 0.0_dp
+      neighDist2(:mNeighbour,:) = tmpRealR2(:,:)
+    else
+      neighDist2(:,:) = tmpRealR2(:mNewNeighbour,:)
+    end if
 
   end subroutine reallocateArrays3
+
 
   !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
   subroutine getSparseDescriptor(iNeighbour, nNeighbourSK, img2CentCell, orb, iPair, sparseSize)
@@ -1232,5 +1410,36 @@ contains
     x(3,:) = r(2,:)
 
   end subroutine cyl2cart_array
+
+
+  !> Computes a domain decomposition of n atoms
+  subroutine distributeAtoms(mpiRank, mpiSize, nAtom, startAtom, endAtom, error)
+
+    !> Current MPI rank
+    integer, intent(in) :: mpiRank
+
+    !> Number of MPI processes
+    integer, intent(in) :: mpiSize
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Start and end atomic indices for the current MPI process
+    integer, intent(out) :: startAtom, endAtom
+
+    !> Whether an error occurred during domain decomposition
+    logical, intent(out) :: error
+
+    if (nAtom < mpiSize) then
+      call warning("Cannot parallelize atomic distance computation: &
+          &The number of MPI ranks must not be greater than the number of atoms.")
+      error = .true.
+      return
+    end if
+
+    call getChunkRanges(mpiSize, mpiRank, 1, nAtom, startAtom, endAtom)
+    error = .false.
+
+  end subroutine distributeAtoms
 
 end module dftbp_dftb_periodic
