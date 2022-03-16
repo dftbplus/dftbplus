@@ -384,7 +384,7 @@ contains
         end if
       end if
       if (allocated(multipoles%dipoleAtom)) then
-        multipoles%dipoleAtom(:,:) = 0.0_dp
+        multipoles%dipoleAtom(:,:,:) = 0.0_dp
       end if
       if (allocated(multipoles%quadrupoleAtom)) then
         if (nQuadrupole /= size(multipoles%quadrupoleAtom, dim=1)) then
@@ -396,37 +396,41 @@ contains
         end if
       end if
       if (allocated(multipoles%quadrupoleAtom)) then
-        multipoles%quadrupoleAtom(:,:) = 0.0_dp
+        multipoles%quadrupoleAtom(:,:,:) = 0.0_dp
       end if
       if (tReadAscii) then
-        do iAtom = 1, nAtom
-          do ii = 1, nDipole
-            read (file, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom)
-            if (iErr /= 0) then
-              write (error_string, *) "Failure to read file for atomic dipoles"
-              call error(error_string)
-            end if
+        do iSpin = 1, nSpin
+          do iAtom = 1, nAtom
+            do ii = 1, nDipole
+              read (file, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom,iSpin)
+              if (iErr /= 0) then
+                write (error_string, *) "Failure to read file for atomic dipoles"
+                call error(error_string)
+              end if
+            end do
           end do
         end do
-        do iAtom = 1, nAtom
-          do ii = 1, nQuadrupole
-            read (file, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom)
-            if (iErr /= 0) then
-              write (error_string, *) "Failure to read file for atomic quadrupoles"
-              call error(error_string)
-            end if
+        do iSpin = 1, nSpin
+          do iAtom = 1, nAtom
+            do ii = 1, nQuadrupole
+              read (file, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom,iSpin)
+              if (iErr /= 0) then
+                write (error_string, *) "Failure to read file for atomic quadrupoles"
+                call error(error_string)
+              end if
+            end do
           end do
         end do
       else
         if (nDipole > 0) then
-          read(file, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom)
+          read(file, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *)"Failure to read external dipoles from file for atomic multipoles"
             call error(error_string)
           end if
         end if
         if (nQuadrupole > 0) then
-          read(file, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom)
+          read(file, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to read external quadrupoles from file for atomic&
                 & multipoles"
@@ -645,34 +649,38 @@ contains
         call error(error_string)
       end if
       if (tWriteAscii) then
-        do iAtom = 1, nAtom
-          do ii = 1, nDipole
-            write(fd, *, iostat=iErr) multipoles%dipoleAtom(ii, iAtom)
-            if (iErr /= 0) then
-              write(error_string, "(A,I0)") "Failure to write dipole for atom ",iAtom
-              call error(error_string)
-            end if
+        do iSpin = 1, nSpin
+          do iAtom = 1, nAtom
+            do ii = 1, nDipole
+              write(fd, *, iostat=iErr) multipoles%dipoleAtom(ii, iAtom, iSpin)
+              if (iErr /= 0) then
+                write(error_string, "(A,I0)") "Failure to write dipole for atom ",iAtom
+                call error(error_string)
+              end if
+            end do
           end do
         end do
-        do iAtom = 1, nAtom
-          do ii = 1, nQuadrupole
-            write(fd, "(3E20.12)", iostat=iErr) multipoles%quadrupoleAtom(ii, iAtom)
-            if (iErr /= 0) then
-              write(error_string, "(A,I0)") "Failure to write quadrupole for atom ",iAtom
-              call error(error_string)
-            end if
+        do iSpin = 1, nSpin
+          do iAtom = 1, nAtom
+            do ii = 1, nQuadrupole
+              write(fd, "(3E20.12)", iostat=iErr) multipoles%quadrupoleAtom(ii, iAtom, iSpin)
+              if (iErr /= 0) then
+                write(error_string, "(A,I0)") "Failure to write quadrupole for atom ",iAtom
+                call error(error_string)
+              end if
+            end do
           end do
         end do
       else
         if (nDipole > 0) then
-          write(fd, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom)
+          write(fd, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to write atom dipoles"
             call error(error_string)
           end if
         end if
         if (nQuadrupole > 0) then
-          write(fd, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom)
+          write(fd, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to write atom quadrupoles"
             call error(error_string)

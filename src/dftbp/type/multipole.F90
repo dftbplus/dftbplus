@@ -18,10 +18,10 @@ module dftbp_type_multipole
   type :: TMultipole
 
     !> Cumulative atomic dipole moments
-    real(dp), allocatable :: dipoleAtom(:, :)
+    real(dp), allocatable :: dipoleAtom(:, :, :)
 
     !> Cumulative atomic quadrupole moments
-    real(dp), allocatable :: quadrupoleAtom(:, :)
+    real(dp), allocatable :: quadrupoleAtom(:, :, :)
 
   end type TMultipole
 
@@ -30,7 +30,7 @@ contains
 
 
   !> Create new container for multipole moments
-  subroutine TMultipole_init(this, nAtom, nDipole, nQuadrupole)
+  subroutine TMultipole_init(this, nAtom, nDipole, nQuadrupole, nSpin)
 
     !> Instance of the multipole moments
     type(TMultipole), intent(out) :: this
@@ -44,12 +44,15 @@ contains
     !> Number of quadrupole moment components
     integer, intent(in) :: nQuadrupole
 
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
     if (nDipole > 0) then
-      allocate(this%dipoleAtom(nDipole, nAtom), source=0.0_dp)
+      allocate(this%dipoleAtom(nDipole, nAtom, nSpin), source=0.0_dp)
     end if
 
     if (nQuadrupole > 0) then
-      allocate(this%quadrupoleAtom(nQuadrupole, nAtom), source=0.0_dp)
+      allocate(this%quadrupoleAtom(nQuadrupole, nAtom, nSpin), source=0.0_dp)
     end if
 
   end subroutine TMultipole_init

@@ -2061,7 +2061,7 @@ contains
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
       & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE,&
-      & coord0, multipole)
+      & coord0, dipoleMoment, multipole)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2135,6 +2135,9 @@ contains
     !> Final atomic coordinates
     real(dp), intent(in) :: coord0(:,:)
 
+    !> Overall dipole moment
+    real(dp), intent(in), allocatable :: dipoleMoment(:,:)
+
     !> Multipole moments
     type(TMultipole), intent(in) :: multipole
 
@@ -2206,11 +2209,15 @@ contains
       end if
     end if
 
+    if (allocated(dipoleMoment)) then
+      call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
+    end if
+
     if (allocated(multipole%dipoleAtom)) then
       block
         real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
         qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
-        dipoleAtom = -multipole%dipoleAtom - coord0 * spread(qAtom, 1, 3)
+        dipoleAtom = -multipole%dipoleAtom(:, :, 1) - coord0 * spread(qAtom, 1, 3)
         call taggedWriter%write(fd, tagLabels%dipoleAtom, dipoleAtom)
       end block
     end if
@@ -2485,7 +2492,7 @@ contains
 
 
   !> Write the second derivative matrix
-  subroutine writeHessianOut(fileName, pDynMatrix)
+  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2493,14 +2500,44 @@ contains
     !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
-    integer :: ii, fd
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+
+    integer :: ii, fd
+    character(10) :: suffix1, suffix2
+    logical :: tPartialHessian = .false. 
+
+    ! Sanity check in case some bug is introduced
+    if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
+      call error('Internal error: incorrect number of rows of dynamical Matrix')    
+    end if       
+    ! It is a partial Hessian Calculation if DynMatrix is not squared
+    if (size(pDynMatrix, dim=1) > size(pDynMatrix, dim=2)) then
+      tPartialHessian = .true.
+    end if
+
+    if (tPartialHessian) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))     
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)), &
+            & action="write", status="replace")
+    else 
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+
     do ii = 1, size(pDynMatrix, dim=2)
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do
+
     close(fd)
-    write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
+
+    if (tPartialHessian) then
+      write(stdOut, "(2A)") 'Hessian matrix written to ', &
+            & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+    else
+      write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
+    end if
 
   end subroutine writeHessianOut
 
@@ -3522,7 +3559,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, solvation)
+      & deltaDftb, solvation, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3551,7 +3588,13 @@ contains
     !> Instance of the solvation model
     class(TSolvation), intent(in), allocatable :: solvation
 
+    !> Optional extra message about dipole moments
+    character(*), intent(in) :: dipoleMessage
+
     if (allocated(dipoleMoment)) then
+      if (len(trim(dipoleMessage))>0) then
+        write(fd, "(A)")trim(dipoleMessage)
+      end if
       if (deltaDftb%isNonAufbau) then
         if (deltaDftb%iGround > 0) then
           write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
@@ -3743,7 +3786,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & qOutput, q0, dipoleMoment, solvation)
+      & qOutput, q0, dipoleMoment, solvation, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3802,6 +3845,9 @@ contains
     !> Instance of the solvation model
     class(TSolvation), intent(in), allocatable :: solvation
 
+    !> Optional extra message about dipole moments
+    character(*), intent(in) :: dipoleMessage
+
     integer :: ii
     character(lc) :: strTmp
 
@@ -3851,6 +3897,9 @@ contains
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
     if (allocated(dipoleMoment)) then
+      if (len(trim(dipoleMessage))>0) then
+        write(fd, "(A)")trim(dipoleMessage)
+      end if
       ii = size(dipoleMoment, dim=2)
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'

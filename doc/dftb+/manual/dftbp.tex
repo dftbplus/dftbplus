@@ -215,33 +215,35 @@ Geometry = xyzFormat {
 \label{sec:dftbp.VaspFormat}
 
 You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
-\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
-The geometry specification for a molecular ammonia crystal would be the following:
+\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries. 
+Both VASP 4.x and VASP 5.x POSCAR are supported.
+The geometry specification for a molecular ammonia crystal with VASP 5.x would be the following:
 \begin{verbatim}
 Geometry = VaspFormat {
- H  N
-    1.00000000000000
-    5.01336000000000    0.00000000000000    0.00000000000000
-    0.00000000000000    5.01336000000000    0.00000000000000
-    0.00000000000000    0.00000000000000    5.01336000000000
- 12 4
+Ammonia
+   1.00000000000000
+ 5.01336000000000    0.00000000000000    0.00000000000000
+ 0.00000000000000    5.01336000000000    0.00000000000000
+ 0.00000000000000    0.00000000000000    5.01336000000000
+   H  N 
+   12 4
 Cartesian
-    2.19855889440000    1.76390058240000    0.88014548160000
-    1.76390058240000    0.88014548160000    2.19855889440000
-    0.88014548160000    2.19855889440000    1.76390058240000
-    4.84115108400000    1.61941554720000    4.93981400880000
-    4.35630903840000    2.49981169680000    3.63248012160000
-    3.51957925440000    1.15357413600000    4.08403345680000
-    4.08403345680000    3.51957925440000    1.15357413600000
-    4.93981400880000    4.84115108400000    1.61941554720000
-    3.63248012160000    4.35630903840000    2.49981169680000
-    2.49981169680000    3.63248012160000    4.35630903840000
-    1.15357413600000    4.08403345680000    3.51957925440000
-    1.61941554720000    4.93981400880000    4.84115108400000
-    1.37461317840000    1.37461317840000    1.37461317840000
-    3.99815460000000    1.99105592400000    4.46364507600000
-    4.46364507600000    3.99815460000000    1.99105592400000
-    1.99105592400000    4.46364507600000    3.99815460000000
+ 2.19855889440000    1.76390058240000    0.88014548160000
+ 1.76390058240000    0.88014548160000    2.19855889440000
+ 0.88014548160000    2.19855889440000    1.76390058240000
+ 4.84115108400000    1.61941554720000    4.93981400880000
+ 4.35630903840000    2.49981169680000    3.63248012160000
+ 3.51957925440000    1.15357413600000    4.08403345680000
+ 4.08403345680000    3.51957925440000    1.15357413600000
+ 4.93981400880000    4.84115108400000    1.61941554720000
+ 3.63248012160000    4.35630903840000    2.49981169680000
+ 2.49981169680000    3.63248012160000    4.35630903840000
+ 1.15357413600000    4.08403345680000    3.51957925440000
+ 1.61941554720000    4.93981400880000    4.84115108400000
+ 1.37461317840000    1.37461317840000    1.37461317840000
+ 3.99815460000000    1.99105592400000    4.46364507600000
+ 4.46364507600000    3.99815460000000    1.99105592400000
+ 1.99105592400000    4.46364507600000    3.99815460000000
 }
 \end{verbatim}
 It is also possible to include the POSCAR/CONTCAR formatted geometry from a file:
@@ -418,22 +420,22 @@ To disable a convergence criterium a large value should be provided.
 
 \begin{ptable}
   \kw{Energy} & r &  & inf & \\
-  \kw{GradAMax} & r &  & 1e-4 & \\
+  \kw{GradElem} & r &  & 1e-4 & \\
   \kw{GradNorm} & r &  & inf & \\
-  \kw{DispAMax} & r &  & inf & \\
+  \kw{DispElem} & r &  & inf & \\
   \kw{DispNorm} & r &  & inf & \\
 \end{ptable}
 \begin{description}
 \item[\is{Energy}]\modif{\modtype{energy}}
   Maximum energy change in one geometry step to consider optimization converged.
   Disabled by default.
-\item[\is{GradAMax}]\modif{\modtype{force}}
+\item[\is{GradElem}]\modif{\modtype{force}}
   Maximum absolute gradient element in one geometry step to consider optimization converged
   Default threshold is 1e-4 Hartree/Bohr.
 \item[\is{GradNorm}]\modif{\modtype{force}}
   Maximum gradient norm in one geometry step to consider optimization converged
   Disabled by default.
-\item[\is{DispAMax}]\modif{\modtype{length}}
+\item[\is{DispElem}]\modif{\modtype{length}}
   Maximum absolute displacement element in one geometry step to consider optimization converged
   Disabled by default.
 \item[\is{DispNorm}]\modif{\modtype{length}}
@@ -695,17 +697,38 @@ frequencies.
 
 \begin{ptable}
   \kw{Atoms} & i+|m &  & 1:-1 & \\
+  \kw{MovedAtoms} & i+|m &  & \textrm{Value of} Atoms & \\
   \kw{Delta} & r & & 1e-4 & \\
 \end{ptable}
 
 \begin{description}
-\item[\is{Atoms}] Index of the atoms for which to calculate the second
-  derivatives. The index selection format is described in appendix \ref{sec:index_selection}.
+\item[\is{Atoms}] Index of the atoms for which the second derivatives should be
+  computed. The index selection format is described in appendix
+  \ref{sec:index_selection}.
 
-\item[\is{Delta}] Step size for numerical differentiation of forces to
-  get the second derivatives of the energy with respect to atomic
-  coordinates.
+\item[\is{MovedAtoms}] Optional parameter enabling to select a subset of the
+  atoms which were specified with the \is{Atoms} keyword. Only the selected
+  atoms will then be moved in the calculation, yielding a rectangular submatrix
+  ($3\,\text{nMovedAtoms} \times 3\,\text{nAtoms}$) of the full Hessian
+  ($3\,\text{nAtoms} \times 3\,\text{nAtoms}$). This is useful for splitting the
+  Hessian calculation among multiple \dftbp{} runs.  See also the batch script
+  in \texttt{tools/misc/set\_partial\_hessian}. If the keyword is not specified,
+  the full Hessian for all atoms specified in \is{Atoms} will be calculated.
+  Currently, the atom indices provided in \is{MovedAtoms} must build a
+  contiguous range, and also the atom indices listed in \is{Atoms} must be
+  contiguous if the \is{MovedAtoms} option is used.
+
+\item[\is{Delta}]\modif{\modtype{len}} Optional step size for numerical
+  differentiation of forces to get the second derivatives of the energy with
+  respect to atomic coordinates.
 \end{description}
+
+Example:
+\begin{verbatim}
+Driver = SecondDerivatives {
+    Atoms = 1:12
+}
+\end{verbatim}
 
 
 \subsection{VelocityVerlet\cb}
@@ -1541,7 +1564,7 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   can differ considerably between methods.
 
 \item[\is{CustomisedHubbards}] Enables overriding of the Hubbard U values for given species. If the
-  option \is{OrbitalResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
+  option \is{ShellResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
   for each atomic shell in the basis of the given atom type, otherwise only one atomic value is
   required. For all species not specified in this block, the value(s) found in their respective
   Slater-Koster files will be used.
@@ -4606,14 +4629,31 @@ calculation and/or calculate properties.
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
 
-\subsection{ProjectStates} \kw{ProjectStates}
-\label{sec:dftbp.ProjectStates} evaluates the Mulliken
-projection of electronic states onto specific regions of the system being
-modelled (partial density of states -- PDOS). The format of the projected data
-files is similar to \verb|band.out|, but the second column is the fraction of
-the state within that region, instead of its occupation number (for
-non-collinear and spin-orbit calculations, three additional columns for the
-magnetisation of the state are also given).
+\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
+  \verb|eigenvec.bin|. For a description of the file format see
+  p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
+  text version of the data should be printed in \verb|eigenvec.out|. For a
+  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
+  which contains the band structure in a more or less human friendly format.
+
+\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
+  for the actual calculation (e.g.\ static geometry calculation).
+
+\end{description}
+
+\subsection{ProjectStates}
+\label{sec:dftbp.ProjectStates}
+
+\kw{ProjectStates} evaluates the Mulliken projection of electronic states onto
+specific regions of the system being modelled (partial density of states --
+PDOS). The format of the projected data files is similar to \verb|band.out|, but
+the second column is the fraction of the state within that region, instead of
+its occupation number (for non-collinear and spin-orbit calculations, three
+additional columns for the magnetisation of the state are also given).
 
 Each region for projection is specified within a \iscb{Region} block,
 with the following options
@@ -4709,21 +4749,6 @@ method which {\em may} have better scaling properties.
   with tighter tolerances as the localisation proceeds).
 \end{description}
 
-\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
-  \verb|eigenvec.bin|. For a description of the file format see
-  p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
-  text version of the data should be printed in \verb|eigenvec.out|. For a
-  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
-  which contains the band structure in a more or less human friendly format.
-
-\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
-  for the actual calculation (e.g.\ static geometry calculation).
-
-\end{description}
 
 \subsection{ElectrostaticPotential}
 \label{sec:dftbp.esp}
@@ -5105,6 +5130,8 @@ section~\ref{sec:ppRPAout}.
 Calculate the real-time propagation of both the electronic state of the system
 and the nuclei within the Ehfenfest approximation in the presence of an optional
 external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
+The real-time propagation is available with DFTB as well as xTB Hamiltonians.
+
 \begin{ptable}
   \kw{Steps} &i &  & - & \\
   \kw{TimeStep} & r & & - & \\

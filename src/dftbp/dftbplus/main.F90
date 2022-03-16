@@ -323,7 +323,7 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation, this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -337,7 +337,7 @@ contains
 
     if (env%tGlobalLead .and. this%tDerivs) then
       call getHessianMatrix(this%derivDriver, this%pDynMatrix)
-      call writeHessianOut(hessianOut, this%pDynMatrix)
+      call writeHessianOut(hessianOut, this%pDynMatrix, this%indMovedAtom)
     else
       nullify(this%pDynMatrix)
     end if
@@ -475,7 +475,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%coord0, this%multipoleOut)
+          & this%coord0, this%dipoleMoment, this%multipoleOut)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -1470,7 +1470,8 @@ contains
     tExitGeoOpt = .false.
 
     if (this%tDerivs) then
-      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, this%coord0, tGeomEnd)
+      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, &
+           & this%indDerivAtom, this%coord0, tGeomEnd)
       if (tGeomEnd) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         tExitGeoOpt = .true.
@@ -1567,7 +1568,7 @@ contains
             & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%solvation)
+            & this%dipoleMoment, this%solvation, this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -3601,13 +3602,13 @@ contains
 
       if (allocated(multipoles%dipoleAtom)) then
         call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
-            & rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+            & rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
             & iSparseStart)
       end if
 
       if (allocated(multipoles%quadrupoleAtom)) then
         call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
-            & ints%quadrupoleKet, rhoPrim(:, 1), orb, neighbourList%iNeighbour, nNeighbourSK,&
+            & ints%quadrupoleKet, rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK,&
             & img2CentCell, iSparseStart)
       end if
 
@@ -3795,13 +3796,13 @@ contains
         if (nIneqDip > 0) then
           ! FIXME: Assumes we always mix all dipole moments
           nMix = nIneqOrb
-          multipoleInp%dipoleAtom(:, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
+          multipoleInp%dipoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
               & shape(multipoleInp%dipoleAtom))
         end if
         if (nIneqQuad > 0) then
           ! FIXME: Assumes we always mix all quadrupole moments
           nMix = nIneqOrb + nIneqDip
-          multipoleInp%quadrupoleAtom(:,:) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
+          multipoleInp%quadrupoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
               & shape(multipoleInp%quadrupoleAtom))
         end if
       end if
@@ -4454,7 +4455,7 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Dipole populations for each atom
-    real(dp), intent(in), optional :: dipAtom(:,:)
+    real(dp), intent(in), optional :: dipAtom(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -4478,7 +4479,7 @@ contains
     if (present(dipAtom)) then
       do ii = 1, size(iAtInCentralRegion)
         iAtom = iAtInCentralRegion(ii)
-        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom)
+        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom, 1)
       end do
     end if
 
@@ -4551,7 +4552,7 @@ contains
       do iAt = 1, nAtom
         dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) * coord0(ii, iAt)
       end do
-      write(stdOut, "(F12.8)", advance='no') sum(dipole)
+      write(stdOut, "(F16.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
     if (allocated(solvation)) then
@@ -6056,7 +6057,7 @@ contains
 
 
   !> Returns the coordinates for the next Hessian calculation step.
-  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, coord, tGeomEnd)
+  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, indDerivAtoms, coord, tGeomEnd)
 
     !> Driver for the finite difference second derivatives
     type(TNumDerivs), intent(inout) :: derivDriver
@@ -6064,18 +6065,21 @@ contains
     !> first derivatives of energy at the current coordinates
     real(dp), intent(in) :: derivs(:,:)
 
-    !> moving atoms
+    !> indices of moving atoms
     integer, intent(in) :: indMovedAtoms(:)
 
+    !> indices of atoms for which 2nd derivatives should be calculated
+    integer, intent(in) :: indDerivAtoms(:)
+
     !> atomic coordinates
-    real(dp), intent(out) :: coord(:,:)
+    real(dp), intent(inout) :: coord(:,:)
 
     !> has the process terminated
     logical, intent(out) :: tGeomEnd
 
     real(dp) :: newCoords(3, size(indMovedAtoms))
 
-    call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
+    call next(derivDriver, newCoords, derivs(:, indDerivAtoms), tGeomEnd)
     coord(:, indMovedAtoms) = newCoords
 
   end subroutine getNextDerivStep
@@ -7353,6 +7357,8 @@ contains
     end if
 
   end subroutine getReksNextInputDensity
+
+
   !> Set correct dipole moment according to type of REKS calculation
   subroutine assignDipoleMoment(dipoleTmp, dipoleMoment, iDet, tDipole, reks, isSingleState)
 

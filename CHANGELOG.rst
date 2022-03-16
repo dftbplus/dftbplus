@@ -11,14 +11,19 @@ Unreleased
 Added
 -----
 
-- API call for CM5 charges
-
+- Real time electronic dynamics for xTB Hamiltonian
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
-
+- API call for CM5 charges
 
 Changed
 -------
 
+- Allow electric fields in periodic systems even when interactions
+  cross the sawtooth in the field
+
+- Allow printing of dipole moments, even in cases where the absolute
+  value is ill-defined (charged systems or periodic cases), but its
+  derivative may be meaningful.
 
 
 Fixed

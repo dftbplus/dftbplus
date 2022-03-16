@@ -299,6 +299,7 @@ module dftbp_dftbplus_inputdata
     real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved       = 0
     integer, allocatable :: indMovedAtom(:)
+    integer, allocatable :: indDerivAtom(:)
     integer :: nrConstr      = 0
     integer, allocatable :: conAtom(:)
     real(dp), allocatable :: conVec(:,:)

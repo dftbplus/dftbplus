@@ -31,6 +31,7 @@ contains
 
   !> Calculates the value of the error function.
   elemental function erfwrap(xx) result(res)
+    !$OMP DECLARE SIMD(erfwrap)
 
     !> Function argument.
     real(dp), intent(in) :: xx
@@ -45,6 +46,7 @@ contains
 
   !> Calculates the value of the complementary error function.
   elemental function erfcwrap(xx) result(res)
+    !$OMP DECLARE SIMD(erfcwrap)
 
     !> Function argument.
     real(dp), intent(in) :: xx
