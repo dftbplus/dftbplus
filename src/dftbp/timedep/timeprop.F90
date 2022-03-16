@@ -2511,7 +2511,8 @@ contains
 
   ! updates Eiginv and EiginvAdj if nuclear dynamics is done
   ! important to call after H1 has been updated with new charges and before D is included in H1
-  subroutine updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
+  subroutine updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr,&
+      & errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2534,6 +2535,9 @@ contains
     !> Square overlap matrix
     complex(dp), intent(inout) :: Ssqr(:,:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Auxiliary matrix
     complex(dp), allocatable :: T1(:,:)
 
@@ -2550,7 +2554,8 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       !check if this works with both complex and real
       T1(:,:) = H1(:,:,iKS)
-      call diagDenseMtx(env, electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen)
+      call diagDenseMtx(env, electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (this%tRealHS) then
         T2(:,:) = real(T1, dp)
         call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), T2)
@@ -2727,7 +2732,7 @@ contains
   !> Calculates non-SCC hamiltonian and overlap for new geometry and reallocates sparse arrays
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, skHamCont, skOverCont, ham0, ints, env, rhoPrim,&
-      & ErhoPrim, coordAll, Dsqr, Qsqr)
+      & ErhoPrim, coordAll, errStatus, Dsqr, Qsqr)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -2789,6 +2794,9 @@ contains
     !> Energy weighted density matrix
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp), allocatable :: Sreal(:,:), SinvReal(:,:)
     complex(dp), allocatable :: T4(:,:)
     real(dp) :: coord0Fold(3,this%nAtom)
@@ -2827,7 +2835,8 @@ contains
 
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
-          & this%speciesAll)
+          & this%speciesAll, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     select case(this%hamiltonianType)
@@ -3648,7 +3657,8 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
+          & this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
       if (this%tIons) then
 
         this%initialVelocities(:,:) = this%movedVelo
@@ -3659,7 +3669,8 @@ contains
       coord(:,:) = this%initCoord
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
+          & this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
@@ -3687,7 +3698,8 @@ contains
     end if
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
-          & this%speciesAll)
+          & this%speciesAll, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
 
@@ -3773,7 +3785,8 @@ contains
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
+          & this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
@@ -3943,7 +3956,8 @@ contains
       end select
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&
-            & this%Ssqr)
+            & this%Ssqr, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
@@ -4039,7 +4053,8 @@ contains
       coord(:,:) = this%coordNew
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
+          & this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&

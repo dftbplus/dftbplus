@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> A simple reimplementation of DFT-D3
 module dftbp_dftb_simpledftd3
@@ -13,6 +14,7 @@ module dftbp_dftb_simpledftd3
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_dftb_dftd3param, only : TDftD3Ref, init
@@ -208,8 +210,9 @@ contains
     !> Updated coordinates.
     real(dp), intent(in) :: coords(:,:)
 
-    !> Status of operation
-    integer, intent(out), optional :: stat
+    !> Status of operation. Will appear as an unused variable, as no error can currently be set in
+    !> this routine
+    type(TStatus), intent(out) :: stat
 
     ! Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
@@ -220,10 +223,6 @@ contains
 
     @:ASSERT(allocated(this%energies))
     @:ASSERT(allocated(this%gradients))
-
-    if (present(stat)) then
-      stat = 0
-    end if
 
     allocate(nNeighbour(this%nAtom))
 
