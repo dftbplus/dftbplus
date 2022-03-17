@@ -251,6 +251,10 @@ contains
     end if
     main%isExtField = .true.
 
+    ! work around for lack (at the moment) for a flag to re-calculate ground state even if
+    ! geometries are unchanged.
+    main%tCoordsChanged = .true.
+
   end subroutine setExternalPotential
 
 
