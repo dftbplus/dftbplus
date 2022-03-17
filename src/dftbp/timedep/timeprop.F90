@@ -17,9 +17,9 @@ module dftbp_timedep_timeprop
   use dftbp_common_accuracy, only : dp, sc, lc, mc
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_exception, only : TException
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
@@ -340,13 +340,16 @@ module dftbp_timedep_timeprop
 contains
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
+  subroutine TElecDynamics_init(this, exc, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation,&
-      & hamiltonianType, errStatus)
+      & hamiltonianType)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
@@ -423,9 +426,6 @@ contains
     !> Type of Hamiltonian used
     integer, intent(in) :: hamiltonianType
 
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
-
     real(dp) :: norm, tempAtom
     logical :: tMDstill
     integer :: iAtom
@@ -454,7 +454,7 @@ contains
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
     if (.not.any([allocated(sccCalc), allocated(tblite)])) then
-      @:RAISE_ERROR(errStatus, -1, "SCC calculations are currently required for dynamics")
+      @:RAISE_EXCEPTION(exc, -1, "SCC calculations are currently required for dynamics")
     end if
     if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
@@ -482,12 +482,12 @@ contains
       this%tKick = .false.
       this%tLaser = .false.
     case default
-      @:RAISE_ERROR(errStatus, -1, "Wrong type of perturbation.")
+      @:RAISE_EXCEPTION(exc, -1, "Wrong type of perturbation.")
     end select
 
     if (allocated(solvation)) then
       if (solvation%isEFieldModified() .and. (this%tKick .or. this%tLaser)) then
-        @:RAISE_ERROR(errStatus, -1, "This type of solvation model currently unsupported for&
+        @:RAISE_EXCEPTION(exc, -1, "This type of solvation model currently unsupported for&
             & electron dyanamics")
       end if
     end if
@@ -528,7 +528,7 @@ contains
     this%eulerFreq = inp%eulerFreq
     this%tBondE = inp%tBondE
     if (this%tBondE .and. .not. this%tRealHS) then
-      @:RAISE_ERROR(errStatus, -1, "Real hamiltonian required for bond energies")
+      @:RAISE_EXCEPTION(exc, -1, "Real hamiltonian required for bond energies")
     end if
     this%tBondP = inp%tBondP
     this%species = species
@@ -537,10 +537,10 @@ contains
 
     if (this%tIons) then
       if (.not. this%tRealHS) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for imaginary&
+        @:RAISE_EXCEPTION(exc, -1, "Ion dynamics is not implemented yet for imaginary&
             & Hamiltonians.")
       elseif (isRangeSep) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for range separated&
+        @:RAISE_EXCEPTION(exc, -1, "Ion dynamics is not implemented yet for range separated&
             & calculations.")
       end if
       this%tForces = .true.
@@ -589,14 +589,14 @@ contains
     if (this%tIons .or. this%tForces) then
       if (this%nExcitedAtom /= nAtom) then
         if (this%tLaser) then
-          @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces are not implemented for excitation&
+          @:RAISE_EXCEPTION(exc, -1, "Ion dynamics and forces are not implemented for excitation&
               & of a subgroup of atoms")
         else
           this%nExcitedAtom = nAtom
         end if
       end if
       if (allocated(tblite)) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces not available for xTB Hamiltonian")
+        @:RAISE_EXCEPTION(exc, -1, "Ion dynamics and forces not available for xTB Hamiltonian")
       end if
     end if
 
@@ -632,15 +632,18 @@ contains
 
 
   !> Driver of time dependent propagation to calculate with either spectrum or laser
-  subroutine runDynamics(this, eigvecs, H0, speciesAll, q0, referenceN0, ints, filling,&
+  subroutine runDynamics(this, exc, eigvecs, H0, speciesAll, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
       & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
       & dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont,&
       & latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
-      & taggedWriter, refExtPot, errStatus)
+      & taggedWriter, refExtPot)
 
     !> ElecDynamics instance
-    type(TElecDynamics) :: this
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecs(:,:,:)
@@ -762,9 +765,6 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
-
     integer :: iPol
     logical :: tWriteAutotest
 
@@ -780,38 +780,41 @@ contains
         this%currPolDir = this%polDirs(iPol)
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
-        call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
+        call doDynamics(this, exc, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
             & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
             & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
             & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
-            & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
-            & errStatus)
+            & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
+        @:PROPAGATE_EXCEPTION(exc)
         this%iCall = this%iCall + 1
       end do
     else
-      call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
+      call doDynamics(this, exc, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
           & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
           & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
           & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
-          & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
-          & errStatus)
+          & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec)
+      @:PROPAGATE_EXCEPTION(exc)
     end if
 
   end subroutine runDynamics
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, eigvecsReal, H0, q0, referenceN0, ints, filling, neighbourList,&
+  subroutine doDynamics(this, exc, eigvecsReal, H0, q0, referenceN0, ints, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
       & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
       & skOverCont, electronicSolver, speciesAll, eigvecsCplx, taggedWriter, refExtPot, latVec,&
-      & invLatVec, iCellVec, rCellVec, cellVec, errStatus)
+      & invLatVec, iCellVec, rCellVec, cellVec)
 
     !> ElecDynamics instance
-    type(TElecDynamics) :: this
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -940,21 +943,18 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: speciesAll(:)
 
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
-
     type(TTimer) :: loopTime
     integer :: iStep
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
-    call initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
+    call initializeDynamics(this, exc, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
        & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+       & rCellVec, cellVec, speciesAll, electronicSolver)
+    @:PROPAGATE_EXCEPTION(exc)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -968,12 +968,12 @@ contains
     ! Main loop
     do iStep = 1, this%nSteps
 
-      call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
+      call doTdStep(this, exc, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
-       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+       & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
+      @:PROPAGATE_EXCEPTION(exc)
 
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
@@ -993,13 +993,16 @@ contains
 
 
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
-  subroutine updateH(this, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
+  subroutine updateH(this, exc, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
-      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho, errStatus)
+      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho)
 
     !> ElecDynamics instance
-    type(TElecDynamics) :: this
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Square hamiltonian at each spin and k-point
     complex(dp), intent(inout) :: H1(:,:,:)
@@ -1097,9 +1100,6 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
-
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: T2(:,:)
@@ -1140,8 +1140,8 @@ contains
 
     ! Add time dependent field if necessary
     if (this%tLaser) then
-      call setPresentField(this, iStep, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call setPresentField(this, exc, iStep)
+      @:PROPAGATE_EXCEPTION(exc)
       do iAtom = 1, this%nExcitedAtom
         iEatom = this%indExcitedAtom(iAtom)
         potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%presentField)
@@ -1191,7 +1191,7 @@ contains
       case(1)
         call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
       case default
-        @:RAISE_ERROR(errStatus, -1, "Range separation not implemented for noncolinear spin")
+        @:RAISE_EXCEPTION(exc, -1, "Range separation not implemented for noncolinear spin")
       end select
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
@@ -1341,11 +1341,14 @@ contains
 
 
   !> Calculate charges, dipole moments
-  subroutine getChargeDipole(this, deltaQ, qq, multipole, dipole, q0, rho, Ssqr, Dsqr, Qsqr,&
-      & coord, iSquare, qBlock, qNetAtom, errStatus)
+  subroutine getChargeDipole(this, exc, deltaQ, qq, multipole, dipole, q0, rho, Ssqr, Dsqr, Qsqr,&
+      & coord, iSquare, qBlock, qNetAtom)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Negative gross charge
     real(dp), intent(out) :: deltaQ(:,:)
@@ -1385,9 +1388,6 @@ contains
 
     !> Net (on-site only) atomic charge
     real(dp), allocatable, intent(inout) :: qNetAtom(:)
-
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
 
     integer :: iAt, iSpin, iOrb1, iOrb2, nOrb, iKS, iK, ii
 
@@ -1489,7 +1489,7 @@ contains
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
-        @:RAISE_ERROR(errStatus, -1, "Block populations not implemented yet")
+        @:RAISE_EXCEPTION(exc, -1, "Block populations not implemented yet")
       end if
       qBlock(:,:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
@@ -2976,12 +2976,15 @@ contains
 
 
   !> Calculates force
-  subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
-      & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, errStatus)
+  subroutine getForces(this, exc, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&
+      & nNeighbourSK, img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont,&
+      & qq, q0, repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Density Matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -3054,9 +3057,6 @@ contains
 
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
-
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
 
     real(dp), allocatable :: T1R(:,:), T2R(:,:)
     complex(dp), allocatable :: T1C(:,:), T2C(:,:)
@@ -3138,15 +3138,15 @@ contains
     end if
 
     if (this%isRangeSep) then
-      @:RAISE_ERROR(errStatus, -1, "Ehrenfest forces not implemented yet with range separated&
+      @:RAISE_EXCEPTION(exc, -1, "Ehrenfest forces not implemented yet with range separated&
           & calculations.")
       !call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
       ! & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
     end if
 
     if (this%tLaser) then
-      call setPresentField(this, iStep, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call setPresentField(this, exc, iStep)
+      @:PROPAGATE_EXCEPTION(exc)
       do iDir = 1, 3
         derivs(iDir,:) = derivs(iDir,:)&
             & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%presentField(iDir)
@@ -3433,15 +3433,15 @@ contains
 
 
   !> sets electric field at present timestep
-  subroutine setPresentField(this, iStep, errStatus)
+  subroutine setPresentField(this, exc, iStep)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
+
     !> current step of the propagation
     integer, intent(in) :: iStep
-
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
 
     if (.not. this%tdFieldThroughAPI) then
       this%presentField(:) = this%tdFunction(:, iStep)
@@ -3449,7 +3449,7 @@ contains
       if (iStep == 0) then
         this%presentField(:) = 0.0_dp
       else
-        @:RAISE_ERROR(errStatus, -1, "External field has not been set.")
+        @:RAISE_EXCEPTION(exc, -1, "External field has not been set.")
       end if
     end if
 
@@ -3457,15 +3457,18 @@ contains
 
 
   !> Handles the initializations of the variables needed for the time propagation
-  subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+  subroutine initializeDynamics(this, exc, coord, orb, neighbourList, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
       & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
       & referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling,&
       & qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec, speciesAll,&
-      & electronicSolver, errStatus)
+      & electronicSolver)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3585,9 +3588,6 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
-
     real(dp) :: new3Coord(3, this%nMovedAtom)
     integer :: iKS
 
@@ -3643,9 +3643,9 @@ contains
     this%occ(:) = 0.0_dp
 
     if (this%tReadRestart) then
-      call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
-          & restartFileName, this%tRestartAscii, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call readRestartFile(exc, this%trho, this%trhoOld, coord, this%movedVelo, this%startTime,&
+          & this%dt, restartFileName, this%tRestartAscii)
+      @:PROPAGATE_EXCEPTION(exc)
       call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
           & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
@@ -3694,29 +3694,29 @@ contains
     call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
         & this%populDat, this%forceDat, this%coorDat)
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+    call getChargeDipole(this, exc, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
-        & this%qNetAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%qNetAtom)
+    @:PROPAGATE_EXCEPTION(exc)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, exc, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion, this%trho, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%dispersion, this%trho)
+    @:PROPAGATE_EXCEPTION(exc)
 
     if (this%tForces) then
       this%totalForce(:,:) = 0.0_dp
-      call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
+      call getForces(this, exc, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+          & 0, env, rangeSep, this%deltaRho)
+      @:PROPAGATE_EXCEPTION(exc)
     end if
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
@@ -3776,28 +3776,28 @@ contains
           & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+    call getChargeDipole(this, exc, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
-        & this%qNetAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%qNetAtom)
+    @:PROPAGATE_EXCEPTION(exc)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, exc, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion,this%rho, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%dispersion,this%rho)
+    @:PROPAGATE_EXCEPTION(exc)
 
     if (this%tForces) then
-      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
+      call getForces(this, exc, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+          & 0, env, rangeSep, this%deltaRho)
+      @:PROPAGATE_EXCEPTION(exc)
     end if
 
     this%tPropagatorsInitialized = .true.
@@ -3807,13 +3807,16 @@ contains
 
 
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
-  subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
-      & img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
-      & repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
+  subroutine doTdStep(this, exc, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0,&
+      & spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
+      & repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> current step of the propagation
     integer, intent(in) :: iStep
@@ -3906,9 +3909,6 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
-
     real(dp), allocatable :: velInternal(:,:)
     real(dp) :: new3Coord(3, this%nMovedAtom)
     character(sc) :: dumpIdx
@@ -3926,7 +3926,7 @@ contains
         this%coordNew(:, this%indMovedAtom) = new3Coord
 
       elseif (.not. this%tdCoordsAndVelosAreSet) then
-        @:RAISE_ERROR(errStatus, -1, "Coordinates and velocities were not set externally.")
+        @:RAISE_EXCEPTION(exc, -1, "Coordinates and velocities were not set externally.")
       end if
 
     end if
@@ -3939,7 +3939,7 @@ contains
         call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
       case(hamiltonianTypes%xtb)
-        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for xTB Hamiltonian yet")
+        @:RAISE_EXCEPTION(exc, -1, "Nuclei dynamic not implemented for xTB Hamiltonian yet")
       end select
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&
@@ -4012,9 +4012,9 @@ contains
       else
         velInternal(:,:) = 0.0_dp
       end if
-      call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
-          &restartFileName, this%tWriteRestartAscii, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call writeRestartFile(exc, this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
+          &restartFileName, this%tWriteRestartAscii)
+      @:PROPAGATE_EXCEPTION(exc)
       deallocate(velInternal)
     end if
 
@@ -4029,9 +4029,9 @@ contains
       else
         velInternal(:,:) = 0.0_dp
       end if
-      call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
-          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call writeRestartFile(exc, this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
+          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
+      @:PROPAGATE_EXCEPTION(exc)
       deallocate(velInternal)
     end if
 
@@ -4042,28 +4042,28 @@ contains
           & this%rhoPrim, this%ErhoPrim, coordAll, this%Dsqr, this%Qsqr)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+    call getChargeDipole(this, exc, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, this%qBlock,&
-        & this%qNetAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%qNetAtom)
+    @:PROPAGATE_EXCEPTION(exc)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
 
-    call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
+    call updateH(this, exc, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
-        & this%dispersion,this%rho, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+        & this%dispersion,this%rho)
+    @:PROPAGATE_EXCEPTION(exc)
 
     if (this%tForces) then
-      call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
+      call getForces(this, exc, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & iStep, env, rangeSep, this%deltaRho, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+          & iStep, env, rangeSep, this%deltaRho)
+      @:PROPAGATE_EXCEPTION(exc)
     end if
 
     ! unset coordinates and velocities at the end of the step

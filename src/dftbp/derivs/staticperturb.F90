@@ -13,9 +13,9 @@ module dftbp_derivs_staticperturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_exception, only : TException
   use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
   use dftbp_derivs_linearresponse, only : dRhoStaticReal, dRhoFermiChangeStaticReal,&
       & dRhoStaticCmplx, dRhoFermiChangeStaticCmplx, dRhoStaticPauli, dRhoFermiChangeStaticPauli
@@ -56,12 +56,15 @@ module dftbp_derivs_staticperturb
 contains
 
   !> Static (frequency independent) perturbation at q=0 with respect to an electric field
-  subroutine staticPerturWrtE(env, parallelKS, filling, eigvals, tolDegen, eigVecsReal,&
+  subroutine staticPerturWrtE(exc, env, parallelKS, filling, eigvals, tolDegen, eigVecsReal,&
       & eigVecsCplx, ham, over, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc,&
       & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
       & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU,&
       & iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight,&
-      & iCellVec, cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEfdE, errStatus)
+      & iCellVec, cellVec, tPeriodic, polarisability, dEi, dqOut, neFermi, dEfdE)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -206,9 +209,6 @@ contains
     !> Derivative of the Fermi energy (if metallic)
     real(dp), allocatable, intent(inout) :: dEfdE(:,:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     integer :: iAt, iCart
 
     integer :: nSpin, nKpts, nOrbs, nIndepHam
@@ -246,12 +246,12 @@ contains
     type(TRotateDegen), allocatable :: transform(:)
 
     if (tPeriodic) then
-      @:RAISE_ERROR(errStatus, -1, "Electric field polarizability not currently implemented for&
+      @:RAISE_EXCEPTION(exc, -1, "Electric field polarizability not currently implemented for&
           & periodic systems")
     end if
 
     if (tFixEf) then
-      @:RAISE_ERROR(errStatus, -1, "Perturbation expressions not currently implemented for fixed&
+      @:RAISE_EXCEPTION(exc, -1, "Perturbation expressions not currently implemented for fixed&
           & Fermi energy")
     end if
 
@@ -322,15 +322,15 @@ contains
 
       dEiTmp(:,:,:) = 0.0_dp
 
-      call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
-          & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
-          & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
-          & dqOut(:,:,:,iCart), rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn,&
-          & dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
-          & dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef, dHam, idHam,&
-          & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
-          & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call response(exc, env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
+          & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
+          & sccTol, isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements,&
+          & dqIn, dqOut(:,:,:,iCart), rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr,&
+          & dRhoIn,dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
+          & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef, dHam,&
+          & idHam, dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight,&
+          & cellVec, iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx)
+      @:PROPAGATE_EXCEPTION(exc)
 
       if (allocated(dEfdE)) then
         dEfdE(:,iCart) = dEfdETmp
@@ -369,14 +369,17 @@ contains
 
 
   !> Response with respect to a potential at atomic sites
-  subroutine polarizabilityKernel(env, parallelKS, isAutotestWritten, autotestTagFile,&
+  subroutine polarizabilityKernel(exc, env, parallelKS, isAutotestWritten, autotestTagFile,&
       & isTagResultsWritten, resultsTagFile, taggedWriter, isBandWritten, fdDetailedOut,&
       & filling, eigvals, tolDegen, eigVecsReal, eigVecsCplx, ham, over, orb,&
       & nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
       & isRespKernelRPA, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
       & onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight, iCellVec,&
-      & cellVec, nEFermi, errStatus, isHelical, coord)
+      & cellVec, nEFermi, isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -527,9 +530,6 @@ contains
     !> Number of electrons at the Fermi energy (if metallic)
     real(dp), allocatable, intent(inout) :: neFermi(:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -594,7 +594,7 @@ contains
         & kWeight)
 
     if (tFixEf) then
-      @:RAISE_ERROR(errStatus, -1, "Perturbation expressions not currently implemented for fixed&
+      @:RAISE_EXCEPTION(exc, -1, "Perturbation expressions not currently implemented for fixed&
           & Fermi energy")
     end if
 
@@ -620,7 +620,7 @@ contains
     tSccCalc = allocated(sccCalc)
 
     if (allocated(dftbU) .and. allocated(onsMEs)) then
-      @:RAISE_ERROR(errStatus, -1, "Onsite corrected and DFTB+U terms currently not compatible for&
+      @:RAISE_EXCEPTION(exc, -1, "Onsite corrected and DFTB+U terms currently not compatible for&
           & perturbation")
     end if
     if (allocated(dftbU) .or. allocated(onsMEs)) then
@@ -661,15 +661,15 @@ contains
       call totalShift(dPotential%extBlock, dPotential%extShell, orb, species)
 
       dEi(:,:,:) = 0.0_dp
-      call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList, nNeighbourSK,&
-          & img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
-          & isSccRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
+      call response(exc, env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
+          & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
+          & sccTol, isSccRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
           & rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin,&
           & maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn,&
           & dqBlockOut, eigVals, transform, dEi, dEf, Ef, dHam, idHam, dRho, idRho, tempElec,&
           & tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal,&
-          & eigVecsCplx, dPsiReal, dPsiCmplx, errStatus, isHelical=isHelical, coord=coord)
-      @:PROPAGATE_ERROR(errStatus)
+          & eigVecsCplx, dPsiReal, dPsiCmplx, isHelical=isHelical, coord=coord)
+      @:PROPAGATE_EXCEPTION(exc)
 
       #:if WITH_SCALAPACK
         ! Add up and distribute eigenvalue derivatives from each processor
@@ -748,14 +748,17 @@ contains
 
 
   !> Evaluates response, given the external perturbation
-  subroutine response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
+  subroutine response(exc, env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
       & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
       & rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
       & eigVals, transform, dEi, dEfdE, Ef, dHam, idHam,  dRho, idRho, tempElec, tMetallic,&
       & neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
-      & dPsiReal, dPsiCmplx, errStatus, isHelical, coord)
+      & dPsiReal, dPsiCmplx, isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -938,9 +941,6 @@ contains
     !> Derivative of single particle wavefunctions (complex case), if needed
     complex(dp), allocatable, intent(inout) :: dPsiCmplx(:,:,:,:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -1082,19 +1082,17 @@ contains
               dRhoOutSqr(:,:,iS) = dRhoInSqr(:,:,iS)
             end if
 
-            call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-                & denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal, eigVals, Ef,&
-                & tempElec, orb, drho(:,iS), dRhoOutSqr, rangeSep, over, nNeighbourLC,&
+            call dRhoStaticReal(exc, env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
+                & img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal,&
+                & eigVals, Ef, tempElec, orb, drho(:,iS), dRhoOutSqr, rangeSep, over, nNeighbourLC,&
                 & transform(iKS), species,&
                 #:if WITH_SCALAPACK
-                & desc,&
+                  & desc,&
                 #:endif
-                & dEi, dPsiReal, errStatus, isHelical, coord)
-            if (errStatus%hasError()) then
-              exit
-            end if
+                & dEi, dPsiReal, isHelical, coord)
+            @:PROPAGATE_EXCEPTION(exc)
           end do
-          @:PROPAGATE_ERROR(errStatus)
+
 
         elseif (nSpin > 2) then
 
@@ -1102,19 +1100,16 @@ contains
 
             iK = parallelKS%localKS(1, iKS)
 
-            call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
+            call dRhoStaticPauli(exc, env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
                 & tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
                 & transform(iKS), species,&
                 #:if WITH_SCALAPACK
                 & desc,&
                 #:endif
-                & dEi, dPsiCmplx, errStatus, isHelical, coord)
-            if (errStatus%hasError()) then
-              exit
-            end if
+                & dEi, dPsiCmplx, isHelical, coord)
+            @:PROPAGATE_EXCEPTION(exc)
           end do
-          @:PROPAGATE_ERROR(errStatus)
 
           ! adjustment from Pauli to charge/spin
           dRho(:,:) = 2.0_dp * dRho
@@ -1128,19 +1123,16 @@ contains
 
             iK = parallelKS%localKS(1, iKS)
 
-            call dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
+            call dRhoStaticCmplx(exc, env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
                 & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS),&
                 & species,&
                 #:if WITH_SCALAPACK
                 & desc,&
                 #:endif
-                & dEi, dPsiCmplx, errStatus, isHelical, coord)
-            if (errStatus%hasError()) then
-              exit
-            end if
+                & dEi, dPsiCmplx, isHelical, coord)
+            @:PROPAGATE_EXCEPTION(exc)
           end do
-          @:PROPAGATE_ERROR(errStatus)
 
         end if
 
@@ -1188,15 +1180,15 @@ contains
               elseif (nSpin > 2) then
 
                 ! two component wavefunction cases
-                call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
+                call dRhoFermiChangeStaticPauli(exc, dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                     & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                     & img2CentCell, iSparseStart, dEfdE, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
                     & denseDesc, tempElec, eigVals, species,&
                     #:if WITH_SCALAPACK
                     & desc,&
                     #:endif
-                    & errStatus, isHelical, coord)
-                @:PROPAGATE_ERROR(errStatus)
+                    & isHelical, coord)
+                @:PROPAGATE_EXCEPTION(exc)
 
               else
 
@@ -1347,7 +1339,7 @@ contains
 
       if (tSccCalc .and. .not.tConverged .and. maxSccIter > 1) then
         if (isSccConvRequired) then
-          @:RAISE_ERROR(errStatus, -1, "SCC in perturbation is NOT converged, maximal SCC&
+          @:RAISE_EXCEPTION(exc, -1, "SCC in perturbation is NOT converged, maximal SCC&
               & iterations exceeded")
         else
           call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")

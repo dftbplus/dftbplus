@@ -9,10 +9,12 @@
 #:if not defined("_ERROR_FYPP_")
 #:set _ERROR_FYPP_
 
+#:include 'common.fypp'
 
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#! Error string handling wrappers for returns from routinese
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Error string handling wrappers for returns from routines (with integer as error flag)
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 #! Macro to return an error flag if return variable available or throw
@@ -67,42 +69,61 @@
 #:enddef
 
 
-#! Signals error status.
-#:def SET_ERROR(status, code, message)
-  call ${status}$%setError(${code}$, ${message}$, "${_FILE_}$", ${_LINE_}$)
-#:enddef SET_ERROR
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Exception like error handling
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-#! Signals error status with error message formatting
-#:def SET_FORMATTED_ERROR(status, code, format, *messageVars)
+#! Raises (creates and propagates) an exception
+#:def RAISE_EXCEPTION(exc, code, message)
   block
-    character(1024) :: message
-    write(message, ${ format }$) ${ ",".join(messageVars) }$
-    $:SET_ERROR(status, code, 'trim(message)')
+    use dftbp_common_exception, only : TException_create
+    call TException_create(${exc}$, ${code}$, ${message}$)
+    #:block DEBUG_CODE
+      call ${exc}$%addPropagationInfo("${_FILE_}$", ${_LINE_}$)
+    #:endblock
+    return
   end block
-#:enddef SET_FORMATTED_ERROR
-
-
-#! Signals error status and returns from current scope
-#:def RAISE_ERROR(status, code, message)
-  $:SET_ERROR(status, code, message)
-  return
-#:enddef RAISE_ERROR
-
-
-#! Signals error status with error message formatting and returns from current scope
-#:def RAISE_FORMATTED_ERROR(status, code, format, *messageVars)
-  $:SET_FORMATTED_ERROR(status, code, format, *messageVars)
-  return
 #:enddef
 
 
-#! Returns immediately from current scope if status signals an error.
-#:def PROPAGATE_ERROR(status)
-  if (${status}$%hasError()) then
+#! Raises (creates and propagates) an exception with a formatted error message
+#:def RAISE_FORMATTED_EXCEPTION(exc, code, format, *messageVars)
+  block
+    character(1000) :: message
+    write(message, ${format}$) ${",".join(messageVars)}$
+    @:RAISE_EXCEPTION(${exc}$, ${code}$, trim(message))
+  end block
+#:enddef
+
+
+#! Propagates an exception upwards
+#:def PROPAGATE_EXCEPTION(exc)
+  if (allocated(${exc}$)) then
+    #:block DEBUG_CODE
+      call ${exc}$%addPropagationInfo("${_FILE_}$", ${_LINE_}$)
+    #:endblock
     return
   end if
-#:enddef PROPAGATE_ERROR
+#:enddef
+
+
+#! Deactivates exception, executes error handling code and deallocates error
+#:def CATCH_EXCEPTION(exc, excHandler)
+  if (allocated(${exc}$)) then
+    @:DEACTIVATE_EXCEPTION(${exc}$)
+    block
+      $:excHandler
+    end block
+    deallocate(${exc}$)
+  end if
+#:enddef
+
+
+#! Deactivates exception
+#:def DEACTIVATE_EXCEPTION(exc)
+  if (allocated(${exc}$)) call ${exc}$%deactivate()
+#:enddef
 
 
 #:endif

@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -458,7 +459,7 @@ contains
     !> coords and velocities will be provided at each step through the API?
     logical, intent(in) :: tdCoordsAndVelosThroughAPI
 
-    type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
 
     if (allocated(main%electronDynamics)) then
       main%electronDynamics%tdFieldThroughAPI = tdFieldThroughAPI
@@ -473,18 +474,17 @@ contains
 
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
-      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
-          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-          & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
-          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+      call initializeDynamics(main%electronDynamics, exc, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
           & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
           & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
-          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver,&
-          & errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver)
+      #:block CATCH_EXCEPTION("exc")
+        call error(exc%message)
+      #:endblock
     else
       call error("Electron dynamics not enabled, please initialize the calculator&
           & including the ElectronDynamics block")
@@ -525,20 +525,18 @@ contains
     !> molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
-    type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
 
     if (main%electronDynamics%tPropagatorsInitialized) then
-      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
+      call doTdStep(main%electronDynamics, exc, iStep, main%coord0, main%orb, main%neighbourList,&
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
            & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
            & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
-           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
-           & errStatus)
-
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot)
+      #:block CATCH_EXCEPTION("exc")
+        call error(exc%message)
+      #:endblock
 
       if (present(dipole)) then
         dipole(:,:) = main%electronDynamics%dipole

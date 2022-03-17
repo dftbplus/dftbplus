@@ -13,9 +13,9 @@ module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_exception, only : TException
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
@@ -187,7 +187,7 @@ contains
     integer :: iDet
     logical :: isUnReduced
 
-    type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -348,7 +348,7 @@ contains
 
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
-      call runDynamics(this%electronDynamics, this%eigvecsReal, this%H0, this%species,&
+      call runDynamics(this%electronDynamics, exc, this%eigvecsReal, this%H0, this%species,&
           & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
@@ -356,10 +356,10 @@ contains
           & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
           & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
           & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
-          & this%taggedWriter, this%refExtPot, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+          & this%taggedWriter, this%refExtPot)
+      #:block CATCH_EXCEPTION("exc")
+        call error(exc%message)
+      #:endblock
     end if
 
   #:if WITH_TRANSPORT
@@ -392,19 +392,19 @@ contains
 
     if (this%isDFTBPT .and. .not.this%tNegf) then
       if (this%isStatEResp .and. .not.this%tPeriodic) then
-        call staticPerturWrtE(env, this%parallelKS, this%filling, this%eigen, this%tolDegenDFTBPT,&
-            & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
-            & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
-            & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
-            & this%maxSccIter, this%sccTol, this%isSccConvRequired, this%nMixElements,&
+        call staticPerturWrtE(exc, env, this%parallelKS, this%filling, this%eigen,&
+            & this%tolDegenDFTBPT, this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian,&
+            & this%ints%overlap, this%orb, this%nAtom, this%species, this%neighbourList,&
+            & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord,&
+            & this%scc, this%maxSccIter, this%sccTol, this%isSccConvRequired, this%nMixElements,&
             & this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef, this%tFixEf, this%spinW,&
             & this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
             & this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC, this%pChrgMixer, this%kPoint,&
             & this%kWeight, this%iCellVec, this%cellVec, this%tPeriodic, this%polarisability,&
-            & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
+            & this%dEidE, this%dqOut, this%neFermi, this%dEfdE)
+        #:block CATCH_EXCEPTION("exc")
+          call error(exc%message)
+        #:endblock
         if (this%tWriteBandDat) then
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
@@ -415,7 +415,7 @@ contains
         end if
       end if
       if (this%isRespKernelPert) then
-        call polarizabilityKernel(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
+        call polarizabilityKernel(exc, env, this%parallelKS, this%tWriteAutotest, autotestTag,&
             & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
             & this%fdDetailedOut, this%filling, this%eigen,&
             & this%tolDegenDFTBPT, this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian,&
@@ -426,10 +426,10 @@ contains
             & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
             & this%onSiteElements, this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC,&
             & this%pChrgMixer, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
-            & this%neFermi, errStatus, this%tHelical, this%coord)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
+            & this%neFermi, this%tHelical, this%coord)
+        #:block CATCH_EXCEPTION("exc")
+          call error(exc%message)
+        #:endblock
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
           call writeDetailedOut8(this%fdDetailedOut%unit, this%neFermi)
         end if

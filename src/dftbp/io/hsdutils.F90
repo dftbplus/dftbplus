@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 !> Todo: Some more routines for complex numbers?
 module dftbp_io_hsdutils
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string,&
       & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&
       & assignment(=),getNodeType, replaceChild, createTextNode, createElement, removeChild, trim,&
@@ -1552,7 +1553,7 @@ contains
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
     logical, allocatable :: selected(:)
     integer :: selectionRange_(2)
     integer :: ii
@@ -1564,12 +1565,12 @@ contains
     end if
 
     allocate(selected(selectionRange_(2) - selectionRange_(1) + 1))
-    call getIndexSelection(selectionExpr, selectionRange_, selected, errStatus,&
-        & indexRange=indexRange, speciesNames=speciesNames, species=species)
-    if (errStatus%hasError()) then
+    call getIndexSelection(exc, selectionExpr, selectionRange_, selected, indexRange=indexRange,&
+        & speciesNames=speciesNames, species=species)
+    #:block CATCH_EXCEPTION("exc")
       call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // errStatus%message)
-    end if
+          & // "': " // exc%message)
+    #:endblock
     selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
     if (size(selectedIndices) == 0) then
       call detailedWarning(node, "Atom index selection expression selected no atoms")
@@ -1597,17 +1598,16 @@ contains
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
     logical, allocatable :: selected(:)
     integer :: ii
 
     allocate(selected(selectionRange(2) - selectionRange(1) + 1))
-    call getIndexSelection(selectionExpr, selectionRange, selected, errStatus,&
-        & indexRange=indexRange)
-    if (errStatus%hasError()) then
+    call getIndexSelection(exc, selectionExpr, selectionRange, selected, indexRange=indexRange)
+    #:block CATCH_EXCEPTION("exc")
       call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // errStatus%message)
-    end if
+          & // "': " // exc%message)
+    #:endblock
     selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
     if (size(selectedIndices) == 0) then
       call detailedWarning(node, "Atom index selection expression selected no atoms")

@@ -8,6 +8,7 @@ set(sources-fpp
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90
+  ${curdir}/exception.F90
   ${curdir}/file.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
@@ -15,7 +16,6 @@ set(sources-fpp
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
-  ${curdir}/status.F90
   ${curdir}/timer.F90
   ${curdir}/timerarray.F90
   ${curdir}/unitconversion.F90

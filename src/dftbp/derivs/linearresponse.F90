@@ -12,7 +12,7 @@
 module dftbp_derivs_linearresponse
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_periodic, only : TNeighbourList
@@ -46,13 +46,16 @@ contains
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at
   !> q=0, k=0
-  subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-      & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species,&
+  subroutine dRhoStaticReal(exc, env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
+      & img2CentCell, denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef,&
+      & tempElec, orb, dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi, errStatus, isHelical, coord)
+      & dEi, dPsi, isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -135,9 +138,6 @@ contains
     !> Optional derivatives of single particle wavefunctions
     real(dp), allocatable, intent(inout) :: dPsi(:,:,:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -198,9 +198,9 @@ contains
         & workLocal, denseDesc%blacsOrbSqr, transa="T")
 
     eigvecsTransformed = eigVecsReal(:,:,iKS)
-    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
-        & isTransformed, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, env, worklocal, eigvals(:,iK,iS), eigVecsTransformed,&
+        & denseDesc, isTransformed)
+    @:PROPAGATE_EXCEPTION(exc)
     ! now have states orthogonalised against the operator in degenerate cases, |c~>
 
     if (isTransformed) then
@@ -295,7 +295,7 @@ contains
 
     if (allocated(rangeSep)) then
       if (isHelical_) then
-        @:RAISE_ERROR(errStatus, -1, "Helical geometry range separation not currently possible")
+        @:RAISE_EXCEPTION(exc, -1, "Helical geometry range separation not currently possible")
       end if
       call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -308,8 +308,8 @@ contains
     workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
 
     ! orthogonalise degenerate states against perturbation, producing |c~> H' <c~|
-    call transform%generateUnitary(workLocal, eigvals(:,iK,iS), errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, workLocal, eigvals(:,iK,iS))
+    @:PROPAGATE_EXCEPTION(exc)
     call transform%degenerateTransform(workLocal)
 
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
@@ -533,13 +533,16 @@ contains
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
   !> but with k-points
-  subroutine dRhoStaticCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-      & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species,&
+  subroutine dRhoStaticCmplx(exc, env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
+      & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
+      & orb, dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi, errStatus, isHelical, coord)
+      & dEi, dPsi, isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -621,9 +624,6 @@ contains
     !> Optional derivatives of single particle wavefunctions
     complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -683,9 +683,9 @@ contains
         & workLocal, denseDesc%blacsOrbSqr, transa="C")
 
     eigvecsTransformed = eigVecsCplx(:,:,iKS)
-    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
-        & isTransformed, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, env, worklocal, eigvals(:,iK,iS), eigVecsTransformed,&
+        & denseDesc, isTransformed)
+    @:PROPAGATE_EXCEPTION(exc)
     ! now have states orthogonalised agains the operator in degenerate cases, |c~>
 
     if (isTransformed) then
@@ -792,8 +792,8 @@ contains
     workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
 
     ! orthogonalise degenerate states against perturbation
-    call transform%generateUnitary(workLocal, eigvals(:,iK,iS), errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, workLocal, eigvals(:,iK,iS))
+    @:PROPAGATE_EXCEPTION(exc)
     call transform%degenerateTransform(workLocal)
 
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
@@ -1039,14 +1039,17 @@ contains
 
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
-  subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
+  subroutine dRhoStaticPauli(exc, env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
       & species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & dEi, dPsi, errStatus, isHelical, coord)
+      & dEi, dPsi, isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1134,9 +1137,6 @@ contains
     !> Optional derivatives of single particle wavefunctions
     complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -1162,7 +1162,7 @@ contains
       isHelical_ = .false.
     end if
     if (isHelical_) then
-      @:RAISE_ERROR(errStatus, -1, "Helical geometry for Pauli hamiltonians not currently&
+      @:RAISE_EXCEPTION(exc, -1, "Helical geometry for Pauli hamiltonians not currently&
           & possible")
     end if
 
@@ -1201,9 +1201,9 @@ contains
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
 
     eigvecsTransformed = eigVecsCplx(:,:,iKS)
-    call transform%generateUnitary(env, worklocal, eigvals(:,iK,iS), eigVecsTransformed, denseDesc,&
-        & isTransformed, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, env, worklocal, eigvals(:,iK,iS), eigVecsTransformed,&
+        & denseDesc, isTransformed)
+    @:PROPAGATE_EXCEPTION(exc)
     ! now have states orthogonalised against the operator in degenerate cases, |c~>
 
     if (isTransformed) then
@@ -1304,8 +1304,8 @@ contains
     workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
 
     ! orthogonalise degenerate states against perturbation
-    call transform%generateUnitary(workLocal, eigvals(:,iK,iS), errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call transform%generateUnitary(exc, workLocal, eigvals(:,iK,iS))
+    @:PROPAGATE_EXCEPTION(exc)
     call transform%degenerateTransform(workLocal)
 
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
@@ -1379,13 +1379,16 @@ contains
 
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy
-  subroutine dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
+  subroutine dRhoFermiChangeStaticPauli(exc, dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
       & kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEfdE,&
       & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
-      & errStatus, isHelical, coord)
+      & isHelical, coord)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
     real(dp), intent(inout) :: dRhoExtra(:,:)
@@ -1462,9 +1465,6 @@ contains
     integer, intent(in) :: desc(DLEN_)
   #:endif
 
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -1490,7 +1490,7 @@ contains
       isHelical_ = .false.
     end if
     if (isHelical_) then
-      @:RAISE_ERROR(errStatus, -1, "Helical geometry for Pauli hamiltonians not currently&
+      @:RAISE_EXCEPTION(exc, -1, "Helical geometry for Pauli hamiltonians not currently&
           & possible")
     end if
 

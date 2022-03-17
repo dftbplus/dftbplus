@@ -12,7 +12,7 @@
 !> from a hermitian/symmetric matrix
 module dftbp_derivs_rotatedegen
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_qm, only : makeSimilarityTrans
   use dftbp_type_wrappedintr, only : TwrappedReal2, TwrappedCmplx2
@@ -167,11 +167,14 @@ contains
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
   !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
-  subroutine generate${LABEL}$Unitary(self, env, matrixToProcess, ei, eigVecs, denseDesc,&
-      & tTransformed, errStatus)
+  subroutine generate${LABEL}$Unitary(self, exc, env, matrixToProcess, ei, eigVecs, denseDesc,&
+      & tTransformed)
 
     !> Instance
     class(TRotateDegen), intent(inout) :: self
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -190,9 +193,6 @@ contains
 
     !> Are and vectors from degenerate eigenvalues, so transformed
     logical, intent(out) :: tTransformed
-
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
 
     integer, allocatable :: degeneracies(:)
     integer :: eiRange(2), maxRange, nInBlock, iGrp, iEnd, iStart, iGet
@@ -233,14 +233,14 @@ contains
       allocate(self%degenerateGroup(self%nOrb))
     end if
 
-    call degeneracyRanges(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
+    call degeneracyRanges(exc, self%blockRange, self%nGrp, Ei, self%tolerance, eiRange,&
         & self%degenerateGroup)
-    @:PROPAGATE_ERROR(errStatus)
+    @:PROPAGATE_EXCEPTION(exc)
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
 
     if (maxRange > self%minDegenerateStates) then
-      @:RAISE_ERROR(errStatus, -1, "Degenerate group exceeds reasonable size for one node to&
+      @:RAISE_EXCEPTION(exc, -1, "Degenerate group exceeds reasonable size for one node to&
           & process")
       ! should add a dense case to cope with this -- blank out non-degenerate elements, diagonalise
       ! whole matrix and then use pgemm with eigenvectors
@@ -336,19 +336,19 @@ contains
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
   !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
-  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei, errStatus, tDegenerate)
+  subroutine generate${LABEL}$Unitary(self, exc, matrixToProcess, ei, tDegenerate)
 
     !> Instance
     class(TRotateDegen), intent(inout) :: self
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Matrix elements between (potentially degenerate) orbitals
     ${TYPE}$(dp), intent(in) :: matrixToProcess(:,:)
 
     !> Eigenvalues of local block of degenerate matrix
     real(dp), intent(in) :: ei(:)
-
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
 
     !> Are degenerate pairs present requiring transformation
     logical, intent(out), optional :: tDegenerate
@@ -393,9 +393,9 @@ contains
       allocate(self%degenerateGroup(self%nOrb))
     end if
 
-    call degeneracyRanges(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
+    call degeneracyRanges(exc, self%blockRange, self%nGrp, Ei, self%tolerance, eiRange,&
         & self%degenerateGroup)
-    @:PROPAGATE_ERROR(errStatus)
+    @:PROPAGATE_EXCEPTION(exc)
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
     if (present(tDegenerate)) then
@@ -665,7 +665,10 @@ contains
   !> Find which groups of eigenvales are degenerate to within a tolerance
   !> Note, similar process is used in Casida excited state calculations, so should spin off as its
   !> own module at some point
-  subroutine degeneracyRanges(blockRange, nGrp, Ei, errStatus, tol, eiRange, grpMembership)
+  subroutine degeneracyRanges(exc, blockRange, nGrp, Ei, tol, eiRange, grpMembership)
+
+    !> Exception, which gets allocated if an error occured
+    type(TException), allocatable, intent(out) :: exc
 
     !> Index array for lower and upper states in degenerate group
     integer, intent(out) :: blockRange(:,:)
@@ -675,9 +678,6 @@ contains
 
     !> Eigenvalues for degeneracy testing
     real(dp), intent(in) :: Ei(:)
-
-    !> Status of routine
-    type(TStatus), intent(out) :: errStatus
 
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tol
@@ -705,7 +705,7 @@ contains
       iStart = eiRange(1)
       iEnd = eiRange(2)
       if (iStart == iEnd) then
-        @:RAISE_ERROR(errStatus, -1, "Degeneracy range is itself degenerate, should not be here")
+        @:RAISE_EXCEPTION(exc, -1, "Degeneracy range is itself degenerate, should not be here")
       end if
       do ii = 1, iStart - 1
         blockRange(:, ii) = ii

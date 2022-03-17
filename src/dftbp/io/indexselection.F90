@@ -14,7 +14,7 @@
 !>
 module dftbp_io_indexselection
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_io_charmanip, only : tolower
   implicit none
 
@@ -128,8 +128,16 @@ contains
   !>
   !> If no species names are provided, only numerical indices can be selected.
   !>
-  subroutine getIndexSelection(expression, selectionRange, selected, errStatus, indexRange,&
+  subroutine getIndexSelection(exc, expression, selectionRange, selected, indexRange,&
       & backwardIndexing, speciesNames, species)
+
+    !> Exception to generate if selection failed.
+    !>
+    !> Following error codes are used:
+    !>   errors%syntaxError: Syntax error in the expression.
+    !>   errors%invalidSelector: Invalid selector (e.g. index out of bonds or invalid species name)
+    !>
+    type(TException), allocatable, intent(out) :: exc
 
     !> Selection expression
     character(*), intent(in) :: expression
@@ -140,13 +148,6 @@ contains
     !> Logical indicating for each index, whether it is part of the selection or not. First element
     !> of the array corresponds to index selectionRange(1).
     logical, intent(out) :: selected(:)
-
-    !> Success status with following error codes:
-    !>
-    !>  errors%syntaxError: Syntax error in the expression.
-    !>  errors%invalidSelector: Invalid selector (e.g. index out of bonds or invalid species name)
-    !>
-    type(TStatus), intent(out) :: errStatus
 
     !> The range of indices [from, to] available in general. It should at least contain the range
     !> specified in selectionRange. Default: the same range as in selectionRange.
@@ -195,36 +196,36 @@ contains
     call TTokenizer_init(tokenizer, expression)
     call tokenizer%getNextToken(token)
     selected(:) = .false.
-    call evalExpression_(selection, 1, tokenizer, token, selected, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call evalExpression_(exc, selection, 1, tokenizer, token, selected)
+    @:PROPAGATE_EXCEPTION(exc)
 
   end subroutine getIndexSelection
 
 
   !> Evaluates a selection expression.
-  recursive subroutine evalExpression_(selection, level, tokenizer, token, selected, errStatus)
+  recursive subroutine evalExpression_(exc, selection, level, tokenizer, token, selected)
+    type(TException), allocatable, intent(out) :: exc
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
     logical, intent(out) :: selected(:)
-    type(TStatus), intent(inout) :: errStatus
 
     logical, allocatable :: buffer(:)
 
-    call evalAdditiveTerm_(selection, level, tokenizer, token, selected, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call evalAdditiveTerm_(exc, selection, level, tokenizer, token, selected)
+    @:PROPAGATE_EXCEPTION(exc)
     ! Apply implicit OR operator if next token is of appropriate type
     if (any(token%type == [tokenTypes_%not, tokenTypes_%selector, tokenTypes_%open])) then
       allocate(buffer(size(selected)))
       do while (any(token%type == [tokenTypes_%not, tokenTypes_%selector, tokenTypes_%open]))
-        call evalAdditiveTerm_(selection, level, tokenizer, token, buffer, errStatus)
+        call evalAdditiveTerm_(exc, selection, level, tokenizer, token, buffer)
+        @:PROPAGATE_EXCEPTION(exc)
         selected(:) = selected .or. buffer
-        @:PROPAGATE_ERROR(errStatus)
       end do
     end if
     if (level == 1 .and. token%type /= tokenTypes_%empty) then
-      @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+      @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
           & "('Unexpected token ''', A, ''' found')", token%content)
     end if
 
@@ -232,25 +233,25 @@ contains
 
 
   !> Evaluetes an additive term.
-  recursive subroutine evalAdditiveTerm_(selection, level, tokenizer, token, selected, errStatus)
+  recursive subroutine evalAdditiveTerm_(exc, selection, level, tokenizer, token, selected)
+    type(TException), allocatable, intent(out) :: exc
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
     logical, intent(out) :: selected(:)
-    type(TStatus), intent(inout) :: errStatus
 
     logical, allocatable :: buffer(:)
 
-    call evalMultiplicativeTerm_(selection, level, tokenizer, token, selected, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call evalMultiplicativeTerm_(exc, selection, level, tokenizer, token, selected)
+    @:PROPAGATE_EXCEPTION(exc)
     if (token%type == tokenTypes_%and) then
       allocate(buffer(size(selected)))
       do while (token%type == tokenTypes_%and)
         call tokenizer%getNextToken(token)
-        call evalMultiplicativeTerm_(selection, level, tokenizer, token, buffer, errStatus)
+        call evalMultiplicativeTerm_(exc, selection, level, tokenizer, token, buffer)
+        @:PROPAGATE_EXCEPTION(exc)
         selected(:) = selected .and. buffer
-        @:PROPAGATE_ERROR(errStatus)
       end do
     end if
 
@@ -258,55 +259,54 @@ contains
 
 
   !> Evaluates a multiplicative term.
-  recursive subroutine evalMultiplicativeTerm_(selection, level, tokenizer, token, selected,&
-      & errStatus)
+  recursive subroutine evalMultiplicativeTerm_(exc, selection, level, tokenizer, token, selected)
+    type(TException), allocatable, intent(out) :: exc
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
     logical, intent(out) :: selected(:)
-    type(TStatus), intent(inout) :: errStatus
 
     logical, allocatable :: buffer(:)
 
     if (token%type == tokenTypes_%not) then
       call tokenizer%getNextToken(token)
       allocate(buffer(size(selected)))
-      call evalTerm_(selection, level, tokenizer, token, buffer, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call evalTerm_(exc, selection, level, tokenizer, token, buffer)
+      @:PROPAGATE_EXCEPTION(exc)
       selected(:) = .not. buffer
     else
-      call evalTerm_(selection, level, tokenizer, token, selected, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call evalTerm_(exc, selection, level, tokenizer, token, selected)
+      @:PROPAGATE_EXCEPTION(exc)
     end if
 
   end subroutine evalMultiplicativeTerm_
 
 
   !> Evaluates a simple term.
-  recursive subroutine evalTerm_(selection, level, tokenizer, token, selected, errStatus)
+  recursive subroutine evalTerm_(exc, selection, level, tokenizer, token, selected)
+    type(TException), allocatable, intent(out) :: exc
     type(TSelection_), intent(in) :: selection
     integer, intent(in) :: level
     type(TTokenizer_), intent(inout) :: tokenizer
     type(TToken_), intent(inout) :: token
     logical, intent(out) :: selected(:)
-    type(TStatus), intent(inout) :: errStatus
 
     if (token%type == tokenTypes_%empty) then
       selected(:) = .false.
       return
     else if (token%type == tokenTypes_%selector) then
-      call evalSelector_(token%content, selection, selected, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call evalSelector_(exc, token%content, selection, selected)
+      @:PROPAGATE_EXCEPTION(exc)
     else if (token%type == tokenTypes_%open) then
       call tokenizer%getNextToken(token)
-      call evalExpression_(selection, level + 1, tokenizer, token, selected, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      call evalExpression_(exc, selection, level + 1, tokenizer, token, selected)
+      @:PROPAGATE_EXCEPTION(exc)
       if (token%type /= tokenTypes_%close) then
-        @:RAISE_ERROR(errStatus, errors%syntaxError, "Missing closing parenthesis ')'")
+        @:RAISE_EXCEPTION(exc, errors%syntaxError, "Missing closing parenthesis ')'")
       end if
     else
-      @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+      @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
           & "('Unexpected token ''', A, ''' found')", token%content)
     end if
     call tokenizer%getNextToken(token)
@@ -315,11 +315,11 @@ contains
 
 
   !> Evaluates an atom selector.
-  subroutine evalSelector_(selector, selection, selected, errStatus)
+  subroutine evalSelector_(exc, selector, selection, selected)
+    type(TException), allocatable, intent(out) :: exc
     character(*), intent(in) :: selector
     type(TSelection_), intent(in) :: selection
     logical, intent(inout) :: selected(:)
-    type(TStatus), intent(inout) :: errStatus
 
     integer :: seppos, iFirst, iLast, iFirstNorm, iLastNorm, iSpecies, iFirstChar
     integer :: iostat
@@ -336,18 +336,18 @@ contains
       if (seppos > 0) then
         read(selector(: seppos - 1), *, iostat=iostat) iFirst
         if (iostat /= 0) then
-          @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+          @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
               & "('Non-integer index ''', A,  '''')", selector(: seppos - 1))
         end if
         read(selector(seppos + 1 :), *, iostat=iostat) iLast
         if (iostat /= 0) then
-          @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+          @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
               & "('Non-integer index ''', A,  '''')", selector(seppos + 1 :))
         end if
       else
         read(selector, *, iostat=iostat) iFirst
         if (iostat /= 0) then
-          @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+          @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
               & "('Non-integer index ''', A,  '''')", selector)
         end if
         iLast = iFirst
@@ -355,13 +355,13 @@ contains
       iFirstNorm = normalizedIndex_(iFirst, selection%selectionRange, selection%indexRange,&
           & selection%backwardIndexing)
       if (iFirstNorm == 0) then
-        @:RAISE_FORMATTED_ERROR(errStatus, errors%invalidSelector,&
+        @:RAISE_FORMATTED_EXCEPTION(exc, errors%invalidSelector,&
             & "('Out of bounds index value ', I0)", iFirst)
       end if
       iLastNorm = normalizedIndex_(iLast, selection%selectionRange, selection%indexRange,&
           & selection%backwardIndexing)
       if (iLastNorm == 0) then
-        @:RAISE_FORMATTED_ERROR(errStatus, errors%invalidSelector,&
+        @:RAISE_FORMATTED_EXCEPTION(exc, errors%invalidSelector,&
             & "('Out of bounds index value ', I0)", iLast)
       end if
       selected(iFirstNorm : iLastNorm) = .true.
@@ -374,7 +374,7 @@ contains
       !iSpecies = findloc(selection%speciesNames, tolower(selector), dim=1)
       iSpecies = findloc_(selection%speciesNames, tolower(selector))
       if (iSpecies == 0) then
-        @:RAISE_FORMATTED_ERROR(errStatus, errors%invalidSelector,&
+        @:RAISE_FORMATTED_EXCEPTION(exc, errors%invalidSelector,&
             & "('Invalid species name ''', A, '''')", trim(selector))
       end if
       where (selection%species == iSpecies)
@@ -383,7 +383,7 @@ contains
 
     ! Non-numerical value in index selection
     else
-      @:RAISE_FORMATTED_ERROR(errStatus, errors%syntaxError,&
+      @:RAISE_FORMATTED_EXCEPTION(exc, errors%syntaxError,&
           & "('Invalid index selector ''', A, '''')", trim(selector))
     end if
 

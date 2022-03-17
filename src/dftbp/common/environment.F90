@@ -10,8 +10,8 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
+  use dftbp_common_exception, only : TException
   use dftbp_common_globalenv, only : shutdown, stdOut
-  use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
 #:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
@@ -258,10 +258,13 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, errStatus)
+  subroutine TEnvironment_initBlacs(this, exc, rowBlock, colBlock, nOrb, nAtom)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
+
+    !> Operation status, if an error needs to be returned
+    type(TException), allocatable, intent(out) :: exc
 
     !> Row block size
     integer, intent(in) :: rowBlock
@@ -275,11 +278,9 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: errStatus
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
+    call TBlacsEnv_init(this%blacs, exc, this%mpi, rowBlock, colBlock, nOrb, nAtom)
+    @:PROPAGATE_EXCEPTION(exc)
     this%blacsInitialised = .true.
 
   end subroutine TEnvironment_initBlacs

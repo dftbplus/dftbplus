@@ -11,7 +11,7 @@
 !> Contains BLACS environmental settings.
 module dftbp_common_blacsenv
   use dftbp_common_mpienv, only : TMpiEnv
-  use dftbp_common_status, only : TStatus
+  use dftbp_common_exception, only : TException
   use dftbp_extlibs_scalapackfx, only : blacsgrid
   use dftbp_io_message, only : error
   implicit none
@@ -44,10 +44,13 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, errStatus)
+  subroutine TBlacsEnv_init(this, exc, myMpiEnv, rowBlock, colBlock, nOrb, nAtom)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
+
+    !> Operation status, if an error needs to be returned
+    type(TException), allocatable, intent(out) :: exc
 
     !> Initialised MPI environment
     type(TMpiEnv), intent(in) :: myMpiEnv
@@ -64,12 +67,9 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    !> Operation status, if an error needs to be returned
-    type(TStatus), intent(inout) :: errStatus
-
     integer, allocatable :: gridMap(:,:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
-    character(200) :: buffer
+    character(1000) :: buffer
 
     ! Create orbital grid for each processor group
     call getSquareGridParams(myMpiEnv%groupSize, nProcRow, nProcCol)
@@ -79,8 +79,9 @@ contains
     maxProcColMax = (nOrb - 1) / colblock + 1
     if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
-          & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
-      @:RAISE_ERROR(errStatus, -1, trim(buffer))
+          & ") too big (> ", maxProcRow, " x ", maxProcColMax,&
+          & "). You may need more atoms/orbitals for this size of grid"
+      @:RAISE_EXCEPTION(exc, -1, trim(buffer))
     end if
     call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
