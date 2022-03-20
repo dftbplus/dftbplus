@@ -14,6 +14,7 @@ module dftbp_dftb_dispmbd
   use dftbp_common_constants, only: symbolToNumber
   use dftbp_common_environment, only: TEnvironment
   use dftbp_common_globalenv, only: stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only: TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList
   use dftbp_math_simplealgebra, only: determinant33
@@ -162,7 +163,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Status of operation
-    integer, intent(out), optional :: stat
+    type(TStatus), intent(out) :: stat
 
     @:ASSERT(allocated(this%calculator))
     call this%calculator%update_coords(coords(:,:size(species0)))
@@ -173,7 +174,9 @@ contains
     this%gradientsUpdated = .false.
     this%stressUpdated = .false.
 
-    call this%checkError(stat)
+    if (this%errCode /= 0) then
+      @:RAISE_ERROR(stat, this%errCode, this%errMessage)
+    end if
 
   end subroutine updateCoords
 

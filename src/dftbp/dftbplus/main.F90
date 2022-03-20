@@ -225,7 +225,11 @@ contains
               & this%iEqBlockDftbuLS, this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
         end if
 
-        call processGeometry(this, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc, tExitGeoOpt)
+        call processGeometry(this, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
+            & tExitGeoOpt, errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
 
         call postDetCharges(iDet, this%nDets, this%qOutput, this%qDets, this%qBlockDets,&
             & this%qBlockOut, this%deltaRhoDets, this%deltaRhoOut)
@@ -479,7 +483,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%coord0, this%multipoleOut)
+          & this%coord0, this%dipoleMoment, this%multipoleOut)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -636,7 +640,7 @@ contains
     logical, intent(out) :: tExitGeoOpt
 
     !> Status of operation
-    integer, intent(out), optional :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     ! Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
@@ -697,7 +701,7 @@ contains
           & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
           & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
           & this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
-        @:HANDLE_ERROR(errStatus)
+        @:PROPAGATE_ERROR(errStatus)
     end if
 
     #:if WITH_TRANSPORT
@@ -803,7 +807,9 @@ contains
         if (iSccIter == 1) then
           call getReksInitialSettings(env, this%denseDesc, this%h0, this%ints, this%neighbourList,&
               & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%electronicSolver,&
-              & iGeoStep, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%eigen, this%reks)
+              & iGeoStep, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%eigen, this%reks,&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
 
         call getDensityMatrixL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -972,7 +978,11 @@ contains
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
             & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb, &
-            & this%apicallback)
+            & this%apicallback, errStatus)
+
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -1305,7 +1315,9 @@ contains
             & this%neighbourList, this%nNeighbourSK, this%orb, this%iSparseStart,&
             & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ints,&
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
-            & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
+            & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx,&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, this%scc, this%tblite, this%isExtField, this%isXlbomd,&
             & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
@@ -1882,7 +1894,7 @@ contains
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
     !> Status of operation
-    integer, intent(out), optional :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
@@ -1926,7 +1938,7 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0, errStatus)
-      @:HANDLE_ERROR(errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (allocated(solvation)) then
       call solvation%updateCoords(env, neighbourList, img2CentCell, coord, species0)
@@ -2219,7 +2231,7 @@ contains
       & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
       & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-      & tLargeDenseMatrices, deltaDftb, apicallback)
+      & tLargeDenseMatrices, deltaDftb, apicallback, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2381,6 +2393,9 @@ contains
     !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(TAPICallback), intent(in) :: apicallback
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
@@ -2420,7 +2435,8 @@ contains
           & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
           & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
           & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, deltaDftb, &
-          & apicallback, iSCC)
+          & apicallback, iSCC, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -2446,7 +2462,7 @@ contains
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
       & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, deltaDftb, apicallback, iSCC)
+      & nNeighbourLC, deltaDftb, apicallback, iSCC, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2603,6 +2619,9 @@ contains
     !> matrices exporting callbacks now.
     integer, intent(in) :: iSCC
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: nSpin
     
     type(Tapicallback) :: hs_apicallback
@@ -2616,16 +2635,20 @@ contains
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
             & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC,&
-            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:), hs_apicallback)
+            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:), hs_apicallback, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
-            & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen, hs_apicallback)
+            & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen,&
+            & hs_apicallback, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     else
       call buildAndDiagDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
-          & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, xi, species)
+          & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, errStatus, xi, species)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
@@ -2662,7 +2685,7 @@ contains
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
       & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal,&
-      & SSqrReal, eigvecsReal, eigen, apicallback)
+      & SSqrReal, eigvecsReal, eigen, apicallback, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2737,6 +2760,10 @@ contains
 
     integer :: iK, iKS, iSpin
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(2, iKS)
@@ -2767,9 +2794,8 @@ contains
       endif
 
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
-          & eigen(:,iSpin), eigvecsReal(:,:,iKS))
-
-
+          & eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
@@ -2800,7 +2826,8 @@ contains
             & orb, HSqrReal, SSqrReal)
       end if
 
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
     end do
@@ -2816,7 +2843,7 @@ contains
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver, parallelKS,&
-      & tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigvecsCplx, eigen, apicallback)
+      & tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigvecsCplx, eigen, apicallback, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2881,6 +2908,9 @@ contains
     !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
     type(Tapicallback), intent(in), optional :: apicallback
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
@@ -2908,13 +2938,13 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      
       if (present(apicallback)) then
         call apicallback%invokeS(iK, iSpin, SSqrCplx, denseDesc%blacsOrbSqr)
         call apicallback%invokeH(iK, iSpin, HSqrCplx, denseDesc%blacsOrbSqr)
       endif
-      call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
-          & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
+          & SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
@@ -2935,7 +2965,9 @@ contains
         call apicallback%invokeS(iK, iSpin, SSqrCplx)
         call apicallback%invokeH(iK, iSpin, HSqrCplx)
       endif
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -2950,7 +2982,7 @@ contains
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
-      & parallelKS, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, xi, species)
+      & parallelKS, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, errStatus, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3003,6 +3035,9 @@ contains
     !> eigenvectors
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
@@ -3047,10 +3082,12 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
-      call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
-          & eigen(:,iK), eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
+          & SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     #:else
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -4647,7 +4684,7 @@ contains
   subroutine getEnergyWeightedDensity(env, negfInt, electronicSolver, denseDesc, forceType,&
       & filling, eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart,&
       & img2CentCell, iCellVEc, cellVec, tRealHS, ints, parallelKS, tHelical, species, coord,&
-      & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4736,6 +4773,9 @@ contains
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: nSpin
 
     nSpin = size(ints%hamiltonian, dim=2)
@@ -4747,8 +4787,8 @@ contains
     case (electronicSolverTypes%GF)
 
       if (forceType /= forceTypes%orig) then
-        call error("Alternative force evaluation methods are not supported by this electronic&
-            & solver.")
+        @:RAISE_ERROR(errStatus, -1, "Alternative force evaluation methods are not supported by&
+            & this electronic solver.")
       end if
 
     #:if WITH_TRANSPORT
@@ -4761,7 +4801,8 @@ contains
 
     case (electronicSolverTypes%onlyTransport)
 
-      call error("The OnlyTransport solver cannot calculate the energy weighted density matrix")
+      @:RAISE_ERROR(errStatus, -1, "The OnlyTransport solver cannot calculate the energy weighted&
+          & density matrix")
 
     case (electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa, &
@@ -4770,14 +4811,15 @@ contains
       call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
           & tRealHS, ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal,&
-          & HSqrCplx, SSqrCplx)
+          & HSqrCplx, SSqrCplx, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
     case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
 
       if (forceType /= forceTypes%orig) then
-        call error("Alternative force evaluation methods are not supported by this electronic&
-            & solver.")
+        @:RAISE_ERROR(errStatus, -1, "Alternative force evaluation methods are not supported by&
+            & this electronic solver.")
       end if
 
       call electronicSolver%elsi%getEDensity(env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
@@ -4795,7 +4837,7 @@ contains
   subroutine getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
       & ints, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx,&
-      & SSqrCplx)
+      & SSqrCplx, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4872,26 +4914,31 @@ contains
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: nSpin
 
     nSpin = size(ints%hamiltonian, dim=2)
 
     if (nSpin == 4) then
-      call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
-          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
+      call getEDensityMtxFromPauliEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
+          & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
+          & cellVec, tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim, errStatus)
     else
       if (tRealHS) then
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ints,&
-            & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal, ERhoPrim)
+            & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal, ERhoPrim, errStatus)
+
       else
         call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
-            & cellVec, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx,&
-            & ERhoPrim)
+            & cellVec, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx, ERhoPrim,&
+            & errStatus)
       end if
     end if
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine getEDensityMtxFromEigvecs
 
@@ -4899,7 +4946,7 @@ contains
   !> Calculates density matrix from real eigenvectors.
   subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ints, parallelKS,&
-      & tHelical, species, coord, eigvecsReal, work, ERhoPrim)
+      & tHelical, species, coord, eigvecsReal, work, ERhoPrim, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4954,6 +5001,9 @@ contains
 
     !> Energy weighted density matrix
     real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
 
     real(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
@@ -5035,7 +5085,8 @@ contains
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call psymmatinv(denseDesc%blacsOrbSqr, work)
+        call psymmatinv(denseDesc%blacsOrbSqr, work, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
         work(:,:) = work2
@@ -5059,7 +5110,8 @@ contains
           call unpackHS(work, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call symmatinv(work)
+        call symmatinv(work, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
         work(:,:) = work2 + transpose(work2)
       #:endif
@@ -5095,7 +5147,7 @@ contains
   !> Calculates density matrix from complex eigenvectors.
   subroutine getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
       & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & ints, parallelKS, tHelical, species, coord, eigvecsCplx, work, ERhoPrim)
+      & ints, parallelKS, tHelical, species, coord, eigvecsCplx, work, ERhoPrim, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5103,6 +5155,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
+    !> Force evaluation method
     integer, intent(in) :: forceType
 
     !> Occupations of single particle states in the ground state
@@ -5161,6 +5214,9 @@ contains
 
     !> Energy weighted sparse density matrix (charge only part)
     real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
 
     complex(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
@@ -5246,7 +5302,8 @@ contains
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call phermatinv(denseDesc%blacsOrbSqr, work)
+        call phermatinv(denseDesc%blacsOrbSqr, work, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call pblasfx_phemm(work, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
         work(:,:) = work2
@@ -5272,7 +5329,8 @@ contains
           call unpackHS(work, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call hermatinv(work)
+        call hermatinv(work, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
         work(:,:) = work2 + transpose(conjg(work2))
       #:endif
@@ -5310,15 +5368,18 @@ contains
 
 
   !> Calculates density matrix from Pauli-type two component eigenvectors.
-  subroutine getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
-      & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-      & parallelKS, eigvecsCplx, work, ERhoPrim)
+  subroutine getEDensityMtxFromPauliEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
+      & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+      & tRealHS, parallelKS, eigvecsCplx, work, ERhoPrim, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Force evaluation method
+    integer, intent(in) :: forceType
 
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
@@ -5368,7 +5429,15 @@ contains
     !> Sparse energy weighted density matrix
     real(dp), intent(out) :: ERhoPrim(:)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     integer :: iKS, iK
+
+    if (forceType /= forceTypes%orig) then
+      @:RAISE_ERROR(errStatus, -1, "Alternative force evaluation methods are not supported for&
+          & Pauli hamiltonians at the moment.")
+    end if
 
     ERhoPrim(:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
@@ -6596,9 +6665,9 @@ contains
   !> or read eigenvectors in REKS
   !> Save dense overlap matrix elements
   !> Check Gamma point condition and set filling information
-  subroutine getReksInitialSettings(env, denseDesc, h0, ints, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, iGeoStep, &
-      & HSqrReal, SSqrReal, eigvecsReal, eigen, reks)
+  subroutine getReksInitialSettings(env, denseDesc, h0, ints, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, electronicSolver, iGeoStep, HSqrReal, SSqrReal, eigvecsReal,&
+      & eigen, reks, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6645,6 +6714,9 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
     call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -6664,7 +6736,8 @@ contains
 
         eigen(:,:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%diagonalization)
-        call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
+        call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%diagonalization)
         eigvecsReal(:,:,1) = HSqrReal
 

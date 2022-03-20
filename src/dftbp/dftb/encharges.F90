@@ -14,6 +14,7 @@
 !> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_dftb_encharges
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_status, only : TStatus
   use dftbp_common_constants, only : pi
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_dftb_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
@@ -258,7 +259,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> Status of operation
-    integer, intent(out), optional :: stat
+    type(TStatus), intent(out) :: stat
 
     integer, allocatable :: nNeigh(:)
 
@@ -270,10 +271,9 @@ contains
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
         & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
-        & this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, &
-        & this%energies, this%gradients, this%stress, &
-        & this%charges, this%dqdr, this%dqdL, stat)
-    @:HANDLE_ERROR(stat)
+        & this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, stat, this%energies,&
+        & this%gradients, this%stress, this%charges, this%dqdr, this%dqdL)
+    @:PROPAGATE_ERROR(stat)
 
     this%tCoordsUpdated = .true.
 
@@ -977,8 +977,8 @@ contains
 
   !> Electronegativity equilibration charge model
   subroutine getEEQCharges(nAtom, coords, species, charge, nNeighbour, iNeighbour, neighDist2,&
-      & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, energies,&
-      & gradients, stress, qAtom, dqdr, dqdL, stat)
+      & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, status,&
+      & energies, gradients, stress, qAtom, dqdr, dqdL)
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -1035,6 +1035,9 @@ contains
     !> Derivative of the CN with respect to strain deformations.
     real(dp), intent(in) :: dcndL(:, :, :)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: status
+
     !> Updated energy vector at return
     real(dp), intent(inout), optional :: energies(:)
 
@@ -1053,9 +1056,6 @@ contains
     !> Derivative of partial charges w.r.t. strain deformations.
     real(dp), intent(out), optional :: dqdL(:, :, :)
 
-    !> Status of operation
-    integer, intent(out), optional :: stat
-
     real(dp), parameter :: small = 1.0e-14_dp
 
     !> Matrix of 1/R values for each atom pair.
@@ -1072,7 +1072,7 @@ contains
 
     logical :: tPeriodic
     integer :: nDim
-    integer :: iAt1, iSp1, ii
+    integer :: iAt1, iSp1, ii, iStat
     real(dp) :: tmp
 
     tPeriodic = allocated(recPoint)
@@ -1104,8 +1104,8 @@ contains
 
     ! Step 3: invert linear system
     aInv(:, :) = aMat
-    call symmatinv(aInv, info=stat)
-    @:HANDLE_ERROR(stat)
+    call symmatinv(aInv, status)
+    @:PROPAGATE_ERROR(status)
     qVec(:) = 0.0_dp
     call hemv(qVec, aInv, xVec)
 

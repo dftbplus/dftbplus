@@ -9,6 +9,7 @@
 module dftbp_dftb_dispiface
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
@@ -57,7 +58,7 @@ module dftbp_dftb_dispiface
 
     !> Update internal stored coordinate
     subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0, stat)
-      import :: TDispersionIface, TEnvironment, TNeighbourList, dp
+      import :: TDispersionIface, TEnvironment, TNeighbourList, dp, TStatus
 
       !> data structure
       class(TDispersionIface), intent(inout) :: this
@@ -78,7 +79,8 @@ module dftbp_dftb_dispiface
       integer, intent(in) :: species0(:)
 
       !> Status of operation
-      integer, intent(out), optional :: stat
+      type(TStatus), intent(out) :: stat
+
     end subroutine updateCoordsIface
 
 

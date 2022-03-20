@@ -361,7 +361,6 @@ module dftbp_dftbplus_initprogram
     !> weight of the K-Points
     real(dp), allocatable :: kWeight(:)
 
-
     !> external pressure if periodic
     real(dp) :: extPressure
 
@@ -1407,6 +1406,12 @@ contains
         call error("Sum of k-point weights should be greater than zero!")
       end if
       this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+      if (this%tHelical) then
+        if (any(abs(this%kPoint(2,:)*nint(this%latVec(3,1))&
+            & -nint(this%kPoint(2,:)*nint(this%latVec(3,1)))) > epsilon(1.0_dp))) then
+          call error("Specified k-value(s) incommensurate with C_n symmetry operation.")
+        end if
+      end if
     else
       this%nKPoint = 1
       allocate(this%kPoint(3, this%nKPoint))

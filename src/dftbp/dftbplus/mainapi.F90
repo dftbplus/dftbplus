@@ -802,8 +802,14 @@ contains
 
     logical :: tStopScc, tExitGeoOpt
 
+    !> Status of operation
+    type(TStatus) :: errStatus
+
     if (main%tLatticeChanged .or. main%tCoordsChanged) then
-      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt)
+      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
       main%tLatticeChanged = .false.
       main%tCoordsChanged = .false.
     end if
