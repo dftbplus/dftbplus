@@ -265,6 +265,7 @@ contains
   !> register DM exporting callback
   subroutine c_DftbPlus_registerDMCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_dm_callback')
+    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -276,15 +277,24 @@ contains
     type(c_ptr), value :: aux_ptr
 
     type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
 
     call c_f_pointer(handler%instance, instance)
-    call instance%registerDMCallback(callback, aux_ptr)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%aux_ptr = aux_ptr
+      wrapper%callback = callback
+    end select
+    call instance%registerDMCallback(dmhs_callback_c_wrapper_ptr, wrapper)
 
   end subroutine c_DftbPlus_registerDMCallback
 
   !> register S exporting callback
   subroutine c_DftbPlus_registerSCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_s_callback')
+    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -296,15 +306,26 @@ contains
     type(c_ptr), value :: aux_ptr
 
     type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
 
     call c_f_pointer(handler%instance, instance)
-    call instance%registerSCallback(callback, aux_ptr)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%aux_ptr = aux_ptr
+      wrapper%callback = callback
+    end select
+    
+    call instance%registerSCallback(dmhs_callback_c_wrapper_ptr, wrapper)
+    !call instance%registerSCallback(callback, aux_ptr)
 
   end subroutine c_DftbPlus_registerSCallback
 
   !> register H exporting callback
   subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_h_callback')
+    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -316,9 +337,18 @@ contains
     type(c_ptr), value :: aux_ptr
 
     type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
 
     call c_f_pointer(handler%instance, instance)
-    call instance%registerHCallback(callback, aux_ptr)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%aux_ptr = aux_ptr
+      wrapper%callback = callback
+    end select
+    call instance%registerHCallback(dmhs_callback_c_wrapper_ptr, wrapper)
+    !call instance%registerHCallback(callback, aux_ptr)
 
   end subroutine c_DftbPlus_registerHCallback
 

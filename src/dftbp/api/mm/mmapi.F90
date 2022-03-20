@@ -714,17 +714,16 @@ contains
 
   !> Register callback function to be invoked on each evaluation of the desity matrix
   subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
-    use iso_c_binding
-    use dftbp_dftbplus_apicallback, only : TAPICallback
+    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for DM export
-    type(c_funptr), value :: callback
+    procedure(dmhs_callback_t), pointer:: callback
 
     !> pointer to a context object for the DM callback
-    type(c_ptr), value :: aux_ptr
+    class(*), pointer :: aux_ptr
 
     call this%checkInit()
     call this%main%apicallback%registerDM(callback, aux_ptr)
@@ -733,16 +732,16 @@ contains
   !> Register callback function to be invoked on the first evaluation of the overlap matrix
   subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
     use iso_c_binding
-    use dftbp_dftbplus_apicallback, only : TAPICallback
+    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for S export
-    type(c_funptr), value :: callback
+    procedure(dmhs_callback_t), pointer :: callback
 
     !> pointer to a context object for the S callback
-    type(c_ptr), value :: aux_ptr
+    class(*), pointer :: aux_ptr
 
     call this%checkInit()
     call this%main%apicallback%registerS(callback, aux_ptr)
@@ -751,16 +750,16 @@ contains
   !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
   subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
     use iso_c_binding
-    use dftbp_dftbplus_apicallback, only : TAPICallback
+    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> callback function for S export
-    type(c_funptr), value :: callback
+    !> callback function for H export
+    procedure(dmhs_callback_t), pointer :: callback
 
-    !> pointer to a context object for the S callback
-    type(c_ptr), value :: aux_ptr
+    !> pointer to a context object for the H callback
+    class(*), pointer :: aux_ptr
 
     call this%checkInit()
     call this%main%apicallback%registerH(callback, aux_ptr)
