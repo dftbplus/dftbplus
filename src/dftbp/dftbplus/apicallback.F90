@@ -87,19 +87,6 @@ module dftbp_dftbplus_apicallback
   type(TAPICallback) :: null_apicallback
 
 contains
-  subroutine null_dmhs_callback(aux_obj, i_kpoint, i_spin, blacs_descr, data_buf_real, data_buf_cplx)
-    use dftbp_common_accuracy, only : dp
-    !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
-    class(*), intent(inout) :: aux_obj
-    !> 1-based indices of k-point and spin chanel of the matrix
-    integer, value :: i_kpoint, i_spin
-    !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
-    integer, intent(in), target, optional :: blacs_descr(:)
-    !> Matrix, that can be either real or complex
-    real(dp),    intent(in), target, optional :: data_buf_real(:,:)
-    complex(dp), intent(in), target, optional :: data_buf_cplx(:,:)
-  end subroutine null_dmhs_callback
-
   !> Register callback to be invoked on each density matrix evaluation
   subroutine TAPICallback_registerDM(this, callback, aux_ptr)
     !> Instance

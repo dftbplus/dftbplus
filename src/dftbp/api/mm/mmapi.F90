@@ -731,7 +731,6 @@ contains
   
   !> Register callback function to be invoked on the first evaluation of the overlap matrix
   subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
-    use iso_c_binding
     use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
 
     !> Instance
@@ -749,7 +748,6 @@ contains
 
   !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
   subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
-    use iso_c_binding
     use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
 
     !> Instance
