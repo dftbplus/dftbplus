@@ -1470,6 +1470,7 @@ contains
       skInterMeth = skEqGridNew
     end if
 
+    call parseGlobalHybrids(node, ctrl%rangeSepInp)
     call parseRangeSeparated(node, ctrl%rangeSepInp)
 
     if (.not. allocated(ctrl%rangeSepInp)) then
@@ -1486,12 +1487,12 @@ contains
       end if
     else
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, rangeSepSK=rangeSepSK, tCam=ctrl%rangeSepInp%tCam)
+          & skInterMeth, repPoly, rangeSepSK=rangeSepSK, tHyb=ctrl%rangeSepInp%tHyb,&
+          & tLc=ctrl%rangeSepInp%tLc, tCam=ctrl%rangeSepInp%tCam)
       ctrl%rangeSepInp%omega = rangeSepSk%omega
       ctrl%rangeSepInp%camAlpha = rangeSepSk%camAlpha
       ctrl%rangeSepInp%camBeta = rangeSepSk%camBeta
     end if
-
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -3378,11 +3379,11 @@ contains
   end subroutine readHCorrection
 
 
-  !> Reads Slater-Koster files
+  !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
-  !> established
+  !> established.
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, rangeSepSK, tCam)
+      & truncationCutOff, rangeSepSK, tHyb, tLc, tCam)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3414,6 +3415,12 @@ contains
 
     !> if calculation range separated then read omega from end of SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    !> True, if global hybrid functional is requested
+    logical, intent(in), optional :: tHyb
+
+    !> True, if purely long-range corrected functional is requested
+    logical, intent(in), optional :: tLc
 
     !> True, if CAM range-separation is requested
     logical, intent(in), optional :: tCam
@@ -3476,13 +3483,14 @@ contains
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
-                    & rangeSepSK=rangeSepSK, tCam=tCam)
+                    & rangeSepSK=rangeSepSK, tHyb=tHyb, tLc=tLc, tCam=tCam)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK, tCam=tCam)
+                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK, tHyb=tHyb, tLc=tLc,&
+                    & tCam=tCam)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK,&
-                    & tCam=tCam)
+                    & tHyb=tHyb, tLc=tLc, tCam=tCam)
               end if
             end if
             ind = ind + 1
@@ -7464,16 +7472,82 @@ contains
   end function is_numeric
 
 
-  !> Parses range separation input.
-  subroutine parseRangeSeparated(node, input)
-    type(fnode), pointer, intent(in) :: node
-    type(TRangeSepInp), allocatable, intent(out) :: input
+  !> Parses hybrid functional input.
+  subroutine parseGlobalHybrids(node, input)
 
+    !> Pointer to node
+    type(fnode), intent(in), pointer :: node
+
+    !> Parsed range-separated input, i.e. global hybrid information stored in rangesep type
+    type(TRangeSepInp), intent(inout), allocatable :: input
+
+    !! auxiliary node pointers
     type(fnode), pointer :: child1, value1, child2, value2, child3
+
+    !! Temporary string buffers
+    type(string) :: buffer, modifier
+
+    call getChildValue(node, "Hybrid", value1, "None", child=child1)
+    call getNodeName(value1, buffer)
+
+    if (allocated(input) .and. (.not. char(buffer) == "none")) then
+      call error("Input for (range-separated) hybrids already present. Are two conflicting blocks&
+          & (RangeSeparated|Hybrid) used in input?")
+    end if
+
+    select case (char(buffer))
+
+    case ("none")
+      continue
+
+    case ("globalhybrid")
+      allocate(input)
+      ! Global hybrid functional requested
+      input%tHyb = .true.
+      input%tLc = .false.
+      input%tCam = .false.
+      call getChildValue(value1, "Screening", value2, "MatrixBased", child=child2)
+      call getNodeName(value2, buffer)
+      select case(char(buffer))
+      case ("matrixbased")
+        input%rangeSepAlg = rangeSepTypes%matrixBased
+        ! In this case, CutoffRedunction is not used so it should be set to zero.
+        input%cutoffRed = 0.0_dp
+      case default
+        call getNodeHSdName(value2, buffer)
+        call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
+      end select
+
+    case default
+      call getNodeHSDName(value1, buffer)
+      call detailedError(child1, "Invalid hybrid algorithm '" // char(buffer) // "'")
+    end select
+
+  end subroutine parseGlobalHybrids
+
+
+  !> Parses range-separation input.
+  subroutine parseRangeSeparated(node, input)
+
+    !> Pointer to node
+    type(fnode), intent(in), pointer :: node
+
+    !> Parsed range-separated input
+    type(TRangeSepInp), intent(inout), allocatable :: input
+
+    !! auxiliary node pointers
+    type(fnode), pointer :: child1, value1, child2, value2, child3
+
+    !! Temporary string buffers
     type(string) :: buffer, modifier
 
     call getChildValue(node, "RangeSeparated", value1, "None", child=child1)
     call getNodeName(value1, buffer)
+
+    if (allocated(input) .and. (.not. char(buffer) == "none")) then
+      call error("Input for (range-separated) hybrids already present. Are two conflicting blocks&
+          & (RangeSeparated|Hybrid) used in input?")
+    end if
 
     select case (char(buffer))
 
@@ -7482,7 +7556,8 @@ contains
 
     case ("lc")
       allocate(input)
-      ! True, only if a CAM-functional is requested, otherwise LC is assumed (F)
+      input%tHyb = .false.
+      input%tLc = .true.
       input%tCam = .false.
       call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
       call getNodeName(value2, buffer)
@@ -7509,7 +7584,8 @@ contains
 
     case ("cam")
       allocate(input)
-      ! CAM-functional requested
+      input%tHyb = .false.
+      input%tLc = .false.
       input%tCam = .true.
       call getChildValue(value1, "Screening", value2, "MatrixBased", child=child2)
       call getNodeName(value2, buffer)

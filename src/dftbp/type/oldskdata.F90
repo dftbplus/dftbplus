@@ -79,7 +79,7 @@ contains
 
   !> Reads the data from an SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, splineRepIn, polyRepIn,&
-      & rangeSepSK, tCam)
+      & rangeSepSK, tHyb, tLc, tCam)
 
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
@@ -104,6 +104,12 @@ contains
 
     !> Reads rangeseparation parameter from SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    !> True, if global hybrid functional is requested
+    logical, intent(in), optional :: tHyb
+
+    !> True, if purely long-range corrected functional is requested
+    logical, intent(in), optional :: tLc
 
     !> True, if CAM range-separation is requested
     logical, intent(in), optional :: tCam
@@ -190,12 +196,14 @@ contains
 
     call readSplineRep(file, fileName, splineRepIn, iSp1, iSp2)
 
-    ! Read range separation parameter(s)
+    ! Read range-separation parameter(s)
     if (present(rangeSepSK)) then
-      if (tCam) then
+      if (tHyb) then
+        call readRangeSepHyb(file, fileName, rangeSepSK)
+      elseif (tLc) then
+        call readRangeSepLc(file, fileName, rangeSepSK)
+      elseif (tCam) then
         call readRangeSepCam(file, fileName, rangeSepSK)
-      else
-        call readRangeSepLC(file, fileName, rangeSepSK)
       end if
     end if
 
@@ -274,8 +282,69 @@ contains
   end subroutine OldSKData_readsplinerep
 
 
+  !> Reads global hybrid extra tag from an open file.
+  subroutine readRangeSepHyb(fp, fname, rangeSepSK)
+
+    !> File identifier
+    integer, intent(in) :: fp
+
+    !> File name
+    character(len=*), intent(in) :: fname
+
+    !> Rangesep data
+    type(TRangeSepSKTag), intent(inout) :: rangeSepSK
+
+    !! Error status
+    integer :: iostat
+
+    !! Temporary character storage
+    character(lc) :: chdummy
+
+    !! Fraction of exact Hartree-Fock exchange used for parametrization
+    real(dp) :: camAlpha
+
+    !! True, if global hybrid extra tag was found
+    logical :: hasGlobalHybrid
+
+    ! Seek global hybrid extra tag in SK file to get amount of exact Hartree-Fock exchange
+    do
+      read(fp, '(A)', iostat=iostat) chdummy
+      if (iostat /= 0) then
+        hasGlobalHybrid = .false.
+        exit
+      elseif (chdummy == "GlobalHybrid") then
+        hasGlobalHybrid = .true.
+        exit
+      end if
+    end do
+
+    if (.not. hasGlobalHybrid) then
+      write(chdummy, "(A,A,A)") "GlobalHybrid extension tag not found in file '", trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    read(fp, *, iostat=iostat) chdummy, camAlpha
+    call checkioerror(iostat, fname, "Error in reading global hybrid method and parameter")
+
+    if (chdummy /= "HF") then
+      write(chdummy, "(A,A,A)") "Unknown global hybrid method in SK file '", trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    if (camAlpha < 0.0_dp) then
+      write(chdummy, "(A)") "Fraction of exact Hartree-Fock exchange is negative"
+      call error(chdummy)
+    end if
+
+    rangeSepSK%omega = 0.0_dp
+    rangeSepSK%camAlpha = camAlpha
+    rangeSepSK%camBeta = 0.0_dp
+
+  end subroutine readRangeSepHyb
+
+
   !> Reads LC RangeSep data from an open file.
-  subroutine readRangeSepLC(fp, fname, rangeSepSK)
+  subroutine readRangeSepLc(fp, fname, rangeSepSK)
 
     !> File identifier
     integer, intent(in) :: fp
@@ -326,7 +395,7 @@ contains
     rangeSepSK%camAlpha = 0.0_dp
     rangeSepSK%camBeta = 1.0_dp
 
-  end subroutine readRangeSepLC
+  end subroutine readRangeSepLc
 
 
   !> Reads CAM RangeSep data from an open file.

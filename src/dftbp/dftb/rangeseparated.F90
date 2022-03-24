@@ -81,7 +81,13 @@ module dftbp_dftb_rangeseparated
     !> CAM beta parameter
     real(dp) :: camBeta
 
-    !> True, for CAM range-separation, otherwise LC (F)
+    !> True, for global hybrids
+    logical :: tHyb
+
+    !> True, for long-range corrected functionals
+    logical :: tLc
+
+    !> True, for general CAM range-separation
     logical :: tCam
 
     !> Hubbard U values for atoms
@@ -232,11 +238,25 @@ contains
       this%camAlpha = camAlpha
       this%camBeta = camBeta
 
-      if ((abs(this%camAlpha) < 1.0e-16_dp) .and. (abs(this%camBeta - 1.0_dp) < 1.0e-16_dp)) then
+      this%tHyb = .false.
+      this%tLc = .false.
+      this%tCam = .false.
+
+      ! This test is just for saving time while calculating Hamiltonian and gradient contributions.
+      ! In theory the most general CAM case covers everything, but is not needed for pure Hyb/LC.
+      if ((abs(this%camAlpha) > 1.0e-16_dp) .and. (abs(this%camBeta) < 1.0e-16_dp)) then
+        ! apparently this is a pure global hybrid calculation
+        this%tHyb = .true.
+      elseif ((abs(this%camAlpha) < 1.0e-16_dp) .and.&
+          & (abs(this%camBeta - 1.0_dp) < 1.0e-16_dp)) then
         ! apparently this is a pure LC calculation
-        this%tCam = .false.
+        this%tLc = .true.
       else
         this%tCam = .true.
+      end if
+
+      if (this%tREKS .and. this%tHyb) then
+        call error("Global hybrid functionals not currently implemented for REKS.")
       end if
 
       if (this%tREKS .and. this%tCam) then
@@ -295,17 +315,20 @@ contains
 
     this%coords(:,:) = coords
     nAtom = size(this%species)
-    do iAtom1 = 1, nAtom
-      do iAtom2 = 1, iAtom1
-        iSp1 = this%species(iAtom1)
-        iSp2 = this%species(iAtom2)
-        dist = norm2(this%coords(:, iAtom1) - this%coords(:, iAtom2))
-        this%lrGammaEval(iAtom1, iAtom2) = getAnalyticalGammaValue(this, iSp1, iSp2, dist)
-        this%lrGammaEval(iAtom2, iAtom1) = this%lrGammaEval(iAtom1, iAtom2)
-      end do
-    end do
 
-    if (this%tCam) then
+    if (this%tLc .or. this%tCam) then
+      do iAtom1 = 1, nAtom
+        do iAtom2 = 1, iAtom1
+          iSp1 = this%species(iAtom1)
+          iSp2 = this%species(iAtom2)
+          dist = norm2(this%coords(:, iAtom1) - this%coords(:, iAtom2))
+          this%lrGammaEval(iAtom1, iAtom2) = getAnalyticalGammaValue(this, iSp1, iSp2, dist)
+          this%lrGammaEval(iAtom2, iAtom1) = this%lrGammaEval(iAtom1, iAtom2)
+        end do
+      end do
+    end if
+
+    if (this%tHyb .or. this%tCam) then
       do iAtom1 = 1, nAtom
         do iAtom2 = 1, iAtom1
           iSp1 = this%species(iAtom1)
@@ -372,13 +395,16 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
 
-    ! always add the LR contribution
-    call addLrHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair, orb, HH,&
-        & overlap)
+    ! Add long-range contribution if needed.
+    ! For pure Hyb, camBeta would be zero anyway, but we want to save as much time as possible.
+    if (this%tLc .or. this%tCam) then
+      call addLrHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair, orb, HH,&
+          & overlap)
+    end if
 
-    ! If xc-functional is more general, also add the full-range Hartree-Fock part.
+    ! Add full-range Hartree-Fock contribution if needed.
     ! For pure LC, camAlpha would be zero anyway, but we want to save as much time as possible.
-    if (this%tCam) then
+    if (this%tHyb .or. this%tCam) then
       call addHartreeFockHamiltonian(this, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH, overlap)
     end if
@@ -1496,13 +1522,16 @@ contains
     !> Differentiation object
     class(TNonSccDiff), intent(in) :: derivator
 
-    ! always add the LR contribution
-    call addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
-        & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
+    ! Add long-range contribution if needed.
+    ! For pure Hyb, camBeta would be zero anyway, but we want to save as much time as possible.
+    if (this%tLc .or. this%tCam) then
+      call addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
+          & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
+    end if
 
-    ! If xc-functional is more general, also add the full-range Hartree-Fock part.
+    ! Add full-range Hartree-Fock contribution if needed.
     ! For pure LC, camAlpha would be zero anyway, but we want to save as much time as possible.
-    if (this%tCam) then
+    if (this%tHyb .or. this%tCam) then
       call addHartreeFockGradients(this, gradients, derivator, deltaRho, skOverCont, coords,&
           & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
     end if

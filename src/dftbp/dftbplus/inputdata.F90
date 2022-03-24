@@ -114,7 +114,13 @@ module dftbp_dftbplus_inputdata
     !> CAM beta parameter
     real(dp) :: camBeta
 
-    !> True, if a CAM-functional is requested, otherwise LC is assumed
+    !> True, for global hybrids
+    logical :: tHyb
+
+    !> True, for long-range corrected functionals
+    logical :: tLc
+
+    !> True, for general CAM range-separation
     logical :: tCam
 
     !> Choice of range separation method

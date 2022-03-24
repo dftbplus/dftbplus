@@ -3363,25 +3363,31 @@ contains
     end if
 
     if (this%isRangeSep) then
-      write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
-      write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
-          & input%ctrl%rangeSepInp%omega
-      write(stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
-          & input%ctrl%rangeSepInp%camAlpha, input%ctrl%rangeSepInp%camBeta
+      if (input%ctrl%rangeSepInp%tHyb) then
+        write(stdOut, "(A,':',T30,A)") "Global hybrid", "Yes"
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Fraction of HF",&
+            & input%ctrl%rangeSepInp%camAlpha
+      elseif (input%ctrl%rangeSepInp%tLc .or. input%ctrl%rangeSepInp%tCam) then
+        write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+            & input%ctrl%rangeSepInp%omega
+        write(stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
+            & input%ctrl%rangeSepInp%camAlpha, input%ctrl%rangeSepInp%camBeta
+      end if
 
       select case(input%ctrl%rangeSepInp%rangeSepAlg)
       case (rangeSepTypes%neighbour)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "NeighbourBased"
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "NeighbourBased"
         write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
             & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
       case (rangeSepTypes%threshold)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "Thresholded"
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "Thresholded"
         write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
             & input%ctrl%rangeSepInp%screeningThreshold
       case (rangeSepTypes%matrixBased)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "MatrixBased"
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "MatrixBased"
       case default
-        call error("Unknown range separated hybrid method")
+        call error("Unknown (range-separated) hybrid screening algorithm")
       end select
     end if
 
@@ -5205,7 +5211,11 @@ contains
     end if
 
     if (this%isRS_LinResp .and. rangeSepInp%tCam) then
-        call error("General CAM functionals not currently implemented for range-separation.")
+      call error("General CAM functionals not currently implemented for linear response.")
+    end if
+
+    if (this%isRS_LinResp .and. rangeSepInp%tHyb) then
+      call error("Global hybrid functionals not currently implemented for linear response.")
     end if
 
   end subroutine ensureRangeSeparatedReqs
