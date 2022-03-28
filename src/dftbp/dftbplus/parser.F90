@@ -801,7 +801,9 @@ contains
         end if
       end if
 
-      call readXlbomdOptions(node, ctrl%xlbomd)
+      if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
+        call readXlbomdOptions(node, ctrl%xlbomd)
+      end if
 
       call getInputMasses(node, geom, ctrl%masses)
 

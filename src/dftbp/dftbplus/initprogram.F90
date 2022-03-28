@@ -2561,6 +2561,9 @@ contains
       if (this%tExtChrg .or. this%isExtField) then
         call error("External fields currently disabled for XLBOMD calculations")
       end if
+      if (this%hamiltonianType /= hamiltonianTypes%dftb) then
+        call error("XLBOMD calculations currently only supported for the DFTB hamiltonian")
+      end if
       allocate(this%xlbomdIntegrator)
       call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
     end if
