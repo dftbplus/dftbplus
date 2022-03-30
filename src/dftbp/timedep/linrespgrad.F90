@@ -48,6 +48,7 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: excitedCoefsOut = "COEF.DAT"
   character(*), parameter :: excitationsOut = "EXC.DAT"
   character(*), parameter :: transDipOut = "TDP.DAT"
+  character(*), parameter :: naCouplingOut = "NACV.DAT"
 
 
   ! Solver related variables
@@ -162,13 +163,14 @@ contains
     real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
 
-    real(dp) :: Ssq(this%nExc)
+    real(dp) :: Ssq(this%nExc), omegaDif, omegaAvg
     real(dp), allocatable :: gammaMat(:,:), lrGamma(:,:), snglPartTransDip(:,:)
     real(dp), allocatable :: ovrXev(:,:,:), wij(:)
     real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), pc(:,:,:)
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:)
+    real(dp), allocatable :: rhsm(:), woom(:,:), wvvm(:,:), wovm(:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -183,6 +185,7 @@ contains
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
+    integer :: nCoupLev, mCoupLev
     integer :: aa, bb, ss, ab
     integer :: nSpin
     character :: sym
@@ -195,6 +198,7 @@ contains
     !> control variables
     logical :: tZVector, tFracOcc
     logical :: tRangeSep = .false.
+    logical :: tNaCoupling = .true.
 
     !> should gradients be calculated
     logical :: tForces
@@ -699,6 +703,30 @@ contains
               & tRangeSep, rangeSep, excgrad)
         end if
 
+        if (tNaCoupling) then
+          ! NACV computations require +/- variants of the T,W,Z matrices used for ex. gradients
+          ! This overwrites T, RHS and W
+          ALLOCATE(rhsm(nxov_rd))
+          ALLOCATE(woom(nxoo_max, nSpin))
+          ALLOCATE(wvvm(nxvv_max, nSpin))
+          ALLOCATE(wovm(nxov_rd))
+          
+          nCoupLev = 2
+          mCoupLev = 1
+          omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
+          omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
+          print *,'TN: omegas', 27.2114* omegaDif,27.2114*omegaAvg,27.2114*sqrt(eval(nCoupLev)),27.2114*sqrt(eval(mCoupLev))
+
+          ! compute + component of RHS for Z-vector eq. in the NaCoupling case
+          ! also computes the + components of W and T
+          call getNAzVectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev), & 
+            & xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1), transChrg, getIA, getIJ,      &
+            & getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat,     &
+            & lrGamma, this%spinW, omegaDif, omegaAvg, sym, rhs, rhsm, t, wov, wovm, woo,          &
+            & woom, wvv, wvvm)
+          print *,'TN: Passed the thang.'
+
+        end if
       end do
 
       if (nstat == 0) then
@@ -1473,7 +1501,7 @@ contains
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovT(:), vecHooT(:)
+    real(dp), allocatable :: vecHovT(:), vecHooT(:), vecHvv(:)
     integer :: nxov
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
@@ -1602,6 +1630,10 @@ contains
 
     end if
 
+    !! Debug TN   
+!!$    ALLOCATE(vecHvv(sum(nxvv))) 
+!!$    call getHvvXYfr(sym, nXvv, nAtom, iaTrans, getIA, getAB, win,&
+!!$      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpy, vecHvv)
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -1609,6 +1641,7 @@ contains
       do b = homo(s) + 1, a
         ab = iatrans(a, b, s) - svv(s)
         ibs = iatrans(i, b, s)
+        !!> TN print *,iatrans(a, b, s),qgamxpyq(ab, s),vecHvv(iatrans(a, b, s)),'Grunfeld'
         rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab, s)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
@@ -1825,6 +1858,509 @@ contains
     endif
 
   end subroutine getZVectorEqRHS
+
+  !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
+  !> do not depend on Z. Modified version of getZVectorEqRHS for NA couplings. 
+  !> Here the +/- part of the RHS and W is computed. The non-symmetric T is constructed.  
+  subroutine getNAzVectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,     & 
+      & nmatup, transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev,&
+      & grndEigVecs, gammaMat, lrGamma, spinW, omegaDif, omegaAvg, sym, rhsp, rhsm, t, wovp, &
+      & wovm, woop, woom, wvvp, wvvm)
+
+    !> is calculation range-separated?
+    logical, intent(in) :: tRangeSep
+
+    !> X+Y Furche term for excited state n 
+    real(dp), intent(in) :: xpyn(:)
+
+    !> X-Y Furche term for excited state n 
+    real(dp), intent(in) :: xmyn(:)
+
+    !> X+Y Furche term for excited state m 
+    real(dp), intent(in) :: xpym(:)
+
+    !> X-Y Furche term for excited state m 
+    real(dp), intent(in) :: xmym(:)
+
+    !> index array for single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> index vector for S and H matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> highest occupied level
+    integer, intent(in) :: homo(:)
+
+    !> number of same spin excitations
+    integer, intent(in) :: nmatup
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> index array between transitions in square and 1D representations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array for vir-vir transitions
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array for occ-occ transitions
+    integer, intent(in) :: getAB(:,:)
+
+    !> index array from orbital pairs to compound index
+    integer, intent(in) :: iatrans(:,:,:)
+
+    !> number of central cell atoms
+    integer, intent(in) :: natom
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> ground state wavefunctions
+    real(dp), intent(in) :: grndEigVal(:,:)
+
+    !> overlap times ground state wavefunctions
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state wavefunctions
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> softened coulomb matrix
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> softened coulomb matrix, long-range corrected
+    real(dp), allocatable, intent(in) :: lrGamma(:,:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> Excitation energy difference between states n and m 
+    real(dp), intent(in) :: omegaDif
+
+    !> Average excitation energy of states n and m 
+    real(dp), intent(in) :: omegaAvg
+
+    !> Symmetry of the transitions
+    character, intent(in) :: sym
+
+    !> Right hand side (P+Q)
+    real(dp), intent(out) :: rhsp(:)
+
+    !> Right hand side (P-Q)
+    real(dp), intent(out) :: rhsm(:)
+
+    !> T matrix (non-symmetric)
+    real(dp), intent(out) :: t(:,:,:)
+
+    !> W^+ vector occupied-virtual part
+    real(dp), intent(out) :: wovp(:)
+
+    !> W^- vector occupied-virtual part
+    real(dp), intent(out) :: wovm(:)
+
+    !> W^+ vector occupied part
+    real(dp), intent(out) :: woop(:,:)
+
+    !> W^- vector occupied part
+    real(dp), intent(out) :: woom(:,:)
+
+    !> W^+ vector virtual part
+    real(dp), intent(out) :: wvvp(:,:)
+
+    !> W^- vector virtual part
+    real(dp), intent(out) :: wvvm(:,:)
+
+
+    real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
+    real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
+    real(dp), allocatable :: vecHvvXorY(:), vecHooXorY(:),vecHov(:)
+    real(dp), allocatable :: vecHovTp(:), vecHovTm(:), vecHooT(:), tp(:,:,:), tm(:,:,:)
+    integer :: nxov
+    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
+    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
+    integer :: iOrb, jOrb
+    real(dp) :: fact, ptmp1, mtmp1, ptmp2, mtmp2, tmp3, tmp4, tmp1
+    logical :: tSpin
+
+    nxov = size(rhsp)
+    nOrb = size(ovrXev, dim=1)
+
+    ALLOCATE(xpyq(natom))
+    ALLOCATE(qTr(natom))
+    ALLOCATE(gamxpyq(natom))
+    ALLOCATE(gamqt(natom))
+
+
+    t(:,:,:) = 0.0_dp
+    rhsp(:) = 0.0_dp
+    rhsm(:) = 0.0_dp
+    wovp(:) = 0.0_dp
+    wovm(:) = 0.0_dp
+    woop(:,:) = 0.0_dp
+    woom(:,:) = 0.0_dp
+    wvvp(:,:) = 0.0_dp
+    wvvm(:,:) = 0.0_dp
+
+    nSpin = size(t, dim=3)
+
+    ALLOCATE(nxoo(nSpin))
+    ALLOCATE(nxvv(nSpin))
+    ALLOCATE(nvir(nSpin))
+
+    nxoo(:) = (homo(:)*(homo(:)+1))/2
+    nvir(:) = size(t, dim=1) - homo(:)
+    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
+
+    !! transition charges use compound index ijs = ij + soo(s)
+    soo(:) = (/ 0, nxoo(1) /)
+    svv(:) = (/ 0, nxvv(1) /)
+
+    ALLOCATE(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
+    ALLOCATE(vecHooXorY(sum(nxoo)))
+    ALLOCATE(vecHvvXorY(sum(nxvv)))   
+
+    if (nSpin == 2) then
+      tSpin = .true.
+      ALLOCATE(xpyqds(natom))
+      ALLOCATE(gamxpyqds(natom))
+    else
+      tSpin = .false.
+    end if
+
+    ! Build t_ab = 0.5 * sum_i (X+Y)_ia (X+Y)_ib + (X-Y)_ia (X-Y)_ib
+    ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
+    ! factor 1 / (1 + delta_ab) follows later
+    do ias = 1, nxov
+      call indxov(win, ias, getIA, i, a, s)
+
+      ! BA: is T_aa = 0?
+      do b = homo(s) + 1, a
+        ibs = iatrans(i, b, s)
+        ab = iaTrans(a, b, s) - svv(s)
+        ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs) + &
+              & xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
+   
+        mtmp1 = xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs) - &
+              & xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs)
+
+        ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) + &
+              &  xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
+
+        mtmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) - &
+              &  xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
+
+        tmp3 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)
+        tmp4 = xpyn(ibs) * xpym(ias) + xmyn(ibs) * xmym(ias)
+
+        t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
+        wvvp(ab,s) = wvvp(ab,s) + 0.25_dp * grndEigVal(i,s) * ptmp1 / omegaDif  &
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.25_dp * (tmp3 + tmp4)
+                            
+        ! to prevent double counting
+        if (a /= b) then
+          t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
+          wvvm(ab,s) = wvvm(ab,s) + 0.25_dp * grndEigVal(i,s) * mtmp1 / omegaDif  &
+                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.25_dp * (tmp3 - tmp4)         
+        end if
+        
+      end do
+
+      ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja and 1 / (1 + delta_ij) Q_ij
+      ! with Q_ij as in eq. (B9) (1st part of w_ij)
+      do j = i, homo(s)
+        jas = iatrans(j,a,s)
+
+        ! ADG: assume no constraint on occ space atm (nocc_r = nocc)
+        ! otherwise first argument should be nocc - nocc_r
+        ij = iatrans(i, j, s) - soo(s)
+
+        ptmp1 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas) + & 
+              &  xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
+
+        mtmp1 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) - & 
+              &  xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas))
+
+        ptmp2 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) + &
+              &  xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas)) 
+
+        mtmp2 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas) - &
+              &  xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
+
+        tmp3 = xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)
+        tmp4 = xpyn(jas) * xpym(ias) + xmyn(jas) * xmym(ias)
+
+        t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
+        woop(ij,s) = woop(ij,s) - 0.25_dp * grndEigVal(a,s) * ptmp1 / omegaDif  &
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.25_dp * (tmp3 + tmp4)
+
+        ! to prevent double counting
+        if (i /= j) then
+          t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
+          woom(ij,s) = woom(ij,s) - 0.25_dp * grndEigVal(a,s) * mtmp1 / omegaDif  &
+                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.25_dp * (tmp3 - tmp4)
+        end if
+
+      end do
+
+    end do
+
+    ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, iaTrans, getIA, getIJ, getAB, win, iAtomStart,  &
+      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHooXorY, vecHvvXorY)
+
+    do ias = 1, nxov
+      call indxov(win, ias, getIA, i, a, s)
+      do b = homo(s) + 1, a
+        abs = iatrans(a, b, s) 
+        ibs = iatrans(i, b, s)
+        ! For the forces, we have a factor of 2 here 
+        rhsp(ias) = rhsp(ias) - xpym(ibs) * vecHvvXorY(abs)
+        rhsm(ias) = rhsm(ias) + xmym(ibs) * vecHvvXorY(abs)
+        ! Since vecHvvXpY has only upper triangle
+        if (a /= b) then
+          rhsp(ibs) = rhsp(ibs) - xpym(ias) * vecHvvXorY(abs)
+          rhsm(ibs) = rhsm(ibs) + xmym(ias) * vecHvvXorY(abs)
+        end if
+      end do
+
+      do j = i, homo(s)
+        jas = iatrans(j, a, s)
+        ijs = iatrans(i, j, s) 
+        ! For the forces, we have a factor of 2 here
+        tmp1 = xpym(jas) * vecHooXorY(ijs)
+        rhsp(ias) = rhsp(ias) + tmp1
+        wovp(ias) = wovp(ias) + 0.5_dp * tmp1 / omegaDif
+        tmp1 = xmym(jas) * vecHooXorY(ijs)
+        rhsm(ias) = rhsm(ias) - tmp1
+        wovm(ias) = wovm(ias) - 0.5_dp * tmp1 / omegaDif       
+        if (i /= j) then
+           tmp1 = xpym(ias) * vecHooXorY(ijs)
+           rhsp(jas) = rhsp(jas) + tmp1
+           wovp(jas) = wovp(jas) + 0.5_dp * tmp1 / omegaDif
+           tmp1 = xmym(ias) * vecHooXorY(ijs)
+           rhsm(jas) = rhsm(jas) - tmp1
+           wovm(jas) = wovm(jas) - 0.5_dp * tmp1 / omegaDif
+        end if
+      end do
+
+    end do
+
+   ! Now m <-> n
+   call getHplusXYfr(sym, nxoo, nxvv, nAtom, iaTrans, getIA, getIJ, getAB, win, iAtomStart,  &
+      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHooXorY, vecHvvXorY)
+
+    do ias = 1, nxov
+      call indxov(win, ias, getIA, i, a, s)
+      do b = homo(s) + 1, a
+        abs = iatrans(a, b, s) 
+        ibs = iatrans(i, b, s)
+        ! For the forces, we have a factor of 2 here 
+        rhsp(ias) = rhsp(ias) - xpyn(ibs) * vecHvvXorY(abs)
+        rhsm(ias) = rhsm(ias) - xmyn(ibs) * vecHvvXorY(abs)
+        ! Since vecHvvXpY has only upper triangle
+        if (a /= b) then
+          rhsp(ibs) = rhsp(ibs) - xpyn(ias) * vecHvvXorY(abs)
+          rhsm(ibs) = rhsm(ibs) - xmyn(ias) * vecHvvXorY(abs)
+        end if
+      end do
+
+      do j = i, homo(s)
+        jas = iatrans(j, a, s)
+        ijs = iatrans(i, j, s) 
+        ! For the forces, we have a factor of 2 here
+        tmp1 = xpyn(jas) * vecHooXorY(ijs)
+        rhsp(ias) = rhsp(ias) + tmp1
+        wovp(ias) = wovp(ias) + 0.5_dp * tmp1 / omegaDif
+        tmp1 = xmyn(jas) * vecHooXorY(ijs)
+        rhsm(ias) = rhsm(ias) + tmp1
+        wovm(ias) = wovm(ias) + 0.5_dp * tmp1 / omegaDif       
+        if (i /= j) then
+           tmp1 = xpyn(ias) * vecHooXorY(ijs)
+           rhsp(jas) = rhsp(jas) + tmp1
+           wovp(jas) = wovp(jas) + 0.5_dp * tmp1 / omegaDif
+           tmp1 = xmyn(ias) * vecHooXorY(ijs)
+           rhsm(jas) = rhsm(jas) + tmp1
+           wovm(jas) = wovm(jas) + 0.5_dp * tmp1 / omegaDif
+        end if
+      end do
+
+    end do
+    print *,'TN: done ab'
+
+    !> Computation of H_pq^+[T]
+    ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
+    gamxpyq(:) = 0.0_dp
+    if (tSpin) then
+      gamxpyqds(:) = 0.0_dp
+    end if
+
+    do s = 1, nSpin
+      if (s == 1) then
+        fact = 1.0_dp
+      else
+        fact = -1.0_dp
+      end if
+      do ij = 1, nxoo(s)
+        i = getIJ(ij + soo(s), 1)
+        j = getIJ(ij + soo(s), 2)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        if (i == j) then
+          gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + t(i,j,s) * qTr(:) * fact
+          end if
+        else
+          !> t is not symmetric
+          gamxpyq(:) = gamxpyq(:) + (t(i,j,s) + t(j,i,s)) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + (t(i,j,s) + t(j,i,s)) * qTr(:) * fact
+          end if
+        end if
+      end do
+
+      ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
+      do ab = 1, nxvv(s)
+        a = getAB(ab + svv(s), 1)
+        b = getAB(ab + svv(s), 2)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+        if (a == b) then
+          gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + t(a,b,s) * qTr(:) * fact
+          end if
+        else
+          !> t is not symmetric
+          gamxpyq(:) = gamxpyq(:) + (t(a,b,s) + t(b,a,s)) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + (t(a,b,s) + t(b,a,s)) * qTr(:) * fact
+          end if
+        end if
+      end do
+
+    end do
+
+    ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
+    call hemv(gamqt, gammaMat, gamxpyq)
+
+    !> H_ia^+[T]
+    ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
+    if (.not. tSpin) then
+      call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhsp)
+    else
+      call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhsp)
+      call transChrg%qVecMatDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
+           & -2.0_dp*gamxpyqds*spinW(species0), rhsp)
+    end if
+    allocate(vecHov(nxov))
+    call getHplusMfr(3, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
+      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHov)
+    stop
+    ! Furche vectors
+    do s = 1, nSpin
+      if (s == 1) then
+        fact = 1.0_dp
+      else
+        fact = -1.0_dp
+      end if
+      do ij = 1, nxoo(s)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        if (.not. tSpin) then
+          ! Here a factor of 4 for forces
+          woop(ij,s) = woop(ij,s) + 2.0_dp * sum(qTr * gamqt) / omegaDif
+        else
+          ! Here a factor of 2 for forces
+          woop(ij,s) = woop(ij,s) + sum(qTr * gamqt) / omegaDif
+          woop(ij,s) = woop(ij,s) + fact * sum(qTr * gamxpyqds * spinW(species0)) / omegaDif
+        end if
+      end do
+    end do
+    print *,'TN: Further on.'
+    stop
+
+    ! Contributions due to range-separation
+    if (tRangeSep) then
+
+
+      allocate(vecHvvXmY(sum(nxvv)))
+      allocate(vecHooXpY(sum(nxoo)))
+      allocate(vecHooXmY(sum(nxoo)))
+      allocate(vecHovT(nxov))
+      allocate(vecHooT(sum(nxoo)))
+
+      !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
+      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
+
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
+
+      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY)
+
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
+
+      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
+        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
+
+      do ias = 1, nxov
+
+        call indXov(win, ias, getIA, i, a, s)
+        do b = homo(s) + 1, nOrb
+          ibs = iaTrans(i, b, s)
+          abs = iaTrans(a, b, s)
+          rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXpY(abs)
+          rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXpY(abs)
+          if (a >= b) then
+            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
+            rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+          !> Only a>b is stored in vecHvvXmY, which is anti-symmetric
+          else
+            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
+            rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+          end if
+        end do
+
+        do j = 1, homo(s)
+          jas = iaTrans(j, a, s)
+          ijs = iaTrans(i, j, s)
+          rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xpym(jas) * vecHooXpY(ijs)
+          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXpY(ijs) / omegaDif
+          wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXpY(ijs) / omegaDif
+          if (i >= j) then
+            rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
+            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
+            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+          else
+            rhsp(ias) = rhsp(ias) - cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
+            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
+            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+          end if
+        end do
+
+      end do
+
+!! Es fehlt n<-> m und H-[T-]
+      do ias = 1, nxov
+        rhsp(ias) = rhsp(ias) - cExchange * vecHovT(ias)
+!!$        rhsm(ias) = rhsm(ias) - cExchange * vecHovT(ias)
+!!$      end do
+!!$
+!!$      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
+!!$       & ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
+!!$
+!!$      !! woo should be made 1D
+!!$      do s = 1, nSpin
+!!$        do ij = 1, nxoo(s)
+!!$          i = getIJ(ij + soo(s), 1)
+!!$          j = getIJ(ij + soo(s), 2)
+!!$          ijs = iaTrans(i, j, s)
+!!$          woo(ij,s) = woo(ij,s) + cExchange * vecHooT(ijs)
+!!$        end do
+!!$      end do
+!!$
+!!$    endif
+
+  end subroutine getNAzVectorEqRHS
 
 
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
@@ -3306,6 +3842,349 @@ contains
     end do
 
   end subroutine getHvvXY
+
+  !> Computes full range part of H^+_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
+  !> Here p/q are both virtual or both occupied orbitals and V is either X+Y or X-Y
+  !> Note: The full range part of H^- is zero! 
+  subroutine getHplusXYfr(sym, nXoo, nXvv, nAtom, iaTrans, getIA, getIJ, getAB, win,&
+      & iAtomStart, species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, XorY, vecHoo, vecHvv)
+
+    !> symmetry of the transition
+    character, intent(in) :: sym
+
+    !> number of occ-occ transitions per spin channel
+    integer, intent(in) :: nXoo(:)
+
+    !> number of vir-vir transitions per spin channel
+    integer, intent(in) :: nXvv(:)
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> array from pairs of single particles states to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> index array for occ-vir single particle excitations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array for vir-vir single particle excitations
+    integer, intent(in) :: getAB(:,:)
+
+    !> index array for single particle excitations
+    integer, intent(in) :: win(:)
+
+    !> indexing array for square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> overlap times ground state eigenvectors
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> electrostatic matrix, full-range
+    real(dp), intent(in) :: frGamma(:,:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> RPA eigenvectors, either (X+Y) or (X-Y)
+    real(dp), intent(in) :: XorY(:)
+
+    !> Output vector H[V] occupied-occupied
+    real(dp), intent(out) :: vecHoo(:)
+
+    !> Output vector H[V] virtual-virtual
+    real(dp), intent(out) :: vecHvv(:)
+
+    integer :: nSpin, ab, s, abs, svv(2), ij, ijs, soo(2)
+    real(dp) :: fact
+    real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
+    logical :: tSpin
+
+    nSpin = size(grndEigVecs, dim=3)
+    tSpin = (nSpin == 2)
+    ALLOCATE(xpyq(nAtom))
+    ALLOCATE(qTr(nAtom))
+    ALLOCATE(gamxpyq(nAtom))
+    soo(:) = (/ 0, nXoo(1) /)
+    svv(:) = (/ 0, nXvv(1) /)
+
+    vecHoo(:) = 0.0_dp
+    vecHvv(:) = 0.0_dp
+    xpyq(:) = 0.0_dp
+    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
+
+    if (.not. tSpin) then  ! ---- spin-unpolarized case ----
+      ! vecHvv(ab) = sum_jc K_ab,jc (X+Y)_jc
+      if (sym == "S") then
+        call hemv(gamxpyq, frGamma,  xpyq)
+        do ab = 1, nXvv(1)
+          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+          vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
+        end do
+        do ij = 1, nXoo(1)
+          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
+          vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
+        end do
+      else ! triplet case
+        do ab = 1, nXvv(1)
+          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+          vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+        end do
+        do ij = 1, nXoo(1)
+          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+        end do
+      end if
+
+    else  ! ---- spin-polarized case -----
+
+      ALLOCATE(xpyqds(nAtom))
+      ALLOCATE(gamxpyqds(nAtom))
+      xpyqds(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
+
+      call hemv(gamxpyq, frGamma,  xpyq)
+      do s = 1, 2
+        if (s == 1) then
+          fact = 1.0_dp
+        else
+          fact = -1.0_dp
+        end if
+        do ab = 1, nXvv(s)
+          abs = ab + svv(s)
+          qTr(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
+          vecHvv(abs) = sum(qTr * gamxpyq)
+          !magnetization part
+          vecHvv(abs) = vecHvv(abs) + fact * sum(qTr * xpyqds * spinW(species0))
+        end do
+        do ij = 1, nXoo(s)
+          ijs = ij + soo(s)
+          qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          vecHoo(ijs) = sum(qTr * gamxpyq)
+          !magnetization part
+          vecHoo(ijs) = vecHoo(ijs) + fact * sum(qTr * xpyqds * spinW(species0))
+        end do
+      end do
+
+    end if
+
+  end subroutine getHplusXYfr
+
+  !> Computes full range part of H^+_pq [M] as defined in Furche JCP 117 7433 (2002) eq. 20
+  !> Here pq are arbitrary orbitals and M is a general matrix with ov,oo,vv components
+  !> iMode = 1: returns oo components of H
+  !> iMode = 2: returns vv components of H
+  !> iMode = 3: returns ov components of H
+  !> Note: The full range part of H^- is zero! 
+  subroutine getHplusMfr(iMode, sym, nXoo, nXvv, nXov, nAtom, iaTrans, getIA, getIJ, getAB, win,&
+      & iAtomStart, species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, matM, vecH)
+
+    !> type of return vector (oo, vv, ov)
+    integer , intent(in)  :: iMode 
+
+    !> symmetry of the transition
+    character, intent(in) :: sym
+
+    !> number of occ-occ transitions per spin channel
+    integer, intent(in) :: nXoo(:)
+
+    !> number of vir-vir transitions per spin channel
+    integer, intent(in) :: nXvv(:)
+
+    !> number of occ-vir transitions (both spins)
+    integer, intent(in) :: nXov
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> array from pairs of single particles states to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> index array for occ-vir single particle excitations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array for vir-vir single particle excitations
+    integer, intent(in) :: getAB(:,:)
+
+    !> index array for single particle excitations
+    integer, intent(in) :: win(:)
+
+    !> indexing array for square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> overlap times ground state eigenvectors
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> electrostatic matrix, full-range
+    real(dp), intent(in) :: frGamma(:,:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> input Matrix spin-resolved
+    real(dp), intent(in) :: matM(:,:,:)
+
+    !> output vector H[M] 
+    real(dp), intent(out) :: vecH(:)
+
+    integer :: nSpin, ab, i, a, s, abs, svv(2), ij, ijs, soo(2), ias
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
+    real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
+    logical :: tSpin
+
+    if(iMode == 1) then
+      @:ASSERT(size(vecH) == sum(nXoo))
+    else if(iMode == 2) then
+      @:ASSERT(size(vecH) == sum(nXvv))
+    else
+      @:ASSERT(size(vecH) == nXov)
+    end if
+
+    nSpin = size(grndEigVecs, dim=3)
+    tSpin = (nSpin == 2)
+    if (tSpin) then
+      ALLOCATE(xpyqds(natom))
+      ALLOCATE(gamxpyqds(natom))
+    endif       
+    ALLOCATE(xpyq(nAtom))
+    ALLOCATE(qTr(nAtom))
+    ALLOCATE(gamxpyq(nAtom))
+    soo(:) = (/ 0, nXoo(1) /)
+    svv(:) = (/ 0, nXvv(1) /)
+
+    vecH(:) = 0.0_dp
+   ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) M_ij
+    gamxpyq(:) = 0.0_dp
+    if (tSpin) then
+      gamxpyqds(:) = 0.0_dp
+    end if
+
+    do s = 1, nSpin
+      do ij = 1, nxoo(s)
+        i = getIJ(ij + soo(s), 1)
+        j = getIJ(ij + soo(s), 2)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        if (i == j) then
+          gamxpyq(:) = gamxpyq(:) + matM(i,j,s) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + matM(i,j,s) * qTr(:) * spinFactor(s)
+          end if
+        else
+          gamxpyq(:) = gamxpyq(:) + (matM(i,j,s) + matM(j,i,s)) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + (matM(i,j,s) + matM(j,i,s)) * qTr(:) * spinFactor(s)
+          end if
+        end if
+      end do
+     
+
+      ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) M_ab
+      do ab = 1, nxvv(s)
+        a = getAB(ab + svv(s), 1)
+        b = getAB(ab + svv(s), 2)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+        if (a == b) then
+          gamxpyq(:) = gamxpyq(:) + matM(a,b,s) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + matM(a,b,s) * qTr(:) * spinFactor(s)
+          end if
+        else
+          ! factor 2 because of symmetry of the matrix
+          gamxpyq(:) = gamxpyq(:) + (matM(a,b,s) + matM(b,a,s)) * qTr(:)
+          if (tSpin) then
+            gamxpyqds(:) = gamxpyqds(:) + (matM(a,b,s) + matM(b,a,s)) * qTr(:) * spinFactor(s)
+          end if
+        end if
+      end do
+    end do
+
+    ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) M_ia
+    do ias = 1, nxov
+      i = getIA(ias, 1)
+      a = getIA(ias, 2)
+      s = getIA(ias, 3)
+      qTr(:) = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      gamxpyq(:) = gamxpyq(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:)
+      if (tSpin) then
+         gamxpyqds(:) = gamxpyqds(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:) * spinFactor(s)
+      end if
+    end do
+
+    ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
+    call hemv(gamqt, gammaMat, gamxpyq)
+    
+    if(iMode == 1) then
+      do s = 1, nSpin
+        do ij = 1, nxoo(s)
+          i = getIJ(ij + soo(s), 1)
+          j = getIJ(ij + soo(s), 2)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+          if (.not. tSpin) then
+            vecH(ij + soo(s)) = -4.0_dp * dot_product(gamqt,qTr)
+          else 
+            vecH(ij + soo(s)) = -2.0_dp * dot_product(gamqt,qTr)
+            vecH(ij + soo(s)) = vecH(ij + soo(s)) - &
+                      & 2.0_dp * spinFactor(s) * dot_product(gamxpyqds * spinW(species0), qTr)
+          end if
+        end do
+      end do
+    else if (iMode == 2) then
+      do s = 1, nSpin
+        do ab = 1, nxvv(s)
+          a = getAB(ab + svv(s), 1)
+          b = getAB(ab + svv(s), 2)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+          if (.not. tSpin) then
+            vecH(ab + svv(s)) = -4.0_dp * dot_product(gamqt,qTr)
+          else 
+            vecH(ab + svv(s)) = -2.0_dp * dot_product(gamqt,qTr)
+            vecH(ab + svv(s)) = vecH(ab + svv(s)) - &
+                      & 2.0_dp * spinFactor(s) * dot_product(gamxpyqds * spinW(species0), qTr)
+          end if
+        end do
+      end do
+    else
+      do ias = 1, nxov
+        i = getIA(ias, 1)
+        a = getIA(ias, 2)
+        s = getIA(ias, 3)
+        qTr(:) = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+        if (.not. tSpin) then
+          vecH(ias) = -4.0_dp * dot_product(gamqt,qTr)
+        else 
+          vecH(ias) = -2.0_dp * dot_product(gamqt,qTr)
+          vecH(ias) = vecH(ias) - &
+                      & 2.0_dp * spinFactor(s) * dot_product(gamxpyqds * spinW(species0), qTr)
+        end if
+      end do
+    end if
+  
+  end subroutine getHplusovMfr
+
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied orbitals and V is either X+Y or X-Y
