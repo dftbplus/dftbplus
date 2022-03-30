@@ -2276,72 +2276,72 @@ contains
     print *,'TN: Further on.'
     stop
 
-    ! Contributions due to range-separation
-    if (tRangeSep) then
-
-
-      allocate(vecHvvXmY(sum(nxvv)))
-      allocate(vecHooXpY(sum(nxoo)))
-      allocate(vecHooXmY(sum(nxoo)))
-      allocate(vecHovT(nxov))
-      allocate(vecHooT(sum(nxoo)))
-
-      !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
-
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
-
-      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY)
-
-      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
-
-      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
-        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
-
-      do ias = 1, nxov
-
-        call indXov(win, ias, getIA, i, a, s)
-        do b = homo(s) + 1, nOrb
-          ibs = iaTrans(i, b, s)
-          abs = iaTrans(a, b, s)
-          rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXpY(abs)
-          rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXpY(abs)
-          if (a >= b) then
-            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
-          !> Only a>b is stored in vecHvvXmY, which is anti-symmetric
-          else
-            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
-          end if
-        end do
-
-        do j = 1, homo(s)
-          jas = iaTrans(j, a, s)
-          ijs = iaTrans(i, j, s)
-          rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xpym(jas) * vecHooXpY(ijs)
-          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXpY(ijs) / omegaDif
-          wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXpY(ijs) / omegaDif
-          if (i >= j) then
-            rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
-          else
-            rhsp(ias) = rhsp(ias) - cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
-          end if
-        end do
-
-      end do
-
-!! Es fehlt n<-> m und H-[T-]
-      do ias = 1, nxov
-        rhsp(ias) = rhsp(ias) - cExchange * vecHovT(ias)
+!!$    ! Contributions due to range-separation
+!!$    if (tRangeSep) then
+!!$
+!!$
+!!$      allocate(vecHvvXmY(sum(nxvv)))
+!!$      allocate(vecHooXpY(sum(nxoo)))
+!!$      allocate(vecHooXmY(sum(nxoo)))
+!!$      allocate(vecHovT(nxov))
+!!$      allocate(vecHooT(sum(nxoo)))
+!!$
+!!$      !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
+!!$      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+!!$          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
+!!$
+!!$      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+!!$          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
+!!$
+!!$      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+!!$          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY)
+!!$
+!!$      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+!!$          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
+!!$
+!!$      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
+!!$        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
+!!$
+!!$      do ias = 1, nxov
+!!$
+!!$        call indXov(win, ias, getIA, i, a, s)
+!!$        do b = homo(s) + 1, nOrb
+!!$          ibs = iaTrans(i, b, s)
+!!$          abs = iaTrans(a, b, s)
+!!$          rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXpY(abs)
+!!$          rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXpY(abs)
+!!$          if (a >= b) then
+!!$            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
+!!$            rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+!!$          !> Only a>b is stored in vecHvvXmY, which is anti-symmetric
+!!$          else
+!!$            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
+!!$            rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+!!$          end if
+!!$        end do
+!!$
+!!$        do j = 1, homo(s)
+!!$          jas = iaTrans(j, a, s)
+!!$          ijs = iaTrans(i, j, s)
+!!$          rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xpym(jas) * vecHooXpY(ijs)
+!!$          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXpY(ijs) / omegaDif
+!!$          wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXpY(ijs) / omegaDif
+!!$          if (i >= j) then
+!!$            rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
+!!$            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
+!!$            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+!!$          else
+!!$            rhsp(ias) = rhsp(ias) - cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
+!!$            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
+!!$            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+!!$          end if
+!!$        end do
+!!$
+!!$      end do
+!!$
+!!$!! Es fehlt n<-> m und H-[T-]
+!!$      do ias = 1, nxov
+!!$        rhsp(ias) = rhsp(ias) - cExchange * vecHovT(ias)
 !!$        rhsm(ias) = rhsm(ias) - cExchange * vecHovT(ias)
 !!$      end do
 !!$
@@ -4051,9 +4051,10 @@ contains
     !> output vector H[M] 
     real(dp), intent(out) :: vecH(:)
 
-    integer :: nSpin, ab, i, a, s, abs, svv(2), ij, ijs, soo(2), ias
+    integer :: nSpin, ab, i, j, a, b, s, abs, svv(2), ij, ijs, soo(2), ias
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
+    real(dp), allocatable  :: gamqt(:)
     logical :: tSpin
 
     if(iMode == 1) then
@@ -4073,6 +4074,7 @@ contains
     ALLOCATE(xpyq(nAtom))
     ALLOCATE(qTr(nAtom))
     ALLOCATE(gamxpyq(nAtom))
+    ALLOCATE(gamqt(nAtom))
     soo(:) = (/ 0, nXoo(1) /)
     svv(:) = (/ 0, nXvv(1) /)
 
@@ -4135,7 +4137,7 @@ contains
     end do
 
     ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
-    call hemv(gamqt, gammaMat, gamxpyq)
+    call hemv(gamqt, frGamma, gamxpyq)
     
     if(iMode == 1) then
       do s = 1, nSpin
@@ -4183,7 +4185,7 @@ contains
       end do
     end if
   
-  end subroutine getHplusovMfr
+  end subroutine getHplusMfr
 
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
