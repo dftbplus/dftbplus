@@ -2564,6 +2564,9 @@ contains
       if (this%hamiltonianType /= hamiltonianTypes%dftb) then
         call error("XLBOMD calculations currently only supported for the DFTB hamiltonian")
       end if
+      if (allocated(this%solvation)) then
+        call error("XLBOMD does not work with solvation models yet!")
+      end if
       allocate(this%xlbomdIntegrator)
       call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
     end if
