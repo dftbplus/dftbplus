@@ -367,6 +367,9 @@ contains
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
 
+    ! Spin channels in the system
+    integer, parameter :: nSpin = 1
+
     !> Species of every atom in the unit cell
     integer, intent(in) :: species0(:)
 
@@ -398,9 +401,9 @@ contains
     end if
 
     call new_wavefunction(this%wfn, this%mol%nat, this%calc%bas%nsh, this%calc%bas%nao, &
-        & 0.0_dp)
+        & nSpin, 0.0_dp)
 
-    call new_potential(this%pot, this%mol, this%calc%bas)
+    call new_potential(this%pot, this%mol, this%calc%bas, this%wfn%nspin)
 
     if (allocated(this%calc%ncoord)) then
       allocate(this%cn(this%mol%nat))
@@ -567,7 +570,7 @@ contains
           & this%gradient, this%sigma)
     end if
 
-    call new_potential(this%pot, this%mol, this%calc%bas)
+    call new_potential(this%pot, this%mol, this%calc%bas, this%wfn%nspin)
     if (allocated(this%calc%coulomb)) then
       call this%calc%coulomb%update(this%mol, this%cache)
     end if
@@ -740,20 +743,20 @@ contains
     allocate(dQAtom(this%mol%nat), dQShell(orb%mShell, this%mol%nat))
     call getSummedCharges(species, orb, qq, q0, dQAtom=dQAtom, dQShell=dQShell)
 
-    this%wfn%qat(:) = -dQAtom
+    this%wfn%qat(:, 1) = -dQAtom
     do iAt = 1, size(dQShell, 2)
       ii = this%calc%bas%ish_at(iAt)
       do iSh = 1, this%calc%bas%nsh_at(iAt)
-        this%wfn%qsh(ii+iSh) = -dQShell(iSh, iAt)
+        this%wfn%qsh(ii+iSh, 1) = -dQShell(iSh, iAt)
       end do
     end do
 
     if (present(dipAtom)) then
-      this%wfn%dpat(:, :) = -dipAtom(:, :, 1)
+      this%wfn%dpat(:, :, 1) = -dipAtom(:, :, 1)
     end if
 
     if (present(quadAtom)) then
-      this%wfn%qpat(:, :) = -quadAtom(:, :, 1)
+      this%wfn%qpat(:, :, 1) = -quadAtom(:, :, 1)
     end if
 
     if (allocated(this%calc%coulomb)) then
@@ -800,22 +803,22 @@ contains
   #:if WITH_TBLITE
     integer :: iAt, iSh, ii
 
-    shiftPerAtom(:) = -this%pot%vat
+    shiftPerAtom(:) = -this%pot%vat(:, 1)
 
     shiftPerShell(:,:) = 0.0_dp
     do iAt = 1, size(shiftPerShell, 2)
       ii = this%calc%bas%ish_at(iAt)
       do iSh = 1, this%calc%bas%nsh_at(iAt)
-        shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh)
+        shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh, 1)
       end do
     end do
 
     if (present(dipShift)) then
-      dipShift(:,:) = -this%pot%vdp
+      dipShift(:,:) = -this%pot%vdp(:, :, 1)
     end if
 
     if (present(quadShift)) then
-      quadshift(:,:) = -this%pot%vqp
+      quadshift(:,:) = -this%pot%vqp(:, :, 1)
     end if
   #:else
     call notImplementedError
