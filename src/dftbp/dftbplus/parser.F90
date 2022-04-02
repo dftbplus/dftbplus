@@ -5102,6 +5102,11 @@ contains
             & with transport yet)")
       end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
+    else
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailedError(node, "The TransportOnly solver requires a TunnelingAndDos block to be&
+            & present.")
+      end if
     endif
   #:endif
 
