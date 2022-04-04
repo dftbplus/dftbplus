@@ -725,7 +725,28 @@ contains
             & lrGamma, this%spinW, omegaDif, omegaAvg, sym, rhs, rhsm, t, wov, wovm, woo,          &
             & woom, wvv, wvvm)
           print *,'TN: Passed the thang.'
+          call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
+            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
+            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
+            & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+          print *,'TN: Got lucky.',tRangeSep
+          call solveZVectorPrecondMinus(rhsm, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
+            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
+            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
+            & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+          print *,'TN: Passed the other thang.'
+          call calcWVectorZnaVec(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, iAtomStart,&
+            & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvvm, transChrg, species0, &
+            & this%spinW, omegaDif, tRangeSep, lrGamma)
+          call calcPMatrixNA(t, rhs, rhsm, win, getIA, pc)
+          do iSpin = 1, nSpin
+             ! Make MO to AO transformation of the excited density matrix
+             call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+             call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          end do
+          print *,'TN: Passed yet the other thang.'
 
+          stop
         end if
       end do
 
@@ -2054,13 +2075,13 @@ contains
 
         t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
         wvvp(ab,s) = wvvp(ab,s) + 0.25_dp * grndEigVal(i,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.25_dp * (tmp3 + tmp4)
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.125_dp * (tmp3 + tmp4)
                             
         ! to prevent double counting
         if (a /= b) then
           t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
           wvvm(ab,s) = wvvm(ab,s) + 0.25_dp * grndEigVal(i,s) * mtmp1 / omegaDif  &
-                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.25_dp * (tmp3 - tmp4)         
+                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.125_dp * (tmp3 - tmp4)         
         end if
         
       end do
@@ -2091,13 +2112,13 @@ contains
 
         t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
         woop(ij,s) = woop(ij,s) - 0.25_dp * grndEigVal(a,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.25_dp * (tmp3 + tmp4)
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif - 0.125_dp * (tmp3 + tmp4)
 
         ! to prevent double counting
         if (i /= j) then
           t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
           woom(ij,s) = woom(ij,s) - 0.25_dp * grndEigVal(a,s) * mtmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.25_dp * (tmp3 - tmp4)
+                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif - 0.125_dp * (tmp3 - tmp4)
         end if
 
       end do
@@ -2238,11 +2259,10 @@ contains
 
     ! Contributions due to range-separation
     if (tRangeSep) then
-
+      allocate(vecHvvXpY(sum(nxvv)))
       allocate(vecHvvXmY(sum(nxvv)))
       allocate(vecHooXpY(sum(nxoo)))
       allocate(vecHooXmY(sum(nxoo)))
-      allocate(vecHooT(sum(nxoo)))
 
       !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
       call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
@@ -2585,6 +2605,189 @@ contains
 
   end subroutine solveZVectorPrecond
 
+  !> Solving the (A-B) Z = -R equation via diagonally preconditioned conjugate gradient
+  subroutine solveZVectorPrecondMinus(rhs, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, &
+      & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, iAtomStart, ovrXev, grndEigVecs, &
+      & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, lrGamma)
+
+    !> on entry -R, on exit Z
+    real(dp), intent(inout) :: rhs(:)
+
+    !> logical spin polarization
+    logical, intent(in) :: tSpin
+
+    !> excitation energies (wij = epsion_j - epsilon_i)
+    real(dp), intent(in) :: wij(:)
+
+    !> symmetry flag (singlet or triplet)
+    character, intent(in) :: sym
+
+    !> sorting index of the excitation energies.
+    integer, intent(in) :: win(:)
+
+    !> occupied orbitals per spin channel
+    integer, intent(in) :: nocc_ud(:)
+
+    !> virtual orbitals per spin channel
+    integer, intent(in) :: nvir_ud(:)
+
+    !> number of occ-occ transitions per spin channel
+    integer, intent(in) :: nxoo_ud(:)
+
+    !> number of vir-vir transitions per spin channel
+    integer, intent(in) :: nxvv_ud(:)
+
+    !> number of occ-vir transitions per spin channel
+    integer, intent(in) :: nxov_ud(:)
+
+    !> number of occupied-virtual transitions (possibly reduced by windowing)
+    integer, intent(in) :: nxov_rd
+
+    !> array from pairs of single particles states to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> index array for occ-vir single particle excitations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array for vir-vir single particle excitations
+    integer, intent(in) :: getAB(:,:)
+
+    !> number of atoms
+    integer, intent(in) :: natom
+
+    !> starting position of each atom in the list of orbitals.
+    integer, intent(in) :: iAtomStart(:)
+
+    !> overlap times eigenvector. (nOrb, nOrb)
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> occupation numbers
+    real(dp), intent(in) :: occNr(:,:)
+
+    ! Square root of occupation difference between vir and occ states
+    real(dp), intent(in) :: sqrOccIA(:)
+
+    !> DFTB gamma matrix (nAtm, nAtom)
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> chemical species of the atoms
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin constants for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> is calculation range-separated?
+    logical, intent(in) :: tRangeSep
+
+    !> long-range Gamma
+    real(dp), allocatable, intent(in) :: lrGamma(:,:)
+
+    integer :: nxov
+    integer :: ia, kk, i, a, s, ias, iis, aas
+    real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
+    real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
+    real(dp), allocatable :: qTr(:), P(:)
+
+    nxov = nxov_rd
+    allocate(qTr(nAtom))
+
+    ! diagonal preconditioner
+    ! P^-1 = 1 / (A-B)_ia,ia (diagonal of the supermatrix sum A+B)
+    allocate(P(nxov))
+    rs = 0.0_dp
+    do ia = 1, nxov
+      qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      call hemv(qTmp, gammaMat, qTr)
+
+      !! Possibly reorder spin case
+      if (tRangeSep) then
+        call hemv(qTmp, lrGamma, qTr)
+        rs = rs + cExchange * dot_product(qTr, qTmp)
+        call indXov(win, ia, getIA, i, a, s)
+        iis = iaTrans(i, i, s)
+        qTr = transChrg%qTransIJ(iis, iAtomStart, ovrXev, grndEigVecs, getIJ)
+        call hemv(qTmp, lrGamma, qTr)
+        aas = iaTrans(a, a, s)
+        qTr = transChrg%qTransAB(aas, iAtomStart, ovrXev, grndEigVecs, getAB)
+        rs = rs - cExchange * dot_product(qTr, qTmp)
+      end if
+
+      P(ia) = 1.0_dp / rs
+    end do
+
+    ! Free some space, before entering the actionAplusB routine
+    deallocate(qTr)
+
+    ! unit vector as initial guess solution
+    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
+
+    ! action of matrix on vector
+    ! we need the singlet action even for triplet excitations!
+    call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+         & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+         & transChrg, rhs2, rkm1, tRangeSep, lrGamma)
+
+    rkm1(:) = rhs - rkm1
+    zkm1(:) = P * rkm1
+    pkm1(:) = zkm1
+
+    ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
+    do kk = 1, nxov**2
+
+      ! action of matrix on vector
+      call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+           & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+           & transChrg, pkm1, apk, tRangeSep, lrGamma)
+
+      tmp1 = dot_product(rkm1, zkm1)
+      tmp2 = dot_product(pkm1, apk)
+      alphakm1 = tmp1 / tmp2
+
+      rhs2 = rhs2 + alphakm1 * pkm1
+
+      rkm1 = rkm1 -alphakm1 * apk
+
+      tmp2 = dot_product(rkm1, rkm1)
+
+      ! residual
+      if (tmp2 <= epsilon(1.0_dp)**2) then
+        exit
+      end if
+
+      if (kk == nxov**2) then
+        call error("solveZVectorEq : Z vector not converged!")
+      end if
+
+      zkm1(:) = P * rkm1
+
+      tmp2 = dot_product(zkm1, rkm1)
+
+      ! Fletcher-Reeves update
+      bkm1 = tmp2 / tmp1
+
+      pkm1 = zkm1 + bkm1 * pkm1
+
+    end do
+
+    rhs(:) = rhs2(:)
+
+  end subroutine solveZVectorPrecondMinus
+
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
@@ -2763,6 +2966,223 @@ contains
     end do
 
   end subroutine calcWvectorZ
+
+  !> Calculate Z-dependent parts of the W-vectors for the NAC vectors
+  subroutine calcWvectorZnaVec(zzp, zzm, win, homo, nmatup, getIA, getIJ, getAB, iaTrans, &
+      & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wovp, wovm, woop, woom, wvvm, &
+      & transChrg, species0, spinW, omegaDif, tRangeSep, lrGamma)
+
+    !> Z^+ vector 
+    real(dp), intent(in) :: zzp(:)
+
+    !> Z^- vector 
+    real(dp), intent(in) :: zzm(:)
+
+    !> index array for single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> highest occupied level
+    integer, intent(in) :: homo(:)
+
+    !> number of same spin excitations
+    integer, intent(in) :: nmatup
+
+    !> index array between occ-vir transitions in square and 1D representations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array between occ-occ transitions
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array between vir-vir transitions
+    integer, intent(in) :: getAB(:,:)
+
+    !> array from pairs of single particles states to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> index array for S and H0 ground state square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> overlap times ground state wavefunctions
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state wavefunctions
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> softened coulomb matrix
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> ground state MO-energies
+    real(dp), intent(in) :: grndEigVal(:,:)
+
+    !> W^+ vector occupied-virtual part
+    real(dp), intent(inout) :: wovp(:)
+
+    !> W^- vector occupied-virtual part
+    real(dp), intent(inout) :: wovm(:)
+
+    !> W^+ vector occupied part
+    real(dp), intent(inout) :: woop(:,:)
+
+    !> W^- vector occupied part
+    real(dp), intent(inout) :: woom(:,:)
+
+    !> W^- vector virtual part
+    real(dp), intent(inout) :: wvvm(:,:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    real(dp), intent(in) :: omegaDif
+
+    !> is calculation range-separated?
+    logical, intent(in) :: tRangeSep
+
+    !> long-range Gamma
+    real(dp), allocatable, intent(in) :: lrGamma(:,:)
+
+    integer :: nxov, natom, nSpin, soo(2), svv(2)
+    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
+    integer :: ij, ias, ijs, ab, i, j, a, b, s, abs, iAt1
+    real(dp) :: fact
+    real(dp), allocatable :: qTr(:), gamxpyq(:), zq(:), zqds(:), vecHooZ(:), vecHvvZ(:)
+    logical :: tSpin
+
+    nxov = size(zzp)
+    natom = size(gammaMat, dim=1)
+    nSpin = size(grndEigVal, dim=2)
+
+    ALLOCATE(qTr(natom))
+    ALLOCATE(gamxpyq(natom))
+    ALLOCATE(zq(natom))
+    ALLOCATE(nxoo(nSpin))
+    ALLOCATE(nxvv(nSpin))
+    ALLOCATE(nvir(nSpin))
+
+    nxoo(:) = (homo(:)*(homo(:)+1))/2
+    nvir(:) = size(grndEigVecs, dim=1) - homo(:)
+    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
+
+    soo(:) = (/ 0, nxoo(1) /)
+    svv(:) = (/ 0, nxvv(1) /)
+
+    if ( nSpin == 2 ) then
+      tSpin = .true.
+      ALLOCATE(zqds(natom))
+    else
+      tSpin = .false.
+    end if
+
+    ! Adding missing epsilon_i * Z_ia term to W_ia
+    do ias = 1, nxov
+      call indxov(win, ias, getIA, i, a, s)
+      wovp(ias) = wovp(ias) + zzp(ias) * grndEigVal(i, s) / omegaDif
+      wovm(ias) = wovm(ias) + zzm(ias) * grndEigVal(i, s) / omegaDif
+    end do
+
+    ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
+    zq(:) = 0.0_dp
+    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, zzp, zq)
+    call hemv(gamxpyq, gammaMat, zq)
+
+    if (tSpin) then
+      zqds(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, zzp, zqds)
+    end if
+
+    ! sum_iAt1 qTr(iAt1) gamxpyq(iAt1)
+    do s = 1, nSpin
+      if (s == 1) then
+        fact = 1.0_dp
+      else
+        fact = -1.0_dp
+      end if
+      do ij = 1, nxoo(s)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        ! W contains 1/2 for i == j.
+        ! Force contains factors of 4/2 here
+        if (.not. tSpin) then
+          woop(ij,s) = woop(ij,s) + 2.0_dp * sum(qTr * gamxpyq) / omegaDif
+        else
+          woop(ij,s) = woop(ij,s) + 1.0_dp * sum(qTr * gamxpyq) / omegaDif
+          woop(ij,s) = woop(ij,s) + 1.0_dp * fact * sum(qTr * zqds * spinW(species0)) / omegaDif
+        end if
+      end do
+    end do
+
+    if (tRangeSep) then
+
+      allocate(vecHooZ(sum(nxoo)))
+      allocate(vecHvvZ(sum(nxvv)))
+
+      call getHooXY(1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
+      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zzp, vecHooZ)
+
+      !! woo should be made 1D
+      do s = 1, nSpin
+        do ij = 1, nxoo(s)
+          i = getIJ(ij + soo(s), 1)
+          j = getIJ(ij + soo(s), 2)
+          ijs = iaTrans(i, j, s)
+          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) / omegaDif
+        end do
+      end do
+
+      call getHooXY(-1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
+      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zzm, vecHooZ)
+
+      !! woo should be made 1D
+      do s = 1, nSpin
+        do ij = 1, nxoo(s)
+          i = getIJ(ij + soo(s), 1)
+          j = getIJ(ij + soo(s), 2)
+          ijs = iaTrans(i, j, s)
+          woom(ij,s) = woom(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) / omegaDif
+        end do
+      end do
+
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, zzm, vecHvvZ)
+
+      do s = 1, nSpin
+        do ab = 1, nxvv(s)
+          a = getAB(ab + svv(s), 1)
+          b = getAB(ab + svv(s), 2)
+          abs = iaTrans(a, b, s)
+          wvvm(ab,s) = wvvm(ab,s) + cExchange * 0.5_dp * vecHvvZ(abs) / omegaDif
+        end do
+      end do
+
+    end if
+
+    ! Divide diagonal elements of W_ij by 2.
+!!$    do s = 1, nSpin
+!!$      do ij = 1, nxoo(s)
+!!$        i = getIJ(ij + soo(s), 1)
+!!$        j = getIJ(ij + soo(s), 2)
+!!$        if (i == j) then
+!!$          woo(ij,s) = 0.5_dp * woo(ij,s)
+!!$        end if
+!!$      end do
+!!$    end do
+!!$
+!!$    ! Divide diagonal elements of W_ab by 2.
+!!$    do s = 1, nSpin
+!!$      do ab = 1, nxvv(s)
+!!$        a = getAB(ab + svv(s), 1)
+!!$        b = getAB(ab + svv(s), 2)
+!!$        if (a == b) then
+!!$          wvv(ab,s) = 0.5_dp * wvv(ab,s)
+!!$        end if
+!!$      end do
+!!$    end do
+
+  end subroutine calcWvectorZnaVec
 
 
   !> Write out density matrix, full if rhoSqr is present
@@ -3388,6 +3808,556 @@ contains
 
   end subroutine addGradients
 
+ !> Calculation of force from derivatives of excitation energy
+  !> 1. we need the ground and excited Mulliken charges
+  !> 2. we need P,(T,Z),W, X + Y from linear response
+  !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
+  !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
+  subroutine addGradientsNA(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,&
+      & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
+      & spinW, shift, woo, wov, wvv, transChrg, xpy, xmy, coord0, orb, skHamCont, skOverCont, &
+      & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad)
+
+    !> symmetry of the transition
+    character, intent(in) :: sym
+
+    !> number of single particle transitions to include
+    integer, intent(in) :: nxov
+
+    !> number of central cell atoms
+    integer, intent(in) :: natom
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> index array for S and H0 ground state square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> number of orbitals for ground state system
+    integer, intent(in) :: norb
+
+    !> number of highest occupied state in ground state
+    integer, intent(in) :: homo(:)
+
+    !> index array from composite occ-vir transition index to specific single particle states
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array from composite occ-occ transition index to specific single particle states
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array from composite vir-vir transition index to specific single particle states
+    integer, intent(in) :: getAB(:,:)
+
+    !> single particle transition index
+    integer, intent(in) :: win(:)
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> transition density matrix
+    real(dp), intent(in) :: pc(:,:,:)
+
+    !> overlap times ground state eigenvectors
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state gross charges
+    real(dp), intent(in) :: dq_ud(:,:)
+
+    !> charge differences from ground to excited state
+    real(dp), intent(in) :: dqex(:,:)
+
+    !> softened coulomb matrix
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> electrostatic matrix, long-range corrected
+    real(dp), allocatable, intent(in) :: lrGamma(:,:)
+
+    !> ground state Hubbard U values
+    real(dp), intent(in) :: HubbardU(:)
+
+    !> ground state spin derivatives for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> ground state potentials (shift vector)
+    real(dp), intent(in) :: shift(:)
+
+    !> W vector occupied part
+    real(dp), intent(in) :: woo(:,:)
+
+    !> W vector occupied-virtual part
+    real(dp), intent(in) :: wov(:)
+
+    !> W vector virtual part
+    real(dp), intent(in) :: wvv(:,:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> X+Y Furche term
+    real(dp), intent(in) :: xpy(:)
+
+    !> X-Y Furche term
+    real(dp), intent(in) :: xmy(:)
+
+    !> central cell atomic coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> H0 data
+    type(TSlakoCont), intent(in) :: skHamCont
+
+    !> overlap data
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Differentiator for the non-scc matrices
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> ground state density matrix
+    real(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> difference density matrix (vs. uncharged atoms)
+    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
+
+    !> is calculation range-separated?
+    logical, intent(in) :: tRangeSep
+
+    !> Data for range-separated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> resulting excited state gradient
+    real(dp), intent(out) :: excgrad(:,:)
+
+
+    real(dp), allocatable :: shift_excited(:,:), xpyq(:), xpyqds(:)
+    real(dp), allocatable :: shxpyq(:,:), xpycc(:,:,:), wcc(:,:,:), tmp5(:), tmp7(:), tmp11(:)
+    real(dp), allocatable :: qTr(:), temp(:), dq(:), dm(:), dsigma(:)
+    real(dp), allocatable :: dH0(:,:,:), dSo(:,:,:)
+    real(dp), allocatable :: Dens(:,:), SpinDens(:,:)
+    real(dp), allocatable :: xmycc(:,:,:), xpyas(:,:,:), xmyas(:,:,:)
+    real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
+    real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:)
+    real(dp), allocatable :: XS(:,:,:), SXS(:,:,:), SY(:,:,:), YS(:,:,:), SYS(:,:,:)
+    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, s, ka
+    integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
+    integer :: iSp1, iSp2, iSpin, nSpin
+    real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
+    real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
+    real(dp) :: spinFactor
+    integer, allocatable :: nxoo(:), nxvv(:), nvir(:), species(:)
+    logical :: tSpin
+
+    nSpin = size(grndEigVecs, dim=3)
+    tSpin = (nSpin == 2)
+
+    ALLOCATE(shift_excited(natom, nSpin))
+    ALLOCATE(xpyq(natom))
+    ALLOCATE(shxpyq(natom, nSpin))
+    ALLOCATE(xpycc(norb, norb, nSpin))
+    ALLOCATE(wcc(norb, norb, nSpin))
+    ALLOCATE(qTr(natom))
+    ALLOCATE(temp(norb))
+    ALLOCATE(tmp5(nSpin))
+    ALLOCATE(tmp7(nSpin))
+
+    ALLOCATE(Dens(norb,norb))
+    !! TO CHANGE: For tRangeSep density from call seems to be incorrect, have
+    !! to recreate it from eigenvectors.
+    Dens = 0._dp
+    if (tRangeSep) then
+      Dens = 0._dp
+      call herk(Dens, grndEigVecs(:,1:homo(1),1), alpha=2.0_dp)
+    else
+      Dens(:,:) = sum(rhoSqr, dim=3)
+    endif
+
+    ALLOCATE(dH0(orb%mOrb, orb%mOrb, 3))
+    ALLOCATE(dSo(orb%mOrb, orb%mOrb, 3))
+
+    ALLOCATE(nxoo(nSpin))
+    ALLOCATE(nxvv(nSpin))
+    ALLOCATE(nvir(nSpin))
+
+    nxoo(:) = (homo(:)*(homo(:)+1))/2
+    nvir(:) = norb - homo(:)
+    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
+
+    soo(:) = (/ 0, nxoo(1) /)
+    svv(:) = (/ 0, nxvv(1) /)
+
+    ALLOCATE(dq(natom))
+    dq(:) = dq_ud(:,1)
+
+    if (tSpin) then
+      ALLOCATE(dm(natom))
+      ALLOCATE(xpyqds(natom))
+      ALLOCATE(tmp11(nSpin))
+
+      ALLOCATE(SpinDens(norb,norb))
+      SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
+
+      ALLOCATE(dsigma(2))
+      dsigma(1) = 1.0_dp
+      dsigma(2) = -1.0_dp
+      dm(:) = dq_ud(:,2)
+    end if
+
+    if (tRangeSep) then
+      ALLOCATE(xmycc(norb, norb, nSpin))
+      ALLOCATE(xpyas(norb, norb, nSpin))
+      ALLOCATE(xmyas(norb, norb, nSpin))
+      ALLOCATE(PS(norb, norb, nSpin))
+      ALLOCATE(DS(norb, norb, nSpin))
+      ALLOCATE(SPS(norb, norb, nSpin))
+      ALLOCATE(SDS(norb, norb, nSpin))
+      ALLOCATE(SX(norb, norb, nSpin))
+      ALLOCATE(XS(norb, norb, nSpin))
+      ALLOCATE(SXS(norb, norb, nSpin))
+      ALLOCATE(SY(norb, norb, nSpin))
+      ALLOCATE(YS(norb, norb, nSpin))
+      ALLOCATE(SYS(norb, norb, nSpin))
+      ALLOCATE(overlap(norb, norb))
+      ALLOCATE(lrGammaOrb(norb, norb))
+      ALLOCATE(gammaLongRangePrime(3, nAtom, nAtom))
+
+      ! Symmetrize deltaRho
+      do mu = 1, norb
+        do nu = mu + 1, norb
+          deltaRho(mu,nu,:) = deltaRho(nu,mu,:)
+        end do
+      end do
+
+      ! Compute long-range gamma derivative
+      gammaLongRangePrime(:,:,:) = 0._dp
+      call rangeSep%getSpecies(species)
+      do iAt1 = 1, nAtom
+        do iAt2 = 1, nAtom
+          if(iAt1 /= iAt2) then
+            call getGammaPrimeValue(rangeSep, tmpVec, iAt1, iAt2, coord0, species)
+            gammaLongRangePrime(:, iAt1, iAt2) = tmpVec
+          end if
+        end do
+      end do
+
+      ! Symmetrize S (can't we get S from caller?)
+      call getSqrS(coord0, nAtom, skOverCont, orb, iAtomStart, species0, overlap)
+      call getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
+
+    end if
+
+    excgrad = 0.0_dp
+
+    ! excited state potentials at atomic sites
+    do iSpin = 1, nSpin
+      call hemv(shift_excited(:,iSpin), gammaMat, dqex(:,iSpin))
+    end do
+
+    ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
+    ! complexity norb * norb * norb
+    xpyq(:) = 0.0_dp
+    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+
+    ! complexity norb * norb
+    shxpyq(:,:) = 0.0_dp
+    if (.not. tSpin) then
+      if (sym == "S") then
+        call hemv(shxpyq(:,1), gammaMat, xpyq)
+      else
+        shxpyq(:,1) = xpyq(:) * spinW(species0)
+      end if
+    else
+      xpyqds(:) = 0.0_dp
+      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      do iSpin = 1, nSpin
+        call hemv(shxpyq(:,iSpin), gammaMat, xpyq)
+        shxpyq(:,iSpin) = shxpyq(:,iSpin) + dsigma(iSpin) * spinW(species0) * xpyqds
+        shxpyq(:,iSpin) = 0.5_dp * shxpyq(:,iSpin)
+      end do
+    end if
+
+    ! calculate xpycc
+    ! (xpycc)_{mu nu} = sum_{ia} (X + Y)_{ia} (grndEigVecs(mu,i)grndEigVecs(nu,a)
+    ! + grndEigVecs(nu,i)grndEigVecs(mu,a))
+    ! complexity norb * norb * norb
+    !
+    ! xpycc(mu,nu) = sum_ia (X+Y)_ia grndEigVecs(mu,i) grndEigVecs(nu,a)
+    ! xpycc(mu, nu) += sum_ia (X+Y)_ia grndEigVecs(mu,a) grndEigVecs(nu,i)
+    xpycc(:,:,:) = 0.0_dp
+    do ia = 1, nxov
+      call indxov(win, ia, getIA, i, a, iSpin)
+      ! should replace with DSYR2 call :
+      do nu = 1, norb
+        do mu = 1, norb
+          xpycc(mu,nu,iSpin) = xpycc(mu,nu,iSpin) + xpy(ia) *&
+              & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
+              & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )
+        end do
+      end do
+    end do
+
+    if (tRangeSep) then
+
+      ! Asymmetric contribution: xmycc_as = sum_ias (X-Y)_ias c_mas c_nis
+      xmycc(:,:,:) = 0.0_dp
+      xpyas(:,:,:) = 0.0_dp
+      xmyas(:,:,:) = 0.0_dp
+      do ia = 1, nxov
+        call indxov(win, ia, getIA, i, a, iSpin)
+        ! should replace with DSYR2 call :
+        do nu = 1, norb
+          do mu = 1, norb
+            xmycc(mu,nu,iSpin) = xmycc(mu,nu,iSpin) + xmy(ia) * &
+                & ( grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin) &
+                & + grndEigVecs(mu,a,iSpin) * grndEigVecs(nu,i,iSpin) )
+            xpyas(mu,nu,iSpin) = xpyas(mu,nu,iSpin) + xpy(ia) * &
+                &  grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
+            xmyas(mu,nu,iSpin) = xmyas(mu,nu,iSpin) + xmy(ia) * &
+                &  grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
+          end do
+        end do
+      end do
+
+      ! Account for normalization of S/T versus spin-polarized X+/-Y
+      ! We have (X+Y)^S = 1/sqrt(2) [(X+Y)_up + (X+Y)_dn]
+      if (tSpin) then
+        xmycc = xmycc / sqrt(2._dp)
+        xpyas = xpyas / sqrt(2._dp)
+        xmyas = xmyas / sqrt(2._dp)
+      end if
+
+      do iSpin = 1, nSpin
+        call symm(PS(:,:,iSpin), 'R', overlap, pc(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SPS(:,:,iSpin), 'L', overlap, PS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(DS(:,:,iSpin), 'R', overlap, deltaRho(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SDS(:,:,iSpin), 'L', overlap, DS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(XS(:,:,iSpin), 'R', overlap, xpyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SX(:,:,iSpin), 'L', overlap, xpyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SXS(:,:,iSpin), 'L', overlap, XS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(YS(:,:,iSpin), 'R', overlap, xmyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SY(:,:,iSpin), 'L', overlap, xmyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(SYS(:,:,iSpin), 'L', overlap, YS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+      end do
+    end if
+
+    ! calculate wcc = c_mu,i * W_ij * c_j,nu. We have only W_ab b > a and W_ij j > i:
+    ! wcc(m,n) = sum_{pq, p <= q} w_pq (grndEigVecs(mu,p)grndEigVecs(nu,q)
+    ! + grndEigVecs(nu,p)grndEigVecs(mu,q))
+    ! complexity norb * norb * norb
+
+    ! calculate the occ-occ part
+    wcc(:,:,:) = 0.0_dp
+
+    do iSpin = 1, nSpin
+      do ij = 1, nxoo(iSpin)
+        i = getIJ(ij + soo(iSpin), 1)
+        j = getIJ(ij + soo(iSpin), 2)
+        ! replace with DSYR2 call :
+        do mu = 1, norb
+          do nu = 1, norb
+            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + woo(ij,iSpin) *&
+                & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,j,iSpin)&
+                & + grndEigVecs(mu,j,iSpin)*grndEigVecs(nu,i,iSpin) )
+          end do
+        end do
+
+      end do
+    end do
+
+    ! calculate the occ-virt part : the same way as for xpycc
+    do ia = 1, nxov
+      call indxov(win, ia, getIA, i, a, iSpin)
+      ! again replace with DSYR2 call :
+      do nu = 1, norb
+        do mu = 1, norb
+          wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *&
+              & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
+              & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )
+        end do
+      end do
+    end do
+
+    ! calculate the virt - virt part
+    do iSpin = 1, nSpin
+      do ab = 1, nxvv(iSpin)
+        a = getAB(ab + svv(iSpin), 1)
+        b = getAB(ab + svv(iSpin), 2)
+        ! replace with DSYR2 call :
+        do mu = 1, norb
+          do nu = 1, norb
+            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wvv(ab,iSpin) *&
+                & ( grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,b,iSpin)&
+                & + grndEigVecs(mu,b,iSpin)*grndEigVecs(nu,a,iSpin) )
+          end do
+        end do
+
+      end do
+    end do
+
+    ! now calculating the force complexity : norb * norb * 3
+
+    ! as have already performed norb**3 operation to get here,
+    ! calculate for all atoms
+
+    ! BA: only for non-periodic systems!
+    do iAt1 = 1, nAtom
+      indalpha = iAtomStart(iAt1)
+      indalpha1 = iAtomStart(iAt1 + 1) -1
+      iSp1 = species0(iAt1)
+
+      do iAt2 = 1, iAt1 - 1
+        indbeta = iAtomStart(iAt2)
+        indbeta1 = iAtomStart(iAt2 + 1) -1
+        iSp2 = species0(iAt2)
+
+        diffvec = coord0(:,iAt1) - coord0(:,iAt2)
+        rab = sqrt(sum(diffvec**2))
+
+        ! now holds unit vector in direction
+        diffvec = diffvec / rab
+
+        ! calculate the derivative of gamma
+        dgab(:) = diffvec(:) * (-1.0_dp/rab**2 - expGammaPrime(rab, HubbardU(iSp1), HubbardU(iSp2)))
+
+        tmp3a = 0.0_dp
+        do iSpin = 1, nSpin
+          tmp3a = tmp3a + dq(iAt1) * dqex(iAt2,iSpin) + dqex(iAt1,iSpin) * dq(iAt2)
+        end do
+
+        if (.not. tSpin) then
+          if (sym == "S") then
+            tmp3b = 4.0_dp * xpyq(iAt1) * xpyq(iAt2)
+          else
+            tmp3b = 0.0_dp
+          end if
+        else
+          tmp3b = 2.0_dp * xpyq(iAt1) * xpyq(iAt2)
+        end if
+
+        excgrad(:,iAt1) = excgrad(:,iAt1) + dgab(:) * ( tmp3a + tmp3b )
+        excgrad(:,iAt2) = excgrad(:,iAt2) - dgab(:) * ( tmp3a + tmp3b )
+
+        tmp5(:) = shift_excited(iAt1,:) + shift_excited(iAt2,:)
+        tmp7(:) = 2.0_dp * ( shxpyq(iAt1,:) + shxpyq(iAt2,:) )
+
+        if (tSpin) then
+          tmp9 = spinW(iSp1) * dm(iAt1) + spinW(iSp2) * dm(iAt2)
+          tmp11(:) = spinW(iSp1) * dqex(iAt1,:) + spinW(iSp2) * dqex(iAt2,:)
+        end if
+
+        if (tRangeSep) then
+          tmprs = 0.0_dp
+          tmps(:) = 0.0_dp
+          do iSpin = 1, nSpin
+            do mu = indAlpha, indAlpha1
+              do nu = indBeta, indBeta1
+                tmprs = tmprs +&
+          & ( 2.0_dp * (PS(mu,nu,iSpin) * DS(nu,mu,iSpin) + PS(nu,mu,iSpin) * DS(mu,nu,iSpin)) +&
+          &   SPS(mu,nu,iSpin) * deltaRho(mu,nu,iSpin) + SPS(nu,mu,iSpin) * deltaRho(nu,mu,iSpin) +&
+          &   pc(mu,nu,iSpin) * SDS(mu,nu,iSpin) + pc(nu,mu,iSpin) * SDS(nu,mu,iSpin) )
+                tmprs = tmprs + 2.0_dp *&
+          & ( xpyas(mu,nu,iSpin) * SXS(mu,nu,iSpin) + xpyas(nu,mu,iSpin) * SXS(nu,mu,iSpin) +&
+          &   SX(mu,nu,iSpin) * XS(mu,nu,iSpin) + SX(nu,mu,iSpin) * XS(nu,mu,iSpin) )
+                tmprs = tmprs +&
+          & ( XS(mu,nu,iSpin) * XS(nu,mu,iSpin) + XS(nu,mu,iSpin) * XS(mu,nu,iSpin) +&
+          &   SXS(mu,nu,iSpin) * xpyas(nu,mu,iSpin) + SXS(nu,mu,iSpin) * xpyas(mu,nu,iSpin) +&
+          &   xpyas(mu,nu,iSpin) * SXS(nu,mu,iSpin) + xpyas(nu,mu,iSpin) * SXS(mu,nu,iSpin) +&
+          &   SX(mu,nu,iSpin) * SX(nu,mu,iSpin) + SX(nu,mu,iSpin) * SX(mu,nu,iSpin) )
+                tmprs = tmprs + 2.0_dp *&
+          & ( xmyas(mu,nu,iSpin) * SYS(mu,nu,iSpin) + xmyas(nu,mu,iSpin) * SYS(nu,mu,iSpin) +&
+          &   SY(mu,nu,iSpin) * YS(mu,nu,iSpin) + SY(nu,mu,iSpin) * YS(nu,mu,iSpin) )
+                tmprs = tmprs -&
+          & ( YS(mu,nu,iSpin) * YS(nu,mu,iSpin) + YS(nu,mu,iSpin) * YS(mu,nu,iSpin) +&
+          &   SYS(mu,nu,iSpin) * xmyas(nu,mu,iSpin) + SYS(nu,mu,iSpin) * xmyas(mu,nu,iSpin) +&
+          &   xmyas(mu,nu,iSpin) * SYS(nu,mu,iSpin) + xmyas(nu,mu,iSpin) * SYS(mu,nu,iSpin) +&
+          &   SY(mu,nu,iSpin) * SY(nu,mu,iSpin) + SY(nu,mu,iSpin) * SY(mu,nu,iSpin) )
+              end do
+            end do
+          end do
+          ! Factor of two for spin-polarized calculation
+          tmprs = cExchange * nSpin * tmprs
+
+          excGrad(:,iAt1) = excGrad(:,iAt1) - 0.125_dp * tmprs * gammaLongRangePrime(:,iAt1,iAt2)
+          excGrad(:,iAt2) = excGrad(:,iAt2) + 0.125_dp * tmprs * gammaLongRangePrime(:,iAt1,iAt2)
+        end if
+
+        call derivator%getFirstDeriv(dH0, skHamCont, coord0, species0,&
+            & iAt1, iAt2, orb)
+        call derivator%getFirstDeriv(dSo, skOverCont, coord0, species0,&
+            & iAt1, iAt2, orb)
+
+        do xyz = 1, 3
+
+          tmp1 = 0.0_dp
+          tmp2 = 0.0_dp
+          tmp3 = 0.0_dp
+          tmp4 = 0.0_dp
+          tmp6 = 0.0_dp
+          tmp8 = 0.0_dp
+          tmp10 = 0.0_dp
+          tmprs2 = 0.0_dp
+
+          do iSpin = 1, nSpin
+
+            do mu = indalpha, indalpha1
+              do nu = indbeta, indbeta1
+                m = mu - indalpha + 1
+                n = nu - indbeta + 1
+
+                tmp1 = tmp1 + 2.0_dp * dH0(n,m,xyz) * pc(mu,nu,iSpin)
+                tmp2 = tmp2 + dSo(n,m,xyz) * pc(mu,nu,iSpin) * (shift(iAt1)+shift(iAt2))
+                tmp3 = tmp3 - dSo(n,m,xyz) * wcc(mu,nu,iSpin)
+                tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * Dens(mu,nu)
+                tmp6 = tmp6 + tmp7(iSpin) * dSo(n,m,xyz) * xpycc(mu,nu,iSpin)
+
+                if (tSpin) then
+                  tmp8 = tmp8 + tmp9 * dSo(n,m,xyz) * dsigma(iSpin) * pc(mu,nu,iSpin)
+                  tmp10 = tmp10 + tmp11(iSpin) * dSo(n,m,xyz) * dsigma(iSpin) * SpinDens(mu,nu)
+                end if
+
+                if (tRangeSep) then
+                  tmprs = 0.0_dp
+                  do ka = 1, nOrb
+                    tmprs = tmprs +&
+            & ( PS(mu,ka,iSpin) * deltaRho(nu,ka,iSpin) + PS(nu,ka,iSpin) * deltaRho(mu,ka,iSpin) +&
+            &   pc(mu,ka,iSpin) * DS(nu,ka,iSpin) + pc(nu,ka,iSpin) * DS(mu,ka,iSpin) ) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                    tmprs = tmprs +&
+            & ( xpyas(mu,ka,iSpin) * XS(nu,ka,iSpin) + xpyas(ka,mu,iSpin) * SX(ka,nu,iSpin) +&
+            &   xpyas(nu,ka,iSpin) * XS(mu,ka,iSpin) + xpyas(ka,nu,iSpin) * SX(ka,mu,iSpin) )*&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                    tmprs = tmprs +&
+            & ( xmyas(mu,ka,iSpin) * YS(nu,ka,iSpin) + xmyas(ka,mu,iSpin) * SY(ka,nu,iSpin) +&
+            &   xmyas(nu,ka,iSpin) * YS(mu,ka,iSpin) + xmyas(ka,nu,iSpin) * SY(ka,mu,iSpin) ) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                    tmprs = tmprs +&
+            & ( XS(mu,ka,iSpin) * xpyas(ka,nu,iSpin) + XS(nu,ka,iSpin) * xpyas(ka,mu,iSpin) +&
+            &   xpyas(mu,ka,iSpin) * SX(ka,nu,iSpin) + xpyas(nu,ka,iSpin) * SX(ka,mu,iSpin)) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                    tmprs = tmprs -&
+            & ( YS(mu,ka,iSpin) * xmyas(ka,nu,iSpin) + YS(nu,ka,iSpin) * xmyas(ka,mu,iSpin) +&
+            &   xmyas(mu,ka,iSpin) * SY(ka,nu,iSpin) + xmyas(nu,ka,iSpin) * SY(ka,mu,iSpin)) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                  end do
+                  ! Factor of 2 for spin-polarized calculations
+                  tmprs2 = tmprs2 + cExchange * nSpin * dSo(n,m,xyz) * tmprs
+                end if
+
+              end do
+            end do
+
+          end do
+
+          excgrad(xyz,iAt1) = excgrad(xyz,iAt1)&
+              & + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 + tmp8 + tmp10 - 0.25_dp * tmprs2
+          excgrad(xyz,iAt2) = excgrad(xyz,iAt2)&
+              & - tmp1 - tmp2 - tmp4 - tmp6 - tmp3 - tmp8 - tmp10 + 0.25_dp * tmprs2
+        end do
+      end do
+    end do
+
+  end subroutine addGradientsNA
+
 
   !> Write out excitations projected onto ground state
   subroutine writeCoeffs(tt, grndEigVecs, occ, tCoeffs, tIncGroundState,&
@@ -3782,6 +4752,47 @@ contains
     pc = pc + t
 
   end subroutine calcPMatrix
+
+  !> Create transition density matrix in MO basis P = T + Z 
+  !> non-symmetric for NA
+  subroutine calcPMatrixNA(t, rhsp, rhsm, win, getIA, pc)
+
+    !> T matrix
+    real(dp), intent(in) :: t(:,:,:)
+
+    !> Z^+ matrix
+    real(dp), intent(in) :: rhsp(:)
+
+    !> Z^- matrix
+    real(dp), intent(in) :: rhsm(:)
+
+    !> index array for single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> array of the occupied->virtual pairs (nTransitions,occ 1 or virtual 2)
+    integer, intent(in) :: getIA(:,:)
+
+    !> resulting excited state density matrix
+    real(dp), intent(out) :: pc(:,:,:)
+
+    integer :: ias, i, a, s, nSpin
+
+    nSpin = size(pc, dim=3)
+
+    pc = 0.0_dp
+    do ias = 1, size(rhs)
+      call indxov(win, ias, getIA, i, a, s)
+      pc(i,a,s) = rhsp(ias)
+      pc(a,i,s) = rhsm(ias)
+    end do
+
+!!$    do s = 1, nSpin
+!!$      pc(:,:,s) = 0.5_dp * ( pc(:,:,s) + transpose(pc(:,:,s)) )
+!!$    end do
+
+    pc = pc + t
+
+  end subroutine calcPMatrixNA
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are virtual orbitals and V is either X+Y or X-Y
