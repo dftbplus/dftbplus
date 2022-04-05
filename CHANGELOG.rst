@@ -20,6 +20,8 @@ Added
 - (Optionally) Rescale externally applied fields and dipole moments
   when implicit solvents are used
 
+- Enable lattice constraints in new geometry optimization driver
+
 
 Changed
 -------

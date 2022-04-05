@@ -129,6 +129,11 @@ contains
     type(string) :: buffer
 
     call getChildValue(node, "LatticeOpt", input%lattice, .false.)
+    if (input%lattice) then
+      call getChildValue(node, "FixAngles", input%fixAngles, .false.)
+      call getChildValue(node, "FixLengths", input%fixLength, [.false., .false., .false.])
+      call getChildValue(node, "Isotropic", input%isotropic, .false.)
+    end if
     call getChildValue(node, "MovedAtoms", buffer, "1:-1", multiple=.true., child=child)
     call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, &
         & input%indMovedAtom)

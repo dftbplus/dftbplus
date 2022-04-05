@@ -1,0 +1,41 @@
+Geometry = GenFormat {
+    2  S
+  C
+    1 1    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    2 1    1.5000000000E+00    0.0000000000E+00    0.0000000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    0.2000000000E+01    0.0000000000E+00    0.0000000000E+00
+    0.0000000000E+00    0.1000000000E+03    0.0000000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.1000000000E+03
+}
+
+Driver = GeometryOptimization {
+ Convergence = { GradElem = 1.0E-6 }
+ LatticeOpt = Yes
+ FixLengths = {No Yes Yes}
+}
+
+Hamiltonian = DFTB {
+  MaxAngularMomentum = {
+    C = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 1
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/mio-1-1/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   20 0 0
+   0 1 0
+   0 0 1
+   0.5 0.5 0.5
+  }
+}
+
+Options = { WriteAutotestTag = Yes }
+ParserOptions = { ParserVersion = 10 }
+Parallel { UseOmpThreads = Yes }
+
