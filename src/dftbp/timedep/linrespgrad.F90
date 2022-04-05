@@ -731,12 +731,10 @@ contains
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,    &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-          print *,'passed the thang'
           call solveZVectorPrecondMinus(rhsm, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,    &
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,        &
             & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,    &
             & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
-          print *,'passed it twice'
 
           call calcNadiaWVectorZ(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans,&
             & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvvm,   & 
@@ -2090,13 +2088,13 @@ contains
 
         t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
         wvvp(ab,s) = wvvp(ab,s) + 0.25_dp * grndEigVal(i,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif + 0.125_dp * (tmp3 + tmp4)
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif 
                             
         ! to prevent double counting
         if (a /= b) then
           t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
           wvvm(ab,s) = wvvm(ab,s) + 0.25_dp * grndEigVal(i,s) * mtmp1 / omegaDif  &
-                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif + 0.125_dp * (tmp3 - tmp4)         
+                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif 
         end if
         
       end do
@@ -2127,13 +2125,13 @@ contains
 
         t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
         woop(ij,s) = woop(ij,s) - 0.25_dp * grndEigVal(a,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif - 0.125_dp * (tmp3 + tmp4)
+                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif 
 
         ! to prevent double counting
         if (i /= j) then
           t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
           woom(ij,s) = woom(ij,s) - 0.25_dp * grndEigVal(a,s) * mtmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif - 0.125_dp * (tmp3 - tmp4)
+                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif 
         end if
 
       end do
@@ -2221,26 +2219,6 @@ contains
       end do
 
     end do
-
-!!$    !!> Debug TN
-!!$    call getHplusXYfr(sym, nxoo, nxvv, nAtom, iaTrans, getIA, getIJ, getAB, win, iAtomStart,  &
-!!$      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHooXorY, vecHvvXorY)
-!!$    allocate(vecHovT(sum(nxvv)))
-!!$    t = 0.0
-!!$    do ias = 1,nxov
-!!$       i = getIA(ias, 1)
-!!$       a = getIA(ias, 2)
-!!$       s = getIA(ias, 3)
-!!$       t(i,a,s) = xpym(ias)
-!!$       !!t(a,i,s) = 0.5_dp*xpym(ias)
-!!$    enddo
-!!$    call getHplusMfr(2, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
-!!$      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg,             &
-!!$      & t, vecHovT)
-!!$    do ias = 1,sum(nxvv)
-!!$       write(*,'(i3,2x,f20.16,2x,f20.16)') ias, vecHvvXorY(ias),vecHovT(ias)
-!!$    enddo
-!!$    stop
 
     allocate(tp, mold=t)
     allocate(tm, mold=t)
@@ -2727,7 +2705,6 @@ contains
 
     do ia = 1, nxov
       rs = wij(ia)
-
       !! Possibly reorder spin case
       if (tRangeSep) then
         qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
