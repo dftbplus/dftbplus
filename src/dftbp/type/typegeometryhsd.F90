@@ -16,7 +16,7 @@ module dftbp_type_typegeometryhsd
       & checkError, getFirstTextChild, writeChildValue
   use dftbp_io_hsdutils2, only : getModifierIndex, splitModifier, convertByMul
   use dftbp_io_message, only : error
-  use dftbp_io_tokenreader, only : TOKEN_OK, getNextToken
+  use dftbp_io_tokenreader, only : TOKEN_OK, TOKEN_ERROR, getNextToken
   use dftbp_math_simplealgebra, only : invert33, determinant33
   use dftbp_type_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
       & destruct, asArray
@@ -448,6 +448,10 @@ contains
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
     call checkError(node, iErr, "Bad number of atoms.")
+
+    if (iStart < iEnd) then
+      call checkError(node, TOKEN_ERROR, "Additional field(s) found on first line of xyz geometry")
+    end if
 
     ! advance to next line
     iStart = iEnd + 1
