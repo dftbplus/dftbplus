@@ -284,6 +284,10 @@ contains
 
     symbol = speciesNames(species0)
     call new(this%mol, symbol, coords0, lattice=latVecs)
+
+    if (any(this%mol%num <= 0)) then
+      call error("Unidentified species present in species list")
+    end if
   #:else
     call notImplementedError
   #:endif
