@@ -227,6 +227,12 @@ module dftbp_extlibs_tblite
     !> Returns the equivalence to get the correct mixing of charge dependent contributions
     procedure :: getOrbitalEquiv
 
+    !> Get Hubbard parameters from second order electrostatic
+    procedure :: getHubbardU
+
+    !> Remove second order electrostatics
+    procedure :: removeES2
+
     !> Construct Hamiltonian and overlap related integrals
     procedure :: buildSH0
 
@@ -1064,6 +1070,56 @@ contains
   #:endif
   end subroutine getOrbitalEquiv
 
+
+  !> Return Hubbard parameters from extended tight binding model
+  subroutine getHubbardU(this, hubbU)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Hubbard parameters for
+    real(dp), intent(out) :: hubbU(:, :)
+
+  #:if WITH_TBLITE
+    hubbU(:, :) = 0.0_dp
+    if (.not.allocated(this%calc%coulomb)) return
+    if (.not.allocated(this%calc%coulomb%es2)) return
+
+    block
+      use tblite_coulomb_charge, only : gamma_coulomb, effective_coulomb
+      integer :: iSp, iSh
+      select type(es2 => this%calc%coulomb%es2)
+      class is(gamma_coulomb)
+        do iSp = 1, size(hubbU, 2)
+          hubbU(:, iSp) = es2%hubbard(:, this%sp2id(iSp))
+        end do
+      class is(effective_coulomb)
+        do iSp = 1, size(hubbU, 2)
+          do iSh = 1, size(hubbU, 1)
+            hubbU(iSh, iSp) = es2%hubbard(iSh, iSh, this%sp2id(iSp), this%sp2id(iSp))
+          end do
+        end do
+      end select
+    end block
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine getHubbardU
+
+  !> Remove second order electrostatics from container
+  subroutine removeES2(this)
+
+    !> Data structure
+    class(TTBLite), intent(inout) :: this
+
+  #:if WITH_TBLITE
+    if (.not.allocated(this%calc%coulomb)) return
+    if (.not.allocated(this%calc%coulomb%es2)) return
+    deallocate(this%calc%coulomb%es2)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine removeES2
 
   !> Build atomic block sparse compressed Hamiltonian and overlap related integrals
   subroutine buildSH0(this, env, species, coords, nNeighbour, iNeighbours, img2centCell, &

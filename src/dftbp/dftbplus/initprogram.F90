@@ -1540,7 +1540,7 @@ contains
       this%cutOff%mCutoff = this%cutOff%skCutoff
     end select
 
-    call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
+    call initHubbardUs_(input, this%orb, this%hamiltonianType, this%tblite, hubbU)
     if (this%tSccCalc) then
       allocate(this%uniqHubbU)
       call TUniqueHubbard_init(this%uniqHubbU, hubbU, this%orb)
@@ -1634,6 +1634,16 @@ contains
         call ThirdOrder_init(this%thirdOrd, thirdInp)
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%thirdOrd%getCutOff())
       end if
+    else
+      if (this%tPoisson) then
+        call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
+        call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+           & coulombInput, shortGammaInput, poissonInput, this%scc)
+      end if
     end if
 
   #:block DEBUG_CODE
@@ -1703,6 +1713,10 @@ contains
 
     ! Orbital equivalency relations
     call this%setEquivalencyRelations()
+
+    if (allocated(this%tblite) .and. this%tPoisson) then
+      call this%tblite%removeES2
+    end if
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
@@ -4244,10 +4258,11 @@ contains
 
 
   ! Set up Hubbard U values
-  subroutine initHubbardUs_(input, orb, hamiltonianType, hubbU)
+  subroutine initHubbardUs_(input, orb, hamiltonianType, tblite, hubbU)
     type(TInputData), intent(in) :: input
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: hamiltonianType
+    type(TTBlite), intent(in), optional :: tblite
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 
     integer :: nSpecies
@@ -4264,8 +4279,8 @@ contains
       @:ASSERT(size(input%slako%skHubbU, dim=2) == nSpecies)
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+      @:ASSERT(present(tblite))
+      call tblite%getHubbardU(hubbU)
     end select
 
     if (allocated(input%ctrl%hubbU)) then
