@@ -481,11 +481,11 @@ contains
           & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
           & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
           & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
-          & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
-          & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
-          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver,&
-          & errStatus)
+          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
+          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
+          & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
+          & main%electronicSolver, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -536,9 +536,9 @@ contains
            & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
            & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
            & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
-           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
-           & errStatus)
+           & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
+           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+           & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)

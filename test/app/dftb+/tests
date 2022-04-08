@@ -267,6 +267,7 @@ solvation/cosmo_444                    #? MPI_PROCS <= 2
 solvation/cosmo_inf                    #? MPI_PROCS <= 1
 solvation/cosmo_quinoline              #? MPI_PROCS <= 1
 solvation/cosmo_nitralin               #? MPI_PROCS <= 2
+solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1

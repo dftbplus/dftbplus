@@ -206,6 +206,9 @@ module dftbp_io_taggedoutput
     !> Total dipole moment
     character(lenLabel) :: dipoleMoment = 'dipole_moments'
 
+    !> Rescaled dipole moment (for example if solvated)
+    character(lenLabel) :: scaledDipole = 'scaled_dipole'
+
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
 

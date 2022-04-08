@@ -106,6 +106,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_mixer_simplemixer, only : TSimpleMixer, init
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
@@ -840,6 +841,9 @@ module dftbp_dftbplus_initprogram
 
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
+
+    !> Dielectric scaling of electric fields (if relevant)
+    type(TScaleExtEField) :: eFieldScaling
 
     !> Charge Model 5 for printout
     type(TChargeModel5), allocatable :: cm5Cont
@@ -2208,6 +2212,17 @@ contains
         call error("Could not initialize solvation model!")
       end if
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
+
+      call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
+          & input%ctrl%isSolvatedFieldRescaled)
+
+      if (allocated(this%eField)) then
+        if (allocated(this%eField%EFieldStrength)) then
+          this%eField%EFieldStrength =&
+              & this%eFieldScaling%scaledExtEField(this%eField%EFieldStrength)
+        end if
+      end if
+
     end if
 
     if (allocated(this%halogenXCorrection)) then
@@ -2221,11 +2236,13 @@ contains
         isDipoleDefined = .true.
         if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
           call warning("Dipole printed for a charged system : origin dependent quantity")
+          isDipoleDefined = .false.
         end if
         if (this%tPeriodic.or.this%tHelical) then
           call warning("Dipole printed for extended system : value printed is not well defined")
+          isDipoleDefined = .false.
         end if
-        if (isDipoleDefined) then
+        if (.not.isDipoleDefined) then
           write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
         else
           write(this%dipoleMessage, "(A)")""
@@ -2343,12 +2360,6 @@ contains
 
     else
       this%isStatEResp = .false.
-    end if
-
-    if (allocated(this%solvation)) then
-      if ((this%tExtChrg .or. this%isExtField) .and. this%solvation%isEFieldModified()) then
-        call error('External fields are not currently compatible with this implicit solvent.')
-      end if
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
@@ -3263,6 +3274,11 @@ contains
 
     if (allocated(this%solvation)) then
       call writeSolvationInfo(stdOut, this%solvation)
+      if (this%eFieldScaling%isRescaled) then
+        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "Yes"
+      else
+        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "No"
+      end if
     end if
 
     if (this%tSccCalc) then
@@ -3620,18 +3636,13 @@ contains
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
       end if
 
-      if (this%isExtField) then
-        call error("Electron dynamics does not work yet with static external fields/potentials in&
-            & the initial ground state.")
-      end if
-
       allocate(this%electronDynamics)
 
       call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%eFieldScaling,&
           & this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
