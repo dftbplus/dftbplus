@@ -35,6 +35,7 @@ Fixed
 
 - incorrect atomic mass unit for xTB calculations
 
+- electronic temperature read for Green's function solver
 
 21.2 (2021-12-13)
 =================
