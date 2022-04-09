@@ -257,7 +257,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
-    ! Hamiltonian settings that need to know settings from the blocks above
+    ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -2472,7 +2472,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure to test for periodicity
     type(TGeometry), intent(in) :: geo
 
     !> Default temperature for filling
@@ -2663,6 +2663,8 @@ contains
   #:if WITH_TRANSPORT
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
+      ! need electronic temperature to be read for this solver:
+      call readElectronicFilling(node, ctrl, geo)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -5220,7 +5222,9 @@ contains
       if (ctrl%tMD) then
         if (ctrl%iThermostat /= 0) then
           call getChildValue(driverNode, "Thermostat", child, child=child2)
-          call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+            call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          end if
         end if
       end if
 
@@ -5234,18 +5238,36 @@ contains
         end if
       end if
 
-      ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-      ! thermostat.)
-      select case(ctrl%hamiltonian)
-      case(hamiltonianTypes%xtb)
-        call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
-      case(hamiltonianTypes%dftb)
-        call readFilling(hamNode, ctrl, geo, 0.0_dp)
-      end select
+      if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
+        call readElectronicFilling(hamNode, ctrl, geo)
+      end if
 
     end if hamNeedsT
 
   end subroutine readLaterHamiltonian
+
+
+  !> Parses for electronic filling temperature (should only read if not either REKS or electron
+  !> dynamics from a supplied density matrix)
+  subroutine readElectronicFilling(hamNode, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: hamNode
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure to test for periodicity
+    type(TGeometry), intent(in) :: geo
+
+    select case(ctrl%hamiltonian)
+    case(hamiltonianTypes%xtb)
+      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+    case(hamiltonianTypes%dftb)
+      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+    end select
+
+  end subroutine readElectronicFilling
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state
