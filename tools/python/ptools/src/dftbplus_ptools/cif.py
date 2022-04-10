@@ -8,9 +8,9 @@
 '''Information in CIF-files (only basic informations)'''
 
 import numpy as np
-from dptools.common import openfile
-from dptools.geometry import Geometry
-from dptools.geometry import get_latvecs_fromcif
+from dftbplus_ptools.common import openfile
+from dftbplus_ptools.geometry import Geometry
+from dftbplus_ptools.geometry import get_latvecs_fromcif
 
 __all__ = ['Cif']
 

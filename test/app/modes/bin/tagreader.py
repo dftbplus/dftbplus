@@ -1,1 +1,1 @@
-../../dftb+/bin/tagreader.py
+../../../../tools/python/ptools/src/dftbplus_ptools/tagreader.py

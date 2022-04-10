@@ -10,8 +10,8 @@
 '''Command line wrapper for straingen'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.straingen as straingen
+from dptools.common import ScriptError
+import dptools.straingen as straingen
 
 try:
     straingen.main()

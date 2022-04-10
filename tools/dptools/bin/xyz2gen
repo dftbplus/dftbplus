@@ -10,8 +10,8 @@
 '''Command line wrapper for xyz2gen'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.xyz2gen as xyz2gen
+from dptools.common import ScriptError
+import dptools.xyz2gen as xyz2gen
 
 try:
     xyz2gen.main()

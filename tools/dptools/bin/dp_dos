@@ -10,8 +10,8 @@
 '''Command line wrapper for dp_dos'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.dp_dos as dp_dos
+from dptools.common import ScriptError
+import dptools.dp_dos as dp_dos
 
 try:
     dp_dos.main()

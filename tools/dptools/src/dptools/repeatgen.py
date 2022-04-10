@@ -11,9 +11,9 @@
 import sys
 import argparse
 import numpy as np
-from dptools.gen import Gen
-from dptools.geometry import Geometry
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.gen import Gen
+from dftbplus_ptools.geometry import Geometry
+from dptools.common import ScriptError
 
 USAGE = '''
 Repeats the geometry found in INPUT along each supercell vector N1,

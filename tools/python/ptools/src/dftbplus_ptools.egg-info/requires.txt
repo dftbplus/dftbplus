@@ -1,3 +1,4 @@
 wheel
 setuptools
 numpy
+hsd

@@ -6,11 +6,16 @@
 #------------------------------------------------------------------------------#
 #
 
-'''Representation of the GEN format.'''
+"""Representation of the GEN format."""
 
+import os
+from io import StringIO
+
+import hsd
 import numpy as np
-from dptools.common import OpenFile
-from dptools.geometry import Geometry
+
+from dftbplus_ptools.common import OpenFile
+from dftbplus_ptools.geometry import Geometry
 
 __all__ = ["Gen"]
 
@@ -87,6 +92,90 @@ class Gen:
         return cls(geometry, relative)
 
 
+    @classmethod
+    def fromhsd(cls, filename, directory='.'):
+        """Creates a Gen instance from a hsd dictionary.
+
+        Args:
+            filname (str): filename
+            directory (str): directory
+        """
+
+        path = os.path.join(directory, filename)
+        dictionary = hsd.load(path)
+
+        explicit = True
+        try:
+            dictionary["Geometry"]["TypeNames"]
+        except KeyError:
+            explicit = False
+
+        if explicit:
+            specienames = dictionary["Geometry"]["TypeNames"]
+            for num, speciesname in enumerate(specienames):
+                specienames[num] = speciesname.strip("'").strip('"')
+
+            try:
+                periodic = dictionary["Geometry"]["Periodic"]
+            except KeyError:
+                periodic = False
+
+            try:
+                coords_unit = dictionary["Geometry"]\
+                    ["TypesAndCoordinates.attrib"]
+            except KeyError:
+                coords_unit = None
+            if coords_unit is not None and coords_unit.lower() == "relative":
+                relative = True
+            else:
+                relative = False
+
+            coords = []
+            indexes = []
+            for tac in dictionary["Geometry"]["TypesAndCoordinates"]:
+                coords.append(tac[1:4])
+                indexes.append(tac[0] - 1)
+            coords = np.asarray(coords, dtype=float)
+            indexes = np.asarray(indexes, dtype=int)
+
+            coords = cls.unit_conversion(coords, coords_unit)
+
+            if periodic:
+                try:
+                    origin = dictionary["Geometry"]["CoordinateOrigin"]
+                    origin = np.asarray(origin, dtype=float)
+                except KeyError:
+                    origin = None
+
+                try:
+                    latvecs_unit = dictionary["Geometry"]\
+                        ["LatticeVectors.attrib"]
+                except KeyError:
+                    latvecs_unit = None
+
+                latvecs = dictionary["Geometry"]["LatticeVectors"]
+                latvecs = np.asarray(latvecs, dtype=float)
+
+                latvecs = cls.unit_conversion(latvecs, latvecs_unit)
+
+            else:
+                origin = None
+                latvecs = None
+
+            geometry = Geometry(specienames, indexes, coords, latvecs, origin,
+                                relative)
+            return cls(geometry, relative)
+
+        else:
+            filestring = ""
+            for list1 in dictionary["Geometry"]["GenFormat"]:
+                for content in list1:
+                    filestring += str(content) + " "
+                filestring += "\n"
+            fp = StringIO(filestring)
+            return cls.fromfile(fp)
+
+
     def tofile(self, fobj):
         """Writes a GEN file.
 
@@ -124,13 +213,13 @@ class Gen:
 
 
     def equals(self, other, tolerance=_TOLERANCE):
-        '''Checks whether object equals to an other one.
+        """Checks whether object equals to an other one.
 
         Args:
             other (Gen): Other Gen object.
             tolerance (float): Maximal allowed deviation in floating point
                 numbers (e.g. coordinates).
-        '''
+        """
         if not self.fractional == other.fractional:
             return False
         if not self.geometry.equals(other.geometry, tolerance):
@@ -138,8 +227,40 @@ class Gen:
         return True
 
 
+    @staticmethod
+    def unit_conversion(vector, unit):
+        """converts vectors to Ångström
+
+        Args:
+            vector (array): arry to be converted
+            unit (str/None): unit of vector
+
+        Returns:
+            converted (array): converted vector array
+
+        Raises:
+            NotImplementedError (error): if unit is not supported
+        """
+        if unit is None:
+            return vector
+
+        unit = unit.lower()
+
+        if unit == 'a' or unit == 'aa' or unit == 'angstrom':
+            return vector
+        elif unit == 'meter' or unit == 'm':
+            converted = vector * 1.0E+10
+        elif unit == 'pm':
+            converted = vector / 100.0
+        elif unit == 'bohr' or unit == 'au':
+            converted = vector / 0.188972598857892E+01
+        else:
+            raise NotImplementedError(f"unit '{unit}' is not supported!")
+
+        return converted
+
 def _round_to_zero(array, tolerance):
-    '''Rounds elements of an array to zero below given tolerance.'''
+    """Rounds elements of an array to zero below given tolerance."""
     if tolerance is None:
         return array
     else:

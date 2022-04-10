@@ -10,7 +10,7 @@
 from __future__ import division
 import re
 import numpy as np
-from dptools.common import openfile
+from dftbplus_ptools.common import openfile
 
 __all__ = ["BandOut"]
 

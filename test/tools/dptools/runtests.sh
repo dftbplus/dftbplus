@@ -8,10 +8,12 @@ function abspath() {
 }
 
 testdir=$(dirname $0)
-testdir=$(abspath $testdir)
+testdir=$(abspath ${testdir})
 
-packagedir="$testdir/../../../tools/dptools"
-packagedir=$(abspath $packagedir)
+pythonpath=$(abspath "$testdir/../../../tools/dptools/src")
+pythonpath2=$(abspath "$testdir/../../../tools/python/ptools/src")
+pythonpath="${pythonpath}:${pythonpath2}"
+
 
 workdir="./"
 workdir=$(abspath $workdir)
@@ -22,11 +24,12 @@ else
   pythons="python3"
 fi
 
-pythonpath="$packagedir/src"
 if [ -z "$PYTHONPATH" ]; then
-  export PYTHONPATH="$pythonpath"
+  PYTHONPATH="$pythonpath"
+  export PYTHONPATH
 else
-  export PYTHONPATH="$pythonpath:$PYTHONPATH"
+  PYTHONPATH="$pythonpath:$PYTHONPATH"
+  export PYTHONPATH
 fi
 
 echo $PYTHONPATH

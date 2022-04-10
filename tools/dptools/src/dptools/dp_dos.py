@@ -13,8 +13,8 @@ import argparse
 import math
 import numpy as np
 import numpy.polynomial.hermite as  H
-from dptools.bandout import BandOut
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.bandout import BandOut
+from dptools.common import ScriptError
 
 USAGE = '''
 Reads the band structure information stored in a file INPUT created by

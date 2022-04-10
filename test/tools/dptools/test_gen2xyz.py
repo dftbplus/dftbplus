@@ -12,8 +12,8 @@ import sys
 import os.path
 import unittest
 import common
-from dptools.scripts.common import ScriptError
-import dptools.scripts.gen2xyz as gen2xyz
+from dptools.common import ScriptError
+import dptools.gen2xyz as gen2xyz
 
 
 SCRIPTDIR = os.path.dirname(sys.argv[0])

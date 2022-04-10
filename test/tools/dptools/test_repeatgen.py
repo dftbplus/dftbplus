@@ -12,8 +12,8 @@ import sys
 import os.path
 import unittest
 import common
-from dptools.scripts.common import ScriptError
-import dptools.scripts.repeatgen as repeatgen
+from dptools.common import ScriptError
+import dptools.repeatgen as repeatgen
 
 
 SCRIPTDIR = os.path.dirname(sys.argv[0])

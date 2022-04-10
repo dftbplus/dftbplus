@@ -11,8 +11,8 @@
 import sys
 import argparse
 import numpy as np
-from dptools.gen import Gen
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.gen import Gen
+from dptools.common import ScriptError
 
 USAGE = '''
 Strains the geometry found in INPUT, writing the resulting geometries

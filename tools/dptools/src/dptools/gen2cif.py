@@ -11,9 +11,9 @@
 import sys
 import argparse
 import numpy as np
-from dptools.gen import Gen
-from dptools.cif import Cif
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.gen import Gen
+from dftbplus_ptools.cif import Cif
+from dptools.common import ScriptError
 
 USAGE = '''
 Converts the given INPUT file in DFTB+ GEN format to CIF. Per default,

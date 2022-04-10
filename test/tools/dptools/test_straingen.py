@@ -12,8 +12,8 @@ import sys
 import os.path
 import unittest
 import common
-from dptools.scripts.common import ScriptError
-import dptools.scripts.straingen as straingen
+from dptools.common import ScriptError
+import dptools.straingen as straingen
 
 
 SCRIPTDIR = os.path.dirname(sys.argv[0])

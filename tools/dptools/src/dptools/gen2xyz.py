@@ -10,9 +10,9 @@
 
 import sys
 import argparse
-from dptools.gen import Gen
-from dptools.xyz import Xyz
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.gen import Gen
+from dftbplus_ptools.xyz import Xyz
+from dptools.common import ScriptError
 
 USAGE = '''
 Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default,

@@ -10,7 +10,7 @@
 
 import unittest
 import numpy as np
-import dptools.grids as grids
+import dftbplus_ptools.grids as grids
 
 FLOAT_TOLERANCE = 1E-12
 

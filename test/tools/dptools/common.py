@@ -13,10 +13,10 @@ import unittest
 import tempfile
 import shutil
 import os.path
-from dptools.gen import Gen
-from dptools.xyz import Xyz
-from dptools.cif import Cif
-from dptools.nxy import Nxy
+from dftbplus_ptools.gen import Gen
+from dftbplus_ptools.xyz import Xyz
+from dftbplus_ptools.cif import Cif
+from dftbplus_ptools.nxy import Nxy
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:

@@ -10,8 +10,8 @@
 
 import argparse
 import numpy as np
-from dptools.bandout import BandOut
-from dptools.scripts.common import ScriptError
+from dftbplus_ptools.bandout import BandOut
+from dptools.common import ScriptError
 
 USAGE = '''
 Reads the band structure information stored in the file INPUT created

@@ -4,10 +4,10 @@
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
-#
 
-'''Common things needed by command line scripts.'''
+'''Global imports for dftbplus-tools.'''
 
-
-class ScriptError(Exception):
-    '''Exception thrown by command line scripts.'''
+from dftbplus_ptools.bandout import BandOut
+from dftbplus_ptools.gen import Gen
+from dftbplus_ptools.xyz import Xyz
+from dftbplus_ptools.cif import Cif

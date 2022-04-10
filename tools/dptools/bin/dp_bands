@@ -10,8 +10,8 @@
 '''Command line wrapper for dp_bands'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.dp_bands as dp_bands
+from dptools.common import ScriptError
+import dptools.dp_bands as dp_bands
 
 try:
     dp_bands.main()

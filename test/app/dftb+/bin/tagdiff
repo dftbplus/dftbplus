@@ -415,19 +415,19 @@ def main():
             print(" # Processing rule:     `%s'" % configEntry)
 
         compFunc = configEntry.compFunc
-        oldEntries = old.getMatchingEntries(configEntry.pattern)
+        oldEntries = old.get_matching_entries(configEntry.pattern)
         for oldEntry in oldEntries:
             name = oldEntry.name
-            newEntry = new.getEntry(name)
+            newEntry = new.get_entry(name)
 
             if not configEntry.keep:
-                old.delEntry(name)
-                new.delEntry(name)
+                old.del_entry(name)
+                new.del_entry(name)
 
             if not newEntry:
                 printResult(name, compFunc, "Not found in new", RES_SKIPPED)
                 continue
-            if not oldEntry.isComparable(newEntry):
+            if not oldEntry.is_comparable(newEntry):
                 printResult(name, compFunc, "Mismatching data", RES_ERROR)
                 continue
 

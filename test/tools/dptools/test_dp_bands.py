@@ -12,8 +12,8 @@ import sys
 import os.path
 import unittest
 import common
-from dptools.scripts.common import ScriptError
-import dptools.scripts.dp_bands as dp_bands
+from dptools.common import ScriptError
+import dptools.dp_bands as dp_bands
 
 
 SCRIPTDIR = os.path.dirname(sys.argv[0])

@@ -5,11 +5,17 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Representation of the XYZ-format'''
+"""Representation of the XYZ-format"""
 
+import os
+from io import StringIO
+
+import hsd
 import numpy as np
-from dptools.common import openfile
-from dptools.geometry import Geometry
+
+from dftbplus_ptools.common import openfile
+from dftbplus_ptools.geometry import Geometry
+
 
 __all__ = ["Xyz"]
 
@@ -69,6 +75,24 @@ class Xyz:
         geometry = Geometry(specienames, indexes, coords)
         return cls(geometry, comment)
 
+    @classmethod
+    def fromhsd(cls, filename, directory='.'):
+        """Creates an XYZ instance from a hsd dictionary.
+
+        Args:
+            filname (str): filename
+            directory (str): directory
+        """
+
+        path = os.path.join(directory, filename)
+        dictionary = hsd.load(path)
+        filestring = ""
+        for list1 in dictionary["Geometry"]["xyzFormat"]:
+            for content in list1:
+                filestring += str(content) + " "
+            filestring += "\n"
+        fp = StringIO(filestring)
+        return cls.fromfile(fp)
 
     def tofile(self, fobj):
         """Writes an XYZ file.
@@ -86,13 +110,13 @@ class Xyz:
         fp.close()
 
     def equals(self, other, tolerance=_TOLERANCE, check_comment=False):
-        '''Checks whether object equals to an other one.
+        """Checks whether object equals to an other one.
 
         Args:
             other (Xyz): Other Xyz object.
             tolerance (float): Maximal allowed deviation in floating point
                 numbers (e.g. coordinates).
-        '''
+        """
         if not self.geometry.equals(other.geometry, tolerance):
             return False
         if check_comment:

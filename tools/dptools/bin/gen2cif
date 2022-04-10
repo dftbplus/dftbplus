@@ -10,8 +10,8 @@
 '''Command line wrapper for gen2cif'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.gen2cif as gen2cif
+from dptools.common import ScriptError
+import dptools.gen2cif as gen2cif
 
 try:
     gen2cif.main()

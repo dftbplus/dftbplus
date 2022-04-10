@@ -9,9 +9,9 @@
 '''Potential/charge data conversion to cube format.'''
 
 import argparse
-import dptools.gridsio as gridsio
-import dptools.grids as grids
-import dptools.common as common
+import dftbplus_ptools.gridsio as gridsio
+import dftbplus_ptools.grids as grids
+import dftbplus_ptools.common as common
 import numpy as np
 
 
@@ -34,10 +34,10 @@ def main():
     helpstring = 'file containing Z vector coordinates(default Zvector.dat)'
     parser.add_argument('--zvec', default='Zvector.dat',
                         help=helpstring, dest='zvec')
-    helpstring = "Reference, If a present, the difference between the input" \
+    helpstring = "Reference, If a present, the difference between the input " \
                  "file and the reference is printed"
     parser.add_argument('--reference', help=helpstring, dest='reference')
-    helpstring = 'Output format (cube or vtk). If not specified, guessed' \
+    helpstring = 'Output format (cube or vtk). If not specified, guessed ' \
                  'from file extension'
     parser.add_argument('--format', help=helpstring, dest='format')
     helpstring = 'file containing grid data'

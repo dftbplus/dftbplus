@@ -10,8 +10,8 @@
 '''Command line wrapper for repeatgen'''
 
 import sys
-from dptools.scripts.common import ScriptError
-import dptools.scripts.repeatgen as repeatgen
+from dptools.common import ScriptError
+import dptools.repeatgen as repeatgen
 
 try:
     repeatgen.main()
