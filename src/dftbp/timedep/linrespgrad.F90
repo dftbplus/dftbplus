@@ -167,7 +167,7 @@ contains
     real(dp), allocatable :: gammaMat(:,:), lrGamma(:,:), snglPartTransDip(:,:)
     real(dp), allocatable :: ovrXev(:,:,:), wij(:)
     real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), pc(:,:,:)
-    real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
+    real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:), xpym(:),xpyn(:),xmyn(:),xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
     real(dp), allocatable :: rhsm(:), woom(:,:), wvvm(:,:), wovm(:)
     real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:)
@@ -186,7 +186,7 @@ contains
     integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev
-    integer :: aa, bb, ss, ab
+    integer :: aa, bb, ss, ab, qq
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -711,9 +711,36 @@ contains
           ALLOCATE(wvvm(nxvv_max, nSpin))
           ALLOCATE(wovm(nxov_rd))
           ALLOCATE(nacv, mold = excgrad)
-          
-          nCoupLev = 1
-          mCoupLev = 2
+          ALLOCATE(xpyn, mold = xpy(:,1))
+          ALLOCATE(xpym, mold = xpy(:,1))
+          ALLOCATE(xmyn, mold = xpy(:,1))
+          ALLOCATE(xmym, mold = xpy(:,1))
+          woo = 0
+          woom = 0
+          wvvm = 0
+          wvv = 0
+
+          !!xmy = 0
+          pc = 0
+          t = 0 
+          rhsm = 0
+          rhs = 0
+          open(67, file='nacv.out')
+          do qq = 1,2
+             if(qq==1) then
+                nCoupLev = 1
+                mCoupLev = 2
+             else
+                nCoupLev = 2
+                mCoupLev = 1
+             endif
+
+          xpyn = xpy(:,nCoupLev)
+          xmyn = xmy(:,nCoupLev)
+          xpym = xpy(:,mCoupLev)
+          xmym = xmy(:,mCoupLev)
+
+          nacv = 0
           omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
           omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
           print *,'TN: omegas', 27.2114* omegaDif,27.2114*omegaAvg,27.2114*sqrt(eval(nCoupLev)),27.2114*sqrt(eval(mCoupLev))
@@ -738,25 +765,53 @@ contains
 
           call calcNadiaWVectorZ(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans,&
             & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvvm,   & 
-            & transChrg, species0, this%spinW, tRangeSep, lrGamma, omegaDif)        
+            & transChrg, species0, this%spinW, tRangeSep, lrGamma, omegaDif)      
+
+          !!rhs = 0 
+          !!rhsm = 0
 
           call calcNadiaPMatrix(t, rhs, rhsm, win, getIA, pc)
-
+!!$          do i = 1,norb
+!!$             do j = 1,norb
+!!$                write(67,'(2x,i3,2x,i3,f20.16)') i,j,t(i,j,1)
+!!$             enddo
+!!$          enddo
+!!$          write(67,*)
+          !!pc = 0
           do iSpin = 1, nSpin
              ! Make MO to AO transformation of the excited density matrix
              call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
              call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
           end do
+          print *,dqex,'dqex'
+!!$          woo = 0
+          woom = 0
+          wvvm = 0
+!!$          wov = 0
+          wovm = 0
+!!$          wvv = 0
+!!$          xpym = 0
+!!$          xmym = 0
+!!$          xpyn = 0
+!!$          xmyn = 0
+!!$          !!pc=0
+!!$          nacv = 0
 
           call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
               & this%HubbardU, this%spinW, shift, woo, woom, wov, wovm, wvv, wvvm, transChrg,      &
-              & xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev), xmy(:,mCoupLev), coord0, orb,   &   
+              & xpyn, xmyn, xpym, xmym, coord0, orb,   &   
               & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
-
-          open(67, file='nacv.out')
+!!$         call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
+!!$              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
+!!$              & this%HubbardU, this%spinW, shift, woo, woom, wov, wovm, wvv, wvvm, transChrg,      &
+!!$              & xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev), xmy(:,mCoupLev), coord0, orb,   &   
+!!$              & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
+          
           do i= 1, size(nacv(1,:))
              write(67,'(3(f16.8,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
+          enddo
+          write(67,*)
           enddo
           close(67)
 
@@ -2755,7 +2810,6 @@ contains
       rkm1 = rkm1 -alphakm1 * apk
 
       tmp2 = dot_product(rkm1, rkm1)
-      print *,'tmp2',tmp2
 
       ! residual
       if (tmp2 <= epsilon(1.0_dp)**2) then
@@ -4157,7 +4211,6 @@ contains
         ! For NACV diagonal elements have not yet been divided by 2 
         if(i==j) then
           woop(ij,iSpin) = 0.5_dp *  woop(ij,iSpin)
-          print *,'Just ti see',woom(ij,iSpin)
         end if
         ! replace with DSYR2 call :
         do mu = 1, norb
@@ -4196,7 +4249,6 @@ contains
         ! For NACV diagonal elements have not yet been divided by 2 
         if(a==b) then
           wvvp(ab,iSpin) = 0.5_dp *  wvvp(ab,iSpin)
-          print *,'Just ti see, virt',wvvm(ab,iSpin)
         end if       
         ! replace with DSYR2 call :
         do mu = 1, norb
@@ -4365,7 +4417,7 @@ contains
             end do
 
           end do
-
+          !!print *,tmp1,tmp2,tmp4,tmp6,tmp3,tmp8,tmp10,tmprs2,'tmp1 + tmp2 + tmp4 + tmp6 + tmp3 + tmp8 + tmp10 - 0.25_dp * tmprs2'
           nacv(xyz,iAt1) = nacv(xyz,iAt1)&
               & + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 + tmp8 + tmp10 - 0.25_dp * tmprs2
           nacv(xyz,iAt2) = nacv(xyz,iAt2)&
@@ -4800,11 +4852,15 @@ contains
     pc = 0.0_dp
     do ias = 1, size(rhsp)
       call indxov(win, ias, getIA, i, a, s)
-      pc(i,a,s) = rhsp(ias)
-      pc(a,i,s) = rhsm(ias)
+      pc(i,a,s) = t(i,a,s) + rhsp(ias) + rhsm(ias)
+      pc(a,i,s) = t(a,i,s) + rhsp(ias) - rhsm(ias)
     end do
 
-    pc = pc + t
+    !! pc = pc + t
+
+    do s = 1, nSpin
+      pc(:,:,s) = 0.5_dp * ( pc(:,:,s) + transpose(pc(:,:,s)) )
+    end do
 
   end subroutine calcNadiaPMatrix
 
