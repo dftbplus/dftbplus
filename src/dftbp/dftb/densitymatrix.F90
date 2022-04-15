@@ -20,8 +20,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptran,&
-      & pblasfx_ptranc
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pherk, pblasfx_psyrk,&
+      & pblasfx_pgemm, pblasfx_ptran, pblasfx_ptranc
 #:endif
   implicit none
 
@@ -384,8 +384,8 @@ contains
     ! Create matrix
     call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
     ! symmetrize
-    work(:,:) = densityMtx
-    call pblasfx_ptran(work, desc, densityMtx, desc, alpha=0.5_dp, beta=0.5_dp)
+    !work(:,:) = densityMtx
+    !call pblasfx_ptran(work, desc, densityMtx, desc, alpha=0.5_dp, beta=0.5_dp)
 
   end subroutine makeDensityMtxRealBlacs
 

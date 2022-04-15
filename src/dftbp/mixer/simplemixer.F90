@@ -10,6 +10,7 @@
 !> Simple mixer for mixing charges
 module dftbp_mixer_simplemixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private
@@ -78,7 +79,7 @@ contains
 
 
   !> Does the actual mixing
-  subroutine SimpleMixer_mix(this, qInpResult, qDiff)
+  subroutine SimpleMixer_mix(this, qInpResult, qDiff, env)
 
     !> SimpleMixer instance
     type(TSimpleMixer), intent(inout) :: this
@@ -88,6 +89,9 @@ contains
 
     !> Charge difference
     real(dp), intent(in) :: qDiff(:)
+
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
 
     @:ASSERT(size(qInpResult) == size(qDiff))
 

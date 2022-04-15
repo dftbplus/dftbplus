@@ -16,6 +16,8 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_diismixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only : gesv
   implicit none
 
@@ -162,7 +164,7 @@ contains
 
 
   !> Mixes charges according to the DIIS method
-  subroutine DIISMixer_mix(this, qInpResult, qDiff)
+  subroutine DIISMixer_mix(this, qInpResult, qDiff, env)
 
     !> Pointer to the diis mixer
     type(Tdiismixer), intent(inout) :: this
@@ -173,11 +175,16 @@ contains
     !> Charge difference vector between output and input charges
     real(dp), intent(in) :: qDiff(:)
 
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
+
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj
 
     @:ASSERT(size(qInpResult) == this%nElem)
     @:ASSERT(size(qDiff) == this%nElem)
+
+    if (present(env)) call error("Not done")
 
     if (this%iPrevVector < this%mPrevVector) then
       this%iPrevVector = this%iPrevVector + 1

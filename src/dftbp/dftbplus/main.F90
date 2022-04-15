@@ -41,6 +41,9 @@ module dftbp_dftbplus_main
       & frac2cart, getNrOfNeighboursForAll, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
+    #:if WITH_SCALAPACK
+      & denseMulliken_blacs,&
+    #:endif
       & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation, &
       & getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
@@ -114,7 +117,7 @@ module dftbp_dftbplus_main
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
       & unpackHSHelicalCplxBlacs
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, MPI_MAX, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
@@ -1117,13 +1120,13 @@ contains
                 & this%nIneqDip, this%nIneqQuad, this%iEqDipole, this%iEqQuadrupole, &
                 & this%multipoleOut, this%multipoleInp)
           else
-            call getNextInputDensity(this%SSqrReal, this%ints, this%neighbourList,&
-                & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
-                & this%img2CentCell, this%pChrgMixer, this%qOutput, this%orb, this%tHelical,&
-                & this%species, this%coord, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter,&
-                & this%sccTol, tStopScc, this%tReadChrg, this%q0, this%qInput, sccErrorQ,&
-                & tConverged, this%deltaRhoOut, this%deltaRhoIn, this%deltaRhoDiff, this%qBlockIn,&
-                & this%qBlockOut)
+            call getNextInputDensity(env, this%parallelKS, this%denseDesc, this%SSqrReal,&
+                & this%ints, this%neighbourList, this%nNeighbourSK, this%denseDesc%iAtomStart,&
+                & this%iSparseStart, this%img2CentCell, this%pChrgMixer, this%qOutput, this%orb,&
+                & this%tHelical, this%species, this%coord, iGeoStep, iSccIter, this%minSccIter,&
+                & this%maxSccIter, this%sccTol, tStopScc, this%tReadChrg, this%q0, this%qInput,&
+                & sccErrorQ, tConverged, this%deltaRhoOut, this%deltaRhoIn, this%deltaRhoDiff,&
+                & this%qBlockIn, this%qBlockOut)
           end if
 
           call getSccInfo(iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, Eold,&
@@ -2823,10 +2826,21 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+      ! Add rangeseparated contribution
+      ! Assumes deltaRhoInSqr only used by rangeseparation
+      ! Should this be used elsewhere, need to pass isRangeSep
+      if (allocated(rangeSep)) then
+        call denseMulliken_blacs(env, parallelKS, denseDesc, deltaRhoInSqr, SSqrReal, qOutput)
+        ! Also need distributed version of rangeSep%addLRHamiltonian
+      end if
+
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
+
     #:else
+
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
         call unpackHelicalHS(HSqrReal, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
@@ -3914,10 +3928,20 @@ contains
 
 
   !> Update delta density matrix rather than merely q for rangeseparation
-  subroutine getNextInputDensity(SSqrReal, ints, neighbourList, nNeighbourSK, iAtomStart,&
-      & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, tHelical, species, coord, iGeoStep,&
-      & iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ,&
-      & tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff, qBlockIn, qBlockOut)
+  subroutine getNextInputDensity(env, parallelKS, denseDesc, SSqrReal, ints, neighbourList,&
+      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, tHelical,&
+      & species, coord, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
+      & q0, qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff, qBlockIn,&
+      & qBlockOut)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Square dense overlap storage
     real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
@@ -4014,6 +4038,9 @@ contains
 
     deltaRhoDiff(:) = deltaRhoOut - deltaRhoIn
     sccErrorQ = maxval(abs(deltaRhoDiff))
+    #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%globalComm, sccErrorQ, MPI_MAX)
+    #:endif
     tConverged = (sccErrorQ < sccTol)&
         & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
 
@@ -4025,7 +4052,11 @@ contains
           qBlockIn(:,:,:,:) = qBlockOut
         end if
       else
+      #:if WITH_SCALAPACK
+        call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff, env)
+      #:else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
+      #:endif
         if (tHelical) then
           call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
               & iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
@@ -4033,8 +4064,14 @@ contains
           call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
               & iSparseStart, img2CentCell)
         end if
+
+      #:if WITH_SCALAPACK
+        !need distributed version
+        call denseMulliken_blacs(env, parallelKS, denseDesc, deltaRhoInSqr, SSqrReal, qInput)
+      #:else
         deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
         call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+      #:endif
 
         ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
@@ -4046,7 +4083,11 @@ contains
         end if
 
         if (allocated(qBlockIn)) then
+        #:if WITH_SCALAPACK
+          !need distributed version
+        #:else
           call denseBlockMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qBlockIn)
+        #:endif
           do iSpin = 1, nSpin
             do iAt = 1, size(qInput, dim=2)
               do iOrb = 1, size(qInput, dim=1)

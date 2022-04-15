@@ -17,6 +17,8 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only : gesv
   implicit none
 
@@ -178,7 +180,7 @@ contains
 
 
   !> Mixes charges according to the Anderson method
-  subroutine AndersonMixer_mix(this, qInpResult, qDiff)
+  subroutine AndersonMixer_mix(this, qInpResult, qDiff, env)
 
     !> Anderson mixer
     type(TAndersonMixer), intent(inout) :: this
@@ -189,6 +191,9 @@ contains
     !> Charge difference
     real(dp), intent(in) :: qDiff(:)
 
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
+
     real(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
     real(dp) :: mixParam
     real(dp) :: rTmp
@@ -196,6 +201,8 @@ contains
 
     @:ASSERT(size(qInpResult) == this%nElem)
     @:ASSERT(size(qDiff) == this%nElem)
+
+    if (present(env)) call error("Not done")
 
     if (this%nPrevVector < this%mPrevVector) then
       this%nPrevVector = this%nPrevVector + 1

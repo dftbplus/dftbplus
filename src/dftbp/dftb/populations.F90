@@ -13,13 +13,23 @@ module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_type_commontypes, only : TOrbitals
+#:if WITH_SCALAPACK
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, scalafx_indxl2g, scalafx_getdescriptor
+  use dftbp_math_bisect, only : bisection
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_parallelks, only : TParallelKS
+#:endif
   implicit none
 
   private
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
   public :: getOnsitePopulation, getAtomicMultipolePopulation
-
+#:if WITH_SCALAPACK
+  public :: denseMulliken_blacs
+#:endif
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
   !> orbitally resolved or atom resolved
@@ -44,6 +54,7 @@ module dftbp_dftb_populations
      module procedure denseSubtractDensityOfAtoms_nospin_cmplx
      module procedure denseSubtractDensityOfAtoms_spin_cmplx
   end interface denseSubtractDensityOfAtoms
+
 
 contains
 
@@ -291,6 +302,61 @@ contains
 
   end subroutine skewMullikenPerBlock
 
+#:if WITH_SCALAPACK
+
+  !> Mulliken analysis with distributed dense matrices
+  subroutine denseMulliken_blacs(env, parallelKS, denseDesc, rhoSqr, overSqr, qq)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Square (lower triangular) spin polarized density matrix
+    real(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Mulliken charges on output (mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:)
+
+    integer :: iKS, iS, iK, iAt, iGlob, iLocCol
+    integer :: nLocalCols, nLocalKS
+
+    ! need distributed matrix descriptors
+    integer :: desc(DLEN_), nn
+
+    nn = denseDesc%fullSize
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, desc)
+
+    qq(:,:,:) = 0.0_dp
+
+    nLocalCols = size(rhoSqr, dim=2)
+    nLocalKS = size(rhoSqr, dim=3)
+
+    do iKS = 1, nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
+      do iLocCol = 1, nLocalCols
+        iGlob = scalafx_indxl2g(iLocCol, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+            & env%blacs%orbitalGrid%ncol)
+        call bisection(iAt, denseDesc%iAtomStart, iGlob)
+        qq(iGlob - denseDesc%iAtomStart(iAt) + 1, iAt, iS) =&
+            & sum(overSqr(:, iLocCol) * rhoSqr(:, iLocCol, iKS))
+      end do
+    end do
+    ! Distribute all charges to all nodes via a global summation
+    call mpifx_allreduceip(env%mpi%globalComm, qq, MPI_SUM)
+
+  end subroutine denseMulliken_blacs
+
+#:endif
 
   !> Mulliken analysis with dense lower triangle matrices.
   subroutine denseMulliken(rhoSqr, overSqr, iSquare, qq)
@@ -339,7 +405,7 @@ contains
   end subroutine denseMulliken
 
 
-    !> Subtracts superposition of atomic densities from dense density matrix.
+  !> Subtracts superposition of atomic densities from dense density matrix.
   !> Works only for closed shell!
   subroutine denseSubtractDensityOfAtoms_nospin_real(q0, iSquare, rho)
 

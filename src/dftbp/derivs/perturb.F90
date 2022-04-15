@@ -28,7 +28,11 @@ module dftbp_derivs_perturb
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_populations, only : mulliken, denseMulliken, getChargePerShell, getOnsitePopulation
+  use dftbp_dftb_populations, only : mulliken, denseMulliken, getChargePerShell, &
+    #:if WITH_SCALAPACK
+      & denseMulliken_blacs,&
+    #:endif
+      & getOnsitePopulation
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_scc, only : TScc
@@ -1389,7 +1393,11 @@ contains
           if (iSCCIter == 1) then
             if (allocated(rangeSep)) then
               dRhoIn(:) = dRhoOut
+            #:if WITH_SCALAPACK
+              call denseMulliken_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+            #:else
               call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+            #:endif
             else
               dqIn(:,:,:) = dqOut
               dqInpRed(:) = dqOutRed
@@ -1401,8 +1409,13 @@ contains
           else
 
             if (allocated(rangeSep)) then
+            #:if WITH_SCALAPACK
+                call mix(pChrgMixer, dRhoIn, dqDiffRed, env)
+                call denseMulliken_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+            #:else
               call mix(pChrgMixer, dRhoIn, dqDiffRed)
               call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+            #:endif
             else
               call mix(pChrgMixer, dqInpRed, dqDiffRed)
             #:if WITH_MPI

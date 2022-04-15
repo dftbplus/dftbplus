@@ -14,6 +14,7 @@
 !> In order to use the mixer you have to create and reset it.
 module dftbp_mixer_broydenmixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : ger
   use dftbp_math_lapackroutines, only : getrf, getrs, matinv
@@ -177,7 +178,7 @@ contains
 
 
   !> Mixes charges according to the modified Broyden method
-  subroutine BroydenMixer_mix(this, qInpResult, qDiff)
+  subroutine BroydenMixer_mix(this, qInpResult, qDiff, env)
 
     !> The Broyden mixer
     type(TBroydenMixer), intent(inout) :: this
@@ -187,6 +188,11 @@ contains
 
     !> Charge difference between output and input charges
     real(dp), intent(in) :: qDiff(:)
+
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
+
+    if (present(env)) call error("Not done")
 
     this%iIter = this%iIter + 1
     if (this%iIter > this%mIter) then

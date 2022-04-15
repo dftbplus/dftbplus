@@ -10,6 +10,7 @@
 !> Provides a general mixer which contains the desired actual mixer.
 module dftbp_mixer_mixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only : error
   use dftbp_mixer_andersonmixer, only : TAndersonMixer, mix, reset
   use dftbp_mixer_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
@@ -42,6 +43,7 @@ module dftbp_mixer_mixer
 
     !> modified DIIS mixer instance
     type(TDIISMixer),  allocatable :: pDIISMixer
+
   end type TMixer
 
 
@@ -175,26 +177,29 @@ contains
 
 
   !> Mixes vectors together
-  subroutine Mixer_mix(this, qInpRes, qDiff)
+  subroutine Mixer_mix(this, qInpRes, qDiff, env)
 
     !> Mixer instance.
     type(TMixer), intent(inout) :: this
 
     !> Input vector on entry, result vector on exit.
-    real(dp),      intent(inout) :: qInpRes(:)
+    real(dp), intent(inout) :: qInpRes(:)
 
     !> Difference between input and output vectors (measure of lack of convergence)
-    real(dp),      intent(in) :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
+
+    !> Environment settings
+    type(TEnvironment), intent(in), optional :: env
 
     select case (this%mixerType)
     case (mixerTypes%simple)
-      call mix(this%pSimpleMixer, qInpRes, qDiff)
+      call mix(this%pSimpleMixer, qInpRes, qDiff, env)
     case (mixerTypes%anderson)
-      call mix(this%pAndersonMixer, qInpRes, qDiff)
+      call mix(this%pAndersonMixer, qInpRes, qDiff, env)
     case (mixerTypes%broyden)
-      call mix(this%pBroydenMixer, qInpRes, qDiff)
+      call mix(this%pBroydenMixer, qInpRes, qDiff, env)
     case (mixerTypes%diis)
-      call mix(this%pDIISMixer, qInpRes, qDiff)
+      call mix(this%pDIISMixer, qInpRes, qDiff, env)
     end select
 
   end subroutine Mixer_mix
