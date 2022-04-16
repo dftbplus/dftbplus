@@ -25,7 +25,7 @@ module dftbp_poisson_bulkpot
  use dftbp_poisson_mpi_poisson, only : id0
  use dftbp_poisson_parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc,&
       & overrbulkbc, dmin
- use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, lmax
+ use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, nshells
 
  implicit none
  private
@@ -458,7 +458,7 @@ Subroutine compbulk_pot_ewald(phi_bulk, m)
               distR(1) = xi - x(a,atom)
               distR(2) = yj - x(b,atom)
               distR(3) = zk - x(c,atom)
-              nsh = lmax(izp(atom))+1
+              nsh = nshells(izp(atom))
 
               ! Compute L-independent part:
               call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
@@ -702,7 +702,7 @@ subroutine set_bulk_rhs(phi_bulk,cont)
 
 
   do atom = iatc(3,m),iatc(3,m)+phi_bulk(m)%natm_PL-1
-    nsh = lmax(izp(atom))+1
+    nsh = nshells(izp(atom))
     do l = 1, nsh
       tmp=3.2d0*uhubb(l,izp(atom))
       ! Set boundaries of a box around the atom
