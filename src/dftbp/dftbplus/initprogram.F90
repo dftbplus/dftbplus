@@ -113,7 +113,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_linresp, only : LinResp_init
   use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_pprpa, only : TppRPAcal
-  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
+  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral, TIntegral_init
@@ -3646,6 +3646,18 @@ contains
 
       if (.not. this%tRealHS .and. input%ctrl%elecDynInp%tBondE) then
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
+      end if
+
+      if (this%isRangeSep) then
+        if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
+          call error("Triplet excitation kick currently disabled for range-separated functionals")
+        end if
+        if (input%ctrl%elecDynInp%tForces) then
+          call error("Forces for time propagation currently disabled for range-separated")
+        end if
+        if (input%ctrl%elecDynInp%tIons) then
+          call error("Ion dynamics time propagation currently disabled for range-separated")
+        end if
       end if
 
       allocate(this%electronDynamics)
