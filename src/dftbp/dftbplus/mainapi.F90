@@ -477,10 +477,10 @@ contains
 
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
-      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
-          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-          & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
-          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+      call initializeDynamics(main%electronDynamics, main%boundaryCond, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
           & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
           & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
           & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
@@ -532,13 +532,13 @@ contains
     type(TStatus) :: errStatus
 
     if (main%electronDynamics%tPropagatorsInitialized) then
-      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
-           & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-           & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
-           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-           & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
-           & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
-           & main%electronicSolver, main%qDepExtPot, errStatus)
+      call doTdStep(main%electronDynamics, main%boundaryCond, iStep, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
+          & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
+          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+          & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)

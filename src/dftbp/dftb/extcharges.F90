@@ -12,8 +12,8 @@ module dftbp_dftb_extcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_coulomb, only : TCoulomb
-  use dftbp_dftb_periodic, only : foldCoordToUnitCell
   implicit none
 
   private
@@ -157,7 +157,7 @@ contains
 
 
   !> Updates the module, if the lattice vectors had been changed
-  subroutine setLatticeVectors(this, latVecs, recVecs)
+  subroutine setLatticeVectors(this, latVecs, boundaryConds)
 
     !> External charges structure
     class(TExtCharges), intent(inout) :: this
@@ -165,13 +165,13 @@ contains
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    !> New reciprocal lattice vectors.
-    real(dp), intent(in) :: recVecs(:,:)
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryConds
 
     @:ASSERT(this%tInitialized .and. this%tPeriodic)
 
     !! Fold charges back to unit cell
-    call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
+    call boundaryConds%foldCoordsToCell(this%coords, latVecs)
 
   end subroutine setLatticeVectors
 

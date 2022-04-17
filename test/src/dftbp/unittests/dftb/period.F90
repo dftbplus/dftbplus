@@ -9,7 +9,8 @@
 
 #:block TEST_SUITE("period")
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays3, fillNeighbourArrays, TNeighbourList
+  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, fillNeighbourArrays,&
+      & TNeighbourList
   use dftbp_common_status, only : TStatus
   implicit none
 
@@ -51,7 +52,7 @@
 
   #:endblock TEST_FIXTURE
 
-  #:block TEST_FIXTURE("reallocateArrays3")
+  #:block TEST_FIXTURE("reallocateArrays2")
 
     integer, allocatable :: iNeighbour(:,:)
     real(dp), allocatable :: neighDist2(:,:), neighDist2Test(:,:)
@@ -71,7 +72,7 @@
       neighDist2(:,:) = neighDist2Test(:,:)
 
       maxNeighbour = 4
-      call reallocateArrays3(iNeighbour, neighDist2, maxNeighbour)
+      call reallocateArrays2(iNeighbour, neighDist2, maxNeighbour)
 
       @:ASSERT(lbound(iNeighbour, dim=1) == 1)
       @:ASSERT(ubound(iNeighbour, dim=1) == maxNeighbour)
@@ -101,7 +102,7 @@
       neighDist2(:,:) = neighDist2Test(:,:)
 
       maxNeighbour = 2
-      call reallocateArrays3(iNeighbour, neighDist2, maxNeighbour)
+      call reallocateArrays2(iNeighbour, neighDist2, maxNeighbour)
 
       @:ASSERT(lbound(iNeighbour, dim=1) == 1)
       @:ASSERT(ubound(iNeighbour, dim=1) == maxNeighbour)

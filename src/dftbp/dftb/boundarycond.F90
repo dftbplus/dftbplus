@@ -15,6 +15,7 @@ module dftbp_dftb_boundarycond
   use dftbp_common_status, only : TStatus
   use dftbp_math_angmomentum, only : rotateZ
   use dftbp_math_quaternions, only : rotate3
+  use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
@@ -64,6 +65,8 @@ module dftbp_dftb_boundarycond
     generic :: foldOutDiatomicBlock => foldOutDiatomicBlock_real, foldOutDiatomicBlock_cplx
 
     procedure :: alignVectorCentralCell
+
+    procedure :: foldCoordsToCell
 
   end type TBoundaryConditions
 
@@ -251,5 +254,64 @@ contains
     end select
 
   end subroutine alignVectorCentralCell
+
+
+  !> Fold coordinates back in the central cell.
+  !>
+  !> Throw away the integer part of the relative coordinates of every atom. If the resulting
+  !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
+  !> the algorithm more predictable and independent of numerical noise.
+  subroutine foldCoordsToCell(this, coord, latVec)
+
+    !> Instance
+    class(TBoundaryConditions), intent(in) :: this
+
+    !> Contains the original coordinates on call and the folded ones on return.
+    real(dp), intent(inout) :: coord(:,:)
+
+    !> Lattice vectors (column format).
+    real(dp), intent(in) :: latVec(:,:)
+
+    integer :: nAtom, iAt, jj
+    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3), thetaNew, thetaOld, invLatVecs(3,3)
+
+    nAtom = size(coord, dim=2)
+
+    select case(this%iBoundaryCondition)
+
+    case(boundaryConditions%cluster)
+
+      ! No unit cell to fold into
+
+      return
+
+    case(boundaryConditions%pbc3d)
+
+      call invert33(invLatVecs, latVec)
+      vecLen(:) = sqrt(sum(latVec**2, dim=1))
+      do iAt = 1, nAtom
+        frac(:) = matmul(invLatVecs, coord(:,iAt))
+        tmp3(:) = coord(:,iAt)
+        frac2(:) = frac(:) - real(floor(frac(:)), dp)
+        where (abs(vecLen*(1.0_dp - frac2)) < epsilon(0.0_dp)) frac2 = 0.0_dp
+        coord(:, iAt) = matmul(latVec, frac2)
+      end do
+
+    case(boundaryConditions%helical)
+
+      do iAt = 1, nAtom
+        jj = floor(coord(3,iAt)/latVec(1,1))
+        ! want coordinate in eventual range 0..latVec(1,1) hence floor
+        tmp3(:) = coord(:,iAt)
+        coord(3,iAt) = coord(3,iAt) - jj * latVec(1,1)
+        call rotate3(coord(:,iAt), -jj*latVec(2,1),zAxis)
+        thetaOld = atan2(coord(2,iAt), coord(1,iAt))
+        thetaNew = mod(thetaOld+2.0_dp*pi, 2.0_dp*pi/latvec(3,1))
+        call rotate3(coord(:,iAt),-thetaOld+thetaNew,zAxis)
+      end do
+
+    end select
+
+  end subroutine foldCoordsToCell
 
 end module dftbp_dftb_boundarycond

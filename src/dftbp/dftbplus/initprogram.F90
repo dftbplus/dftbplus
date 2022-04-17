@@ -25,6 +25,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
+  use dftbp_dftb_dense, only :buildSquaredAtomIndex
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
@@ -40,8 +41,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex,&
-      & getCellTranslations
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
