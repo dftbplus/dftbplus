@@ -38,8 +38,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
   use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
-      & frac2cart, foldCoordToUnitCell, getNrOfNeighboursForAll, getSparseDescriptor,&
-      & getCellTranslations
+      & frac2cart, getNrOfNeighboursForAll, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
       & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation, &
@@ -52,7 +51,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
       & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
-      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli
+      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli, getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
@@ -355,8 +354,8 @@ contains
 
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
-      call runDynamics(this%electronDynamics, this%eigvecsReal, this%H0, this%species,&
-          & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
+      call runDynamics(this%electronDynamics, this%boundaryCond, this%eigvecsReal, this%H0,&
+          & this%species, this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
           & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%eFieldScaling,&
@@ -690,16 +689,16 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec)
+          & this%cellVec, this%rCellVec, this%boundaryCond)
     end if
 
     if (this%tCoordsChanged) then
-      call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite,&
-          & this%repulsive, this%dispersion,this%solvation, this%thirdOrd, this%rangeSep,&
-          & this%reks, this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
-          & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
-          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
+      call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
+          & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc,&
+          & this%tblite, this%repulsive, this%dispersion,this%solvation, this%thirdOrd,&
+          & this%rangeSep, this%reks, this%img2CentCell, this%iCellVec, this%neighbourList,&
+          & this%nAllAtom, this%coord0Fold, this%coord,this%species, this%rCellVec,&
+          & this%nNeighbourSk, this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
           & this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
@@ -1710,7 +1709,7 @@ contains
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs)
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1763,6 +1762,9 @@ contains
     !> Vectors to unit cells in absolute units
     real(dp), allocatable, intent(out) :: rCellVecs(:,:)
 
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
+
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
     call matinv(recVecs2p)
@@ -1774,7 +1776,7 @@ contains
       extLatDerivs(:,:) = extPressure * extLatDerivs
     end if
     if (allocated(sccCalc)) then
-      call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
+      call sccCalc%updateLatVecs(latVecs, recVecs, boundaryCond, cellVol)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
     if (allocated(tblite)) then
@@ -1802,7 +1804,7 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
+  subroutine handleCoordinateChange(env, boundaryCond, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
       & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
       & species, rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim,&
@@ -1810,6 +1812,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -1919,16 +1924,15 @@ contains
     integer :: sparseSize
 
     coord0Fold(:,:) = coord0
-    if (tPeriodic .or. tHelical) then
-      call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
-    end if
+    call boundaryCond%foldCoordsToCell(coord0Fold, latVec)
 
     if (tHelical) then
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neighbourList,&
-          & nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec, helicalBoundConds=latVec)
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
+          & helicalBoundConds=latVec)
     else
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neighbourList,&
-          & nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
     end if
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)

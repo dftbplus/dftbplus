@@ -29,6 +29,7 @@ module dftbp_dftb_sparse2dense
   public :: hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
+  public :: getSparseDescriptor
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -114,6 +115,7 @@ module dftbp_dftb_sparse2dense
   interface symmetrizeHS
     module procedure symmetrizeHS_real
   end interface symmetrizeHS
+
 
 contains
 
@@ -3348,5 +3350,54 @@ contains
   end subroutine packRhoHelicalCplxBlacs
 
 #:endif
+
+
+  !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
+  subroutine getSparseDescriptor(iNeighbour, nNeighbourSK, img2CentCell, orb, iPair, sparseSize)
+
+    !> Neighbours of each atom
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Number of neighbours of each atom
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Indexing for mapping image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Sparse array indexing for the start of atomic blocks in data structures
+    integer, allocatable, intent(inout) :: iPair(:,:)
+
+    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
+    integer, intent(out) :: sparseSize
+
+    integer :: nAtom, mNeighbour
+    integer :: ind, iAt1, nOrb1, iNeigh1, nOrb2
+
+    nAtom = size(iNeighbour, dim=2)
+    mNeighbour = size(iNeighbour, dim=1)
+
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
+
+    if (mNeighbour > size(iPair, dim=1)) then
+      deallocate(iPair)
+      allocate(iPair(0 : mNeighbour - 1, nAtom))
+      iPair(:,:) = 0
+    end if
+    ind = 0
+    do iAt1 = 1, nAtom
+      nOrb1 = orb%nOrbAtom(iAt1)
+      do iNeigh1 = 0, nNeighbourSK(iAt1)
+        iPair(iNeigh1, iAt1) = ind
+        nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
+        ind = ind + nOrb1 * nOrb2
+      end do
+    end do
+    sparseSize = ind
+
+  end subroutine getSparseDescriptor
 
 end module dftbp_dftb_sparse2dense
