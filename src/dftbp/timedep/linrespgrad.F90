@@ -743,15 +743,13 @@ contains
           nacv = 0
           omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
           omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
-          print *,'TN: omegas', 27.2114* omegaDif,27.2114*omegaAvg,27.2114*sqrt(eval(nCoupLev)),27.2114*sqrt(eval(mCoupLev))
 
           ! compute + component of RHS for Z-vector eq. in the NaCoupling case
           ! also computes the + components of W and T
           call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev),  & 
             & xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1), transChrg, getIA, getIJ,      &
             & getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat,     &
-            & lrGamma, this%spinW, omegaDif, omegaAvg, sym, rhs, rhsm, t, wov, wovm, woo,          &
-            & woom, wvv, wvvm)
+            & lrGamma, this%spinW, omegaAvg, sym, rhs, rhsm, t, wov, wovm, woo, woom, wvv, wvvm)
 
           call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,     &
@@ -765,7 +763,7 @@ contains
 
           call calcNadiaWVectorZ(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans,&
             & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvvm,   & 
-            & transChrg, species0, this%spinW, tRangeSep, lrGamma, omegaDif)      
+            & transChrg, species0, this%spinW, tRangeSep, lrGamma)      
 
           !!rhs = 0 
           !!rhsm = 0
@@ -783,7 +781,6 @@ contains
              call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
              call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
           end do
-          print *,dqex,'dqex'
 !!$          woo = 0
           woom = 0
           wvvm = 0
@@ -800,7 +797,7 @@ contains
           call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
               & this%HubbardU, this%spinW, shift, woo, woom, wov, wovm, wvv, wvvm, transChrg,      &
-              & xpyn, xmyn, xpym, xmym, coord0, orb,   &   
+              & omegaDif, xpyn, xmyn, xpym, xmym, coord0, orb,   &   
               & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
 !!$         call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
 !!$              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
@@ -1953,7 +1950,7 @@ contains
   !> Here the +/- part of the RHS and W is computed. The non-symmetric T is constructed.  
   subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,     & 
       & nmatup, transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev,&
-      & grndEigVecs, gammaMat, lrGamma, spinW, omegaDif, omegaAvg, sym, rhsp, rhsm, t, wovp, &
+      & grndEigVecs, gammaMat, lrGamma, spinW, omegaAvg, sym, rhsp, rhsm, t, wovp, &
       & wovm, woop, woom, wvvp, wvvm)
 
     !> is calculation range-separated?
@@ -2021,9 +2018,6 @@ contains
 
     !> ground state spin derivatives for each species
     real(dp), intent(in) :: spinW(:)
-
-    !> Excitation energy difference between states n and m 
-    real(dp), intent(in) :: omegaDif
 
     !> Average excitation energy of states n and m 
     real(dp), intent(in) :: omegaAvg
@@ -2142,14 +2136,14 @@ contains
         tmp4 = xpyn(ibs) * xpym(ias) + xmyn(ibs) * xmym(ias)
 
         t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
-        wvvp(ab,s) = wvvp(ab,s) + 0.25_dp * grndEigVal(i,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif 
+        wvvp(ab,s) = wvvp(ab,s) + 0.25_dp * grndEigVal(i,s) * ptmp1  &
+                   & + 0.25_dp * omegaAvg * ptmp2 
                             
         ! to prevent double counting
         if (a /= b) then
           t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
-          wvvm(ab,s) = wvvm(ab,s) + 0.25_dp * grndEigVal(i,s) * mtmp1 / omegaDif  &
-                     & + 0.25_dp * omegaAvg * mtmp2 / omegaDif 
+          wvvm(ab,s) = wvvm(ab,s) + 0.25_dp * grndEigVal(i,s) * mtmp1   &
+                     & + 0.25_dp * omegaAvg * mtmp2 
         end if
         
       end do
@@ -2179,14 +2173,14 @@ contains
         tmp4 = xpyn(jas) * xpym(ias) + xmyn(jas) * xmym(ias)
 
         t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
-        woop(ij,s) = woop(ij,s) - 0.25_dp * grndEigVal(a,s) * ptmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * ptmp2 / omegaDif 
+        woop(ij,s) = woop(ij,s) - 0.25_dp * grndEigVal(a,s) * ptmp1   &
+                   & + 0.25_dp * omegaAvg * ptmp2 
 
         ! to prevent double counting
         if (i /= j) then
           t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
-          woom(ij,s) = woom(ij,s) - 0.25_dp * grndEigVal(a,s) * mtmp1 / omegaDif  &
-                   & + 0.25_dp * omegaAvg * mtmp2 / omegaDif 
+          woom(ij,s) = woom(ij,s) - 0.25_dp * grndEigVal(a,s) * mtmp1   &
+                   & + 0.25_dp * omegaAvg * mtmp2 
         end if
 
       end do
@@ -2218,17 +2212,17 @@ contains
         ! For the forces, we have a factor of 2 here
         tmp1 = xpym(jas) * vecHooXorY(ijs)
         rhsp(ias) = rhsp(ias) + tmp1
-        wovp(ias) = wovp(ias) + 0.5_dp * tmp1 / omegaDif
+        wovp(ias) = wovp(ias) + 0.5_dp * tmp1 
         tmp1 = xmym(jas) * vecHooXorY(ijs)
         rhsm(ias) = rhsm(ias) - tmp1
-        wovm(ias) = wovm(ias) - 0.5_dp * tmp1 / omegaDif       
+        wovm(ias) = wovm(ias) - 0.5_dp * tmp1        
         if (i /= j) then
            tmp1 = xpym(ias) * vecHooXorY(ijs)
            rhsp(jas) = rhsp(jas) + tmp1
-           wovp(jas) = wovp(jas) + 0.5_dp * tmp1 / omegaDif
+           wovp(jas) = wovp(jas) + 0.5_dp * tmp1 
            tmp1 = xmym(ias) * vecHooXorY(ijs)
            rhsm(jas) = rhsm(jas) - tmp1
-           wovm(jas) = wovm(jas) - 0.5_dp * tmp1 / omegaDif
+           wovm(jas) = wovm(jas) - 0.5_dp * tmp1 
         end if
       end do
 
@@ -2259,17 +2253,17 @@ contains
         ! For the forces, we have a factor of 2 here
         tmp1 = xpyn(jas) * vecHooXorY(ijs)
         rhsp(ias) = rhsp(ias) + tmp1
-        wovp(ias) = wovp(ias) + 0.5_dp * tmp1 / omegaDif
+        wovp(ias) = wovp(ias) + 0.5_dp * tmp1
         tmp1 = xmyn(jas) * vecHooXorY(ijs)
         rhsm(ias) = rhsm(ias) + tmp1
-        wovm(ias) = wovm(ias) + 0.5_dp * tmp1 / omegaDif       
+        wovm(ias) = wovm(ias) + 0.5_dp * tmp1        
         if (i /= j) then
            tmp1 = xpyn(ias) * vecHooXorY(ijs)
            rhsp(jas) = rhsp(jas) + tmp1
-           wovp(jas) = wovp(jas) + 0.5_dp * tmp1 / omegaDif
+           wovp(jas) = wovp(jas) + 0.5_dp * tmp1
            tmp1 = xmyn(ias) * vecHooXorY(ijs)
            rhsm(jas) = rhsm(jas) + tmp1
-           wovm(jas) = wovm(jas) + 0.5_dp * tmp1 / omegaDif
+           wovm(jas) = wovm(jas) + 0.5_dp * tmp1 
         end if
       end do
 
@@ -2301,7 +2295,7 @@ contains
     do s = 1, nSpin
       do ij = 1, nxoo(s)
         ijs = ij + soo(s)
-        woop(ij,s) = woop(ij,s) + 0.5_dp * vecHooT(ijs) / omegaDif
+        woop(ij,s) = woop(ij,s) + 0.5_dp * vecHooT(ijs) 
       end do
     end do
 
@@ -2347,16 +2341,16 @@ contains
           jas = iaTrans(j, a, s)
           ijs = iaTrans(i, j, s)
           rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xpym(jas) * vecHooXpY(ijs)
-          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXpY(ijs) / omegaDif
-          wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXpY(ijs) / omegaDif
+          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXpY(ijs) 
+          wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXpY(ijs) 
           if (i >= j) then
             rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs)
+            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs)
           else
             rhsp(ias) = rhsp(ias) - cExchange * 0.50_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs) / omegaDif
+            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmym(jas) * vecHooXmY(ijs)
+            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpym(jas) * vecHooXmY(ijs)
           end if
         end do
 
@@ -2399,16 +2393,16 @@ contains
           jas = iaTrans(j, a, s)
           ijs = iaTrans(i, j, s)
           rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xpyn(jas) * vecHooXpY(ijs)
-          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpyn(jas) * vecHooXpY(ijs) / omegaDif
-          wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xmyn(jas) * vecHooXpY(ijs) / omegaDif
+          wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xpyn(jas) * vecHooXpY(ijs) 
+          wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xmyn(jas) * vecHooXpY(ijs) 
           if (i >= j) then
             rhsp(ias) = rhsp(ias) + cExchange * 0.50_dp * xmyn(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmyn(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpyn(jas) * vecHooXmY(ijs) / omegaDif
+            wovp(ias) = wovp(ias) + cExchange * 0.25_dp * xmyn(jas) * vecHooXmY(ijs)
+            wovm(ias) = wovm(ias) + cExchange * 0.25_dp * xpyn(jas) * vecHooXmY(ijs) 
           else
             rhsp(ias) = rhsp(ias) - cExchange * 0.50_dp * xmyn(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmyn(jas) * vecHooXmY(ijs) / omegaDif
-            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpyn(jas) * vecHooXmY(ijs) / omegaDif
+            wovp(ias) = wovp(ias) - cExchange * 0.25_dp * xmyn(jas) * vecHooXmY(ijs) 
+            wovm(ias) = wovm(ias) - cExchange * 0.25_dp * xpyn(jas) * vecHooXmY(ijs) 
           end if
         end do
 
@@ -2433,7 +2427,7 @@ contains
       do s = 1, nSpin
         do ij = 1, nxoo(s)
           ijs = ij + soo(s)
-          woom(ij,s) = woom(ij,s) - cExchange * 0.5_dp * vecHooT(ijs) / omegaDif
+          woom(ij,s) = woom(ij,s) - cExchange * 0.5_dp * vecHooT(ijs) 
         end do
       end do
 
@@ -2444,7 +2438,7 @@ contains
       do s = 1, nSpin
         do ij = 1, nxoo(s)
           ijs = ij + soo(s)
-          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooT(ijs) / omegaDif
+          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooT(ijs) 
         end do
       end do
 
@@ -2455,12 +2449,11 @@ contains
       do s = 1, nSpin
         do ab = 1, nxvv(s)
           abs = ab + svv(s)
-          wvvm(ab,s) = wvvm(ab,s) - cExchange * 0.5_dp * vecHvvT(abs) / omegaDif
+          wvvm(ab,s) = wvvm(ab,s) - cExchange * 0.5_dp * vecHvvT(abs) 
         end do
       end do
 
     endif
-    print *,'Finally got all W'
 
   end subroutine getNadiaZvectorEqRHS
 
@@ -3017,7 +3010,7 @@ contains
   !> Calculate Z-dependent parts of the W-vectors for the NAC vectors
   subroutine calcNadiaWvectorZ(zzp, zzm, win, homo, nmatup, getIA, getIJ, getAB, iaTrans, &
       & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wovp, wovm, woop, woom,    & 
-      & wvvm, transChrg, species0, spinW, tRangeSep, lrGamma, omegaDif)
+      & wvvm, transChrg, species0, spinW, tRangeSep, lrGamma)
 
     !> Z^+ vector
     real(dp), intent(in) :: zzp(:)
@@ -3091,8 +3084,6 @@ contains
     !> long-range Gamma
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
-    real(dp), intent(in) ::omegaDif
-
     integer :: nxov, natom, nSpin, soo(2), svv(2)
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: ij, ias, ijs, ab, i, j, a, b, s, abs, iAt1
@@ -3128,8 +3119,8 @@ contains
     ! Adding missing epsilon_i * Z_ia term to W_ia
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
-      wovp(ias) = wovp(ias) + zzp(ias) * grndEigVal(i, s) / omegaDif
-      wovm(ias) = wovm(ias) + zzm(ias) * grndEigVal(i, s) / omegaDif
+      wovp(ias) = wovp(ias) + zzp(ias) * grndEigVal(i, s) 
+      wovm(ias) = wovm(ias) + zzm(ias) * grndEigVal(i, s) 
     end do
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
@@ -3154,10 +3145,10 @@ contains
         ! W contains 1/2 for i == j.
         ! Force contains factors of 4/2 here
         if (.not. tSpin) then
-          woop(ij,s) = woop(ij,s) + 2.0_dp * sum(qTr * gamxpyq) / omegaDif
+          woop(ij,s) = woop(ij,s) + 2.0_dp * sum(qTr * gamxpyq) 
         else
-          woop(ij,s) = woop(ij,s) + 1.0_dp * sum(qTr * gamxpyq) / omegaDif
-          woop(ij,s) = woop(ij,s) + 1.0_dp * fact * sum(qTr * zqds * spinW(species0)) / omegaDif
+          woop(ij,s) = woop(ij,s) + 1.0_dp * sum(qTr * gamxpyq) 
+          woop(ij,s) = woop(ij,s) + 1.0_dp * fact * sum(qTr * zqds * spinW(species0)) 
         end if
       end do
     end do
@@ -3176,7 +3167,7 @@ contains
           i = getIJ(ij + soo(s), 1)
           j = getIJ(ij + soo(s), 2)
           ijs = iaTrans(i, j, s)
-          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) / omegaDif
+          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) 
         end do
       end do
 
@@ -3189,7 +3180,7 @@ contains
           i = getIJ(ij + soo(s), 1)
           j = getIJ(ij + soo(s), 2)
           ijs = iaTrans(i, j, s)
-          woom(ij,s) = woom(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) / omegaDif
+          woom(ij,s) = woom(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) 
         end do
       end do
 
@@ -3201,7 +3192,7 @@ contains
           a = getAB(ab + svv(s), 1)
           b = getAB(ab + svv(s), 2)
           abs = iaTrans(a, b, s)
-          wvvm(ab,s) = wvvm(ab,s) + cExchange * 0.5_dp * vecHvvZ(abs) / omegaDif
+          wvvm(ab,s) = wvvm(ab,s) + cExchange * 0.5_dp * vecHvvZ(abs) 
         end do
       end do
 
@@ -3838,7 +3829,7 @@ contains
   !> Calculation of nacv using gradient routine
   subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,     &
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
-      & spinW, shift, woop, woom, wovp, wovm, wvvp, wvvm, transChrg, xpyn, xmyn, xpym, xmym,  &
+      & spinW, shift, woop, woom, wovp, wovm, wvvp, wvvm, transChrg, omegaDif, xpyn, xmyn, xpym, xmym,  &
       & coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, &
       & nacv)
 
@@ -3926,6 +3917,9 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
+    !> Difference between excited state energies
+    real(dp), intent(in) :: omegaDif
+
     !> X+Y Furche term (state n)
     real(dp), intent(in) :: xpyn(:)
 
@@ -3967,7 +3961,6 @@ contains
 
     !> resulting non-adiabatic coupling
     real(dp), intent(out) :: nacv(:,:)
-
 
     real(dp), allocatable :: shift_excited(:,:), xpyq(:,:), xpyqds(:,:)
     real(dp), allocatable :: shxpyq(:,:,:), xpycc(:,:,:,:), wcc(:,:,:), tmp5(:), tmp7(:), tmp11(:)
@@ -4294,14 +4287,15 @@ contains
           tmp3a = tmp3a + dq(iAt1) * dqex(iAt2,iSpin) + dqex(iAt1,iSpin) * dq(iAt2)
         end do
 
+        !! This term is symmetrized for NACV
         if (.not. tSpin) then
           if (sym == "S") then
-            tmp3b = 4.0_dp * xpyq(iAt1,1) * xpyq(iAt2,2)
+            tmp3b = 2.0_dp * (xpyq(iAt1,1) * xpyq(iAt2,2) + xpyq(iAt2,1) * xpyq(iAt1,2))
           else
             tmp3b = 0.0_dp
           end if
         else
-          tmp3b = 2.0_dp * xpyq(iAt1,1) * xpyq(iAt2,2)
+          tmp3b = xpyq(iAt1,1) * xpyq(iAt2,2) + xpyq(iAt2,1) * xpyq(iAt1,2)
         end if
 
         nacv(:,iAt1) = nacv(:,iAt1) + dgab(:) * ( tmp3a + tmp3b )
@@ -4425,6 +4419,8 @@ contains
         end do
       end do
     end do
+    
+    nacv = nacv / omegaDif
 
   end subroutine addNadiaGradients
 
