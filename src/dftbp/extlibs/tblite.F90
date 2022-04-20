@@ -22,16 +22,8 @@
 !> conventions of DFTB+, while all intermediate quantities passed from the library to DFTB+
 !> will follow tblite's conventions (usually encapsulated in derived types already).
 !>
-!> Conventions for spherical harmonics are different in tblite and DFTB+.
-!> This requires shuffling them correctly when returned from the library.
-!>
-!> ang.  | DFTB+
-!> ----- | ------------------------------
-!> 0 (s) | 0
-!> 1 (p) | -1, 0, 1
-!> 2 (d) | -2, -1, 0, 1, 2
-!> 3 (f) | -3, -2, -1, 0, 1, 2, 3
-!> 4 (g) | -4, -3, -2, -1, 0, 1, 2, 3, 4
+!> Both tblite and DFTB+ use consistent ordering of spherical harmonics
+!> in the standard sorting, *i.e.* [-l, ..., 0, ..., l].
 module dftbp_extlibs_tblite
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -1249,7 +1241,7 @@ contains
           nao = msao(lj)
           do iao = 1, msao(li)
             do jao = 1, nao
-              ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+              ij = jao + nao*(iao-1)
               iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
               dpintBra(:, iblk) = dtmp(:, ij)
@@ -1381,7 +1373,7 @@ contains
             nao = msao(lj)
             do iao = 1, msao(li)
               do jao = 1, nao
-                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+                ij = jao + nao*(iao-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
                 call shiftOperator(vec, stmp(ij), dtmpi(:, ij), qtmpi(:, ij), dtmpj, qtmpj)
 
@@ -1752,7 +1744,7 @@ contains
             nao = msao(lj)
             do iao = 1, msao(li)
               do jao = 1, nao
-                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+                ij = jao + nao*(iao-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
                 pij = pmat(iblk, 1)
@@ -1834,35 +1826,6 @@ contains
 
     call error("Forces currently not available in Ehrenfest dynamic with this Hamiltonian")
   end subroutine buildRdotSprime
-
-
-  !> Index gymnastic to transfer magnetic quantum number ordering from one convention to another
-  elemental function mlIdx(ml, l) result(idx)
-    integer, intent(in) :: ml, l
-    integer :: idx
-
-    ! -1, 0, +1 -> +1, -1, 0
-    integer, parameter :: p(3) = [2, 3, 1]
-    ! -2, -1, 0, +1, +2 -> 0, +1, -1, +2, -2
-    integer, parameter :: d(5) = [5, 3, 1, 2, 4]
-    ! -3, -2, -1, 0, +1, +2, +3 -> 0, +1, -1, +2, -2, 3, -3
-    integer, parameter :: f(7) = [7, 5, 3, 1, 2, 4, 6]
-    ! -4, -3, -2, -1, 0, +1, +2, +3, +4 -> 0, +1, -1, +2, -2, +3, -3, +4, -4
-    integer, parameter :: g(9) = [9, 7, 5, 3, 1, 2, 4, 6, 8]
-
-    select case(l)
-    case default
-      idx = ml
-    case(1)
-      idx = p(ml)
-    case(2)
-      idx = d(ml)
-    case(3)
-      idx = f(ml)
-    case(4)
-      idx = g(ml)
-    end select
-  end function mlIdx
 
 
 #:if not WITH_TBLITE
