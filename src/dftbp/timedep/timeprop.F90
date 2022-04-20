@@ -550,9 +550,6 @@ contains
       if (.not. this%tRealHS) then
         @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for imaginary&
             & Hamiltonians.")
-      elseif (isRangeSep) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for range separated&
-            & calculations.")
       end if
       this%tForces = .true.
       this%indMovedAtom = inp%indMovedAtom
@@ -599,12 +596,7 @@ contains
 
     if (this%tIons .or. this%tForces) then
       if (this%nExcitedAtom /= nAtom) then
-        if (this%tLaser) then
-          @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces are not implemented for excitation&
-              & of a subgroup of atoms")
-        else
-          this%nExcitedAtom = nAtom
-        end if
+        this%nExcitedAtom = nAtom
       end if
       if (allocated(tblite)) then
         @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces not available for xTB Hamiltonian")
@@ -2020,7 +2012,7 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. allocated(rangeSep)) then
+      if (this%tIons .or. (.not. this%tRealHS)) then
         H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
         call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
       else
@@ -2742,7 +2734,7 @@ contains
     coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt
 
-    ! This re-initializes the VVerlet propagator with coordNew
+    ! This re-initializes the velocity Verlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
       call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
           & tHalfVelocities=.true.)
@@ -3018,7 +3010,7 @@ contains
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
       & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, errStatus)
+      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, sSqr, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -3094,6 +3086,9 @@ contains
 
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
+
+    !> Square overlap matrix
+    complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> Error status
     type(TStatus), intent(out) :: errStatus
@@ -3178,10 +3173,9 @@ contains
     end if
 
     if (this%isRangeSep) then
-      @:RAISE_ERROR(errStatus, -1, "Ehrenfest forces not implemented yet with range separated&
-          & calculations.")
-      !call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
-      ! & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
+      call rangeSep%addLRGradients(derivs, this%derivator, real(deltaRho), skOverCont, coordAll,&
+          & this%speciesAll, orb, iSquare, real(sSqr(:,:,1)), neighbourList%iNeighbour,&
+          & nNeighbourSK)
     end if
 
     if (this%tLaser) then
@@ -3360,7 +3354,7 @@ contains
 
   !> Calculates repulsive and dispersion energies
   subroutine  getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
-      & neighbourList, repulsive, iAtInCentralRegion)
+      & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3386,6 +3380,9 @@ contains
     !> atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)
 
+    !> Range separation contributions
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
     if (allocated(repulsive)) then
       call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
       call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
@@ -3399,6 +3396,11 @@ contains
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
+    end if
+    if (allocated(rangeSep)) then
+      call rangeSep%addLREnergy(energy%Efock)
+    else
+      energy%Efock = 0.0_dp
     end if
 
   end subroutine getPositionDependentEnergy
@@ -3640,16 +3642,19 @@ contains
     real(dp) :: new3Coord(3, this%nMovedAtom)
     integer :: iKS
 
+    character(sc) :: dumpIdx
+    real(dp), allocatable :: velInternal(:,:)
+
     this%startTime = 0.0_dp
     this%timeElec = 0.0_dp
 
     this%speciesAll = speciesAll
     this%nSpin = size(ints%hamiltonian(:,:), dim=2)
-    if (this%nSpin > 1) then
+    if (this%nSpin > 1 .and. this%iCall == 1) then
       call qm2ud(q0)
     end if
 
-    if (this%tRealHS .and. .not. this%isRangeSep) then
+    if (this%tRealHS) then
       this%nOrbs = size(eigvecsReal, dim=1)
     else
       this%nOrbs = size(eigvecsCplx, dim=1)
@@ -3729,6 +3734,16 @@ contains
       call initLatticeVectors(this, boundaryCond)
     end if
 
+    ! Write density at t=0
+    if (this%tPump .and. .not. this%tReadRestart) then
+      allocate(velInternal(3,size(this%movedVelo, dim=2)))
+        velInternal(:,:) = 0.0_dp
+      call writeRestartFile(this%trho, this%trho, coord, velInternal, this%startTime, this%dt,&
+          & '0ppdump', this%tWriteRestartAscii, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      deallocate(velInternal)
+    end if
+
     if (allocated(this%sccCalc)) then
       call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
     end if
@@ -3736,6 +3751,7 @@ contains
       call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
     end if
+
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll, errStatus)
@@ -3767,7 +3783,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
+          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -3784,7 +3800,7 @@ contains
     end if
 
     call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-        & neighbourList, repulsive, iAtInCentralRegion)
+        & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
@@ -3849,7 +3865,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
+          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -4008,7 +4024,7 @@ contains
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-          & neighbourList, repulsive, iAtInCentralRegion)
+          & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
     end if
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
@@ -4124,7 +4140,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & iStep, env, rangeSep, this%deltaRho, errStatus)
+          & iStep, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 

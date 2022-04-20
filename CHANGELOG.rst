@@ -13,6 +13,8 @@ Added
 
 - Real time electronic dynamics for xTB Hamiltonian
 
+- Real time electronic dynamics for range separated DFTB
+
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
 
 - (Optionally) Rescale externally applied fields and dipole moments
