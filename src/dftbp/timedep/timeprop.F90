@@ -2734,7 +2734,7 @@ contains
     coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt
 
-    ! This re-initializes the Verlet propagator with coordNew
+    ! This re-initializes the velocity Verlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
       call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
           & tHalfVelocities=.true.)

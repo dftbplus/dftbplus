@@ -3650,7 +3650,8 @@ contains
 
       if (this%isRangeSep) then
         if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
-          call error("Triplet excitation kick currently disabled for range-separated functionals")
+          call error("Triplet perturbations currently disabled for electron dynamics with&
+              & range-separated functionals")
         end if
         if (input%ctrl%elecDynInp%tForces) then
           call error("Forces for time propagation currently disabled for range-separated")
