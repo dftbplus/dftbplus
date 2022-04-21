@@ -243,6 +243,10 @@ contains
           & allowEmptyValue=.true., dummyValue=.true.)
 
     #:if WITH_TRANSPORT
+      if (allocated(input%ctrl%tbliteInp)) then
+        allocate(input%slako%orb)
+        call input%ctrl%tbliteInp%setupOrbitals(input%geom%species, input%slako%orb)
+      end if
       call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
           & input%ginfo%tundos)
 

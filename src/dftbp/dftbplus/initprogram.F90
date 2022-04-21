@@ -1364,8 +1364,10 @@ contains
             & this%speciesName, this%coord0)
       end if
 
-      allocate(input%slako%orb)
-      call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
+      if (.not.allocated(input%slako%orb)) then
+        allocate(input%slako%orb)
+        call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
+      end if
       this%orb = input%slako%orb
 
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
