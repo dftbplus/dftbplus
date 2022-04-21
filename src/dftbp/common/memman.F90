@@ -26,7 +26,7 @@ contains
     !> current array size
     integer, intent(in) :: currentSize
 
-    incrmntOfArray = 3 * (currentSize + 1) / 2
+    incrmntOfArray = currentSize + currentSize  / 2 + 1
 
   end function incrmntOfArray
 
