@@ -178,7 +178,7 @@ endif()
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "0641eead6ff9bf04c7ca2ec676a281780e2029e2")  # do not change manually!
+  set(MPIFX_GIT_TAG "8200a5e2603e14ab35c71d3d6afad0b226597e87")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -186,7 +186,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "0d5750d4b1d185e5dfae5b7e99f1828e736ec43a")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -213,13 +213,13 @@ add_subdirectory(external/mudpack)
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "1f690009020fb5f196c1dc359056741738416db6")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "a2f70b04a57996cee7f34908b249ec82a4871c72")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
 
   set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
-  set(MSTORE_GIT_TAG "1f690009020fb5f196c1dc359056741738416db6")  # do not change manually!
+  set(MSTORE_GIT_TAG "974fb59092f74c7db86a1a11b1aafb3cbf311aa3")  # do not change manually!
   dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mstore)
@@ -231,7 +231,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
   #list(APPEND PKG_CONFIG_REQUIRES toml-f)
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "6623834fe0be9f6ed22f9c0cb1c61ea121753c28")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "c2f03fe563ac3ee280f553038c7bc37f9117325f")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -239,19 +239,19 @@ endif()
 
 if(WITH_TBLITE)
   set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
-  set(MULTICHARGE_GIT_TAG "46ea4e370b1a59e01cc022d1f65c64bae8dbf968")  # do not change manually!
+  set(MULTICHARGE_GIT_TAG "dde0d67dadb6efba414cf634f697dc252eb902dc")  # do not change manually!
   dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}" "${MULTICHARGE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES multicharge)
 
   set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-  set(DFTD4_GIT_TAG "b1faf68231d8b0fd44cf0701e9f27c8092bd7926")  # do not change manually!
+  set(DFTD4_GIT_TAG "1189af7264f3b59957545b9deb8226471886b71e")  # do not change manually!
   dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES dftd4)
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "7bde301ead9b71e08f0ecc19390128f7209644d2")  # do not change manually!
+  set(TBLITE_GIT_TAG "dfc761df36b7a338c55914e32b131e28b8de23d2")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
