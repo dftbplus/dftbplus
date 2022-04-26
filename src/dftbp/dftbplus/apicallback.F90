@@ -75,7 +75,7 @@ module dftbp_dftbplus_apicallback
     procedure :: invokeS_cplx => TAPICallback_invokeS_cplx
     generic :: invokeS => invokeS_real, invokeS_cplx
 
-    !> Register callback to be invocked on the first hamiltonian matrix evaluation
+    !> Register callback to be invocked on the first hamiltonian matrix evaluation 
     procedure :: registerH => TAPICallback_registerH
    !> This function must be invoked on the first hamiltonian matrix evaluation
     procedure :: invokeH_real => TAPICallback_invokeH_real
