@@ -15,23 +15,18 @@ module dftbp_common_memman
   public :: incrmntOfArray
 
 
-  !> If the space for an array gets to small and has to be reallocated,
-  !> new_size = arrayIncrement * old_size.
-  !> Setting it too low causes a lot of realloc operations to occur!.
-  real(dp), parameter :: arrayIncrement = 2.0_dp
-
 contains
 
 
   !> figures out how much larger an array should be to minimize reallocations in future if the array
   !> grows more
-  function incrmntOfArray(currentSize)
+  pure function incrmntOfArray(currentSize)
     integer :: incrmntOfArray
 
     !> current array size
     integer, intent(in) :: currentSize
 
-    incrmntOfArray = int(real(currentSize, dp) * arrayIncrement)
+    incrmntOfArray = currentSize + currentSize  / 2 + 1
 
   end function incrmntOfArray
 

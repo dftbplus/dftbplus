@@ -131,6 +131,7 @@ contains
       input%alpbet = 0.0_dp
     end if
     input%keps = (1.0_dp / solvent%dielectricConstant - 1.0_dp) / (1.0_dp + input%alpbet)
+    input%dielectricConstant = solvent%dielectricConstant
 
     call getChildValue(node, "Kernel", buffer, "Still", child=child)
     select case(tolower(unquote(char(buffer))))

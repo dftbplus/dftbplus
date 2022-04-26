@@ -11,7 +11,8 @@
 !> an equidistant grid.
 module waveplot_molorb
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_periodic, only: getCellTranslations, foldCoordToUnitCell
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_periodic, only: getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
   use waveplot_slater, only : TSlaterOrbital, RealTessY, getValue, init
@@ -115,13 +116,16 @@ contains
 
 
   !> Initialises MolecularOrbital instance.
-  subroutine MolecularOrbital_init(this, geometry, basis)
+  subroutine MolecularOrbital_init(this, geometry, boundaryCond, basis)
 
     !> Molecular Orbital
     type(TMolecularOrbital), intent(out) :: this
 
     !> Geometrical information.
     type(TGeometry), intent(in) :: geometry
+
+    !> Boundary condition
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Basis for each species.
     type(TSpeciesBasis), intent(in) :: basis(:)
@@ -191,8 +195,8 @@ contains
     ! Create coorinates for central cell and periodic images
     allocate(this%coords(3, this%nAtom, this%nCell))
     this%coords(:,:,1) = geometry%coords(:,:)
+    call boundaryCond%foldCoordsToCell(this%coords(:,:,1), this%latVecs)
     if (this%tPeriodic) then
-      call foldCoordToUnitCell(this%coords(:,:,1), this%latVecs, this%recVecs2p)
       do ii = 2, this%nCell
         do jj = 1, this%nAtom
           this%coords(:, jj, ii) = this%coords(:, jj, 1) + rCellVec(:, ii)

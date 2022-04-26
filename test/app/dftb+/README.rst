@@ -69,7 +69,7 @@ compiler, and must be using a binary compiled for production use.
 
 To use:
 
-1. create an appropriate sub-directory inside `test/prog/dftb+/` containing a
+1. create an appropriate sub-directory inside `test/app/dftb+/` containing a
    `dftb_in.hsd` file for your test. This `dftb_in.hsd` file should be evaluated
    carefully for correctness, and MUST contain relevant parser version
    information.
@@ -77,8 +77,8 @@ To use:
 2. The directory should also contain symbolic links to required Slater-Koster
    files from the appropriate external/slakos/origin/ directory.
 
-3. in the directory test/prog/dftb+ issue the command `./bin/recalc_tests
-   ../../../_build/prog/dftb+/dftb+ @tmp my_test` where my_test is the relative
+3. in the directory test/app/dftb+ issue the command `./bin/recalc_tests
+   ../../../_build/app/dftb+/dftb+ @tmp my_test` where my_test is the relative
    path from that directory to the new test directory.
 
 4. Add an entry to the tests file in that directory.
