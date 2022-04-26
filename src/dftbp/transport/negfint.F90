@@ -1950,7 +1950,7 @@ contains
     allocate(lc_iCellVec(lc_nAllAtom))
     call TNeighbourlist_init(lc_neigh, nAtom, nInitNeigh)
 
-    call updateNeighbourListAndSpecies(lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
+    call updateNeighbourListAndSpecies(env, lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
 
     allocate(lcurr(maxval(lc_neigh%nNeighbour), nAtom, nSpin))

@@ -13,7 +13,12 @@ Added
 
 - Real time electronic dynamics for xTB Hamiltonian
 
+- Real time electronic dynamics for range separated DFTB
+
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
+- (Optionally) Rescale externally applied fields and dipole moments
+  when implicit solvents are used
 
 
 Changed
@@ -32,7 +37,7 @@ Fixed
 
 - incorrect atomic mass unit for xTB calculations
 
-
+- electronic temperature read for Green's function solver
 
 21.2 (2021-12-13)
 =================

@@ -144,6 +144,9 @@ module dftbp_solvation_cosmo
     !> Is the electrostic field modified by this solvent model?
     procedure :: isEFieldModified
 
+    !> Relative dielectric constant for solvent
+    procedure :: getEpsilon_r
+
     !> Write cavity information
     procedure :: writeCosmoFile
 
@@ -564,7 +567,7 @@ contains
 
 
   !> Is the electrostic field modified by this solvent model?
-  function isEFieldModified(this) result(isChanged)
+  pure function isEFieldModified(this) result(isChanged)
 
     !> Data structure
     class(TCosmo), intent(in) :: this
@@ -572,9 +575,24 @@ contains
     !> Has the solvent model changed the electrostatic environment
     logical :: isChanged
 
-    isChanged = .false.
+    isChanged = .true.
 
   end function isEFieldModified
+
+
+  !> Returns solvent region relative dielectric constant
+  pure function getEpsilon_r(this) result(e_r)
+
+    !> Data structure
+    class(TCosmo), intent(in) :: this
+
+    !> epsilon_r
+    real(dp) :: e_r
+
+    e_r = this%dielectricConst
+
+  end function getEpsilon_r
+
 
   !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
   !> surface elements of the cavity (ccav).

@@ -94,12 +94,6 @@ module dftbp_dftbplus_parser
   !> Tag at the head of the input document tree
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
-  !> Version of the current parser
-  integer, parameter :: parserVersion = 10
-
-  !> Version of the oldest parser for which compatibility is still maintained
-  integer, parameter :: minVersion = 1
-
 
   !> Container type for parser related flags.
   type TParserFlags
@@ -123,9 +117,15 @@ module dftbp_dftbplus_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
+      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  integer, parameter :: minVersion = 1
+
+  !> Version of the current parser (as latest version)
+  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
 
 
 contains
@@ -257,7 +257,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
-    ! Hamiltonian settings that need to know settings from the blocks above
+    ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -487,8 +487,8 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')// "Please use the GeometryOptimization driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -801,7 +801,9 @@ contains
         end if
       end if
 
-      call readXlbomdOptions(node, ctrl%xlbomd)
+      if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
+        call readXlbomdOptions(node, ctrl%xlbomd)
+      end if
 
       call getInputMasses(node, geom, ctrl%masses)
 
@@ -1730,6 +1732,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -1963,6 +1966,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -2468,7 +2472,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure to test for periodicity
     type(TGeometry), intent(in) :: geo
 
     !> Default temperature for filling
@@ -2659,6 +2663,8 @@ contains
   #:if WITH_TRANSPORT
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
+      ! need electronic temperature to be read for this solver:
+      call readElectronicFilling(node, ctrl, geo)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -5100,6 +5106,11 @@ contains
             & with transport yet)")
       end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
+    else
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailedError(node, "The TransportOnly solver requires a TunnelingAndDos block to be&
+            & present.")
+      end if
     endif
   #:endif
 
@@ -5211,7 +5222,9 @@ contains
       if (ctrl%tMD) then
         if (ctrl%iThermostat /= 0) then
           call getChildValue(driverNode, "Thermostat", child, child=child2)
-          call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+            call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          end if
         end if
       end if
 
@@ -5225,18 +5238,36 @@ contains
         end if
       end if
 
-      ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-      ! thermostat.)
-      select case(ctrl%hamiltonian)
-      case(hamiltonianTypes%xtb)
-        call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
-      case(hamiltonianTypes%dftb)
-        call readFilling(hamNode, ctrl, geo, 0.0_dp)
-      end select
+      if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
+        call readElectronicFilling(hamNode, ctrl, geo)
+      end if
 
     end if hamNeedsT
 
   end subroutine readLaterHamiltonian
+
+
+  !> Parses for electronic filling temperature (should only read if not either REKS or electron
+  !> dynamics from a supplied density matrix)
+  subroutine readElectronicFilling(hamNode, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: hamNode
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure to test for periodicity
+    type(TGeometry), intent(in) :: geo
+
+    select case(ctrl%hamiltonian)
+    case(hamiltonianTypes%xtb)
+      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+    case(hamiltonianTypes%dftb)
+      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+    end select
+
+  end subroutine readElectronicFilling
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state

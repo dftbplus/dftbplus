@@ -3794,7 +3794,7 @@ systems.
     derived from first principles.\cite{sigalov2006}
 \end{description}
 
-Example for a GB model with CS2 as solvent:
+Example for a GB model with \cf{CS2} as solvent:
 
 \begin{verbatim}
 Hamiltonian = DFTB {
@@ -4130,6 +4130,36 @@ Hamiltonian = DFTB {
   }
 }
 \end{verbatim}
+
+
+\subsubsection{External electric fields and dipole moments}
+
+
+
+For externally applied homogeneous electric fields (see section
+\ref{sec:dftbp.External}) where the solvent modifies the dielectric
+surroundings, \dftbp{} can approximate the local field corrections as
+due to a spherical cavity surrounding the solvated system. The applied
+field in the external medium is then rescaled by
+\begin{displaymath}
+  \va*{E}_{eff.}  = \va*{E}_{ext.} \frac{3 \varepsilon_r}{2 \varepsilon_r +
+    1}
+\end{displaymath}
+Likewise the dipole moment of the system is scaled to give the
+corresponding field in the external medium:
+\begin{displaymath}
+  \va*{\mu}_{ext.}  = \va*{\mu} \frac{3 \varepsilon_r}{2 \varepsilon_r
+    + 1}
+\end{displaymath}
+
+The rescaling can be turned off with the following keyword:
+\begin{ptable}
+  \kw{RescaleSolvatedFields} & l & & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{RescaleSolvatedFields}] Enables or disables field scaling
+  for applied homogeneous fields and dipole moments.
+\end{description}
 
 
 \subsection{Halogen corrections}

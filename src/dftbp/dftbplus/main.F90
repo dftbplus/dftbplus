@@ -19,6 +19,7 @@ module dftbp_dftbplus_main
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_staticperturb, only : staticPerturWrtE, polarizabilityKernel
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -37,8 +38,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
   use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies, cart2frac,&
-      & frac2cart, foldCoordToUnitCell, getNrOfNeighboursForAll, getSparseDescriptor,&
-      & getCellTranslations
+      & frac2cart, getNrOfNeighboursForAll, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
       & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation, &
@@ -51,7 +51,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
       & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
-      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli
+      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli, getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
@@ -100,6 +100,7 @@ module dftbp_dftbplus_main
       & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
       & getReksStress
   use dftbp_solvation_cm5, only : TChargeModel5
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, LinResp_addGradients
   use dftbp_timedep_pprpa, only : ppRpaEnergies
@@ -117,7 +118,7 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
-      & pblasfx_ptranc
+      & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
 #:endif
   use dftbp_dftbplus_apicallback, only : TAPICallback, null_apicallback
@@ -331,7 +332,8 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%solvation, this%dipoleMessage)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling,&
+            & this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -356,15 +358,15 @@ contains
 
     ! Here time propagation is called
     if (allocated(this%electronDynamics)) then
-      call runDynamics(this%electronDynamics, this%eigvecsReal, this%H0, this%species,&
-          & this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
+      call runDynamics(this%electronDynamics, this%boundaryCond, this%eigvecsReal, this%H0,&
+          & this%species, this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
           & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
           & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
-          & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%rangeSep,&
-          & this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
-          & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
-          & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
-          & this%taggedWriter, this%refExtPot, errStatus)
+          & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%eFieldScaling,&
+          & this%rangeSep, this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf,&
+          & this%Ef, this%coord, this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec,&
+          & this%invLatVec, this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver,&
+          & this%eigvecsCplx, this%taggedWriter, this%refExtPot, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -475,7 +477,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
           & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
-          & this%lCurrArray, this%polarisability, this%dEidE)
+          & this%lCurrArray, this%polarisability, this%dEidE, this%dipoleMoment, this%eFieldScaling)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
@@ -483,7 +485,7 @@ contains
           & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%coord0, this%dipoleMoment, this%multipoleOut)
+          & this%coord0, this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -504,6 +506,8 @@ contains
       call TNegfInt_final(this%negfInt)
     end if
   #:endif
+
+  call this%neighbourList%finalize()
 
   end subroutine runDftbPlus
 
@@ -661,7 +665,7 @@ contains
     real(dp), allocatable :: dQ(:,:,:)
 
     ! loop index
-    integer :: iSpin
+    integer :: iSpin, iKS
 
     real(dp), allocatable :: dipoleTmp(:)
     
@@ -690,16 +694,16 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec)
+          & this%cellVec, this%rCellVec, this%boundaryCond)
     end if
 
     if (this%tCoordsChanged) then
-      call handleCoordinateChange(env, this%coord0, this%latVec, this%invLatVec, this%species0,&
-          & this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc, this%tblite,&
-          & this%repulsive, this%dispersion,this%solvation, this%thirdOrd, this%rangeSep,&
-          & this%reks, this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
-          & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
-          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
+      call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
+          & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tHelical, this%scc,&
+          & this%tblite, this%repulsive, this%dispersion,this%solvation, this%thirdOrd,&
+          & this%rangeSep, this%reks, this%img2CentCell, this%iCellVec, this%neighbourList,&
+          & this%nAllAtom, this%coord0Fold, this%coord,this%species, this%rCellVec,&
+          & this%nNeighbourSk, this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim,&
           & this%ERhoPrim, this%iSparseStart, this%cm5Cont, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
@@ -1154,6 +1158,26 @@ contains
 
     end if REKS_SCC
 
+  #:if WITH_SCALAPACK
+    if (this%isSparseReorderRequired) then
+      if (allocated(this%eigvecsReal)) then
+        do iKS = 1, this%parallelKS%nLocalKS
+          call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
+              & this%eigvecsReal(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
+              & this%eigVecsRealReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & env%blacs%orbitalGrid%ctxt)
+        end do
+      else if (allocated(this%eigvecsCplx)) then
+        do iKS = 1, this%parallelKS%nLocalKS
+          call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
+              & this%eigvecsCplx(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
+              & this%eigVecsCplxReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & env%blacs%orbitalGrid%ctxt)
+        end do
+      end if
+    end if
+  #:endif
+
     if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
       ! evaluation post-hoc if SCC was not achieved but the input settings are to proceed with
@@ -1259,7 +1283,7 @@ contains
       if (this%hamiltonianType == hamiltonianTypes%dftb) then
         call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
             & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%solvation)
+            & this%img2CentCell, this%eFieldScaling)
       end if
     #:endblock DEBUG_CODE
     end if
@@ -1319,8 +1343,8 @@ contains
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-        call getGradients(env, this%scc, this%tblite, this%isExtField, this%isXlbomd,&
-            & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
+        call getGradients(env, this%boundaryCond, this%scc, this%tblite, this%isExtField,&
+            & this%isXlbomd, this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
             & this%skHamCont, this%skOverCont, this%repulsive, this%neighbourList,&
             & this%nNeighbourSk, this%species, this%img2CentCell, this%iSparseStart,&
             & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
@@ -1586,7 +1610,7 @@ contains
             & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%solvation, this%dipoleMessage)
+            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -1692,7 +1716,7 @@ contains
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs)
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1745,6 +1769,9 @@ contains
     !> Vectors to unit cells in absolute units
     real(dp), allocatable, intent(out) :: rCellVecs(:,:)
 
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
+
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
     call matinv(recVecs2p)
@@ -1756,7 +1783,7 @@ contains
       extLatDerivs(:,:) = extPressure * extLatDerivs
     end if
     if (allocated(sccCalc)) then
-      call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
+      call sccCalc%updateLatVecs(latVecs, recVecs, boundaryCond, cellVol)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
     if (allocated(tblite)) then
@@ -1784,7 +1811,7 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff,&
+  subroutine handleCoordinateChange(env, boundaryCond, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd,&
       & rangeSep, reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord,&
       & species, rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim,&
@@ -1792,6 +1819,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -1901,16 +1931,15 @@ contains
     integer :: sparseSize
 
     coord0Fold(:,:) = coord0
-    if (tPeriodic .or. tHelical) then
-      call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
-    end if
+    call boundaryCond%foldCoordsToCell(coord0Fold, latVec)
 
     if (tHelical) then
-      call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
-          & nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec, helicalBoundConds=latVec)
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
+          & helicalBoundConds=latVec)
     else
-      call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
-          & nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
+      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
     end if
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
@@ -4601,7 +4630,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, ints, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell, solvation)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4633,11 +4662,11 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> Instance of the solvation model
-    class(TSolvation), intent(in), allocatable :: solvation
+    !> Instance of electric/dipole scaling due to any dielectric media effects
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
-    integer :: nAtom, sparseSize, iAt, ii
+    integer :: nAtom, sparseSize, iAt, iCart
 
     sparseSize = size(ints%overlap)
     nAtom = size(q0, dim=2)
@@ -4648,10 +4677,10 @@ contains
     write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
 
     ! loop over directions
-    do ii = 1, 3
+    do iCart = 1, 3
       potentialDerivative(:,:) = 0.0_dp
       ! Potential from dH/dE
-      potentialDerivative(:,1) = -coord0(ii,:)
+      potentialDerivative(:,1) = -eFieldScaling%scaledExtEField(coord0(iCart,:))
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
       call addShift(hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
@@ -4663,16 +4692,12 @@ contains
 
       ! add nuclei term for derivative wrt E
       do iAt = 1, nAtom
-        dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) * coord0(ii, iAt)
+        dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) *&
+            & eFieldScaling%scaledExtEField(coord0(iCart, iAt))
       end do
       write(stdOut, "(F16.8)", advance='no') sum(dipole)
     end do
     write(stdOut, *) " au"
-    if (allocated(solvation)) then
-      if (solvation%isEFieldModified()) then
-        write(stdOut, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
-      end if
-    end if
 
   end subroutine checkDipoleViaHellmannFeynman
 
@@ -5470,15 +5495,18 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tblite, isExtField, isXlbomd, nonSccDeriv, rhoPrim,&
-      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSK,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, groundDerivs,&
-      & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces,&
-      & dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr, halogenXCorrection,&
-      & tHelical, coord0, deltaDftb)
+  subroutine getGradients(env, boundaryConds, sccCalc, tblite, isExtField, isXlbomd, nonSccDeriv,&
+      & rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList,&
+      & nNeighbourSK, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
+      & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
+      & chrgForces, dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
+      & halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Boundary conditions on the geometry
+    type(TBoundaryConditions), intent(in) :: boundaryConds
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
@@ -5735,7 +5763,7 @@ contains
 
     derivs(:,:) = derivs + tmpDerivs
 
-    call helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
+    call boundaryConds%alignVectorCentralCell(derivs, coord, coord0, nAtom)
 
     if(deltaDftb%isNonAufbau) then
       select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
@@ -5749,39 +5777,6 @@ contains
     end if
 
   end subroutine getGradients
-
-
-  !> Correct for z folding into central unit cell requiring a twist in helical cases
-  pure subroutine helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
-    use dftbp_dftb_boundarycond, only : zAxis
-    use dftbp_math_quaternions, only : rotate3
-
-    !> Derivatives
-    real(dp), intent(inout) :: derivs(:,:)
-
-    !> Unfolded atoms
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Central cell atoms
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> number of atoms
-    integer, intent(in) :: nAtom
-
-    !> Is this a helical geometry
-    logical, intent(in) :: tHelical
-
-    integer :: ii
-    real(dp) :: deltaTheta
-
-    if (tHelical) then
-      do ii = 1, nAtom
-        deltaTheta = atan2(coord0(2,ii),coord0(1,ii)) - atan2(coord(2,ii),coord(1,ii))
-        call rotate3(derivs(:,ii), deltaTheta, zAxis)
-      end do
-    end if
-
-  end subroutine helicalTwistFolded
 
 
   !> use plumed to update derivatives

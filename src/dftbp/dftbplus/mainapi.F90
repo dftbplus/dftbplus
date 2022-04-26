@@ -252,6 +252,10 @@ contains
     end if
     main%isExtField = .true.
 
+    ! work around for lack (at the moment) for a flag to re-calculate ground state even if
+    ! geometries are unchanged.
+    main%tCoordsChanged = .true.
+
   end subroutine setExternalPotential
 
 
@@ -511,15 +515,15 @@ contains
 
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
-      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
-          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-          & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
-          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
-          & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
-          & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
-          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver,&
-          & errStatus)
+      call initializeDynamics(main%electronDynamics, main%boundaryCond, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
+          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
+          & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
+          & main%electronicSolver, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -566,13 +570,13 @@ contains
     type(TStatus) :: errStatus
 
     if (main%electronDynamics%tPropagatorsInitialized) then
-      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
-           & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-           & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
-           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
-           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
-           & errStatus)
+      call doTdStep(main%electronDynamics, main%boundaryCond, iStep, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
+          & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
+          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+          & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -715,7 +719,7 @@ contains
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call main%getDenseDescCommon()
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
-        & main%denseDesc)
+        & main%denseDesc, main%isSparseReorderRequired)
 
   end subroutine updateBLACSDecomposition
 

@@ -70,6 +70,9 @@ contains
       case (9)
         call convert_9_10(root)
         version = 10
+      case (10)
+        call convert_10_11(root)
+        version = 11
       end select
     end do
 
@@ -706,6 +709,35 @@ contains
     end if
 
   end subroutine convert_9_10
+
+
+  !> Converts input from version 10 to 11. (Version 11 introduced in April 2022)
+  subroutine convert_10_11(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/GeneralizedBorn", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/Cosmo", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/Sasa", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+  end subroutine convert_10_11
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

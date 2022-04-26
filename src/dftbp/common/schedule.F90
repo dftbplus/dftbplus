@@ -24,7 +24,7 @@ module dftbp_common_schedule
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2
-  public :: assembleChunks
+  public :: assembleChunks, getChunkRanges
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
@@ -172,7 +172,7 @@ contains
     else
       localFirst = globalFirst + remainder * (nLocal + 1) + (myRank - remainder) * nLocal
     end if
-    localLast = min(localFirst + nLocal - 1, rangeLength)
+    localLast = min(localFirst + nLocal - 1, globalLast)
 
   end subroutine getChunkRanges
 
