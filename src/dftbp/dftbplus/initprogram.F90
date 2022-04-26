@@ -144,6 +144,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
+  use dftbp_dftbplus_apicallback, only : TAPICallback
   implicit none
 
   private
@@ -1102,6 +1103,10 @@ module dftbp_dftbplus_initprogram
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+    
+    !> This object incapsulates subroutines and variables that are used for registering and 
+    !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
+    type(TAPICallback) :: apicallback
 
   #:if WITH_SCALAPACK
 

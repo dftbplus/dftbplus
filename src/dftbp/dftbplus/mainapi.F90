@@ -30,8 +30,9 @@ module dftbp_dftbplus_mainapi
 
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
-  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getElStatPotential
+  public :: getLocalKS, getCM5Charges, nrOfSpin, nrOfLocalKS
+  public :: getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
@@ -85,7 +86,7 @@ contains
         main%origin = [0.0_dp,0.0_dp,0.0_dp]
       end if
     else
-      main%tLatticeChanged = .false.
+      !main%tLatticeChanged = .false.
       @:ASSERT(.not.present(coordOrigin))
     end if
 
@@ -361,6 +362,19 @@ contains
   end function nrOfAtoms
 
 
+  !> Obtains number of spin channels in the system
+  function nrOfSpin(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    integer :: nrOfSpin
+
+    nrOfSpin = main%nSpin
+
+  end function nrOfSpin
+
+
   !> Obtains number of k-points in the system (1 if not a repeating structure)
   function nrOfKPoints(main)
 
@@ -373,6 +387,30 @@ contains
 
   end function nrOfKPoints
 
+  !> Obtains number of (k-point,spin chanel) pairs in current process group
+  function nrOfLocalKS(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    integer :: nrOfLocalKS
+
+    nrOfLocalKS = main%parallelKS%nLocalKS
+
+  end function nrOfLocalKS
+
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine getLocalKS(main, localKS)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    localKS(:,:) = main%parallelKS%localKS
+
+  end subroutine getLocalKS
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
   !> need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters
