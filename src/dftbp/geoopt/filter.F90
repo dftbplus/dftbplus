@@ -197,7 +197,7 @@ contains
       deriv(:size(gradient)) = reshape(gradient, [size(gradient)])
       if (this%lattice) then
         vol = abs(determinant33(latVec))
-        sigma(:, :) = -vol*stress
+        sigma(:, :) = -vol*stress - matmul(gradient, transpose(coord0))
         mask(:, :) = .not.(spread(this%fixLength, 1, 3) .and. spread(this%fixLength, 2, 3))
         if (this%fixAngles) mask = mask .and. diagonal
         where(.not.mask)
@@ -213,8 +213,7 @@ contains
         endif
         call invert33(inv_lat, latVec)
         inv_lat(:, :) = transpose(inv_lat)
-        lat_grad(:, :) = matmul(sigma, inv_lat) &
-          & - matmul(gradient, matmul(transpose(coord0), inv_lat))
+        lat_grad(:, :) = matmul(sigma, inv_lat)
         deriv(size(gradient)+1:) = reshape(lat_grad, [size(lat_grad)])
       end if
     end if
