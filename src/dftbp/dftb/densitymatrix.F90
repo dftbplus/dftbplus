@@ -20,7 +20,8 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pherk, size, pblasfx_psyrk
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptran,&
+      & pblasfx_ptranc
 #:endif
   implicit none
 
@@ -334,135 +335,112 @@ contains
 !!! Scalapack routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> Create density or energy weighted density matrix (real).
-  !!
+  !> Create density or energy weighted density matrix (real) for both triangles.
   subroutine makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
+
+    !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
     integer, intent(in) :: desc(:)
+
+    !> Occupations of levels
     real(dp), target, intent(in) :: filling(:)
+
+    !> Eigenvectors of system
     real(dp), intent(inout) :: eigenVecs(:,:)
+
+    !> Resulting (symmetric) density matrix
     real(dp), intent(out) :: densityMtx(:,:)
+
+    !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize, nLevel
-    real(dp) :: minFill, maxFill, alpha, beta
-    real(dp), allocatable, target :: eFilling(:)
-    real(dp), pointer :: myFilling(:)
+    integer  :: ii, jj, iGlob, iLoc, blockSize
     type(blocklist) :: blocks
+    real(dp), allocatable :: work(:,:)
 
-    densityMtx(:,:) = 0.0_dp
+    densityMtx(:, :) = 0.0_dp
+    work = densityMtx
 
-    ! Make non-zero fillings positive definite
-    nLevel = size(filling)
-    do while (abs(filling(nLevel)) < epsilon(1.0_dp) .and. nLevel > 1)
-      nLevel = nLevel - 1
-    end do
-    if (present(eigenVals)) then
-      allocate(eFilling(nLevel))
-      eFilling(:) = filling(1:nLevel) * eigenVals(1:nLevel)
-      myFilling => eFilling
-    else
-      myFilling => filling
-    end if
-    minFill = minval(myFilling)
-    maxFill = maxval(myFilling)
-    if ((minFill < 0.0_dp .eqv. maxFill < 0.0_dp) .and. abs(minFill) >= epsilon(1.0_dp)&
-        & .and. abs(maxFill) >= epsilon(1.0_dp)) then
-      alpha = sign(1.0_dp, maxFill)
-      beta = 0.0_dp
-    else
-      alpha = 1.0_dp
-      beta = minFill - arbitraryConstant
-      call pblasfx_psyrk(eigenVecs, desc, densityMtx, desc, kk=nLevel)
-    end if
-
-    ! Scale eigenvectors
+    ! Scale a copy of the eigenvectors
     call blocks%init(myBlacs, desc, "c")
-    do ii = 1, size(blocks)
-      call blocks%getblock(ii, iGlob, iLoc, blockSize)
-      do jj = 0, min(blockSize - 1, nLevel - iGlob)
-        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
+    if (present(eigenVals)) then
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
+        end do
       end do
-    end do
-
-    ! Create matrix by rank-k update
-    call pblasfx_psyrk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
-        & alpha=alpha, beta=beta)
-
-    ! Revert eigenvectors to their original value
-    do ii = 1, size(blocks)
-      call blocks%getblock(ii, iGlob, iLoc, blockSize)
-      do jj = 0, min(blockSize - 1, nLevel - iGlob)
-        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
+    else
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+        end do
       end do
-    end do
+    end if
+
+    ! Create matrix
+    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
+    ! symmetrize
+    work(:,:) = densityMtx
+    call pblasfx_ptran(work, desc, densityMtx, desc, alpha=0.5_dp, beta=0.5_dp)
 
   end subroutine makeDensityMtxRealBlacs
 
 
-  !> Create density or energy weighted density matrix (complex).
-  !!
+  !> Create density or energy weighted density matrix (complex) for both triangles.
   subroutine makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
+
+    !> BLACS grid information
     type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
     integer, intent(in) :: desc(:)
+
+    !> Occupations of levels
     real(dp), target, intent(in) :: filling(:)
+
+    !> Eigenvectors of system
     complex(dp), intent(inout) :: eigenVecs(:,:)
+
+    !> Resulting (symmetric) density matrix
     complex(dp), intent(out) :: densityMtx(:,:)
+
+    !> Eigenvalues, if energy weighted density matrix required
     real(dp), intent(in), optional :: eigenVals(:)
 
-    integer  :: ii, jj, iGlob, iLoc, blockSize, nLevel
-    real(dp) :: minFill, maxFill, alpha, beta
-    real(dp), allocatable, target :: eFilling(:)
-    real(dp), pointer :: myFilling(:)
+    integer  :: ii, jj, iGlob, iLoc, blockSize
     type(blocklist) :: blocks
+    complex(dp), allocatable :: work(:,:)
 
-    densityMtx(:,:) = 0.0_dp
+    densityMtx(:, :) = cmplx(0,0,dp)
+    work = densityMtx
 
-    ! Make non-zero fillings positive definite
-    nLevel = size(filling)
-    do while (abs(filling(nLevel)) < epsilon(1.0_dp) .and. nLevel > 1)
-      nLevel = nLevel - 1
-    end do
-    if (present(eigenVals)) then
-      allocate(eFilling(nLevel))
-      eFilling(:) = filling(1:nLevel) * eigenVals(1:nLevel)
-      myFilling => eFilling
-    else
-      myFilling => filling
-    end if
-    minFill = minval(myFilling)
-    maxFill = maxval(myFilling)
-    if ((minFill < 0.0_dp .eqv. maxFill < 0.0_dp)&
-        & .and. abs(minFill) >= epsilon(1.0_dp)&
-        & .and. abs(maxFill) >= epsilon(1.0_dp)) then
-      alpha = sign(1.0_dp, maxFill)
-      beta = 0.0_dp
-    else
-      alpha = 1.0_dp
-      beta = minFill - arbitraryConstant
-      call pblasfx_pherk(eigenVecs, desc, densityMtx, desc, kk=nLevel)
-    end if
-
-    ! Scale eigenvectors
+    ! Scale a copy of the eigenvectors
     call blocks%init(myBlacs, desc, "c")
-    do ii = 1, size(blocks)
-      call blocks%getblock(ii, iGlob, iLoc, blockSize)
-      do jj = 0, min(blockSize - 1, nLevel - iGlob)
-        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
+    if (present(eigenVals)) then
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
+        end do
       end do
-    end do
-
-    ! Create matrix by rank-k update
-    call pblasfx_pherk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
-        & alpha=alpha, beta=beta)
-
-    ! Revert eigenvectors to their original value
-    do ii = 1, size(blocks)
-      call blocks%getblock(ii, iGlob, iLoc, blockSize)
-      do jj = 0, min(blockSize - 1, nLevel - iGlob)
-        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
+    else
+      do ii = 1, size(blocks)
+        call blocks%getblock(ii, iGlob, iLoc, blockSize)
+        do jj = 0, blockSize - 1
+          work(:, iLoc + jj) = eigenVecs(:, iLoc + jj) * filling(iGlob + jj)
+        end do
       end do
-    end do
+    end if
+
+    ! Create matrix
+    call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="C")
+    ! hermitian symmetrize
+    work(:,:) = densityMtx
+    call pblasfx_ptranc(work, desc, densityMtx, desc, alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
 
   end subroutine makeDensityMtxCplxBlacs
 
