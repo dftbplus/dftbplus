@@ -4916,15 +4916,19 @@ contains
     type(TNEGFTunDos), intent(inout) :: tundos
   #:endif
 
-    type(fnode), pointer :: val, child, child2, child3
+    type(fnode), pointer :: val, child, child2, child3, child4
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer
-    integer :: nReg, iReg
+    type(string) :: buffer, modifier
+    integer :: nReg, iReg, nFreq, iFreq, jFreq
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
+    type(TListReal) :: lr
     logical :: tPipekDense
     logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
+    real(dp), allocatable :: tmpR(:)
+    real(dp) :: tmp3R(3)
+    logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
     if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
@@ -5028,8 +5032,10 @@ contains
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
-        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+        ctrl%isEPerturb = .true.
+        call freqRanges(child, ctrl%dynEFreq)
       end if
+
       call getChild(node, "ResponseKernel", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
@@ -5039,7 +5045,9 @@ contains
         else
           ctrl%isRespKernelRPA = .true.
         end if
+        call freqRanges(child, ctrl%dynKernelFreq)
       end if
+
       if (ctrl%isDFTBPT) then
         call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
             & child=child)
@@ -5047,6 +5055,25 @@ contains
           call detailedError(child, "Degeneracy tolerance must be above 1x")
         end if
         ctrl%tolDegenDFTBPT = ctrl%tolDegenDFTBPT * epsilon(0.0_dp)
+        isEtaNeeded = .false.
+        if (allocated(ctrl%dynEFreq)) then
+          if (any(ctrl%dynEFreq /= 0.0_dp)) then
+            isEtaNeeded = .true.
+          end if
+        end if
+        if (allocated(ctrl%dynKernelFreq)) then
+          if (any(ctrl%dynKernelFreq /= 0.0_dp)) then
+            isEtaNeeded = .true.
+          end if
+        end if
+        if (isEtaNeeded) then
+          allocate(ctrl%etaFreq)
+          call getChildValue(node, "eta", ctrl%etaFreq, 1.0E-8_dp, child=child)
+          if (ctrl%etaFreq < epsilon(0.0_dp)) then
+            call detailedError(child, "Imaginary constant for finite frequency perturbation too&
+                & small")
+          end if
+        end if
       end if
 
     end if
@@ -5112,6 +5139,114 @@ contains
   #:endif
 
   end subroutine readAnalysis
+
+
+  !> Frequency ranges for response calculations
+  subroutine freqRanges(node, frequencies)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> Frequencies, 0 being static
+    real(dp), allocatable, intent(inout) :: frequencies(:)
+
+    type(TListReal) :: lr
+    type(fnode), pointer :: child, child2
+    type(string) :: modifier
+    integer :: nFreq, iFreq, jFreq
+    real(dp) :: tmp3R(3)
+    real(dp), allocatable :: tmpR(:)
+    logical :: isStatic
+
+    call getChildValue(node, "Static", isStatic, .true.)
+    if (isStatic) then
+      call growFreqArray(frequencies, 1)
+      ! should already be zero, but just in case:
+      frequencies(:) = 0.0_dp
+    end if
+
+    call getChild(node, "Frequencies", child=child, modifier=modifier, requested=.false.)
+    if (associated(child)) then
+      call init(lr)
+      call getChildValue(child, "", lr, child=child2, modifier=modifier)
+      nFreq = len(lr)
+      if (nFreq > 0) then
+        if (allocated(frequencies)) then
+          iFreq = size(frequencies)
+        else
+          iFreq = 0
+        end if
+        call growFreqArray(frequencies, nFreq)
+        call asArray(lr, frequencies(iFreq+1:iFreq+nFreq))
+        call convertByMul(char(modifier),freqUnits, child, frequencies(iFreq+1:iFreq+nFreq))
+      end if
+      call destruct(lr)
+      if (any(frequencies < 0.0_dp)) then
+        call detailedError(child2, "Negative driving frequency requested")
+      end if
+    end if
+
+    call getChild(node, "FrequencyRange", child=child, modifier=modifier, requested=.false.)
+    if (associated(child)) then
+      call init(lr)
+      call getChildValue(child, "", lr, child=child2, modifier=modifier)
+      if (len(lr) == 3) then
+        call asArray(lr, tmp3R)
+        call convertByMul(char(modifier), freqUnits, child, tmp3R)
+        if (any(tmp3R(:2) < 0.0_dp)) then
+          call detailedError(child, "Negative values in dynamic frequency range.")
+        end if
+        if (abs(tmp3R(3)) <= epsilon(0.0_dp)) then
+          call detailedError(child, "Increase step size in dynamic frequency range.")
+        end if
+        ! how many frequencies in the specified range?
+        nFreq = max(int((tmp3R(2)-tmp3R(1))/tmp3R(3))+1,0)
+        if (allocated(frequencies)) then
+          iFreq = size(frequencies)
+        else
+          iFreq = 0
+        end if
+        call growFreqArray(frequencies, nFreq)
+        do jFreq = 1, nFreq
+          frequencies(iFreq+jFreq) = tmp3R(1) + (jFreq-1) * tmp3R(3)
+        end do
+      else
+        call detailedError(child,"Malformed frequency range.")
+      end if
+      call destruct(lr)
+      if (any(frequencies < 0.0_dp)) then
+        call detailedError(child2, "Negative driving frequency requested")
+      end if
+    end if
+
+  end subroutine freqRanges
+
+
+  !> Resize array, retaining values at start
+  subroutine growFreqArray(freq, nFreq)
+
+    !> Array to expand
+    real(dp), allocatable, intent(inout) :: freq(:)
+
+    !> Number of extra elements
+    integer, intent(in) :: nFreq
+
+    real(dp), allocatable :: tmpFreq(:)
+    integer :: nElem
+
+    if (allocated(freq)) then
+      nElem = size(freq)
+      call move_alloc(freq, tmpFreq)
+    else
+      nElem =0
+    end if
+    allocate(freq(nElem + nFreq))
+    if (nElem > 0) then
+      freq(:nElem) = tmpFreq
+    end if
+    freq(nElem+1:) = 0.0_dp
+
+  end subroutine growFreqArray
 
 
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}

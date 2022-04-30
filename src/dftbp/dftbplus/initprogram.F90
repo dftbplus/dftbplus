@@ -21,6 +21,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
+  use dftbp_derivs_perturb, only : TResponse, TResponse_init, responseSolverTypes
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
@@ -63,6 +64,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
   use dftbp_dftbplus_mainio, only : initOutputFile
+  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&
+      & resultsTag, userOut, fCharges, fStopDriver, fStopSCC
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes,&
@@ -82,6 +85,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
   use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
   use dftbp_geoopt_steepdesc, only : TSteepDesc
+  use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_formatout, only : clearFile
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -144,9 +148,6 @@ module dftbp_dftbplus_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, derivEBandOut, derivVBandOut, mdOut, resultsTag
-  public :: hessianOut
-  public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -154,44 +155,6 @@ module dftbp_dftbplus_initprogram
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
-
-
-  !> Tagged output files (machine readable)
-  character(*), parameter :: autotestTag = "autotest.tag"
-
-  !> Detailed user output
-  character(*), parameter :: userOut = "detailed.out"
-
-  !> File for band structure and filling information
-  character(*), parameter :: bandOut = "band.out"
-
-  !> File for derivatives of band structure
-  character(*), parameter :: derivEBandOut = "dE_band.out"
-
-  !> File for derivatives of band structure
-  character(*), parameter :: derivVBandOut = "dV_band.out"
-
-  !> File accumulating data during an MD run
-  character(*), parameter :: mdOut = "md.out"
-
-  !> Machine readable tagged output
-  character(*), parameter :: resultsTag = "results.tag"
-
-  !> Second derivative of the energy with respect to atomic positions
-  character(*), parameter :: hessianOut = "hessian.out"
-
-  !> file name prefix for charge data
-  character(*), parameter :: fCharges = "charges"
-
-  !> file to stop code during geometry driver
-  character(*), parameter :: fStopDriver = "stop_driver"
-
-  !> file to stop code during scc cycle
-  character(*), parameter :: fStopSCC = "stop_scc"
-
-  !> file name for shift data
-  character(*), parameter :: fShifts = "shifts.dat"
-
 
   !> Interaction cutoff distances
   type :: TCutoffs
@@ -546,20 +509,26 @@ module dftbp_dftbplus_initprogram
     !> Density functional tight binding perturbation theory
     logical :: isDFTBPT = .false.
 
-    !> Tolerance for degeneracy between eigenvalues in DFTB-PT
-    real(dp) :: tolDegenDFTBPT
+    !> Response property calculations
+    type(TResponse), allocatable :: response
 
     !> Static polarisability
-    logical :: isStatEResp = .false.
+    logical :: isEResp = .false.
+
+    !> Dynamic polarisability at finite frequencies
+    real(dp), allocatable :: dynRespEFreq(:)
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isRespKernelPert
+    logical :: isKernelResp
 
     !> Should the response Kernel use RPA (non-SCC) or self-consistent
     logical :: isRespKernelRPA
 
+    !> Dynamic polarisability at finite frequencies
+    real(dp), allocatable :: dynKernelFreq(:)
+
     !> Electric static polarisability
-    real(dp), allocatable :: polarisability(:,:)
+    real(dp), allocatable :: polarisability(:,:,:)
 
     !> Number of electrons  at the Fermi energy
     real(dp), allocatable :: neFermi(:)
@@ -1308,9 +1277,6 @@ contains
 
     logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
-
-    !> Format for two using exponential notation values with units
-    character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
     @:ASSERT(input%tInitialized)
 
@@ -2310,21 +2276,36 @@ contains
 
     this%isDFTBPT = input%ctrl%isDFTBPT
     if (this%isDFTBPT) then
-      this%tolDegenDFTBPT = input%ctrl%tolDegenDFTBPT
-      this%isStatEResp = input%ctrl%isStatEPerturb
-      this%isRespKernelPert = input%ctrl%isRespKernelPert
-      if (this%isRespKernelPert) then
+
+      allocate(this%response)
+      call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
+          & input%ctrl%tolDegenDFTBPT, input%ctrl%etaFreq)
+
+      this%isEResp = allocated(input%ctrl%dynEFreq)
+      if (this%isEResp) then
+        call move_alloc(input%ctrl%dynEFreq, this%dynRespEFreq)
+        if (this%isRangeSep .and. any(this%dynRespEFreq /= 0.0_dp)) then
+          call error("Finite frequency range separated calculation not currently supported")
+        end if
+      end if
+
+      this%isKernelResp = allocated(input%ctrl%dynKernelFreq)
+      if (this%isKernelResp) then
+        call move_alloc(input%ctrl%dynKernelFreq, this%dynKernelFreq)
+        if (this%isRangeSep .and. any(this%dynKernelFreq /= 0.0_dp)) then
+          call error("Finite frequency range separated calculation not currently supported")
+        end if
         this%isRespKernelRPA = input%ctrl%isRespKernelRPA
         if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
           call error("RPA option only relevant for SCC calculations of response kernel")
         end if
-      else
-        this%isRespKernelRPA = .false.
       end if
+
       if (this%iDistribFn /= fillingTypes%Fermi) then
         call error("Choice of filling function currently incompatible with perturbation&
             & calculations")
       end if
+
       if (this%tNegf) then
         call error("Currently the perturbation expressions for NEGF are not implemented")
       end if
@@ -2332,24 +2313,12 @@ contains
         call error("Perturbation expression for polarisability require eigenvalues and&
             & eigenvectors")
       end if
-      if (this%isStatEResp) then
-        if (this%tPeriodic) then
-          call error("Currently the electric field perturbation expressions periodic systems are&
-              & not implemented")
-        end if
-        if (this%tHelical) then
-          call error("Currently the electric field perturbation expressions for helical systems are&
-              & not implemented")
-        end if
-      end if
+
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")
       end if
       if (allocated(this%reks)) then
         call error("REKS not currently supported for perturbation")
-      end if
-      if (this%tFixEf) then
-        call error("Perturbation for fixed Fermi energy is not currently supported")
       end if
       if (this%deltaDftb%isNonAufbau) then
         call error("Delta-DFTB not currently supported for perturbation")
@@ -2362,19 +2331,22 @@ contains
             & perturbation")
       end if
 
-      if (this%isStatEResp) then
-        allocate(this%polarisability(3,3))
-        this%polarisability(:,:) = 0.0_dp
+      if (this%isEResp) then
+        allocate(this%polarisability(3, 3, size(this%dynRespEFreq)))
+        this%polarisability(:,:,:) = 0.0_dp
         if (input%ctrl%tWriteBandDat) then
+          ! only one frequency at the moment if dynamic!
           allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
           this%dEidE(:,:,:,:) = 0.0_dp
         end if
+        ! only one frequency at the moment if dynamic!
         allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
         this%dqOut(:,:,:,:) = 0.0_dp
       end if
 
     else
-      this%isStatEResp = .false.
+      this%isEResp = .false.
+      this%isKernelResp = .false.
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
@@ -4578,7 +4550,7 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
-      if (this%isDFTBPT .and. this%isStatEResp) then
+      if (this%isDFTBPT .and. this%isEResp) then
         call initOutputFile(derivEBandOut)
       end if
     end if
@@ -4811,9 +4783,6 @@ contains
 
     !> Block charges from contact(s), if present
     real(dp), allocatable, intent(out) :: blockUp(:,:,:,:)
-
-    !> Format for two values with units
-    character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
 
     integer :: nAtom
 
