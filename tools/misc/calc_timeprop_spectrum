@@ -19,7 +19,7 @@ USAGE = """usage: %prog -d xx
 
 Reads output from TD calculation (after kick) and produces absorption spectra.
 
-Needs mux.dat, muy.dat and muz.dat files in workind directory."""
+Needs mux.dat, muy.dat and muz.dat files in working directory."""
 
 def main():
     parser = optparse.OptionParser(usage=USAGE)
