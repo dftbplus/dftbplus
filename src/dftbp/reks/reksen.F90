@@ -19,7 +19,7 @@ module dftbp_reks_reksen
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeSquareMatrix, BlocksymmetrizeHS
   use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
@@ -817,7 +817,7 @@ module dftbp_reks_reksen
       end do
     end do
 
-    call symmetrizeHS(fock)
+    call symmetrizeSquareMatrix(fock)
 
   end subroutine getPseudoFock_
 

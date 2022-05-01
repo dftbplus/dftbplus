@@ -50,8 +50,9 @@ module dftbp_dftbplus_main
   use dftbp_dftb_shift, only : addShift
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
-      & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
-      & packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli, getSparseDescriptor
+      & blockSymmetrizeHS, packHS, symmetrizeSquareMatrix, unpackHelicalHS, packerho,&
+      & blockHermitianHS, packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli,&
+      & getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
@@ -6845,10 +6846,10 @@ contains
       end if
 
       if (reks%tForces) then
-        call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
+        call symmetrizeSquareMatrix(reks%rhoSqrL(:,:,1,iL))
       end if
       if (reks%isRangeSep) then
-        call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
+        call symmetrizeSquareMatrix(reks%deltaRhoSqrL(:,:,1,iL))
         call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, reks%deltaRhoSqrL(:,:,:,iL), 1)
       end if
 
