@@ -37,6 +37,7 @@ Analysis {
   CalculateForces = Yes
   MullikenAnalysis = Yes
   AtomResolvedEnergies = Yes
+  CM5 {}
 }
 
 ParserOptions = {

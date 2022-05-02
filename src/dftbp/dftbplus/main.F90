@@ -778,7 +778,7 @@ contains
       if (this%tWriteDetailedOut) then
         call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       end if
-      ! We need to define hamltonian by adding the potential
+      ! We need to define hamiltonian by adding the potential
       call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)

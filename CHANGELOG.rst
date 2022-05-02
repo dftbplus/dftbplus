@@ -13,6 +13,8 @@ Added
 
 - Real time electronic dynamics for xTB Hamiltonian
 
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
 - Real time electronic dynamics for range separated DFTB
 
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
@@ -24,6 +26,7 @@ Added
 
 - Dynamic polarizability and response kernel at finite frequencies
 
+- API call for CM5 charges
 
 Changed
 -------

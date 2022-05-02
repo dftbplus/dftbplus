@@ -36,6 +36,7 @@ Hamiltonian = DFTB {
 
 Analysis = {
   CalculateForces = Yes
+  CM5 {}
 }
 
 Options = {

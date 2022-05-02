@@ -57,8 +57,8 @@ program test_extcharges
   character(2), allocatable :: speciesNames(:)
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
+  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis, pCm5
   type(fnode), pointer :: pParserOpts
 
   character(:), allocatable :: DftbVersion
@@ -112,6 +112,7 @@ program test_extcharges
   call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
+  call setChild(pAnalysis, "CM5", pCm5)
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
 
@@ -133,11 +134,13 @@ program test_extcharges
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
+  call dftbp%getCM5Charges(cm5Charges)
   call dftbp%getAtomicMasses(atomMasses)
 
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
+  print "(A,3F15.10)", 'Obtained CM5 charges:', cm5Charges
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
   print "(A,3F15.10)", 'Obtained gradient of atom 2:', gradients(:,2)
   print "(A,3F15.10)", 'Obtained gradient of atom 3:', gradients(:,3)
@@ -149,6 +152,6 @@ program test_extcharges
 
   ! Write file for internal test system
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-      & extChargeGradients=extChargeGrads, atomMasses=atomMasses)
+      & extChargeGradients=extChargeGrads, atomMasses=atomMasses, cm5Charges=cm5Charges)
 
 end program test_extcharges

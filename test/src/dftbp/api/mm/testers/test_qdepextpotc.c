@@ -266,7 +266,7 @@ int main()
 
 
   /* Save some data for the internal test system */
-  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL);
+  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL, NULL);
 
   free(gradients);
   free(charges);

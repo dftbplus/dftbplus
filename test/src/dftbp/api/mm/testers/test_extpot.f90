@@ -40,11 +40,11 @@ program test_extpot
 
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
-  real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
+  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg)
   real(dp) :: esps(2)
   real(dp), parameter :: espLocations(3,2) = reshape([1.0_dp,0.0_dp,0.0_dp,1.0_dp,0.1_dp,0.0_dp],&
       & [3,2])
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis, pCm5
   type(fnode), pointer :: pParserOpts
 
   character(:), allocatable :: DftbVersion
@@ -92,6 +92,7 @@ program test_extpot
   !  set up analysis options
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
+  call setChild(pAnalysis, "CM5", pCm5)
 
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
@@ -114,12 +115,14 @@ program test_extpot
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(atomCharges)
+  call dftbp%getCM5Charges(cm5Charges)
   call dftbp%getElStatPotential(esps, espLocations)
   call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
       & extChargeGrads)
 
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
+  print "(A,3F15.10)", 'Obtained cm5 charges:', cm5Charges
   print "(A,2F15.10)", 'Obtained electrostatic potentials:', esps
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
   print "(A,3F15.10)", 'Obtained gradient of atom 2:', gradients(:,2)
@@ -131,6 +134,6 @@ program test_extpot
 
   ! Write file for internal test system
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
-      & extChargeGradients=extChargeGrads, potential=esps)
+      & extChargeGradients=extChargeGrads, potential=esps, cm5Charges=cm5Charges)
 
 end program test_extpot

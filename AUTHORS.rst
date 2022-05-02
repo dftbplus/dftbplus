@@ -66,6 +66,8 @@ contributed to DFTB+ :
   
 * Cristián G. Sánchez (Universidad Nacional de Cuyo, Argentina)
 
+* Miguel Steiner (ETH Zurich, Switzerland)
+
 * Michael Sternberg (Argonne National Laboratory, USA)
 
 * Martin Stöhr (University of Luxembourg, Luxembourg)

@@ -18,6 +18,7 @@ import numpy as np
 TAGLABELS = {'freeEgy': 'mermin_energy',
              'forceTot': 'forces',
              'qOutAtGross': 'gross_atomic_charges',
+             'qOutCM5': 'cm5_atomic_charges',
              'mu': 'dipole_moment'}
 
 
