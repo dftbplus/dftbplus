@@ -41,9 +41,8 @@ module dftbp_extlibs_tblite
   use mctc_io_symbols, only : symbol_length
   use tblite_basis_type, only : get_cutoff, basis_type
   use tblite_context_type, only : context_type
-  use tblite_coulomb_cache, only : coulomb_cache
+  use tblite_container, only : container_cache
   use tblite_cutoff, only : get_lattice_points
-  use tblite_disp_cache, only : dispersion_cache
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
   use tblite_param, only : param_record
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
@@ -142,10 +141,10 @@ module dftbp_extlibs_tblite
     type(potential_type) :: pot
 
     !> Reuseable data for Coulombic interactions
-    type(coulomb_cache) :: cache
+    type(container_cache) :: cache
 
     !> Reuseable data for Dispersion interactions
-    type(dispersion_cache) :: dcache
+    type(container_cache) :: dcache
   #:endif
 
     !> Parametrization info
@@ -170,19 +169,19 @@ module dftbp_extlibs_tblite
     real(dp), allocatable :: dsedcn(:)
 
     !> Repulsion energy
-    real(dp) :: erep
+    real(dp), allocatable :: erep(:)
 
     !> Halogen bonding energy
-    real(dp) :: ehal
+    real(dp), allocatable :: ehal(:)
 
     !> Non-self consistent dispersion energy
-    real(dp) :: edisp
+    real(dp), allocatable :: edisp(:)
 
     !> Self-consistent dispersion energy
-    real(dp) :: escd
+    real(dp), allocatable :: escd(:)
 
     !> Electrostatic energy
-    real(dp) :: ees
+    real(dp), allocatable :: ees(:)
 
     !> Contributions to the gradient
     real(dp), allocatable :: gradient(:, :)
@@ -408,6 +407,8 @@ contains
 
     allocate(this%selfenergy(this%calc%bas%nsh), this%dsedcn(this%calc%bas%nsh))
 
+    allocate(this%erep(this%mol%nat), this%ehal(this%mol%nat), this%edisp(this%mol%nat), &
+        & this%escd(this%mol%nat), this%ees(this%mol%nat))
     allocate(this%gradient(3, this%mol%nat))
 
     allocate(this%sp2id(maxval(species0)))
@@ -536,27 +537,24 @@ contains
     integer, intent(in) :: species0(:)
 
   #:if WITH_TBLITE
-    real(dp) :: cutoff
-    real(dp), allocatable :: lattr(:, :)
+    type(container_cache) :: hcache, rcache
 
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
-    this%ehal = 0.0_dp
-    this%erep = 0.0_dp
-    this%edisp = 0.0_dp
+    this%ehal(:) = 0.0_dp
+    this%erep(:) = 0.0_dp
+    this%edisp(:) = 0.0_dp
     this%gradient(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
 
     if (allocated(this%calc%halogen)) then
-      cutoff = 20.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%halogen%get_engrad(this%mol, lattr, cutoff, this%ehal, &
+      call this%calc%halogen%update(this%mol, hcache)
+      call this%calc%halogen%get_engrad(this%mol, hcache, this%ehal, &
           & this%gradient, this%sigma)
     end if
 
     if (allocated(this%calc%repulsion)) then
-      cutoff = 25.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%repulsion%get_engrad(this%mol, lattr, cutoff, this%erep, &
+      call this%calc%repulsion%update(this%mol, rcache)
+      call this%calc%repulsion%get_engrad(this%mol, rcache, this%erep, &
           & this%gradient, this%sigma)
     end if
 
@@ -610,7 +608,7 @@ contains
     real(dp), intent(out) :: energies(:)
 
   #:if WITH_TBLITE
-    energies(:) = (this%ehal + this%erep + this%edisp + this%escd + this%ees) / size(energies)
+    energies(:) = this%ehal + this%erep + this%edisp + this%escd + this%ees
   #:else
     call notImplementedError
   #:endif
@@ -733,8 +731,8 @@ contains
     real(dp), allocatable :: dQAtom(:), dQShell(:, :)
 
     call this%pot%reset
-    this%escd = 0.0_dp
-    this%ees = 0.0_dp
+    this%escd(:) = 0.0_dp
+    this%ees(:) = 0.0_dp
 
     allocate(dQAtom(this%mol%nat), dQShell(orb%mShell, this%mol%nat))
     call getSummedCharges(species, orb, qq, q0, dQAtom=dQAtom, dQShell=dQShell)
