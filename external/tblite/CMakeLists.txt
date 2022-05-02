@@ -11,5 +11,11 @@ set(WITH_API FALSE)
 
 add_subdirectory(${TBLITE_SOURCE_DIR} ${TBLITE_BINARY_DIR})
 
+target_compile_options(
+  "tblite-exe"
+  PRIVATE
+  "$<$<Fortran_COMPILER_ID:GNU>:-fall-intrinsics>"
+)
+
 add_library(tblite::tblite INTERFACE IMPORTED GLOBAL)
 target_link_libraries(tblite::tblite INTERFACE tblite)
