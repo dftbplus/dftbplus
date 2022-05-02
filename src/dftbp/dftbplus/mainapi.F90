@@ -183,6 +183,7 @@ contains
 
   end subroutine getGrossCharges
 
+
   !> get the CM5 charges
   subroutine getCM5Charges(env, main, atomCharges)
 
@@ -197,7 +198,7 @@ contains
 
     !> number of neighbours for all atoms
     integer, allocatable :: nNeigh(:)
-    
+
     !> handle the case that CM5 was not added in the input
     if (.not. allocated(main%cm5Cont)) then
       call error("CM5 analysis has not been carried out.")
@@ -211,7 +212,7 @@ contains
 
     !> Pass to the charges of the excited state if relevant
     if (main%isLinResp) then
-      atomCharges(:) = atomCharges(:) + main%dQAtomEx(:)
+      atomCharges(:) = atomCharges + main%dQAtomEx
     end if
 
   end subroutine getCM5Charges

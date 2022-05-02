@@ -459,6 +459,7 @@ contains
 
   end subroutine c_DftbPlus_getGrossCharges
 
+
   !> Obtain CM5 charges
   subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
       & bind(C, name='dftbp_get_cm5_charges')

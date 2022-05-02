@@ -295,6 +295,7 @@ class DftbPlus:
 
         return grosschg
 
+
     def get_cm5_charges(self):
         '''Queries the atomic CM5 charges.
 
@@ -375,8 +376,7 @@ class DftbPlus:
                    [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
 
         self._wrap('dftbp_get_cm5_charges', None,
-                   [ctypes.POINTER(ctypes.c_void_p),
-                    self._dp1d])
+                   [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
 
         self._wrap('dftbp_final', None, [ctypes.POINTER(ctypes.c_void_p)])
 

@@ -576,6 +576,7 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
+
   !> Returns the CM5 charges of each atom
   subroutine TDftbPlus_getCM5Charges(this, atomCharges)
 
@@ -590,6 +591,7 @@ contains
     call getCM5Charges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getCM5Charges
+
 
   !> Returns electrostatic potential at specified points
   subroutine TDftbPlus_getElStatPotential(this, pot, locations)
