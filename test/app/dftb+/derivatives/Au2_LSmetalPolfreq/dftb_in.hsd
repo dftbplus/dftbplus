@@ -1,0 +1,49 @@
+geometry = genformat {
+    2  C
+ Au
+    1 1    0.000000000 0.000000000 0.000000000
+    2 1    1.461739267 1.461739267 1.461739267
+}
+
+Hamiltonian = Dftb {
+    Scc = Yes
+    SccTolerance = 1E-8
+    ShellResolvedSCC = Yes
+    MaxAngularMomentum = {
+        Au = d
+    }
+    Filling = Fermi {
+        Temperature [K] = 300
+    }
+    SlaterKosterFiles = {
+        Au-Au = "Au-Au.skf"
+    }
+    SpinOrbit = {
+        Au [eV] = {0.0 0.5 1.5}
+    }
+}
+
+Analysis{
+  ResponseKernel = {
+    Static = Yes
+    Frequencies [eV] = 0.001 4.0
+  }
+  Polarisability = {
+     Static = Yes
+     Frequencies [eV] = 0.001 4.0
+  }
+}
+
+Parallel = {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 10
+}

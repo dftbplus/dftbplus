@@ -13,10 +13,11 @@
 !> removed.
 module dftbp_math_eigensolver
   use dftbp_common_accuracy, only : rsp, rdp
-  use dftbp_extlibs_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
+  use dftbp_extlibs_lapack, only : dlamch, slamch
   use dftbp_io_message, only : error, warning
 #:if WITH_MAGMA
-  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
+  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
+      & magmaf_zhegvd_m
 #:endif
   implicit none
 
@@ -1356,7 +1357,7 @@ contains
 
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
-    abstol = SLAMCH( 'Safe minimum' )
+    abstol = slamch( 'Safe minimum' )
 
     info = 0
 
@@ -1577,7 +1578,7 @@ contains
 
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
-    abstol = DLAMCH( 'Safe minimum' )
+    abstol = dlamch( 'Safe minimum' )
 
     info = 0
 

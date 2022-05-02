@@ -18,6 +18,8 @@ deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
 deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
 
+timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
@@ -44,6 +46,8 @@ timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI and 
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
 timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
+
+timeprop/benzene_rs                    #? OMP_THREADS <= 1 and not WITH_MPI
 
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1
@@ -176,6 +180,13 @@ derivatives/C6H6_onsite                #? MPI_PROCS == 1
 derivatives/C6H6_partial               #? MPI_PROCS <= 1 
 derivatives/CH4_RPA                    #? MPI_PROCS == 1
 
+derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
+derivatives/C60_Polfreq                #? MPI_PROCS <= 4
+
+derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
+derivatives/CH4_kpt_freq               #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0)
+derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
+
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
@@ -267,6 +278,7 @@ solvation/cosmo_444                    #? MPI_PROCS <= 2
 solvation/cosmo_inf                    #? MPI_PROCS <= 1
 solvation/cosmo_quinoline              #? MPI_PROCS <= 1
 solvation/cosmo_nitralin               #? MPI_PROCS <= 2
+solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -314,6 +326,7 @@ dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2
 geoopt/Cchain_lattice_lbfgs            #? MPI_PROCS <= 1
 geoopt/Cchain_lattice                  #? MPI_PROCS <= 1
+geoopt/Cchain_lattice_rf               #? MPI_PROCS <= 1
 scc/H2O+CH3COOH-3rdorder               #? MPI_PROCS <= 1
 spinorbit/Fe2                          #? MPI_PROCS <= 2
 analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
@@ -395,6 +408,7 @@ non-scc/Si41C23N35                     #? MPI_PROCS <= 4
 geoopt/diamond_isotropic               #? MPI_PROCS <= 1
 spinorbit/EuN                          #? MPI_PROCS <= 2
 geoopt/Si_6                            #? MPI_PROCS <= 1
+geoopt/Si_6_rf                         #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast                    #? MPI_PROCS <= 4
 spinorbit/EuN_customU                  #? MPI_PROCS <= 2
 dispersion/DNA                         #? MPI_PROCS <= 4
@@ -436,6 +450,7 @@ transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4
+poisson/CH4-selShell                   #? WITH_POISSON and not WITH_MPI
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2

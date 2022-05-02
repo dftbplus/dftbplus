@@ -94,12 +94,6 @@ module dftbp_dftbplus_parser
   !> Tag at the head of the input document tree
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
-  !> Version of the current parser
-  integer, parameter :: parserVersion = 10
-
-  !> Version of the oldest parser for which compatibility is still maintained
-  integer, parameter :: minVersion = 1
-
 
   !> Container type for parser related flags.
   type TParserFlags
@@ -123,9 +117,15 @@ module dftbp_dftbplus_parser
 
   !> Actual input version - parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
+      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  integer, parameter :: minVersion = 1
+
+  !> Version of the current parser (as latest version)
+  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
 
 
 contains
@@ -257,7 +257,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
-    ! Hamiltonian settings that need to know settings from the blocks above
+    ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -473,7 +473,8 @@ contains
     case ("steepestdescent")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')//&
           & "Please use the GeometryOptimization driver instead.")
 
       ! Steepest downhill optimisation
@@ -487,8 +488,8 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')// "Please use the GeometryOptimization driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -501,7 +502,8 @@ contains
     case("gdiis")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')//&
           & "Please use the GeometryOptimization driver instead.")
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
@@ -517,7 +519,8 @@ contains
     case ("lbfgs")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')//&
           & "Please use the GeometryOptimization driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
@@ -544,7 +547,8 @@ contains
     case ("fire")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future versions."//new_line('a')//&
+      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+          & versions."//new_line('a')//&
           & "Please use the GeometryOptimization driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
@@ -801,7 +805,9 @@ contains
         end if
       end if
 
-      call readXlbomdOptions(node, ctrl%xlbomd)
+      if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
+        call readXlbomdOptions(node, ctrl%xlbomd)
+      end if
 
       call getInputMasses(node, geom, ctrl%masses)
 
@@ -958,14 +964,11 @@ contains
 
     call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
     if (ctrl%tLatOpt) then
-      call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
-          & modifier=modifier, child=child)
-      call convertByMul(char(modifier), pressureUnits, child, &
-          & ctrl%pressure)
+      call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), pressureUnits, child, ctrl%pressure)
       call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
       if (ctrl%tLatOptFixAng) then
-        call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
-            & (/.false.,.false.,.false./))
+        call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, [.false.,.false.,.false.])
       else
         call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
       end if
@@ -973,8 +976,7 @@ contains
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
     end if
-    call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
-        &multiple=.true.)
+    call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, multiple=.true.)
     call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
         & ctrl%indMovedAtom)
 
@@ -985,12 +987,11 @@ contains
         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
     end if
-    call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
-        &modifier=modifier, child=field)
+    call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, modifier=modifier,&
+        & child=field)
     call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
     call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-    call getChildValue(node, "StepSize", ctrl%deltaT, 100.0_dp, &
-        &modifier=modifier, child=field)
+    call getChildValue(node, "StepSize", ctrl%deltaT, 100.0_dp, modifier=modifier, child=field)
     call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
     call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
     ctrl%outFile = unquote(char(buffer2))
@@ -998,12 +999,10 @@ contains
     call readGeoConstraints(node, ctrl, geom%nAtom)
     if (ctrl%tLatOpt) then
       if (ctrl%nrConstr/=0) then
-        call error("Lattice optimisation and constraints currently&
-            & incompatible.")
+        call error("Lattice optimisation and constraints currently incompatible.")
       end if
       if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-        call error("Subset of optimising atoms not currently possible with&
-            & lattice optimisation.")
+        call error("Subset of optimising atoms not currently possible with lattice optimisation.")
       end if
     end if
     ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
@@ -1730,6 +1729,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -1963,6 +1963,7 @@ contains
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -2468,7 +2469,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure to test for periodicity
     type(TGeometry), intent(in) :: geo
 
     !> Default temperature for filling
@@ -2659,6 +2660,8 @@ contains
   #:if WITH_TRANSPORT
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
+      ! need electronic temperature to be read for this solver:
+      call readElectronicFilling(node, ctrl, geo)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -2985,7 +2988,19 @@ contains
       end if
       if (iTmp2(2) > nint(geo%latvecs(3,1))) then
         write(errorStr, '("The k-point grid for the helix rotational operation (",I0,&
-            & ") is larger than the rotation order (",I0,").")')iTmp2(2), nint(geo%latvecs(3,1))
+            & ") is larger than the rotation order (C_",I0,").")') iTmp2(2), nint(geo%latvecs(3,1))
+        call detailedError(node, errorStr)
+      end if
+      if (mod(nint(geo%latvecs(3,1)),iTmp2(2)) /= 0) then
+        write(errorStr, '("The k-point grid for the helix rotational operation (n_k=",I0,&
+            & ") is not a divisor of the rotation order (C_",I0,").")') iTmp2(2),&
+            & nint(geo%latvecs(3,1))
+        call detailedError(node, errorStr)
+      end if
+      if (abs(rTmp22(2,2) * nint(geo%latvecs(3,1)) - nint(rTmp22(2,2) * nint(geo%latvecs(3,1))))&
+          & > epsilon(1.0_dp)) then
+        write(errorStr, '("The shift of the k-points along the rotation is incommensurate, it must&
+            & be an integer multiple of 1/",I0)') nint(geo%latvecs(3,1))
         call detailedError(node, errorStr)
       end if
       if (.not.ctrl%tSpinOrbit) then
@@ -2997,13 +3012,9 @@ contains
         kk = 1
         do ii = 0, iTmp2(1)-1
           do jj = 0, iTmp2(2)-1
-
             ctrl%kPoint(1,kk) = ii * 0.5_dp / rTmp22(1,1) + 0.5_dp*rTmp22(1,2)/rTmp22(1,1)
-
-            ctrl%kPoint(2,kk) = jj * 1.0_dp / rTmp22(2,1) + 0.5_dp*rTmp22(2,2)/rTmp22(2,1)
-
+            ctrl%kPoint(2,kk) = mod(jj * 1.0_dp / rTmp22(2,1) + rTmp22(2,2), 1.0_dp)
             kk = kk + 1
-
           end do
         end do
 
@@ -3028,6 +3039,11 @@ contains
       allocate(ctrl%kWeight(ctrl%nKPoint))
       ! first two are point values
       ctrl%kPoint(:2,:) = kpts(:2, :)
+      ! test if the second k-point is commensurate with the C_n operation
+      if (any(abs(kpts(2,:)*nint(geo%latvecs(3,1)) - nint(kpts(2,:) * nint(geo%latvecs(3,1))))&
+          & > epsilon(1.0_dp))) then
+        call error("Specified k-value(s) incommensurate with C_n operation.")
+      end if
       ! last one is the weight
       ctrl%kWeight(:) = kpts(3, :)
       deallocate(kpts)
@@ -4900,15 +4916,19 @@ contains
     type(TNEGFTunDos), intent(inout) :: tundos
   #:endif
 
-    type(fnode), pointer :: val, child, child2, child3
+    type(fnode), pointer :: val, child, child2, child3, child4
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer
-    integer :: nReg, iReg
+    type(string) :: buffer, modifier
+    integer :: nReg, iReg, nFreq, iFreq, jFreq
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
+    type(TListReal) :: lr
     logical :: tPipekDense
     logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
+    real(dp), allocatable :: tmpR(:)
+    real(dp) :: tmp3R(3)
+    logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
     if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
@@ -5012,8 +5032,10 @@ contains
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
-        call getChildValue(child, "Static", ctrl%isStatEPerturb, .true.)
+        ctrl%isEPerturb = .true.
+        call freqRanges(child, ctrl%dynEFreq)
       end if
+
       call getChild(node, "ResponseKernel", child=child, requested=.false.)
       if (associated(child)) then
         ctrl%isDFTBPT = .true.
@@ -5023,7 +5045,9 @@ contains
         else
           ctrl%isRespKernelRPA = .true.
         end if
+        call freqRanges(child, ctrl%dynKernelFreq)
       end if
+
       if (ctrl%isDFTBPT) then
         call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
             & child=child)
@@ -5031,6 +5055,25 @@ contains
           call detailedError(child, "Degeneracy tolerance must be above 1x")
         end if
         ctrl%tolDegenDFTBPT = ctrl%tolDegenDFTBPT * epsilon(0.0_dp)
+        isEtaNeeded = .false.
+        if (allocated(ctrl%dynEFreq)) then
+          if (any(ctrl%dynEFreq /= 0.0_dp)) then
+            isEtaNeeded = .true.
+          end if
+        end if
+        if (allocated(ctrl%dynKernelFreq)) then
+          if (any(ctrl%dynKernelFreq /= 0.0_dp)) then
+            isEtaNeeded = .true.
+          end if
+        end if
+        if (isEtaNeeded) then
+          allocate(ctrl%etaFreq)
+          call getChildValue(node, "eta", ctrl%etaFreq, 1.0E-8_dp, child=child)
+          if (ctrl%etaFreq < epsilon(0.0_dp)) then
+            call detailedError(child, "Imaginary constant for finite frequency perturbation too&
+                & small")
+          end if
+        end if
       end if
 
     end if
@@ -5087,10 +5130,123 @@ contains
             & with transport yet)")
       end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
+    else
+      if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
+        call detailedError(node, "The TransportOnly solver requires a TunnelingAndDos block to be&
+            & present.")
+      end if
     endif
   #:endif
 
   end subroutine readAnalysis
+
+
+  !> Frequency ranges for response calculations
+  subroutine freqRanges(node, frequencies)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> Frequencies, 0 being static
+    real(dp), allocatable, intent(inout) :: frequencies(:)
+
+    type(TListReal) :: lr
+    type(fnode), pointer :: child, child2
+    type(string) :: modifier
+    integer :: nFreq, iFreq, jFreq
+    real(dp) :: tmp3R(3)
+    real(dp), allocatable :: tmpR(:)
+    logical :: isStatic
+
+    call getChildValue(node, "Static", isStatic, .true.)
+    if (isStatic) then
+      call growFreqArray(frequencies, 1)
+      ! should already be zero, but just in case:
+      frequencies(:) = 0.0_dp
+    end if
+
+    call getChild(node, "Frequencies", child=child, modifier=modifier, requested=.false.)
+    if (associated(child)) then
+      call init(lr)
+      call getChildValue(child, "", lr, child=child2, modifier=modifier)
+      nFreq = len(lr)
+      if (nFreq > 0) then
+        if (allocated(frequencies)) then
+          iFreq = size(frequencies)
+        else
+          iFreq = 0
+        end if
+        call growFreqArray(frequencies, nFreq)
+        call asArray(lr, frequencies(iFreq+1:iFreq+nFreq))
+        call convertByMul(char(modifier),freqUnits, child, frequencies(iFreq+1:iFreq+nFreq))
+      end if
+      call destruct(lr)
+      if (any(frequencies < 0.0_dp)) then
+        call detailedError(child2, "Negative driving frequency requested")
+      end if
+    end if
+
+    call getChild(node, "FrequencyRange", child=child, modifier=modifier, requested=.false.)
+    if (associated(child)) then
+      call init(lr)
+      call getChildValue(child, "", lr, child=child2, modifier=modifier)
+      if (len(lr) == 3) then
+        call asArray(lr, tmp3R)
+        call convertByMul(char(modifier), freqUnits, child, tmp3R)
+        if (any(tmp3R(:2) < 0.0_dp)) then
+          call detailedError(child, "Negative values in dynamic frequency range.")
+        end if
+        if (abs(tmp3R(3)) <= epsilon(0.0_dp)) then
+          call detailedError(child, "Increase step size in dynamic frequency range.")
+        end if
+        ! how many frequencies in the specified range?
+        nFreq = max(int((tmp3R(2)-tmp3R(1))/tmp3R(3))+1,0)
+        if (allocated(frequencies)) then
+          iFreq = size(frequencies)
+        else
+          iFreq = 0
+        end if
+        call growFreqArray(frequencies, nFreq)
+        do jFreq = 1, nFreq
+          frequencies(iFreq+jFreq) = tmp3R(1) + (jFreq-1) * tmp3R(3)
+        end do
+      else
+        call detailedError(child,"Malformed frequency range.")
+      end if
+      call destruct(lr)
+      if (any(frequencies < 0.0_dp)) then
+        call detailedError(child2, "Negative driving frequency requested")
+      end if
+    end if
+
+  end subroutine freqRanges
+
+
+  !> Resize array, retaining values at start
+  subroutine growFreqArray(freq, nFreq)
+
+    !> Array to expand
+    real(dp), allocatable, intent(inout) :: freq(:)
+
+    !> Number of extra elements
+    integer, intent(in) :: nFreq
+
+    real(dp), allocatable :: tmpFreq(:)
+    integer :: nElem
+
+    if (allocated(freq)) then
+      nElem = size(freq)
+      call move_alloc(freq, tmpFreq)
+    else
+      nElem =0
+    end if
+    allocate(freq(nElem + nFreq))
+    if (nElem > 0) then
+      freq(:nElem) = tmpFreq
+    end if
+    freq(nElem+1:) = 0.0_dp
+
+  end subroutine growFreqArray
 
 
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
@@ -5198,7 +5354,9 @@ contains
       if (ctrl%tMD) then
         if (ctrl%iThermostat /= 0) then
           call getChildValue(driverNode, "Thermostat", child, child=child2)
-          call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+            call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+          end if
         end if
       end if
 
@@ -5212,18 +5370,36 @@ contains
         end if
       end if
 
-      ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-      ! thermostat.)
-      select case(ctrl%hamiltonian)
-      case(hamiltonianTypes%xtb)
-        call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
-      case(hamiltonianTypes%dftb)
-        call readFilling(hamNode, ctrl, geo, 0.0_dp)
-      end select
+      if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
+        call readElectronicFilling(hamNode, ctrl, geo)
+      end if
 
     end if hamNeedsT
 
   end subroutine readLaterHamiltonian
+
+
+  !> Parses for electronic filling temperature (should only read if not either REKS or electron
+  !> dynamics from a supplied density matrix)
+  subroutine readElectronicFilling(hamNode, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: hamNode
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure to test for periodicity
+    type(TGeometry), intent(in) :: geo
+
+    select case(ctrl%hamiltonian)
+    case(hamiltonianTypes%xtb)
+      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+    case(hamiltonianTypes%dftb)
+      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+    end select
+
+  end subroutine readElectronicFilling
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state

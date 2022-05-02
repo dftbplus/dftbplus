@@ -1,0 +1,71 @@
+Geometry = GenFormat {
+ 5  C
+ C H
+    1  1    0.0000000000    0.0000000000    0.0000000000
+    2  2    0.6366242192    0.6366242192    0.6366242192
+    3  2   -0.6366242192   -0.6366242192    0.6366242192
+    4  2   -0.6366242192    0.6366242192   -0.6366242192
+    5  2    0.6366242192   -0.6366242192   -0.6366242192
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-10
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+  Charge = 0.5
+  Filling = Fermi {
+    Temperature [Kelvin] = 500.0
+  }
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 0.5
+    InitialSpins = {
+      AtomSpin = {
+        Atoms = { C }
+        SpinPerAtom = 0.5
+      }
+      AtomSpin = {
+        Atoms = { H }
+        SpinPerAtom = 0.0
+      }
+    }
+  }
+  SpinConstants = {
+    C = {-0.023} # -0.031 -0.025 -0.025 -0.023
+    H = {-0.072}
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = {slakos/origin/mio-1-1/}
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Analysis = {
+  ResponseKernel = {
+    Static = Yes
+    Frequencies [eV] = 0.001 4.0
+  }
+  Polarisability = {
+     Static = Yes
+     Frequencies [eV] = 0.001 4.0
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 10
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  # spin polarised
+  Groups = 2
+}

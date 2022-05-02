@@ -14,7 +14,7 @@
     & ('logical', 'Logical', 'logical', 'formLogical')]
 
 #! Maximal rank to include into the interface (string from 0 - scalar)
-#:set MAX_RANK = 4
+#:set MAX_RANK = 5
 
 
 !> Contains routines to write out various data structures in a comprehensive tagged format.
@@ -205,6 +205,9 @@ module dftbp_io_taggedoutput
 
     !> Total dipole moment
     character(lenLabel) :: dipoleMoment = 'dipole_moments'
+
+    !> Rescaled dipole moment (for example if solvated)
+    character(lenLabel) :: scaledDipole = 'scaled_dipole'
 
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'

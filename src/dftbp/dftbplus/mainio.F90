@@ -32,6 +32,8 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
+  use dftbp_io_commonformats, only : formatHessian, formatGeoOut, format1U, format2U, format1Ue,&
+      & format2Ue, format1U1e
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -41,6 +43,7 @@ module dftbp_dftbplus_mainio
   use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_cosmo, only : TCosmo
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
@@ -97,29 +100,6 @@ module dftbp_dftbplus_mainio
 
   !> Ground state eigenvectors in binary format
   character(*), parameter :: eigvecBin = "eigenvec.bin"
-
-  !> Format string for energy second derivative matrix
-  character(len=*), parameter :: formatHessian = '(4f16.10)'
-
-  !> Atomic geometries format
-  character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"
-
-  !> Format for a single value with units
-  character(len=*), parameter :: format1U = "(A, ':', T32, F18.10, T51, A)"
-
-  !> Format for two values with units
-  character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
-  !> Format for a single value using exponential notation with units
-  character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
-
-  !> Format for two using exponential notation values with units
-  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71, A)"
-
-  !> Format for mixed decimal and exponential values with units
-  character(len=*), parameter :: format1U1e =&
-      & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
-
 
   !> Cosmo file name
   character(len=*), parameter :: cosmoFile = "dftbp.cosmo"
@@ -1901,7 +1881,7 @@ contains
   subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
       & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
       & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray,&
-      & polarisability, dEidE)
+      & polarisability, dEidE, dipoleMoment, eFieldScaling)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1957,6 +1937,9 @@ contains
     !> Object holding the potentials and their locations
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> tunneling array
     real(dp), allocatable, intent(in) :: tunneling(:,:)
 
@@ -1968,13 +1951,16 @@ contains
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
 
-    !> Tagged writer object
-    type(TTaggedWriter), intent(inout) :: taggedWriter
+    !> Overall dipole moment
+    real(dp), intent(in), allocatable :: dipoleMoment(:,:)
+
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
@@ -2027,7 +2013,6 @@ contains
       end if
     end if
 
-
     if (allocated(tunneling)) then
       if (size(tunneling, dim=1) > 0) then
         call taggedWriter%write(fd, tagLabels%tunn, tunneling)
@@ -2052,6 +2037,14 @@ contains
       call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
     end if
 
+    if (allocated(dipoleMoment)) then
+      call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
+      if (eFieldScaling%isRescaled) then
+        call taggedWriter%write(fd, tagLabels%scaledDipole,&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
+      end if
+    end if
+
     close(fd)
 
   end subroutine writeAutotestTag
@@ -2061,7 +2054,7 @@ contains
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
       & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE,&
-      & coord0, dipoleMoment, multipole)
+      & coord0, dipoleMoment, multipole, eFieldScaling)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2114,11 +2107,14 @@ contains
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> Charge model 5 to correct atomic gross charges
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
@@ -2141,8 +2137,8 @@ contains
     !> Multipole moments
     type(TMultipole), intent(in) :: multipole
 
-    !> Tagged writer object
-    type(TTaggedWriter), intent(inout) :: taggedWriter
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     integer :: fd
@@ -2211,14 +2207,18 @@ contains
 
     if (allocated(dipoleMoment)) then
       call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
+      if (eFieldScaling%isRescaled) then
+        call taggedWriter%write(fd, tagLabels%scaledDipole,&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
+      end if
     end if
 
     if (allocated(multipole%dipoleAtom)) then
       block
         real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
         qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
-        dipoleAtom = -multipole%dipoleAtom(:, :, 1) - coord0 * spread(qAtom, 1, 3)
-        call taggedWriter%write(fd, tagLabels%dipoleAtom, dipoleAtom)
+        call taggedWriter%write(fd, tagLabels%dipoleAtom,&
+           & eFieldScaling%scaledSoluteDipole(dipoleAtom))
       end block
     end if
 
@@ -3559,7 +3559,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, solvation, dipoleMessage)
+      & deltaDftb, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3585,8 +3585,8 @@ contains
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
-    !> Instance of the solvation model
-    class(TSolvation), intent(in), allocatable :: solvation
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
@@ -3597,50 +3597,60 @@ contains
       end if
       if (deltaDftb%isNonAufbau) then
         if (deltaDftb%iGround > 0) then
-          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
-          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
-              & * au__Debye, ' Debye'
+          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)), ' au'
+          write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)) * au__Debye,&
+              & ' Debye'
           write(fd, *)
         end if
         if (deltaDftb%iTriplet > 0) then
-          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:', dipoleMoment(:,deltaDftb%iTriplet), ' au'
-          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:', dipoleMoment(:,deltaDftb%iTriplet)&
-              & * au__Debye, ' Debye'
+          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iTriplet)), ' au'
+          write(fd, "(A, 3F14.8, A)")'T1 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iTriplet)) * au__Debye,&
+              & ' Debye'
           write(fd, *)
         end if
         if (deltaDftb%isSpinPurify) then
-          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:', dipoleMoment(:,deltaDftb%iFinal), ' au'
-          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:', dipoleMoment(:,deltaDftb%iFinal)&
-              & * au__Debye, ' Debye'
+          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iFinal)), ' au'
+          write(fd, "(A, 3F14.8, A)")'S1 Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iFinal)) * au__Debye,&
+              & ' Debye'
           write(fd, *)
           if (deltaDftb%isSpinPurify .and. deltaDftb%iGround > 0) then
             write(fd, "(A, 3F14.8, A)")'S0 -> S1 transition dipole:',&
-                & dipoleMoment(:,deltaDftb%iFinal)-dipoleMoment(:,deltaDftb%iGround), ' au'
+                & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iFinal))&
+                & -eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)), ' au'
           end if
         else
           write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:',&
-              & dipoleMoment(:,deltaDftb%iMixed), ' au'
-          write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:', dipoleMoment(:,deltaDftb%iMixed)&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iMixed)), ' au'
+          write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:',&
+              & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iMixed))&
               & * au__Debye, ' Debye'
           write(fd, *)
         end if
       else
-        write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround), ' au'
-        write(fd, "(A, 3F14.8, A)")'Dipole moment:', dipoleMoment(:,deltaDftb%iGround)&
-            & * au__Debye, ' Debye'
+        write(fd, "(A, 3F14.8, A)")'Dipole moment:',&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)), ' au'
+        write(fd, "(A, 3F14.8, A)")'Dipole moment:',&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)) * au__Debye,&
+            & ' Debye'
         write(fd, *)
-      end if
-      if (allocated(solvation)) then
-        if (solvation%isEFieldModified()) then
-          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
-        end if
       end if
     end if
 
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
-        write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
-            & eField%absEField * au__V_m, 'V/m'
+        if (eFieldScaling%isRescaled) then
+          write(fd, format1U1e) 'Effective external E field', eField%absEField, 'au',&
+              & eField%absEField * au__V_m, 'V/m'
+        else
+          write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
+              & eField%absEField * au__V_m, 'V/m'
+        end if
       end if
     end if
 
@@ -3680,9 +3690,9 @@ contains
     if (allocated(neFermi)) then
       write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
       if (size(neFermi)==2) then
-        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+        write(fd,"(E12.6,A,E12.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
       else
-        write(fd,"(F12.8)")neFermi
+        write(fd,"(E12.6)")neFermi
       end if
     end if
 
@@ -3699,7 +3709,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivative of Mulliken charges wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
@@ -3707,7 +3717,7 @@ contains
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
 
-    integer :: iCart, iAt, nAtom, iS, nSpin
+    integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
 
     if (allocated(dqOut)) then
       nAtom = size(dqOut, dim=2)
@@ -3756,9 +3766,11 @@ contains
 
     if (allocated(polarisability)) then
       write(fd,*)
-      write(fd,"(A)")'Static electric polarisability (a.u.)'
-      do iCart = 1, 3
-        write(fd,"(3E20.12)")polarisability(:, iCart)
+      write(fd,"(A)")'Electric polarisability (a.u.)'
+      do iOmega = 1, size(polarisability, dim=3)
+        do iCart = 1, 3
+          write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
+        end do
       end do
       write(fd,*)
     end if
@@ -3786,7 +3798,7 @@ contains
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
       & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & qOutput, q0, dipoleMoment, solvation, dipoleMessage)
+      & qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3842,8 +3854,8 @@ contains
     !> dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
-    !> Instance of the solvation model
-    class(TSolvation), intent(in), allocatable :: solvation
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
@@ -3901,13 +3913,10 @@ contains
         write(fd, "(A)")trim(dipoleMessage)
       end if
       ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii),  'au'
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment(:,ii) * au__Debye,  'Debye'
-      if (allocated(solvation)) then
-        if (solvation%isEFieldModified()) then
-          write(fd, "(A)")'Warning! Unmodified vacuum dielectric used for dipole moment.'
-        end if
-      end if
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)),  'au'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye,  'Debye'
     end if
 
   end subroutine writeMdOut2

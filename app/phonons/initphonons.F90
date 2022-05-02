@@ -1489,7 +1489,7 @@ contains
     allocate(iCellVec(nAllAtom))
 
     call updateNeighbourList(coords, img2CentCell, iCellVec, neighbourList, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec, .false.)
+          &nAllAtom, geo%coords, mCutoff, rCellVec, symmetric=.false.)
 
     deallocate(coords)
     deallocate(iCellVec)

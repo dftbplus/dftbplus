@@ -23,6 +23,15 @@ module dftbp_geoopt_filter
     !> Transform lattice
     logical :: lattice = .false.
 
+    !> Allow shearing of lattice
+    logical :: fixAngles = .false.
+
+    !> Allow compression / stretching of lattice
+    logical :: fixLength(3) = .false.
+
+    !> Allow only isotropic deformations
+    logical :: isotropic = .false.
+
     !> Selected atomic indices
     integer, allocatable :: indMovedAtom(:)
 
@@ -37,6 +46,15 @@ module dftbp_geoopt_filter
 
     !> Transform lattice
     logical :: lattice
+
+    !> Allow shearing of lattice
+    logical :: fixAngles
+
+    !> Allow compression / stretching of lattice
+    logical :: fixLength(3)
+
+    !> Allow only isotropic deformations
+    logical :: isotropic
 
     !> Selected atomic indices
     logical, allocatable :: mask(:)
@@ -91,6 +109,9 @@ contains
       this%nvar = size(coord0)
     end if
     this%lattice = input%lattice .and. present(latVec)
+    this%fixAngles = input%fixAngles
+    this%fixLength = input%fixLength
+    this%isotropic = input%isotropic
     if (this%lattice .and. present(latVec)) then
       if (size(coord0) > this%nvar) then
         @:ERROR_HANDLING(stat, 1, &
@@ -164,7 +185,11 @@ contains
     !> Common gradient vector containing both cartesian and lattice derivatives
     real(dp), intent(out) :: deriv(:)
 
-    real(dp) :: inv_lat(3, 3), lat_grad(3, 3), vol, sigma(3, 3)
+    real(dp) :: inv_lat(3, 3), lat_grad(3, 3), vol, sigma(3, 3), pressure
+    logical :: mask(3, 3)
+    logical, parameter :: diagonal(3, 3) = reshape(&
+       & [.true., .false., .false., .false., .true., .false., .false., .false., .true.], &
+       & shape(diagonal))
 
     if (allocated(this%mask)) then
       deriv(:) = pack(gradient, reshape(this%mask, shape(gradient)))
@@ -172,11 +197,23 @@ contains
       deriv(:size(gradient)) = reshape(gradient, [size(gradient)])
       if (this%lattice) then
         vol = abs(determinant33(latVec))
-        sigma(:, :) = -vol*stress
+        sigma(:, :) = -vol*stress - matmul(gradient, transpose(coord0))
+        mask(:, :) = .not.(spread(this%fixLength, 1, 3) .and. spread(this%fixLength, 2, 3))
+        if (this%fixAngles) mask = mask .and. diagonal
+        where(.not.mask)
+          sigma = 0.0_dp
+        end where
+        if (this%isotropic) then
+          pressure = sum(pack(sigma, diagonal)) / 3.0_dp
+          where(diagonal)
+            sigma = pressure
+          elsewhere
+            sigma = 0.0_dp
+          end where
+        endif
         call invert33(inv_lat, latVec)
         inv_lat(:, :) = transpose(inv_lat)
-        lat_grad(:, :) = matmul(sigma, inv_lat) &
-          & - matmul(gradient, matmul(transpose(coord0), inv_lat))
+        lat_grad(:, :) = matmul(sigma, inv_lat)
         deriv(size(gradient)+1:) = reshape(lat_grad, [size(lat_grad)])
       end if
     end if

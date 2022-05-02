@@ -12,7 +12,20 @@ Added
 -----
 
 - Real time electronic dynamics for xTB Hamiltonian
+
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
+- Real time electronic dynamics for range separated DFTB
+
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
+- (Optionally) Rescale externally applied fields and dipole moments
+  when implicit solvents are used
+
+- Enable lattice constraints in new geometry optimization driver
+
+- Dynamic polarizability and response kernel at finite frequencies
+
 - API call for CM5 charges
 
 Changed
@@ -25,12 +38,21 @@ Changed
   value is ill-defined (charged systems or periodic cases), but its
   derivative may be meaningful.
 
+- Use the DFTB+ xyz writer for the modes program, removing the
+  XMakemol output option.
+
+- Re-enable q=0 (sawtooth) electric fields for periodic/helical structures
+
 
 Fixed
 -----
 
 - incorrect atomic mass unit for xTB calculations
 
+- electronic temperature read for Green's function solver
+
+- MPI code for spin polarised metallic perturbation at q=0 for spin
+  polarized molecules with processor groups
 
 
 21.2 (2021-12-13)

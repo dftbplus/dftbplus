@@ -401,7 +401,7 @@ contains
        do iOrb = 1, iEnd - iStart + 1
           rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
                & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-               & - q0(iOrb, iAtom, 1)*0.5_dp
+               & - q0(iOrb, iAtom, 1) * 0.5_dp
        end do
     end do
 
@@ -471,7 +471,7 @@ contains
       do iOrb = 1, iEnd - iStart + 1
         rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
             & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-            & - 0.5_dp * q0(iOrb, iAtom, 1)
+            & - q0(iOrb, iAtom, 1)
       end do
     end do
 

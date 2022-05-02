@@ -11,7 +11,7 @@
 program waveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_periodic, only : getCellTranslations, foldCoordToUnitCell
+  use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
@@ -183,7 +183,7 @@ program waveplot
     call invert33(invBoxVecs, wp%opt%boxVecs)
     call invert33(recVecs2p, wp%input%geo%latVecs)
     recVecs2p = reshape(recVecs2p, [3, 3], order=[2, 1])
-    call foldCoordToUnitCell(wp%input%geo%coords(:,:), wp%input%geo%latVecs, recVecs2p)
+    call wp%boundaryCond%foldCoordsToCell(wp%input%geo%coords(:,:), wp%input%geo%latVecs)
   end if
 
   ! Fill the box with atoms

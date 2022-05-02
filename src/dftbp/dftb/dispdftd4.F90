@@ -15,6 +15,7 @@ module dftbp_dftb_dispdftd4
   use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
   use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
@@ -261,19 +262,19 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Status of operation
-    integer, intent(out), optional :: stat
+    type(TStatus), intent(out) :: stat
 
     integer, allocatable :: nNeighbour(:)
 
     if (this%tPeriodic) then
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
-          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & stress=this%stress, volume=this%vol, stat=stat)
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat,&
+          & stress=this%stress, volume=this%vol)
     else
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
-          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat)
     end if
-    @:HANDLE_ERROR(stat)
+    @:PROPAGATE_ERROR(stat)
 
     if (allocated(this%sc)) then
       allocate(nNeighbour(this%nAtom))
@@ -981,7 +982,7 @@ contains
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
   subroutine evalDispersion(calc, ref, env, nAtom, species, coords, neigh, img2CentCell, &
-      & eeqCont, cnCont, energies, gradients, stress, volume, stat)
+      & eeqCont, cnCont, energies, gradients, stat, stress, volume)
 
     !> DFT-D dispersion model
     type(TDftD4Calc), intent(in) :: calc
@@ -1019,14 +1020,14 @@ contains
     !> Updated gradient vector at return
     real(dp), intent(out) :: gradients(:, :)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: stat
+
     !> Upgraded stress
     real(dp), intent(out), optional :: stress(:, :)
 
     !> Volume, if system is periodic
     real(dp), intent(in), optional :: volume
-
-    !> Status of operation
-    integer, intent(out), optional :: stat
 
     integer :: iAtFirst, iAtLast, nRef
     real(dp) :: sigma(3, 3)
@@ -1054,7 +1055,7 @@ contains
 
     if (present(eeqCont)) then
       call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
-      @:HANDLE_ERROR(stat)
+      @:PROPAGATE_ERROR(stat)
     end if
 
     call cnCont%updateCoords(neigh, img2CentCell, coords, species)

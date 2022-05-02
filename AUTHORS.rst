@@ -41,6 +41,8 @@ contributed to DFTB+ :
 
 * Jan Hermann (Free University of Berlin, Germany)
 
+* Jacek Jakowski (Oak Ridge National Laboratory, USA)
+
 * Eisuke Kawashima (RIKEN, Japan)
 
 * Tim Kowalczyk (Western Washington University)

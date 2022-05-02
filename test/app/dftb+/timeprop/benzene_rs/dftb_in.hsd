@@ -1,0 +1,70 @@
+# range separated time propagation
+
+Geometry = GenFormat {
+    12  C
+    C H
+     1  1    0.2699866563E-11    0.1401948364E+01    0.2525192224E-05
+     2  1    0.1214117680E+01    0.7009627337E+00    0.6508085184E-06
+     3  1    0.1214117680E+01   -0.7009627337E+00   -0.4853510414E-06
+     4  1   -0.1678436882E-12   -0.1401948364E+01   -0.2893469848E-06
+     5  1   -0.1214117680E+01   -0.7009627337E+00   -0.4853496920E-06
+     6  1   -0.1214117680E+01    0.7009627337E+00    0.6508081026E-06
+     7  2   -0.2158065138E+01    0.1245960095E+01    0.5396268258E-06
+     8  2   -0.2158065138E+01   -0.1245960095E+01   -0.3781549767E-06
+     9  2   -0.3129035838E-12   -0.2491916035E+01    0.1144069805E-06
+    10  2    0.2158065138E+01   -0.1245960095E+01   -0.3781549719E-06
+    11  2    0.2158065138E+01    0.1245960095E+01    0.5396283754E-06
+    12  2    0.7236226599E-12    0.2491916035E+01    0.6995886640E-05
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-10
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    Charge = 0.0
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = {slakos/origin/ob2-1-1/shift/}
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    RangeSeparated = LC {
+        Screening = MatrixBased {}
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+#ExcitedState {
+#   Casida {
+#      NrOfExcitations = 100
+#      StateOfInterest = 0
+#      Symmetry = Singlet
+#      Diagonaliser = Stratmann {}
+#   }
+#}
+
+ElectronDynamics = {
+    Steps = 10000
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "all"
+    }
+    FieldStrength [v/a] = 0.001
+}
+
+InputVersion = 21.2
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+    # Due to small size of problem, allow 2 MPI processors by shrinking blocks
+    Blacs = BlockSize {
+        16
+    }
+}
