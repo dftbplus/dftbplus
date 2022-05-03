@@ -1189,7 +1189,7 @@ contains
         H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
       else
         if (this%nSpin == 4) then
-          call unpackHPauli(ints%hamiltonian, this%kPoint(:,iK), neighbourList%iNeighbour,&
+          call unpackHPauli(2.0_dp*ints%hamiltonian, this%kPoint(:,iK), neighbourList%iNeighbour,&
               & nNeighbourSK, iSparseStart, iSquare, img2CentCell, this%iCellVec, this%cellVec, &
               & H1(:,:,iKS))
         else
@@ -1248,7 +1248,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     complex(dp), allocatable :: T1(:, :, :), T2(:, :), T3(:, :, :), T4(:, :)
-    integer :: iAt, iStart, iEnd, iKS, iSpin, iOrb
+    integer :: iAt, iStart, iEnd, iKS, iSpin, iOrb, jOrb, mOrb
     real(dp) :: pkick(this%nSpin)
 
     character(1), parameter :: localDir(3) = ['x', 'y', 'z']
@@ -1275,15 +1275,29 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      iSpin = this%parallelKS%localKS(2, iKS)
-      do iAt = 1, this%nAtom
-        iStart = iSquare(iAt)
-        iEnd = iSquare(iAt + 1) - 1
-        do iOrb = iStart, iEnd
-          T1(iOrb, iOrb, iKS) = exp(cmplx(0, -pkick(iSpin) * coord(this%currPolDir, iAt), dp))
-          T3(iOrb, iOrb, iKS) = exp(cmplx(0,  pkick(iSpin) * coord(this%currPolDir, iAt), dp))
+      if (this%nSpin == 4) then
+        mOrb = this%nOrbs/2
+        do jOrb = 0, 1
+          do iAt = 1, this%nAtom
+            iStart = iSquare(iAt) + jOrb * mOrb
+            iEnd = iSquare(iAt + 1) - 1 + jOrb * mOrb
+            do iOrb = iStart, iEnd
+              T1(iOrb, iOrb, iKS) = exp(cmplx(0, -pkick(1) * coord(this%currPolDir, iAt),dp))
+              T3(iOrb, iOrb, iKS) = exp(cmplx(0,  pkick(1) * coord(this%currPolDir, iAt),dp))
+            end do
+          end do
         end do
-      end do
+      else
+        iSpin = this%parallelKS%localKS(2, iKS)
+        do iAt = 1, this%nAtom
+          iStart = iSquare(iAt)
+          iEnd = iSquare(iAt + 1) - 1
+          do iOrb = iStart, iEnd
+            T1(iOrb, iOrb, iKS) = exp(cmplx(0, -pkick(iSpin) * coord(this%currPolDir, iAt), dp))
+            T3(iOrb, iOrb, iKS) = exp(cmplx(0,  pkick(iSpin) * coord(this%currPolDir, iAt), dp))
+          end do
+        end do
+      end if
     end do
 
     do iKS = 1, this%parallelKS%nLocalKS
@@ -1413,7 +1427,7 @@ contains
     !> Error status
     type(TStatus), intent(out) :: errStatus
 
-    integer :: iAt, iSpin, iOrb1, iOrb2, nOrb, iKS, iK, ii
+    integer :: iAt, iSpin, iOrb1, iOrb2, jOrb1, jOrb2, nOrb, iKS, iK, ii, mOrb
 
     qq(:,:,:) = 0.0_dp
     if (this%isRealHS) then
@@ -1430,18 +1444,66 @@ contains
 
     else
 
-      do iKS = 1, this%parallelKS%nLocalKS
-        iK = this%parallelKS%localKS(1, iKS)
-        iSpin = this%parallelKS%localKS(2, iKS)
-
-        do iAt = 1, this%nAtom
-          iOrb1 = iSquare(iAt)
-          iOrb2 = iSquare(iAt+1)-1
-          ! only real part is needed
-          qq(:iOrb2-iOrb1+1,iAt,iSpin) = qq(:iOrb2-iOrb1+1,iAt,iSpin) + this%kWeight(iK) *&
-              & real(sum(rho(:,iOrb1:iOrb2,iKS) * conjg(Ssqr(:,iOrb1:iOrb2,iKS)), dim=1), dp)
+      if (this%nSpin == 4) then
+        mOrb = size(sSqr,dim=2)/2
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            jOrb1 = iOrb1 + mOrb
+            jOrb2 = iOrb2 + mOrb
+            ! only real part is needed
+            qq(:iOrb2-iOrb1+1,iAt,1) = qq(:iOrb2-iOrb1+1,iAt,1)&
+                & + this%kWeight(iK) *(&
+                & real(sum(&
+                & rho(:mOrb,iOrb1:iOrb2,iKS)*conjg(Ssqr(:mOrb,iOrb1:iOrb2,iKS)),dim=1),&
+                & dp)&
+                & +real(sum(&
+                & rho(mOrb+1:,jOrb1:jOrb2,iKS)&
+                &*conjg(Ssqr(mOrb+1:,jOrb1:jOrb2,iKS)),dim=1),&
+                & dp) )
+            qq(:iOrb2-iOrb1+1,iAt,2) = qq(:iOrb2-iOrb1+1,iAt,2)&
+                & + this%kWeight(iK) *(&
+                & real(sum(&
+                & rho(mOrb+1:,iOrb1:iOrb2,iKS)*conjg(Ssqr(mOrb+1:,iOrb1:iOrb2,iKS)),&
+                & dim=1), dp) +&
+                & real(sum(rho(:mOrb,jOrb1:jOrb2,iKS)*conjg(Ssqr(:mOrb,jOrb1:jOrb2,iKS)),&
+                & dim=1),dp) )
+            qq(:iOrb2-iOrb1+1,iAt,2) = qq(:iOrb2-iOrb1+1,iAt,2)&
+                & + this%kWeight(iK) *(&
+                & aimag(sum(&
+                & rho(mOrb+1:,iOrb1:iOrb2,iKS)*conjg(Ssqr(mOrb+1:,iOrb1:iOrb2,iKS)),&
+                & dim=1)) -aimag(&
+                & sum(rho(:mOrb,jOrb1:jOrb2,iKS)*conjg(Ssqr(:mOrb,jOrb1:jOrb2,iKS)),&
+                & dim=1)) )
+            qq(:iOrb2-iOrb1+1,iAt,4) = qq(:iOrb2-iOrb1+1,iAt,4)&
+                & + this%kWeight(iK) *(&
+                & real(sum(&
+                & rho(:mOrb,iOrb1:iOrb2,iKS)*conjg(Ssqr(:mOrb,iOrb1:iOrb2,iKS)),dim=1),&
+                & dp)&
+                & -real(sum(&
+                & rho(mOrb+1:,jOrb1:jOrb2,iKS)&
+                &*conjg(Ssqr(mOrb+1:,jOrb1:jOrb2,iKS)),dim=1),&
+                & dp) )
+          end do
         end do
-      end do
+
+      else
+
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            ! only real part is needed
+            qq(:iOrb2-iOrb1+1,iAt,iSpin) = qq(:iOrb2-iOrb1+1,iAt,iSpin) + this%kWeight(iK) *&
+                & real(sum(rho(:,iOrb1:iOrb2,iKS) * conjg(Ssqr(:,iOrb1:iOrb2,iKS)), dim=1), dp)
+          end do
+        end do
+
+      end if
 
     end if
 
@@ -1877,7 +1939,7 @@ contains
           H1(:,:,iKS) = cmplx(T3, 0, dp)
         else
           if (this%nSpin == 4) then
-            call unpackHPauli(ints%hamiltonian, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+            call unpackHPauli(2.0_dp*ints%hamiltonian, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
                 & iSparseStart, iSquare, img2CentCell, this%iCellVec, this%cellVec, H1(:,:,iKS))
           else
             call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
@@ -2435,7 +2497,7 @@ contains
     real(dp) :: auxVeloc(3, this%nAtom)
     integer :: iAtom, iSpin, iDir
 
-    write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
+    write(dipoleDat, '(13F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
 
     if (this%tdWriteExtras) then
@@ -4081,7 +4143,7 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%isRealHS) .or. this%isRangeSep) then
+      if (this%tIons .or. .not. this%isRealHS .or. this%isRangeSep) then
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
