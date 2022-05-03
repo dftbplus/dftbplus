@@ -10,7 +10,8 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
-  use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
+  use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber,&
+      & c, Bohr__nm
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
@@ -5619,7 +5620,12 @@ contains
       call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      ! If wavelength in nm (nanometers) is used as the laser energy
+      if (char(modifier) .eq. "nm") then
+        input%omega = (2.0_dp * pi * c) / (input%omega * (1.0_dp / Bohr__nm))
+      else
+        call convertByMul(char(modifier), energyUnits, child, input%omega)
+      end if
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
       call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
@@ -5641,7 +5647,12 @@ contains
       call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      ! If wavelength in nm (nanometers) is used as the laser energy
+      if (char(modifier) .eq. "nm") then
+        input%omega = (2.0_dp * pi * c) / (input%omega * (1.0_dp / Bohr__nm))
+      else
+        call convertByMul(char(modifier), energyUnits, child, input%omega)
+      end if
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
       call convertByMul(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
