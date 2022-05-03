@@ -241,7 +241,7 @@ class Gen:
         Raises:
             NotImplementedError (error): if unit is not supported
         """
-        if unit is None:
+        if unit is None or unit.lower() == "relative":
             return vector
 
         unit = unit.lower()

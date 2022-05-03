@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PYTHON_TESTS="grids repeatgen straingen xyz2gen gen2xyz gen2cif dp_bands dp_dos"
+PYTHON_TESTS="detailedout eigenvecout hsd2geo hsdinput resultstag"
 
 function abspath() {
   cd $1

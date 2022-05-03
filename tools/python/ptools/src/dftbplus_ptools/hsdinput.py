@@ -358,7 +358,7 @@ class Changehsd:
         geodict = {}
         geodict['TypeNames'] = specieslist
         typesandcoords = np.empty([len(indexes), 4], dtype=object)
-        typesandcoords[:, 0] = indexes
+        typesandcoords[:, 0] = indexes + 1
         typesandcoords[:, 1:] = np.array(geometry.coords, dtype=float)
         geodict['TypesAndCoordinates'] = typesandcoords
         geodict['TypesAndCoordinates.attrib'] = 'Angstrom'
