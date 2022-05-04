@@ -204,6 +204,7 @@ module dftbp_timedep_timeprop
 
   end type TElecDynamicsInp
 
+
   !> Data type for electronic dynamics internal settings
   type TElecDynamics
     private
@@ -302,7 +303,10 @@ module dftbp_timedep_timeprop
 
   end type TElecDynamics
 
+
+  !> Perturbing fields
   type :: TDPertTypeEnum
+
     !> Dirac delta kick to DM
     integer :: kick = 1
 
@@ -317,9 +321,12 @@ module dftbp_timedep_timeprop
 
   end type TDPertTypeEnum
 
+
   !> Container for enumerated available types of perturbation
   type(TDPertTypeEnum), parameter :: pertTypes = TDPertTypeEnum()
 
+
+  !> Perturbing field time dependent envelope
   type :: TDEnvelopeFunctionEnum
 
     !> Constant envelope
@@ -339,12 +346,14 @@ module dftbp_timedep_timeprop
   !> Container for enumerated available types of envelope function
   type(TDEnvelopeFunctionEnum), parameter :: envTypes = TDEnvelopeFunctionEnum()
 
+
+  !> Field pontential options
   type :: TDSpinTypesEnum
 
-    ! only singlet excitations (no change of total spin)
+    !> only singlet excitations (no change of total spin)
     integer :: singlet = 1
 
-    ! only triplet excitations (with change of total spin = 1)
+    !> only triplet excitations (with change of total spin)
     integer :: triplet = 2
 
   end type TDSpinTypesEnum
@@ -354,6 +363,7 @@ module dftbp_timedep_timeprop
 
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
+
 
 contains
 
@@ -1263,6 +1273,7 @@ contains
     T3(:,:,:) = cmplx(0,0,dp)
     T4(:,:) = cmplx(0,0,dp)
 
+    pkick(:) = 0.0_dp
     pkick(1) = this%field
 
     if (this%nSpin == 2) then
@@ -1272,22 +1283,60 @@ contains
       case(tdSpinTypes%triplet)
         pkick(2) = -pkick(1)
       end select
+    else if (this%nSpin == 4) then
+      if (this%spType == tdSpinTypes%triplet) then
+        pkick(4) = pkick(1) ! Bz field direction temporarily
+        !pkick(3) = pkick(1) ! By
+        !pkick(2) = pkick(1) ! Bx
+        ! charge part zeroed
+        pkick(1) = 0.0_dp
+        write(*,*)'HERE',pkick
+      end if
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
+
       if (this%nSpin == 4) then
-        mOrb = this%nOrbs/2
-        do jOrb = 0, 1
-          do iAt = 1, this%nAtom
-            iStart = iSquare(iAt) + jOrb * mOrb
-            iEnd = iSquare(iAt + 1) - 1 + jOrb * mOrb
-            do iOrb = iStart, iEnd
-              T1(iOrb, iOrb, iKS) = exp(cmplx(0, -pkick(1) * coord(this%currPolDir, iAt),dp))
-              T3(iOrb, iOrb, iKS) = exp(cmplx(0,  pkick(1) * coord(this%currPolDir, iAt),dp))
+        mOrb = this%nOrbs/2 ! as matrix has 2x2 spin blocks times orbitals
+
+        if (this%spType == tdSpinTypes%singlet) then
+
+          ! (1  0)
+          ! (0  1)
+          do jOrb = 0, 1
+            do iAt = 1, this%nAtom
+              iStart = iSquare(iAt) + jOrb * mOrb
+              iEnd = iSquare(iAt + 1) - 1 + jOrb * mOrb
+              do iOrb = iStart, iEnd
+                T1(iOrb, iOrb, iKS) = exp(cmplx(0, -pkick(1) * coord(this%currPolDir, iAt),dp))
+                T3(iOrb, iOrb, iKS) = exp(cmplx(0,  pkick(1) * coord(this%currPolDir, iAt),dp))
+              end do
             end do
           end do
-        end do
+
+        else if (this%spType == tdSpinTypes%triplet) then
+
+          ! need to accumulate over kick directions
+
+          ! mz-component kick, m{xy} to do
+          do iAt = 1, this%nAtom
+            iStart = iSquare(iAt)
+            iEnd = iSquare(iAt + 1) - 1
+            do iOrb = iStart, iEnd
+              T1(iOrb, iOrb, iKS) =&
+                  & exp(cmplx(0, -pkick(4) * coord(this%currPolDir, iAt),dp))
+              T3(iOrb, iOrb, iKS) =&
+                  & exp(cmplx(0,  pkick(4) * coord(this%currPolDir, iAt),dp))
+              T1(iOrb+mOrb, iOrb+mOrb, iKS) = conjg(T1(iOrb, iOrb, iKS))
+              T3(iOrb+mOrb, iOrb+mOrb, iKS) = conjg(T3(iOrb, iOrb, iKS))
+            end do
+          end do
+
+        end if
+
       else
+
+        ! spin-free or up/down spin directions
         iSpin = this%parallelKS%localKS(2, iKS)
         do iAt = 1, this%nAtom
           iStart = iSquare(iAt)
@@ -1298,6 +1347,7 @@ contains
           end do
         end do
       end if
+
     end do
 
     do iKS = 1, this%parallelKS%nLocalKS
