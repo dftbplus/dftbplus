@@ -272,7 +272,16 @@ module dftbp_timedep_timeprop
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:), chargePerShell(:,:,:)
     complex(dp), allocatable :: H1LC(:,:), deltaRho(:,:,:)
     real(dp), allocatable :: movedAccel(:,:)
-    real(dp), allocatable :: qBlock(:,:,:,:), qNetAtom(:)
+
+    !> block (dual) atomic populations
+    real(dp), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), allocatable :: qiBlock(:,:,:,:)
+
+    !> Net (on-site only) atomic charge
+    real(dp), allocatable :: qNetAtom(:)
+
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp), allocatable :: bondWork(:, :)
     real(dp) :: time, startTime, timeElec, energyKin, lastBondPopul
@@ -281,7 +290,7 @@ module dftbp_timedep_timeprop
     integer :: forceDat, coorDat, fdBondPopul, fdBondEnergy
     type(TPotentials) :: potential
 
-    !> count of the number of times dynamics has been initialised
+    !> count of the number of times dynamics has been initialized
     integer :: nDynamicsInit = 0
 
     !> Number of times this has been called
@@ -647,7 +656,7 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, boundaryCond, eigvecs, H0, speciesAll, q0, referenceN0, ints,&
       & filling, neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell,&
-      & orb, coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+      & orb, coord, spinW, repulsive, env, isDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
       & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements,&
       & skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver,&
       & eigvecsCplx, taggedWriter, refExtPot, errStatus)
@@ -721,7 +730,7 @@ contains
     type(TSlakoCont), intent(in) :: skHamCont, skOverCont
 
     !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
@@ -801,7 +810,7 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
             & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb,&
-            & coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+            & coord, spinW, repulsive, env, isDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
             & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
             & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
@@ -811,7 +820,7 @@ contains
     else
       call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
           & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb,&
-          & coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+          & coord, spinW, repulsive, env, isDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
           & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
           & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
@@ -824,7 +833,7 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, boundaryCond, eigvecsReal, H0, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & spinW, repulsive, env, isDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
       & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
       & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
       & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
@@ -899,7 +908,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> DFTB+U functional (if used)
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -975,7 +984,7 @@ contains
 
     call initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
-       & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
+       & H0, spinW, isDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
        & refExtPot, solvation, eFieldScaling, rangeSep, referenceN0, q0, repulsive,&
        & iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec,&
        & invLatVec, iCellVec, rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
@@ -995,7 +1004,7 @@ contains
 
       call doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
-       & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
+       & coordAll, q0, referenceN0, spinW, isDualSpinOrbit, xi, thirdOrd, dftbU,&
        & onSiteElements, refExtPot, solvation, eFieldScaling, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
       @:PROPAGATE_ERROR(errStatus)
@@ -1020,7 +1029,7 @@ contains
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
-      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
+      & spinW, env, isDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
       & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho, errStatus)
 
     !> ElecDynamics instance
@@ -1081,7 +1090,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
@@ -1143,7 +1152,7 @@ contains
     tImHam = .false. ! for the moment
 
     call resetExternalPotentials(refExtPot, potential)
-    call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
+    call resetInternalPotentials(isDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
@@ -1427,7 +1436,7 @@ contains
 
   !> Calculate charges, dipole moments
   subroutine getChargeDipole(this, deltaQ, qq, multipole, dipole, q0, rho, Ssqr, Dsqr, Qsqr,&
-      & coord, iSquare, eFieldScaling, qBlock, qNetAtom, errStatus)
+      & coord, iSquare, eFieldScaling, qBlock, qiBlock, qNetAtom, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1470,6 +1479,9 @@ contains
 
     !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Net (on-site only) atomic charge
     real(dp), allocatable, intent(inout) :: qNetAtom(:)
@@ -1626,9 +1638,6 @@ contains
     dipole(:,1) = eFieldScaling%scaledSoluteDipole(dipole(:,1))
 
     if (allocated(qBlock)) then
-      if (.not. this%isRealHS) then
-        @:RAISE_ERROR(errStatus, -1, "Block populations not implemented yet")
-      end if
       qBlock(:,:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
@@ -1641,6 +1650,7 @@ contains
               & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)), dp)
         end do
       end do
+      ! Symmetrize populations
       do iAt = 1, this%nAtom
         iOrb1 = iSquare(iAt)
         iOrb2 = iSquare(iAt+1)
@@ -1648,6 +1658,28 @@ contains
         qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
             & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
       end do
+      if (.not. this%isRealHS) then
+        @:ASSERT(allocated(qiBlock))
+        qiBlock(:,:,:,:) = 0.0_dp
+        do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+        do iAt = 1, this%nAtom
+          iOrb1 = iSquare(iAt)
+          iOrb2 = iSquare(iAt+1)
+          nOrb = iOrb2 - iOrb1
+          qiBlock(:nOrb,:nOrb,iAt,iSpin) = qiBlock(:nOrb,:nOrb,iAt,iSpin) + this%kWeight(iK) *&
+              & aimag(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)))
+        end do
+      end do
+      do iAt = 1, this%nAtom
+        iOrb1 = iSquare(iAt)
+        iOrb2 = iSquare(iAt+1)
+        nOrb = iOrb2 - iOrb1
+        qiBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qiBlock(:nOrb,:nOrb,iAt,iSpin)&
+            & - transpose(qiBlock(:nOrb,:nOrb,iAt,iSpin)) )
+      end do
+      end if
     end if
 
     if (allocated(qNetAtom)) then
@@ -1672,7 +1704,7 @@ contains
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
   subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
       & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, dftbU, xi,&
+      & isDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, qiBlock, dftbU, xi,&
       & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
@@ -1724,7 +1756,7 @@ contains
     real(dp), intent(out) :: energyKin
 
     !> Is dual spin orbit being used
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
@@ -1740,6 +1772,9 @@ contains
 
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> DFTB+U functional (if used)
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -1760,7 +1795,6 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
     type(TReksCalc), allocatable :: reks ! never allocated
@@ -1792,7 +1826,7 @@ contains
 
     TS = 0.0_dp
     call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
-        & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
+        & this%speciesAll, this%tLaser, .false., dftbU, isDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
         & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
         & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -1814,8 +1848,8 @@ contains
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, Dsqr, Qsqr, ints,&
       & eigvecsReal, filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock,&
-      & qNetAtom, isDftbU, onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul,&
-      & lastBondPopul, time)
+      & qiBlock, isDualSpinOrbit, qNetAtom, isDftbU, onSiteElements, eigvecsCplx, H1LC, bondWork,&
+      & fdBondEnergy, fdBondPopul, lastBondPopul, time)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1897,6 +1931,12 @@ contains
 
     !> block (dual) atomic populations
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
+
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: isDualSpinOrbit
 
     !> net (onsite only) atomic charges
     real(dp), intent(inout), allocatable :: qNetAtom(:)
@@ -2055,6 +2095,11 @@ contains
 
     if (isDftbU .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+    end if
+    if (isDualSpinOrbit) then
+      if (.not.allocated(qiBlock)) then
+        allocate(qiBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+      end if
     end if
 
     if (this%tNetCharges) then
@@ -2307,6 +2352,19 @@ contains
       write(dipoleDat, "(A)", advance = "NO")" mu_x (down) (e.angstrom)|"
       write(dipoleDat, "(A)", advance = "NO")" mu_y (down) (e.angstrom)|"
       write(dipoleDat, "(A)", advance = "NO")" mu_z (down) (e.angstrom)|"
+    case(4)
+      write(dipoleDat, "(A)", advance = "NO")"  mu_x (q) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_y (q) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_z (q) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")" mu_x (x) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_y (x) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_z (x) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_x (y) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_y (y) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_z (y) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_x (z) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_y (z) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_z (z) (e.angstrom)|"
     end select
     write(dipoleDat, "(A)")
 
@@ -3657,7 +3715,7 @@ contains
   !> Handles the initializations of the variables needed for the time propagation
   subroutine initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
+      & isDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
       & rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx,&
       & filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
       & speciesAll, electronicSolver, errStatus)
@@ -3729,7 +3787,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> DFTB+U functional (if used)
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -3880,8 +3938,9 @@ contains
         & this%Dsqr, this%Qsqr, ints, eigvecsReal, filling, orb, this%rhoPrim, this%potential,&
         & neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
         & this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, skOverCont, this%qBlock,&
-        & this%qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, this%H1LC, this%bondWork,&
-        & this%fdBondEnergy, this%fdBondPopul, this%lastBondPopul, this%time)
+        & this%qiBlock, isDualSpinOrbit, this%qNetAtom, allocated(dftbU), onSiteElements,&
+        & eigvecsCplx, this%H1LC, this%bondWork, this%fdBondEnergy, this%fdBondPopul,&
+        & this%lastBondPopul, this%time)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this, boundaryCond)
@@ -3917,7 +3976,7 @@ contains
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%timeDepRho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling,&
-        & this%qBlock, this%qNetAtom, errStatus)
+        & this%qBlock, this%qiBlock, this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -3926,7 +3985,7 @@ contains
 
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
-        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & this%chargePerShell, spinW, env, isDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
         & this%dispersion, this%timeDepRho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
@@ -3941,7 +4000,7 @@ contains
     end if
 
     ! the ion dynamics init must be done here, as it needs the DM and outputs the velocities
-    ! needed to initialise the electronic dynamics
+    ! needed to initialize the electronic dynamics
     ! coordNew stores the coordinates at t=dt
     if (this%tIons) then
       call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
@@ -3957,8 +4016,9 @@ contains
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%timeDepRho, neighbourList, nNeighbourSK,&
         & orb, iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
-        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
-        & qDepExtPot, this%qBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & this%chargePerShell, this%energyKin, isDualSpinOrbit, thirdOrd, solvation, rangeSep,&
+        & qDepExtPot, this%qBlock, this%qiBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef,&
+        & onSiteElements)
 
     if (.not. this%tReadRestart .or. this%tProbe) then
       ! output ground state data
@@ -3978,7 +4038,7 @@ contains
     end if
 
     ! had to add the "or tKick" option to override rhoOld if tReadRestart = yes, otherwise it will
-    ! be badly initialised
+    ! be badly initialized
     if (.not.this%tReadRestart .or. (this%tKick .and. this%startTime < this%dt / 10.0_dp)) then
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
@@ -4001,7 +4061,7 @@ contains
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
-        & this%qNetAtom, errStatus)
+        & this%qiBlock, this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -4010,7 +4070,7 @@ contains
 
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
-        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & this%chargePerShell, spinW, env, isDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
         & this%dispersion,this%rho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
@@ -4032,7 +4092,7 @@ contains
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
   subroutine doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0,&
-      & spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation,&
+      & spinW, isDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation,&
       & eFieldScaling, rangeSep, repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver,&
       & qDepExtPot, errStatus)
 
@@ -4094,7 +4154,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: isDualSpinOrbit
 
     !> DFTB+U functional (if used)
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -4183,8 +4243,9 @@ contains
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
-        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
-        & qDepExtPot, this%qBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & this%chargePerShell, this%energyKin, isDualSpinOrbit, thirdOrd, solvation, rangeSep,&
+        & qDepExtPot, this%qBlock, this%qiBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef,&
+        & onSiteElements)
 
     if ((mod(iStep, this%writeFreq) == 0)) then
       call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0,&
@@ -4276,7 +4337,7 @@ contains
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
-        & this%qNetAtom, errStatus)
+        & this%qBlock, this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -4285,7 +4346,7 @@ contains
 
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-        & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
+        & this%chargePerShell, spinW, env, isDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
         & this%dispersion,this%rho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
