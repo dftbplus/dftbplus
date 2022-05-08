@@ -15,7 +15,7 @@ module dftbp_dftb_rangeseparated
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
+  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeSquareMatrix, hermitianSquareMatrix
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_sorting, only : index_heap_sort
@@ -387,7 +387,7 @@ contains
       tmpOvr(:,:) = overlap
       call blockSymmetrizeHS(tmpOvr, iSquare)
       tmpDRho(:,:) = deltaRho
-      call symmetrizeHS(tmpDRho)
+      call symmetrizeSquareMatrix(tmpDRho)
       tmpDHam(:,:) = 0.0_dp
       call checkAndInitScreening(this, matrixSize, tmpDRho)
       tmpDDRho(:,:) = tmpDRho - this%dRhoPrev
@@ -549,7 +549,7 @@ contains
 
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
-    call symmetrizeHS(tmpHH)
+    call symmetrizeSquareMatrix(tmpHH)
     HH(:,:) = HH + tmpHH
     this%lrEnergy = this%lrEnergy + evaluateEnergy(tmpHH, tmpDRho)
 
@@ -568,7 +568,7 @@ contains
       tmpHH(:,:) = 0.0_dp
       allocate(tmpDRho(size(densSqr, dim=1), size(densSqr, dim=1)))
       tmpDRho(:,:) = densSqr
-      call symmetrizeHS(tmpDRho)
+      call symmetrizeSquareMatrix(tmpDRho)
 
     end subroutine allocateAndInit
 
@@ -954,11 +954,11 @@ contains
       nAtom = size(this%lrGammaEval,dim=1)
 
       ! Symmetrize Hamiltonian, overlap, density matrices
-      call symmetrizeHS(HH)
+      call symmetrizeSquareMatrix(HH)
       Smat(:,:) = overlap
-      call symmetrizeHS(Smat)
+      call symmetrizeSquareMatrix(Smat)
       Dmat(:,:) = densSqr
-      call symmetrizeHS(Dmat)
+      call symmetrizeSquareMatrix(Dmat)
 
       ! Get long-range gamma variable
       LrGammaAO(:,:) = 0.0_dp
@@ -1477,9 +1477,9 @@ contains
       allocate(tmpderiv(3, size(gradients, dim = 2)))
       tmpOvr = ovrlapMat
       tmpRho = deltaRho
-      call symmetrizeHS(tmpOvr)
+      call symmetrizeSquareMatrix(tmpOvr)
       do iSpin = 1, size(deltaRho, dim = 3)
-        call symmetrizeHS(tmpRho(:,:,iSpin))
+        call symmetrizeSquareMatrix(tmpRho(:,:,iSpin))
       enddo
       ! precompute the gamma derivatives
       gammaPrimeTmp = 0.0_dp
@@ -1527,8 +1527,8 @@ contains
     allocate(tmpDRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
     tmpOvr = ovrlap
     tmpDRho = deltaRho
-    call symmetrizeHS(tmpOvr)
-    call symmetrizeHS(tmpDRho)
+    call symmetrizeSquareMatrix(tmpOvr)
+    call symmetrizeSquareMatrix(tmpDRho)
 
     energy = 0.0_dp
     do iAt1 = 1, nAtom

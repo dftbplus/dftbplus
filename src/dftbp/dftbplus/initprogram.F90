@@ -3596,10 +3596,6 @@ contains
     ! Electron dynamics stuff
     if (allocated(input%ctrl%elecDynInp)) then
 
-      if (this%t2Component) then
-        call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
-      end if
-
       if (withMpi) then
         call error("Electron dynamics does not work with MPI yet")
       end if
@@ -3638,9 +3634,9 @@ contains
       call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
-          & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%eFieldScaling,&
-          & this%hamiltonianType, errStatus)
+          & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS,&
+          & this%tRealHS.and..not.this%t2Component, this%kPoint, this%kWeight, this%isRangeSep,&
+          & this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
