@@ -296,6 +296,25 @@ class DftbPlus:
         return grosschg
 
 
+    def get_cm5_charges(self):
+        '''Queries the atomic CM5 charges.
+
+           Sign convention: Electron has negative charge, so negative values
+           indicate electron excess.
+
+        Returns:
+
+            charges (1darray): obtained CM5 charges (in atomic units)
+
+        '''
+        charges = np.empty(self._natoms)
+
+        self._dftbpluslib.dftbp_get_cm5_charges(self._dftb_handler,
+                                                charges)
+
+        return charges
+
+
     def close(self):
         '''Finalizes the DFTB+ calculator.'''
 
@@ -354,6 +373,9 @@ class DftbPlus:
                    [ctypes.POINTER(ctypes.c_void_p), self._dp2d])
 
         self._wrap('dftbp_get_gross_charges', None,
+                   [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
+
+        self._wrap('dftbp_get_cm5_charges', None,
                    [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
 
         self._wrap('dftbp_final', None, [ctypes.POINTER(ctypes.c_void_p)])

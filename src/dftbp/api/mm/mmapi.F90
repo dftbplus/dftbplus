@@ -19,8 +19,8 @@ module dftbp_mmapi
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
-      & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
-      & getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
+      & getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients, getStressTensor,&
+      & getGradients, getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -98,6 +98,8 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
+    !> get the CM5 DFTB+ charges
+    procedure :: getCM5Charges => TDftbPlus_getCM5Charges
     !> get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
@@ -573,6 +575,22 @@ contains
     call getGrossCharges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
+
+
+  !> Returns the CM5 charges of each atom
+  subroutine TDftbPlus_getCM5Charges(this, atomCharges)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic gross charges.
+    real(dp), intent(out) :: atomCharges(:)
+
+    call this%checkInit()
+
+    call getCM5Charges(this%env, this%main, atomCharges)
+
+  end subroutine TDftbPlus_getCM5Charges
 
 
   !> Returns electrostatic potential at specified points

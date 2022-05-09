@@ -11,7 +11,7 @@
 module dftbp_dftb_scc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
   use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
@@ -348,7 +348,7 @@ contains
 
 
   !> Updates the SCC module, if the lattice vectors had been changed
-  subroutine updateLatVecs(this, latVec, recVec, vol)
+  subroutine updateLatVecs(this, latVec, recVec, boundaryConds, vol)
 
     !> Instance
     class(TScc), intent(inout) :: this
@@ -358,6 +358,9 @@ contains
 
     !> New reciprocal lattice vectors
     real(dp), intent(in) :: recVec(:,:)
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryConds
 
     !> New volume
     real(dp), intent(in) :: vol
@@ -377,7 +380,7 @@ contains
     end select
 
     if (allocated(this%extCharges)) then
-      call this%extCharges%setLatticeVectors(latVec, recVec)
+      call this%extCharges%setLatticeVectors(latVec, boundaryConds)
     end if
 
   end subroutine updateLatVecs

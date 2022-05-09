@@ -11,6 +11,7 @@ set(sources-fpp
   ${curdir}/main.F90
   ${curdir}/mainapi.F90
   ${curdir}/mainio.F90
+  ${curdir}/outputfiles.F90
   ${curdir}/oldcompat.F90
   ${curdir}/parser.F90
   ${curdir}/qdepextpotgen.F90

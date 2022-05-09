@@ -23,7 +23,7 @@ module dftbp_common_blacsenv
   !> Contains various BLACS related settings
   type :: TBlacsEnv
 
-    !> Group grid for (nOrb, nOrb) shaped square matrices (nAtom) shaped vectors
+    !> Group grid for (nOrb, nOrb) shaped square matrices
     !> Note: the grid always contains all processes in the group
     type(blacsgrid) :: orbitalGrid
 
@@ -31,11 +31,19 @@ module dftbp_common_blacsenv
     !> Note: Some processes in the group may be outside of this grid!
     type(blacsgrid) :: atomGrid
 
-    !> Row block size
+    !> Group grid for (nOrb, nOrb) shaped square matrices ordered with entire rows on same processor
+    !> Note: the grid always contains all processes in the group
+    type(blacsgrid) :: rowOrbitalGrid
+
+    !> Row block size for square matrices
     integer :: rowBlockSize
 
-    !> Column block size
+    !> Column block size for square matrices
     integer :: columnBlockSize
+
+    !> Number of functions (needed for rowOrbitalGrids). In the case of Pauli this is twice nOrb,
+    !> but equal otherwise.
+    integer :: nn
 
   end type TBlacsEnv
 
@@ -85,6 +93,10 @@ contains
     call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
 
+    ! rectangular grid for the rowBlock
+    call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
+    call this%rowOrbitalGrid%initmappedgrids(gridMap)
+
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
     maxProcColMax = (nAtom - 1) / colBlock + 1
@@ -96,6 +108,7 @@ contains
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
+    this%nn = nOrb
 
   end subroutine TBlacsEnv_init
 
@@ -108,6 +121,7 @@ contains
 
     call this%orbitalGrid%destruct()
     call this%atomGrid%destruct()
+    call this%rowOrbitalGrid%destruct()
 
   end subroutine TBlacsEnv_final
 
@@ -171,6 +185,5 @@ contains
     end do
 
   end subroutine getGridMap
-
 
 end module dftbp_common_blacsenv

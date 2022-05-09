@@ -38,11 +38,13 @@ def init_collective_variables():
     merminentot = 0.0
     gradientstot = np.zeros((MAX_ATOMS, 3))
     grosschgstot = np.zeros(MAX_ATOMS)
+    cm5chgstot = np.zeros(MAX_ATOMS)
 
-    return merminentot, gradientstot, grosschgstot
+    return merminentot, gradientstot, grosschgstot, cm5chgstot
 
 def update_collective_variables(merminen, gradients, grosschgs,
-                                merminentot, gradientstot, grosschgstot):
+                                merminentot, gradientstot, grosschgstot,
+                                cm5chgs, cm5chgstot):
     '''Add new results to collective variables.
 
     Args:
@@ -53,20 +55,24 @@ def update_collective_variables(merminen, gradients, grosschgs,
         merminentot (float): summation of mermin free energies
         gradientstot (2darray): summation of gradients
         grosschgstot (1darray): summation of Gross charges
+        cm5chgs (1darray): CM5 charges
+        cm5chgstot (float): summation of CM5 charges
 
     Returns:
 
         merminentot (float): updated mermin free energy
         gradientstot (2darray): updated gradients
         grosschgstot (1darray): updated Gross charges
+        cm5chgstot (1darray): updated CM5 charges
 
     '''
 
     merminentot += merminen
     gradientstot = np.add(gradients, gradientstot)
     grosschgstot = np.add(grosschgs, grosschgstot)
+    cm5chgstot = np.add(cm5chgs, cm5chgstot)
 
-    return merminentot, gradientstot, grosschgstot
+    return merminentot, gradientstot, grosschgstot, cm5chgstot
 
 
 def main():
@@ -90,7 +96,7 @@ def main():
         [0.00000000000E+00,  0.00000000000E+00, -0.78306400000E+00]])
 
     # initialize collective variables
-    merminentot, gradientstot, grosschgstot = init_collective_variables()
+    merminentot, gradientstot, grosschgstot, cm5chgstot = init_collective_variables()
 
 
     # dummy loop to test subsequent initializations/
@@ -131,6 +137,10 @@ def main():
         merminen = cdftb.get_energy()
         gradients = cdftb.get_gradients()
         grosschgs = cdftb.get_gross_charges()
+        if tsi2:
+            cm5chgs = cdftb.get_cm5_charges()
+        else:
+            cm5chgs = grosschgs[:]
 
         # finalize DFTB+ and clean up
         cdftb.close()
@@ -139,17 +149,20 @@ def main():
 
             dummygrads = np.zeros(3)
             dummychgs = 0
-            merminentot, gradientstot, grosschgstot = \
+            merminentot, gradientstot, grosschgstot, cm5chgstot = \
             update_collective_variables(merminen,
                                         np.vstack((gradients, dummygrads)),
                                         np.hstack((grosschgs, dummychgs)),
-                                        merminentot, gradientstot, grosschgstot)
+                                        merminentot, gradientstot, grosschgstot,
+                                        np.hstack((cm5chgs, dummychgs)),
+                                        cm5chgstot)
 
         else:
 
-            merminentot, gradientstot, grosschgstot = \
+            merminentot, gradientstot, grosschgstot, cm5chgstot = \
             update_collective_variables(merminen, gradients, grosschgs,
-                                        merminentot, gradientstot, grosschgstot)
+                                        merminentot, gradientstot, grosschgstot,
+                                        cm5chgs, cm5chgstot)
 
         if tsi2:
 
@@ -181,6 +194,12 @@ def main():
             print('(Si2) Obtained Gross charges: {:15.10f} {:15.10f}'
                   .format(*grosschgs))
             print('(Si2) Expected Gross charges: {:15.10f} {:15.10f}\n\n'
+                  .format(0.0, 0.0))
+
+            # evaluate CM5 charges
+            print('(Si2) Obtained CM5 charges: {:15.10f} {:15.10f}'
+                  .format(*cm5chgs))
+            print('(Si2) Expected CM5 charges: {:15.10f} {:15.10f}\n\n'
                   .format(0.0, 0.0))
 
         else:
@@ -222,13 +241,19 @@ def main():
             print('(H2O) Expected Gross charges: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n\n'
                   .format(-0.6519945363, 0.3314953102, 0.3204992261))
+ 
 
 
     # --------------------------WRITE AUTOTEST.TAG------------------------------
 
     # write autotest.tag file, containing the collective variables
-    write_autotest_tag('autotest.tag', freeEgy=merminentot,
-                       forceTot=-gradientstot, qOutAtGross=grosschgstot)
+    if tsi2:
+        write_autotest_tag('autotest.tag', freeEgy=merminentot,
+                           forceTot=-gradientstot, qOutAtGross=grosschgstot,
+                           qOutCM5=cm5chgstot)
+    else:
+        write_autotest_tag('autotest.tag', freeEgy=merminentot,
+                           forceTot=-gradientstot, qOutAtGross=grosschgstot)
 
 
 if __name__ == "__main__":

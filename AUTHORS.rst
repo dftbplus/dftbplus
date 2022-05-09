@@ -41,6 +41,8 @@ contributed to DFTB+ :
 
 * Jan Hermann (Free University of Berlin, Germany)
 
+* Jacek Jakowski (Oak Ridge National Laboratory, USA)
+
 * Eisuke Kawashima (RIKEN, Japan)
 
 * Tim Kowalczyk (Western Washington University)
@@ -63,6 +65,8 @@ contributed to DFTB+ :
   Republic)
   
 * Cristián G. Sánchez (Universidad Nacional de Cuyo, Argentina)
+
+* Miguel Steiner (ETH Zurich, Switzerland)
 
 * Michael Sternberg (Argonne National Laboratory, USA)
 

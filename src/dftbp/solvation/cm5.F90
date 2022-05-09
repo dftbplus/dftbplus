@@ -206,6 +206,7 @@ contains
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
+    ! number of neighbours for all atoms
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))

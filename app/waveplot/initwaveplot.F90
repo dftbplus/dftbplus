@@ -11,7 +11,10 @@
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
+  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+      & TBoundaryConditions_init
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
@@ -197,6 +200,9 @@ module waveplot_initwaveplot
     !> Data of Option block
     type(TOption) :: opt
 
+    !> Boundary condition
+    type(TBoundaryConditions) :: boundaryCond
+
     !> Data of Basis block
     type(TBasis) :: basis
 
@@ -266,6 +272,9 @@ contains
     !> Auxiliary variable
     integer :: ii
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus) :: errStatus
+
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     WAVEPLOT  " // version
@@ -318,6 +327,17 @@ contains
     write(stdout, "(A,/)") repeat("-", 80)
     call destroyNode(hsdTree)
 
+    if (this%input%geo%tPeriodic) then
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+    else if (this%input%geo%tHelical) then
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+    else
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+    end if
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
+
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3
       this%loc%gridVec(:, ii) = this%opt%boxVecs(:, ii) / real(this%opt%nPoints(ii), dp)
@@ -334,7 +354,7 @@ contains
     !! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
-    call init(this%loc%molOrb, this%input%geo, this%basis%basis)
+    call init(this%loc%molOrb, this%input%geo, this%boundaryCond, this%basis%basis)
 
     call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
         & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&

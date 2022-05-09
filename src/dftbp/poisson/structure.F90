@@ -40,7 +40,8 @@ module dftbp_poisson_structure
 
   integer, public, allocatable, save :: lmax(:)        !(MAXTYP)
   real(dp), public, allocatable, save :: uhubb(:,:)    !(NORB,MAXTYP)
-
+  integer, public, allocatable, save :: nshells(:)    !(MAXTYP)
+  integer, public, allocatable, save :: angshells(:,:)    !(MAXSHELL,MAXTYP)
 
   real(dp), public, save :: initlatvecs(3, 3)
   real(kind=dp),  public, save :: boxsiz(3,3), xnullvec(3)
@@ -120,52 +121,45 @@ module dftbp_poisson_structure
 
   !------------------------------------------------------------------------------
   subroutine init_charges()
-    integer :: nshells
+    integer :: nsh
 
     if (active_id) then
-      nshells = maxval(lmax)+1
-      call log_gallocate(dQmat,nshells,natoms)
+      nsh = maxval(nshells)
+      call log_gallocate(dQmat, nsh, natoms)
     endif
   end subroutine init_charges
 
   !------------------------------------------------------------------------------
-  subroutine init_skdata(nShell, angShell, hubbU, err)
+  subroutine init_skdata(nShell, angShell, hubbU)
     integer, intent(in) :: nShell(:)
     integer, intent(in) :: angShell(:,:)
     real(dp), intent(in) :: hubbU(:,:)
-    integer, intent(out) :: err
 
-    integer :: i,j,nshells
-
-    err=0
+    integer :: i,j
 
     if (active_id) then
 
-      ! set maximum angular momentum per specie
-      call log_gallocate(lmax,ntypes)
+      ! number of shells
+      call log_gallocate(nshells, ntypes)
+      nshells(:) = nShell
 
-      !checks that all atoms have shells in s,p,d sequence
+      ! angular momentum of each shell
+      call log_gallocate(angshells,maxval(nshell),ntypes)
+      angshells(:,:) = angShell
+
+      ! set maximum angular momentum per species
+      call log_gallocate(lmax, ntypes)
+
       do i = 1, ntypes
-         do j= 1, nShell(i)
-            if (angShell(j,i).ne.j-1) then
-               err=1
-            end if
-         enddo
-         lmax(i) = angShell(nShell(i),i)
+         lmax(i) = maxval(angShell(:,i))
       enddo
-      if (err.ne.0) then
-         return
-      endif
 
       ! set Hubbard parameters
-      nshells = maxval(lmax)+1
 
-      call log_gallocate(uhubb,nshells,ntypes)
+      call log_gallocate(uhubb,maxval(nshell),ntypes)
 
-      do i = 1,ntypes
-        do j = 1,nshells
-           uhubb(j,i) = hubbU(j,i)
-        enddo
+      do i = 1, ntypes
+        uhubb(:nshells(i),i) = hubbU(:nshells(i),i)
       end do
 
     endif

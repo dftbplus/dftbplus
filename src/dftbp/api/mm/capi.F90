@@ -168,7 +168,6 @@ contains
 
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
-    type(TDftbPlusAtomList), pointer :: pDftbPlusAtomList
 
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
@@ -459,6 +458,30 @@ contains
     call instance%getGrossCharges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getGrossCharges
+
+
+  !> Obtain CM5 charges
+  subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
+      & bind(C, name='dftbp_get_cm5_charges')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic charges
+    real(c_double), intent(out) :: atomCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    !> translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%getCM5Charges(atomCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getCM5Charges
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.

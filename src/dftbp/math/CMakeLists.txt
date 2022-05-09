@@ -21,7 +21,8 @@ set(sources-fpp
   ${curdir}/ranlux.F90
   ${curdir}/scalafxext.F90
   ${curdir}/simplealgebra.F90
-  ${curdir}/sorting.F90)
+  ${curdir}/sorting.F90
+  ${curdir}/sparseblas.F90)
 
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

@@ -29,46 +29,13 @@ module dftbp_dftb_periodic
   implicit none
 
   private
-  public :: getCellTranslations, getLatticePoints, foldCoordToUnitCell
-  public :: reallocateHS, buildSquaredAtomIndex
+  public :: getCellTranslations, getLatticePoints
+  public :: getSuperSampling
+  public :: frac2cart, cart2frac
   public :: TNeighbourList, TNeighbourlist_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
-  public :: getSuperSampling
-  public :: frac2cart, cart2frac, cyl2cart, cart2cyl
-  public :: getSparseDescriptor
-  public :: fillNeighbourArrays, distributeAtoms, reallocateArrays3
-
-
-  !> resize sparse arrays
-  interface reallocateHS
-    module procedure reallocateHS_1
-    module procedure reallocateHS_2
-    module procedure reallocateHS_Single
-  end interface reallocateHS
-
-
-  !> convert fractional coordinates to cartesian
-  interface frac2cart
-    module procedure fractionalCartesian
-  end interface frac2cart
-
-
-  !> cartesian to fractional coordinates in periodic geometry
-  interface cart2frac
-    module procedure cartesianFractional
-  end interface cart2frac
-
-  !> routine to convert from cylindrical to cartesian coordinate systems
-  interface cyl2cart
-    module procedure cyl2cart_vec
-    module procedure cyl2cart_array
-  end interface cyl2cart
-
-  !> routine to convert from cartesian to cylindrical coordinate systems
-  interface cart2cyl
-    module procedure cart2cyl_vec
-  end interface cart2cyl
+  public :: fillNeighbourArrays, distributeAtoms, reallocateArrays2
 
 
   !> Contains essential data for the neighbourlist
@@ -89,10 +56,10 @@ module dftbp_dftb_periodic
     !> pointer to MPI shared memory segment for atom distances
     real(dp), pointer :: neighDist2Memory(:) => null()
 
-#:if WITH_MPI
+  #:if WITH_MPI
     !> handle of the MPI shared memory window
     type(mpifx_win) :: iNeighbourWin, neighDist2Win
-#:endif
+  #:endif
 
     !> cutoff it was generated for
     real(dp) :: cutoff
@@ -139,7 +106,7 @@ contains
     !> Neighbourlist data.
     class(TNeighbourList), intent(inout) :: neighbourList
 
-#:if WITH_MPI
+  #:if WITH_MPI
     if (associated(neighbourList%iNeighbourMemory)) then
       call neighbourList%iNeighbourWin%free()
     end if
@@ -147,7 +114,7 @@ contains
     if (associated(neighbourList%neighDist2Memory)) then
       call neighbourList%neighDist2Win%free()
     end if
-#:endif
+  #:endif
 
   end subroutine TNeighbourlist_finalize
 
@@ -295,71 +262,6 @@ contains
 
   end subroutine getHelicalPoints
 
-  !> Fold coordinates back in the central cell.
-  !>
-  !> Throw away the integer part of the relative coordinates of every atom. If the resulting
-  !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
-  !> the algorithm more predictable and independent of numerical noise.
-  subroutine foldCoordToUnitCell(coord, latVec, recVec2p)
-
-    !> Contains the original coordinates on call and the folded ones on return.
-    real(dp), intent(inout) :: coord(:,:)
-
-    !> Lattice vectors (column format).
-    real(dp), intent(in) :: latVec(:,:)
-
-    !> Reciprocal vectors in units of 2pi (column format).
-    real(dp), intent(in) :: recVec2p(:,:)
-
-
-    !> Nr. of atoms in the cell.
-    integer :: nAtom
-
-    integer :: ii, jj
-    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3), thetaNew, thetaOld
-
-    nAtom = size(coord, dim=2)
-
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(all(shape(latVec) == (/3, 3/)) .or. all(shape(latVec) == (/3, 1/)))
-
-    if (all(shape(latVec) == (/3, 3/))) then
-
-      vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
-      do ii = 1, nAtom
-        do jj = 1, 3
-          frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii))
-        end do
-        tmp3(:) = coord(:,ii)
-        frac2(:) = frac(:) - real(floor(frac(:)), dp)
-        where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
-        coord(:, ii) = matmul(latVec, frac2)
-      end do
-
-    else if (all(shape(latVec) == (/3, 1/))) then
-
-      do ii = 1, nAtom
-
-        jj = floor(coord(3,ii)/latVec(1,1))
-        ! want coordinate in eventual range 0..latVec(1,1) hence floor
-
-        tmp3(:) = coord(:,ii)
-        coord(3,ii) = coord(3,ii) - jj * latVec(1,1)
-        call rotate3(coord(:,ii),-jj*latVec(2,1),zAxis)
-        thetaOld = atan2(coord(2,ii),coord(1,ii))
-        thetaNew = mod(thetaOld+2.0_dp*pi,2.0_dp*pi/latvec(3,1))
-        call rotate3(coord(:,ii),-thetaOld+thetaNew,zAxis)
-
-      end do
-
-    else
-
-      call error("Miss-shaped cell vectors in foldCoordToUnitCell.")
-
-    end if
-
-  end subroutine foldCoordToUnitCell
-
 
   !> Updates the neighbour list and the species arrays.
   subroutine updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neigh,&
@@ -505,7 +407,7 @@ contains
     nAllAtom = 0
 
     isParallel = .false.
-#:if WITH_MPI
+  #:if WITH_MPI
     if (present(env)) then
       call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
           & startAtom, endAtom, isParallelSetupError)
@@ -513,7 +415,7 @@ contains
         isParallel = .true.
       end if
     end if
-#:endif
+  #:endif
 
     if (.not. isParallel) then
       startAtom = 1
@@ -600,7 +502,7 @@ contains
             neigh%nNeighbour(iAtom2) = neigh%nNeighbour(iAtom2) + 1
             if (neigh%nNeighbour(iAtom2) > maxNeighbour) then
               maxNeighbour = incrmntOfArray(maxNeighbour)
-              call reallocateArrays3(iNeighbour, neighDist2, maxNeighbour)
+              call reallocateArrays2(iNeighbour, neighDist2, maxNeighbour)
             end if
             iNeighbour(neigh%nNeighbour(iAtom2), iAtom2) = nAllAtom
             neighDist2(neigh%nNeighbour(iAtom2), iAtom2) = dist2
@@ -612,9 +514,9 @@ contains
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
     if (isParallel) then
-#:if WITH_MPI
+    #:if WITH_MPI
       call mpifx_allreduceip(env%mpi%nodeComm, neigh%nNeighbour, MPI_MAX)
-#:endif
+    #:endif
     end if
 
     maxNeighbour = maxval(neigh%nNeighbour(1:nAtom))
@@ -678,7 +580,7 @@ contains
     integer :: dataLength, maxNeighbourLocal, ii
 
     if (isParallel) then
-#:if WITH_MPI
+    #:if WITH_MPI
       if (associated(neigh%iNeighbourMemory)) then
         call neigh%iNeighbourWin%free()
         nullify(neigh%iNeighbourMemory)
@@ -718,7 +620,7 @@ contains
 
       call neigh%iNeighbourWin%unlock()
       call neigh%neighDist2Win%unlock()
-#:endif
+    #:endif
     else
       if (associated(neigh%iNeighbour)) then
         deallocate(neigh%iNeighbour)
@@ -794,7 +696,7 @@ contains
 
     ! Issue warning, if cutoff is bigger as used for the neighbourlist.
     if (cutoff > neigh%cutoff) then
-99010 format ('Cutoff (', E16.6, ') greater then last cutoff ', '(', E13.6,&
+99010 format ('Cutoff (', E16.6, ') greater than last cutoff ', '(', E13.6,&
           & ') passed to updateNeighbourList!')
       write (strError, 99010) cutoff, neigh%cutoff
       call warning(strError)
@@ -830,7 +732,6 @@ contains
 
     @:ASSERT(size(iCellVec) == mAtom)
     @:ASSERT(all(shape(coord) == (/ 3, mAtom /)))
-    !@:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
     @:ASSERT((mNewAtom > 0))
     mAtom = min(mAtom,mNewAtom)
 
@@ -852,7 +753,7 @@ contains
 
 
   !> Reallocate array which depends on the maximal nr. of neighbours.
-  subroutine reallocateArrays3(iNeighbour, neighDist2, mNewNeighbour)
+  subroutine reallocateArrays2(iNeighbour, neighDist2, mNewNeighbour)
 
     !> list of neighbours
     integer, allocatable, intent(inout) :: iNeighbour(:, :)
@@ -892,302 +793,7 @@ contains
       neighDist2(:,:) = tmpRealR2(:mNewNeighbour,:)
     end if
 
-  end subroutine reallocateArrays3
-
-
-  !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
-  subroutine getSparseDescriptor(iNeighbour, nNeighbourSK, img2CentCell, orb, iPair, sparseSize)
-
-    !> Neighbours of each atom
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Indexing for mapping image atoms to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Sparse array indexing for the start of atomic blocks in data structures
-    integer, allocatable, intent(inout) :: iPair(:,:)
-
-    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
-    integer, intent(out) :: sparseSize
-
-    integer :: nAtom, mNeighbour
-    integer :: ind, iAt1, nOrb1, iNeigh1, nOrb2
-
-    nAtom = size(iNeighbour, dim=2)
-    mNeighbour = size(iNeighbour, dim=1)
-
-    @:ASSERT(allocated(iPair))
-    @:ASSERT(size(iPair, dim=2) == nAtom)
-
-    if (mNeighbour > size(iPair, dim=1)) then
-      deallocate(iPair)
-      allocate(iPair(0 : mNeighbour - 1, nAtom))
-      iPair(:,:) = 0
-    end if
-    ind = 0
-    do iAt1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
-        iPair(iNeigh1, iAt1) = ind
-        nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
-        ind = ind + nOrb1 * nOrb2
-      end do
-    end do
-    sparseSize = ind
-
-  end subroutine getSparseDescriptor
-
-
-  !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_1(ham, over, iPair, iNeighbour, nNeighbourSK, orb, img2Centcell)
-
-    !> Hamiltonian
-    real(dp), allocatable, intent(inout):: ham(:)
-
-    !> Overlap matrix
-    real(dp), allocatable, intent(inout) :: over(:)
-
-    !> Pair indexing array (specifying the offset for the interaction between atoms in the central
-    !> cell and their neighbours)
-    integer, allocatable, intent(inout) :: iPair(:,:)
-
-    !> List of neighbours for each atom in the central cell. (Note: first index runs from 0!)
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Nr. of neighbours for each atom in the central cell.
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
-
-    !> array mapping images of atoms to originals in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> nr. atoms in the central cell
-    integer :: nAtom
-
-    !> nr. of elements in the sparse H/S before and after resizing
-    integer :: nOldElem, nElem
-
-    !> nr. of max. possible neighbours (incl. itself)
-    integer :: mNeighbour
-
-    integer :: ind
-    integer :: iAt1, iNeigh1, nOrb1
-
-    nAtom = size(iNeighbour, dim=2)
-    mNeighbour = size(iNeighbour, dim=1)
-    nOldElem = size(ham, dim=1)
-
-    @:ASSERT(allocated(ham))
-    @:ASSERT(allocated(over))
-    @:ASSERT(size(over) == nOldElem)
-    @:ASSERT(allocated(iPair))
-    @:ASSERT(size(iPair, dim=2) == nAtom)
-
-    if (mNeighbour > size(iPair, dim=1)) then
-      deallocate(iPair)
-      allocate(iPair(0:mNeighbour-1, nAtom))
-      iPair(:,:) = 0
-    end if
-    nElem = 0
-    ind = 0
-    do iAt1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
-        iPair(iNeigh1, iAt1) = ind
-        ind = ind + nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
-      end do
-    end do
-    nElem = ind
-    if (nElem > nOldElem) then
-      deallocate(ham)
-      deallocate(over)
-      allocate(ham(nElem))
-      allocate(over(nElem))
-      ham(:) = 0.0_dp
-      over(:) = 0.0_dp
-    end if
-
-  end subroutine reallocateHS_1
-
-
-  !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_2(ham, over, iPair, iNeighbour, nNeighbourSK, orb, img2CentCell)
-
-    !> Hamiltonian.
-    real(dp), allocatable, intent(inout) :: ham(:,:)
-
-    !> Overlap matrix.
-    real(dp), allocatable, intent(inout) :: over(:)
-
-    !> Pair indexing array (specifying the offset for the interaction between atoms in the central
-    !> cell and their neighbours).
-    integer, allocatable, intent(inout) :: iPair(:,:)
-
-    !> List of neighbours for each atom in the central cell. (Note: first index runs from 0!)
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Nr. of neighbours for each atom in the central cell.
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Mapping on atoms in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
-
-    !> nr. of spin blocks in the Hamiltonian
-    integer :: nSpin
-
-    !> nr. atoms in the central cell
-    integer :: nAtom
-
-    !> nr. of elements in the spare H/S
-    integer :: nElem, nOldElem
-
-    !> nr. of max. possible neighbours (incl. itself)
-    integer :: mNeighbour
-
-    integer :: ind
-    integer :: iAt1, iNeigh1, nOrb1
-
-    nAtom = size(iNeighbour, dim=2)
-    mNeighbour = size(iNeighbour, dim=1)
-    nSpin = size(ham, dim=2)
-    nOldElem = size(ham, dim=1)
-
-    @:ASSERT(allocated(ham))
-    @:ASSERT(allocated(over))
-    @:ASSERT(size(over) == nOldElem)
-    @:ASSERT(allocated(iPair))
-    @:ASSERT(size(iPair, dim=2) == nAtom)
-
-    if (mNeighbour > size(iPair, dim=1)) then
-      deallocate(iPair)
-      allocate(iPair(0:mNeighbour-1, nAtom))
-      iPair(:,:) = 0
-    end if
-    nElem = 0
-    ind = 0
-    do iAt1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
-        iPair(iNeigh1, iAt1) = ind
-        ind = ind +  nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1,iAt1)))
-      end do
-    end do
-    nElem = ind
-    if (nElem > nOldElem) then
-      deallocate(ham)
-      deallocate(over)
-      allocate(ham(nElem, nSpin))
-      allocate(over(nElem))
-      ham(:,:) = 0.0_dp
-      over(:) = 0.0_dp
-    end if
-
-  end subroutine reallocateHS_2
-
-
-  !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_Single(ham, iPair, iNeighbour, nNeighbourSK, orb, img2CentCell)
-
-    !> Hamiltonian.
-    real(dp), allocatable, intent(inout) :: ham(:)
-
-    !> Pair indexing array (specifying the offset for the interaction between atoms in the central
-    !> cell and their neigbhors).
-    integer, allocatable, intent(inout) :: iPair(:,:)
-
-    !> List of neighbours for each atom in the central cell. (Note: first index runs from 0!)
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Nr. of neighbours for each atom in the central cell.
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Mapping on atoms in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-
-    !> nr. atoms in the central cell
-    integer :: nAtom
-
-    !> nr. of elements in the spare H/S before and after resizing
-    integer :: nOldElem, nElem
-
-    !> nr. of max. possible neighbours (incl. itself)
-    integer :: mNeighbour
-
-    integer :: ind
-    integer :: iAt1, iNeigh1, nOrb1
-
-    nAtom = size(iNeighbour, dim=2)
-    mNeighbour = size(iNeighbour, dim=1)
-    nOldElem = size(ham, dim=1)
-
-    @:ASSERT(allocated(ham))
-    @:ASSERT(allocated(iPair))
-    @:ASSERT(size(iPair, dim=2) == nAtom)
-
-    if (mNeighbour > size(iPair, dim=1)) then
-      deallocate(iPair)
-      allocate(iPair(0:mNeighbour-1, nAtom))
-      iPair(:,:) = 0
-    end if
-    nElem = 0
-    ind = 0
-    do iAt1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
-        iPair(iNeigh1, iAt1) = ind
-        ind = ind +  nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1,iAt1)))
-      end do
-    end do
-    nElem = ind
-    if (nElem > nOldElem) then
-      deallocate(ham)
-      allocate(ham(nElem))
-      ham(:) = 0.0_dp
-    end if
-
-  end subroutine reallocateHS_Single
-
-
-  !> Builds an atom offset array for the squared hamiltonain/overlap.
-  subroutine buildSquaredAtomIndex(iAtomStart, orb)
-
-    !> Returns the offset array for each atom.
-    integer, intent(out) :: iAtomStart(:)
-
-    !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
-
-    integer :: ind, iAt1
-    integer :: nAtom
-
-    nAtom = size(orb%nOrbAtom)
-
-    @:ASSERT(all(shape(iAtomStart) == (/ nAtom + 1 /)))
-
-    ind = 1
-    do iAt1 = 1, nAtom
-      iAtomStart(iAt1) = ind
-      ind = ind + orb%nOrbAtom(iAt1)
-    end do
-    iAtomStart(nAtom+1) = ind
-
-  end subroutine buildSquaredAtomIndex
+  end subroutine reallocateArrays2
 
 
   !> Creates a K-points sampling, equivalent to folding of a reciprocal point of a super lattice.
@@ -1325,7 +931,7 @@ contains
 
 
   !> convert fractional coordinates to cartesian
-  subroutine fractionalCartesian(cartCoords,latvecs)
+  subroutine frac2cart(cartCoords,latvecs)
 
     !> fractional coordinates in unit cell on entry, cartesian on exit
     real(dp), intent(inout) :: cartCoords(:,:)
@@ -1337,11 +943,11 @@ contains
 
     cartCoords = matmul(latvecs,cartCoords)
 
-  end subroutine fractionalCartesian
+  end subroutine frac2cart
 
 
   !> Cartesian to fractional coordinates in periodic geometry
-  subroutine cartesianFractional(cartCoords,latvecs)
+  subroutine cart2frac(cartCoords,latvecs)
 
     !> cartesian coordinates on entry, fractional on exit
     real(dp), intent(inout) :: cartCoords(:,:)
@@ -1356,60 +962,7 @@ contains
     call invert33(invLatVecs, latvecs)
     cartCoords = matmul(invLatvecs, cartCoords)
 
-  end subroutine cartesianFractional
-
-
-  !> Convert from cylindrical to Cartesian coordinate systems
-  subroutine cyl2cart_vec(x,r)
-
-    !> Cartesian coordinates
-    real(dp), intent(out) :: x(3)
-
-    !> Cylindrical coordinates stored as (radius, height, angle)
-    real(dp), intent(in) :: r(3)
-
-    x = 0.0_dp
-    x(1) = r(1)*cos(r(3))
-    x(2) = r(1)*sin(r(3))
-    x(3) = r(2)
-
-  end subroutine cyl2cart_vec
-
-
-  !> Convert from Cartesian to cylindrical coordinate systems
-  subroutine cart2cyl_vec(r,x)
-
-    !> Cartesian coordinates
-    real(dp), intent(out) :: r(3)
-
-    !> Cylindrical coordinates stored as (radius, height, angle)
-    real(dp), intent(in) :: x(3)
-
-    r = 0.0_dp
-    r(1) = sqrt(sum(x(:2)**2))
-    r(2) = x(3)
-    r(3) = atan2(x(2),x(1))
-
-  end subroutine cart2cyl_vec
-
-
-  !> Convert from cylindrical to Cartesian coordinate systems
-  subroutine cyl2cart_array(x,r)
-
-    !> Cartesian coordinates
-    real(dp), intent(out) :: x(:,:)
-
-    !> Cylindrical coordinates stored as (radius, height, angle)
-    real(dp), intent(in) :: r(:,:)
-
-  @:ASSERT(all(shape(x)==shape(r)))
-  @:ASSERT(size(x,dim=1)==3)
-    x = 0.0_dp
-    x(1,:) = r(1,:)*cos(r(3,:))
-    x(2,:) = r(1,:)*sin(r(3,:))
-    x(3,:) = r(2,:)
-
-  end subroutine cyl2cart_array
+  end subroutine cart2frac
 
 
   !> Computes a domain decomposition of n atoms

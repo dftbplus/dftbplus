@@ -32,6 +32,8 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
+  use dftbp_io_commonformats, only : formatHessian, formatGeoOut, format1U, format2U, format1Ue,&
+      & format2Ue, format1U1e
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -98,29 +100,6 @@ module dftbp_dftbplus_mainio
 
   !> Ground state eigenvectors in binary format
   character(*), parameter :: eigvecBin = "eigenvec.bin"
-
-  !> Format string for energy second derivative matrix
-  character(len=*), parameter :: formatHessian = '(4f16.10)'
-
-  !> Atomic geometries format
-  character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"
-
-  !> Format for a single value with units
-  character(len=*), parameter :: format1U = "(A, ':', T32, F18.10, T51, A)"
-
-  !> Format for two values with units
-  character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
-  !> Format for a single value using exponential notation with units
-  character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
-
-  !> Format for two using exponential notation values with units
-  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71, A)"
-
-  !> Format for mixed decimal and exponential values with units
-  character(len=*), parameter :: format1U1e =&
-      & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
-
 
   !> Cosmo file name
   character(len=*), parameter :: cosmoFile = "dftbp.cosmo"
@@ -1972,7 +1951,7 @@ contains
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
@@ -2135,7 +2114,7 @@ contains
     type(TChargeModel5), allocatable, intent(in) :: cm5Cont
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dEidE(:,:,:,:)
@@ -3711,9 +3690,9 @@ contains
     if (allocated(neFermi)) then
       write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
       if (size(neFermi)==2) then
-        write(fd,"(F12.8,A,F12.8,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+        write(fd,"(E12.6,A,E12.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
       else
-        write(fd,"(F12.8)")neFermi
+        write(fd,"(E12.6)")neFermi
       end if
     end if
 
@@ -3730,7 +3709,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Static electric polarisability
-    real(dp), intent(in), allocatable :: polarisability(:,:)
+    real(dp), intent(in), allocatable :: polarisability(:,:,:)
 
     !> Derivative of Mulliken charges wrt to electric field, if required
     real(dp), allocatable, intent(in) :: dqOut(:,:,:,:)
@@ -3738,7 +3717,7 @@ contains
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
 
-    integer :: iCart, iAt, nAtom, iS, nSpin
+    integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
 
     if (allocated(dqOut)) then
       nAtom = size(dqOut, dim=2)
@@ -3787,9 +3766,11 @@ contains
 
     if (allocated(polarisability)) then
       write(fd,*)
-      write(fd,"(A)")'Static electric polarisability (a.u.)'
-      do iCart = 1, 3
-        write(fd,"(3E20.12)")polarisability(:, iCart)
+      write(fd,"(A)")'Electric polarisability (a.u.)'
+      do iOmega = 1, size(polarisability, dim=3)
+        do iCart = 1, 3
+          write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
+        end do
       end do
       write(fd,*)
     end if

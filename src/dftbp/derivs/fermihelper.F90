@@ -16,6 +16,11 @@ module dftbp_derivs_fermihelper
   private
   public :: theta, invDiff, deltamn, dEfda, dEida
 
+  interface invDiff
+    module procedure :: invDiffStatic
+    module procedure :: invDiffDynamic
+  end interface invDiff
+
 contains
 
   !> Fermi function at energy En for a level at energy Em
@@ -52,7 +57,7 @@ contains
 
 
   !> Expression limit aware evaluation of (Theta(occ) - Theta(empty))/(Eempty-Efilled)
-  pure function invDiff(En, Em, Ef, sigma)
+  pure function invDiffStatic(En, Em, Ef, sigma)
 
     !> Empty level energy
     real(dp), intent(in) :: En
@@ -67,15 +72,41 @@ contains
     real(dp), intent(in) :: sigma
 
     !> resulting value
-    real(dp) :: invDiff
+    real(dp) :: invDiffStatic
 
     if ( abs(En - Em) > 10.0_dp * epsilon(1.0_dp) ) then
-      invDiff = ( theta(En,Ef,sigma) - theta(Em,Ef,sigma) ) / (En - Em)
+      invDiffStatic = ( theta(En,Ef,sigma) - theta(Em,Ef,sigma) ) / (En - Em)
     else
-      invDiff = -deltamn(En,Ef,sigma)
+      invDiffStatic = -deltamn(En,Ef,sigma)
     end if
 
-  end function invDiff
+  end function invDiffStatic
+
+
+  !> Expression limit aware evaluation of (Theta(occ) - Theta(empty))/(Eempty-Efilled + omega)
+  pure function invDiffDynamic(En, Em, Ef, sigma, omega)
+
+    !> Empty level energy
+    real(dp), intent(in) :: En
+
+    !> Filled level energy
+    real(dp), intent(in) :: Em
+
+    !> Fermi energy
+    real(dp), intent(in) :: Ef
+
+    !> Width of distribution
+    real(dp), intent(in) :: sigma
+
+    !> Complex frequency
+    complex(dp), intent(in) :: omega
+
+    !> resulting value
+    complex(dp) :: invDiffDynamic
+
+    invDiffDynamic = ( theta(En,Ef,sigma) - theta(Em,Ef,sigma) ) / (En - Em + omega)
+
+  end function invDiffDynamic
 
 
   !> Limit of function occurring in perturbation expression sum over states

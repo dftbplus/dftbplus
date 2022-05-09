@@ -23,19 +23,22 @@
 */
 
 void init_collective_variables(double *mermin_energy_total, double **gradients_total,
-                               double **stress_tensor_total, double **gross_charges_total)
+                               double **stress_tensor_total, double **gross_charges_total,
+                               double **cm5_charges_total)
 {
   int ii;
 
   *gradients_total = (double *) calloc(3 * MAX_ATOMS, sizeof(double));
   *stress_tensor_total = (double *) calloc(9, sizeof(double));
   *gross_charges_total = (double *) calloc(MAX_ATOMS, sizeof(double));
+  *cm5_charges_total = (double *) calloc(MAX_ATOMS, sizeof(double));
   *mermin_energy_total = 0.0;
   for (ii = 0; ii < MAX_ATOMS; ++ii) {
     (*gradients_total)[3 * ii] = 0.0;
     (*gradients_total)[3 * ii + 1] = 0.0;
     (*gradients_total)[3 * ii + 2] = 0.0;
     (*gross_charges_total)[ii] = 0.0;
+    (*cm5_charges_total)[ii] = 0.0;
   }
   for (ii = 0; ii < 9; ++ii) {
     (*stress_tensor_total)[ii] = 0.0;
@@ -45,7 +48,8 @@ void init_collective_variables(double *mermin_energy_total, double **gradients_t
 
 void update_collective_variables(int natom, double mermin_energy, double *gradients,
     double *stress_tensor, double *gross_charges, double *mermin_energy_total,
-    double *gradients_total, double *stress_tensor_total, double *gross_charges_total)
+    double *gradients_total, double *stress_tensor_total, double *gross_charges_total,
+    double *cm5_charges, double *cm5_charges_total)
 {
   int ii;
   *mermin_energy_total += mermin_energy;
@@ -54,6 +58,7 @@ void update_collective_variables(int natom, double mermin_energy, double *gradie
   }
   for (ii = 0; ii < natom; ++ii) {
     gross_charges_total[ii] += gross_charges[ii];
+    cm5_charges_total[ii] += cm5_charges[ii];
   }
   for (ii = 0; ii < 9; ++ii)
   {
@@ -104,6 +109,7 @@ int main()
 
   double mermin_energy, mermin_energy_total;
   double *gradients, *gradients_total, *stress_tensor, *stress_tensor_total, *gross_charges, *gross_charges_total;
+  double *cm5_charges, *cm5_charges_total;
   int natom, natom0;
   int si2, ii, ij;
   int major, minor, patch;
@@ -120,7 +126,7 @@ int main()
 
   /* Collective variables will hold the summed up results of multiple test runs */
   init_collective_variables(&mermin_energy_total, &gradients_total,
-                         &stress_tensor_total, &gross_charges_total);
+                         &stress_tensor_total, &gross_charges_total, &cm5_charges_total);
 
   /* Dummy loop to test subsequent initializations / finalizations of the DFTB+ object */
   for (ii = 0; ii < NR_ITER; ++ii) {
@@ -218,6 +224,15 @@ int main()
 	     0.3314953102, 0.3204992261);
     }
 
+    /* Evaluate CM5 charges */
+    cm5_charges = (double *) calloc(natom0, sizeof(double));
+    if (si2) {
+      dftbp_get_cm5_charges(&calculator, cm5_charges);
+      printf("Obtained CM5 charges: %15.10f %15.10f\n", cm5_charges[0], cm5_charges[1]);
+      printf("Expected CM5 charges: %15.10f %15.10f\n", 0.0000000000, 0.0000000000);
+    }
+    // do not evaluate CM5 for H2O, because tester parser is too old
+
     /* Get electrostatic potential in the calculation */
     dftbp_get_elstat_potential(&calculator, 2, potential, esp_locations);
     printf("Obtained potential: %15.10f %15.10f\n", potential[0], potential[1]);
@@ -232,7 +247,8 @@ int main()
 
     update_collective_variables(natom0, mermin_energy, gradients, stress_tensor,
                                 gross_charges, &mermin_energy_total, gradients_total,
-                                stress_tensor_total, gross_charges_total);
+                                stress_tensor_total, gross_charges_total, cm5_charges,
+                                cm5_charges_total);
 
     /*  Clean up */
     dftbp_final(&calculator);
@@ -243,18 +259,27 @@ int main()
          In order to include the results of all performed calculations,
          the summed up values (collective variables) are written out.
       */
-      dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
-                               stress_tensor_total, gross_charges_total, NULL, potential_total);
+      if (si2) {
+        dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
+                                 stress_tensor_total, gross_charges_total, NULL, potential_total,
+                                 cm5_charges_total);
+      } else {
+        dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
+                                 stress_tensor_total, gross_charges_total, NULL, potential_total,
+                                 NULL);
+      }
     }
 
     free(gradients);
     free(stress_tensor);
     free(gross_charges);
+    free(cm5_charges);
   }
 
   free(gradients_total);
   free(stress_tensor_total);
   free(gross_charges_total);
+  free(cm5_charges_total);
 
   return 0;
 }

@@ -1,3 +1,4 @@
+
 \chapter{Input for {\dftbp}}
 
 
@@ -293,9 +294,9 @@ methods are available:
   \kw{Optimizer} & m &  & Rational & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{LatticeOpt} & l & & \is{No} & \\
-  %\kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  %\kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
-  %\kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{FixAngles} & l & LatticeOpt = Yes & \is{No} & \\
+  \kw{FixLengths} & 3l & LatticeOpt = Yes & \is{No No No} & \\
+  \kw{Isotropic} & l & LatticeOpt = Yes & \is{No} & \\
   %\kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{Convergence} & m &  & & \pref{sec:dftbp.Convergence} \\
   \kw{MaxSteps} &i &  & 200 & \\
@@ -1205,7 +1206,7 @@ from an external driver code.
   instance.  Setting this value as -1 runs a huge() number of iterations.
 \end{description}
 
-Examples
+\subsubsection{Examples}
 
 First an ip address connection:
 \invparskip
@@ -4711,7 +4712,7 @@ with the following options
   ``Label.\textit{j}.out'' are written. For \is{OrbitalResolved = Yes}, the shell and then
   $m$-value is appended, so that files with names ``Label.\textit{j}.\textit{m}.out'' are written.
 \end{description}
-Examples:
+Example:
 \begin{verbatim}
   ProjectStates = {
     Region = {              # first region
@@ -4829,64 +4830,122 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
-\subsection{Response properties}
+\subsection{Response properties by perturbation}
 
-For cases where the ground state eigenvalues are available, the  output of the
-eigenvalue derivatives are described in are  section~\ref{sec:dftbp.dEbandout}.
+For cases where the ground state eigenvalues are available, the output
+of the eigenvalue derivatives are described in are
+section~\ref{sec:dftbp.dEbandout}.
+
+There are common options for the perturbations, which appear outside
+their respective blocks in the \is{Analysis} environment:
+\begin{ptable}
+\kw{DegeneracyTolerance} & r & & 128\\
+\kw{eta} & r & & 1E-8\\
+\end{ptable}
+\begin{description}
+\item[\is{DegeneracyTolerance}] In the case of degenerate systems,
+  determines the number of times machine epsilon that separated
+  eigenvalues are considered non-degenerate.
+\item[\is{eta}] In the case of finite frequency perturbations, a small
+  imaginary constant, of magnitude \is{eta} is used in the expression
+  to avoid divergences at resonant conditions.
+\end{description}
+
 
 \subsubsection{Polarisability}
 \label{sec:dftbp.eperturb}
 
-Evaluates electric polarisability using coupled-perturbed linear response for
-finite structures (hence can only be used with cases evaluating unperturbed
-eigenvalues). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
-supported).
+Evaluates electric polarisability using coupled-perturbed linear
+response (hence can only be used with cases initially evaluating
+unperturbed eigenvalues/band structure). Currently only the DFTB
+hamiltonian is supported (see section~\ref{sec:dftbp.DFTB}, REKS and
+Delta-DFTB calculations are also not currently supported).
 
-In the case of degenerate single particle levels, the reported level derivatives
-(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
-value.
+In the case of degenerate single particle levels, the reported level
+derivatives (see p.~\pref{sec:dftbp.bandout}) for those states are
+ordered in increasing value.
 
 \begin{ptable}
   \kw{Static} & l & & \is{Yes} & \\
-  \kw{DegeneracyTolerance} & r & & 128\\
+  \kw{Frequencies} & r+ & & -- & \\
+  \kw{FrequencyRange} & 3r & & -- & \\
 \end{ptable}
+
 \begin{description}
-\item[\is{Static}] Evaluates static polarisability with respect to cartesian
-  directions of a static uniform electric field. At the moment, if the
-  \is{Polarisability} block is included, this option should be enabled. In a
-  future release, dynamical polarisability at a finite frequency, $\omega$, will
-  be an alternative possibility for this block.
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
-  the number of times machine epsilon that separated eigenvalues are considered
-  non-degenerate.
+\item[\is{Static}] Evaluates polarisability with respect to cartesian
+  directions of a static uniform electric field.
+\item[\is{Frequencies}]\modif{\modtype{Frequency}} Evaluates
+  polarisability at a list of finite frequencies ($\{\omega\}$).
+\item[\is{FrequencyRange}]\modif{\modtype{Frequency}} Specifies
+  equispaced driving frequencies for polarisabilities, listed as {\em
+    starting ending step-size} frequencies (for example if calculating
+  a spectrum).
 \end{description}
+
+\paragraph{Examples}
+
+Static polarisability, with an adjusted degeneracy tolerance:
+\begin{verbatim}
+Analysis {
+  Polarisability = {} # static enabled by default
+  DegeneracyTolerance = 1024 # levels within 1024 x machine tolerance
+}
+\end{verbatim}
+
+Dynamic polarisability at specified frequencies
+\begin{verbatim}
+Analysis {
+  Polarisability = {
+     Static = No # static field response turned off
+     FrequencyRange [eV] = 1.0 4.0 0.1 # 1 to 4 eV with steps of 0.1
+  }
+}
+\end{verbatim}
+
 
 \subsubsection{ResponseKernel}
 \label{sec:dftbp.rperturb}
 
-Evaluates response to a potential added at atomic sites, using coupled-perturbed
-linear response (hence can only be used with cases evaluating unperturbed
-eigenvalues). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
-supported).
+Evaluates responses to potentials added at individual atomic sites,
+using coupled-perturbed linear response (hence can only be used with
+cases initially evaluating unperturbed eigenvalues/band
+structure). Currently only the DFTB hamiltonian is supported (see
+section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB calculations are
+also not currently supported).
 
-In the case of degenerate single particle levels, the reported level derivatives
-(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
-value.
-
+The same options as \is{Polarisability} are supported, but in
+addition:
 \begin{ptable}
   \kw{RPA} & l & SCC = Yes & \is{No} & \\
-  \kw{DegeneracyTolerance} & r & & 128\\
 \end{ptable}
 \begin{description}
-\item[\is{RPA}] For self-consistent calculations, enables RPA evaluation,
-  instead of self-consistent calculation of the response. This is equivalent to
-  evaluating response without relaxation of the system.
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
-  the number of times machine epsilon that separated eigenvalues are considered
-  non-degenerate.
+\item[\is{RPA}] For self-consistent calculations, enables RPA
+  evaluation, instead of self-consistent calculation of the
+  response. This is equivalent to evaluating response without
+  relaxation of the system.
 \end{description}
+
+\paragraph{Examples}
+
+Static polarisability for an \is{Scc} = \is{Yes} calculation.
+\begin{verbatim}
+Analysis {
+  ResponseKernel = {
+    # static enabled by default
+    RPA = Yes # non-self consistent perturbation
+  }
+}
+\end{verbatim}
+
+Dynamic polarisability at a specified frequency
+\begin{verbatim}
+Analysis {
+  Polarisability = {
+     Static = No # static field response turned off
+     Frequencies [eV] = 1.0 4.0 # evaluate at 1 and 4 eV
+  }
+}
+\end{verbatim}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
