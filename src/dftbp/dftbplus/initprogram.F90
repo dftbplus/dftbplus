@@ -1592,7 +1592,7 @@ contains
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
-    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
+    if (this%tSccCalc .and. (.not.allocated(this%tblite) .or. this%isRangeSep)) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
         #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -1715,8 +1715,9 @@ contains
 
     ! Orbital equivalency relations
     call this%setEquivalencyRelations()
-
-    if (allocated(this%tblite) .and. this%tPoisson) then
+    
+    ! Removing the electrostatic contribution in xTB which is treated here
+    if (allocated(this%tblite) .and. (this%tPoisson .or. this%isRangeSep)) then
       call this%tblite%removeES2
     end if
 
@@ -5240,7 +5241,7 @@ contains
       call error("Range separated calculations not currently implemented for XLBOMD")
     end if
 
-    if (this%t3rd) then
+    if (this%t3rd .and. .not.allocated(this%tblite)) then
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 

@@ -1907,6 +1907,9 @@ contains
     call readSolver(node, ctrl, geo, poisson)
   #:endif
 
+    ! Range Separation
+    call parseRangeSeparated(node, ctrl%rangeSepInp)  
+
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
@@ -7618,6 +7621,10 @@ contains
         call getNodeHSdName(value2, buffer)
         call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
       end select
+
+      ! Read the Range Separation Parameter (defauls 0.3)
+      ! only for xTB as DFTB+ will overwrite it from SK file
+      call getChildValue(value1, "RangeSepParameter", input%omega, 0.3_dp)
 
     case default
       call getNodeHSDName(value1, buffer)
