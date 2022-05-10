@@ -9,6 +9,7 @@ Geometry = GenFormat {
 Driver = GeometryOptimization {
   Optimizer = Rational {}
   MaxSteps = 100
+  AppendGeometries = Yes
   OutputPrefix = "geom.out"
 }
 
