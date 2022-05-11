@@ -48,7 +48,7 @@ module dftbp_dftbplus_input_geoopt
 contains
 
   !> General entry point to read geometry optimization
-  subroutine readGeoOptInput(node, geom, input)
+  subroutine readGeoOptInput(node, geom, input, atomsRange)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -59,13 +59,17 @@ contains
     !> Control structure to be filled
     type(TGeoOptInput), intent(out) :: input
 
+    !> Default range of moving atoms (may be restricted for example by contacts in transport
+    !> calculations)
+    character(len=*), intent(in) :: atomsRange
+
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
     call getChildValue(node, "Optimizer", child, "Rational")
     call readOptimizerInput(child, input%optimizer)
 
-    call readFilterInput(node, geom, input%filter)
+    call readFilterInput(node, geom, input%filter, atomsRange)
 
     call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
     call readOptTolerance(child, input%tolerance)
@@ -114,7 +118,7 @@ contains
 
 
   !> Entry point for reading input for cartesian geometry transformation filter
-  subroutine readFilterInput(node, geom, input)
+  subroutine readFilterInput(node, geom, input, atomsRange)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -124,6 +128,10 @@ contains
 
     !> Control structure to be filled
     type(TFilterInput), intent(out) :: input
+
+    !> Default range of moving atoms (may be restricted for example by contacts in transport
+    !> calculations)
+    character(len=*), intent(in) :: atomsRange
 
     type(fnode), pointer :: child
     type(string) :: buffer
@@ -137,7 +145,7 @@ contains
       end if
       call getChildValue(node, "Isotropic", input%isotropic, .false.)
     end if
-    call getChildValue(node, "MovedAtoms", buffer, "1:-1", multiple=.true., child=child)
+    call getChildValue(node, "MovedAtoms", buffer, trim(atomsRange), multiple=.true., child=child)
     call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, &
         & input%indMovedAtom)
 

@@ -429,19 +429,11 @@ contains
     character(lc) :: sTmp
   #:endif
 
-    ! range of default atoms to move
+    ! Default range of atoms to move (may be adjusted if contacts present)
     character(mc) :: atomsRange
 
     character(mc) :: modeName
     logical :: isMaxStepNeeded
-
-    atomsRange = "1:-1"
-  #:if WITH_TRANSPORT
-    if (transpar%defined) then
-      ! only those atoms in the device region
-      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
-    end if
-  #:endif
 
     ctrl%isGeoOpt = .false.
     ctrl%tCoordOpt = .false.
@@ -452,6 +444,14 @@ contains
     ctrl%iThermostat = 0
     ctrl%tForces = .false.
     ctrl%tSetFillingTemp = .false.
+
+    atomsRange = "1:-1"
+  #:if WITH_TRANSPORT
+    if (transpar%defined) then
+      ! only those atoms in the device region
+      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
+    end if
+  #:endif
 
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
@@ -465,7 +465,10 @@ contains
       modeName = "geometry optimization"
 
       allocate(ctrl%geoOpt)
-      call readGeoOptInput(node, geom, ctrl%geoOpt)
+
+      call readGeoOptInput(node, geom, ctrl%geoOpt, atomsRange)
+
+      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -479,11 +482,7 @@ contains
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
-      #:if WITH_TRANSPORT
-      call commonGeoOptions(node, ctrl, geom, transpar)
-      #:else
-      call commonGeoOptions(node, ctrl, geom)
-      #:endif
+      call commonGeoOptions(node, ctrl, geom, atomsRange)
 
     case ("conjugategradient")
 
@@ -493,11 +492,7 @@ contains
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
-      #:if WITH_TRANSPORT
-      call commonGeoOptions(node, ctrl, geom, transpar)
-      #:else
-      call commonGeoOptions(node, ctrl, geom)
-      #:endif
+      call commonGeoOptions(node, ctrl, geom, atomsRange)
 
     case("gdiis")
 
@@ -510,11 +505,7 @@ contains
       ctrl%iGeoOpt = geoOptTypes%diis
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
       call getChildValue(node, "Generations", ctrl%iGenGeoOpt, 8)
-      #:if WITH_TRANSPORT
-      call commonGeoOptions(node, ctrl, geom, transpar)
-      #:else
-      call commonGeoOptions(node, ctrl, geom)
-      #:endif
+      call commonGeoOptions(node, ctrl, geom, atomsRange)
 
     case ("lbfgs")
 
@@ -538,11 +529,7 @@ contains
         call getChildValue(node, "oldLineSearch", ctrl%lbfgsInp%isOldLS, .false.)
       end if
 
-      #:if WITH_TRANSPORT
-      call commonGeoOptions(node, ctrl, geom, transpar, ctrl%lbfgsInp%isLineSearch)
-      #:else
-      call commonGeoOptions(node, ctrl, geom, ctrl%lbfgsInp%isLineSearch)
-      #:endif
+      call commonGeoOptions(node, ctrl, geom, atomsRange, ctrl%lbfgsInp%isLineSearch)
 
     case ("fire")
 
@@ -552,11 +539,7 @@ contains
           & "Please use the GeometryOptimization driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
-      #:if WITH_TRANSPORT
-      call commonGeoOptions(node, ctrl, geom, transpar, .false.)
-      #:else
-      call commonGeoOptions(node, ctrl, geom, .false.)
-      #:endif
+      call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
 
@@ -916,11 +899,7 @@ contains
 
 
   !> Common geometry optimisation settings for various drivers
-#:if WITH_TRANSPORT
-  subroutine commonGeoOptions(node, ctrl, geom, transpar, isMaxStepNeeded)
-#:else
-  subroutine commonGeoOptions(node, ctrl, geom, isMaxStepNeeded)
-#:endif
+  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxStepNeeded)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -931,18 +910,15 @@ contains
     !> geometry of the system
     type(TGeometry), intent(in) :: geom
 
-  #:if WITH_TRANSPORT
-    !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
-  #:endif
+    !> Default range of moving atoms (may be restricted for example by contacts in transport
+    !> calculations)
+    character(len=*), intent(in) :: atomsRange
 
     !> Is the maximum step size relevant for this driver
     logical, intent(in), optional :: isMaxStepNeeded
 
     type(fnode), pointer :: child, child2, child3, value1, value2, field
     type(string) :: buffer, buffer2, modifier
-    ! range of default atoms to move
-    character(mc) :: atomsRange
     logical :: isMaxStep
 
     if (present(isMaxStepNeeded)) then
@@ -950,14 +926,6 @@ contains
     else
       isMaxStep = .true.
     end if
-
-    atomsRange = "1:-1"
-  #:if WITH_TRANSPORT
-    if (transpar%defined) then
-      ! only those atoms in the device region
-      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
-    end if
-  #:endif
 
     ctrl%tForces = .true.
     ctrl%restartFreq = 1

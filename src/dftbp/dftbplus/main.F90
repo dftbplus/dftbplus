@@ -1306,9 +1306,9 @@ contains
       if (.not. (this%deltaDftb%isSpinPurify .and.&
           & this%deltaDftb%iDeterminant == determinants%triplet)) then
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
-            & this%tAppendGeo, this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken,&
-            & this%species0, this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep,&
-            & this%nSpin, this%qOutput, this%velocities)
+            & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
+            & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
+            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
       endif
     end if
 
