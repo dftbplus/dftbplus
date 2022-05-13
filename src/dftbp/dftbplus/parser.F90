@@ -53,7 +53,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
       & getChildren, getSelectedAtomIndices, setChild, setChildValue
-  use dftbp_io_hsdutils2, only : convertByMul, getNodeName2, setUnprocessed, splitModifier
+  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, setUnprocessed, splitModifier
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_lapackroutines, only : matinv
@@ -541,7 +541,7 @@ contains
       ctrl%iGeoOpt = geoOptTypes%fire
       call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
-      call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
+      call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
@@ -582,7 +582,7 @@ contains
 
       call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
           & modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
+      call convertUnitHsd(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
 
     case ("velocityverlet")
       ! molecular dynamics
@@ -611,7 +611,7 @@ contains
 
       call getChildValue(node, "TimeStep", ctrl%deltaT, modifier=modifier, &
           &child=field)
-      call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
+      call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
       call getChildValue(node, "Thermostat", value1, child=child)
       call getNodeName(value1, buffer2)
@@ -648,7 +648,7 @@ contains
           if (associated(child2)) then
             call getChildValue(child2, "", ctrl%wvScale, &
                 & modifier=modifier, child=child3)
-            call convertByMul(char(modifier), timeUnits, child3, &
+            call convertUnitHsd(char(modifier), timeUnits, child3, &
                 & ctrl%wvScale)
             ctrl%wvScale = ctrl%deltaT / ctrl%wvScale
           else
@@ -673,7 +673,7 @@ contains
         end select
 
         call getChildValue(value1, "CouplingStrength", ctrl%wvScale, modifier=modifier, child=field)
-        call convertByMul(char(modifier), freqUnits, field, ctrl%wvScale)
+        call convertUnitHsd(char(modifier), freqUnits, field, ctrl%wvScale)
 
         call getChildValue(value1, "ChainLength", ctrl%nh_npart, 3)
         call getChildValue(value1, "Order", ctrl%nh_nys, 3)
@@ -760,7 +760,7 @@ contains
           end if
           call getChildValue(child, "Pressure", ctrl%pressure, &
               & modifier=modifier, child=child2)
-          call convertByMul(char(modifier), pressureUnits, child2, &
+          call convertUnitHsd(char(modifier), pressureUnits, child2, &
               & ctrl%pressure)
           call getChild(child, "Coupling", child=child2, requested=.false.)
           if (associated(child2)) then
@@ -775,7 +775,7 @@ contains
             if (associated(child2)) then
               call getChildValue(child2, "", ctrl%BarostatStrength, &
                   & modifier=modifier, child=child3)
-              call convertByMul(char(modifier), timeUnits, child3, &
+              call convertUnitHsd(char(modifier), timeUnits, child3, &
                   & ctrl%BarostatStrength)
               ctrl%BarostatStrength = ctrl%deltaT / ctrl%BarostatStrength
             else
@@ -933,7 +933,7 @@ contains
     call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
     if (ctrl%tLatOpt) then
       call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), pressureUnits, child, ctrl%pressure)
+      call convertUnitHsd(char(modifier), pressureUnits, child, ctrl%pressure)
       call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
       if (ctrl%tLatOptFixAng) then
         call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, [.false.,.false.,.false.])
@@ -957,10 +957,10 @@ contains
     end if
     call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
+    call convertUnitHsd(char(modifier), forceUnits, field, ctrl%maxForce)
     call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
     call getChildValue(node, "StepSize", ctrl%deltaT, 100.0_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), timeUnits, field, ctrl%deltaT)
+    call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
     call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
     ctrl%outFile = unquote(char(buffer2))
     call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
@@ -1140,7 +1140,7 @@ contains
       allocate(tmpVelocities(3, nVelocities))
       call asArray(realBuffer, tmpVelocities)
       if (len(modifier) > 0) then
-        call convertByMul(char(modifier), VelocityUnits, child, &
+        call convertUnitHsd(char(modifier), VelocityUnits, child, &
             & tmpVelocities)
       end if
       call destruct(realBuffer)
@@ -1187,7 +1187,7 @@ contains
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
       call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), massUnits, child, rTmp)
+      call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
@@ -1540,7 +1540,7 @@ contains
         call getChildValue(child, geo%speciesNames(iSp1), &
             & ctrl%xi(:slako%orb%nShell(iSp1),iSp1), modifier=modifier, &
             & child=child2 )
-        call convertByMul(char(modifier), energyUnits, child2, &
+        call convertUnitHsd(char(modifier), energyUnits, child2, &
             & ctrl%xi(:slako%orb%nShell(iSp1),iSp1))
       end do
     end if
@@ -1601,7 +1601,7 @@ contains
           call destruct(li)
           call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
               & child=child3)
-          call convertByMul(char(modifier), energyUnits, child3, rTmp)
+          call convertUnitHsd(char(modifier), energyUnits, child3, rTmp)
           if (rTmp < 0.0_dp) then
             write(errorStr,"(F12.8)")rTmp
             call detailedError(child2,"Negative value of U-J:"//errorStr)
@@ -2271,7 +2271,7 @@ contains
       ctrl%tMulliken = .true.
       call getChildValue(child2, "Strength", ctrl%electricField%EFieldStrength, modifier=modifier,&
           & child=child3)
-      call convertByMul(char(modifier), EFieldUnits, child3, ctrl%electricField%EFieldStrength)
+      call convertUnitHsd(char(modifier), EFieldUnits, child3, ctrl%electricField%EFieldStrength)
       call getChildValue(child2, "Direction", ctrl%electricField%EfieldVector)
       if (sum(ctrl%electricField%EfieldVector**2) < 1e-8_dp) then
         call detailedError(child2,"Vector too small")
@@ -2281,7 +2281,7 @@ contains
       end if
       call getChildValue(child2, "Frequency", ctrl%electricField%EFieldOmega, 0.0_dp, &
           & modifier=modifier, child=child3)
-      call convertByMul(char(modifier), freqUnits, child3, ctrl%electricField%EFieldOmega)
+      call convertUnitHsd(char(modifier), freqUnits, child3, ctrl%electricField%EFieldOmega)
       if (ctrl%electricField%EFieldOmega > 0.0) then
         ! angular frequency
         ctrl%electricField%EFieldOmega = 2.0_dp * pi * ctrl%electricField%EFieldOmega
@@ -2339,7 +2339,7 @@ contains
         case default
           call detailedError(value1, "Invalid block name")
         end select
-        call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
+        call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
         call append(lCharges, tmpR2)
         call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
             &modifier=modifier, child=child3)
@@ -2347,7 +2347,7 @@ contains
           call detailedError(child3, "Gaussian blur width may not be &
               &negative")
         end if
-        call convertByMul(char(modifier), lengthUnits, child3, rTmp)
+        call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
         allocate(tmpR1(size(tmpR2, dim=2)))
         tmpR1(:) = rTmp
         call append(lBlurs, tmpR1)
@@ -2394,7 +2394,7 @@ contains
         call asArray(li, ctrl%atomicExtPotential%iAtOnSite)
         allocate(ctrl%atomicExtPotential%VextOnSite(len(lr)))
         call asArray(lr, ctrl%atomicExtPotential%VextOnSite)
-        call convertByMul(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%VextOnSite)
+        call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%VextOnSite)
         call destruct(li)
         call destruct(lr)
       end if
@@ -2413,7 +2413,7 @@ contains
         call asArray(li, ctrl%atomicExtPotential%iAt)
         allocate(ctrl%atomicExtPotential%Vext(len(lr)))
         call asArray(lr, ctrl%atomicExtPotential%Vext)
-        call convertByMul(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%Vext)
+        call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%atomicExtPotential%Vext)
         call destruct(li)
         call destruct(lr)
       end if
@@ -2471,7 +2471,7 @@ contains
     if (.not. ctrl%tSetFillingTemp) then
       call getChildValue(value1, "Temperature", ctrl%tempElec, temperatureDefault, &
           &modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, ctrl%tempElec)
+      call convertUnitHsd(char(modifier), energyUnits, field, ctrl%tempElec)
       if (ctrl%tempElec < minTemp) then
         ctrl%tempElec = minTemp
       end if
@@ -2486,7 +2486,7 @@ contains
         allocate(ctrl%Ef(1))
       end if
       call getChildValue(child2, "", ctrl%Ef, modifier=modifier, child=child3)
-      call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
+      call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%Ef)
     end if
 
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
@@ -2612,7 +2612,7 @@ contains
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
       call getChildValue(value1, "SpectralRadius", ctrl%solver%elsi%pexsiDeltaE, 10.0_dp,&
           & modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%elsi%pexsiDeltaE)
+      call convertUnitHsd(char(modifier), energyUnits, child, ctrl%solver%elsi%pexsiDeltaE)
 
     case ("ntpoly")
       ctrl%solver%isolver = electronicSolverTypes%ntpoly
@@ -3108,7 +3108,7 @@ contains
 
     ! Artificially truncate the SK table
     call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+    call convertUnitHsd(char(modifier), lengthUnits, field, truncationCutOff)
 
     call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
     if (tHardCutOff) then
@@ -3268,7 +3268,7 @@ contains
       ctrl%iDerivMethod = 1
       call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta,&
           & modifier=modifier, child=child)
-      call convertByMul(char(modifier), lengthUnits, child,&
+      call convertUnitHsd(char(modifier), lengthUnits, child,&
           & ctrl%deriv1stDelta)
     case ("richardson")
       ctrl%iDerivMethod = 2
@@ -3975,11 +3975,11 @@ contains
       call getChildValue(child, "", tmpR2, modifier=modifier)
       if (len(modifier) > 0) then
         call splitModifier(char(modifier), child, modifiers)
-        call convertByMul(char(modifiers(1)), volumeUnits, child, tmpR2(1,:),&
+        call convertUnitHsd(char(modifiers(1)), volumeUnits, child, tmpR2(1,:),&
             &.false.)
-        call convertByMul(char(modifiers(2)), lengthUnits, child, tmpR2(2,:),&
+        call convertUnitHsd(char(modifiers(2)), lengthUnits, child, tmpR2(2,:),&
             &.false.)
-        call convertByMul(char(modifiers(3)), chargeUnits, child, tmpR2(3,:),&
+        call convertUnitHsd(char(modifiers(3)), chargeUnits, child, tmpR2(3,:),&
             &.false.)
       end if
 
@@ -3995,17 +3995,17 @@ contains
             &child=child2, dummyValue=.true.)
         call getChildValue(child2, "CovalentRadius", rCutoffs(iSp1), &
             &modifier=modifier2, child=child3)
-        call convertByMul(char(modifier2), lengthUnits, child3, &
+        call convertUnitHsd(char(modifier2), lengthUnits, child3, &
             &rCutoffs(iSp1))
         call getChildValue(child2, "HybridPolarisations", tmp2R2(:, iSp1), &
             &modifier=modifier2, child=child3)
         if (len(modifier2) > 0) then
           call splitModifier(char(modifier2), child, modifiers)
-          call convertByMul(char(modifiers(1)), volumeUnits, child, &
+          call convertUnitHsd(char(modifiers(1)), volumeUnits, child, &
               &tmp2R2(1:6, iSp1), .false.)
-          call convertByMul(char(modifiers(2)), lengthUnits, child, &
+          call convertUnitHsd(char(modifiers(2)), lengthUnits, child, &
               &tmp2R2(7:12, iSp1), .false.)
-          call convertByMul(char(modifiers(3)), chargeUnits, child, &
+          call convertUnitHsd(char(modifiers(3)), chargeUnits, child, &
               &tmp2R2(13, iSp1), .false.)
         end if
       end do
@@ -4104,11 +4104,11 @@ contains
         call getChild(child, geo%speciesNames(iSp), child2)
         call getChildValue(child2, "Distance", input%distances(iSp), &
             &modifier=buffer)
-        call convertByMul(char(buffer), lengthUnits, child, &
+        call convertUnitHsd(char(buffer), lengthUnits, child, &
             &input%distances(iSp))
         call getChildValue(child2, "Energy", input%energies(iSp), &
             &modifier=buffer)
-        call convertByMul(char(buffer), energyUnits, child, &
+        call convertUnitHsd(char(buffer), energyUnits, child, &
             &input%energies(iSp))
       end do
     end select
@@ -4159,10 +4159,10 @@ contains
     call getChildValue(node, "s8", input%s8)
     call getChildValue(node, "cutoff", input%cutoff, default=sqrt(9000.0_dp), &
         & modifier=buffer, child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoff)
     call getChildValue(node, "cutoffcn", input%cutoffCN, default=40.0_dp, &
         & modifier=buffer, child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoffCN)
     call getChildValue(node, "threebody", threebody, default=.false.)
     input%s9 = merge(1.0_dp, 0.0_dp, threebody)
     ! D3H5 - additional H-H repulsion
@@ -4223,7 +4223,7 @@ contains
     call getChildValue(node, "weightingFactor", input%weightingFactor, default=4.0_dp)
     call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
         & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoffInter)
 
     call readCoordinationNumber(node, input%cnInput, geo, "exp", 0.0_dp)
 
@@ -4271,10 +4271,10 @@ contains
     call getChildValue(node, "ChargeScale", input%chargeScale, default=3.0_dp)
     call getChildValue(node, "CutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
         & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoffInter)
     call getChildValue(node, "CutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoffThree)
 
     call getChildValue(node, "ChargeModel", value1, "EEQ", child=child)
     call getNodeName(value1, buffer)
@@ -4413,7 +4413,7 @@ contains
 
     call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
         & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
+    call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoff)
 
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
@@ -4466,7 +4466,7 @@ contains
 
     call getChildValue(value1, "Cutoff", input%rCutoff, 40.0_dp, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
     allocate(input%en(geo%nSpecies))
     if (input%cnType == cnType%cov) then
@@ -4607,7 +4607,7 @@ contains
     ctrl%tempMethods(1) = 1
     ctrl%tempSteps(1) = 1
     call getChildValue(node, "", ctrl%tempValues(1), modifier=modifier)
-    call convertByMul(char(modifier), energyUnits, node, ctrl%tempValues(1))
+    call convertUnitHsd(char(modifier), energyUnits, node, ctrl%tempValues(1))
     if (ctrl%tempValues(1) < 0.0_dp) then
       call detailedError(node, "Negative temperature.")
     end if
@@ -4678,7 +4678,7 @@ contains
       call detailedError(node, "Negative temperature.")
     end if
 
-    call convertByMul(modifier, energyUnits, node, ctrl%tempValues)
+    call convertUnitHsd(modifier, energyUnits, node, ctrl%tempValues)
     if (any(ctrl%tempValues < minTemp)) then
       ctrl%tempValues = max(ctrl%tempValues, minTemp)
     end if
@@ -4765,11 +4765,11 @@ contains
       call getChildValue(child, "EnergyWindow", ctrl%lrespini%energyWindow, 0.0_dp, &
           & modifier=modifier, child=child2)
       ctrl%lrespini%tEnergyWindow = ctrl%lrespini%energyWindow /= 0.0_dp
-      call convertByMul(char(modifier), energyUnits, child2, ctrl%lrespini%energyWindow)
+      call convertUnitHsd(char(modifier), energyUnits, child2, ctrl%lrespini%energyWindow)
       call getChildValue(child, "OscillatorWindow", ctrl%lrespini%oscillatorWindow, 0.0_dp, &
           & modifier=modifier,  child=child2)
       ctrl%lrespini%tOscillatorWindow = ctrl%lrespini%oscillatorWindow /= 0.0_dp
-      call convertByMul(char(modifier), dipoleUnits, child2, ctrl%lrespini%oscillatorWindow)
+      call convertUnitHsd(char(modifier), dipoleUnits, child2, ctrl%lrespini%oscillatorWindow)
       call getChildValue(child, "CacheCharges", ctrl%lrespini%tCacheCharges, default=.true.)
       call getChildValue(child, "WriteMulliken", ctrl%lrespini%tMulliken, default=.false.)
       call getChildValue(child, "WriteCoefficients", ctrl%lrespini%tCoeffs, default=.false.)
@@ -5146,7 +5146,7 @@ contains
         end if
         call growFreqArray(frequencies, nFreq)
         call asArray(lr, frequencies(iFreq+1:iFreq+nFreq))
-        call convertByMul(char(modifier),freqUnits, child, frequencies(iFreq+1:iFreq+nFreq))
+        call convertUnitHsd(char(modifier),freqUnits, child, frequencies(iFreq+1:iFreq+nFreq))
       end if
       call destruct(lr)
       if (any(frequencies < 0.0_dp)) then
@@ -5160,7 +5160,7 @@ contains
       call getChildValue(child, "", lr, child=child2, modifier=modifier)
       if (len(lr) == 3) then
         call asArray(lr, tmp3R)
-        call convertByMul(char(modifier), freqUnits, child, tmp3R)
+        call convertUnitHsd(char(modifier), freqUnits, child, tmp3R)
         if (any(tmp3R(:2) < 0.0_dp)) then
           call detailedError(child, "Negative values in dynamic frequency range.")
         end if
@@ -5504,7 +5504,7 @@ contains
 
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, child=child)
-    call convertByMul(char(modifier), timeUnits, child, input%dt)
+    call convertUnitHsd(char(modifier), timeUnits, child, input%dt)
 
     call getChildValue(node, "Populations", input%tPopulations, .false.)
     call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
@@ -5528,7 +5528,7 @@ contains
       defPpRange = [0.0_dp, input%steps * input%dt]
       call getChildValue(node, "PumpProbeRange", input%tdPpRange, defPprange, modifier=modifier,&
           & child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%tdPpRange)
 
       ppRangeInvalid = (input%tdPpRange(2) <= input%tdPpRange(1))&
           & .or. (input%tdPprange(1) < defPpRange(1))&
@@ -5587,9 +5587,9 @@ contains
       call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call convertUnitHsd(char(modifier), energyUnits, child, input%omega)
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), angularUnits, child, input%phase)
+      call convertUnitHsd(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
@@ -5609,12 +5609,12 @@ contains
       call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call convertUnitHsd(char(modifier), energyUnits, child, input%omega)
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), angularUnits, child, input%phase)
+      call convertUnitHsd(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
           & child=child)
-      call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
+      call convertUnitHsd(char(modifier), EFieldUnits, child, input%tdLaserField)
 
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
@@ -5638,7 +5638,7 @@ contains
 
     if (tNeedFieldStrength) then
       call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
-      call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
+      call convertUnitHsd(char(modifier), EFieldUnits, child, input%tdfield)
     end if
 
     call getChildValue(node, "WriteEnergyAndCharges", input%tdWriteExtras, defaultWrite)
@@ -5654,23 +5654,23 @@ contains
     case("gaussian")
       input%envType = envTypes%gaussian
       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%Time0)
 
       call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%Time1)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
       input%envType = envTypes%sin2
       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%Time0)
 
       call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%Time1)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%Time1)
 
     case("fromfile")
       input%envType = envTypes%fromFile
       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      call convertUnitHsd(char(modifier), timeUnits, child, input%Time0)
 
     case default
       call detailedError(value1, "Unknown envelope shape " // char(buffer))
@@ -5720,7 +5720,7 @@ contains
     if (tempAtom < 0.0_dp) then
       call detailedError(node, "Negative temperature")
     end if
-    call convertByMul(char(modifier), energyUnits, node, tempAtom)
+    call convertUnitHsd(char(modifier), energyUnits, node, tempAtom)
     tempAtom = max(tempAtom, minimumTemp)
 
   end subroutine readMDInitTemp
@@ -5790,7 +5790,7 @@ contains
        allocate(tmpVelocities(3, nVelocities))
        call asArray(realBuffer, tmpVelocities)
        if (len(modifier) > 0) then
-          call convertByMul(char(modifier), VelocityUnits, child, &
+          call convertUnitHsd(char(modifier), VelocityUnits, child, &
                & tmpVelocities)
        end if
        call destruct(realBuffer)
@@ -5857,7 +5857,7 @@ contains
       if (.not. geom%tPeriodic) then
         call getChildValue(pTaskType, "ContactSeparation", lateralContactSeparation, 1000.0_dp,&
             & modifier=modifier, child=field)
-        call convertByMul(char(modifier),lengthUnits,field,lateralContactSeparation)
+        call convertUnitHsd(char(modifier),lengthUnits,field,lateralContactSeparation)
       end if
 
       call reduceGeometry(transpar%contacts(contact)%lattice, transpar%contacts(contact)%idxrange,&
@@ -6039,7 +6039,7 @@ contains
         call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
       end if
       call destruct(fermiBuffer)
-      call convertByMul(char(modifier), energyUnits, pNode, greendens%oneFermi)
+      call convertUnitHsd(char(modifier), energyUnits, pNode, greendens%oneFermi)
 
       call getChild(pNode, "FirstLayerAtoms", pTmp, requested=.false.)
       call readFirstLayerAtoms(pTmp, greendens%PL, greendens%nPLs,&
@@ -6073,14 +6073,14 @@ contains
     call getChildValue(pNode, "LocalCurrents", greendens%doLocalCurr, .false.)
     call getChildValue(pNode, "Verbosity", greendens%verbose, 51)
     call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), energyUnits, field, greendens%delta)
+    call convertUnitHsd(char(modifier), energyUnits, field, greendens%delta)
     call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
     call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .not.greendens%readSGF)
     call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
     call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), energyUnits, field, greendens%enLow)
+    call convertUnitHsd(char(modifier), energyUnits, field, greendens%enLow)
     call getChildValue(pNode, "FermiCutoff", greendens%nkT, 10)
       ! Fermi energy had not been set by other means yet
 
@@ -6115,7 +6115,7 @@ contains
       else if (associated(child2)) then
         call getChildValue(pNode, "RealAxisStep", Estep, child=child2, &
              & modifier=modifier)
-        call convertByMul(char(modifier), energyUnits, child2, Estep)
+        call convertUnitHsd(char(modifier), energyUnits, child2, Estep)
         realAxisConv = .true.
       ! If the system is under equilibrium we set the number of
       ! points to zero
@@ -6196,25 +6196,25 @@ contains
           if (ii == transpar%contacts(1)%dir) then
             call getChildValue(pNode, "PoissonThickness", poisson%poissBox(ii), modifier=modifier,&
                 & child=field)
-            call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
+            call convertUnitHsd(char(modifier), lengthUnits, field, poisson%poissBox)
           else
             poisson%poissBox(ii) = sqrt(sum(latVecs(:,ii)**2))
           end if
         end do
       else
         call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modifier, child=field)
-        call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
+        call convertUnitHsd(char(modifier), lengthUnits, field, poisson%poissBox)
       end if
     #:else
       call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%poissBox)
     #:endif
     end if
 
     poisson%foundBox = needsPoissonBox
     call getChildValue(pNode, "MinimalGrid", poisson%poissGrid, [ 0.3_dp, 0.3_dp, 0.3_dp ],&
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, poisson%poissGrid)
+    call convertUnitHsd(char(modifier), lengthUnits, field, poisson%poissGrid)
     call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
@@ -6223,7 +6223,7 @@ contains
           & can be specified.")
     else if (associated(pTmp)) then
       call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
-      call convertByMul(char(modifier), lengthUnits, pTmp, poisson%maxRadAtomDens)
+      call convertUnitHsd(char(modifier), lengthUnits, pTmp, poisson%maxRadAtomDens)
       if (poisson%maxRadAtomDens <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density cutoff must be > 0")
       end if
@@ -6266,12 +6266,12 @@ contains
       poisson%localBCType = "S"
       call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%bufferLocBC)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%bufferLocBC)
     case ("circle")
       poisson%localBCType = "C"
       call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%bufferLocBC)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%bufferLocBC)
     case default
       call getNodeHSDName(pTmp, buffer)
       call detailedError(pTmp, "Invalid boundary region type '" // char(buffer) // "'")
@@ -6279,7 +6279,7 @@ contains
 
     call getChildValue(pNode, "BoxExtension", poisson%bufferBox, 0.0_dp, modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, poisson%bufferBox)
+    call convertUnitHsd(char(modifier), lengthUnits, field, poisson%bufferBox)
     if (poisson%bufferBox.lt.0.0_dp) then
       call detailedError(pNode, "BoxExtension must be a positive number")
     endif
@@ -6295,24 +6295,24 @@ contains
       poisson%gateType = "P"
       call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
       gatelength_l = poisson%gateLength_l !avoids a warning on intents
       call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, gateLength_l,&
           & modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
       call getChildValue(pTmp2, "GateLength_t", poisson%gateLength_t, poisson%gateLength_l,&
           & modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_t)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateLength_t)
 
       call getChildValue(pTmp2, "GateDistance", poisson%gateRad, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateRad)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateRad)
 
       call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), energyUnits, field, poisson%gatepot)
+      call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
 
       !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
       poisson%gatedir = 2
@@ -6321,15 +6321,15 @@ contains
       poisson%gateType = "C"
       call getChildValue(pTmp2, "GateLength",poisson%gateLength_l, 0.0_dp, modifier= modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
       call getChildValue(pTmp2, "GateRadius", poisson%gateRad, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gateRad)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateRad)
 
       call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, poisson%gatepot)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gatepot)
 
     case default
       call getNodeHSDName(pTmp2, buffer)
@@ -6723,7 +6723,7 @@ contains
     ! This reads also things like:  "Coupling [eV] = 0.34"
     !if (is_numeric(char(method))) then
     !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertByMul(char(modifier), energyUnits, field, rTmp)
+    !  call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
     !  elph%coupling = rTmp
     !  return
     !end if
@@ -6732,7 +6732,7 @@ contains
     case ("allorbitals")
       call getChild(child, "AllOrbitals", child2, requested=.false.)
       call getChildValue(child2, "", elph%coupling, child=field)
-      call convertByMul(char(modifier), energyUnits, field, elph%coupling)
+      call convertUnitHsd(char(modifier), energyUnits, field, elph%coupling)
 
     case ("atomcoupling")
       call getChild(child, "AtomCoupling", child2, requested=.false.)
@@ -6746,9 +6746,9 @@ contains
         call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
         ! If not defined, use common unit modifier defined after Coupling
         if (len(modifier2)==0) then
-          call convertByMul(char(modifier), energyUnits, field, rTmp)
+          call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
         else
-          call convertByMul(char(modifier2), energyUnits, field, rTmp)
+          call convertUnitHsd(char(modifier2), energyUnits, field, rTmp)
         end if
         do jj=1, size(tmpI1)
           iAt = tmpI1(jj)
@@ -6769,7 +6769,7 @@ contains
 
     case ("constant")
       call getChildValue(child, "Constant", rtmp, child=field)
-      call convertByMul(char(modifier), energyUnits, field, rTmp)
+      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
       elph%coupling = rTmp
 
     case default
@@ -6820,7 +6820,7 @@ contains
       end if
       call asArray(temperature, tundos%kbT)
       call destruct(temperature)
-      call convertByMul(char(modifier), energyUnits, pTmp, tundos%kbT)
+      call convertUnitHsd(char(modifier), energyUnits, pTmp, tundos%kbT)
     else
       do ii = 1, ncont
         if (transpar%contacts(ii)%kbT >= 0) then
@@ -6843,10 +6843,10 @@ contains
       ! No default meaningful
       call getChildValue(root, "EnergyRange", eRange, modifier=modifier,&
       & child=field)
-      call convertByMul(char(modifier), energyUnits, field, eRange)
+      call convertUnitHsd(char(modifier), energyUnits, field, eRange)
       call getChildValue(root, "EnergyStep", tundos%estep,&
       & modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, tundos%estep)
+      call convertUnitHsd(char(modifier), energyUnits, field, tundos%estep)
     else
       ! Default meaningful
       ! nKT is set to GreensFunction default, i.e. 10
@@ -6864,10 +6864,10 @@ contains
                         & nKT * maxval(tundos%kbT)
       call getChildValue(root, "EnergyStep", tundos%estep, 6.65e-4_dp, &
                           &modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, tundos%estep)
+      call convertUnitHsd(char(modifier), energyUnits, field, tundos%estep)
       call getChildValue(root, "EnergyRange", eRange, eRangeDefault, &
                           modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, eRange)
+      call convertUnitHsd(char(modifier), energyUnits, field, eRange)
     end if
 
     tundos%emin = eRange(1)
@@ -6901,11 +6901,11 @@ contains
       end if
       call getChildValue(root, "Delta", tundos%delta, &
           &1.0e-5_dp, modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, &
+      call convertUnitHsd(char(modifier), energyUnits, field, &
           &tundos%delta)
       call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
           &0.0_dp, modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, &
+      call convertUnitHsd(char(modifier), energyUnits, field, &
           &tundos%broadeningDelta)
 
       call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
@@ -6951,7 +6951,7 @@ contains
 
       call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, contactLayerTol)
+      call convertUnitHsd(char(modifier), lengthUnits, field, contactLayerTol)
 
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
       call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
@@ -6964,7 +6964,7 @@ contains
       if (associated(field)) then
         call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modifier,&
             & child=field)
-        call convertByMul(char(modifier), energyUnits, field, contacts(ii)%kbT)
+        call convertUnitHsd(char(modifier), energyUnits, field, contacts(ii)%kbT)
       else
         contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
       end if
@@ -6972,7 +6972,7 @@ contains
       if (task .eq. "uploadcontacts") then
         call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modifier,&
             & child=field)
-        call convertByMul(char(modifier), energyUnits, field, contacts(ii)%potential)
+        call convertUnitHsd(char(modifier), energyUnits, field, contacts(ii)%potential)
 
         call getChildValue(pNode, "WideBand", contacts(ii)%wideBand, .false.)
 
@@ -6983,7 +6983,7 @@ contains
           ! value. Default is 20 / e eV.
           call getChildValue(pNode, "LevelSpacing", contacts(ii)%wideBandDos, 0.735_dp,&
               & modifier=modifier, child=field)
-          call convertByMul(char(modifier), energyUnits, field, contacts(ii)%wideBandDos)
+          call convertUnitHsd(char(modifier), energyUnits, field, contacts(ii)%wideBandDos)
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
 
         end if
@@ -7023,7 +7023,7 @@ contains
             call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
           end select
           call destruct(fermiBuffer)
-          call convertByMul(char(modifier), energyUnits, child2, contacts(ii)%eFermi)
+          call convertUnitHsd(char(modifier), energyUnits, child2, contacts(ii)%eFermi)
 
           contacts(ii)%tFermiSet = .true.
 
@@ -7066,11 +7066,11 @@ contains
     call getChild(pNode, "SetForAll", pChild, requested=.false.)
     if (associated(pChild)) then
       call getChildValue(pChild, "", eFermi)
-      call convertByMul(char(nodeModifier), energyUnits, pNode, eFermi)
+      call convertUnitHsd(char(nodeModifier), energyUnits, pNode, eFermi)
       eFermis(:) = eFermi
     else
       call getChildValue(pNode, "", eFermis, modifier=modifier, child=pChild)
-      call convertByMul(char(modifier), energyUnits, pChild, eFermis)
+      call convertUnitHsd(char(modifier), energyUnits, pChild, eFermis)
     end if
 
   end subroutine getFermiLevels
@@ -7442,7 +7442,7 @@ contains
       if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
         ctrl%elStatPotentialsInp%espGrid = matmul(geo%latVecs, ctrl%elStatPotentialsInp%espGrid)
       else
-        call convertByMul(char(modifier), lengthUnits, child3,&
+        call convertUnitHsd(char(modifier), lengthUnits, child3,&
             & ctrl%elStatPotentialsInp%espGrid)
       end if
     end if
@@ -7471,7 +7471,7 @@ contains
     end if
     call getChildValue(child, "Softening", ctrl%elStatPotentialsInp%softenESP, 1.0E-6_dp,&
         & modifier=modifier, child=child2)
-    call convertByMul(char(modifier), lengthUnits, child2, ctrl%elStatPotentialsInp%softenEsp)
+    call convertUnitHsd(char(modifier), lengthUnits, child2, ctrl%elStatPotentialsInp%softenEsp)
 
   end subroutine readElectrostaticPotential
 
@@ -7529,8 +7529,8 @@ contains
 
     !  length not fraction modifier
     if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
-      call convertByMul(char(modifier), lengthUnits, child, r3Tmp)
-      call convertByMul(char(modifier), lengthUnits, child, r3Tmpb)
+      call convertUnitHsd(char(modifier), lengthUnits, child, r3Tmp)
+      call convertUnitHsd(char(modifier), lengthUnits, child, r3Tmpb)
     end if
 
     points = 0.0_dp
@@ -7616,13 +7616,13 @@ contains
         input%rangeSepAlg = rangeSepTypes%neighbour
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
-        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+        call convertUnitHsd(char(modifier), lengthUnits, child3, input%cutoffRed)
       case ("thresholded")
         input%rangeSepAlg = rangeSepTypes%threshold
         call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
-        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+        call convertUnitHsd(char(modifier), lengthUnits, child3, input%cutoffRed)
       case ("matrixbased")
         input%rangeSepAlg = rangeSepTypes%matrixBased
         ! In this case, CutoffRedunction is not used so it should be set to zero.

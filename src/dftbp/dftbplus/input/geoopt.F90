@@ -16,7 +16,7 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_io_charmanip, only : unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning, getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : convertByMul
+  use dftbp_io_hsdutils2, only : convertUnitHsd
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
@@ -165,20 +165,20 @@ contains
     type(string) :: modifier
 
     call getChildValue(node, "Energy", input%energy, huge(1.0_dp), modifier=modifier, child=field)
-    call convertByMul(char(modifier), energyUnits, field, input%energy)
+    call convertUnitHsd(char(modifier), energyUnits, field, input%energy)
 
     call getChildValue(node, "GradNorm", input%gradNorm, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), forceUnits, field, input%gradNorm)
+    call convertUnitHsd(char(modifier), forceUnits, field, input%gradNorm)
     call getChildValue(node, "GradElem", input%gradElem, 1.0e-4_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), forceUnits, field, input%gradElem)
+    call convertUnitHsd(char(modifier), forceUnits, field, input%gradElem)
 
     call getChildValue(node, "DispNorm", input%dispNorm, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%dispNorm)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%dispNorm)
     call getChildValue(node, "DispElem", input%dispElem, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%dispElem)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%dispElem)
 
   end subroutine readOptTolerance
 
@@ -201,7 +201,7 @@ contains
     call getChildValue(node, "fDec", input%f_dec, 0.5_dp)
     call getChildValue(node, "fAlpha", input%f_alpha, 0.99_dp)
     call getChildValue(node, "StepSize", input%dt_max, 1.0_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), timeUnits, field, input%dt_max)
+    call convertUnitHsd(char(modifier), timeUnits, field, input%dt_max)
 
   end subroutine readFireInput
 
