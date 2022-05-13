@@ -52,8 +52,10 @@ contributed to DFTB+ :
 
 * Reinhard Maurer (University of Warwick, UK)
 
+* Tobias Melson (Max Planck Computing and Data Facility, Germany)
+
 * Izaac Mitchell (University of Newcastle, Australia)
-  
+
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
@@ -63,7 +65,7 @@ contributed to DFTB+ :
 
 * Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech
   Republic)
-  
+
 * Cristián G. Sánchez (Universidad Nacional de Cuyo, Argentina)
 
 * Miguel Steiner (ETH Zurich, Switzerland)
