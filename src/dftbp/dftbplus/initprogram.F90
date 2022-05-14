@@ -1364,8 +1364,10 @@ contains
             & this%speciesName, this%coord0)
       end if
 
-      allocate(input%slako%orb)
-      call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
+      if (.not.allocated(input%slako%orb)) then
+        allocate(input%slako%orb)
+        call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
+      end if
       this%orb = input%slako%orb
 
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
@@ -1540,7 +1542,7 @@ contains
       this%cutOff%mCutoff = this%cutOff%skCutoff
     end select
 
-    call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
+    call initHubbardUs_(input, this%orb, this%hamiltonianType, this%tblite, hubbU)
     if (this%tSccCalc) then
       allocate(this%uniqHubbU)
       call TUniqueHubbard_init(this%uniqHubbU, hubbU, this%orb)
@@ -1590,7 +1592,7 @@ contains
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
-    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
+    if (this%tSccCalc .and. (.not.allocated(this%tblite) .or. this%isRangeSep)) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
         #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -1633,6 +1635,16 @@ contains
         allocate(this%thirdOrd)
         call ThirdOrder_init(this%thirdOrd, thirdInp)
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%thirdOrd%getCutOff())
+      end if
+    else
+      if (this%tPoisson) then
+        call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
+        call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+           & coulombInput, shortGammaInput, poissonInput, this%scc)
       end if
     end if
 
@@ -1703,6 +1715,11 @@ contains
 
     ! Orbital equivalency relations
     call this%setEquivalencyRelations()
+    
+    ! Removing the electrostatic contribution in xTB which is treated here
+    if (allocated(this%tblite) .and. (this%tPoisson .or. this%isRangeSep)) then
+      call this%tblite%removeES2
+    end if
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
@@ -4244,10 +4261,11 @@ contains
 
 
   ! Set up Hubbard U values
-  subroutine initHubbardUs_(input, orb, hamiltonianType, hubbU)
+  subroutine initHubbardUs_(input, orb, hamiltonianType, tblite, hubbU)
     type(TInputData), intent(in) :: input
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: hamiltonianType
+    type(TTBlite), intent(in), optional :: tblite
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 
     integer :: nSpecies
@@ -4264,8 +4282,8 @@ contains
       @:ASSERT(size(input%slako%skHubbU, dim=2) == nSpecies)
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+      @:ASSERT(present(tblite))
+      call tblite%getHubbardU(hubbU)
     end select
 
     if (allocated(input%ctrl%hubbU)) then
@@ -5223,7 +5241,7 @@ contains
       call error("Range separated calculations not currently implemented for XLBOMD")
     end if
 
-    if (this%t3rd) then
+    if (this%t3rd .and. .not.allocated(this%tblite)) then
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 

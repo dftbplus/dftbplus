@@ -213,7 +213,7 @@ add_subdirectory(external/mudpack)
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "1f690009020fb5f196c1dc359056741738416db6")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "3d0e921085eb6ca535dfceec876bc99baf52f05d")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
@@ -231,7 +231,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
   #list(APPEND PKG_CONFIG_REQUIRES toml-f)
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "6623834fe0be9f6ed22f9c0cb1c61ea121753c28")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "02dead293e59408100eb382e97be56e2a03fb317")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -245,13 +245,13 @@ if(WITH_TBLITE)
   #list(APPEND PKG_CONFIG_REQUIRES multicharge)
 
   set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-  set(DFTD4_GIT_TAG "b1faf68231d8b0fd44cf0701e9f27c8092bd7926")  # do not change manually!
+  set(DFTD4_GIT_TAG "f572723f5a5cb8243ea88b0253e182088311c6f3")  # do not change manually!
   dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES dftd4)
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "7bde301ead9b71e08f0ecc19390128f7209644d2")  # do not change manually!
+  set(TBLITE_GIT_TAG "930653d148e47981d2ce1201d601e11ce3806a3e")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)

@@ -41,9 +41,8 @@ module dftbp_extlibs_tblite
   use mctc_io_symbols, only : symbol_length
   use tblite_basis_type, only : get_cutoff, basis_type
   use tblite_context_type, only : context_type
-  use tblite_coulomb_cache, only : coulomb_cache
+  use tblite_container, only : container_cache
   use tblite_cutoff, only : get_lattice_points
-  use tblite_disp_cache, only : dispersion_cache
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
   use tblite_param, only : param_record
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
@@ -142,10 +141,10 @@ module dftbp_extlibs_tblite
     type(potential_type) :: pot
 
     !> Reuseable data for Coulombic interactions
-    type(coulomb_cache) :: cache
+    type(container_cache) :: cache
 
     !> Reuseable data for Dispersion interactions
-    type(dispersion_cache) :: dcache
+    type(container_cache) :: dcache
   #:endif
 
     !> Parametrization info
@@ -170,19 +169,19 @@ module dftbp_extlibs_tblite
     real(dp), allocatable :: dsedcn(:)
 
     !> Repulsion energy
-    real(dp) :: erep
+    real(dp), allocatable :: erep(:)
 
     !> Halogen bonding energy
-    real(dp) :: ehal
+    real(dp), allocatable :: ehal(:)
 
     !> Non-self consistent dispersion energy
-    real(dp) :: edisp
+    real(dp), allocatable :: edisp(:)
 
     !> Self-consistent dispersion energy
-    real(dp) :: escd
+    real(dp), allocatable :: escd(:)
 
     !> Electrostatic energy
-    real(dp) :: ees
+    real(dp), allocatable :: ees(:)
 
     !> Contributions to the gradient
     real(dp), allocatable :: gradient(:, :)
@@ -227,6 +226,12 @@ module dftbp_extlibs_tblite
 
     !> Returns the equivalence to get the correct mixing of charge dependent contributions
     procedure :: getOrbitalEquiv
+
+    !> Get Hubbard parameters from second order electrostatic
+    procedure :: getHubbardU
+
+    !> Remove second order electrostatics
+    procedure :: removeES2
 
     !> Construct Hamiltonian and overlap related integrals
     procedure :: buildSH0
@@ -408,6 +413,8 @@ contains
 
     allocate(this%selfenergy(this%calc%bas%nsh), this%dsedcn(this%calc%bas%nsh))
 
+    allocate(this%erep(this%mol%nat), this%ehal(this%mol%nat), this%edisp(this%mol%nat), &
+        & this%escd(this%mol%nat), this%ees(this%mol%nat))
     allocate(this%gradient(3, this%mol%nat))
 
     allocate(this%sp2id(maxval(species0)))
@@ -536,27 +543,24 @@ contains
     integer, intent(in) :: species0(:)
 
   #:if WITH_TBLITE
-    real(dp) :: cutoff
-    real(dp), allocatable :: lattr(:, :)
+    type(container_cache) :: hcache, rcache
 
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
-    this%ehal = 0.0_dp
-    this%erep = 0.0_dp
-    this%edisp = 0.0_dp
+    this%ehal(:) = 0.0_dp
+    this%erep(:) = 0.0_dp
+    this%edisp(:) = 0.0_dp
     this%gradient(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
 
     if (allocated(this%calc%halogen)) then
-      cutoff = 20.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%halogen%get_engrad(this%mol, lattr, cutoff, this%ehal, &
+      call this%calc%halogen%update(this%mol, hcache)
+      call this%calc%halogen%get_engrad(this%mol, hcache, this%ehal, &
           & this%gradient, this%sigma)
     end if
 
     if (allocated(this%calc%repulsion)) then
-      cutoff = 25.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%repulsion%get_engrad(this%mol, lattr, cutoff, this%erep, &
+      call this%calc%repulsion%update(this%mol, rcache)
+      call this%calc%repulsion%get_engrad(this%mol, rcache, this%erep, &
           & this%gradient, this%sigma)
     end if
 
@@ -610,7 +614,7 @@ contains
     real(dp), intent(out) :: energies(:)
 
   #:if WITH_TBLITE
-    energies(:) = (this%ehal + this%erep + this%edisp + this%escd + this%ees) / size(energies)
+    energies(:) = this%ehal + this%erep + this%edisp + this%escd + this%ees
   #:else
     call notImplementedError
   #:endif
@@ -733,8 +737,8 @@ contains
     real(dp), allocatable :: dQAtom(:), dQShell(:, :)
 
     call this%pot%reset
-    this%escd = 0.0_dp
-    this%ees = 0.0_dp
+    this%escd(:) = 0.0_dp
+    this%ees(:) = 0.0_dp
 
     allocate(dQAtom(this%mol%nat), dQShell(orb%mShell, this%mol%nat))
     call getSummedCharges(species, orb, qq, q0, dQAtom=dQAtom, dQShell=dQShell)
@@ -1066,6 +1070,56 @@ contains
   #:endif
   end subroutine getOrbitalEquiv
 
+
+  !> Return Hubbard parameters from extended tight binding model
+  subroutine getHubbardU(this, hubbU)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Hubbard parameters for
+    real(dp), intent(out) :: hubbU(:, :)
+
+  #:if WITH_TBLITE
+    hubbU(:, :) = 0.0_dp
+    if (.not.allocated(this%calc%coulomb)) return
+    if (.not.allocated(this%calc%coulomb%es2)) return
+
+    block
+      use tblite_coulomb_charge, only : gamma_coulomb, effective_coulomb
+      integer :: iSp, iSh
+      select type(es2 => this%calc%coulomb%es2)
+      class is(gamma_coulomb)
+        do iSp = 1, size(hubbU, 2)
+          hubbU(:, iSp) = es2%hubbard(:, this%sp2id(iSp))
+        end do
+      class is(effective_coulomb)
+        do iSp = 1, size(hubbU, 2)
+          do iSh = 1, size(hubbU, 1)
+            hubbU(iSh, iSp) = es2%hubbard(iSh, iSh, this%sp2id(iSp), this%sp2id(iSp))
+          end do
+        end do
+      end select
+    end block
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine getHubbardU
+
+  !> Remove second order electrostatics from container
+  subroutine removeES2(this)
+
+    !> Data structure
+    class(TTBLite), intent(inout) :: this
+
+  #:if WITH_TBLITE
+    if (.not.allocated(this%calc%coulomb)) return
+    if (.not.allocated(this%calc%coulomb%es2)) return
+    deallocate(this%calc%coulomb%es2)
+  #:else
+    call notImplementedError
+  #:endif
+  end subroutine removeES2
 
   !> Build atomic block sparse compressed Hamiltonian and overlap related integrals
   subroutine buildSH0(this, env, species, coords, nNeighbour, iNeighbours, img2centCell, &

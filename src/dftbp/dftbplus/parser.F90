@@ -243,6 +243,10 @@ contains
           & allowEmptyValue=.true., dummyValue=.true.)
 
     #:if WITH_TRANSPORT
+      if (allocated(input%ctrl%tbliteInp)) then
+        allocate(input%slako%orb)
+        call input%ctrl%tbliteInp%setupOrbitals(input%geom%species, input%slako%orb)
+      end if
       call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
           & input%ginfo%tundos)
 
@@ -1502,11 +1506,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -1886,11 +1886,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -1910,6 +1906,9 @@ contains
   #:else
     call readSolver(node, ctrl, geo, poisson)
   #:endif
+
+    ! Range Separation
+    call parseRangeSeparated(node, ctrl%rangeSepInp)  
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
@@ -2181,11 +2180,7 @@ contains
 
 
   !> Spin calculation
-#:if WITH_TRANSPORT
-  subroutine readSpinPolarisation(node, ctrl, geo, tp)
-#:else
   subroutine readSpinPolarisation(node, ctrl, geo)
-#:endif
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2195,11 +2190,6 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
-
-  #:if WITH_TRANSPORT
-    !> Transport parameters
-    type(TTransPar), intent(inout)  :: tp
-  #:endif
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -7631,6 +7621,10 @@ contains
         call getNodeHSdName(value2, buffer)
         call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
       end select
+
+      ! Read the Range Separation Parameter (defauls 0.3)
+      ! only for xTB as DFTB+ will overwrite it from SK file
+      call getChildValue(value1, "RangeSepParameter", input%omega, 0.3_dp)
 
     case default
       call getNodeHSDName(value1, buffer)
