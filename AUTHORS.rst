@@ -39,6 +39,8 @@ contributed to DFTB+ :
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
+* Tammo van der Heide (University of Bremen, Germany)
+
 * Jan Hermann (Free University of Berlin, Germany)
 
 * Jacek Jakowski (Oak Ridge National Laboratory, USA)
