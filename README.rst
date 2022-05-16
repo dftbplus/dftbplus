@@ -28,12 +28,28 @@ management framework using `Miniconda
 ``conda-forge`` channel in order to be able to access DFTB+. (Please consult the
 conda documentation for how to set-up your conda environment.)
 
-We provide several build variants (mpi, non-mpi), choose the one suiting your
-needs. For example, by issuing ::
+We recommend the use of the `mamba installer <https://mamba.readthedocs.io/>`_,
+as we have experienced dependency resolution problems with the original Ccnda
+installer in the past::
 
-  conda install 'dftbplus=*=nompi_*'
+  conda install -n base mamba
 
-you obtain the latest stable non-MPI version of DFTB+.
+We provide several build variants, choose the one suiting your needs. For
+example, by issuing ::
+
+  mamba install 'dftbplus=*=nompi_*'
+
+or ::
+
+  mamba install 'dftbplus=*=mpi_mpich_*'
+
+or ::
+
+  mamba install 'dftbplus=*=mpi_openmpi_*'
+
+to get the last stable release of DFTB+ with, respectively,
+serial(OpenMP-threaded) build or with MPI-parallelized build using either the
+MPICH or the Open MPI framework.
 
 
 Downloading the binary

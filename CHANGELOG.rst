@@ -5,21 +5,19 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+22.1 (2022-05-19)
+=================
 
 Added
 -----
 
 - Real time electronic dynamics for xTB Hamiltonian
 
-- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
-
 - Real time electronic dynamics for range separated DFTB
 
 - Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
 
-- (Optionally) Rescale externally applied fields and dipole moments
+- (Optionally) rescale externally applied fields and dipole moments
   when implicit solvents are used
 
 - Enable lattice constraints in new geometry optimization driver
@@ -27,6 +25,9 @@ Added
 - Dynamic polarizability and response kernel at finite frequencies
 
 - API call for CM5 charges
+
+- Numerical Hessian calculation can be split over multiple runs
+
 
 Changed
 -------

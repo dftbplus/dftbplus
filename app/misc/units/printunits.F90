@@ -19,9 +19,10 @@
 program printunits
   use dftbp_common_unitconversion, only : lengthUnits, inverseLengthUnits, energyUnits, forceUnits,&
       & timeUnits, freqUnits, volumeUnits, chargeUnits, eFieldUnits, bFieldUnits, pressureUnits,&
-      & velocityUnits, dipoleUnits, massUnits, angularUnits, massDensityUnits
+      & velocityUnits, dipoleUnits, massUnits, angularUnits, massDensityUnits, TUnit
   implicit none
 
+  type(TUnit) :: localUnit
   integer :: ii
 
   write(*,*)"Convert from unit to a.u. by multiplying with"
@@ -29,7 +30,11 @@ program printunits
     write(*,*)
     write(*,"(a)")"${names}$:"
     do ii = 1, size(${units}$)
-      write(*,"(1x,dt)") ${units}$(ii)
+      ! Workaround: nag 7.1
+      ! Can not print derived type, if part of an array
+      ! write(*,"(1x,dt)") ${units}$(ii)
+      localUnit = ${units}$(ii)
+      write(*,"(1x,dt)") localUnit
     end do
   #:endfor
 
