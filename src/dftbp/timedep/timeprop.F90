@@ -2079,16 +2079,13 @@ contains
     !> Time step in atomic units
     real(dp), intent(in) :: step
 
-    real(dp), allocatable :: T1R(:,:),T2R(:,:)
-    real(dp), allocatable :: T3R(:,:),T4R(:,:),T5R(:,:)
+    real(dp), allocatable :: T1R(:,:), T2R(:,:), T3R(:,:),T4R(:,:)
     integer :: i,j
 
     allocate(T1R(this%nOrbs,this%nOrbs))
     allocate(T2R(this%nOrbs,this%nOrbs))
     allocate(T3R(this%nOrbs,this%nOrbs))
     allocate(T4R(this%nOrbs,this%nOrbs))
-    allocate(T5R(this%nOrbs,this%nOrbs))
-
 
     ! The code below takes into account that Sinv and H1 are real, this is twice as fast as the
     ! original above (propageteRho)
@@ -2097,22 +2094,18 @@ contains
     T1R(:,:) = real(H1)
     T2R(:,:) = real(Sinv)
     call gemm(T3R,T2R,T1R)
+    T2R(:,:) = T3R
 
     ! calculate the first term products for the real and imaginary parts independently
     T1R(:,:) = real(rho)
-    T2R(:,:) = aimag(rho)
-    call gemm(T4R,T3R,T1R)
-    call gemm(T5R,T3R,T2R)
+    call gemm(T3R,T2R,T1R)
+
+    T1R(:,:) = aimag(rho)
+    call gemm(T4R,T2R,T1R)
 
     ! build the commutator combining the real and imaginary parts of the previous result
-    !$omp parallel do private(i,j)
-    do i=1,this%nOrbs
-      do j=1,this%nOrbs
-        rhoOld(i,j) = rhoOld(i,j) + cmplx(0, -step, dp) * (T4R(i,j) + imag * T5R(i,j)) &
-            + cmplx(0, step, dp) * conjg(T4R(j,i) + imag * T5R(j,i))
-      enddo
-    enddo
-    !$omp end parallel do
+    rhoOld(:,:) = rhoOld + cmplx(0, -step, dp) * (T3R + imag * T4R)&
+        & + cmplx(0, step, dp) * transpose(T3R - imag * T4R)
 
   end subroutine propagateRhoRealH
 
