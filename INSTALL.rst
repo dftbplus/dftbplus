@@ -12,11 +12,11 @@ Requirements
 
 In order to compile DFTB+, you need the following software components:
 
-* Fortran 2003 compliant compiler
+* Fortran compiler supporting Fortran 2008 and OpenMP 4.0
 
 * C compiler
 
-* C++ compiler (built with ELSI/PEXSI or ChIMES support)
+* C++ compiler (when built with ELSI/PEXSI or ChIMES support)
 
 * CMake (version 3.16 or newer)
 
@@ -25,6 +25,34 @@ In order to compile DFTB+, you need the following software components:
 * LAPACK/BLAS libraries (or compatible equivalents)
 
 * Python (version >= 3.2) for the source preprocessor
+
+
+Fortran compiler
+----------------
+
+The following Fortran compilers are known to build DFTB+ correctly:
+
+* GNU >= 9
+
+* Intel >= 19 or >= 2020 (when built to include the tblite library, as tblite is
+  known to produce incorrect results with Intel 19)
+
+* NAG >= 7.1 (when built without OpenMP support)
+
+
+The following Fortran compilers are known to fail to build DFTB+:
+
+* NAG (when built with OpenMP support, unsupported OpenMP 4.0 constructs, last
+  tested version: 7.1)
+
+* NVIDIA (internal compiler error & unsupported OpenMP 4.0 constructs, last
+  tested version: 22.3)
+
+
+Older versions of the compilers above are likely to fail due to missing Fortran
+features and/or compiler bugs. Compilers by other vendors may work, but have not
+been tested extensively (see also `Tested build environments
+<#tested-build-environments>`_ and `Testing DFTB+ <#testing-dftb>`_).
 
 
 Optional extra dependencies
