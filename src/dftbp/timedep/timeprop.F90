@@ -2104,8 +2104,10 @@ contains
     call gemm(T4R,T2R,T1R)
 
     ! build the commutator combining the real and imaginary parts of the previous result
+    !$OMP WORKSHARE
     rhoOld(:,:) = rhoOld + cmplx(0, -step, dp) * (T3R + imag * T4R)&
         & + cmplx(0, step, dp) * transpose(T3R - imag * T4R)
+    !$OMP END WORKSHARE
 
   end subroutine propagateRhoRealH
 
