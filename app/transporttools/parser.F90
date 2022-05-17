@@ -21,7 +21,7 @@ module transporttools_parser
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, getSelectedAtomIndices,&
       & detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes
+  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes
   use dftbp_io_message, only : error, warning
   use dftbp_math_simplealgebra, only: cross3, determinant33
   use dftbp_transport_negfvars, only : TTransPar, ContactInfo
@@ -329,7 +329,7 @@ contains
 
       call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
+      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol)
 
       if (task .eq. "setupgeometry") then
         call getChildValue(pNode, "PLsDefined", nPLs(ii))
@@ -345,7 +345,7 @@ contains
         call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
         if (len(vecBuffer).eq.3) then
            call asArray(vecBuffer, vec)
-           call convertByMul(char(modif), lengthUnits, pNode, vec)
+           call convertUnitHsd(char(modif), lengthUnits, pNode, vec)
            ! check vector is along x y or z
            if (count(vec == 0.0_dp) < 2 ) then
              call error("ContactVector must be along either x, y or z")
@@ -552,7 +552,7 @@ contains
 
     ! Artificially truncate the SK table
     call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+    call convertUnitHsd(char(modifier), lengthUnits, field, truncationCutOff)
 
     call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
     if (tHardCutOff) then

@@ -17,8 +17,9 @@
 
 !> Printing out the conversion factors for the different units
 program printunits
-  use dftbp_common_unitconversion
-  use dftbp_common_constants
+  use dftbp_common_unitconversion, only : lengthUnits, inverseLengthUnits, energyUnits, forceUnits,&
+      & timeUnits, freqUnits, volumeUnits, chargeUnits, eFieldUnits, bFieldUnits, pressureUnits,&
+      & velocityUnits, dipoleUnits, massUnits, angularUnits, massDensityUnits
   implicit none
 
   integer :: ii
@@ -26,9 +27,9 @@ program printunits
   write(*,*)"Convert from unit to a.u. by multiplying with"
   #:for names, units in CONVERSIONS
     write(*,*)
-    write(*,"(A)")"${names}$:"
+    write(*,"(a)")"${names}$:"
     do ii = 1, size(${units}$)
-      write(*,"(1X,A20,E24.15)") ${units}$(ii)%name, ${units}$(ii)%convertValue
+      write(*,"(1x,dt)") ${units}$(ii)
     end do
   #:endfor
 

@@ -5,293 +5,360 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
+
+#:set UNIT_CONVERTER_RANKS = [0, 1, 2]
+
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
 module dftbp_common_unitconversion
-  use dftbp_common_accuracy, only : dp, mc, lc
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, J__Hartree, fs__au, c, Coulomb__au,&
       & V_m__au, pascal__au, kg__au, pi, Hartree__cm, eV__Hartree, au__fs, Debye__au, hbar,&
-      & amu__au, Boltzmann, kcal_mol__Hartree
+      & amu__au, Boltzmann, kcal_mol__Hartree, nm__Bohr
+  use dftbp_io_charmanip, only : tolower
   implicit none
 
   private
-  public :: unit
+  public :: TUnit
   public :: lengthUnits, inverseLengthUnits, energyUnits, forceUnits, timeUnits, freqUnits
   public :: volumeUnits, chargeUnits, EFieldUnits, BFieldUnits, pressureUnits, velocityUnits
   public :: dipoleUnits, massUnits, angularUnits, massDensityUnits
+  public :: statusCodes, convertUnit
+
+
+  !> Internal parameter for specifying the maximum unit name length
+  integer, parameter :: maxUnitNameLen = 20
+
+
+  !> Possible status codes emitted by public routines of this module
+  type :: TStatusCodesEnum
+
+    !> Everything OK
+    integer :: ok = 0
+
+    !> Unit name could not found in the unit array
+    integer :: unitNotFound = 1
+
+  end type TStatusCodesEnum
+
+  !> Status code enum instance
+  type(TStatusCodesEnum), parameter :: statusCodes = TStatusCodesEnum()
 
 
   !> Contains name of a unit and its conversion factor
-  type unit
+  type TUnit
+    private
 
-    !> label for conversion factor
-    character(20) :: name
+    !> Name of the conversion factor
+    character(maxUnitNameLen) :: name
 
-    !> its value
-    real(dp) :: convertValue
-  end type unit
+    !> Conversion factor
+    real(dp) :: conversionFact = 1.0_dp
 
+    !> Whether the value should be inverted before multiplied with conversion factor
+    logical :: invertValue = .false.
 
-  !> Number of length units
-  integer, parameter :: nLengthUnit = 9
+  contains
 
+    procedure :: writeFormatted => TUnit_writeFormatted
+    generic :: write(formatted) => writeFormatted
 
-  !> Length units
-  type(unit), parameter :: lengthUnits(nLengthUnit) = [&
-      & unit("angstrom            ", AA__Bohr),&
-      & unit("aa                  ", AA__Bohr),&
-      & unit("a                   ", AA__Bohr),&
-      & unit("meter               ", 1.0e10_dp * AA__Bohr),&
-      & unit("m                   ", 1.0e10_dp * AA__Bohr),&
-      & unit("bohr                ", 1.0_dp),&
-      & unit("pm                  ", 1.0e-2_dp * AA__Bohr),&
-      & unit("picometer           ", 1.0e-2_dp * AA__Bohr),&
-      & unit("au                  ", 1.0_dp)&
-      & ]
+  end type TUnit
 
 
-  !> Number of length units
-  integer, parameter :: nInverseLengthUnit = 9
+  interface convertUnit
+    #:for RANK in UNIT_CONVERTER_RANKS
+      module procedure convertUnitR${RANK}$
+    #:endfor
+  end interface convertUnit
 
 
   !> Length units
-  type(unit), parameter :: inverseLengthUnits(nInverseLengthUnit) = [&
-      & unit("1/angstrom          ", Bohr__AA),&
-      & unit("1/aa                ", Bohr__AA),&
-      & unit("1/a                 ", Bohr__AA),&
-      & unit("1/meter             ", 1.0e-10_dp * Bohr__AA),&
-      & unit("1/m                 ", 1.0e-10_dp * Bohr__AA),&
-      & unit("1/bohr              ", 1.0_dp),&
-      & unit("1/pm                ", 1.0e+2_dp * Bohr__AA),&
-      & unit("1/picometer         ", 1.0e+2_dp * Bohr__AA),&
-      & unit("1/au                ", 1.0_dp)&
+  type(TUnit), parameter :: lengthUnits(*) = [&
+      & TUnit("angstrom            ", AA__Bohr),&
+      & TUnit("aa                  ", AA__Bohr),&
+      & TUnit("a                   ", AA__Bohr),&
+      & TUnit("meter               ", 1.0e10_dp * AA__Bohr),&
+      & TUnit("m                   ", 1.0e10_dp * AA__Bohr),&
+      & TUnit("bohr                ", 1.0_dp),&
+      & TUnit("pm                  ", 1.0e-2_dp * AA__Bohr),&
+      & TUnit("picometer           ", 1.0e-2_dp * AA__Bohr),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
 
 
-  !> Number of energy units
-  integer, parameter :: nEnergyUnit = 13
+  !> Inverse length units
+  type(TUnit), parameter :: inverseLengthUnits(*) = [&
+      & TUnit("1/angstrom          ", Bohr__AA),&
+      & TUnit("1/aa                ", Bohr__AA),&
+      & TUnit("1/a                 ", Bohr__AA),&
+      & TUnit("1/meter             ", 1.0e-10_dp * Bohr__AA),&
+      & TUnit("1/m                 ", 1.0e-10_dp * Bohr__AA),&
+      & TUnit("1/bohr              ", 1.0_dp),&
+      & TUnit("1/pm                ", 1.0e+2_dp * Bohr__AA),&
+      & TUnit("1/picometer         ", 1.0e+2_dp * Bohr__AA),&
+      & TUnit("1/au                ", 1.0_dp)&
+      & ]
 
 
   !> Energy units
-  type(unit), parameter :: energyUnits(nEnergyUnit) = [&
-      & unit("rydberg             ", 0.5_dp),&
-      & unit("ry                  ", 0.5_dp),&
-      & unit("electronvolt        ", eV__Hartree),&
-      & unit("ev                  ", eV__Hartree),&
-      & unit("kcal/mol            ", kcal_mol__Hartree),&
-      & unit("kelvin              ", Boltzmann),&
-      & unit("k                   ", Boltzmann),&
-      & unit("cm^-1               ", 1.0_dp/Hartree__cm),&
-      & unit("hartree             ", 1.0_dp),&
-      & unit("ha                  ", 1.0_dp),&
-      & unit("joule               ", J__Hartree),&
-      & unit("j                   ", J__Hartree),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: energyUnits(*) = [&
+      & TUnit("rydberg             ", 0.5_dp),&
+      & TUnit("ry                  ", 0.5_dp),&
+      & TUnit("electronvolt        ", eV__Hartree),&
+      & TUnit("ev                  ", eV__Hartree),&
+      & TUnit("kcal/mol            ", kcal_mol__Hartree),&
+      & TUnit("kelvin              ", Boltzmann),&
+      & TUnit("k                   ", Boltzmann),&
+      & TUnit("cm^-1               ", 1.0_dp/Hartree__cm),&
+      & TUnit("hartree             ", 1.0_dp),&
+      & TUnit("ha                  ", 1.0_dp),&
+      & TUnit("joule               ", J__Hartree),&
+      & TUnit("j                   ", J__Hartree),&
+      & TUnit("au                  ", 1.0_dp),&
+      & TUnit("nm                  ", 2.0_dp * pi * c / nm__Bohr, invertValue=.true.)&
       & ]
-
-
-  !> Number of force units
-  integer, parameter :: nForceUnit = 8
 
 
   !> Force units
-  type(unit), parameter :: forceUnits(nForceUnit) = [&
-      & unit("ev/angstrom         ", eV__Hartree / AA__Bohr),&
-      & unit("ev/aa               ", eV__Hartree / AA__Bohr),&
-      & unit("ev/a                ", eV__Hartree / AA__Bohr),&
-      & unit("ha/bohr             ", 1.0_dp),&
-      & unit("hartree/bohr        ", 1.0_dp),&
-      & unit("j/m                 ", J__Hartree / (1.0e10_dp * AA__Bohr)),&
-      & unit("joule/m             ", J__Hartree / (1.0e10_dp * AA__Bohr)),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: forceUnits(*) = [&
+      & TUnit("ev/angstrom         ", eV__Hartree / AA__Bohr),&
+      & TUnit("ev/aa               ", eV__Hartree / AA__Bohr),&
+      & TUnit("ev/a                ", eV__Hartree / AA__Bohr),&
+      & TUnit("ha/bohr             ", 1.0_dp),&
+      & TUnit("hartree/bohr        ", 1.0_dp),&
+      & TUnit("j/m                 ", J__Hartree / (1.0e10_dp * AA__Bohr)),&
+      & TUnit("joule/m             ", J__Hartree / (1.0e10_dp * AA__Bohr)),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
-
-
-  !> Number of time units
-  integer, parameter :: nTimeUnit = 7
 
 
   !> Time units
-  type(unit), parameter :: timeUnits(nTimeUnit) = [&
-      & unit("femtosecond         ", fs__au),&
-      & unit("fs                  ", fs__au),&
-      & unit("picosecond          ", 1e3_dp * fs__au),&
-      & unit("ps                  ", 1e3_dp * fs__au),&
-      & unit("second              ", 1e15_dp * fs__au),&
-      & unit("s                   ", 1e15_dp * fs__au),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: timeUnits(*) = [&
+      & TUnit("femtosecond         ", fs__au),&
+      & TUnit("fs                  ", fs__au),&
+      & TUnit("picosecond          ", 1e3_dp * fs__au),&
+      & TUnit("ps                  ", 1e3_dp * fs__au),&
+      & TUnit("second              ", 1e15_dp * fs__au),&
+      & TUnit("s                   ", 1e15_dp * fs__au),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
-
-
-  !> Number of frequency units
-  integer, parameter :: nFreqUnit = 5
 
 
   !> Frequency units
-  type(unit), parameter :: freqUnits(nFreqUnit) = [&
-      & unit("au                  ", 1.0_dp),&
-      & unit("hz                  ", 1e-15_dp * au__fs),&
-      & unit("thz                 ", 1e-3_dp * au__fs),&
-      & unit("cm^-1               ", 1e-8_dp * Bohr__AA * c),&
-      & unit("ev                  ", eV__Hartree ) &
+  type(TUnit), parameter :: freqUnits(*) = [&
+      & TUnit("au                  ", 1.0_dp),&
+      & TUnit("hz                  ", 1e-15_dp * au__fs),&
+      & TUnit("thz                 ", 1e-3_dp * au__fs),&
+      & TUnit("cm^-1               ", 1e-8_dp * Bohr__AA * c),&
+      & TUnit("ev                  ", eV__Hartree) &
       & ]
-
-
-  !> Number of volume units
-  integer, parameter :: nVolumeUnit = 9
 
 
   !> Volume units
-  type(unit), parameter :: volumeUnits(nVolumeUnit) = [&
-      & unit("angstrom^3          ", AA__Bohr**3),&
-      & unit("aa^3                ", AA__Bohr**3),&
-      & unit("a^3                 ", AA__Bohr**3),&
-      & unit("meter^3             ", (1.0e10_dp * AA__Bohr)**3),&
-      & unit("m^3                 ", (1.0e10_dp * AA__Bohr)**3),&
-      & unit("picometer^3         ", (1.0e-2_dp * AA__Bohr)**3),&
-      & unit("pm^3                ", (1.0e-2_dp * AA__Bohr)**3),&
-      & unit("bohr^3              ", 1.0_dp),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: volumeUnits(*) = [&
+      & TUnit("angstrom^3          ", AA__Bohr**3),&
+      & TUnit("aa^3                ", AA__Bohr**3),&
+      & TUnit("a^3                 ", AA__Bohr**3),&
+      & TUnit("meter^3             ", (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("m^3                 ", (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("picometer^3         ", (1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("pm^3                ", (1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("bohr^3              ", 1.0_dp),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
 
 
-  !> Number of charge units
-  integer, parameter :: nChargeUnit = 4
-
-
-  !> Volume units
-  type(unit), parameter :: chargeUnits(nChargeUnit) = [&
-      & unit("coulomb             ", Coulomb__au),&
-      & unit("c                   ", Coulomb__au),&
-      & unit("e                   ", 1.0_dp),&
-      & unit("au                  ", 1.0_dp)&
+  !> Charge units
+  type(TUnit), parameter :: chargeUnits(*) = [&
+      & TUnit("coulomb             ", Coulomb__au),&
+      & TUnit("c                   ", Coulomb__au),&
+      & TUnit("e                   ", 1.0_dp),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
-
-
-  !> Number of electric field units
-  integer, parameter :: nEFieldUnit = 5
 
 
   !> Electric field units
-  type(unit), parameter :: EFieldUnits(nEFieldUnit) = [&
-       & unit("v/m                 ", V_m__au),&
-       & unit("v/a                 ", 1e10_dp * V_m__au),&
-       & unit("v/aa                ", 1e10_dp * V_m__au),&
-       & unit("v/angstrom          ", 1e10_dp * V_m__au),&
-       & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: EFieldUnits(*) = [&
+       & TUnit("v/m                 ", V_m__au),&
+       & TUnit("v/a                 ", 1e10_dp * V_m__au),&
+       & TUnit("v/aa                ", 1e10_dp * V_m__au),&
+       & TUnit("v/angstrom          ", 1e10_dp * V_m__au),&
+       & TUnit("au                  ", 1.0_dp)&
        & ]
 
 
-  !> Number of magnetic field units
-  integer, parameter :: nBFieldUnit = 5
-
-
   !> Magnetic field units (Atomic "Gaussian" CGS unit system!)
-  type(unit), parameter :: BFieldUnits(nBFieldUnit) = [&
-      & unit("t                 ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
-      & unit("tesla             ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
-      & unit("gauss             ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
-      & unit("g                 ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: BFieldUnits(*) = [&
+      & TUnit("t                 ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
+      & TUnit("tesla             ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
+      & TUnit("gauss             ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
+      & TUnit("g                 ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
-
-
-  !> Number of pressure units
-  integer, parameter :: nPressureUnit = 2
 
 
   !> Pressure units
-  type(unit), parameter :: pressureUnits(nPressureUnit) = [&
-      & unit("pa                  ", pascal__au),&
-      & unit("au                  ", 1.0_dp)&
+  type(TUnit), parameter :: pressureUnits(*) = [&
+      & TUnit("pa                  ", pascal__au),&
+      & TUnit("au                  ", 1.0_dp)&
       & ]
-
-
-  !> Number of velocity units
-  integer, parameter :: nVelocityUnit = 6
 
 
   !> Velocity units
-  type(unit), parameter :: velocityUnits(nVelocityUnit) = [&
-      & unit("au                  ", 1.0_dp),&
-      & unit("m/s                 ", 1e10_dp * AA__Bohr / (1e15_dp * fs__au) ),&
-      & unit("pm/fs               ", 1e-2_dp * AA__Bohr / fs__au),&
-      & unit("a/ps                ", AA__Bohr / (1e3_dp * fs__au) ),&
-      & unit("aa/ps               ", AA__Bohr / (1e3_dp * fs__au) ),&
-      & unit("angstrom/ps         ", AA__Bohr / (1e3_dp * fs__au) )&
+  type(TUnit), parameter :: velocityUnits(*) = [&
+      & TUnit("au                  ", 1.0_dp),&
+      & TUnit("m/s                 ", 1e10_dp * AA__Bohr / (1e15_dp * fs__au)),&
+      & TUnit("pm/fs               ", 1e-2_dp * AA__Bohr / fs__au),&
+      & TUnit("a/ps                ", AA__Bohr / (1e3_dp * fs__au)),&
+      & TUnit("aa/ps               ", AA__Bohr / (1e3_dp * fs__au)),&
+      & TUnit("angstrom/ps         ", AA__Bohr / (1e3_dp * fs__au))&
       & ]
-
-
-  !> Number of dipole units
-  integer, parameter :: nDipoleUnit = 4
 
 
   !> Dipole units
-  type(unit), parameter :: dipoleUnits(nDipoleUnit) = [&
-      & unit("au                  ", 1.0_dp),&
-      & unit("debye               ", Debye__au ),&
-      & unit("cm                  ", Coulomb__au*1.0e10_dp*AA__Bohr ),&
-      & unit("coulombmeter        ", Coulomb__au*1.0e10_dp*AA__Bohr )&
+  type(TUnit), parameter :: dipoleUnits(*) = [&
+      & TUnit("au                  ", 1.0_dp),&
+      & TUnit("debye               ", Debye__au),&
+      & TUnit("cm                  ", Coulomb__au * 1.0e10_dp * AA__Bohr),&
+      & TUnit("coulombmeter        ", Coulomb__au * 1.0e10_dp * AA__Bohr)&
       & ]
-
-
-  !> Number of mass units
-  integer, parameter :: nMassUnit = 6
 
 
   !> Mass units
-  type(unit), parameter :: MassUnits(nMassUnit) = [&
-      & unit("au                  ", 1.0_dp),&
-      & unit("amu                 ", amu__au ),&
-      & unit("da                  ", amu__au ),&
-      & unit("dalton              ", amu__au ),&
-      & unit("kg                  ", kg__au ),&
-      & unit("g                   ", 1.0e+3_dp*kg__au )&
+  type(TUnit), parameter :: massUnits(*) = [&
+      & TUnit("au                  ", 1.0_dp),&
+      & TUnit("amu                 ", amu__au),&
+      & TUnit("da                  ", amu__au),&
+      & TUnit("dalton              ", amu__au),&
+      & TUnit("kg                  ", kg__au),&
+      & TUnit("g                   ", 1.0e+3_dp * kg__au)&
       & ]
 
 
-  !> Number of angular units
-  integer, parameter :: nAngularUnit = 6
-
-
-  !> angular units
-  type(unit), parameter :: angularUnits(nAngularUnit) = [&
-      & unit("degrees             ", pi / 180.0_dp ),&
-      & unit("deg                 ", pi / 180.0_dp ),&
-      & unit("radian              ", 1.0_dp ),&
-      & unit("rad                 ", 1.0_dp ),&
-      & unit("turns               ", 2.0_dp * pi ),&
-      & unit("gradians            ", pi / 200.0_dp )&
+  !> Angular units
+  type(TUnit), parameter :: angularUnits(*) = [&
+      & TUnit("degrees             ", pi / 180.0_dp),&
+      & TUnit("deg                 ", pi / 180.0_dp),&
+      & TUnit("radian              ", 1.0_dp),&
+      & TUnit("rad                 ", 1.0_dp),&
+      & TUnit("turns               ", 2.0_dp * pi),&
+      & TUnit("gradians            ", pi / 200.0_dp)&
       & ]
 
 
-  !> Number of mass density units
-  integer, parameter :: nMassDensityUnit = 22
+  type(TUnit), parameter :: massDensityUnits(*) = [&
+      & TUnit("kg/l                ", 1.0e+3_dp * kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("g/m^3               ", 1.0e+3_dp * kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("g/meter^3           ", 1.0e+3_dp * kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("g/l                 ", kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("kg/m^3              ", kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("kg/meter^3          ", kg__au / (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("amu/aa^3            ", amu__au / AA__Bohr**3),&
+      & TUnit("amu/angstrom^3      ", amu__au / AA__Bohr**3),&
+      & TUnit("amu/a^3             ", amu__au / AA__Bohr**3),&
+      & TUnit("amu/pm^3            ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("amu/picometer^3     ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("da/aa^3             ", amu__au / AA__Bohr**3),&
+      & TUnit("da/angstrom^3       ", amu__au / AA__Bohr**3),&
+      & TUnit("da/a^3              ", amu__au / AA__Bohr**3),&
+      & TUnit("da/pm^3             ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("da/picometer^3      ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("dalton/aa^3         ", amu__au / AA__Bohr**3),&
+      & TUnit("dalton/angstrom^3   ", amu__au / AA__Bohr**3),&
+      & TUnit("dalton/a^3          ", amu__au / AA__Bohr**3),&
+      & TUnit("dalton/pm^3         ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("dalton/picometer^3  ", amu__au/(1.0e-2_dp * AA__Bohr)**3),&
+      & TUnit("au                  ", 1.0_dp)]
 
 
-  type(unit), parameter :: massDensityUnits(nMassDensityUnit) = [&
-      & unit("kg/l                ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("g/m^3               ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("g/meter^3           ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("g/l                 ", kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("kg/m^3              ", kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("kg/meter^3          ", kg__au/(1.0e10_dp*AA__Bohr)**3),&
-      & unit("amu/aa^3            ", amu__au/AA__Bohr**3),&
-      & unit("amu/angstrom^3      ", amu__au/AA__Bohr**3),&
-      & unit("amu/a^3             ", amu__au/AA__Bohr**3),&
-      & unit("amu/pm^3            ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("amu/picometer^3     ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("da/aa^3             ", amu__au/AA__Bohr**3),&
-      & unit("da/angstrom^3       ", amu__au/AA__Bohr**3),&
-      & unit("da/a^3              ", amu__au/AA__Bohr**3),&
-      & unit("da/pm^3             ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("da/picometer^3      ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("dalton/aa^3         ", amu__au/AA__Bohr**3),&
-      & unit("dalton/angstrom^3   ", amu__au/AA__Bohr**3),&
-      & unit("dalton/a^3          ", amu__au/AA__Bohr**3),&
-      & unit("dalton/pm^3         ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("dalton/picometer^3  ", amu__au/(1.0e-2_dp*AA__Bohr)**3),&
-      & unit("au                  ", 1.0_dp)]
+contains
+
+
+  !> User defined formatted output routine for the unit conversions
+  subroutine TUnit_writeFormatted(this, unit, iotype, vlist, iostat, iomsg)
+
+    !> Instance
+    class(TUnit), intent(in) :: this
+
+    !> Unit to write to
+    integer, intent(in) :: unit
+
+    !> IO type
+    character(*), intent(in) :: iotype
+
+    !> Output parameters (will be ignored)
+    integer, intent(in) :: vlist(:)
+
+    !> I/O status
+    integer, intent(out) :: iostat
+
+    !> Eventual error message
+    character(*), intent(inout) :: iomsg
+
+    if (this%invertValue) then
+      write(unit,"(a20, a, e24.14, a)") this%name, ':', this%conversionFact, " / x"
+    else
+      write(unit,"(a20, a, e24.14, a)") this%name, ':', this%conversionFact, " * x"
+    end if
+    iostat = 0
+
+  end subroutine TUnit_writeFormatted
+
+
+#:for RANK in UNIT_CONVERTER_RANKS
+
+  !> Applies unit conversion to a given value
+  subroutine convertUnitR${RANK}$(units, unitName, val, status)
+
+    !> Array of possible units
+    type(TUnit), intent(in) :: units(:)
+
+    !> Name of the unit from which the value should be converted
+    character(*), intent(in) :: unitName
+
+    !> Original value on entry, converted value on return
+    real(dp), intent(inout) :: val${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    !> Status (statusCodes%OK or statusCodes%unitNotFound)
+    integer, intent(out) :: status
+
+    integer :: ind
+
+    status = statusCodes%OK
+    ind = getUnitIndex_(units, unitName)
+    if (ind == 0) then
+      status = statusCodes%unitNotFound
+      return
+    end if
+
+    if (units(ind)%invertValue) then
+      val = units(ind)%conversionFact / val
+    else
+      val = units(ind)%conversionFact * val
+    end if
+
+  end subroutine convertUnitR${RANK}$
+
+#:endfor
+
+
+  !> Returns the index of the unit with the given name or zero if not found.
+  function getUnitIndex_(units, unitName) result(ind)
+    type(TUnit), intent(in) :: units(:)
+    character(*), intent(in) :: unitName
+    integer :: ind
+
+    character(maxUnitNameLen) :: unitNameLower
+
+    unitNameLower = tolower(unitName)
+    do ind = 1, size(units)
+      if (units(ind)%name == unitNameLower) return
+    end do
+    ind = 0
+
+  end function getUnitIndex_
 
 
 end module dftbp_common_unitconversion
