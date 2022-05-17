@@ -30,11 +30,11 @@ In order to compile DFTB+, you need the following software components:
 Fortran compiler
 ----------------
 
-The following Fortran compilers are known to build DFTB+:
+The following Fortran compilers are known to build DFTB+ correctly:
 
 * GNU >= 9
 
-* Intel >= 19 or >= 2020 (when built with the tblite library, tblite is known to
+* Intel >= 19 or >= 2020 (when built to include the tblite library, as tblite is known to
   produce incorrect results with Intel 19)
 
 * NAG >= 7.1 (when built without OpenMP support)
@@ -50,9 +50,9 @@ The following Fortran compilers are known to fail to build DFTB+:
 
 
 Older versions of the compilers above are likely to fail due to missing Fortran
-features and/or compiler bugs, please use the versions listed above. Compilers
-by other vendors may work, but had not been tested extensively (see also
-`Tested build environments <#tested-build-environments>`_).
+features and/or compiler bugs. Compilers
+by other vendors may work, but have not been tested extensively (see also
+`Tested build environments <#tested-build-environments>`_ and `Testing DFTB+ <#testing-dftb+>`_).
 
 
 Optional extra dependencies
