@@ -536,7 +536,7 @@ contains
       end if
 
       ! check for atoms on top of each other
-      if (nn1 > 0 .and. neighDist2(1,iAtom1) < minNeighDist) then
+      if (nn1 > 0 .and. neighDist2(1,iAtom1) < minNeighDist2) then
         iAtom2 = img2CentCell(iNeighbour(1,iAtom1))
         write(strError, "(A,I0,A,I0,A)") "Atoms ", iAtom1, " and ", iAtom2, " too close together"
         call error(strError)
