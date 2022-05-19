@@ -2830,7 +2830,8 @@ contains
     call boundaryCond%foldCoordsToCell(coord0Fold, this%latVec)
 
     call updateNeighbourListAndSpecies(env, coordAll, this%speciesAll, img2CentCell, this%iCellVec,&
-        & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
+        & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
