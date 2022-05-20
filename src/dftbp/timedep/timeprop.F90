@@ -355,6 +355,8 @@ module dftbp_timedep_timeprop
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
 
+  character(*), parameter :: pumpFilesDir = 'pump_frames'
+
 contains
 
   !> Initialisation of input variables
@@ -2143,7 +2145,7 @@ contains
     character(20) :: dipoleFileName
     character(1) :: strSpin
     character(3) :: strK
-    integer :: iSpin, iKS, iK
+    integer :: iSpin, iKS, iK, iErr
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -2232,6 +2234,14 @@ contains
         write(populDat(iKS), "(A)", advance = "NO")"    population (orb N)      |"
         write(populDat(iKS), "(A)")
       end do
+    end if
+
+    iErr = -999
+    if (this%tPump) then
+      call execute_command_line("mkdir "//trim(pumpFilesDir), exitstat=iErr)
+      if (iErr /= 0) then
+        write (stdOut,*) 'cannot create '//trim(pumpFilesDir)//', error status of mkdir: ', iErr
+      end if
     end if
 
   end subroutine initTDOutput
@@ -4107,7 +4117,7 @@ contains
         velInternal(:,:) = 0.0_dp
       end if
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
-          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, errStatus)
+          & trim(pumpFilesDir) // '/' // trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, errStatus)
       @:PROPAGATE_ERROR(errStatus)
       deallocate(velInternal)
     end if
