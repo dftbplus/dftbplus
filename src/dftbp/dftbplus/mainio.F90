@@ -3913,9 +3913,9 @@ contains
         write(fd, "(A)")trim(dipoleMessage)
       end if
       ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+      write(fd, "(A, 3F14.8, 1X,A)") 'Dipole moment:',&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)),  'au'
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+      write(fd, "(A, 3F14.8, 1X, A)") 'Dipole moment:',&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye,  'Debye'
     end if
 
