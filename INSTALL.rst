@@ -133,9 +133,6 @@ following architectures:
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
-All builds are also tested with the optional ARPACK-NG 3.7 and PLUMED 2.5
-libraries.
-
 Notes:
 
 [1] Only Debug build is tested regulary with OpenMP turned off and without ELSI.
