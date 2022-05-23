@@ -5317,8 +5317,9 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
 \item[\is{Pump}] If this trajectory corresponds to the dynamics under
   a pump pulse, with the intention to probe the system afterwards at
   different delay times, to simulate a pump-probe transient absorption
-  experiment. The effect of the keyword is to write dump files named
+  experiment. The effect of the keyword is to write dump files
   \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$)
+  inside the \verb|pump_frames| directory,
   containing the state of the system (density matrix, coordinates,
   velocities) every a given number of steps.
 
