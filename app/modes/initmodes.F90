@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ module modes_initmodes
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
       & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes, getNodeName2
+  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes, getNodeName2
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_type_linkedlist, only : TListCharLc, TListRealR1, TListString, init, destruct, append,&
@@ -27,12 +27,12 @@ module modes_initmodes
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
       & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
   implicit none
-  
+
   private
   public :: initProgramVariables
   public :: geo, atomicMasses, dynMatrix, modesToPlot, nModesToPlot, nCycles, nSteps
   public :: nMovedAtom, iMovedAtoms, nDerivs
-  public :: tVerbose, tPlotModes, tAnimateModes, tXmakeMol, tRemoveTranslate, tRemoveRotate
+  public :: tVerbose, tPlotModes, tAnimateModes, tRemoveTranslate, tRemoveRotate
 
 
   !> program version
@@ -68,9 +68,6 @@ module modes_initmodes
 
   !> animate mode  or as vectors
   logical :: tAnimateModes
-
-  !> use xmakemol dialect xyz
-  logical :: tXmakeMol
 
   !> Remove translation modes
   logical :: tRemoveTranslate
@@ -158,19 +155,14 @@ contains
       call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
-      call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
     else
       nModesToPlot = 0
       tPlotModes = .false.
       tAnimateModes = .false.
-      tXmakeMol = .false.
     end if
 
-    if (tAnimateModes.and.tXmakeMol) then
-      nCycles = 1
-    else
-      nCycles = 3
-    end if
+    ! oscillation cycles in animation
+    nCycles = 3
 
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
@@ -355,7 +347,7 @@ contains
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
       call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), massUnits, child, rTmp)
+      call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,11 @@ module dftbp_common_constants
   use dftbp_common_accuracy, only : dp, rsp, lc, mc, elecTolMax, tolSameDist
   implicit none
 
-  private 
+  private
   public :: pi, Bohr__AA, AA__Bohr, Hartree__eV, eV__Hartree, Boltzmann, au__kg, kg__au, e__amu
   public :: amu__au, au__fs, fs__au, alpha_fs, c, au__Coulomb, Coulomb__au, Hartree__J, J__Hartree
   public :: hbar, gfac, mu_B, kcal_mol__eV, kcal_mol__Hartree, Hartree__kcal_mol, Rydberg__m
-  public :: Hartree__cm, Debye__au, au__Debye, pascal__au, au__pascal, V_m__au, au__V_m
+  public :: Hartree__cm, Debye__au, au__Debye, pascal__au, au__pascal, V_m__au, au__V_m, nm__Bohr
   public :: avogadConst, Hartree__kJ_mol, Bohr__nm, au__ps, goldenMeanP1, maxL, nShellName
   public :: shellNames, spinName, quaternionName, imag, elementSymbol
   public :: symbolToNumber, cExchange
@@ -133,6 +133,9 @@ module dftbp_common_constants
 
   !> bohr to nm
   real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
+
+  !> nm to bohr
+  real(dp), parameter :: nm__Bohr = 1.0_dp / Bohr__nm
 
   !> a.u. to ps
   real(dp), parameter :: au__ps = au__fs / 1000.0_dp

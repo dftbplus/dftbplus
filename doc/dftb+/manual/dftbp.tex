@@ -1,3 +1,4 @@
+
 \chapter{Input for {\dftbp}}
 
 
@@ -215,33 +216,35 @@ Geometry = xyzFormat {
 \label{sec:dftbp.VaspFormat}
 
 You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
-\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
-The geometry specification for a molecular ammonia crystal would be the following:
+\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries. 
+Both VASP 4.x and VASP 5.x POSCAR are supported.
+The geometry specification for a molecular ammonia crystal with VASP 5.x would be the following:
 \begin{verbatim}
 Geometry = VaspFormat {
- H  N
-    1.00000000000000
-    5.01336000000000    0.00000000000000    0.00000000000000
-    0.00000000000000    5.01336000000000    0.00000000000000
-    0.00000000000000    0.00000000000000    5.01336000000000
- 12 4
+Ammonia
+   1.00000000000000
+ 5.01336000000000    0.00000000000000    0.00000000000000
+ 0.00000000000000    5.01336000000000    0.00000000000000
+ 0.00000000000000    0.00000000000000    5.01336000000000
+   H  N 
+   12 4
 Cartesian
-    2.19855889440000    1.76390058240000    0.88014548160000
-    1.76390058240000    0.88014548160000    2.19855889440000
-    0.88014548160000    2.19855889440000    1.76390058240000
-    4.84115108400000    1.61941554720000    4.93981400880000
-    4.35630903840000    2.49981169680000    3.63248012160000
-    3.51957925440000    1.15357413600000    4.08403345680000
-    4.08403345680000    3.51957925440000    1.15357413600000
-    4.93981400880000    4.84115108400000    1.61941554720000
-    3.63248012160000    4.35630903840000    2.49981169680000
-    2.49981169680000    3.63248012160000    4.35630903840000
-    1.15357413600000    4.08403345680000    3.51957925440000
-    1.61941554720000    4.93981400880000    4.84115108400000
-    1.37461317840000    1.37461317840000    1.37461317840000
-    3.99815460000000    1.99105592400000    4.46364507600000
-    4.46364507600000    3.99815460000000    1.99105592400000
-    1.99105592400000    4.46364507600000    3.99815460000000
+ 2.19855889440000    1.76390058240000    0.88014548160000
+ 1.76390058240000    0.88014548160000    2.19855889440000
+ 0.88014548160000    2.19855889440000    1.76390058240000
+ 4.84115108400000    1.61941554720000    4.93981400880000
+ 4.35630903840000    2.49981169680000    3.63248012160000
+ 3.51957925440000    1.15357413600000    4.08403345680000
+ 4.08403345680000    3.51957925440000    1.15357413600000
+ 4.93981400880000    4.84115108400000    1.61941554720000
+ 3.63248012160000    4.35630903840000    2.49981169680000
+ 2.49981169680000    3.63248012160000    4.35630903840000
+ 1.15357413600000    4.08403345680000    3.51957925440000
+ 1.61941554720000    4.93981400880000    4.84115108400000
+ 1.37461317840000    1.37461317840000    1.37461317840000
+ 3.99815460000000    1.99105592400000    4.46364507600000
+ 4.46364507600000    3.99815460000000    1.99105592400000
+ 1.99105592400000    4.46364507600000    3.99815460000000
 }
 \end{verbatim}
 It is also possible to include the POSCAR/CONTCAR formatted geometry from a file:
@@ -291,14 +294,14 @@ methods are available:
   \kw{Optimizer} & m &  & Rational & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{LatticeOpt} & l & & \is{No} & \\
-  %\kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
-  %\kw{FixLengths}        & 3l & FixAngles = Yes & \is{No No No} & \\
-  %\kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{FixAngles} & l & LatticeOpt = Yes & \is{No} & \\
+  \kw{FixLengths} & 3l & LatticeOpt = Yes & \is{No No No} & \\
+  \kw{Isotropic} & l & LatticeOpt = Yes & \is{No} & \\
   %\kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0 & \\
   \kw{Convergence} & m &  & & \pref{sec:dftbp.Convergence} \\
   \kw{MaxSteps} &i &  & 200 & \\
   \kw{OutputPrefix} &s &  & "geo\_end" & \\
-  %\kw{AppendGeometries} & l & & \is{No} & \\
+  \kw{AppendGeometries} & l & & \is{No} & \\
   %\kw{Constraints} & (1i3r)* & LatticeOpt = No & \cb            & \\
   %\kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
@@ -418,22 +421,22 @@ To disable a convergence criterium a large value should be provided.
 
 \begin{ptable}
   \kw{Energy} & r &  & inf & \\
-  \kw{GradAMax} & r &  & 1e-4 & \\
+  \kw{GradElem} & r &  & 1e-4 & \\
   \kw{GradNorm} & r &  & inf & \\
-  \kw{DispAMax} & r &  & inf & \\
+  \kw{DispElem} & r &  & inf & \\
   \kw{DispNorm} & r &  & inf & \\
 \end{ptable}
 \begin{description}
 \item[\is{Energy}]\modif{\modtype{energy}}
   Maximum energy change in one geometry step to consider optimization converged.
   Disabled by default.
-\item[\is{GradAMax}]\modif{\modtype{force}}
+\item[\is{GradElem}]\modif{\modtype{force}}
   Maximum absolute gradient element in one geometry step to consider optimization converged
   Default threshold is 1e-4 Hartree/Bohr.
 \item[\is{GradNorm}]\modif{\modtype{force}}
   Maximum gradient norm in one geometry step to consider optimization converged
   Disabled by default.
-\item[\is{DispAMax}]\modif{\modtype{length}}
+\item[\is{DispElem}]\modif{\modtype{length}}
   Maximum absolute displacement element in one geometry step to consider optimization converged
   Disabled by default.
 \item[\is{DispNorm}]\modif{\modtype{length}}
@@ -695,17 +698,38 @@ frequencies.
 
 \begin{ptable}
   \kw{Atoms} & i+|m &  & 1:-1 & \\
+  \kw{MovedAtoms} & i+|m &  & \textrm{Value of} Atoms & \\
   \kw{Delta} & r & & 1e-4 & \\
 \end{ptable}
 
 \begin{description}
-\item[\is{Atoms}] Index of the atoms for which to calculate the second
-  derivatives. The index selection format is described in appendix \ref{sec:index_selection}.
+\item[\is{Atoms}] Index of the atoms for which the second derivatives should be
+  computed. The index selection format is described in appendix
+  \ref{sec:index_selection}.
 
-\item[\is{Delta}] Step size for numerical differentiation of forces to
-  get the second derivatives of the energy with respect to atomic
-  coordinates.
+\item[\is{MovedAtoms}] Optional parameter enabling to select a subset of the
+  atoms which were specified with the \is{Atoms} keyword. Only the selected
+  atoms will then be moved in the calculation, yielding a rectangular submatrix
+  ($3\,\text{nMovedAtoms} \times 3\,\text{nAtoms}$) of the full Hessian
+  ($3\,\text{nAtoms} \times 3\,\text{nAtoms}$). This is useful for splitting the
+  Hessian calculation among multiple \dftbp{} runs.  See also the batch script
+  in \texttt{tools/misc/set\_partial\_hessian}. If the keyword is not specified,
+  the full Hessian for all atoms specified in \is{Atoms} will be calculated.
+  Currently, the atom indices provided in \is{MovedAtoms} must build a
+  contiguous range, and also the atom indices listed in \is{Atoms} must be
+  contiguous if the \is{MovedAtoms} option is used.
+
+\item[\is{Delta}]\modif{\modtype{len}} Optional step size for numerical
+  differentiation of forces to get the second derivatives of the energy with
+  respect to atomic coordinates.
 \end{description}
+
+Example:
+\begin{verbatim}
+Driver = SecondDerivatives {
+    Atoms = 1:12
+}
+\end{verbatim}
 
 
 \subsection{VelocityVerlet\cb}
@@ -1182,7 +1206,7 @@ from an external driver code.
   instance.  Setting this value as -1 runs a huge() number of iterations.
 \end{description}
 
-Examples
+\subsubsection{Examples}
 
 First an ip address connection:
 \invparskip
@@ -1541,7 +1565,7 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   can differ considerably between methods.
 
 \item[\is{CustomisedHubbards}] Enables overriding of the Hubbard U values for given species. If the
-  option \is{OrbitalResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
+  option \is{ShellResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
   for each atomic shell in the basis of the given atom type, otherwise only one atomic value is
   required. For all species not specified in this block, the value(s) found in their respective
   Slater-Koster files will be used.
@@ -2160,13 +2184,34 @@ variable.)
 
 \subsubsection{ELPA}
 
-This is available with either single or two stage solution methods (the second
-of these should be more efficiently parallel for large problems).
+The ELPA solver provides an efficient and scalable diagonalizer, which is also
+able to utilize GPUs (provided the ELSI library was compiled with GPU support).
+It accepts following options
+
+\begin{ptable}
+  \kw{Autotune} & l& & No & \\
+  \kw{Gpu}    & l& & No & \\
+  \kw{Mode} & i& & 2 & \\
+  \kw{Sparse} & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{Autotune}] Whether ELPAs autotune capability should be used to
+  optimize performance (default: \is{No})
+\item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
+  that you can only enable this option, if \dftbp{} was built with GPU support.
+\item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
+  default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
+\item[\is{Sparse}] Whether the sparse matrix interface of ELPA should be used or
+  the dense one (default: dense). The sparse interface does not reduce memory
+  usage and is mainly for testing purposes.
+\end{description}
 
 Example:\invparskip
 \begin{verbatim}
   Solver = ELPA {
     Mode = 2
+    Autotune = Yes
+    Gpu = Yes
   }
 \end{verbatim}
 
@@ -2174,10 +2219,6 @@ One caveat for this solver is that the number of parallel groups (see
 p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
-
-This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
-\is{Yes}), but this does not reduce memory usage and is mainly for testing
-purposes.
 
 \subsubsection{OMM}
 
@@ -3754,7 +3795,7 @@ systems.
     derived from first principles.\cite{sigalov2006}
 \end{description}
 
-Example for a GB model with CS2 as solvent:
+Example for a GB model with \cf{CS2} as solvent:
 
 \begin{verbatim}
 Hamiltonian = DFTB {
@@ -4090,6 +4131,36 @@ Hamiltonian = DFTB {
   }
 }
 \end{verbatim}
+
+
+\subsubsection{External electric fields and dipole moments}
+
+
+
+For externally applied homogeneous electric fields (see section
+\ref{sec:dftbp.External}) where the solvent modifies the dielectric
+surroundings, \dftbp{} can approximate the local field corrections as
+due to a spherical cavity surrounding the solvated system. The applied
+field in the external medium is then rescaled by
+\begin{displaymath}
+  \va*{E}_{eff.}  = \va*{E}_{ext.} \frac{3 \varepsilon_r}{2 \varepsilon_r +
+    1}
+\end{displaymath}
+Likewise the dipole moment of the system is scaled to give the
+corresponding field in the external medium:
+\begin{displaymath}
+  \va*{\mu}_{ext.}  = \va*{\mu} \frac{3 \varepsilon_r}{2 \varepsilon_r
+    + 1}
+\end{displaymath}
+
+The rescaling can be turned off with the following keyword:
+\begin{ptable}
+  \kw{RescaleSolvatedFields} & l & & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{RescaleSolvatedFields}] Enables or disables field scaling
+  for applied homogeneous fields and dipole moments.
+\end{description}
 
 
 \subsection{Halogen corrections}
@@ -4589,14 +4660,31 @@ calculation and/or calculate properties.
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
 
-\subsection{ProjectStates} \kw{ProjectStates}
-\label{sec:dftbp.ProjectStates} evaluates the Mulliken
-projection of electronic states onto specific regions of the system being
-modelled (partial density of states -- PDOS). The format of the projected data
-files is similar to \verb|band.out|, but the second column is the fraction of
-the state within that region, instead of its occupation number (for
-non-collinear and spin-orbit calculations, three additional columns for the
-magnetisation of the state are also given).
+\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
+  \verb|eigenvec.bin|. For a description of the file format see
+  p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
+  text version of the data should be printed in \verb|eigenvec.out|. For a
+  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
+
+\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
+  which contains the band structure in a more or less human friendly format.
+
+\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
+  for the actual calculation (e.g.\ static geometry calculation).
+
+\end{description}
+
+\subsection{ProjectStates}
+\label{sec:dftbp.ProjectStates}
+
+\kw{ProjectStates} evaluates the Mulliken projection of electronic states onto
+specific regions of the system being modelled (partial density of states --
+PDOS). The format of the projected data files is similar to \verb|band.out|, but
+the second column is the fraction of the state within that region, instead of
+its occupation number (for non-collinear and spin-orbit calculations, three
+additional columns for the magnetisation of the state are also given).
 
 Each region for projection is specified within a \iscb{Region} block,
 with the following options
@@ -4624,7 +4712,7 @@ with the following options
   ``Label.\textit{j}.out'' are written. For \is{OrbitalResolved = Yes}, the shell and then
   $m$-value is appended, so that files with names ``Label.\textit{j}.\textit{m}.out'' are written.
 \end{description}
-Examples:
+Example:
 \begin{verbatim}
   ProjectStates = {
     Region = {              # first region
@@ -4692,21 +4780,6 @@ method which {\em may} have better scaling properties.
   with tighter tolerances as the localisation proceeds).
 \end{description}
 
-\item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
-  \verb|eigenvec.bin|. For a description of the file format see
-  p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
-  text version of the data should be printed in \verb|eigenvec.out|. For a
-  description of the file format see p.~\pref{sec:dftbp.eigenvec}.
-
-\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
-  which contains the band structure in a more or less human friendly format.
-
-\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
-  for the actual calculation (e.g.\ static geometry calculation).
-
-\end{description}
 
 \subsection{ElectrostaticPotential}
 \label{sec:dftbp.esp}
@@ -4757,64 +4830,122 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
-\subsection{Response properties}
+\subsection{Response properties by perturbation}
 
-For cases where the ground state eigenvalues are available, the  output of the
-eigenvalue derivatives are described in are  section~\ref{sec:dftbp.dEbandout}.
+For cases where the ground state eigenvalues are available, the output
+of the eigenvalue derivatives are described in are
+section~\ref{sec:dftbp.dEbandout}.
+
+There are common options for the perturbations, which appear outside
+their respective blocks in the \is{Analysis} environment:
+\begin{ptable}
+\kw{DegeneracyTolerance} & r & & 128\\
+\kw{eta} & r & & 1E-8\\
+\end{ptable}
+\begin{description}
+\item[\is{DegeneracyTolerance}] In the case of degenerate systems,
+  determines the number of times machine epsilon that separated
+  eigenvalues are considered non-degenerate.
+\item[\is{eta}] In the case of finite frequency perturbations, a small
+  imaginary constant, of magnitude \is{eta} is used in the expression
+  to avoid divergences at resonant conditions.
+\end{description}
+
 
 \subsubsection{Polarisability}
 \label{sec:dftbp.eperturb}
 
-Evaluates electric polarisability using coupled-perturbed linear response for
-finite structures (hence can only be used with cases evaluating unperturbed
-eigenvalues). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
-supported).
+Evaluates electric polarisability using coupled-perturbed linear
+response (hence can only be used with cases initially evaluating
+unperturbed eigenvalues/band structure). Currently only the DFTB
+hamiltonian is supported (see section~\ref{sec:dftbp.DFTB}, REKS and
+Delta-DFTB calculations are also not currently supported).
 
-In the case of degenerate single particle levels, the reported level derivatives
-(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
-value.
+In the case of degenerate single particle levels, the reported level
+derivatives (see p.~\pref{sec:dftbp.bandout}) for those states are
+ordered in increasing value.
 
 \begin{ptable}
   \kw{Static} & l & & \is{Yes} & \\
-  \kw{DegeneracyTolerance} & r & & 128\\
+  \kw{Frequencies} & r+ & & -- & \\
+  \kw{FrequencyRange} & 3r & & -- & \\
 \end{ptable}
+
 \begin{description}
-\item[\is{Static}] Evaluates static polarisability with respect to cartesian
-  directions of a static uniform electric field. At the moment, if the
-  \is{Polarisability} block is included, this option should be enabled. In a
-  future release, dynamical polarisability at a finite frequency, $\omega$, will
-  be an alternative possibility for this block.
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
-  the number of times machine epsilon that separated eigenvalues are considered
-  non-degenerate.
+\item[\is{Static}] Evaluates polarisability with respect to cartesian
+  directions of a static uniform electric field.
+\item[\is{Frequencies}]\modif{\modtype{Frequency}} Evaluates
+  polarisability at a list of finite frequencies ($\{\omega\}$).
+\item[\is{FrequencyRange}]\modif{\modtype{Frequency}} Specifies
+  equispaced driving frequencies for polarisabilities, listed as {\em
+    starting ending step-size} frequencies (for example if calculating
+  a spectrum).
 \end{description}
+
+\paragraph{Examples}
+
+Static polarisability, with an adjusted degeneracy tolerance:
+\begin{verbatim}
+Analysis {
+  Polarisability = {} # static enabled by default
+  DegeneracyTolerance = 1024 # levels within 1024 x machine tolerance
+}
+\end{verbatim}
+
+Dynamic polarisability at specified frequencies
+\begin{verbatim}
+Analysis {
+  Polarisability = {
+     Static = No # static field response turned off
+     FrequencyRange [eV] = 1.0 4.0 0.1 # 1 to 4 eV with steps of 0.1
+  }
+}
+\end{verbatim}
+
 
 \subsubsection{ResponseKernel}
 \label{sec:dftbp.rperturb}
 
-Evaluates response to a potential added at atomic sites, using coupled-perturbed
-linear response (hence can only be used with cases evaluating unperturbed
-eigenvalues). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, but REKS calculations are also not currently
-supported).
+Evaluates responses to potentials added at individual atomic sites,
+using coupled-perturbed linear response (hence can only be used with
+cases initially evaluating unperturbed eigenvalues/band
+structure). Currently only the DFTB hamiltonian is supported (see
+section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB calculations are
+also not currently supported).
 
-In the case of degenerate single particle levels, the reported level derivatives
-(see p.~\pref{sec:dftbp.bandout}) for those states are ordered in increasing
-value.
-
+The same options as \is{Polarisability} are supported, but in
+addition:
 \begin{ptable}
   \kw{RPA} & l & SCC = Yes & \is{No} & \\
-  \kw{DegeneracyTolerance} & r & & 128\\
 \end{ptable}
 \begin{description}
-\item[\is{RPA}] For self-consistent calculations, enables RPA evaluation,
-  instead of self-consistent calculation of the response. This is equivalent to
-  evaluating response without relaxation of the system.
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems, determines
-  the number of times machine epsilon that separated eigenvalues are considered
-  non-degenerate.
+\item[\is{RPA}] For self-consistent calculations, enables RPA
+  evaluation, instead of self-consistent calculation of the
+  response. This is equivalent to evaluating response without
+  relaxation of the system.
 \end{description}
+
+\paragraph{Examples}
+
+Static polarisability for an \is{Scc} = \is{Yes} calculation.
+\begin{verbatim}
+Analysis {
+  ResponseKernel = {
+    # static enabled by default
+    RPA = Yes # non-self consistent perturbation
+  }
+}
+\end{verbatim}
+
+Dynamic polarisability at a specified frequency
+\begin{verbatim}
+Analysis {
+  Polarisability = {
+     Static = No # static field response turned off
+     Frequencies [eV] = 1.0 4.0 # evaluate at 1 and 4 eV
+  }
+}
+\end{verbatim}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -5088,6 +5219,8 @@ section~\ref{sec:ppRPAout}.
 Calculate the real-time propagation of both the electronic state of the system
 and the nuclei within the Ehfenfest approximation in the presence of an optional
 external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
+The real-time propagation is available with DFTB as well as xTB Hamiltonians.
+
 \begin{ptable}
   \kw{Steps} &i &  & - & \\
   \kw{TimeStep} & r & & - & \\
@@ -5184,8 +5317,9 @@ external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
 \item[\is{Pump}] If this trajectory corresponds to the dynamics under
   a pump pulse, with the intention to probe the system afterwards at
   different delay times, to simulate a pump-probe transient absorption
-  experiment. The effect of the keyword is to write dump files named
+  experiment. The effect of the keyword is to write dump files
   \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$)
+  inside the \verb|pump_frames| directory,
   containing the state of the system (density matrix, coordinates,
   velocities) every a given number of steps.
 
@@ -5293,9 +5427,9 @@ Apply time-dependent sinusoidal perturbation to the system.
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
    \omega$ of the laser.
 
- \item[\is{Phase}] Optional initial phase of laser field in radians,
-   such that sinusoidal component of the field is described by
-   $\sin(\omega t + \phi)$.
+ \item[\is{Phase}] \modif{\modtype{Angular units}} Optional initial
+   phase of laser field (inradians by default), such that sinusoidal
+   component of the field is described by $\sin(\omega t + \phi)$.
 
  \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The atoms can be
    specified via index selection expressions, as described in appendix \ref{sec:index_selection}.
@@ -6262,7 +6396,8 @@ be zero (up to numerical presicion) for a neutral system.
 \index{mu.dat}
 
 Dipole moment cartesian components $\mu_i$ as a function of time. The
-name depends on the type or perturbation: for kicks the polarization
+units of the quantities are given at the top of the file. The name
+depends on the type or perturbation: for kicks the polarization
 direction of the Dirac-delta field is indicated in the name of the
 file; for lasers and pulses, the name is always mu.dat. The column
 order for a spin unpolarised calculation is the following:

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,7 +22,7 @@ module dftbp_math_errorfunction
   use dftbp_math_erfcalc, only : erf, erfc
 #:endif
   implicit none
-  
+
   private
   public :: erfwrap, erfcwrap
 
@@ -31,6 +31,7 @@ contains
 
   !> Calculates the value of the error function.
   elemental function erfwrap(xx) result(res)
+    !$OMP DECLARE SIMD(erfwrap)
 
     !> Function argument.
     real(dp), intent(in) :: xx
@@ -45,6 +46,7 @@ contains
 
   !> Calculates the value of the complementary error function.
   elemental function erfcwrap(xx) result(res)
+    !$OMP DECLARE SIMD(erfcwrap)
 
     !> Function argument.
     real(dp), intent(in) :: xx

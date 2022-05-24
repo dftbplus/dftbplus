@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -73,12 +73,12 @@ program phonons
     end if
 
     call negf_init_str(geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour, img2CentCell)
-   
-    call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
-                        & twriteTunn, twriteLDOS)  
 
-    if (tWriteTagged) then              
-      call writeTaggedOut(taggedWriter, tunnTot, ldosTot, conductance)      
+    call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
+                        & twriteTunn, twriteLDOS)
+
+    if (tWriteTagged) then
+      call writeTaggedOut(taggedWriter, tunnTot, ldosTot, conductance)
     end if
 
   end if
@@ -89,21 +89,21 @@ program phonons
   write(stdOut, "(A)") "Program completed successfully"
 
 contains
-    
+
   subroutine printHeader()
     write (stdOut, "(A)") repeat("=", 80)
-    write (stdOut, "(30X,A)") "PHONONS" 
+    write (stdOut, "(30X,A)") "PHONONS"
     write (stdOut, "(A,/)") repeat("=", 80)
-    write (stdOut, "(A)") "" 
-    write (stdOut, "(A)") "Version 0.1" 
-    write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on Hessians" 
-    write (stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas" 
-    write (stdOut, "(A)") "When using this code, please cite this work:" 
+    write (stdOut, "(A)") ""
+    write (stdOut, "(A)") "Version 0.1"
+    write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on Hessians"
+    write (stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas"
+    write (stdOut, "(A)") "When using this code, please cite this work:"
     write (stdOut, "(A)") "Leonardo Medrano Sandonas, Rafaei Gutierrez, Alessandro Pecchia,"
     write (stdOut, "(A)") "Alexander Croy, Gianaurelio Cuniberti, Quantum phonon transport in"
     write (stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's functions"
-    write (stdOut, "(A)") "techniques, Entropy 21, 735 (2019)" 
-    write (stdOut, "(A)") "" 
+    write (stdOut, "(A)") "techniques, Entropy 21, 735 (2019)"
+    write (stdOut, "(A)") ""
   end subroutine printHeader
 
   subroutine ComputeModes()
@@ -112,11 +112,11 @@ contains
     real(dp), allocatable :: eigenValues(:)
     real(dp), allocatable :: displ(:,:,:)
     character(lc) :: lcTmp, lcTmp2
-    
+
     nAtom = geo%nAtom
- 
+
     allocate(eigenValues(3*nMovedAtom))
- 
+
     ! solve the eigenproblem
     if (tPlotModes) then
       write(stdOut,*) 'Computing vibrational frequencies and modes'
@@ -125,7 +125,7 @@ contains
       write(stdOut,*) 'Computing vibrational frequencies'
       call heev(dynMatrix,eigenValues,'U','N')
     end if
- 
+
     ! take square root of modes (allowing for imaginary modes) and print
     eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
     write(stdOut,*)'Vibrational modes (cm-1):'
@@ -133,7 +133,7 @@ contains
       write(stdOut,'(f8.2)')eigenValues(ii)*Hartree__cm
     end do
     write(stdOut,*)
- 
+
     if (tPlotModes) then
       write(stdOut,*)'Plotting eigenmodes:'
       write(stdOut,*)ModesToPlot(:)
@@ -151,7 +151,7 @@ contains
         dynMatrix(:,iMode) = dynMatrix(:,iMode) &
             & / sqrt(sum(dynMatrix(:,iMode)**2))
       end do
- 
+
      ! Create displacment vectors for every atom in every mode.
       allocate(displ(3, nAtom, nModesToPlot))
       displ(:,:,:) = 0.0_dp
@@ -165,8 +165,8 @@ contains
           end do
         end if
       end do
- 
- 
+
+
       if (tAnimateModes) then
         do ii = 1, nModesToPlot
           iMode = ModesToPlot(ii)
@@ -189,7 +189,7 @@ contains
           close(fu)
         end do
       else
-        open(fu, file="modes.xyz", position="rewind", status="replace")
+        open(newunit=fu, file="modes.xyz", position="rewind", status="replace")
         do ii = 1, nModesToPlot
           iMode = ModesToPlot(ii)
           write(fu,*)nAtom
@@ -213,7 +213,7 @@ contains
         end do
         close(fu)
       end if
-      
+
     end if
 
     deallocate(eigenValues)
@@ -229,21 +229,21 @@ contains
     real(dp)::  ModKPoint,  ModDeltaR
     character(lc) :: lcTmp, lcTmp2
     complex(dp), dimension(:,:), allocatable :: KdynMatrix
-    real(dp) :: latVecs(3,3), invLatt(3,3) 
+    real(dp) :: latVecs(3,3), invLatt(3,3)
     real(dp) :: DeltaR(3), q(3), qold(3)
     complex(dp), parameter ::    j = (0.d0,1.d0)
     real(dp) :: unitsConv
-      
+
     call setConversionUnits(unitsConv)
 
-    write(stdOut,*) 'Supercell repetitions:' 
-    write(stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3) 
+    write(stdOut,*) 'Supercell repetitions:'
+    write(stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3)
 
-    latVecs(1,:) = geo%latVecs(1,:)/real(nCells(1),dp) 
-    latVecs(2,:) = geo%latVecs(2,:)/real(nCells(2),dp) 
-    latVecs(3,:) = geo%latVecs(3,:)/real(nCells(3),dp) 
+    latVecs(1,:) = geo%latVecs(1,:)/real(nCells(1),dp)
+    latVecs(2,:) = geo%latVecs(2,:)/real(nCells(2),dp)
+    latVecs(3,:) = geo%latVecs(3,:)/real(nCells(3),dp)
 
-    call invert33(invLatt, latVecs) 
+    call invert33(invLatt, latVecs)
     write(stdOut,*) 'reciprocal lattice vectors:'
     write(stdOut,*) 'b1:',invLatt(:,1)
     write(stdOut,*) 'b2:',invLatt(:,2)
@@ -257,9 +257,9 @@ contains
     if (tIOProc) then
       open(newunit=fu, file='phononDispersion.dat', action='write')
       if (tWriteTagged) then
-        open(newunit=ftag, file=autotestTag) 
+        open(newunit=ftag, file=autotestTag)
       end if
-    end if   
+    end if
 
     qold(1) = dot_product(invLatt(:,1), kPoint(:,1))
     qold(2) = dot_product(invLatt(:,2), kPoint(:,1))
@@ -286,16 +286,16 @@ contains
           end do
         end do
       end do
-      
+
       ! solve the eigenproblem
       call heev(KdynMatrix,eigenValues,'U','N')
- 
+
       ! take square root of modes (allowing for imaginary modes) and print
       eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
- 
+
       if (tIOProc) then
-        ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold)) 
-        qold = q 
+        ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold))
+        qold = q
         do ii = 1, 3*nAtomUnitCell
           write(fu,*) ModKPoint,  eigenValues(ii)*unitsConv
         end do
@@ -314,23 +314,23 @@ contains
   subroutine setConversionUnits(unitsConv)
     real(dp), intent(out) :: unitsConv
 
-    select case(trim(outputUnits))  
+    select case(trim(outputUnits))
     case("H")
-      unitsConv = 1.0_dp    
+      unitsConv = 1.0_dp
     case("eV")
       unitsConv = Hartree__eV
-    case("meV")    
+    case("meV")
       unitsConv = Hartree__eV*100.0_dp
     case("cm")
       unitsConv = Hartree__cm
     case("THz")
       unitsConv = Hartree__J/(hbar*2.0_dp*pi)*1e-12_dp
     case default
-      unitsConv = 1.0_dp    
-    end select     
+      unitsConv = 1.0_dp
+    end select
   end subroutine setConversionUnits
 
-  subroutine writeTaggedOut(tWriter, tunnTot, ldosTot, conductance)      
+  subroutine writeTaggedOut(tWriter, tunnTot, ldosTot, conductance)
     type(TTaggedWriter) :: tWriter
     real(dp), dimension(:,:) :: tunnTot
     real(dp), dimension(:,:) :: ldosTot
@@ -339,14 +339,14 @@ contains
     integer :: fu
 
     open(newunit=fu,file=autotestTag,form="formatted", status="replace")
-   
-    if (size(tunnTot) > 0) then 
+
+    if (size(tunnTot) > 0) then
       call tWriter%write(fu,"transmission",tunnTot)
     end if
-    if (size(ldosTot) > 0) then 
+    if (size(ldosTot) > 0) then
       call tWriter%write(fu,"PDOS",ldosTot)
     end if
-    if (size(conductance) > 0) then 
+    if (size(conductance) > 0) then
       call tWriter%write(fu,"conductance",conductance)
     end if
 

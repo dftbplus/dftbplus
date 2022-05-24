@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,10 @@
 
 !> Contains computer environment settings
 module dftbp_common_environment
-  use dftbp_common_fileregistry, only : TFileRegistry, TFileRegistry_init
   use dftbp_common_globalenv, only : shutdown, stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
-#:if WITH_GPU
+#:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
 #:if WITH_MPI
@@ -25,7 +24,7 @@ module dftbp_common_environment
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
 #:endif
   implicit none
-  
+
   private
   public :: TEnvironment, TEnvironment_init
   public :: globalTimers
@@ -47,9 +46,6 @@ module dftbp_common_environment
     !> Global timers
     type(TTimerArray), public, allocatable :: globalTimer
 
-    !> Registry of files, which may be open and must be closed when environment is shut down
-    type(TFileRegistry), public :: fileFinalizer
-
   #:if WITH_MPI
 
     !> Global mpi settings
@@ -69,7 +65,7 @@ module dftbp_common_environment
     logical :: blacsInitialised = .false.
   #:endif
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     !> Global GPU settings
     type(TGpuEnv), public :: gpu
   #:endif
@@ -90,7 +86,7 @@ module dftbp_common_environment
     procedure :: initBlacs => TEnvironment_initBlacs
   #:endif
 
-  #:if WITH_GPU
+  #:if WITH_MAGMA
     procedure :: initGpu => TEnvironment_initGpu
   #:endif
 
@@ -164,7 +160,7 @@ contains
     !> Instance
     type(TEnvironment), intent(out) :: this
 
-    call TFileRegistry_init(this%fileFinalizer)
+    continue
 
   end subroutine TEnvironment_init
 
@@ -178,7 +174,6 @@ contains
     if (allocated(this%globalTimer)) then
       call this%globalTimer%writeTimings()
     end if
-    call this%fileFinalizer%closeAll()
 
     #:if WITH_SCALAPACK
       if (this%blacsInitialised) then
@@ -292,7 +287,7 @@ contains
 #:endif
 
 
-#:if WITH_GPU
+#:if WITH_MAGMA
 
   !> Initialize GPU environment
   subroutine TEnvironment_initGpu(this)

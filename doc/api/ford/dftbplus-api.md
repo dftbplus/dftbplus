@@ -3,7 +3,7 @@ macro:
         WITH_ARPACK=0
         WITH_DFTD3=1
         WITH_SOCKETS=0
-        RELEASE=21.2
+        RELEASE=22.1
 preprocess: true
 src_dir:
         ../../../src/dftbp/api/mm

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -36,7 +36,8 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_extlibs_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
       & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&
       & elsi_set_zero_def, elsi_set_sparsity_mask, elsi_set_blacs, elsi_init_rw, elsi_set_rw_blacs,&
-      & elsi_set_elpa_solver, elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol,&
+      & elsi_set_elpa_solver, elsi_set_elpa_autotune, elsi_set_elpa_gpu,&
+      & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol,&
       & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_mu_min, elsi_set_pexsi_mu_max,&
       & elsi_set_pexsi_method, elsi_set_pexsi_n_pole, elsi_set_pexsi_n_mu, elsi_set_pexsi_np_symbo,&
       & elsi_set_pexsi_delta_e, elsi_set_ntpoly_tol, elsi_set_ntpoly_filter,&
@@ -49,9 +50,9 @@ module dftbp_elecsolvers_elsisolver
       & elsi_get_edm_real, elsi_set_rw_mpi, elsi_get_edm_complex, elsi_get_edm_complex_sparse,&
       & elsi_dm_real, elsi_write_mat_real_sparse, elsi_dm_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-#:endif  
+#:endif
   implicit none
-  
+
   private
   public :: TElsiSolverInp
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final
@@ -65,6 +66,12 @@ module dftbp_elecsolvers_elsisolver
 
     !> Choice of ELPA solver
     integer :: elpaSolver = 2
+
+    !> Enable ELPA autotuning
+    logical :: elpaAutotune = .false.
+
+    !> Enable GPU usage in ELPA
+    logical :: elpaGpu = .false.
 
     !> Iterations of ELPA solver before OMM minimization
     integer :: ommIterationsElpa = 5
@@ -214,6 +221,12 @@ module dftbp_elecsolvers_elsisolver
 
     !> ELPA solver choice
     integer :: elpaSolverOption
+
+    !> Whether ELPA autotuning is enabled (1=true)
+    integer :: elpaAutotune
+
+    !> Whether ELPA uses GPUs (1=true)
+    integer :: elpaGpu
 
     !! OMM settings
 
@@ -441,6 +454,16 @@ contains
 
     ! ELPA settings
     this%elpaSolverOption = inp%elpaSolver
+    if (inp%elpaAutotune) then
+      this%elpaAutotune = 1
+    else
+      this%elpaAutotune = 0
+    end if
+    if (inp%elpaGpu) then
+      this%elpaGpu = 1
+    else
+      this%elpaGpu = 0
+    end if
 
     ! OMM settings
     this%ommIter = inp%ommIterationsElpa
@@ -631,6 +654,9 @@ contains
         case default
           call error("Unknown ELPA solver modes")
         end select
+
+        call elsi_set_elpa_autotune(this%handle, this%elpaAutotune)
+        call elsi_set_elpa_gpu(this%handle, this%elpaGpu)
 
       case(electronicSolverTypes%omm)
         ! libOMM

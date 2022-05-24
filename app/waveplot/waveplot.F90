@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,9 +11,8 @@
 program waveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_periodic, only : getCellTranslations, foldCoordToUnitCell
+  use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_fileid, only : getFileId
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
   use dftbp_type_typegeometry, only : TGeometry
@@ -184,7 +183,7 @@ program waveplot
     call invert33(invBoxVecs, wp%opt%boxVecs)
     call invert33(recVecs2p, wp%input%geo%latVecs)
     recVecs2p = reshape(recVecs2p, [3, 3], order=[2, 1])
-    call foldCoordToUnitCell(wp%input%geo%coords(:,:), wp%input%geo%latVecs, recVecs2p)
+    call wp%boundaryCond%foldCoordsToCell(wp%input%geo%coords(:,:), wp%input%geo%latVecs)
   end if
 
   ! Fill the box with atoms
@@ -193,7 +192,9 @@ program waveplot
     ! of the lattice unit cell as possible.
     cellMiddle(:) = 0.5_dp * sum(wp%input%geo%latVecs, dim=2)
     boxMiddle(:) = wp%opt%origin(:) + 0.5_dp * sum(wp%opt%boxVecs, dim=2)
-    frac(:) = matmul(boxMiddle - cellMiddle, recVecs2p)
+    ! Workaround for intel 2021 ICE, replacing matmul(boxMiddle - cellMiddle, recVecs2p)
+    shift(:) = boxMiddle - cellMiddle
+    frac(:) = matmul(shift, recVecs2p)
     wp%opt%origin(:) = wp%opt%origin(:) - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
     wp%opt%gridOrigin(:) = wp%opt%gridOrigin(:)&
         & - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
@@ -425,11 +426,7 @@ contains
       rep(:) = [1, 1, 1]
     end if
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-
-    open(fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     if (present(comments)) then
       write (fd, "(A)") trim(comments(1))
       write (fd, "(A)") trim(comments(2))

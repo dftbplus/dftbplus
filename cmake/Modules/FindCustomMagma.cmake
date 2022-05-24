@@ -1,6 +1,6 @@
 # Distributed under the OSI-approved BSD 3-Clause License.
 #
-# Copyright (C) 2021 DFTB+ developers group
+# Copyright (C) 2022  DFTB+ developers group
 #
 
 #[=======================================================================[.rst:
@@ -50,7 +50,7 @@ The following cache variables may be set to influence the library detection:
   Directories which should be looked up in order to find the customized libraries.
 
 ``MAGMA_INCLUDE_DIRECTORY``
-  Customized MAGMA include directory.  
+  Customized MAGMA include directory.
 
 #]=======================================================================]
 
@@ -92,9 +92,9 @@ else()
     find_path(MAGMA_INCLUDE_DIRECTORY NAMES magma.mod PATHS ${_magma_INCLUDE_DIRS}
       PATH_SUFFIXES magma)
     unset(_magma_INCLUDE_DIRS)
-  
+
     set(MAGMA_DETECTION FALSE CACHE BOOL "Whether MAGMA library should be detected" FORCE)
-    
+
   endif()
 
   find_package_handle_standard_args(CustomMagma REQUIRED_VARS MAGMA_LIBRARY MAGMA_INCLUDE_DIRECTORY)

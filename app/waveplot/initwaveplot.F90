@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,15 +11,17 @@
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
+  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+      & TBoundaryConditions_init
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
-  use dftbp_io_fileid, only : getFileId
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
       & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : getModifierIndex, readHSDAsXML, warnUnprocessedNodes
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes
   use dftbp_io_message, only : warning, error
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
@@ -198,6 +200,9 @@ module waveplot_initwaveplot
     !> Data of Option block
     type(TOption) :: opt
 
+    !> Boundary condition
+    type(TBoundaryConditions) :: boundaryCond
+
     !> Data of Basis block
     type(TBasis) :: basis
 
@@ -267,6 +272,9 @@ contains
     !> Auxiliary variable
     integer :: ii
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus) :: errStatus
+
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     WAVEPLOT  " // version
@@ -319,6 +327,17 @@ contains
     write(stdout, "(A,/)") repeat("-", 80)
     call destroyNode(hsdTree)
 
+    if (this%input%geo%tPeriodic) then
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+    else if (this%input%geo%tHelical) then
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+    else
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+    end if
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
+
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3
       this%loc%gridVec(:, ii) = this%opt%boxVecs(:, ii) / real(this%opt%nPoints(ii), dp)
@@ -335,7 +354,7 @@ contains
     !! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
-    call init(this%loc%molOrb, this%input%geo, this%basis%basis)
+    call init(this%loc%molOrb, this%input%geo, this%boundaryCond, this%basis%basis)
 
     call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
         & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&
@@ -504,7 +523,7 @@ contains
         & "the current files could therefore be different.                "]
 
     !> Auxiliary variables
-    integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
+    integer :: ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
     real(dp), allocatable :: mcutoffs(:)
     real(dp) :: minEdge
@@ -654,18 +673,12 @@ contains
     case ("origin","box")
       !! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs)
       if (abs(determinant(this%opt%boxVecs)) < 1e-08_dp) then
         call detailedError(field, "Vectors are linearly dependent")
       end if
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%boxVecs(:,:) = this%opt%boxVecs(:,:) * lengthUnits(ind)%convertValue
-      end if
       call getChildValue(subnode, "Origin", this%opt%origin, modifier=modifier, child=field)
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%origin(:) = this%opt%origin(:) * lengthUnits(ind)%convertValue
-      end if
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%origin)
 
     case default
       !! Object with unknown name passed
@@ -833,8 +846,7 @@ contains
 
     integer :: fd, id, iostat
 
-    fd = getFileId()
-    open(fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
+    open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
 
     if (iostat /= 0) then
       call error("Can't open file '" // trim(fileName) // "'.")

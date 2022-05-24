@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,15 +14,15 @@ module dftbp_type_typegeometryhsd
   use dftbp_io_charmanip, only : i2c, tolower
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
       & checkError, getFirstTextChild, writeChildValue
-  use dftbp_io_hsdutils2, only : getModifierIndex, splitModifier, convertByMul
+  use dftbp_io_hsdutils2, only : splitModifier, convertUnitHsd
   use dftbp_io_message, only : error
-  use dftbp_io_tokenreader, only : TOKEN_OK, getNextToken
+  use dftbp_io_tokenreader, only : TOKEN_OK, TOKEN_ERROR, getNextToken
   use dftbp_math_simplealgebra, only : invert33, determinant33
   use dftbp_type_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
       & destruct, asArray
   use dftbp_type_typegeometry, only : TGeometry, normalize, reduce, setlattice
   implicit none
-  
+
   private
   !> Types/subroutines from TypeGeometry
   public :: TGeometry, normalize
@@ -101,7 +101,6 @@ contains
     type(TGeometry), intent(out) :: geo
 
     type(string) :: modifier, modifs(2)
-    integer :: ind
     type(TListString) :: stringBuffer
     type(TListRealR1) :: realBuffer
     type(TListIntR1) :: intBuffer
@@ -155,11 +154,9 @@ contains
         end if
         geo%tFracCoord = .true.
       case default
-        ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:) = geo%coords * lengthUnits(ind)%convertValue
-        call setChildValue(typesAndCoords, "", &
-            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
-            &replace=.true.)
+        call convertUnitHsd(char(modifier), lengthUnits, typesAndCoords, geo%coords)
+        call setChildValue(typesAndCoords, "", reshape(geo%species, [1, size(geo%species)]),&
+            & geo%coords, replace=.true.)
       end select
     end if
     if (geo%tPeriodic) then
@@ -169,22 +166,13 @@ contains
       else
         call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp],&
             & modifier=modifier, child=child)
-        if (len(modifier) > 0) then
-          ind = getModifierIndex(char(modifier), lengthUnits, child)
-          geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
-          call setChildValue(child, "", geo%origin, .true.)
-        end if
+        call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, replace=.true.)
       end if
       geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3,3))
-      call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, &
-          &child=child)
-      geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, child)
-        geo%latVecs(:,:) = geo%latVecs * lengthUnits(ind)%convertValue
-        call setChildValue(child, "", geo%latVecs, .true.)
-      end if
+      call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, child=child)
+      call convertUnitHsd(char(modifier), lengthUnits, child, latvec, replace=.true.)
+      geo%latVecs(:,:) = reshape(latvec, [3, 3])
       if (geo%tFracCoord) then
         geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
         geo%origin(:) = matmul(geo%latVecs, geo%origin)
@@ -201,18 +189,14 @@ contains
     if (geo%tHelical) then
       allocate(geo%origin(3))
       call getChildValue(node, "CoordinateOrigin", geo%origin, modifier=modifier, child=child)
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, child)
-        geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
-        call setChildValue(child, "", geo%origin, .true.)
-      end if
+      call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, replace=.true.)
       geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3, 1))
       call getChildValue(node, "LatticeVectors", helVec, modifier=modifier, child=child)
       if (len(modifier) > 0) then
         call splitModifier(char(modifier), child, modifs)
-        call convertByMul(char(modifs(1)), lengthUnits, child, helVec(1), .false.)
-        call convertByMul(char(modifs(2)), angularUnits, child, helVec(2), .false.)
+        call convertUnitHsd(char(modifs(1)), lengthUnits, child, helVec(1))
+        call convertUnitHsd(char(modifs(2)), angularUnits, child, helVec(2))
       end if
       geo%latVecs(:3,1) = helVec
       if (geo%latVecs(3,1) < 1) then
@@ -448,6 +432,10 @@ contains
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
     call checkError(node, iErr, "Bad number of atoms.")
+
+    if (iStart < iEnd) then
+      call checkError(node, TOKEN_ERROR, "Additional field(s) found on first line of xyz geometry")
+    end if
 
     ! advance to next line
     iStart = iEnd + 1

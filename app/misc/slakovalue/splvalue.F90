@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,6 @@ program splvalue
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
-  use dftbp_io_fileid, only : getFileId
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
 #:if WITH_MPI
@@ -55,8 +54,7 @@ program splvalue
     stop
   end if
 
-  fp = getfileid()
-  open(fp, file=arg, action="read", status="old", iostat=iostat)
+  open(newunit=fp, file=arg, action="read", status="old", iostat=iostat)
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")
   end if

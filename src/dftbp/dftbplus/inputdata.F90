@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -216,13 +216,22 @@ module dftbp_dftbplus_inputdata
     real(dp) :: tolDegenDFTBPT = 128.0_dp
 
     !> Is this is a static electric field perturbation calculation
-    logical :: isStatEPerturb = .false.
+    logical :: isEPerturb = .false.
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynEFreq(:)
+
+    !> Frequency dependent perturbation eta
+    real(dp), allocatable :: etaFreq
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
     logical :: isRespKernelPert = .false.
 
     !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
     logical :: isRespKernelRPA
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynKernelFreq(:)
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
@@ -299,6 +308,7 @@ module dftbp_dftbplus_inputdata
     real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved       = 0
     integer, allocatable :: indMovedAtom(:)
+    integer, allocatable :: indDerivAtom(:)
     integer :: nrConstr      = 0
     integer, allocatable :: conAtom(:)
     real(dp), allocatable :: conVec(:,:)
@@ -461,6 +471,8 @@ module dftbp_dftbplus_inputdata
     !> Solvation
     class(TSolvationInp), allocatable :: solvInp
 
+    !> Rescaling of electric fields (applied or dipole) if the system is solvated
+    logical :: isSolvatedFieldRescaled
 
     !> Input for tblite library
     type(TTBLiteInput), allocatable :: tbliteInp
@@ -481,7 +493,7 @@ module dftbp_dftbplus_inputdata
     type(TXLBOMDInp), allocatable :: xlbomd
 
     !> TD Linear response input
-    type(TLinrespini) :: lrespini
+    type(TLinrespini), allocatable :: lrespini
 
     !> ElectronDynamics
     type(TElecDynamicsInp), allocatable :: elecDynInp

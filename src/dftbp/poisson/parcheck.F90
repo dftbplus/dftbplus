@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 !  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
-!  Permission is hereby granted to use, copy or redistribute this program * 
+!  Permission is hereby granted to use, copy or redistribute this program *
 !  under the LGPL licence.                                                *
 !**************************************************************************
 
@@ -28,7 +28,7 @@ module dftbp_poisson_parcheck
   use dftbp_poisson_structure, only : natoms, x, boxsiz, period, period_dir
 
   implicit none
-  
+
   private
   public :: check_poisson_box, check_contacts, check_localbc
   public :: check_parameters, write_parameters, check_biasdir
@@ -54,7 +54,7 @@ contains
       !checks that the latt vect are directed along x,y,z
       !if (boxsiz(1,2).ne.0.d0 .or. boxsiz(1,3).ne. 0.d0 .or. boxsiz(2,3).ne. 0.d0) then
       !   call error('ERROR: Supercell box is not compatible with Poisson solver')
-      !end if   
+      !end if
       !
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
@@ -91,7 +91,7 @@ contains
 
  end subroutine check_poisson_box
 
- 
+
  subroutine check_biasdir(iErr)
 
    integer, intent(out), optional :: iErr
@@ -120,7 +120,7 @@ contains
      endif
 
      ! ------------------------------------------------
-     ! Find oriented direction of contact m 
+     ! Find oriented direction of contact m
      do m = 1, ncont
        i = contdir(m)
        if ( x(i,iatc(1,m)).lt.x(i,1) ) then
@@ -144,7 +144,7 @@ contains
    else
       period_dir(:)=.false.
    end if
-   
+
    if (period_dir(3) .and. numprocs>1) then
      @:ERROR_HANDLING(iErr, -3,&
          & 'Periodicity along z is incompatible with grid parallelization strategy')
@@ -169,22 +169,22 @@ contains
  subroutine write_parameters()
 
    integer i
-   
+
    if (id0.and.verbose.gt.40) then
-      
+
       !if (DoTransport.or.DoGreenDens) then
       !   write(stdOut,*) 'Conversion factor Ang/a.u.',Bohr__AA
       !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree__eV
       !   write(stdOut,*) "Delta for Green's function=",delta*hartree__eV
       !end if
- 
+
       !if (DoGreenDens) then
       !   write(stdOut,*) 'Contour integration parameters:'
       !   write(stdOut,'(a4,4(i4))') 'Np=',Np(1),Np(2),Np(3)
       !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree__eV
       !   write(stdOut,*) 'N_omega=',N_omega
       !   write(stdOut,*) "ReadOld Surface Green=",Readold
-      !end if 
+      !end if
 
       !if (DoTransport) then
       !   write(stdOut,*) 'Temperature for electronic distribution=',Temp
@@ -199,9 +199,9 @@ contains
          else
             write(stdOut,*) 'Bulk Boundary Potential:    No'
          endif
-   
+
          write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*Bohr__AA,'A'
-         
+
          if (DoGate) then
             write(stdOut,*) 'Gate: Planar'
             write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
@@ -229,13 +229,13 @@ contains
          write(stdOut,*)
       endif
 
-      
+
    end if
 
  end subroutine write_parameters
 
  subroutine check_localbc()
-   
+
    integer :: m, err
 
    err = 0
@@ -244,7 +244,7 @@ contains
    if (any(localBC.gt.0)) then
       do m=1,ncont
          PoissBC(m)=1 ! Sets Mixed BC on this contact
-         select case(contdir(m))   
+         select case(contdir(m))
          case(-1)
             if (overrideBC(1).eq.2) err = 1
             if (overrideBC(1).eq.1) then
@@ -252,12 +252,12 @@ contains
                overrideBC(1) = 2
             endif
             mixed(1) = .true.
-         case(1) 
+         case(1)
             if (overrideBC(2).eq.2) err = 1
             if (overrideBC(2).eq.1) then
                err = 2
                overrideBC(2) = 2
-            endif   
+            endif
             mixed(2) = .true.
          case(-2)
             if (overrideBC(3).eq.2) err = 1
@@ -266,7 +266,7 @@ contains
                overrideBC(3) = 2
             endif
             mixed(3) = .true.
-         case(2)           
+         case(2)
             if (overrideBC(4).eq.2) err = 1
             if (overrideBC(4).eq.1) then
                err = 2
@@ -329,23 +329,23 @@ contains
           endif
           write(stdOut,*) 'STRUCTURE'
           write(stdOut,'(1x,a,I3)') 'periodicity direction:',contdir(1)
-      endif  
+      endif
    endif
 
 
-   if(id0.and.verbose.gt.50) then      
+   if(id0.and.verbose.gt.50) then
       write(stdOut,'(a)') 'CENTRAL REGION'
       write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatm(1), iatm(2)
       write(stdOut,*)
    endif
 
-   
+
    if(.not.cluster) then
 
       do i=1,ncont
 
-         ! CHECK CONTACTS  
-         if(iatc(3,i).lt.iatc(1,i)) then 
+         ! CHECK CONTACTS
+         if(iatc(3,i).lt.iatc(1,i)) then
             iatc(3,i)=iatc(1,i)
          endif
 
@@ -356,7 +356,7 @@ contains
          !if (iatc(3,i).eq.iatc(1,i)) then
          !   mbound_end(i)=0
          !else
-         !   mbound_end(i)=ind(iatc(3,i)+1)-ind(iatc(1,i))   
+         !   mbound_end(i)=ind(iatc(3,i)+1)-ind(iatc(1,i))
          !endif
          ! ---------------------------------------------------
 
@@ -365,7 +365,7 @@ contains
          write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
          write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'
          write(stdOut,*) 'mu=',mu(i)*hartree__eV,'V'
-         write(stdOut,*) 
+         write(stdOut,*)
 
       end do !ncont
    endif !cluster

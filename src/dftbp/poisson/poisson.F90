@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_poisson_poisson
   use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&     
+  use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&
       & destroy_phi_bulk
   use dftbp_poisson_fancybc, only : bndyc, coef, coef_cilgate, coef_gate, coef_tip, gate_bound,&
       & cilgate_bound, tip_bound, local_bound
@@ -28,7 +28,7 @@ module dftbp_poisson_poisson
       & writePoissPeakInfo
   use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
   use dftbp_poisson_mpi_poisson, only : active_id, id0, numprocs, id
-  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,& 
+  use dftbp_poisson_parameters, only : MAXNCONT, PoissBox, base_atom1, base_atom2, bias_dEf,&
       & biasdir, bufferBox, cluster, cntr_cont, cntr_gate, contdir, delta, deltaR_max, dmin,&
       & do_renorm, DoCilGate, DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb,&
       & fictcont, fixed_renorm, FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm,&
@@ -42,13 +42,13 @@ module dftbp_poisson_poisson
   use dftbp_poisson_parcheck, only: check_biasdir, check_contacts, check_localbc, check_parameters,&
       & check_poisson_box, write_parameters
   use dftbp_poisson_structure, only : dqmat, init_charges, init_skdata, init_structure, izp, lmax,&
-      & natoms, period, uhubb, renorm, x, initlatvecs, period_dir, boxsiz
+      & nshells, angShells, natoms, period, uhubb, renorm, x, initlatvecs, period_dir, boxsiz
 #:if WITH_MPI
   use dftbp_poisson_mpi_poisson, only : global_comm, poiss_comm, poiss_mpi_init, poiss_mpi_split,&
       & mpifx_gatherv
 #:endif
   implicit none
-  
+
   private
   ! from parameters
   public :: MAXNCONT
@@ -72,7 +72,7 @@ module dftbp_poisson_poisson
   public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy
   ! from structure
   public :: init_structure, init_charges, init_skdata
-  public :: natoms, dQmat, lmax, uhubb, izp, period
+  public :: natoms, dQmat, lmax, nshells, angshells, uhubb, izp, period
   ! from parcheck
   public :: check_poisson_box, check_contacts, check_localbc
   public :: check_parameters, write_parameters, check_biasdir
@@ -107,6 +107,8 @@ module dftbp_poisson_poisson
    if(allocated(dQmat)) call log_gdeallocate(dQmat)
    if(allocated(uhubb)) call log_gdeallocate(uhubb)
    if(allocated(lmax)) call log_gdeallocate(lmax)
+   if(allocated(nshells)) call log_gdeallocate(nshells)
+   if(allocated(angshells)) call log_gdeallocate(angshells)
    if(allocated(renorm)) call log_gdeallocate(renorm)
    if (id0) then
      call writePoissPeakInfo(stdOut)
@@ -382,7 +384,7 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
 !Internal variables
 
  real(kind=dp) :: dlx,dly,dlz
- integer :: i,m,s
+ integer :: i,m,s,j,k
  integer :: worksize, ncycles, err
  integer :: iparm(23),mgopt(4)
 
@@ -1049,22 +1051,24 @@ subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
 
   tau = 3.2d0 * uhubb
 
-  if (.not.(allocated(renorm))) call log_gallocate(renorm,maxval(lmax)+1,natoms)
-  renorm = 0.0
+  if (.not.(allocated(renorm))) call log_gallocate(renorm,maxval(nshells),natoms)
+  renorm(:,:) = 0.0
 
   if (fixed) then
-    ! This implement the old formula 8pi/tau**3
+
+    ! This implements the old formula 8pi/tau**3
     do atom = 1, natoms
-       nsh = lmax(izp(atom))+1
+      nsh = nshells(izp(atom))
       do l = 1, nsh
         renorm(l,atom) = (8.d0*Pi)/(tau(l,izp(atom))**3)
       enddo
     enddo
+
   else
 
     do atom = 1, natoms !istart(id+1), iend(id+1)
 
-      nsh = lmax(izp(atom))+1
+      nsh = nshells(izp(atom))
 
       ! Set boundaries of a box around the atom
       xmin(:) = x(:,atom) - deltaR_max
@@ -1115,6 +1119,7 @@ subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
   renorm = 1.d0/renorm
 
 end subroutine renormalization_volume
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
 
@@ -1166,7 +1171,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
     tmp=0.d0
     ! project the atom on the primitive cell
     !patom=mod(atom-1,natoms)+1
-    nsh = lmax(izp(atom))+1
+    nsh = nshells(izp(atom))
 
     ! Set boundaries of a box around the atom
     xmin(:) = x(:,atom) - deltaR_max
@@ -1322,7 +1327,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
         endif
      enddo
 
-     nsh = lmax(izp(atm))+1
+     nsh = nshells(izp(atm))
      shells: do l = 1, nsh
         g = 3.2d0*uhubb(l,izp(atm))
         vol = dlx*dly*dlz
@@ -1420,7 +1425,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
   ! biasshift here
   do m = 1, ncont
      do atm=iatc(3,m),iatc(2,m)
-        do l = 1, lmax(izp(atm))+1
+        do l = 1, nshells(izp(atm))
            V_atm(l,atm) = V_atm(l,atm) - mu(m)
         end do
      end do
@@ -1481,7 +1486,7 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
         endif
      enddo
 
-     nsh = lmax(izp(atm))+1
+     nsh = nshells(izp(atm))
      do l = 1, nsh
        g = 3.2d0*uhubb(l,izp(atm))
        tmp_Gr = 0.d0
@@ -1660,13 +1665,13 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
 
-       open(fp,file='box2d.dat')
+       open(newunit=fp,file='box2d.dat')
        write(fp,'(I6,I6)') iparm(14),iparm(16)
        close(fp)
 
      case(3)
        nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1
-       open(fp,file='pot2D.dat')
+       open(newunit=fp,file='pot2D.dat')
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do j = 1,iparm(15)
@@ -1806,7 +1811,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
             distR(2) = yj - x(2,atom)
             distR(3) = zk - x(3,atom)
 
-            nsh = lmax(izp(atom))+1
+            nsh = nshells(izp(atom))
 
             ! Compute L-independent part:
             call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
@@ -1862,7 +1867,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
             cycle
          else
 
-           nsh = lmax(izp(atom))+1
+           nsh = nshells(izp(atom))
            do l = 1, nsh
              tau = 3.2d0*uhubb(l,izp(atom))
 
@@ -1901,7 +1906,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
    deltaR = sqrt((xx - x(1,atom))**2 + (yy - x(2,atom))**2 + (zz - x(3,atom))**2)
    if (deltaR.lt.deltaR_max) then
 
-      nsh = lmax(izp(atom))+1
+      nsh = nshells(izp(atom))
       do l = 1, nsh
          g = 3.2d0*uhubb(l,izp(atom))
          n_alpha  = (g**3)*exp(-g*deltaR)

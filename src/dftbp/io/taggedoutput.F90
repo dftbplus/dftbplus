@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,14 +14,14 @@
     & ('logical', 'Logical', 'logical', 'formLogical')]
 
 #! Maximal rank to include into the interface (string from 0 - scalar)
-#:set MAX_RANK = 4
+#:set MAX_RANK = 5
 
 
 !> Contains routines to write out various data structures in a comprehensive tagged format.
 module dftbp_io_taggedoutput
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: tagLabels
   public :: TTaggedWriter, TTaggedWriter_init
@@ -202,6 +202,12 @@ module dftbp_io_taggedoutput
 
     !> atomic masses
     character(lenLabel) :: atomMass = 'atomic_masses'
+
+    !> Total dipole moment
+    character(lenLabel) :: dipoleMoment = 'dipole_moments'
+
+    !> Rescaled dipole moment (for example if solvated)
+    character(lenLabel) :: scaledDipole = 'scaled_dipole'
 
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'

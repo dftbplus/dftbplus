@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_elecsolvers_elsicsc
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduce
 #:endif
   implicit none
-  
+
   private
   public :: TElsiCsc, TElsiCsc_init
 

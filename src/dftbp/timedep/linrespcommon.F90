@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1535,7 +1535,7 @@ contains
 
 
   !> Write single particle excitations to a file
-  subroutine writeSPExcitations(wij, win, nmatup, getIA, fdSPTrans, sposz, nxov, tSpin)
+  subroutine writeSPExcitations(wij, win, nmatup, getIA, writeSPTrans, sposz, nxov, tSpin)
 
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
@@ -1549,8 +1549,8 @@ contains
     !> index from composite index to occupied and virtual single particle states
     integer, intent(in) :: getIA(:,:)
 
-    !> file descriptor for the single particle excitation data
-    integer, intent(in) :: fdSPTrans
+    !> whether single particle excitation data should be written
+    logical, intent(in) :: writeSPTrans
 
     !> single particle oscilation strengths
     real(dp), intent(in) :: sposz(:)
@@ -1565,12 +1565,13 @@ contains
     integer :: indm, m, n, s
     logical :: updwn
     character :: sign
+    integer :: fdSPTrans
 
     @:ASSERT(size(sposz)>=nxov)
 
-    if (fdSPTrans > 0) then
+    if (writeSPTrans) then
       ! single particle excitations
-      open(fdSPTrans, file=singlePartOut, position="rewind", status="replace")
+      open(newunit=fdSPTrans, file=singlePartOut, position="rewind", status="replace")
       write(fdSPTrans,*)
       write(fdSPTrans,'(7x,a,7x,a,8x,a)') '#      w [eV]',&
           & 'Osc.Str.', 'Transition'
@@ -1599,7 +1600,7 @@ contains
   end subroutine writeSPExcitations
 
   !> Excited state Mulliken charges and dipole moments written to disc
-  subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0, fdMulliken)
+  subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0)
 
     !> symmetry label
     character, intent(in) :: sym
@@ -1617,8 +1618,7 @@ contains
     real(dp), intent(in) :: coord0(:,:)
 
     !> file unit for Mulliken data
-    integer, intent(in) :: fdMulliken
-
+    integer :: fdMulliken
     integer :: natom, m
     real(dp) :: dipol(3), dipabs
 
@@ -1628,7 +1628,7 @@ contains
     @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
-    open(fdMulliken, file=excitedQOut,position="append")
+    open(newunit=fdMulliken, file=excitedQOut,position="append")
     write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
         & sym, nstat
     write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
@@ -1643,7 +1643,7 @@ contains
     dipol(:) = -1.0_dp * matmul(coord0, dq + dqex)
     dipabs = sqrt(sum(dipol**2))
 
-    open(fdMulliken, file=excitedDipoleOut, position="append")
+    open(newunit=fdMulliken, file=excitedDipoleOut, position="append")
     write(fdMulliken, "(a,a,i2)") "Mulliken analysis of excited state ",&
         & sym, nstat
     write(fdMulliken, '(42("="))')

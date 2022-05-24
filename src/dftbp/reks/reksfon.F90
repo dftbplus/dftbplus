@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -93,7 +93,7 @@ module dftbp_reks_reksfon
     integer :: iter
 
     ! Calculate Const in equation 12.c
-    ! Reference : JCP, 147, 034113 (2017) and its supporting information 
+    ! Reference : JCP, 147, 034113 (2017) and its supporting information
     ConDeno = enLtot(5) - enLtot(3)
     ! ConDeno should be negative
     ! In general, E2 - E1 > 0 due to the MO swap (always, n_a > n_b)

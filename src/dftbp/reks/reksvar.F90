@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -547,7 +547,7 @@ module dftbp_reks_reksvar
   !> Initialize REKS data from REKS input
   subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
       & t3rd, isRangeSep, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
-    
+
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
 

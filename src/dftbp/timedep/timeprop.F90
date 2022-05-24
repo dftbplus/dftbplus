@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,9 +18,11 @@ module dftbp_timedep_timeprop
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -31,8 +33,8 @@ module dftbp_timedep_timeprop
       & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildH0, buildS
   use dftbp_dftb_onsitecorrection, only : addOnsShift
-  use dftbp_dftb_periodic, only : TNeighbourList, foldCoordToUnitCell,&
-      & updateNeighbourListAndSpecies, getNrOfNeighboursForAll, getSparseDescriptor
+  use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies,&
+      & getNrOfNeighboursForAll
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
@@ -40,7 +42,8 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS,&
+      & unpackDQ, getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
@@ -60,10 +63,11 @@ module dftbp_timedep_timeprop
   use dftbp_md_velocityverlet, only : TVelocityVerlet
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
-  use dftbp_type_multipole, only : TMultipole
+  use dftbp_type_multipole, only : TMultipole, TMultipole_init
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
@@ -77,6 +81,7 @@ module dftbp_timedep_timeprop
 
   !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
+
     !> External field peak intensity
     real(dp) :: tdfield
 
@@ -202,17 +207,34 @@ module dftbp_timedep_timeprop
   !> Data type for electronic dynamics internal settings
   type TElecDynamics
     private
-    real(dp) :: field, omega, time0, time1, phase
+
+    !> External field peak intensity
+    real(dp) :: field
+
+    !> Electric field angular frequency
+    real(dp) :: omega
+
+    !> Initial time of pulse
+    real(dp) :: time0
+
+    !> Final time of pulse
+    real(dp) :: time1
+
+    !> Phase applied of the laser field
+    real(dp) :: phase
+
     real(dp), allocatable :: tdFunction(:, :)
     complex(dp) :: fieldDir(3)
     integer :: writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
+    integer :: nDipole = 0, nQuadrupole = 0
     logical :: tdWriteExtras
     integer, allocatable :: species(:), polDirs(:), speciesAll(:)
     character(mc), allocatable :: speciesName(:)
     logical :: tPopulations, tSpinPol=.false.
     logical :: tReadRestart, tWriteRestart, tRestartAscii, tWriteRestartAscii, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
+    integer :: hamiltonianType
     type(TScc), allocatable :: sccCalc
     type(TTBLite), allocatable :: tblite
     type(TMultipole) :: multipole
@@ -238,6 +260,8 @@ module dftbp_timedep_timeprop
     real(dp), allocatable :: initCoord(:,:)
     complex(dp), allocatable :: Ssqr(:,:,:)
     complex(dp), allocatable :: Sinv(:,:,:)
+    complex(dp), allocatable :: Dsqr(:,:,:,:)
+    complex(dp), allocatable :: Qsqr(:,:,:,:)
     complex(dp), allocatable :: H1(:,:,:)
     complex(dp), allocatable :: RdotSprime(:,:)
     complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
@@ -331,13 +355,15 @@ module dftbp_timedep_timeprop
   !> Prefix for dump files for restart
   character(*), parameter :: restartFileName = 'tddump'
 
+  character(*), parameter :: pumpFilesDir = 'pump_frames'
+
 contains
 
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite, solvation,&
-      & errStatus)
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite,&
+      & eFieldScaling, hamiltonianType, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -411,8 +437,11 @@ contains
     !> Library interface handler
     type(TTBLite), intent(in), allocatable :: tblite
 
-    !> Solvation data and calculations
-    class(TSolvation), allocatable, intent(in) :: solvation
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
+
+    !> Type of Hamiltonian used
+    integer, intent(in) :: hamiltonianType
 
     !> Error status
     type(TStatus), intent(out) :: errStatus
@@ -421,7 +450,7 @@ contains
     logical :: tMDstill
     integer :: iAtom
 
-    this%field = inp%tdField
+    this%field = eFieldScaling%scaledExtEField(inp%tdField)
     this%dt = inp%dt
     this%nSteps = inp%steps
     this%pertType = inp%pertType
@@ -441,11 +470,13 @@ contains
     this%tRealHS = tRealHS
     this%kPoint = kPoint
     this%KWeight = KWeight
+    this%hamiltonianType = hamiltonianType
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
-    if (.not. allocated(sccCalc)) then
+    if (.not.any([allocated(sccCalc), allocated(tblite)])) then
       @:RAISE_ERROR(errStatus, -1, "SCC calculations are currently required for dynamics")
-    else
+    end if
+    if (allocated(sccCalc)) then
       this%sccCalc = sccCalc
     end if
     if (allocated(tblite)) then
@@ -473,13 +504,6 @@ contains
     case default
       @:RAISE_ERROR(errStatus, -1, "Wrong type of perturbation.")
     end select
-
-    if (allocated(solvation)) then
-      if (solvation%isEFieldModified() .and. (this%tKick .or. this%tLaser)) then
-        @:RAISE_ERROR(errStatus, -1, "This type of solvation model currently unsupported for&
-            & electron dyanamics")
-      end if
-    end if
 
     if (this%tLaser) then
       if (tPeriodic) then
@@ -528,9 +552,6 @@ contains
       if (.not. this%tRealHS) then
         @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for imaginary&
             & Hamiltonians.")
-      elseif (isRangeSep) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for range separated&
-            & calculations.")
       end if
       this%tForces = .true.
       this%indMovedAtom = inp%indMovedAtom
@@ -577,12 +598,10 @@ contains
 
     if (this%tIons .or. this%tForces) then
       if (this%nExcitedAtom /= nAtom) then
-        if (this%tLaser) then
-          @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces are not implemented for excitation&
-              & of a subgroup of atoms")
-        else
-          this%nExcitedAtom = nAtom
-        end if
+        this%nExcitedAtom = nAtom
+      end if
+      if (allocated(tblite)) then
+        @:RAISE_ERROR(errStatus, -1, "Ion dynamics and forces not available for xTB Hamiltonian")
       end if
     end if
 
@@ -599,7 +618,9 @@ contains
 
     this%skCutoff = skCutoff
     this%mCutoff = mCutoff
-    allocate(this%atomEigVal, source=atomEigVal)
+    if (allocated(atomEigVal)) then
+      allocate(this%atomEigVal, source=atomEigVal)
+    end if
 
     this%tPump = inp%tPump
     if (inp%tPump) then
@@ -616,15 +637,18 @@ contains
 
 
   !> Driver of time dependent propagation to calculate with either spectrum or laser
-  subroutine runDynamics(this, eigvecs, H0, speciesAll, q0, referenceN0, ints, filling,&
-      & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-      & dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont,&
-      & latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
-      & taggedWriter, refExtPot, errStatus)
+  subroutine runDynamics(this, boundaryCond, eigvecs, H0, speciesAll, q0, referenceN0, ints,&
+      & filling, neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell,&
+      & orb, coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+      & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements,&
+      & skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver,&
+      & eigvecsCplx, taggedWriter, refExtPot, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecs(:,:,:)
@@ -700,6 +724,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    type(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -764,20 +791,20 @@ contains
         this%currPolDir = this%polDirs(iPol)
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
-        call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
-            & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-            & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
+        call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
+            & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb,&
+            & coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+            & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
             & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
             & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
             & errStatus)
         this%iCall = this%iCall + 1
       end do
     else
-      call doDynamics(this, eigvecs, H0, q0, referenceN0, ints, filling, neighbourList,&
-          & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-          & dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
+      call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
+          & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb,&
+          & coord, spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling,&
+          & rangeSep, qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest,&
           & coordAll, onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll,&
           & eigvecsCplx, taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
           & errStatus)
@@ -787,15 +814,18 @@ contains
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, eigvecsReal, H0, q0, referenceN0, ints, filling, neighbourList,&
-      & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, dftbU,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, electronicSolver, speciesAll, eigvecsCplx, taggedWriter, refExtPot, latVec,&
-      & invLatVec, iCellVec, rCellVec, cellVec, errStatus)
+  subroutine doDynamics(this, boundaryCond, eigvecsReal, H0, q0, referenceN0, ints, filling,&
+      & neighbourList, nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord,&
+      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
+      & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
+      & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -875,6 +905,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -932,12 +965,12 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
-    call initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK,&
+    call initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, &
-       & eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec,&
-       & rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
+       & refExtPot, solvation, eFieldScaling, rangeSep, referenceN0, q0, repulsive,&
+       & iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec,&
+       & invLatVec, iCellVec, rCellVec, cellVec, speciesAll, electronicSolver, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
@@ -952,10 +985,10 @@ contains
     ! Main loop
     do iStep = 1, this%nSteps
 
-      call doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK,&
+      call doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, rangeSep, repulsive,&
+       & onSiteElements, refExtPot, solvation, eFieldScaling, rangeSep, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
@@ -1325,8 +1358,8 @@ contains
 
 
   !> Calculate charges, dipole moments
-  subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
-      & qNetAtom, errStatus)
+  subroutine getChargeDipole(this, deltaQ, qq, multipole, dipole, q0, rho, Ssqr, Dsqr, Qsqr,&
+      & coord, iSquare, eFieldScaling, qBlock, qNetAtom, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1343,6 +1376,9 @@ contains
     !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
 
+    !> Multipole moments
+    type(TMultipole), intent(inout) :: multipole
+
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
@@ -1352,8 +1388,17 @@ contains
     !> Square overlap matrix
     complex(dp), intent(in) :: Ssqr(:,:,:)
 
+    !> Square dipole matrix
+    complex(dp), intent(in), optional :: Dsqr(:,:,:,:)
+
+    !> Square quadrupole matrix
+    complex(dp), intent(in), optional :: Qsqr(:,:,:,:)
+
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
@@ -1396,8 +1441,73 @@ contains
 
     end if
 
+    if (present(Dsqr)) then
+      multipole%dipoleAtom(:, :, :) = 0.0_dp
+      if (this%tRealHS) then
+        do iSpin = 1, this%nSpin
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            do ii = iOrb1, iOrb2
+              multipole%dipoleAtom(:,iAt,iSpin) = multipole%dipoleAtom(:,iAt,iSpin) &
+                  & + real(matmul(Dsqr(:,:,ii,iSpin), rho(:,ii,iSpin)), dp)
+            end do
+          end do
+        end do
+      else
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            do ii = iOrb1, iOrb2
+              multipole%dipoleAtom(:,iAt,iSpin) = multipole%dipoleAtom(:,iAt,iSpin) &
+                & + this%kWeight(ik)*real(matmul(conjg(Dsqr(:,:,ii,iKS)), rho(:,ii,iKS)), dp)
+            end do
+          end do
+        end do
+      end if
+    end if
+
+    if (present(Qsqr)) then
+      multipole%quadrupoleAtom(:, :, :) = 0.0_dp
+      if (this%tRealHS) then
+        do iSpin = 1, this%nSpin
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            do ii = iOrb1, iOrb2
+              multipole%quadrupoleAtom(:,iAt,iSpin) = multipole%quadrupoleAtom(:,iAt,iSpin) &
+                  & + real(matmul(Qsqr(:,:,ii,iSpin), rho(:,ii,iSpin)), dp)
+            end do
+          end do
+        end do
+      else
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+
+          do iAt = 1, this%nAtom
+            iOrb1 = iSquare(iAt)
+            iOrb2 = iSquare(iAt+1)-1
+            do ii = iOrb1, iOrb2
+              multipole%quadrupoleAtom(:,iAt,iSpin) = multipole%quadrupoleAtom(:,iAt,iSpin) &
+                & + this%kWeight(ik)*real(matmul(conjg(Qsqr(:,:,ii,iKS)), rho(:,ii,iKS)), dp)
+            end do
+          end do
+        end do
+      end if
+    end if
+
     deltaQ(:,:) = sum((qq - q0), dim=1)
     dipole(:,:) = -matmul(coord, deltaQ)
+    if (allocated(multipole%dipoleAtom)) then
+      dipole(:,:) = dipole - sum(multipole%dipoleAtom(:, :, :), dim=2)
+    end if
+
+    dipole(:,1) = eFieldScaling%scaledSoluteDipole(dipole(:,1))
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
@@ -1579,10 +1689,11 @@ contains
 
 
   !> Create all necessary matrices and instances for dynamics
-  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, ints, eigvecsReal,&
-      & filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-      & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, qNetAtom, isDftbU,&
-      & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
+  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, Dsqr, Qsqr, ints,&
+      & eigvecsReal, filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare,&
+      & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock,&
+      & qNetAtom, isDftbU, onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul,&
+      & lastBondPopul, time)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1631,6 +1742,12 @@ contains
 
     !> Square overlap inverse
     complex(dp), intent(inout) :: Sinv(:,:,:)
+
+    !> Square dipole matrix
+    complex(dp), intent(inout), optional :: Dsqr(:,:,:,:)
+
+    !> Square quadrupole matrix
+    complex(dp), intent(inout), optional :: Qsqr(:,:,:,:)
 
     !> Square hamiltonian
     complex(dp), intent(out) :: H1(:,:,:)
@@ -1749,6 +1866,10 @@ contains
           call blockHermitianHS(H1(:,:,iKS), iSquare)
         end if
       end do
+
+      call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
+          & iSparseStart, Dsqr, Qsqr)
+
     end if
 
     if (this%tPopulations) then
@@ -1794,7 +1915,8 @@ contains
       end do
     end if
 
-    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, 0, 0)
+    call TPotentials_init(potential, orb, this%nAtom, this%nSpin, &
+        & this%nDipole, this%nQuadrupole)
     call TEnergies_init(energy, this%nAtom, this%nSpin)
 
     if (isDftbU .or. allocated(onSiteElements)) then
@@ -1826,11 +1948,14 @@ contains
 
   !> Performs a step backwards to boot the dynamics using the Euler algorithm.
   !> Output is rho(deltaT) called rhoNew, input is rho(t=0) (ground state) called rho
-  subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
+  subroutine initializePropagator(this, env, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
       & orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Density matrix at next step
     complex(dp), intent(inout) :: rhoNew(:,:,:)
@@ -1877,14 +2002,19 @@ contains
     allocate(RdotSprime(this%nOrbs,this%nOrbs))
 
     if (this%tIons) then
-      call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-          &neighbourList, nNeighbourSK, iSquare)
+      if (allocated(this%tblite)) then
+        call this%tblite%buildRdotSprime(env, RdotSprime, coordAll, this%movedVelo, &
+            & this%species, nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSquare, orb)
+      else
+        call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
+            &neighbourList, nNeighbourSK, iSquare)
+      end if
     else
       RdotSprime(:,:) = 0.0_dp
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. allocated(rangeSep)) then
+      if (this%tIons .or. (.not. this%tRealHS)) then
         H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
         call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
       else
@@ -1951,16 +2081,13 @@ contains
     !> Time step in atomic units
     real(dp), intent(in) :: step
 
-    real(dp), allocatable :: T1R(:,:),T2R(:,:)
-    real(dp), allocatable :: T3R(:,:),T4R(:,:),T5R(:,:)
+    real(dp), allocatable :: T1R(:,:), T2R(:,:), T3R(:,:),T4R(:,:)
     integer :: i,j
 
     allocate(T1R(this%nOrbs,this%nOrbs))
     allocate(T2R(this%nOrbs,this%nOrbs))
     allocate(T3R(this%nOrbs,this%nOrbs))
     allocate(T4R(this%nOrbs,this%nOrbs))
-    allocate(T5R(this%nOrbs,this%nOrbs))
-
 
     ! The code below takes into account that Sinv and H1 are real, this is twice as fast as the
     ! original above (propageteRho)
@@ -1969,22 +2096,20 @@ contains
     T1R(:,:) = real(H1)
     T2R(:,:) = real(Sinv)
     call gemm(T3R,T2R,T1R)
+    T2R(:,:) = T3R
 
     ! calculate the first term products for the real and imaginary parts independently
     T1R(:,:) = real(rho)
-    T2R(:,:) = aimag(rho)
-    call gemm(T4R,T3R,T1R)
-    call gemm(T5R,T3R,T2R)
+    call gemm(T3R,T2R,T1R)
+
+    T1R(:,:) = aimag(rho)
+    call gemm(T4R,T2R,T1R)
 
     ! build the commutator combining the real and imaginary parts of the previous result
-    !$omp parallel do private(i,j)
-    do i=1,this%nOrbs
-      do j=1,this%nOrbs
-        rhoOld(i,j) = rhoOld(i,j) + cmplx(0, -step, dp) * (T4R(i,j) + imag * T5R(i,j)) &
-            + cmplx(0, step, dp) * conjg(T4R(j,i) + imag * T5R(j,i))
-      enddo
-    enddo
-    !$omp end parallel do
+    !$OMP WORKSHARE
+    rhoOld(:,:) = rhoOld + cmplx(0, -step, dp) * (T3R + imag * T4R)&
+        & + cmplx(0, step, dp) * transpose(T3R - imag * T4R)
+    !$OMP END WORKSHARE
 
   end subroutine propagateRhoRealH
 
@@ -2015,7 +2140,7 @@ contains
     character(20) :: dipoleFileName
     character(1) :: strSpin
     character(3) :: strK
-    integer :: iSpin, iKS, iK
+    integer :: iSpin, iKS, iK, iErr
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -2104,6 +2229,14 @@ contains
         write(populDat(iKS), "(A)", advance = "NO")"    population (orb N)      |"
         write(populDat(iKS), "(A)")
       end do
+    end if
+
+    iErr = -999
+    if (this%tPump) then
+      call execute_command_line("mkdir "//trim(pumpFilesDir), exitstat=iErr)
+      if (iErr /= 0) then
+        write (stdOut,*) 'cannot create '//trim(pumpFilesDir)//', error status of mkdir: ', iErr
+      end if
     end if
 
   end subroutine initTDOutput
@@ -2404,7 +2537,8 @@ contains
 
   ! updates Eiginv and EiginvAdj if nuclear dynamics is done
   ! important to call after H1 has been updated with new charges and before D is included in H1
-  subroutine updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr)
+  subroutine updateBasisMatrices(this, env, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr,&
+      & errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2427,6 +2561,9 @@ contains
     !> Square overlap matrix
     complex(dp), intent(inout) :: Ssqr(:,:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Auxiliary matrix
     complex(dp), allocatable :: T1(:,:)
 
@@ -2443,7 +2580,8 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       !check if this works with both complex and real
       T1(:,:) = H1(:,:,iKS)
-      call diagDenseMtx(env, electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen)
+      call diagDenseMtx(env, electronicSolver, 'V', T1, Ssqr(:,:,iKS), eigen, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (this%tRealHS) then
         T2(:,:) = real(T1, dp)
         call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), T2)
@@ -2601,7 +2739,7 @@ contains
     coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt
 
-    ! This re-initializes the VVerlet propagator with coordNew
+    ! This re-initializes the velocity Verlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
       call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
           & tHalfVelocities=.true.)
@@ -2618,18 +2756,27 @@ contains
 
 
   !> Calculates non-SCC hamiltonian and overlap for new geometry and reallocates sparse arrays
-  subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-      & iSparseStart, img2CentCell, skHamCont, skOverCont, ham0, ints, env, rhoPrim,&
-      & ErhoPrim, coordAll)
+  subroutine updateH0S(this, boundaryCond, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK,&
+      & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ham0, ints, env, rhoPrim,&
+      & ErhoPrim, coordAll, errStatus, Dsqr, Qsqr)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Square overlap inverse
     complex(dp), intent(inout) :: Sinv(:,:,:)
 
     !> Square overlap matrix
     complex(dp), intent(inout), allocatable :: Ssqr(:,:,:)
+
+    !> Square dipole matrix
+    complex(dp), intent(inout), optional :: Dsqr(:,:,:,:)
+
+    !> Square quadrupole matrix
+    complex(dp), intent(inout), optional :: Qsqr(:,:,:,:)
 
     !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
@@ -2676,18 +2823,19 @@ contains
     !> Energy weighted density matrix
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp), allocatable :: Sreal(:,:), SinvReal(:,:)
     complex(dp), allocatable :: T4(:,:)
     real(dp) :: coord0Fold(3,this%nAtom)
     integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS, iK
 
     coord0Fold(:,:) = coord
-    if (this%tPeriodic) then
-      call foldCoordToUnitCell(coord0Fold, this%latVec, this%invLatVec)
-    end if
+    call boundaryCond%foldCoordsToCell(coord0Fold, this%latVec)
 
-    call updateNeighbourListAndSpecies(coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
-        &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
+    call updateNeighbourListAndSpecies(env, coordAll, this%speciesAll, img2CentCell, this%iCellVec,&
+        & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
@@ -2702,19 +2850,37 @@ contains
     call reallocateTDSparseArrays(this, ints, ham0, rhoPrim, ErhoPrim)
 
     if (this%tPeriodic) then
-      call initLatticeVectors(this)
+      call initLatticeVectors(this, boundaryCond)
     end if
-    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
-
-    if (allocated(this%dispersion)) then
-      call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
           & this%speciesAll)
     end if
 
-    call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
-        & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
-    call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
-        & this%speciesAll, iSparseStart, orb)
+    if (allocated(this%dispersion)) then
+      call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
+    select case(this%hamiltonianType)
+    case default
+      @:ASSERT(.false.)
+    case(hamiltonianTypes%dftb)
+      call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
+          & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
+      call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
+          & this%speciesAll, iSparseStart, orb)
+    case(hamiltonianTypes%xtb)
+      @:ASSERT(allocated(this%tblite))
+      call this%tblite%buildSH0(env, this%speciesAll, coordAll, nNeighbourSk, &
+          & neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, ham0,&
+          & ints%overlap, ints%dipoleBra, ints%dipoleKet, &
+          & ints%quadrupoleBra, ints%quadrupoleKet)
+    end select
 
     if (this%tRealHS) then
       allocate(Sreal(this%nOrbs,this%nOrbs))
@@ -2759,13 +2925,97 @@ contains
 
     end if
 
+    call updateDQ(this, ints, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
+        & iSparseStart, Dsqr, Qsqr)
+
   end subroutine updateH0S
+
+
+  subroutine updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
+      & iSparseStart, Dsqr, Qsqr)
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Square dipole matrix
+    complex(dp), intent(inout), optional :: Dsqr(:,:,:,:)
+
+    !> Square quadrupole matrix
+    complex(dp), intent(inout), optional :: Qsqr(:,:,:,:)
+
+    real(dp), allocatable :: M3(:, :, :)
+    integer :: iSpin, iKS, iK
+
+    if (present(Dsqr)) then
+      Dsqr(:,:,:,:) = 0.0_dp
+      if (this%tRealHS) then
+        allocate(M3(this%nDipole, this%nOrbs, this%nOrbs))
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          call unpackDQ(M3, ints%dipoleBra, ints%dipoleKet, iNeighbour,&
+              & nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          Dsqr(:,:,:,iKS) = cmplx(M3, 0, dp)
+        end do
+      else
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          call unpackDQ(Dsqr(:,:,:,iKS), ints%dipoleBra, ints%dipoleKet,&
+              & this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec,&
+              & iSquare, iSparseStart, img2CentCell)
+        end do
+      end if
+    end if
+
+    if (present(Qsqr)) then
+      Qsqr(:,:,:,:) = 0.0_dp
+      if (this%tRealHS) then
+        if (allocated(M3)) deallocate(M3)
+        allocate(M3(this%nQuadrupole, this%nOrbs, this%nOrbs))
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          call unpackDQ(M3, ints%quadrupoleBra, ints%quadrupoleKet, iNeighbour,&
+              & nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          Qsqr(:,:,:,iKS) = cmplx(M3, 0, dp)
+        end do
+      else
+        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          call unpackDQ(Qsqr(:,:,:,iKS), ints%quadrupoleBra, ints%quadrupoleKet,&
+              & this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec,&
+              & iSquare, iSparseStart, img2CentCell)
+        end do
+      end if
+    end if
+
+  end subroutine updateDQ
 
 
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
       & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, errStatus)
+      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, sSqr, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -2842,6 +3092,9 @@ contains
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
 
+    !> Square overlap matrix
+    complex(dp), intent(in) :: Ssqr(:,:,:)
+
     !> Error status
     type(TStatus), intent(out) :: errStatus
 
@@ -2899,12 +3152,24 @@ contains
     derivs(:,:) = 0.0_dp
 
 
-    call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
-        & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
-        & img2CentCell, iSparseStart, orb, potential%intBlock)
-    call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
-    call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
-        & img2CentCell)
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCharges(env, this%speciesAll, neighbourList, qq, q0,&
+          & this%multipole%dipoleAtom, this%multipole%quadrupoleAtom, img2CentCell, orb)
+      call this%tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coordAll, this%speciesAll,&
+          & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb,&
+          & potential%intBlock, potential%dipoleAtom, potential%quadrupoleAtom)
+      call this%tblite%addGradients(env, neighbourList, this%speciesAll, coordAll,&
+          & img2CentCell, derivs)
+    else
+      call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
+          & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
+          & img2CentCell, iSparseStart, orb, potential%intBlock)
+    end if
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
+      call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
+          & img2CentCell)
+    end if
     if (allocated(repulsive)) then
       call repulsive%getGradients(coordAll, this%speciesAll, img2CentCell, neighbourList,&
           & repulsiveDerivs)
@@ -2913,10 +3178,9 @@ contains
     end if
 
     if (this%isRangeSep) then
-      @:RAISE_ERROR(errStatus, -1, "Ehrenfest forces not implemented yet with range separated&
-          & calculations.")
-      !call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
-      ! & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
+      call rangeSep%addLRGradients(derivs, this%derivator, real(deltaRho), skOverCont, coordAll,&
+          & this%speciesAll, orb, iSquare, real(sSqr(:,:,1)), neighbourList%iNeighbour,&
+          & nNeighbourSK)
     end if
 
     if (this%tLaser) then
@@ -3062,10 +3326,13 @@ contains
 
 
   !updates SCC module with lattice vectors
-  subroutine initLatticeVectors(this)
+  subroutine initLatticeVectors(this, boundarycond)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3)
 
@@ -3074,8 +3341,14 @@ contains
     call matinv(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
-    call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
-    this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateLatVecs(this%latVec, recVecs, boundaryCond, cellVol)
+      this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateLatVecs(this%latVec)
+      this%mCutOff = max(this%mCutOff, this%tblite%getRCutOff())
+    end if
 
     if (allocated(this%dispersion)) then
       call this%dispersion%updateLatVecs(this%latVec)
@@ -3086,7 +3359,7 @@ contains
 
   !> Calculates repulsive and dispersion energies
   subroutine  getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
-      & neighbourList, repulsive, iAtInCentralRegion)
+      & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3112,6 +3385,9 @@ contains
     !> atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)
 
+    !> Range separation contributions
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
     if (allocated(repulsive)) then
       call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
       call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
@@ -3125,6 +3401,11 @@ contains
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
+    end if
+    if (allocated(rangeSep)) then
+      call rangeSep%addLREnergy(energy%Efock)
+    else
+      energy%Efock = 0.0_dp
     end if
 
   end subroutine getPositionDependentEnergy
@@ -3226,15 +3507,18 @@ contains
 
 
   !> Handles the initializations of the variables needed for the time propagation
-  subroutine initializeDynamics(this, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-      & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
-      & referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling,&
-      & qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec, speciesAll,&
-      & electronicSolver, errStatus)
+  subroutine initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
+      & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
+      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
+      & rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx,&
+      & filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
+      & speciesAll, electronicSolver, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3311,6 +3595,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -3360,16 +3647,19 @@ contains
     real(dp) :: new3Coord(3, this%nMovedAtom)
     integer :: iKS
 
+    character(sc) :: dumpIdx
+    real(dp), allocatable :: velInternal(:,:)
+
     this%startTime = 0.0_dp
     this%timeElec = 0.0_dp
 
     this%speciesAll = speciesAll
     this%nSpin = size(ints%hamiltonian(:,:), dim=2)
-    if (this%nSpin > 1) then
+    if (this%nSpin > 1 .and. this%iCall == 1) then
       call qm2ud(q0)
     end if
 
-    if (this%tRealHS .and. .not. this%isRangeSep) then
+    if (this%tRealHS) then
       this%nOrbs = size(eigvecsReal, dim=1)
     else
       this%nOrbs = size(eigvecsCplx, dim=1)
@@ -3382,10 +3672,22 @@ contains
     this%rCellVec = rCellVec
     this%cellVec = cellVec
 
+    if (allocated(this%tblite)) then
+      call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
+    end if
+    call TMultipole_init(this%multipole, this%nAtom, this%nDipole, this%nQuadrupole, &
+        & this%nSpin)
+
     allocate(this%trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    if (this%nDipole > 0) then
+      allocate(this%Dsqr(this%nDipole,this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    end if
+    if (this%nQuadrupole > 0) then
+      allocate(this%Qsqr(this%nQuadrupole,this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    end if
     allocate(this%H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(this%qq(orb%mOrb, this%nAtom, this%nSpin))
     allocate(this%deltaQ(this%nAtom,this%nSpin))
@@ -3403,9 +3705,10 @@ contains
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
           & restartFileName, this%tRestartAscii, errStatus)
       @:PROPAGATE_ERROR(errStatus)
-      call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll)
+      call updateH0S(this, boundaryCond, this%Ssqr, this%Sinv, coord, orb, neighbourList,&
+          & nNeighbourSK, iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0,&
+          & ints, env, this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
       if (this%tIons) then
 
         this%initialVelocities(:,:) = this%movedVelo
@@ -3414,9 +3717,10 @@ contains
       end if
     else if (this%iCall > 1 .and. this%tIons) then
       coord(:,:) = this%initCoord
-      call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll)
+      call updateH0S(this, boundaryCond, this%Ssqr, this%Sinv, coord, orb, neighbourList,&
+          & nNeighbourSK, iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0,&
+          & ints, env, this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
@@ -3425,28 +3729,47 @@ contains
     end if
 
     call initializeTDVariables(this, this%trho, this%H1, this%Ssqr, this%Sinv, H0, this%ham0, &
-        & ints, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
+        & this%Dsqr, this%Qsqr, ints, eigvecsReal, filling, orb, this%rhoPrim, this%potential, &
         & neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
         & this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, skOverCont, this%qBlock,&
         & this%qNetAtom, allocated(dftbU), onSiteElements, eigvecsCplx, this%H1LC, this%bondWork, &
         & this%fdBondEnergy, this%fdBondPopul, this%lastBondPopul, this%time)
 
     if (this%tPeriodic) then
-      call initLatticeVectors(this)
+      call initLatticeVectors(this, boundaryCond)
     end if
 
-    call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    ! Write density at t=0
+    if (this%tPump .and. .not. this%tReadRestart) then
+      allocate(velInternal(3,size(this%movedVelo, dim=2)))
+        velInternal(:,:) = 0.0_dp
+      call writeRestartFile(this%trho, this%trho, coord, velInternal, this%startTime, this%dt,&
+          & '0ppdump', this%tWriteRestartAscii, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      deallocate(velInternal)
+    end if
+
+    if (allocated(this%sccCalc)) then
+      call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)
+    end if
+    if (allocated(this%tblite)) then
+      call this%tblite%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll)
+    end if
+
     if (allocated(this%dispersion)) then
       call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
-          & this%speciesAll)
+          & this%speciesAll, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
 
     call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
         & this%populDat, this%forceDat, this%coorDat)
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%trho, this%Ssqr,&
-        & coord, iSquare, this%qBlock, this%qNetAtom, errStatus)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+        & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
+        & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -3465,7 +3788,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
+          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -3482,7 +3805,7 @@ contains
     end if
 
     call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-        & neighbourList, repulsive, iAtInCentralRegion)
+        & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
@@ -3512,7 +3835,7 @@ contains
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       this%trhoOld(:,:,:) = this%trho
-      call initializePropagator(this, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv,&
+      call initializePropagator(this, env, this%dt, this%trhoOld, this%trho, this%H1, this%Sinv,&
           & coordAll, skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
@@ -3521,13 +3844,15 @@ contains
 
     if (this%tIons) then
       coord(:,:) = this%coordNew
-      call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll)
+      call updateH0S(this, boundaryCond, this%Ssqr, this%Sinv, coord, orb, neighbourList,&
+          & nNeighbourSK, iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0,&
+          & ints, env, this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
-        & iSquare, this%qBlock, this%qNetAtom, errStatus)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
+        & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -3545,7 +3870,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, errStatus)
+          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -3556,13 +3881,17 @@ contains
 
 
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
-  subroutine doTdStep(this, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
-      & img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0, spinW,&
-      & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, rangeSep,&
-      & repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
+  subroutine doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0,&
+      & spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation,&
+      & eFieldScaling, rangeSep, repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver,&
+      & qDepExtPot, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(in) :: boundaryCond
 
     !> current step of the propagation
     integer, intent(in) :: iStep
@@ -3630,6 +3959,9 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
+    !> Any dielectric environment scaling
+    class(TScaleExtEField), intent(in) :: eFieldScaling
+
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -3681,15 +4013,23 @@ contains
     end if
 
     if (this%tIons) then
-      call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
-          &neighbourList, nNeighbourSK, iSquare)
+      select case(this%hamiltonianType)
+      case default
+        @:ASSERT(.false.)
+      case(hamiltonianTypes%dftb)
+        call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
+            &neighbourList, nNeighbourSK, iSquare)
+      case(hamiltonianTypes%xtb)
+        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for xTB Hamiltonian yet")
+      end select
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&
-            & this%Ssqr)
+            & this%Ssqr, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
       call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
-          & neighbourList, repulsive, iAtInCentralRegion)
+          & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
     end if
 
     call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
@@ -3772,20 +4112,22 @@ contains
         velInternal(:,:) = 0.0_dp
       end if
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
-          & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, errStatus)
+          & trim(pumpFilesDir) // '/' // trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii, errStatus)
       @:PROPAGATE_ERROR(errStatus)
       deallocate(velInternal)
     end if
 
     if (this%tIons) then
       coord(:,:) = this%coordNew
-      call updateH0S(this, this%Ssqr, this%Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0, ints, env,&
-          & this%rhoPrim, this%ErhoPrim, coordAll)
+      call updateH0S(this, boundaryCond, this%Ssqr, this%Sinv, coord, orb, neighbourList,&
+          & nNeighbourSK, iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, this%ham0,&
+          & ints, env, this%rhoPrim, this%ErhoPrim, coordAll, errStatus, this%Dsqr, this%Qsqr)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChargeDipole(this, this%deltaQ, this%qq, this%dipole, q0, this%rho, this%Ssqr, coord,&
-        & iSquare, this%qBlock, this%qNetAtom, errStatus)
+    call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
+        & this%rho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
+        & this%qNetAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     if (allocated(this%dispersion)) then
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
@@ -3803,7 +4145,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & iStep, env, rangeSep, this%deltaRho, errStatus)
+          & iStep, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -3850,6 +4192,12 @@ contains
     deallocate(this%totalForce)
     deallocate(this%trho)
     deallocate(this%trhoOld)
+    if (allocated(this%Dsqr)) then
+      deallocate(this%Dsqr)
+    end if
+    if (allocated(this%Qsqr)) then
+      deallocate(this%Qsqr)
+    end if
 
     deallocate(this%rhoPrim)
     deallocate(this%ErhoPrim)

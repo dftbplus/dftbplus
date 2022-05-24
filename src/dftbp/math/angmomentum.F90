@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,7 +19,7 @@ module dftbp_math_angmomentum
   use dftbp_extlibs_scalapackfx, only : scalafx_addg2l
 #:endif
   implicit none
-  
+
   private
   public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ
 

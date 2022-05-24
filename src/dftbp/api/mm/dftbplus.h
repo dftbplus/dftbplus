@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -259,6 +259,16 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
 
 
 /**
+ * Queries the nr. of k-points in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of k-points
+ */
+int dftbp_nr_kpoints(DftbPlus *instance);
+
+
+/**
  * Queries the energy of the current geometry
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -276,6 +286,26 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
+
+
+/**
+ * Queries the number of basis functions for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] nOrbitals number of orbitals on each atom
+ */
+void dftbp_get_nr_orbitals(DftbPlus *instance, int *nOrbitals);
+
+
+/**
+ * Queries the masses for each atom in current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] masses mass of each atom
+ */
+void dftbp_get_masses(DftbPlus *instance, double *masses);
 
 
 /**
@@ -300,8 +330,19 @@ void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
 
 
 /**
+ * Queries the CM5 charges on the atoms.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] charges Net charges on each atom.  Shape [natom]. Sign convention: Electron has
+ *     negative charge, so negative values indicate electron excess.
+ */
+void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
+
+
+/**
  * Queries electrostatic potential in specific points.
- * 
+ *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
  * \param[in] nLocations Number of requested points

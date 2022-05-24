@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@
 module dftbp_math_sorting
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: heap_sort, index_heap_sort, merge_sort, unique
 

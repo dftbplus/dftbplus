@@ -12,11 +12,11 @@ Requirements
 
 In order to compile DFTB+, you need the following software components:
 
-* Fortran 2003 compliant compiler
+* Fortran compiler supporting Fortran 2008 and OpenMP 4.0
 
 * C compiler
 
-* C++ compiler (built with ELSI/PEXSI or ChIMES support)
+* C++ compiler (when built with ELSI/PEXSI or ChIMES support)
 
 * CMake (version 3.16 or newer)
 
@@ -25,6 +25,34 @@ In order to compile DFTB+, you need the following software components:
 * LAPACK/BLAS libraries (or compatible equivalents)
 
 * Python (version >= 3.2) for the source preprocessor
+
+
+Fortran compiler
+----------------
+
+The following Fortran compilers are known to build DFTB+ correctly:
+
+* GNU >= 9
+
+* Intel >= 19 or >= 2020 (when built to include the tblite library, as tblite is
+  known to produce incorrect results with Intel 19)
+
+* NAG >= 7.1 (when built without OpenMP support)
+
+
+The following Fortran compilers are known to fail to build DFTB+:
+
+* NAG (when built with OpenMP support, unsupported OpenMP 4.0 constructs, last
+  tested version: 7.1)
+
+* NVIDIA (internal compiler error & unsupported OpenMP 4.0 constructs, last
+  tested version: 22.3)
+
+
+Older versions of the compilers above are likely to fail due to missing Fortran
+features and/or compiler bugs. Compilers by other vendors may work, but have not
+been tested extensively (see also `Tested build environments
+<#tested-build-environments>`_ and `Testing DFTB+ <#testing-dftb>`_).
 
 
 Optional extra dependencies
@@ -87,7 +115,7 @@ following architectures:
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
 +===============+======================+=============+==================+=====+
-| x86_64 /      | GNU Fortran/C 8.4    | OpenMPI 3.1 | OpenBlas 0.3.7,  |     |
+| x86_64 /      | GNU Fortran/C 9.2    | OpenMPI 4.0 | OpenBlas 0.3.7,  |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
@@ -98,20 +126,16 @@ following architectures:
 | x86_64 /      | Intel Fortran/C 19.0 | MPICH 3.3   | MKL 19.0         |     |
 | Linux         |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   | [1] |
+| x86_64 /      | NAG Fortran 7.1      | MPICH 3.4   | OpenBlas 0.3.18  | [1] |
 | Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
-|               |                      |             | ELSI 2.5.0       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 9.4    | --          | OpenBlas 0.3.18  | [2] |
+| x86_64 /      | GNU Fortran/C 9.4    | --          | OpenBlas 0.3.20  | [2] |
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
-All builds are also tested with the optional ARPACK-NG 3.7 and PLUMED 2.5
-libraries.
-
 Notes:
 
-[1] Only Debug build is tested regulary with OpenMP turned off.
+[1] Only Debug build is tested regulary with OpenMP turned off and without ELSI.
 [2] Only partial testing of the serial version.
 
 

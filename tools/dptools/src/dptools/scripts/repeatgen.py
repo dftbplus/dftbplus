@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -146,7 +146,7 @@ def _repeatgeo2(geo, latvecs, repeats):
     rep = np.array([(repeats[0]-1)/2, (repeats[1]-1)/2, (repeats[2]-1)/2])
     images = (repeats[0] * repeats[1] * repeats[2])
     allcoords = np.empty((images * natoms, 3), dtype=float)
-    allcoords[0:natoms, :] = coords    
+    allcoords[0:natoms, :] = coords
     ind = 1
     currepeats = np.zeros(3, dtype=int)
     for currepeats[2] in range(-rep[2],rep[2]+1):
@@ -167,4 +167,3 @@ def _repeatgeo2(geo, latvecs, repeats):
     newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
                       origin=geo.origin)
     return newgeo
-

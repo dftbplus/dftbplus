@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -76,7 +76,7 @@ program test_ehrenfest
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "C", "p")
   call setChildValue(pMaxAng, "H", "s")
-  
+
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "./")
@@ -106,7 +106,7 @@ program test_ehrenfest
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 
-  
+
   ! initialise the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
@@ -116,7 +116,7 @@ program test_ehrenfest
 
   ! get ground state
   call dftbp%getEnergy(merminEnergy)
-  
+
   call dftbp%initializeTimeProp(timestep, .true., .false.)
 
   do istep = 1, nsteps
@@ -131,7 +131,7 @@ program test_ehrenfest
     call dftbp%setTdElectricField(field)
     call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges,&
          & coord=coords, force=force)
-  end do 
+  end do
 
   print "(A,F15.10)", 'Final SCC Energy:', energy
   print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)

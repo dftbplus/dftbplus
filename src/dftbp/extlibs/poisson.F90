@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,11 +23,12 @@ module dftbp_extlibs_poisson
       & verbose, bufferBox, deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm,&
       & FoundBox, Gate, GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter,&
       & numprocs, overrBulkBC, overrideBC, OxLength, period, ReadBulk, Rmin_Gate, Rmin_Ins,&
-      & SavePot, scratchfolder, uhubb, lmax, izp, dQmat, init_poissbox, mudpack_drv,&
-      & poiss_freepoisson, set_scratch, init_structure, init_skdata, init_charges, init_defaults,&
-      & set_temperature, set_ncont, set_cluster, set_mol_indeces, set_dopoisson, set_poissonbox,&
-      & set_poissongrid, set_accuracy, set_verbose, check_biasdir, check_poisson_box,&
-      & check_parameters, check_localbc, check_contacts, write_parameters, poiss_getlatvecs
+      & SavePot, scratchfolder, uhubb, lmax, nshells, angShells, izp, dQmat, init_poissbox,&
+      & mudpack_drv, poiss_freepoisson, set_scratch, init_structure, init_skdata, init_charges,&
+      & init_defaults, set_temperature, set_ncont, set_cluster, set_mol_indeces, set_dopoisson,&
+      & set_poissonbox, set_poissongrid, set_accuracy, set_verbose, check_biasdir,&
+      & check_poisson_box, check_parameters, check_localbc, check_contacts, write_parameters,&
+      & poiss_getlatvecs
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
@@ -516,22 +517,21 @@ contains
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
 
-    if (id0) then
+  #:if WITH_TRANSPORT
+    if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
       call create_directory_(trim(scratchfolder),iErr)
     end if
+  #:endif
 
     if (active_id) then
       ! processors over which the right hand side of the Poisson equation is parallelised
 
+      iErr = 0
       call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
           & structure%latVecs, structure%isperiodic)
 
-      call init_skdata(orb%nShell, orb%angShell, hubbU, iErr)
-
-      if (iErr.ne.0) then
-        call error("I am sorry... cannot proceed. orbital shells should be in the order s,p,d")
-      endif
+      call init_skdata(orb%nShell, orb%angShell, hubbU)
 
       call init_charges()
 
@@ -807,7 +807,7 @@ contains
     !> reference charges
     real(dp), intent(in), optional :: q0(:,:,:)
 
-    integer :: nsh, l, i, o, orb
+    integer :: nsh, l, i, ish, o, orb
     real(dp) :: Qtmp
 
     call env%globalTimer%startTimer(globalTimers%poisson)
@@ -817,32 +817,36 @@ contains
         call error('ERROR in udpcharges size of q')
       end if
 
+      dQmat(:,:) = 0.0_dp
+
       if (present(q0)) then
         do i = 1, natoms
-          nsh = lmax(izp(i))+1
+          nsh = nshells(izp(i))
           orb=0
-          do l = 1, nsh
+          do ish = 1, nsh
+            l = angShells(ish,izp(i))
             Qtmp = 0.0_dp
-            do o= 1,2*l-1
+            do o = 1, 2*l+1
               orb = orb + 1
               ! - is for negative electron charge density
               Qtmp = Qtmp + q0(orb,i,1)-q(orb,i)
             enddo
-            dQmat(l,i) = Qtmp
+            dQmat(iSh,i) = Qtmp
           enddo
         enddo
       else
         do i = 1, natoms
-          nsh = lmax(izp(i))+1
+          nsh = nshells(izp(i))
           orb=0
-          do l = 1, nsh
+          do ish = 1, nsh
+            l = angShells(ish,izp(i))
             Qtmp = 0.0_dp
-            do o= 1,2*l-1
+            do o = 1, 2*l+1
               orb = orb + 1
               ! - is for negative electron charge density
               Qtmp = Qtmp -q(orb,i)
             enddo
-            dQmat(l,i) = Qtmp
+            dQmat(iSh,i) = Qtmp
           enddo
         enddo
       end if
@@ -870,7 +874,7 @@ contains
 
     res = 0.0_dp
     do typ = 1, size(uhubb,2)
-      nsh = lmax(typ)+1
+      nsh = nshells(typ)
       tau = 3.2_dp * minval(uhubb(1:nsh,typ))
       res = max(res, -log(8.0_dp * pi / tau**3 * denstol) / tau)
     end do

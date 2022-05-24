@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -43,7 +43,6 @@ program test_timeprop
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: force(3, nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
   type(fnode), pointer :: pPerturb, pKick
 
@@ -73,7 +72,7 @@ program test_timeprop
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "C", "p")
   call setChildValue(pMaxAng, "H", "s")
-  
+
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "./")

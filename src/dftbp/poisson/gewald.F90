@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
-!  Permission is hereby granted to use, copy or redistribute this program * 
+!  Permission is hereby granted to use, copy or redistribute this program *
 !  under the LGPL licence.                                                *
 !**************************************************************************
 
@@ -35,7 +35,7 @@ contains
     real(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
     integer, intent(out), optional :: iError
 
-    integer i,j,k,nreal,nmax,nmin 
+    integer i,j,k,nreal,nmax,nmin
     real(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
 
     if (present(iError)) then
@@ -48,7 +48,7 @@ contains
     nreal = 0
     lastshell = tol+1e-8
     ! /* sum over R until tolerance is reached */
-    DO WHILE ((nreal .le. nmax) .and. ((abs(lastshell) .gt. tol).or. & 
+    DO WHILE ((nreal .le. nmax) .and. ((abs(lastshell) .gt. tol).or. &
         (nreal .le. nmin)  ))
       lastshell = 0.0
       DO i = -nreal,nreal
@@ -58,13 +58,13 @@ contains
             IF((nreal .eq. abs(i)) .or. (nreal .eq. abs(j))  .or. &
               &         (nreal.eq. abs(k)) ) THEN
 
-              R(1)=i*basis(1,1)+j*basis(2,1)+k*basis(3,1) 
-              R(2)=i*basis(1,2)+j*basis(2,2)+k*basis(3,2) 
-              R(3)=i*basis(1,3)+j*basis(2,3)+k*basis(3,3) 
+              R(1)=i*basis(1,1)+j*basis(2,1)+k*basis(3,1)
+              R(2)=i*basis(1,2)+j*basis(2,2)+k*basis(3,2)
+              R(3)=i*basis(1,3)+j*basis(2,3)+k*basis(3,3)
 
-              rvec(1) = distR(1) - R(1)  
-              rvec(2) = distR(2) - R(2)   
-              rvec(3) = distR(3) - R(3)  
+              rvec(1) = distR(1) - R(1)
+              rvec(2) = distR(2) - R(2)
+              rvec(3) = distR(3) - R(3)
 
               norm = sqrt(rvec(1)**2+rvec(2)**2+rvec(3)**2)
 
@@ -74,7 +74,7 @@ contains
                 sh_pot = sh_pot + tmp
                 lastshell = lastshell + tmp
 
-              ELSE 
+              ELSE
 
                 lastshell = tol+1e-8
 
@@ -94,7 +94,7 @@ contains
     END IF
 
   END subroutine short_pot
-  !----------------------------------------------------------------     
+  !----------------------------------------------------------------
 
 
   subroutine long_pot(r,basis,recbasis,alpha,vol,tol,potential, iError)
@@ -114,10 +114,10 @@ contains
       iError = 0
     end if
 
-    !evaluate reciprocal space term ( sum over G <> 0) ...  
+    !evaluate reciprocal space term ( sum over G <> 0) ...
     !/* sum over G until tolerance is reached */
     nrezi = 1
-    lastshell = tol+1.d-8  
+    lastshell = tol+1.d-8
     reciprocal = 0.0_dp
     DO WHILE ((nrezi .le. nmax) .and. ((nrezi .le. nmin) .or. &
       &   (abs(lastshell) .gt.  tol)))
@@ -137,7 +137,7 @@ contains
               help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
 
               reciprocal = reciprocal + help
-              lastshell = lastshell + help/vol       
+              lastshell = lastshell + help/vol
             END IF
           END DO
         END DO
@@ -153,11 +153,11 @@ contains
     reciprocal=(4._dp*Pi*reciprocal)/vol
 
 
-    !evaluate  real space term (sum over R)   
+    !evaluate  real space term (sum over R)
     !/* sum over R until tolerance is reached */
     rcspace = 0._dp
     nreal = 0
-    lastshell = tol+1e-8  
+    lastshell = tol+1e-8
     DO WHILE ((nreal .le. nmax) .and. ((nreal .le. nmin) &
       &            .or. (abs(lastshell) .gt.  tol)))
       lastshell = 0._dp
@@ -171,13 +171,13 @@ contains
               rh(2)=r(2)-(i*basis(1,2)+j*basis(2,2)+k*basis(3,2))
               rh(3)=r(3)-(i*basis(1,3)+j*basis(2,3)+k*basis(3,3))
               norm=sqrt(rh(1)*rh(1)+rh(2)*rh(2)+rh(3)*rh(3))
-              IF (norm .gt. 1.d-20) THEN 
-                !erfc=1-erf   
+              IF (norm .gt. 1.d-20) THEN
+                !erfc=1-erf
                 help   = terfc(alpha*norm)/norm
                 rcspace = rcspace + help
                 lastshell = lastshell + help
-              ELSE 
-                lastshell = tol+1e-8  
+              ELSE
+                lastshell = tol+1e-8
               END IF
             END IF
           END DO
@@ -192,7 +192,7 @@ contains
     END IF
 
 
-    !evaluate constant term pi/(Omega*alpha^2) 
+    !evaluate constant term pi/(Omega*alpha^2)
     cterm = -Pi/(vol*alpha*alpha)
 
     !if r = 0 there is another constant to be added
@@ -206,9 +206,9 @@ contains
   END subroutine long_pot
   !----------------------------------------------------------------------
 
-  
+
 !  =====================================================================
-!  evaluation of the potential phi 
+!  evaluation of the potential phi
 !
 !   phi(r) = 4*pi/Omega ( Summe{G neq 0} e^{-G^2/{4 alpha^2}}/{G^2} cos(G r)
 !            +Summe{R, R neq r} (1-erf(alpha*|R-r|))/|R-r|
@@ -223,10 +223,10 @@ contains
 !   real(kind=dp) ::  vol            cell volume
 !   real(kind=dp) ::  tol            tolerance for convergence of "last shell"
 !                       (can often be used as a criterion for global
-!                        convergence) 
+!                        convergence)
 !   OUTPUT:
 !   real(kind=dp) ::  potential      value of Ewald potential
-!  
+!
 !  ======================================================================
 
   subroutine phi(r,basis,recbasis,alpha,vol,tol,potential, iError)
@@ -247,10 +247,10 @@ contains
       iError = 0
     end if
 
-    !  evaluate reciprocal space term ( sum over G <> 0) ...  
+    !  evaluate reciprocal space term ( sum over G <> 0) ...
     !   /* sum over G until tolerance is reached */
     nrezi = 1
-    lastshell = tol+1d-8  
+    lastshell = tol+1d-8
     reciprocal = 0._dp
     DO WHILE ((nrezi .le. nmax) .and. ((nrezi .le. nmin) .or. &
       &    (abs(lastshell) .gt.  tol)))
@@ -270,7 +270,7 @@ contains
               help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
 
               reciprocal = reciprocal + help
-              lastshell = lastshell + help/vol       
+              lastshell = lastshell + help/vol
             END IF
           END DO
         END DO
@@ -286,11 +286,11 @@ contains
     reciprocal=(4._dp*Pi*reciprocal)/vol
 
 
-    !    evaluate  real space term (sum over R)   
+    !    evaluate  real space term (sum over R)
     !   /* sum over R until tolerance is reached */
     rcspace = 0._dp
     nreal = 0
-    lastshell = tol+1e-8  
+    lastshell = tol+1e-8
     DO WHILE ((nreal .le. nmax) .and. ((nreal .le. nmin) &
       &            .or. (abs(lastshell) .gt.  tol)))
       lastshell = 0._dp
@@ -304,13 +304,13 @@ contains
               rh(2)=r(2)-(i*basis(1,2)+j*basis(2,2)+k*basis(3,2))
               rh(3)=r(3)-(i*basis(1,3)+j*basis(2,3)+k*basis(3,3))
               norm=sqrt(rh(1)*rh(1)+rh(2)*rh(2)+rh(3)*rh(3))
-              IF (norm .gt. 1.d-20) THEN 
-                !erfc=1-erf   
+              IF (norm .gt. 1.d-20) THEN
+                !erfc=1-erf
                 help   = terfc(alpha*norm)/norm
                 rcspace = rcspace + help
                 lastshell = lastshell + help
-              ELSE 
-                lastshell = tol+1e-8  
+              ELSE
+                lastshell = tol+1e-8
               END IF
             END IF
           END DO
@@ -325,7 +325,7 @@ contains
     END IF
 
 
-    !  evaluate constant term pi/(Omega*alpha^2) 
+    !  evaluate constant term pi/(Omega*alpha^2)
     cterm = -Pi/(vol*alpha*alpha)
 
     !  if r = 0 there is another constant to be added
@@ -341,7 +341,7 @@ contains
 
 
   !  =====================================================================
-  !  evaluation of the derivative of the potential phi 
+  !  evaluation of the derivative of the potential phi
   !
   !   INPUT Parameter:
   !   real(kind=dp) ::  r(3)           position of evaluation of potential
@@ -351,10 +351,10 @@ contains
   !   real(kind=dp) ::  vol            cell volume
   !   real(kind=dp) ::  tol            tolerance for convergence of "last shell"
   !                       (can often be used as a criterion for global
-  !                        convergence) 
+  !                        convergence)
   !   OUTPUT:
   !   real(kind=dp) ::  deriv(3)       derivative of ewlad potential
-  !  
+  !
   !  ======================================================================
 
 
@@ -364,8 +364,8 @@ contains
     integer, intent(out), optional :: iError
 
     real(kind=dp) ::  reciprocal(3),rcspace(3)
-    real(kind=dp) ::  G(3),rh(3),norm,help,tol,lastshell 
-    integer i,j,k, nrezi, nreal, nmax, nmin 
+    real(kind=dp) ::  G(3),rh(3),norm,help,tol,lastshell
+    integer i,j,k, nrezi, nreal, nmax, nmin
     nmax = 20
     nmin = 2
 
@@ -392,15 +392,15 @@ contains
             IF((nrezi .eq. abs(i)) .or. (nrezi .eq. abs(j)) .or. &
               &        (nrezi.eq. abs(k)) ) THEN
 
-              G(1)=i*recbasis(1,1)+j*recbasis(2,1)+k*recbasis(3,1) 
-              G(2)=i*recbasis(1,2)+j*recbasis(2,2)+k*recbasis(3,2) 
-              G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3) 
+              G(1)=i*recbasis(1,1)+j*recbasis(2,1)+k*recbasis(3,1)
+              G(2)=i*recbasis(1,2)+j*recbasis(2,2)+k*recbasis(3,2)
+              G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
 
-              help=G(1)*G(1)+G(2)*G(2)+G(3)*G(3) 
+              help=G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
 
               help=exp(-help/(4._dp*alpha*alpha))/help
 
-              help=-sin(G(1)*r(1)+G(2)*r(2)+G(3)*r(3))*help 
+              help=-sin(G(1)*r(1)+G(2)*r(2)+G(3)*r(3))*help
 
               reciprocal(1)=help*G(1) + reciprocal(1)
               reciprocal(2)=help*G(2) + reciprocal(2)
@@ -440,16 +440,16 @@ contains
             !            /*only R belonging to outer shells are new ones */
             IF((nreal .eq. abs(i)) .or. (nreal .eq. abs(j)) .or. &
               &         (nreal.eq. abs(k)) ) THEN
-              rh(1)=r(1)-(i*basis(1,1)+j*basis(2,1)+k*basis(3,1)) 
-              rh(2)=r(2)-(i*basis(1,2)+j*basis(2,2)+k*basis(3,2)) 
-              rh(3)=r(3)-(i*basis(1,3)+j*basis(2,3)+k*basis(3,3)) 
+              rh(1)=r(1)-(i*basis(1,1)+j*basis(2,1)+k*basis(3,1))
+              rh(2)=r(2)-(i*basis(1,2)+j*basis(2,2)+k*basis(3,2))
+              rh(3)=r(3)-(i*basis(1,3)+j*basis(2,3)+k*basis(3,3))
 
-              norm=sqrt(rh(1)*rh(1)+rh(2)*rh(2)+rh(3)*rh(3)) 
+              norm=sqrt(rh(1)*rh(1)+rh(2)*rh(2)+rh(3)*rh(3))
 
               help = (-2/sqrt(Pi)*exp(-alpha*alpha*norm*norm)* &
                   &        alpha*norm - terfc(alpha*norm))/(norm*norm*norm)
-              
-              rcspace(1) = rh(1)*help + rcspace(1)  
+
+              rcspace(1) = rh(1)*help + rcspace(1)
               rcspace(2) = rh(2)*help + rcspace(2)
               rcspace(3) = rh(3)*help + rcspace(3)
 
@@ -468,9 +468,9 @@ contains
 
 
     !       /* add real and reciprocal parts */
-    deriv(1) = rcspace(1)  + reciprocal(1) 
-    deriv(2) = rcspace(2)  + reciprocal(2) 
-    deriv(3) = rcspace(3)  + reciprocal(3) 
+    deriv(1) = rcspace(1)  + reciprocal(1)
+    deriv(2) = rcspace(2)  + reciprocal(2)
+    deriv(3) = rcspace(3)  + reciprocal(3)
 
   END subroutine phi1
 
@@ -482,7 +482,7 @@ contains
   !
   !==============================================================================
 
-  subroutine CROSS( A, B, C) 
+  subroutine CROSS( A, B, C)
 
     real(kind=dp) ::  A(3), B(3), C(3)
 
@@ -492,15 +492,15 @@ contains
   END subroutine CROSS
 
 
-  !       get reciprocal lattice vectors and volume of unit cell       
+  !       get reciprocal lattice vectors and volume of unit cell
 
   subroutine REZVOL(basis,recbasis,vol)
-    
+
 
     real(kind=dp) ::   basis(3,3), recbasis(3,3), vol
     real(kind=dp) ::   hv1(3), hv2(3), hv3(3), hv4(3), fac
     integer i
-    
+
 
     DO i=1,3, 1
       hv1(i)=basis(1,i)
@@ -517,8 +517,8 @@ contains
     recbasis(1,3)=hv4(3)*fac
 
     call CROSS(hv3,hv1,hv4)
-    recbasis(2,1)=hv4(1)*fac 
-    recbasis(2,2)=hv4(2)*fac 
+    recbasis(2,1)=hv4(1)*fac
+    recbasis(2,2)=hv4(2)*fac
     recbasis(2,3)=hv4(3)*fac
 
     call CROSS(hv1,hv2,hv4)
@@ -532,7 +532,7 @@ contains
 
   !==============================================================================
   !
-  !     Returns the (tabulated) complementary error function erfc(x) 
+  !     Returns the (tabulated) complementary error function erfc(x)
   !     with fractional error everywhere less than 1.2 x 10^-7
   !
   !==============================================================================
@@ -557,7 +557,7 @@ contains
   !      get optimal alpha for Ewald potential phi
   !
   !      INPUT:
-  !      real(kind=dp) ::  basis(3,3)     basis of lattice                     
+  !      real(kind=dp) ::  basis(3,3)     basis of lattice
   !
   !      RETURNS:
   !      real(kind=dp) ::                 optimal alpha
@@ -578,13 +578,13 @@ contains
 
     CALL REZVOL(basis,recbasis,vol)
 
-    !       get sqnorm of smallest vector in reciprocal space 
+    !       get sqnorm of smallest vector in reciprocal space
     help1 = recbasis(1,1)**2+recbasis(1,2)**2+recbasis(1,3)**2
     help2 = recbasis(2,1)**2+recbasis(2,2)**2+recbasis(2,3)**2
     help3 = recbasis(3,1)**2+recbasis(3,2)**2+recbasis(3,3)**2
     G    = sqrt(min(help1,help2,help3))
 
-    !       get norm of smallest vector in real space 
+    !       get norm of smallest vector in real space
     help1 = basis(1,1)**2 + basis(1,2)**2 + basis(1,3)**2
     help2 = basis(2,1)**2 + basis(2,2)**2 + basis(2,3)**2
     help3 = basis(3,1)**2 + basis(3,2)**2 + basis(3,3)**2
@@ -627,10 +627,10 @@ contains
       nopt  = nopt + 1
     END DO
 
-    IF (nopt .gt. 20 ) THEN 
+    IF (nopt .gt. 20 ) THEN
       alpha=exp(-0.310104*log(vol)+0.786382)/2._dp
       PRINT*, "WARNING: NO OPTIMISED ALPHA FOUND: "
-      PRINT*, "STANDARD ALPHA USED. ALPHA SET TO", alpha 
+      PRINT*, "STANDARD ALPHA USED. ALPHA SET TO", alpha
     END IF
 
     getalpha = alpha
@@ -649,8 +649,8 @@ contains
   !      real(kind=dp) ::   vol           cell volume
   !
   !      RETURNS:
-  !      real(kind=dp) ::                 difference between decline in reciprocal 
-  !                          space (rec(2G)-rec(3G)) and real space (real(2R) 
+  !      real(kind=dp) ::                 difference between decline in reciprocal
+  !                          space (rec(2G)-rec(3G)) and real space (real(2R)
   !                          - real(3R))
   !==============================================================================
 
@@ -672,20 +672,20 @@ contains
 
   !==============================================================================
   !       returns the "r independent" G space part of the Ewald sum
-  !      
+  !
   !       INPUT:
   !       real(kind=dp) ::  G       norm of G
   !       real(kind=dp) ::  alpha   chosen convergence parameter
   !       real(kind=dp) ::  vol     cell volume
   !
-  !       RETURNS:     
+  !       RETURNS:
   !       real(kind=dp) ::          "r independent" G space part of the Ewald sum
-  !============================================================================== 
+  !==============================================================================
 
   real(kind=dp) function Gspace(G,alpha,vol)
 
     real(kind=dp) ::  G, alpha, vol
-    
+
     !       evaluate reciprocal space term at G
     Gspace = exp(-G**2/(4._dp*alpha*alpha))/(G**2)
     Gspace = (4._dp*Pi*Gspace)/vol
@@ -695,23 +695,23 @@ contains
 
   !==============================================================================
   !       returns the R space part of the Ewald sum
-  !      
+  !
   !       INPUT:
   !       real(kind=dp) ::  R       norm of R
   !       real(kind=dp) ::  alpha   chosen convergence parameter
   !
-  !       RETURNS:     
+  !       RETURNS:
   !       real(kind=dp) ::          R space part of the Ewald sum
-  !============================================================================== 
+  !==============================================================================
 
   real(kind=dp) function Rspace(R,alpha)
 
     real(kind=dp) ::  R, alpha
- 
+
     !       evaluate real space term at R
     Rspace  = terfc(alpha*R)/R
 
   END function Rspace
- 
+
 
 end module dftbp_poisson_gewald

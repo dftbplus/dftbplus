@@ -5,6 +5,62 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+22.1 (2022-05-25)
+=================
+
+Added
+-----
+
+- Real time electronic dynamics for xTB Hamiltonian
+
+- Real time electronic dynamics for range separated DFTB
+
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
+- (Optionally) rescale externally applied fields and dipole moments
+  when implicit solvents are used
+
+- Enable lattice constraints in new geometry optimization driver
+
+- Dynamic polarizability and response kernel at finite frequencies
+
+- API call for CM5 charges
+
+- Numerical Hessian calculation can be split over multiple runs
+
+
+Changed
+-------
+
+- PLUMED simulations may deliver due to an incompatible change in version 2.8.0
+  of the external PLUMED library slightly different results as before. See also
+  the `change log of PLUMED 2.8
+  <https://www.plumed.org/doc-v2.8/user-doc/html/_c_h_a_n_g_e_s-2-8.html>`_.
+
+- Allow electric fields in periodic systems even when interactions
+  cross the sawtooth in the field
+
+- Allow printing of dipole moments, even in cases where the absolute
+  value is ill-defined (charged systems or periodic cases), but its
+  derivative may be meaningful.
+
+- Use the DFTB+ xyz writer for the modes program, removing the
+  XMakemol output option.
+
+- Re-enable q=0 (sawtooth) electric fields for periodic/helical structures
+
+
+Fixed
+-----
+
+- incorrect atomic mass unit for xTB calculations
+
+- electronic temperature read for Green's function solver
+
+- MPI code for spin polarised metallic perturbation at q=0 for spin
+  polarized molecules with processor groups
+
+
 21.2 (2021-12-13)
 =================
 

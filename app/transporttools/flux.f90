@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,6 +21,7 @@ program flux
   character(4) :: id
   logical :: bondflux
   integer :: iargc
+  integer :: fp
 
   iargc = command_argument_count()
   if (iargc < 4) then
@@ -66,29 +67,29 @@ program flux
     end if
   end do
 
-  open(105, file=trim(filename1))
-  read(105, *) nat
+  open(fp, file=trim(filename1))
+  read(fp, *) nat
   allocate(neig(nat,n))
   allocate(nn(nat))
   allocate(Inm(nat,n))
   allocate(coord(3,nat))
-  read(105, *)
+  read(fp, *)
   do m=1, nat
-    read(105,*) id, coord(1:3,m)
+    read(fp,*) id, coord(1:3,m)
   end do
-  close(105)
+  close(fp)
 
   ! Figure out the number of atoms
-  open(105,file=trim(filename2))
+  open(fp,file=trim(filename2))
   Inm = 0.d0
   do m=1, nat
-    read(105,*, iostat=io) itmp, rtmp(1:3), nn(m), (neig(m,i), Inm(m,i), i=1,nn(m))
+    read(fp,*, iostat=io) itmp, rtmp(1:3), nn(m), (neig(m,i), Inm(m,i), i=1,nn(m))
     if (io<0) then
       natoms = m-1
       exit
     endif
   enddo
-  close(105)
+  close(fp)
 
   Imax=maxval(abs(Inm(1:natoms,1:maxnn)))
   print*,'# Natoms=',natoms

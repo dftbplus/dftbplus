@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_solvation_sasa
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: TSASACont, TSASAInput, TSASACont_init
   public :: writeSASAContInfo
@@ -145,6 +145,9 @@ module dftbp_solvation_sasa
 
     !> Is the electrostic field modified by this solvent model?
     procedure :: isEFieldModified
+
+    !> Relative dielectric constant for solvent
+    procedure :: getEpsilon_r
 
   end type TSASACont
 
@@ -628,7 +631,7 @@ contains
 
 
   !> Is the electrostic field modified by this solvent model?
-  function isEFieldModified(this) result(isChanged)
+  pure function isEFieldModified(this) result(isChanged)
 
     !> Data structure
     class(TSASACont), intent(in) :: this
@@ -639,5 +642,19 @@ contains
     isChanged = .false.
 
   end function isEFieldModified
+
+
+  !> Returns solvent region relative dielectric constant
+  pure function getEpsilon_r(this) result(e_r)
+
+    !> Data structure
+    class(TSASACont), intent(in) :: this
+
+    !> epsilon_r
+    real(dp) :: e_r
+
+    e_r = 1.0_dp
+
+  end function getEpsilon_r
 
 end module dftbp_solvation_sasa

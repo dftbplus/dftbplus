@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,6 @@ module phonons_initphonons
   use dftbp_common_unitconversion
   use dftbp_dftb_periodic
   use dftbp_io_charmanip
-  use dftbp_io_fileid
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
@@ -317,7 +316,7 @@ contains
     call getChild(root, "Hessian", child=node, requested=.true.)
     ! cutoff used to cut out interactions
     call getChildValue(node, "Cutoff", cutoff, 9.45_dp, modifier=modif, child=value)
-    call convertByMul(char(modif), lengthUnits, value, cutoff)
+    call convertUnitHsd(char(modif), lengthUnits, value, cutoff)
 
     ! Reading the actual Hessian matrix
     call getChildValue(node, "Matrix", value, child=child)
@@ -572,7 +571,7 @@ contains
 
       call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
+      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol)
 
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
       call getContactVectorII(contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol, &
@@ -582,7 +581,7 @@ contains
       ! Contact temperatures. Needed
       call getChildValue(pNode, "Temperature", contacts(ii)%kbT,&
                          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+      call convertUnitHsd(char(modif), energyUnits, field, contacts(ii)%kbT)
 
       if (upload) then
         contacts(ii)%potential = 0.d0
@@ -591,7 +590,7 @@ contains
         if (contacts(ii)%wideBand) then
           call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, &
                              &0.735_dp, modifier=modif, child=field)
-          call convertByMul(char(modif), energyUnits, field,&
+          call convertUnitHsd(char(modif), energyUnits, field,&
                               &contacts(ii)%wideBandDos)
           !WideBandApproximation is defined as energy spacing between levels
           !In the code the inverse value (Density of states) is used
@@ -599,7 +598,7 @@ contains
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
         end if
         !call getChildValue(pNode, "FermiLevel", contacts(ii)%eFermi,modifier=modif)
-        !call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
+        !call convertUnitHsd(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
         contacts(ii)%eFermi=0.d0
       end if
 
@@ -767,8 +766,8 @@ contains
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
       call getChildValue(value, geo%speciesNames(iSp), mass, defmass,&
                &modifier=modif, child= child2)
-      speciesMass(iSp) = mass * amu__au
-      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass, "amu", &
+      speciesMass(iSp) = mass
+      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
             &SpeciesMass(iSp),"a.u."
     end do
 
@@ -1197,11 +1196,11 @@ contains
       end if
       call getChildValue(child, "TempRange", TempRange, modifier=modif,&
       & child=field)
-      call convertByMul(char(modif), energyUnits, field, TempRange)
+      call convertUnitHsd(char(modif), energyUnits, field, TempRange)
 
       call getChildValue(child, "TempStep", TempStep, modifier=modif,&
       & child=field)
-      call convertByMul(char(modif), energyUnits, field, TempStep)
+      call convertUnitHsd(char(modif), energyUnits, field, TempStep)
 
        TempMin = TempRange(1)
        TempMax = TempRange(2)
@@ -1273,7 +1272,7 @@ contains
 
     call getChildValue(root, "FreqRange", eRange, eRangeDefault, &
          & modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, eRange)
+    call convertUnitHsd(char(modif), energyUnits, field, eRange)
     tundos%emin = eRange(1)
     tundos%emax = eRange(2)
 
@@ -1287,7 +1286,7 @@ contains
     call getChildValue(root, "FreqStep", tundos%estep, 1.0e-5_dp,  &
        & modifier=modif, child=field)
 
-    call convertByMul(char(modif), energyUnits, field, tundos%estep)
+    call convertUnitHsd(char(modif), energyUnits, field, tundos%estep)
 
     ! Terminal currents
     call getChild(root, "TerminalCurrents", pTmp, requested=.false.)
@@ -1323,7 +1322,7 @@ contains
 
     call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
         &0.0_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, &
+    call convertUnitHsd(char(modif), energyUnits, field, &
         &tundos%broadeningDelta)
 
     call getChildren(root, "Region", pNodeList)
@@ -1432,12 +1431,12 @@ contains
     case("deltasquared")
       call getChildValue(pValue, "Delta", tundos%delta, &
           &0.0001_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
       tundos%deltaModel=0
     case("deltaomega")
       call getChildValue(pValue, "Delta", tundos%delta, &
           &0.0001_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
       tundos%deltaModel=1
     case("mingo")
       ! As in Numerical Heat transfer, Part B, 51:333, 2007, Taylor&Francis.
@@ -1446,7 +1445,7 @@ contains
       ! We set a cutoff frequency of 2000 cm^-1.
       call getChildValue(pValue, "Wmax", tundos%wmax, &
           &0.009_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
       tundos%deltaModel=2
       ! If Emax >> Wmax delta becomes negative
       if (tundos%Emax > tundos%Wmax) then
@@ -1490,7 +1489,7 @@ contains
     allocate(iCellVec(nAllAtom))
 
     call updateNeighbourList(coords, img2CentCell, iCellVec, neighbourList, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec, .false.)
+          &nAllAtom, geo%coords, mCutoff, rCellVec, symmetric=.false.)
 
     deallocate(coords)
     deallocate(iCellVec)

@@ -18,10 +18,14 @@ deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
 deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
 
+timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_kick_gfn1             #? OMP_THREADS <= 4 and not WITH_MPI and WITH_TBLITE
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_laser_gfn2            #? OMP_THREADS <= 4 and not WITH_MPI and WITH_TBLITE
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
@@ -43,6 +47,8 @@ timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and 
 timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
 
+timeprop/benzene_rs                    #? OMP_THREADS <= 1 and not WITH_MPI
+
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1
 helical/10-0CtubeC_10_origin           #? MPI_PROCS == 1
@@ -50,7 +56,7 @@ helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
 helical/C6H6_stack                     #? MPI_PROCS == 1
 helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
 helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
-helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+helical/10-0Ctube_PEXSI                #? WITH_PEXSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
 dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
@@ -59,8 +65,8 @@ dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
-non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
-scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
+non-scc/Si_384_GPU                     #? WITH_MAGMA
+scc/SiC_512_GPU                        #? WITH_MAGMA
 
 xtb/gfn1_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1
@@ -92,11 +98,11 @@ rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
-rangesep/C4H6-Casida-S1-Force          #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-Casida-S5-Force       #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/C4H6-TD-LC-Triplet            #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-TD-LC-Spinpol         #? WITH_ARPACK and (not WITH_MPI) 
-rangesep/Benzene-TD-LC-Spinpol-Iter    #? WITH_ARPACK and (not WITH_MPI) 
+rangesep/C4H6-Casida-S1-Force          #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-Casida-S5-Force       #? WITH_ARPACK and (not WITH_MPI)
+rangesep/C4H6-TD-LC-Triplet            #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-TD-LC-Spinpol         #? WITH_ARPACK and (not WITH_MPI)
+rangesep/Benzene-TD-LC-Spinpol-Iter    #? WITH_ARPACK and (not WITH_MPI)
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
@@ -129,6 +135,7 @@ solvers/Fe4_ELPA_2group                #? WITH_ELSI and MPI_PROCS <= 4 and MPI_P
 solvers/Si384_ELPA1                    #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si384_ELPA2                    #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/SiC64+V_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1
+solvers/Si256C256_ELPA_GPU             #? WITH_ELSI and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and WITH_GPU
 
 solvers/ice_OMM                        #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/ice_NTPoly                     #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -137,10 +144,12 @@ solvers/Si32C32_OMM_sparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_T
 solvers/Si384_OMM                      #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si32C32_OMM_kpoints            #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_OMM_ks                 #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
-solvers/Si32C32_OMM_k_sparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
+#! Disabling as currently crashing when used with Conda ELSI (2.8.2)
+#! solvers/Si32C32_OMM_k_sparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_OMM_ks_sparse          #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 16 and OMP_THREADS == 1
-solvers/Si32C32_LS_OMM                 #? WITH_ELSI and MPI_PROCS <= 20 and OMP_THREADS == 1
+#! Disabling as currently crashing when used with Conda ELSI (2.8.2)
+#! solvers/Si32C32_LS_OMM                 #? WITH_ELSI and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_LS_OMM_kpt             #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 32 and OMP_THREADS == 1
 
 solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
@@ -152,6 +161,7 @@ solvers/SiC64+V_spinkpts_PEXSI_sparse  #? WITH_PEXSI and MPI_PROCS % 8 == 0 and 
 
 solvers/Si32C32_k_elpaSparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_elpaSparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
+
 
 derivatives/Si_2_Delta                 #? MPI_PROCS <= 1
 
@@ -169,7 +179,15 @@ derivatives/CH4_kpt_ons                #? MPI_PROCS <= 1
 derivatives/As4S4_LS_ons               #? MPI_PROCS <= 2
 derivatives/10-0Ctube_onsite           #? MPI_PROCS <= 4
 derivatives/C6H6_onsite                #? MPI_PROCS == 1
+derivatives/C6H6_partial               #? MPI_PROCS <= 1
 derivatives/CH4_RPA                    #? MPI_PROCS == 1
+
+derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
+derivatives/C60_Polfreq                #? MPI_PROCS <= 4
+
+derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
+derivatives/CH4_kpt_freq               #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0)
+derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
@@ -262,6 +280,7 @@ solvation/cosmo_444                    #? MPI_PROCS <= 2
 solvation/cosmo_inf                    #? MPI_PROCS <= 1
 solvation/cosmo_quinoline              #? MPI_PROCS <= 1
 solvation/cosmo_nitralin               #? MPI_PROCS <= 2
+solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -309,6 +328,7 @@ dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2
 geoopt/Cchain_lattice_lbfgs            #? MPI_PROCS <= 1
 geoopt/Cchain_lattice                  #? MPI_PROCS <= 1
+geoopt/Cchain_lattice_rf               #? MPI_PROCS <= 1
 scc/H2O+CH3COOH-3rdorder               #? MPI_PROCS <= 1
 spinorbit/Fe2                          #? MPI_PROCS <= 2
 analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
@@ -390,6 +410,7 @@ non-scc/Si41C23N35                     #? MPI_PROCS <= 4
 geoopt/diamond_isotropic               #? MPI_PROCS <= 1
 spinorbit/EuN                          #? MPI_PROCS <= 2
 geoopt/Si_6                            #? MPI_PROCS <= 1
+geoopt/Si_6_rf                         #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast                    #? MPI_PROCS <= 4
 spinorbit/EuN_customU                  #? MPI_PROCS <= 2
 dispersion/DNA                         #? MPI_PROCS <= 4
@@ -431,6 +452,7 @@ transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4
+poisson/CH4-selShell                   #? WITH_POISSON and not WITH_MPI
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2

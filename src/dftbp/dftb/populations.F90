@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_dftb_populations
   use dftbp_common_constants, only : pi
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
@@ -401,7 +401,7 @@ contains
        do iOrb = 1, iEnd - iStart + 1
           rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
                & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-               & - q0(iOrb, iAtom, 1)*0.5_dp
+               & - q0(iOrb, iAtom, 1) * 0.5_dp
        end do
     end do
 
@@ -471,7 +471,7 @@ contains
       do iOrb = 1, iEnd - iStart + 1
         rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
             & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-            & - 0.5_dp * q0(iOrb, iAtom, 1)
+            & - q0(iOrb, iAtom, 1)
       end do
     end do
 
@@ -619,13 +619,13 @@ contains
       & nNeighbourSK, img2CentCell, iPair)
 
     !> Cumulative atomic multipole moments
-    real(dp), intent(inout) :: mpAtom(:, :)
+    real(dp), intent(inout) :: mpAtom(:, :, :)
 
     !> Multipole moment integral in packed format
     real(dp), intent(in) :: mpintBra(:, :), mpintKet(:, :)
 
     !> Density matrix in Packed format
-    real(dp), intent(in) :: rho(:)
+    real(dp), intent(in) :: rho(:, :)
 
     !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
@@ -642,31 +642,34 @@ contains
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer :: nAtom, iAt1, iAt2, img, ind, iNeigh, iOrb1, iOrb2, nBlk, iBlk
+    integer :: nAtom, iAt1, iAt2, img, ind, iNeigh, iOrb1, iOrb2, nBlk, iBlk, iSpin, nSpin
     real(dp) :: pop1(size(mpAtom, 1)), pop2(size(mpAtom, 1))
 
+    nSpin = size(rho, dim=2)
     nAtom = size(orb%nOrbAtom)
-    mpAtom(:, :) = 0.0_dp
+    mpAtom(:, :, :) = 0.0_dp
 
-    do iAt1 = 1, nAtom
-      do iNeigh = 0, nNeighbourSK(iAt1)
-        img = iNeighbour(iNeigh, iAt1)
-        iAt2 = img2CentCell(img)
-        ind = iPair(iNeigh,iAt1)
-        nBlk = orb%nOrbAtom(iAt2)
-        pop1(:) = 0.0_dp
-        pop2(:) = 0.0_dp
-        do iOrb1 = 1, orb%nOrbAtom(iAt1)
-          do iOrb2 = 1, nBlk
-            iBlk = ind + iOrb2 + nBlk*(iOrb1-1)
-            pop1(:) = pop1 + mpintKet(:, iBlk) * rho(iBlk)
-            pop2(:) = pop2 + mpintBra(:, iBlk) * rho(iBlk)
+    do iSpin = 1, nSpin
+      do iAt1 = 1, nAtom
+        do iNeigh = 0, nNeighbourSK(iAt1)
+          img = iNeighbour(iNeigh, iAt1)
+          iAt2 = img2CentCell(img)
+          ind = iPair(iNeigh,iAt1)
+          nBlk = orb%nOrbAtom(iAt2)
+          pop1(:) = 0.0_dp
+          pop2(:) = 0.0_dp
+          do iOrb1 = 1, orb%nOrbAtom(iAt1)
+            do iOrb2 = 1, nBlk
+              iBlk = ind + iOrb2 + nBlk*(iOrb1-1)
+              pop1(:) = pop1 + mpintKet(:, iBlk) * rho(iBlk, iSpin)
+              pop2(:) = pop2 + mpintBra(:, iBlk) * rho(iBlk, iSpin)
+            end do
           end do
+          mpAtom(:, iAt1, iSpin) = mpAtom(:, iAt1, iSpin) + pop1
+          if (iAt1 /= iAt2) then
+            mpAtom(:, iAt2, iSpin) = mpAtom(:, iAt2, iSpin) + pop2
+          end if
         end do
-        mpAtom(:, iAt1) = mpAtom(:, iAt1) + pop1
-        if (iAt1 /= iAt2) then
-          mpAtom(:, iAt2) = mpAtom(:, iAt2) + pop2
-        end if
       end do
     end do
 

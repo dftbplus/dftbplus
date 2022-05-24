@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -131,71 +131,6 @@ contains
   end subroutine c_DftbPlus_final
 
 
-  !> Obtain number of atoms and list of species from the MM program
-  subroutine c_DftbPlusAtomList_getAtomList(atomListHandler, nAtomC, nSpeciesC, speciesNamesC,&
-      & speciesC) bind(C, name='dftbp_get_atom_list')
-
-    !> handler for the input data structure
-    type(c_DftbPlusAtomList), intent(inout) :: atomListHandler
-
-    !> number of atoms
-    integer(c_int), intent(in) :: nAtomC
-
-    !> number of species
-    integer(c_int), intent(in) :: nSpeciesC
-
-    !> array of element names (chemical symbols)
-    !>   size=3*nSpecies; each element name takes 3 characters
-    character(c_char), intent(in) :: speciesNamesC(*)
-
-    !> pointer to array of species for each atom, size=nAtom
-    type(c_ptr), value, intent(in) :: speciesC
-
-    type(TDftbPlusAtomList), pointer :: instanceAtomList
-
-    ! Fortran integers
-    integer :: nAtom, nSpecies
-
-    type(TListString) :: speciesNames
-
-    ! Fortran character string for a chemical symbol of 1 species
-    character(3) :: speciesNameF
-
-    ! Fortran pointer to array of species for each atom, as C integers
-    integer(c_int), pointer :: ptrSpecies(:)
-    ! Fortran array of species for each atom, as Fortran integers, size=nAtom
-    integer, allocatable :: species(:)
-
-    integer :: i
-
-    allocate(instanceAtomList)
-    atomListHandler%pDftbPlusAtomList = c_loc(instanceAtomList)
-
-    nAtom = nAtomC
-    nSpecies = nSpeciesC
-
-    ! convert the string of chemical symbols "speciesNamesFortran"
-    !   to a linked list of strings, using the HSD routines
-    call init(speciesNames)
-    do i = 1, nSpecies
-      speciesNameF = fortranChar(speciesNamesC(3*i-2:3*i))
-      call append(speciesNames, speciesNameF)
-    end do
-
-    ! convert the array of species per atom to Fortran format
-    call c_f_pointer(speciesC, ptrSpecies, [nAtom])
-    allocate(species(nAtom))
-    species(1:nAtom) = ptrSpecies(1:nAtom)
-
-    ! pass the Fortran variables to the core routine
-    call instanceAtomList%get(nAtom, speciesNames, species)
-
-    deallocate(species)
-    call destruct(speciesNames)
-
-  end subroutine c_DftbPlusAtomList_getAtomList
-
-
   !> Read input for DFTB+ from a specified file
   subroutine c_DftbPlus_getInputFromFile(handler, fileName, inputHandler)&
       & bind(C, name='dftbp_get_input_from_file')
@@ -222,7 +157,7 @@ contains
   end subroutine c_DftbPlus_getInputFromFile
 
 
-  !> process a document tree to get settings for the calculation
+  !> Process a document tree to get settings for the calculation
   subroutine c_DftbPlus_processInput(handler, inputHandler) bind(C, name='dftbp_process_input')
 
     !> handler for the calculation instance
@@ -233,7 +168,6 @@ contains
 
     type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
-    type(TDftbPlusAtomList), pointer :: pDftbPlusAtomList
 
     call c_f_pointer(handler%instance, instance)
     call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
@@ -242,7 +176,7 @@ contains
   end subroutine c_DftbPlus_processInput
 
 
-  !> Obtain electrostatic potential at specified points
+  !> Get electrostatic potential from DFTB+ at specified points
   subroutine c_DftbPlus_get_elstat_potential(handler, nLocations, pot, locations)&
       & bind(C, name='dftbp_get_elstat_potential')
 
@@ -267,7 +201,7 @@ contains
   end subroutine c_DftbPlus_get_elstat_potential
 
 
-  !> set an external potential on the DFTB+ calculation
+  !> Set an external potential on the DFTB+ calculation
   subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
       & bind(C, name='dftbp_set_external_potential')
 
@@ -297,7 +231,7 @@ contains
   end subroutine c_DftbPlus_setExternalPotential
 
 
-  !> register a generator for an external potential
+  !> Register a generator for an external potential
   subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
       & bind(C, name='dftbp_register_ext_pot_generator')
 
@@ -327,7 +261,7 @@ contains
   end subroutine c_DftbPlus_registerExtPotGenerator
 
 
-  !> set/replace the coordinates in a DFTB+ calculation instance
+  !> Set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
 
     !> handler for the calculation
@@ -408,6 +342,49 @@ contains
   end function c_DftbPlus_nrOfAtoms
 
 
+  !> Obtain nr. of k-points.
+  function c_DftbPlus_nrOfKPoints(handler) result(nKPoints) bind(C, name='dftbp_nr_kpoints')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nKPoints
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nKPoints = instance%nrOfKPoints()
+
+  end function c_DftbPlus_nrOfKPoints
+
+
+  !> Obtain masses of atoms in the DFTB+ calculation.
+  subroutine c_DftbPlus_get_atom_masses(handler, masses) bind(C, name='dftbp_get_masses')
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(out) :: masses(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getAtomicMasses(masses(:nAtom))
+
+  end subroutine c_DftbPlus_get_atom_masses
+
+
+  !> Obtain nr. basis functions at each atoms in the DFTB+ calculation.
+  subroutine c_DftbPlus_get_atom_nr_basis(handler, nOrbitals) bind(C, name='dftbp_get_nr_orbitals')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int), intent(out) :: nOrbitals(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getNOrbitalsOnAtoms(nOrbitals(:nAtom))
+
+  end subroutine c_DftbPlus_get_atom_nr_basis
+
+
   !> Obtain the DFTB+ energy
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')
 
@@ -481,6 +458,30 @@ contains
     call instance%getGrossCharges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getGrossCharges
+
+
+  !> Obtain CM5 charges
+  subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
+      & bind(C, name='dftbp_get_cm5_charges')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic charges
+    real(c_double), intent(out) :: atomCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    !> translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%getCM5Charges(atomCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getCM5Charges
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.

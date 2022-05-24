@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,15 @@ module dftbp_mmapi
   use iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms,&
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
-      & getGrossCharges, getElStatPotential, getExtChargeGradients, getStressTensor, getGradients,&
-      & getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
+      & getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients, getStressTensor,&
+      & getGradients, getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -98,10 +98,14 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
+    !> get the CM5 DFTB+ charges
+    procedure :: getCM5Charges => TDftbPlus_getCM5Charges
     !> get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
+    procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -120,6 +124,8 @@ module dftbp_mmapi
     procedure, private :: checkInit => TDftbPlus_checkInit
     !> Return the masses for each atom in the system
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
+    !> Return the number of basis functions for each atom in the system
+    procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
   end type TDftbPlus
 
 
@@ -284,6 +290,10 @@ contains
       end if
       nInstance_ = 1
     #:endif
+
+    if (present(mpiComm) .and. .not. withMpi) then
+      call error("MPI Communicator supplied to initialise serial DFTB+ instance")
+    end if
 
     if (present(outputUnit)) then
       stdOut = outputUnit
@@ -531,6 +541,7 @@ contains
 
   end subroutine TDftbPlus_getStressTensor
 
+
   !> Returns the gradients on the external charges.
   !>
   !> This function may only be called if TDftbPlus_setExternalCharges was called before it
@@ -564,6 +575,22 @@ contains
     call getGrossCharges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
+
+
+  !> Returns the CM5 charges of each atom
+  subroutine TDftbPlus_getCM5Charges(this, atomCharges)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic gross charges.
+    real(dp), intent(out) :: atomCharges(:)
+
+    call this%checkInit()
+
+    call getCM5Charges(this%env, this%main, atomCharges)
+
+  end subroutine TDftbPlus_getCM5Charges
 
 
   !> Returns electrostatic potential at specified points
@@ -601,6 +628,22 @@ contains
   end function TDftbPlus_nrOfAtoms
 
 
+  !> Returns the nr. of k-points describing the system.
+  function TDftbPlus_nrOfKPoints(this) result(nKpts)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of k-points
+    integer :: nKpts
+
+    call this%checkInit()
+
+    nKpts = nrOfKPoints(this%main)
+
+  end function TDftbPlus_nrOfKPoints
+
+
   !> Returns the atomic masses for each atom in the system.
   subroutine TDftbPlus_getAtomicMasses(this, mass)
 
@@ -615,6 +658,20 @@ contains
     call getAtomicMasses(this%main, mass)
 
   end subroutine TDftbPlus_getAtomicMasses
+
+
+  !> Returns the number of orbitals for each atom in the system
+  subroutine TDftbPlus_getNOrbAtoms(this, nOrbs)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Number of basis functions associated with each atom
+    integer, intent(out) :: nOrbs(:)
+
+    nOrbs(:) = this%main%orb%nOrbAtom
+
+  end subroutine TDftbPlus_getNOrbAtoms
 
 
   !> Checks whether the type is already initialized and stops the code if not.
@@ -703,6 +760,7 @@ contains
     end do
 
   end subroutine convertAtomTypesToSpecies
+
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
@@ -802,7 +860,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! electric field components
+    !> electric field components
     real(dp), intent(in) :: field(3)
 
     if (allocated(this%main%solvation)) then
@@ -816,15 +874,16 @@ contains
   end subroutine TDftbPlus_setTdElectricField
 
 
+  !> Set atomic coordinates and velocities for MD
   subroutine TDftbPlus_setTdCoordsAndVelos(this, coords, velos)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    ! coordinates
+    !> coordinates
     real(dp), intent(in) :: coords(3, this%main%nAtom)
 
-    ! velocities
+    !> velocities
     real(dp), intent(in) :: velos(3, this%main%nAtom)
 
     call setTdCoordsAndVelos(this%main, coords, velos)
@@ -832,6 +891,7 @@ contains
   end subroutine TDftbPlus_setTdCoordsAndVelos
 
 
+  !> Returns forces from time dependent propagation
   subroutine TDftbPlus_getTdForces(this, forces)
 
     !> Instance
@@ -843,6 +903,5 @@ contains
     call getTdForces(this%main, forces)
 
   end subroutine TDftbPlus_getTdForces
-
 
 end module dftbp_mmapi

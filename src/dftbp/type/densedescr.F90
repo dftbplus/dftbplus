@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,16 +13,20 @@ module dftbp_type_densedescr
   use dftbp_extlibs_scalapackfx, only : DLEN_
 #:endif
   implicit none
-  
+
   private
   public :: TDenseDescr
-  
+
 
   type :: TDenseDescr
 
   #:if WITH_SCALAPACK
-    !> BLACS specifier for the matrix
+    !> BLACS specifier for the orbital sized matrix
     integer :: blacsOrbSqr(DLEN_)
+
+    !> BLACS specifier for the reordered matrix
+    integer :: blacsColumnSqr(DLEN_)
+
   #:endif
 
     !> Dense matrix indexing by the start of orbitals for each atom.

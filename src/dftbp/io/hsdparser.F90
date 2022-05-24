@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,7 +26,7 @@ module dftbp_io_hsdparser
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : getFirstChildByName
   implicit none
-  
+
   private
 
   !> Wrapper around the parsing function

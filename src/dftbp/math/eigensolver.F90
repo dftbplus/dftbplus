@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,16 +13,17 @@
 !> removed.
 module dftbp_math_eigensolver
   use dftbp_common_accuracy, only : rsp, rdp
-  use dftbp_extlibs_lapack, only : dlamch, DLAMCH, slamch, SLAMCH
+  use dftbp_extlibs_lapack, only : dlamch, slamch
   use dftbp_io_message, only : error, warning
-#:if WITH_GPU
-  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
+#:if WITH_MAGMA
+  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
+      & magmaf_zhegvd_m
 #:endif
   implicit none
-  
+
   private
   public :: heev, hegv, hegvd, gvr, bgv, geev
-#:if WITH_GPU
+#:if WITH_MAGMA
   public :: gpu_gvd
 #:endif
 
@@ -81,7 +82,7 @@ module dftbp_math_eigensolver
     module procedure dblecmplx_zhbgv
   end interface
 
-#:if WITH_GPU
+#:if WITH_MAGMA
   !> Divide and conquer MAGMA GPU eigensolver
   interface gpu_gvd
     module procedure real_magma_ssygvd
@@ -1356,7 +1357,7 @@ contains
 
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
-    abstol = SLAMCH( 'Safe minimum' )
+    abstol = slamch( 'Safe minimum' )
 
     info = 0
 
@@ -1577,7 +1578,7 @@ contains
 
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
-    abstol = DLAMCH( 'Safe minimum' )
+    abstol = dlamch( 'Safe minimum' )
 
     info = 0
 
@@ -2022,7 +2023,7 @@ contains
   end subroutine dblecmplx_zhbgv
 
 
-#:if WITH_GPU
+#:if WITH_MAGMA
 
 #:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
   & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&

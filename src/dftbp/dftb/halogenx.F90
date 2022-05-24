@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftb_halogenx
   use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public :: THalogenX, THalogenX_init
   public :: halogenXSpecies1, halogenXSpecies2

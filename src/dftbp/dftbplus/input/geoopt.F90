@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_io_charmanip, only : unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning, getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : convertByMul
+  use dftbp_io_hsdutils2, only : convertUnitHsd
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
@@ -48,7 +48,7 @@ module dftbp_dftbplus_input_geoopt
 contains
 
   !> General entry point to read geometry optimization
-  subroutine readGeoOptInput(node, geom, input)
+  subroutine readGeoOptInput(node, geom, input, atomsRange)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -59,13 +59,17 @@ contains
     !> Control structure to be filled
     type(TGeoOptInput), intent(out) :: input
 
+    !> Default range of moving atoms (may be restricted for example by contacts in transport
+    !> calculations)
+    character(len=*), intent(in) :: atomsRange
+
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
     call getChildValue(node, "Optimizer", child, "Rational")
     call readOptimizerInput(child, input%optimizer)
 
-    call readFilterInput(node, geom, input%filter)
+    call readFilterInput(node, geom, input%filter, atomsRange)
 
     call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
     call readOptTolerance(child, input%tolerance)
@@ -114,7 +118,7 @@ contains
 
 
   !> Entry point for reading input for cartesian geometry transformation filter
-  subroutine readFilterInput(node, geom, input)
+  subroutine readFilterInput(node, geom, input, atomsRange)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -125,11 +129,23 @@ contains
     !> Control structure to be filled
     type(TFilterInput), intent(out) :: input
 
+    !> Default range of moving atoms (may be restricted for example by contacts in transport
+    !> calculations)
+    character(len=*), intent(in) :: atomsRange
+
     type(fnode), pointer :: child
     type(string) :: buffer
 
     call getChildValue(node, "LatticeOpt", input%lattice, .false.)
-    call getChildValue(node, "MovedAtoms", buffer, "1:-1", multiple=.true., child=child)
+    if (input%lattice) then
+      call getChildValue(node, "FixAngles", input%fixAngles, .false.)
+      call getChildValue(node, "FixLengths", input%fixLength, [.false., .false., .false.])
+      if (input%fixAngles .and. all(input%fixLength)) then
+        call detailedError(node, "LatticeOpt with all lattice vectors fixed is not possible")
+      end if
+      call getChildValue(node, "Isotropic", input%isotropic, .false.)
+    end if
+    call getChildValue(node, "MovedAtoms", buffer, trim(atomsRange), multiple=.true., child=child)
     call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species, &
         & input%indMovedAtom)
 
@@ -149,20 +165,20 @@ contains
     type(string) :: modifier
 
     call getChildValue(node, "Energy", input%energy, huge(1.0_dp), modifier=modifier, child=field)
-    call convertByMul(char(modifier), energyUnits, field, input%energy)
+    call convertUnitHsd(char(modifier), energyUnits, field, input%energy)
 
     call getChildValue(node, "GradNorm", input%gradNorm, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), forceUnits, field, input%gradNorm)
+    call convertUnitHsd(char(modifier), forceUnits, field, input%gradNorm)
     call getChildValue(node, "GradElem", input%gradElem, 1.0e-4_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), forceUnits, field, input%gradElem)
+    call convertUnitHsd(char(modifier), forceUnits, field, input%gradElem)
 
     call getChildValue(node, "DispNorm", input%dispNorm, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%dispNorm)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%dispNorm)
     call getChildValue(node, "DispElem", input%dispElem, huge(1.0_dp), modifier=modifier,&
         & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%dispElem)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%dispElem)
 
   end subroutine readOptTolerance
 
@@ -185,7 +201,7 @@ contains
     call getChildValue(node, "fDec", input%f_dec, 0.5_dp)
     call getChildValue(node, "fAlpha", input%f_alpha, 0.99_dp)
     call getChildValue(node, "StepSize", input%dt_max, 1.0_dp, modifier=modifier, child=field)
-    call convertByMul(char(modifier), timeUnits, field, input%dt_max)
+    call convertUnitHsd(char(modifier), timeUnits, field, input%dt_max)
 
   end subroutine readFireInput
 

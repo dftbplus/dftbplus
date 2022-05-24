@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,7 +37,7 @@ module dftbp_extlibs_elsiiface
   public :: elsi_set_pexsi_mu_min, elsi_set_pexsi_mu_max
   public :: elsi_get_mu, elsi_get_entropy
   public :: elsi_set_mu_mp_order, elsi_set_mu_broaden_width, elsi_set_mu_broaden_scheme
-  public :: elsi_set_elpa_solver
+  public :: elsi_set_elpa_solver, elsi_set_elpa_autotune, elsi_set_elpa_gpu
   public :: elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol
   public :: elsi_set_pexsi_method
   public :: elsi_set_pexsi_np_per_pole, elsi_set_pexsi_temp, elsi_set_pexsi_n_pole
@@ -263,6 +263,20 @@ contains
     integer(i4), intent(in) :: solver
     call stubError("elsi_set_set_elpa_solver")
   end subroutine elsi_set_elpa_solver
+
+
+  subroutine elsi_set_elpa_autotune(eh, autotune)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: autotune
+    call stubError("elsi_set_elpa_autotune")
+  end subroutine elsi_set_elpa_autotune
+
+
+  subroutine elsi_set_elpa_gpu(eh, gpu)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: gpu
+    call stubError("elsi_set_elpa_gpu")
+  end subroutine elsi_set_elpa_gpu
 
 
   subroutine elsi_set_kpoint(eh, n_kpt, i_kpt, i_wt)

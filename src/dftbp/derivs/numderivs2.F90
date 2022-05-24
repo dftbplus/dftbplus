@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,41 +12,43 @@
 module dftbp_derivs_numderivs2
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: TNumDerivs, create, next, getHessianMatrix
 
 
   !> Contains necessary data for the derivs
-  type TNumDerivs
+  type :: TNumDerivs
     private
 
     !> Internal matrix to hold derivative and intermediate values for their construction
-    real(dp), allocatable :: derivs(:,:)
-
+    !>
+    !> Must be pointer, so that the type can safely return a pointer to it.
+    !>
+    real(dp), pointer :: derivs(:,:) => null()
 
     !> Coordinates at x=0 to differentiate at
     real(dp), allocatable :: x0(:,:)
 
-
-    !> How many derivates are needed
-    integer :: nDerivs
-
+    !> How many derivates are moved
+    integer :: nMovedAtoms
 
     !> Which atom are we currently differentiating with respect to?
     integer :: iAtom
 
-
     !> Which component, x,y,z are we currently differentiating with respect to?
     integer :: iComponent
-
 
     !> displacement along + or - for central difference
     real(dp) :: iDelta
 
-
     !> Step size for derivative
-    real(dp) :: Delta
+    real(dp) :: delta
+
+  contains
+
+    final :: TNumDerivs_final
+
   end type TNumDerivs
 
 
@@ -73,36 +75,40 @@ contains
   !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the truncation at second
   !> derivatives is only valid at the minimum position.
-  subroutine derivs_create(this, xInit, Delta)
+  !> The subroutine can allocate a rectangular matrix with parameter nDerivAtoms,
+  !> Useful for distributed calculations of the Hessian
+  subroutine derivs_create(this, xInit, nDerivAtoms, delta)
 
     !> Pointer to the initialised object on exit.
     type(TNumDerivs), allocatable, intent(out) :: this
 
-    !> initial atomic coordinates (3,:)
+    !> initial atomic coordinates (3, nMovedAtom)
     real(dp), intent(inout) :: xInit(:,:)
 
-    !> step size for numerical derivative
-    real(dp), intent(in) :: Delta
+    !> number of atoms for which derivatives should be calculated (>= nMovedAtom)
+    integer, intent(in) :: nDerivAtoms
 
-    integer :: nDerivs
+    !> step size for numerical derivative
+    real(dp), intent(in) :: delta
+
+    integer :: nMovedAtoms
 
     @:ASSERT(size(xInit,dim=1)==3)
-    nDerivs = size(xInit,dim=2)
+    nMovedAtoms = size(xInit,dim=2)
 
     allocate(this)
-    allocate(this%x0(3, nDerivs))
+    allocate(this%x0(3, nMovedAtoms))
     this%x0(:,:) = xInit(:,:)
-    allocate(this%derivs(3*nDerivs,3*nDerivs))
-    this%derivs(:,:) = 0.0_dp
-    this%nDerivs = nDerivs
-    this%Delta = Delta
+    allocate(this%derivs(3 * nDerivAtoms, 3 * nMovedAtoms), source=0.0_dp)
+    this%nMovedAtoms = nMovedAtoms
+    this%delta = delta
 
     this%iAtom = 1
     this%iComponent = 1
     this%iDelta = -1.0_dp
 
     xInit(this%iComponent,this%iAtom) = &
-        & xInit(this%iComponent,this%iAtom) + this%iDelta*this%Delta
+        & xInit(this%iComponent,this%iAtom) + this%iDelta*this%delta
 
   end subroutine derivs_create
 
@@ -123,19 +129,17 @@ contains
     !> Has the process terminated? If so internally calculate the Hessian matrix.
     logical, intent(out) :: tGeomEnd
 
-    integer :: ii, jj
+    integer :: ii, jj, nDerivAtoms
 
-    @:ASSERT(all(shape(xNew)==shape(fOld)))
-    @:ASSERT(all(shape(xNew)==(/3,this%nDerivs/)))
+    @:ASSERT(all(shape(xNew)==(/3,this%nMovedAtoms/)))
+    nDerivAtoms = size(this%derivs, dim=1)/3
+    @:ASSERT(size(fOld,1)==3)
+    @:ASSERT(size(fOld,2)==nDerivAtoms)
 
-    if (this%iAtom==this%nDerivs .and. this%iComponent == 3 .and. &
-        & this%iDelta > 0.0_dp) then
-      tGeomEnd = .true.
-    else
-      tGeomEnd = .false.
-    end if
+    tGeomEnd = (this%iAtom == this%nMovedAtoms .and. this%iComponent == 3&
+        & .and. this%iDelta > 0.0_dp)
 
-    do ii = 1, this%nDerivs
+    do ii = 1, nDerivAtoms
       do jj = 1, 3
         this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) = &
             & this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) &
@@ -155,10 +159,10 @@ contains
 
       xNew(:,:) = this%x0(:,:)
       xNew(this%iComponent,this%iAtom) = xNew(this%iComponent,this%iAtom) + &
-          & this%iDelta * this%Delta
+          & this%iDelta * this%delta
     else
       ! get actual derivatives
-      this%derivs(:,:) = 0.5_dp*this%derivs(:,:)/(this%Delta)
+      this%derivs(:,:) = 0.5_dp*this%derivs(:,:)/(this%delta)
       ! set xnew to an arbitrary value
       xNew(:,:) = this%x0
     end if
@@ -170,13 +174,24 @@ contains
   subroutine getDerivMatrixPtr(this,d)
 
     !> Derivatives instance including the Hessian internally
-    type(TNumDerivs), intent(in), target :: this
+    type(TNumDerivs), intent(in) :: this
 
     !> Pointer to the Hessian matrix to allow retrieval
-    real(dp), pointer :: d(:,:)
+    real(dp), pointer, intent(out) :: d(:,:)
 
     d => this%derivs
 
   end subroutine getDerivMatrixPtr
+
+
+  !> Finalizes TNumDerivs instance.
+  subroutine TNumDerivs_final(this)
+
+    !> Instance
+    type(TNumDerivs), intent(inout) :: this
+
+    if (associated(this%derivs)) deallocate(this%derivs)
+
+  end subroutine TNumDerivs_final
 
 end module dftbp_derivs_numderivs2

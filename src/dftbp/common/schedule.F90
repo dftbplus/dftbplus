@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,10 +21,10 @@ module dftbp_common_schedule
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
   implicit none
-  
+
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2
-  public :: assembleChunks
+  public :: assembleChunks, getChunkRanges
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
@@ -172,7 +172,7 @@ contains
     else
       localFirst = globalFirst + remainder * (nLocal + 1) + (myRank - remainder) * nLocal
     end if
-    localLast = min(localFirst + nLocal - 1, rangeLength)
+    localLast = min(localFirst + nLocal - 1, globalLast)
 
   end subroutine getChunkRanges
 

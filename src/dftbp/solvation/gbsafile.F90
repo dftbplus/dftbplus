@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_solvation_gbsafile
   use dftbp_solvation_born, only : TGBInput
   use dftbp_solvation_solventdata, only : TSolventData
   implicit none
-  
+
   private
   public :: readParamGBSA
 
@@ -59,7 +59,7 @@ contains
     real(dp) :: descreening(nElem), surfaceTension(nElem), hBondPar(nElem)
     character(len=lc) :: line, errorStr
 
-    open(file=file, newunit=unit, status='old', iostat=iErr, iomsg=errorStr)
+    open(newunit=unit, file=file, status='old', iostat=iErr, iomsg=errorStr)
     if (iErr /= 0) then
       if (present(node)) then
         call detailedError(node, "Could not open '"//trim(file)//"': "//trim(errorStr))

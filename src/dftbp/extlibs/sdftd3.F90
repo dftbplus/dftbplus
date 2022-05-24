@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,6 +12,7 @@ module dftbp_extlibs_sdftd3
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : kcal_mol__Hartree, AA__Bohr
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_io_message, only : error
@@ -231,7 +232,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Status of operation
-    integer, intent(out), optional :: stat
+    type(TStatus), intent(out) :: stat
 
   #:if WITH_SDFTD3
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
@@ -248,6 +249,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine updateCoords
 
 

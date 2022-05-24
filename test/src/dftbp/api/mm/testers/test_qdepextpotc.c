@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -266,7 +266,7 @@ int main()
 
 
   /* Save some data for the internal test system */
-  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL);
+  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL, NULL);
 
   free(gradients);
   free(charges);

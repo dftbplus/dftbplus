@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -30,7 +30,7 @@ module dftbp_io_hsdutils
   use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListInt,&
       & TlistIntR1, append, init, asArray, destruct
   implicit none
-  
+
   private
   public :: checkError, detailedError, detailedWarning
   public :: getFirstTextChild, getChildValue, setChildValue

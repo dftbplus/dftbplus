@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -17,7 +17,9 @@ import numpy as np
 # relevant tags for testing the Python interface
 TAGLABELS = {'freeEgy': 'mermin_energy',
              'forceTot': 'forces',
-             'qOutAtGross': 'gross_atomic_charges'}
+             'qOutAtGross': 'gross_atomic_charges',
+             'qOutCM5': 'cm5_atomic_charges',
+             'mu': 'dipole_moment'}
 
 
 def write_autotest_tag(filename, **kwargs):

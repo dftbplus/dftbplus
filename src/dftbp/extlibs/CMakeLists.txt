@@ -27,7 +27,7 @@ if(WITH_TRANSPORT)
     ${curdir}/negf.F90)
 endif()
 
-if(WITH_GPU)
+if(WITH_MAGMA)
   list(APPEND sources-c
     ${curdir}/magmac.c)
 endif()

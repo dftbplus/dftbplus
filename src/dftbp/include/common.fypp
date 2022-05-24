@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2021  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -14,9 +14,10 @@
 
 #:set DEBUG = getvar('DEBUG', 0)
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
-#:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_OMP = defined('WITH_OMP')
+#:set WITH_GPU = defined('WITH_GPU')
+#:set WITH_MAGMA = defined('WITH_MAGMA')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
