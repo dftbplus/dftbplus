@@ -1959,6 +1959,10 @@ contains
     end if
 
     if (allocated(input%ctrl%geoOpt)) then
+      if (this%tHelical) then
+        call error("GeometryOptimization driver currently does not support helical geometries")
+      end if
+
       allocate(this%filter)
       call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
       call createOptimizer(input%ctrl%geoOpt%optimizer, this%filter%getDimension(),&

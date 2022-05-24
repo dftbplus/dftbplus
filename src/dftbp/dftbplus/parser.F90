@@ -464,6 +464,11 @@ contains
     case ("geometryoptimization")
       modeName = "geometry optimization"
 
+      if (geom%tHelical) then
+        call detailedError(node, "GeometryOptimization driver currently does not support helical&
+            & geometries")
+      end if
+
       allocate(ctrl%geoOpt)
 
       call readGeoOptInput(node, geom, ctrl%geoOpt, atomsRange)
