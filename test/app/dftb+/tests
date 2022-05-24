@@ -56,7 +56,7 @@ helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
 helical/C6H6_stack                     #? MPI_PROCS == 1
 helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
 helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
-helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+helical/10-0Ctube_PEXSI                #? WITH_PEXSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
 dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
@@ -144,10 +144,12 @@ solvers/Si32C32_OMM_sparse             #? WITH_ELSI and MPI_PROCS <= 4 and OMP_T
 solvers/Si384_OMM                      #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si32C32_OMM_kpoints            #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_OMM_ks                 #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
-solvers/Si32C32_OMM_k_sparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
+#! Disabling as currently crashing when used with Conda ELSI (2.8.2)
+#! solvers/Si32C32_OMM_k_sparse           #? WITH_ELSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_OMM_ks_sparse          #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 16 and OMP_THREADS == 1
-solvers/Si32C32_LS_OMM                 #? WITH_ELSI and MPI_PROCS <= 20 and OMP_THREADS == 1
+#! Disabling as currently crashing when used with Conda ELSI (2.8.2)
+#! solvers/Si32C32_LS_OMM                 #? WITH_ELSI and MPI_PROCS <= 20 and OMP_THREADS == 1
 solvers/Si32C32_LS_OMM_kpt             #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 32 and OMP_THREADS == 1
 
 solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
@@ -177,7 +179,7 @@ derivatives/CH4_kpt_ons                #? MPI_PROCS <= 1
 derivatives/As4S4_LS_ons               #? MPI_PROCS <= 2
 derivatives/10-0Ctube_onsite           #? MPI_PROCS <= 4
 derivatives/C6H6_onsite                #? MPI_PROCS == 1
-derivatives/C6H6_partial               #? MPI_PROCS <= 1 
+derivatives/C6H6_partial               #? MPI_PROCS <= 1
 derivatives/CH4_RPA                    #? MPI_PROCS == 1
 
 derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
