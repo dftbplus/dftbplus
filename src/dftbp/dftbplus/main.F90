@@ -1033,31 +1033,36 @@ contains
 
         ! Note: if XLBOMD is active, potential created with input charges is needed later,
         ! therefore it should not be overwritten here.
-        if (this%tSccCalc .and. .not. this%isXlbomd) then
-          call resetInternalPotentials(this%tDualSpinOrbit, this%xi, this%orb, this%species,&
-              & this%potential)
-          call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
+        if (.not.this%isXlbomd) then
 
-          call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag,&
-              & this%qOutput, this%q0, this%chargePerShell, this%orb, this%multipoleOut,&
-              & this%species, this%neighbourList, this%img2CentCell, this%spinW, this%solvation,&
-              & this%thirdOrd, this%dispersion, this%potential)
+          if (this%tSccCalc) then
+            call resetInternalPotentials(this%tDualSpinOrbit, this%xi, this%orb, this%species,&
+                & this%potential)
+            call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
 
-          call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
-              & this%species, this%orb, this%potential)
+            call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag,&
+                & this%qOutput, this%q0, this%chargePerShell, this%orb, this%multipoleOut,&
+                & this%species, this%neighbourList, this%img2CentCell, this%spinW, this%solvation,&
+                & this%thirdOrd, this%dispersion, this%potential)
 
-          if (allocated(this%onSiteElements)) then
-            call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockOut,&
-                & this%qiBlockOut, this%onSiteElements, this%species, this%orb, this%q0)
+            call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
+                & this%species, this%orb, this%potential)
+
+            if (allocated(this%onSiteElements)) then
+              call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock,&
+                  & this%qBlockOut, this%qiBlockOut, this%onSiteElements, this%species, this%orb,&
+                  & this%q0)
+            end if
+
+            this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
           end if
 
-          this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
-        end if
+          if (allocated(this%qDepExtPot)) then
+            call getChargePerShell(this%qOutput, this%orb, this%species, dQ, qRef=this%q0)
+            call this%qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), this%orb,&
+                & this%species, this%potential%intBlock)
+          end if
 
-        if (allocated(this%qDepExtPot)) then
-          call getChargePerShell(this%qOutput, this%orb, this%species, dQ, qRef=this%q0)
-          call this%qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), this%orb,&
-              & this%species, this%potential%intBlock)
         end if
 
         call calcEnergies(this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
