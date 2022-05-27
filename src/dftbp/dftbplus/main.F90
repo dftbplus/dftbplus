@@ -914,8 +914,6 @@ contains
 
         if (this%tSccCalc) then
 
-          call getChargePerShell(this%qInput, this%orb, this%species, this%chargePerShell)
-
         #:if WITH_TRANSPORT
           ! Overrides input charges with uploaded contact charges
           if (this%tUpload) then
@@ -923,6 +921,8 @@ contains
                 & this%blockUp)
           end if
         #:endif
+
+          call getChargePerShell(this%qInput, this%orb, this%species, this%chargePerShell)
 
           call addChargePotentials(env, this%scc, this%tblite, .true., this%qInput, this%q0,&
               & this%chargePerShell, this%orb, this%multipoleInp, this%species, this%neighbourList,&
