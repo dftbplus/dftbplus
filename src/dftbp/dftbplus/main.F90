@@ -1021,7 +1021,7 @@ contains
       #:if WITH_TRANSPORT
         ! Override charges with uploaded contact charges
         if (this%tUpload) then
-          call overrideContactCharges(this%qOutput, this%chargeUp, this%transpar, this%qBlockIn,&
+          call overrideContactCharges(this%qOutput, this%chargeUp, this%transpar, this%qBlockOut,&
               & this%blockUp)
         end if
       #:endif
