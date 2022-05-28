@@ -922,20 +922,11 @@ contains
           end if
         #:endif
 
-          call getChargePerShell(this%qInput, this%orb, this%species, this%chargePerShell)
-
-          call addChargePotentials(env, this%scc, this%tblite, .true., this%qInput, this%q0,&
-              & this%chargePerShell, this%orb, this%multipoleInp, this%species, this%neighbourList,&
-              & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%dispersion,&
-              & this%potential)
-
-          call addBlockChargePotentials(this%qBlockIn, this%qiBlockIn, this%dftbU, this%tImHam,&
-              & this%species, this%orb, this%potential)
-
-          if (allocated(this%onSiteElements) .and. (iSCCIter > 1 .or. this%tReadChrg)) then
-            call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock, this%qBlockIn,&
-                & this%qiBlockIn, this%onSiteElements, this%species, this%orb, this%q0)
-          end if
+          call getInternalPotential(env, this%scc, this%tblite, .true., iSccIter, this%qInput,&
+              & this%q0, this%chargePerShell, this%orb, this%multipoleInp, this%species,&
+              & this%neighbourList, this%img2CentCell, this%spinW, this%onSiteElements,&
+              & this%solvation, this%thirdOrd, this%potential, this%dispersion, this%qBlockIn,&
+              & this%qiBlockIn, this%dftbU, this%tImHam, this%tReadChrg)
 
         end if
 
@@ -1038,21 +1029,12 @@ contains
           if (this%tSccCalc) then
             call resetInternalPotentials(this%tDualSpinOrbit, this%xi, this%orb, this%species,&
                 & this%potential)
-            call getChargePerShell(this%qOutput, this%orb, this%species, this%chargePerShell)
 
-            call addChargePotentials(env, this%scc, this%tblite, this%updateSccAfterDiag,&
-                & this%qOutput, this%q0, this%chargePerShell, this%orb, this%multipoleOut,&
-                & this%species, this%neighbourList, this%img2CentCell, this%spinW, this%solvation,&
-                & this%thirdOrd, this%dispersion, this%potential)
-
-            call addBlockChargePotentials(this%qBlockOut, this%qiBlockOut, this%dftbU, this%tImHam,&
-                & this%species, this%orb, this%potential)
-
-            if (allocated(this%onSiteElements)) then
-              call addOnsShift(this%potential%intBlock, this%potential%iOrbitalBlock,&
-                  & this%qBlockOut, this%qiBlockOut, this%onSiteElements, this%species, this%orb,&
-                  & this%q0)
-            end if
+            call getInternalPotential(env, this%scc, this%tblite, this%updateSccAfterDiag,&
+                & iSccIter, this%qOutput, this%q0, this%chargePerShell, this%orb, this%multipoleOut,&
+                & this%species, this%neighbourList, this%img2CentCell, this%spinW, this%onSiteElements,&
+                & this%solvation, this%thirdOrd, this%potential, this%dispersion, this%qBlockOut,&
+                & this%qiBlockOut, this%dftbU, this%tImHam, this%tReadChrg)
 
             this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
           end if
@@ -2215,6 +2197,104 @@ contains
     end if
 
   end subroutine initSccLoop
+
+
+  !> Add all internal potentials coming from electrostatics, possibly spin or dispersion
+  !> Add potentials coming from on-site block of the dual density matrix.
+  !> Add the block shift due to onsite matrix element contributions
+  subroutine getInternalPotential(env, sccCalc, tblite, updateScc, iSccIter, qInput,&
+      & q0, chargePerShell, orb, multipoles, species, neighbourList, img2CentCell,&
+      & spinW, onSiteElements, solvation, thirdOrd, potential, dispersion, qBlockIn,&
+      & qiBlockIn, dftbU, tImHam, tReadChrg)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> SCC module internal variables
+    type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Library interface handler
+    type(TTBLite), intent(inout), allocatable :: tblite
+
+    !> Whether the charges in the scc calculator should be updated before obtaining the potential
+    logical, intent(in) :: updateScc
+
+    !> Number of current SCC step
+    integer, intent(in) :: iSccIter
+
+    !> Input atomic populations
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> charges per atomic shell
+    real(dp), intent(inout) :: chargePerShell(:,:,:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Multipole information
+    type(TMultipole), intent(in) :: multipoles
+
+    !> species of all atoms
+    integer, intent(in) :: species(:)
+
+    !> neighbours to atoms
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> map from image atom to real atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> spin constants
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Solvation mode
+    class(TSolvation), allocatable, intent(inout) :: solvation
+
+    !> third order SCC interactions
+    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
+
+    !> Potentials acting
+    type(TPotentials), intent(inout) :: potential
+
+    !> Dispersion interactions object
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> block input charges
+    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
+
+    !> Imaginary part of input Mulliken block charges
+    real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
+
+    !> is this a +U calculation
+    type(TDftbU), intent(in), allocatable :: dftbU
+
+    !> does the hamiltonian have an imaginary part in real space?
+    logical, intent(in) :: tImHam
+
+    !> If initial charges/dens mtx. from external file.
+    logical, intent(in) :: tReadChrg
+
+    call getChargePerShell(qInput, orb, species, chargePerShell)
+
+    call addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0,&
+        & chargePerShell, orb, multipoles, species, neighbourList,&
+        & img2CentCell, spinW, solvation, thirdOrd, dispersion,&
+        & potential)
+
+    call addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam,&
+        & species, orb, potential)
+
+    if (allocated(onSiteElements) .and. (iSccIter > 1 .or. tReadChrg)) then
+      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn,&
+          & qiBlockIn, onSiteElements, species, orb, q0)
+    end if
+
+  end subroutine getInternalPotential
 
 
   !> Transform the hamiltonian from QM to UD representation
