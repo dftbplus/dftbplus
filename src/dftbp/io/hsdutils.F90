@@ -3079,7 +3079,7 @@ contains
 
     type(string) :: str
 
-    str = msg
+    str = trim(msg)
     call appendPathAndLine(node, str)
     call error(char(str) // newline)
 
