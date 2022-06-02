@@ -876,7 +876,7 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: filling(:,:,:)
 
     !> Square dense hamiltonian storage for cases with k-points
-    complex(dp), allocatable :: HSqrCplx(:,:)
+    complex(dp), allocatable :: HSqrCplx(:,:,:)
 
     !> Square dense overlap storage for cases with k-points
     complex(dp), allocatable :: SSqrCplx(:,:)
@@ -885,7 +885,7 @@ module dftbp_dftbplus_initprogram
     complex(dp), allocatable :: eigvecsCplx(:,:,:)
 
     !> Square dense hamiltonian storage
-    real(dp), allocatable :: HSqrReal(:,:)
+    real(dp), allocatable :: HSqrReal(:,:,:)
 
     !> Square dense overlap storage
     real(dp), allocatable :: SSqrReal(:,:)
@@ -4824,11 +4824,11 @@ contains
   #:endif
 
     if (this%t2Component .or. .not. this%tRealHS) then
-      allocate(this%HSqrCplx(nLocalRows, nLocalCols))
+      allocate(this%HSqrCplx(nLocalRows, nLocalCols, nLocalKS))
       allocate(this%SSqrCplx(nLocalRows, nLocalCols))
       allocate(this%eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
     else
-      allocate(this%HSqrReal(nLocalRows, nLocalCols))
+      allocate(this%HSqrReal(nLocalRows, nLocalCols, nLocalKS))
       allocate(this%SSqrReal(nLocalRows, nLocalCols))
       allocate(this%eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
     end if
