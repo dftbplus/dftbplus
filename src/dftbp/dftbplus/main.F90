@@ -943,10 +943,14 @@ contains
           call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
         end if
 
-        call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
-            & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
-            & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
+        call buildHamiltonian(env, this%denseDesc, this%ints, this%H0, this%neighbourList,&
+            & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%orb, this%species,&
+            & this%tHelical, this%coord, this%electronicSolver, this%parallelKS, this%rangeSep,&
+            & this%deltaRhoInSqr, this%qOutput, this%nNeighbourLC, this%tRealHS, this%potential,&
+            & this%reks, this%xi, this%kPoint, this%iCellVec, this%cellVec, this%HSqrReal,&
+            & this%SSqrReal, this%HSqrCplx, this%SSqrCplx)
 
+        ! Here, now H/S with dense form will be written
         if (this%tWriteRealHS .or. this%tWriteHS&
             & .and. any(this%electronicSolver%iSolver&
             & == [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
@@ -956,8 +960,6 @@ contains
               & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
               & this%iCellVec, this%cellVec, this%ints%hamiltonian, this%ints%iHamiltonian)
         end if
-
-        call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
 
         call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
             & this%neighbourList, this%nNeighbourSk, this%iSparseStart, this%img2CentCell,&
@@ -2297,6 +2299,151 @@ contains
   end subroutine getInternalPotential
 
 
+  !> Returns the Hamiltonian matrix with dense form.
+  subroutine buildHamiltonian(env, denseDesc, ints, H0, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, orb, species, tHelical, coord, electronicSolver,&
+      & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, tRealHS, potential,&
+      & reks, xi, kPoint, iCellVec, cellVec, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
+
+    !> non-SCC hamiltonian (sparse)
+    real(dp), intent(in) :: H0(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !>Data for rangeseparated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Change in density matrix during last rangesep SCC cycle
+    real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> potential acting on system
+    type(TPotentials), intent(in) :: potential
+
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(in) :: reks
+
+    !> spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> dense hamiltonian matrix
+    real(dp), intent(out) :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(out) :: SSqrReal(:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(out) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(ints%hamiltonian, dim=2)
+
+    call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species,&
+        & orb, iSparseStart, img2CentCell, potential, allocated(reks),&
+        & ints%hamiltonian, ints%iHamiltonian)
+
+    call convertToUpDownRepr(ints%hamiltonian, ints%iHamiltonian)
+
+    ! TODO : GF and ELSI should be added
+    select case (electronicSolver%iSolver)
+
+    case (electronicSolverTypes%GF)
+
+      call error("GF case not yet modified")
+
+    case (electronicSolverTypes%onlyTransport)
+
+      call error("OnlyTransport case not yet modified")
+
+    case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd)
+
+      if (nSpin /= 4) then
+        if (tRealHS) then
+          call buildDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
+              & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver,&
+              & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal)
+        else
+          call buildDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
+              & iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
+              & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx)
+        end if
+      else
+        call buildDensePauliHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
+            & parallelKS, HSqrCplx, SSqrCplx, xi, species)
+      end if
+
+    case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        &electronicSolverTypes%elpadm)
+
+      call error("ELSI case not yet modified")
+
+    end select
+
+  end subroutine buildHamiltonian
+
+
   !> Transform the hamiltonian from QM to UD representation
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
@@ -2326,6 +2473,327 @@ contains
     end if
 
   end subroutine convertToUpDownRepr
+
+
+  !> Builds dense Hamiltonians.
+  subroutine buildDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver, parallelKS,&
+      & rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !>Data for rangeseparated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Change in density matrix during last rangesep SCC cycle
+    real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
+
+    !> dense hamiltonian matrix
+    real(dp), intent(out) :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(out) :: SSqrReal(:,:)
+
+    integer :: iKS, iSpin
+
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      if (tHelical) then
+        call unpackHSHelicalRealBlacs(env%blacs, ints%hamiltonian(:,iSpin),&
+            & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, orb, species,&
+            & coord, denseDesc, HSqrReal(:,:,iKS))
+        if (.not. electronicSolver%hasCholesky(1)) then
+          call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal)
+        end if
+      else
+        call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, HSqrReal(:,:,iKS))
+        if (.not. electronicSolver%hasCholesky(1)) then
+          call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+        end if
+      end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+    #:else
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      if (tHelical) then
+        call unpackHelicalHS(HSqrReal(:,:,iKS), ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
+            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+      else
+        call unpackHS(HSqrReal(:,:,iKS), ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+      ! Add rangeseparated contribution
+      ! Assumes deltaRhoInSqr only used by rangeseparation
+      ! Should this be used elsewhere, need to pass isRangeSep
+      if (allocated(rangeSep)) then
+        call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
+        call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
+            & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
+            & orb, HSqrReal(:,:,iKS), SSqrReal)
+      end if
+
+    #:endif
+    end do
+
+  end subroutine buildDenseRealHam
+
+
+  !> Builds dense k-point dependent Hamiltonians.
+  subroutine buildDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
+      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
+      & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(out) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    integer :: iKS, iK, iSpin
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      if (tHelical) then
+        call unpackHSHelicalCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, orb, species, coord, denseDesc, HSqrCplx(:,:,iKS))
+        if (.not. electronicSolver%hasCholesky(iKS)) then
+          call unpackHSHelicalCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK),&
+              & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+              & img2CentCell, orb, species, coord, denseDesc, SSqrCplx)
+        end if
+      else
+        call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, denseDesc, HSqrCplx(:,:,iKS))
+        if (.not. electronicSolver%hasCholesky(iKS)) then
+          call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+        end if
+      end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+    #:else
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      if (tHelical) then
+        call unpackHelicalHS(HSqrCplx(:,:,iKS), ints%hamiltonian(:,iSpin), kPoint(:,iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
+            & iSparseStart, img2CentCell, orb, species, coord)
+        call unpackHelicalHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
+            & orb, species, coord)
+      else
+        call unpackHS(HSqrCplx(:,:,iKS), ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call unpackHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+    #:endif
+    end do
+
+  end subroutine buildDenseCplxHam
+
+
+  !> Builds Pauli two-component Hamiltonians.
+  subroutine buildDensePauliHam(env, denseDesc, ints, kPoint, neighbourList,&
+      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
+      & parallelKS, HSqrCplx, SSqrCplx, xi, species)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(out) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    !> spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> species of atoms
+    integer, intent(in), optional :: species(:)
+
+    integer :: iKS, iK
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+    #:if WITH_SCALAPACK
+      if (allocated(ints%iHamiltonian)) then
+        call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & HSqrCplx(:,:,iKS), iorig=ints%iHamiltonian)
+      else
+        call unpackHPauliBlacs(env%blacs, ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & HSqrCplx(:,:,iKS))
+      end if
+      if (.not. electronicSolver%hasCholesky(iKS)) then
+        call unpackSPauliBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & SSqrCplx)
+      end if
+    #:else
+      if (allocated(ints%iHamiltonian)) then
+        call unpackHPauli(ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx(:,:,iKS),&
+            & iHam=ints%iHamiltonian)
+      else
+        call unpackHPauli(ints%hamiltonian, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx(:,:,iKS))
+      end if
+      call unpackSPauli(ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
+    #:endif
+      if (allocated(xi) .and. .not. allocated(ints%iHamiltonian)) then
+        call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx(:,:,iKS))
+      end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+    end do
+
+  end subroutine buildDensePauliHam
 
 
   !> Returns the sparse density matrix.
