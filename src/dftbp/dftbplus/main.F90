@@ -950,7 +950,7 @@ contains
             & this%reks, this%xi, this%kPoint, this%iCellVec, this%cellVec, this%HSqrReal,&
             & this%SSqrReal, this%HSqrCplx, this%SSqrCplx)
 
-        ! Here, now H/S with dense form will be written
+        ! TODO : LC components are not yet added
         if (this%tWriteRealHS .or. this%tWriteHS&
             & .and. any(this%electronicSolver%iSolver&
             & == [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
@@ -959,6 +959,15 @@ contains
               & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
               & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
               & this%iCellVec, this%cellVec, this%ints%hamiltonian, this%ints%iHamiltonian)
+        end if
+
+        call solveHamiltonian(env, this%denseDesc, this%electronicSolver, this%parallelKS,&
+            & this%tRealHS, this%nSpin, this%nEl, this%tempElec, this%kWeight, this%tSpinSharedEf,&
+            & this%tFillKSep, this%tFixEf, this%iDistribFn, this%dftbEnergy(this%deltaDftb%iDeterminant),&
+            & this%deltaDftb, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%HSqrCplx,&
+            & this%SSqrCplx, this%eigvecsCplx, this%eigen, errStatus, this%Ef, this%filling)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
         end if
 
         call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
@@ -972,9 +981,6 @@ contains
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
             & this%qOutput, this%nNeighbourLC, this%tLargeDenseMatrices, this%deltaDftb, errStatus)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -2794,6 +2800,297 @@ contains
     end do
 
   end subroutine buildDensePauliHam
+
+
+  !> Solves KS equation by diagonalising dense Hamiltonians.
+  subroutine solveHamiltonian(env, denseDesc, electronicSolver, parallelKS, tRealHS,&
+      & nSpin, nEl, tempElec, kWeight, tSpinSharedEf, tFillKSep, tFixEf, iDistribFn,&
+      & energy, deltaDftb, HSqrReal, SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, eigen, errStatus, Ef, filling)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    !> Number of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Is the Fermi level common across spin channels?
+    logical, intent(in) :: tSpinSharedEf
+
+    !> Fill k-points separately if true (no charge transfer across the BZ)
+    logical, intent(in) :: tFillKSep
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> occupation function for electronic states
+    integer, intent(in) :: iDistribFn
+
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: energy
+
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
+
+    !> dense hamiltonian matrix
+    real(dp), intent(inout) :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(inout) :: SSqrReal(:,:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(out) :: eigvecsReal(:,:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> Eigenvectors on eixt
+    complex(dp), intent(out) :: eigvecsCplx(:,:,:)
+
+    !> eigenvalues
+    real(dp), intent(inout) :: eigen(:,:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
+    !> occupations (level, kpoint, spin)
+    real(dp), intent(out) :: filling(:,:,:)
+
+    ! TODO : GF and ELSI should be added
+    select case (electronicSolver%iSolver)
+
+    case (electronicSolverTypes%GF)
+
+      call error("GF case not yet modified")
+
+    case (electronicSolverTypes%onlyTransport)
+
+      call error("OnlyTransport case not yet modified")
+
+    case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd)
+
+      if (nSpin /= 4) then
+        if (tRealHS) then
+          call diagDenseRealHam(env, denseDesc, electronicSolver, parallelKS, HSqrReal,&
+              & SSqrReal, eigvecsReal, eigen(:,1,:), errStatus)
+        else
+          call diagDenseCplxHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+              & SSqrCplx, eigvecsCplx, eigen, errStatus)
+        end if
+      else
+        call diagDensePauliHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+            & SSqrCplx, eigvecsCplx, eigen(:,:,1), errStatus)
+      end if
+
+      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+          & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
+
+    case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        &electronicSolverTypes%elpadm)
+
+      call error("ELSI case not yet modified")
+
+    end select
+
+  end subroutine solveHamiltonian
+
+
+  !> Diagonalises dense Hamiltonians.
+  subroutine diagDenseRealHam(env, denseDesc, electronicSolver, parallelKS, HSqrReal,&
+      & SSqrReal, eigvecsReal, eigen, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> dense hamiltonian matrix
+    real(dp), intent(inout) :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(inout) :: SSqrReal(:,:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(out) :: eigvecsReal(:,:,:)
+
+    !> eigenvalues
+    real(dp), intent(out) :: eigen(:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: iKS, iSpin
+
+    eigen(:,:) = 0.0_dp
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal(:,:,iKS),&
+          & SSqrReal, eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    #:else
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal(:,:,iKS), SSqrReal, eigen(:,iSpin),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      eigvecsReal(:,:,iKS) = HSqrReal(:,:,iKS)
+    #:endif
+    end do
+
+  #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes via global summation
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
+  #:endif
+
+  end subroutine diagDenseRealHam
+
+
+  !> Diagonalises dense k-point dependent Hamiltonians.
+  subroutine diagDenseCplxHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, eigen, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> Eigenvectors on eixt
+    complex(dp), intent(out) :: eigvecsCplx(:,:,:)
+
+    !> eigenvalues
+    real(dp), intent(out) :: eigen(:,:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: iKS, iK, iSpin
+
+    eigen(:,:,:) = 0.0_dp
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
+          & SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    #:else
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), SSqrCplx, eigen(:,iK,iSpin),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      eigvecsCplx(:,:,iKS) = HSqrCplx(:,:,iKS)
+    #:endif
+    end do
+
+  #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes via global summation
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
+  #:endif
+
+  end subroutine diagDenseCplxHam
+
+
+  !> Diagonalizes Pauli two-component Hamiltonians.
+  subroutine diagDensePauliHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, eigen, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> Eigenvectors on eixt
+    complex(dp), intent(out) :: eigvecsCplx(:,:,:)
+
+    !> eigenvalues
+    real(dp), intent(out) :: eigen(:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: iKS, iK
+
+    eigen(:,:) = 0.0_dp
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+    #:if WITH_SCALAPACK
+      call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
+          & SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    #:else
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), SSqrCplx, eigen(:,iK),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      eigvecsCplx(:,:,iKS) = HSqrCplx(:,:,iKS)
+    #:endif
+    end do
+
+  #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes via global summation
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
+  #:endif
+
+  end subroutine diagDensePauliHam
 
 
   !> Returns the sparse density matrix.
