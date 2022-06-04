@@ -10,6 +10,7 @@
 !> Contains the routines for initialising modes.
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
@@ -115,6 +116,8 @@ contains
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     logical :: tWriteHSD ! HSD output?
+    type(string), allocatable :: searchPath(:)
+    character(len=:), allocatable :: strOut
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
@@ -164,7 +167,8 @@ contains
     ! oscillation cycles in animation
     nCycles = 3
 
-    !! Slater-Koster files
+    ! Slater-Koster files
+    call getParamSearchPath(searchPath)
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
         call init(skFiles(iSp1))
@@ -189,6 +193,8 @@ contains
         end if
         strTmp = trim(prefix) // trim(elem1) // trim(separator) &
             &// trim(elem1) // trim(suffix)
+        call findFile(searchPath, strTmp, strOut)
+        if (allocated(strOut)) strTmp = strOut
         call append(skFiles(iSp1), strTmp)
         inquire(file=strTmp, exist=tExist)
         if (.not. tExist) then

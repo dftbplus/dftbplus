@@ -34,4 +34,8 @@ foreach(test IN LISTS tests)
         -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
         -P "${MODES_RUNNER}" -p "$<TARGET_FILE:modes>"
         -s P,R,C,S ${test})
+  set_tests_properties(
+    modes_${test}
+    PROPERTIES
+    ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
 endforeach()
