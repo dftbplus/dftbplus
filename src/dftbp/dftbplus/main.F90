@@ -2313,7 +2313,7 @@ contains
   end subroutine getInternalPotential
 
 
-  !> Returns the Hamiltonian matrix with dense form.
+  !> An interface for constructing the Hamiltonian matrix with dense form.
   subroutine buildHamiltonian(env, denseDesc, ints, H0, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, species, tHelical, coord, electronicSolver,&
       & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, tRealHS, potential,&
@@ -2407,10 +2407,6 @@ contains
     !> dense overlap matrix
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
-    integer :: nSpin
-
-    nSpin = size(ints%hamiltonian, dim=2)
-
     call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species,&
         & orb, iSparseStart, img2CentCell, potential, allocated(reks),&
         & ints%hamiltonian, ints%iHamiltonian)
@@ -2432,21 +2428,10 @@ contains
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%magma_gvd)
 
-      if (nSpin /= 4) then
-        if (tRealHS) then
-          call buildDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
-              & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver,&
-              & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal)
-        else
-          call buildDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
-              & iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
-              & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx)
-        end if
-      else
-        call buildDensePauliHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
-            & parallelKS, HSqrCplx, SSqrCplx, xi, species)
-      end if
+      call buildDenseHam(env, denseDesc, ints, neighbourList, nNeighbourSK,&
+          & iSparseStart, img2CentCell, orb, species, tHelical, coord, electronicSolver,&
+          & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, tRealHS,&
+          & xi, kPoint, iCellVec, cellVec, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -2456,6 +2441,114 @@ contains
     end select
 
   end subroutine buildHamiltonian
+
+
+  !> Returns the Hamiltonian matrix with conventional solvers.
+  subroutine buildDenseHam(env, denseDesc, ints, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, orb, species, tHelical, coord, electronicSolver,&
+      & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, tRealHS,&
+      & xi, kPoint, iCellVec, cellVec, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !>Data for rangeseparated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Change in density matrix during last rangesep SCC cycle
+    real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> dense hamiltonian matrix
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(ints%hamiltonian, dim=2)
+
+    if (nSpin /= 4) then
+      if (tRealHS) then
+        call buildDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver,&
+            & parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal)
+      else
+        call buildDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
+            & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx)
+      end if
+    else
+      call buildDensePauliHam(env, denseDesc, ints, kPoint, neighbourList, nNeighbourSK,&
+          & iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
+          & parallelKS, HSqrCplx, SSqrCplx, xi, species)
+    end if
+
+  end subroutine buildDenseHam
 
 
   !> Transform the hamiltonian from QM to UD representation
