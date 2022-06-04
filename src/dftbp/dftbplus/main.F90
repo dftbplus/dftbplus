@@ -808,7 +808,7 @@ contains
         if (iSccIter == 1) then
           call getReksInitialSettings(env, this%denseDesc, this%h0, this%ints, this%neighbourList,&
               & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%electronicSolver,&
-              & iGeoStep, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%eigen, this%reks,&
+              & iGeoStep, this%HSqrReal(:,:,1), this%SSqrReal, this%eigvecsReal, this%eigen, this%reks,&
               & errStatus)
           @:PROPAGATE_ERROR(errStatus)
         end if
