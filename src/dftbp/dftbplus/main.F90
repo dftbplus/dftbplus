@@ -3101,6 +3101,115 @@ contains
   end subroutine diagDensePauliHam
 
 
+  !> Calculates electron fillings and resulting band energy terms.
+  subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, deltaDftb)
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(inout) :: eigvals(:,:,:)
+
+    !> Nr. of electrons for each spin channel
+    real(dp), intent(in) :: nElectrons(:)
+
+    !> Nr. of spin blocks in the Hamiltonian (1 - spin avg, 2 - colinear, 4 - non-colinear)
+    integer, intent(in) :: nSpinBlocks
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Weight of the k-points.
+    real(dp), intent(in) :: kWeights(:)
+
+    !> Whether for colinear spin a common Fermi level for both spin channels should be used
+    logical, intent(in) :: tSpinSharedEf
+
+    !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
+    logical, intent(in) :: tFillKSep
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> Selector for the distribution function
+    integer, intent(in) :: iDistribFn
+
+    !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
+    !> given number of electrons on exit
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Fillings (orbital, kpoint, spin)
+    real(dp), intent(out) :: fillings(:,:,:)
+
+    !> Band energies
+    real(dp), intent(out) :: Eband(:)
+
+    !> Band entropies
+    real(dp), intent(out) :: TS(:)
+
+    !> Band energies extrapolated to zero Kelvin
+    real(dp), intent(out) :: E0(:)
+
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
+
+    real(dp) :: EbandTmp(2), TSTmp(2), E0Tmp(2), EfTmp(2), nElecFill(2), kWeightTmp(2)
+    integer :: nSpinHams, nKPoints, nLevels, iS, iK, iConfig
+
+    nLevels = size(fillings, dim=1)
+    nKPoints = size(fillings, dim=2)
+    nSpinHams = size(fillings, dim=3)
+
+    if (nSpinBlocks == 1) then
+      ! Filling functions assume one electron per level, but for spin unpolarised we have two
+      nElecFill(1) = 0.5_dp * nElectrons(1)
+    else
+      nElecFill(:nSpinHams) = nElectrons(:nSpinHams)
+    end if
+
+    if (tFixEf) then
+      ! Fixed value of the Fermi level for each spin channel
+      do iS = 1, nSpinHams
+        call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
+      end do
+    else if (nSpinHams == 2 .and. tSpinSharedEf) then
+      ! Common Fermi level across two colinear spin channels
+      TS(:) = 0.0_dp
+      E0(:) = 0.0_dp
+      Eband(:) = 0.0_dp
+      call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
+          & iDistribFn)
+      Ef(2) = Ef(1)
+    else if (tFillKSep) then
+      ! Every spin channel and every k-point filled up individually.
+      Eband(:) = 0.0_dp
+      Ef(:) = 0.0_dp
+      TS(:) = 0.0_dp
+      E0(:) = 0.0_dp
+      kWeightTmp(:) = 1.0_dp
+      do iK = 1, nKPoints
+        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBandTmp(:nSpinHams), EfTmp, TSTmp, E0Tmp, nElecFill,&
+            & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
+        Eband(:) = Eband + EbandTmp(:nSpinHams) * kWeights(iK)
+        Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
+        TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
+        E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)
+      end do
+    else
+      call deltaDftb%detFilling(fillings, EBand, Ef, TS, E0, nElecFill, eigVals, tempElec,&
+          & kWeights, iDistribFn)
+    end if
+
+    if (nSpinBlocks == 1) then
+      ! Prefactor 2 for spin unpolarised calculations
+      Eband(:) = 2.0_dp * Eband
+      E0(:) = 2.0_dp * E0
+      TS(:) = 2.0_dp * TS
+      fillings(:,:,:) = 2.0_dp * fillings
+    end if
+
+  end subroutine getFillingsAndBandEnergies
+
+
   !> Returns the sparse density matrix.
   subroutine getDensity(env, denseDesc, electronicSolver, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
@@ -4615,115 +4724,6 @@ contains
     end if
 
   end subroutine getDensityFromPauliEigvecs
-
-
-  !> Calculates electron fillings and resulting band energy terms.
-  subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, deltaDftb)
-
-    !> Eigenvalue of each level, kpoint and spin channel
-    real(dp), intent(inout) :: eigvals(:,:,:)
-
-    !> Nr. of electrons for each spin channel
-    real(dp), intent(in) :: nElectrons(:)
-
-    !> Nr. of spin blocks in the Hamiltonian (1 - spin avg, 2 - colinear, 4 - non-colinear)
-    integer, intent(in) :: nSpinBlocks
-
-    !> Electronic temperature
-    real(dp), intent(in) :: tempElec
-
-    !> Weight of the k-points.
-    real(dp), intent(in) :: kWeights(:)
-
-    !> Whether for colinear spin a common Fermi level for both spin channels should be used
-    logical, intent(in) :: tSpinSharedEf
-
-    !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
-    logical, intent(in) :: tFillKSep
-
-    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
-    logical, intent(in) :: tFixEf
-
-    !> Selector for the distribution function
-    integer, intent(in) :: iDistribFn
-
-    !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
-    !> given number of electrons on exit
-    real(dp), intent(inout) :: Ef(:)
-
-    !> Fillings (orbital, kpoint, spin)
-    real(dp), intent(out) :: fillings(:,:,:)
-
-    !> Band energies
-    real(dp), intent(out) :: Eband(:)
-
-    !> Band entropies
-    real(dp), intent(out) :: TS(:)
-
-    !> Band energies extrapolated to zero Kelvin
-    real(dp), intent(out) :: E0(:)
-
-    !> Determinant derived type
-    type(TDftbDeterminants), intent(inout) :: deltaDftb
-
-    real(dp) :: EbandTmp(2), TSTmp(2), E0Tmp(2), EfTmp(2), nElecFill(2), kWeightTmp(2)
-    integer :: nSpinHams, nKPoints, nLevels, iS, iK, iConfig
-
-    nLevels = size(fillings, dim=1)
-    nKPoints = size(fillings, dim=2)
-    nSpinHams = size(fillings, dim=3)
-
-    if (nSpinBlocks == 1) then
-      ! Filling functions assume one electron per level, but for spin unpolarised we have two
-      nElecFill(1) = 0.5_dp * nElectrons(1)
-    else
-      nElecFill(:nSpinHams) = nElectrons(:nSpinHams)
-    end if
-
-    if (tFixEf) then
-      ! Fixed value of the Fermi level for each spin channel
-      do iS = 1, nSpinHams
-        call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
-      end do
-    else if (nSpinHams == 2 .and. tSpinSharedEf) then
-      ! Common Fermi level across two colinear spin channels
-      TS(:) = 0.0_dp
-      E0(:) = 0.0_dp
-      Eband(:) = 0.0_dp
-      call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn)
-      Ef(2) = Ef(1)
-    else if (tFillKSep) then
-      ! Every spin channel and every k-point filled up individually.
-      Eband(:) = 0.0_dp
-      Ef(:) = 0.0_dp
-      TS(:) = 0.0_dp
-      E0(:) = 0.0_dp
-      kWeightTmp(:) = 1.0_dp
-      do iK = 1, nKPoints
-        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBandTmp(:nSpinHams), EfTmp, TSTmp, E0Tmp, nElecFill,&
-            & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
-        Eband(:) = Eband + EbandTmp(:nSpinHams) * kWeights(iK)
-        Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
-        TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
-        E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)
-      end do
-    else
-      call deltaDftb%detFilling(fillings, EBand, Ef, TS, E0, nElecFill, eigVals, tempElec,&
-          & kWeights, iDistribFn)
-    end if
-
-    if (nSpinBlocks == 1) then
-      ! Prefactor 2 for spin unpolarised calculations
-      Eband(:) = 2.0_dp * Eband
-      E0(:) = 2.0_dp * E0
-      TS(:) = 2.0_dp * TS
-      fillings(:,:,:) = 2.0_dp * fillings
-    end if
-
-  end subroutine getFillingsAndBandEnergies
 
 
   !> Calculate Mulliken population from sparse density matrix.
