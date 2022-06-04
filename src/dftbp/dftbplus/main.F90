@@ -2396,16 +2396,16 @@ contains
     real(dp), intent(in) :: cellVec(:,:)
 
     !> dense hamiltonian matrix
-    real(dp), intent(out) :: HSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> dense hamiltonian matrix
-    complex(dp), intent(out) :: HSqrCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     integer :: nSpin
 
@@ -2862,22 +2862,22 @@ contains
     type(TDftbDeterminants), intent(inout) :: deltaDftb
 
     !> dense hamiltonian matrix
-    real(dp), intent(inout) :: HSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout) :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> Eigenvectors on eixt
-    real(dp), intent(out) :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> dense hamiltonian matrix
-    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout) :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     !> Eigenvectors on eixt
-    complex(dp), intent(out) :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> eigenvalues
     real(dp), intent(inout) :: eigen(:,:,:)
