@@ -4208,413 +4208,413 @@ contains
 !  #:endif
 !
 !  end subroutine buildAndDiagDensePauliHam
-!
-!
-!  !> Creates sparse density matrix from real eigenvectors.
-!  subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighbourList, nNeighbourSK,&
-!      & iSparseStart, img2CentCell, orb, species, iAtomStart, coord, tHelical, eigvecs, parallelKS,&
-!      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
-!
-!    !> Environment settings
-!    type(TEnvironment), intent(inout) :: env
-!
-!    !> Dense matrix descriptor
-!    type(TDenseDescr), intent(in) :: denseDesc
-!
-!    !> Filling
-!    real(dp), intent(in) :: filling(:,:)
-!
-!    !> list of neighbours for each atom
-!    type(TNeighbourList), intent(in) :: neighbourList
-!
-!    !> Number of neighbours for each of the atoms
-!    integer, intent(in) :: nNeighbourSK(:)
-!
-!    !> Index array for the start of atomic blocks in sparse arrays
-!    integer, intent(in) :: iSparseStart(:,:)
-!
-!    !> map from image atoms to the original unique atom
-!    integer, intent(in) :: img2CentCell(:)
-!
-!    !> Atomic orbital information
-!    type(TOrbitals), intent(in) :: orb
-!
-!    !> species of atoms
-!    integer, intent(in), optional :: species(:)
-!
-!    !> Start of atomic blocks in dense arrays
-!    integer, allocatable, intent(in) :: iAtomStart(:)
-!
-!    !> K-points and spins to process
-!    type(TParallelKS), intent(in) :: parallelKS
-!
-!    !> all coordinates
-!    real(dp), intent(in) :: coord(:,:)
-!
-!    !> Is the geometry helical
-!    logical, intent(in) :: tHelical
-!
-!    !> eigenvectors
-!    real(dp), intent(inout) :: eigvecs(:,:,:)
-!
-!    !> sparse density matrix
-!    real(dp), intent(out) :: rhoPrim(:,:)
-!
-!    !> work space array
-!    real(dp), intent(out) :: work(:,:)
-!
-!    !> Dense density matrix if needed
-!    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
-!
-!    !> Change in density matrix during this SCC step for rangesep
-!    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
-!
-!    integer :: iKS, iSpin
-!
-!    rhoPrim(:,:) = 0.0_dp
-!    do iKS = 1, parallelKS%nLocalKS
-!      iSpin = parallelKS%localKS(2, iKS)
-!
-!    #:if WITH_SCALAPACK
-!      call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iSpin),&
-!          & eigvecs(:,:,iKS), work)
-!      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!      if (tHelical) then
-!        call packRhoHelicalRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour,&
-!            & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
-!      else
-!        call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
-!            & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
-!      end if
-!      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!    #:else
-!      !> Either pack density matrix or delta density matrix
-!      if(.not. associated(deltaRhoOutSqr)) then
-!        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
-!        call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!        if (tHelical) then
-!          call packHelicalHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
-!              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-!        else
-!          call packHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-!              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!        end if
-!        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!      else
-!        ! Rangeseparated case: pack delta density matrix
-!        call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
-!            & eigvecs(:,:,iKS), filling(:,iSpin))
-!        call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!        if (tHelical) then
-!          call packHelicalHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
-!              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-!        else
-!          call packHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
-!              & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!        end if
-!        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!      end if
-!    #:endif
-!
-!      if (allocated(rhoSqrReal)) then
-!        rhoSqrReal(:,:,iSpin) = work
-!      end if
-!    end do
-!
-!  #:if WITH_SCALAPACK
-!    ! Add up and distribute density matrix contribution from each group
-!    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-!  #:endif
-!
-!  end subroutine getDensityFromRealEigvecs
-!
-!
-!  !> Creates sparse density matrix from complex eigenvectors.
-!  subroutine getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
-!      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS, tHelical,&
-!      & species, coord, eigvecs, rhoPrim, work)
-!
-!    !> Environment settings
-!    type(TEnvironment), intent(inout) :: env
-!
-!    !> Dense matrix descriptor
-!    type(TDenseDescr), intent(in) :: denseDesc
-!
-!    !> Occupations of single particle states in the ground state
-!    real(dp), intent(in) :: filling(:,:,:)
-!
-!    !> k-points
-!    real(dp), intent(in) :: kPoint(:,:)
-!
-!    !> Weights for k-points
-!    real(dp), intent(in) :: kWeight(:)
-!
-!    !> list of neighbours for each atom
-!    type(TNeighbourList), intent(in) :: neighbourList
-!
-!    !> Number of neighbours for each of the atoms
-!    integer, intent(in) :: nNeighbourSK(:)
-!
-!    !> Index array for the start of atomic blocks in sparse arrays
-!    integer, intent(in) :: iSparseStart(:,:)
-!
-!    !> map from image atoms to the original unique atom
-!    integer, intent(in) :: img2CentCell(:)
-!
-!    !> Index for which unit cell atoms are associated with
-!    integer, intent(in) :: iCellVec(:)
-!
-!    !> Vectors (in units of the lattice constants) to cells of the lattice
-!    real(dp), intent(in) :: cellVec(:,:)
-!
-!    !> Atomic orbital information
-!    type(TOrbitals), intent(in) :: orb
-!
-!    !> K-points and spins to process
-!    type(TParallelKS), intent(in) :: parallelKS
-!
-!    !> Is the geometry helical
-!    logical, intent(in) :: tHelical
-!
-!    !> species for atoms
-!    integer, intent(in) :: species(:)
-!
-!    !> all coordinates
-!    real(dp), intent(in) :: coord(:,:)
-!
-!    !> eigenvectors of the system
-!    complex(dp), intent(inout) :: eigvecs(:,:,:)
-!
-!    !> density matrix in sparse storage
-!    real(dp), intent(out) :: rhoPrim(:,:)
-!
-!    !> workspace array
-!    complex(dp), intent(out) :: work(:,:)
-!
-!    integer :: iKS, iK, iSpin
-!
-!    rhoPrim(:,:) = 0.0_dp
-!
-!    do iKS = 1, parallelKS%nLocalKS
-!      iK = parallelKS%localKS(1, iKS)
-!      iSpin = parallelKS%localKS(2, iKS)
-!    #:if WITH_SCALAPACK
-!      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK&
-!          &,iSpin), eigvecs(:,:,iKS), work)
-!      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!      if (tHelical) then
-!        call packRhoHelicalCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
-!            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
-!            & img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
-!      else
-!        call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
-!            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-!            & img2CentCell, rhoPrim(:,iSpin))
-!      end if
-!      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!    #:else
-!      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
-!      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!      if (tHelical) then
-!        call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
-!            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
-!            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-!      else
-!        call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-!            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-!            & img2CentCell)
-!      end if
-!      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!    #:endif
-!    end do
-!
-!  #:if WITH_SCALAPACK
-!    ! Add up and distribute density matrix contribution from each group
-!    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-!  #:endif
-!
-!  end subroutine getDensityFromCplxEigvecs
-!
-!
-!  !> Creates sparse density matrix from two component complex eigenvectors.
-!  subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
-!      & tMulliken, kPoint, kWeight, filling, neighbourList, nNeighbourSK, orb, iSparseStart,&
-!      & img2CentCell, iCellVec, cellVec, species, parallelKS, deltaDftb, eigvecs, work, dftbEnergy,&
-!      & rhoPrim, xi, orbitalL, iRhoPrim)
-!
-!    !> Environment settings
-!    type(TEnvironment), intent(inout) :: env
-!
-!    !> Dense matrix descriptor
-!    type(TDenseDescr), intent(in) :: denseDesc
-!
-!    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
-!    logical, intent(in) :: tRealHS
-!
-!    !> Are spin orbit interactions present
-!    logical, intent(in) :: tSpinOrbit
-!
-!    !> Are block population spin orbit interactions present
-!    logical, intent(in) :: tDualSpinOrbit
-!
-!    !> Should Mulliken populations be generated/output
-!    logical, intent(in) :: tMulliken
-!
-!    !> k-points
-!    real(dp), intent(in) :: kPoint(:,:)
-!
-!    !> Weights for k-points
-!    real(dp), intent(in) :: kWeight(:)
-!
-!    !> occupations of molecular orbitals/Bloch states
-!    real(dp), intent(in) :: filling(:,:)
-!
-!    !> list of neighbours for each atom
-!    type(TNeighbourList), intent(in) :: neighbourList
-!
-!    !> Number of neighbours for each of the atoms
-!    integer, intent(in) :: nNeighbourSK(:)
-!
-!    !> Atomic orbital information
-!    type(TOrbitals), intent(in) :: orb
-!
-!    !> Index array for the start of atomic blocks in sparse arrays
-!    integer, intent(in) :: iSparseStart(:,:)
-!
-!    !> map from image atoms to the original unique atom
-!    integer, intent(in) :: img2CentCell(:)
-!
-!    !> Index for which unit cell atoms are associated with
-!    integer, intent(in) :: iCellVec(:)
-!
-!    !> Vectors (in units of the lattice constants) to cells of the lattice
-!    real(dp), intent(in) :: cellVec(:,:)
-!
-!    !> species of all atoms in the system
-!    integer, intent(in) :: species(:)
-!
-!    !> K-points and spins to process
-!    type(TParallelKS), intent(in) :: parallelKS
-!
-!    !> Determinant derived type
-!    type(TDftbDeterminants), intent(inout) :: deltaDftb
-!
-!    !> eigenvectors
-!    complex(dp), intent(inout) :: eigvecs(:,:,:)
-!
-!    !> work space array
-!    complex(dp), intent(inout) :: work(:,:)
-!
-!    !> Energy contributions and total
-!    type(TEnergies), intent(inout) :: dftbEnergy
-!
-!    !> sparse stored density matrix
-!    real(dp), intent(out) :: rhoPrim(:,:)
-!
-!    !> spin orbit constants
-!    real(dp), intent(in), allocatable :: xi(:,:)
-!
-!    !> Angular momentum of atomic shells
-!    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
-!
-!    !> imaginary part of density matrix  if required
-!    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
-!
-!
-!    real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
-!    integer :: nAtom
-!    integer :: iKS, iK
-!    logical :: tImHam
-!
-!    nAtom = size(orb%nOrbAtom)
-!    tImHam = allocated(iRhoPrim)
-!
-!    rhoPrim(:,:) = 0.0_dp
-!    if (allocated(iRhoPrim)) then
-!      iRhoPrim(:,:) = 0.0_dp
-!    end if
-!    work(:,:) = 0.0_dp
-!
-!    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-!      dftbEnergy%atomLS(:) = 0.0_dp
-!      allocate(rVecTemp(nAtom))
-!    end if
-!
-!    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
-!      allocate(orbitalLPart(3, orb%mShell, nAtom))
-!      orbitalL(:,:,:) = 0.0_dp
-!    end if
-!
-!    do iKS = 1, parallelKS%nLocalKS
-!      iK = parallelKS%localKS(1, iKS)
-!
-!    #:if WITH_SCALAPACK
-!      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
-!          & eigvecs(:,:,iKS), work)
-!    #:else
-!      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
-!    #:endif
-!      if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-!        call getOnsiteSpinOrbitEnergy(env, rVecTemp, work, denseDesc, xi, orb, species)
-!        dftbEnergy%atomLS = dftbEnergy%atomLS + kWeight(iK) * rVecTemp
-!        if (tMulliken) then
-!          orbitalLPart(:,:,:) = 0.0_dp
-!          call getLOnsite(env, orbitalLPart, work, denseDesc, orb, species)
-!          orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
-!        end if
-!      end if
-!
-!      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!    #:if WITH_SCALAPACK
-!      if (tImHam) then
-!        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
-!            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-!            & img2CentCell, rhoPrim, iRhoPrim)
-!      else
-!        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
-!            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-!            & img2CentCell, rhoPrim)
-!      end if
-!    #:else
-!      if (tRealHS) then
-!        call packHSPauli(rhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-!            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!        if (tImHam) then
-!          call packHSPauliImag(iRhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-!              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!        end if
-!      else
-!        call packHS(rhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-!            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-!            & img2CentCell)
-!        if (tImHam) then
-!          call iPackHS(iRhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-!              & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-!              & img2CentCell)
-!        end if
-!      end if
-!    #:endif
-!      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!    end do
-!
-!  #:if WITH_SCALAPACK
-!    call env%globalTimer%startTimer(globalTimers%denseToSparse)
-!    ! Add up and distribute contributions from each group
-!    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-!    if (allocated(iRhoPrim)) then
-!      call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
-!    end if
-!    call mpifx_allreduceip(env%mpi%globalComm, dftbEnergy%atomLS, MPI_SUM)
-!    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
-!      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
-!    end if
-!    call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-!  #:endif
-!    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-!      dftbEnergy%ELS = sum(dftbEnergy%atomLS)
-!    end if
-!
-!  end subroutine getDensityFromPauliEigvecs
+
+
+  !> Creates sparse density matrix from real eigenvectors.
+  subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, orb, species, iAtomStart, coord, tHelical, eigvecs, parallelKS,&
+      & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Filling
+    real(dp), intent(in) :: filling(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of atoms
+    integer, intent(in), optional :: species(:)
+
+    !> Start of atomic blocks in dense arrays
+    integer, allocatable, intent(in) :: iAtomStart(:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> all coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> eigenvectors
+    real(dp), intent(inout) :: eigvecs(:,:,:)
+
+    !> sparse density matrix
+    real(dp), intent(out) :: rhoPrim(:,:)
+
+    !> work space array
+    real(dp), intent(out) :: work(:,:)
+
+    !> Dense density matrix if needed
+    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
+
+    !> Change in density matrix during this SCC step for rangesep
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
+
+    integer :: iKS, iSpin
+
+    rhoPrim(:,:) = 0.0_dp
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
+
+    #:if WITH_SCALAPACK
+      call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iSpin),&
+          & eigvecs(:,:,iKS), work)
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      if (tHelical) then
+        call packRhoHelicalRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
+      else
+        call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
+            & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+      end if
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+    #:else
+      !> Either pack density matrix or delta density matrix
+      if(.not. associated(deltaRhoOutSqr)) then
+        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        if (tHelical) then
+          call packHelicalHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call packHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+      else
+        ! Rangeseparated case: pack delta density matrix
+        call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
+            & eigvecs(:,:,iKS), filling(:,iSpin))
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        if (tHelical) then
+          call packHelicalHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call packHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+      end if
+    #:endif
+
+      if (allocated(rhoSqrReal)) then
+        rhoSqrReal(:,:,iSpin) = work
+      end if
+    end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute density matrix contribution from each group
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+  #:endif
+
+  end subroutine getDensityFromRealEigvecs
+
+
+  !> Creates sparse density matrix from complex eigenvectors.
+  subroutine getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
+      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS, tHelical,&
+      & species, coord, eigvecs, rhoPrim, work)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Occupations of single particle states in the ground state
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> species for atoms
+    integer, intent(in) :: species(:)
+
+    !> all coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> eigenvectors of the system
+    complex(dp), intent(inout) :: eigvecs(:,:,:)
+
+    !> density matrix in sparse storage
+    real(dp), intent(out) :: rhoPrim(:,:)
+
+    !> workspace array
+    complex(dp), intent(out) :: work(:,:)
+
+    integer :: iKS, iK, iSpin
+
+    rhoPrim(:,:) = 0.0_dp
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK&
+          &,iSpin), eigvecs(:,:,iKS), work)
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      if (tHelical) then
+        call packRhoHelicalCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
+      else
+        call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, rhoPrim(:,iSpin))
+      end if
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+    #:else
+      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      if (tHelical) then
+        call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+      else
+        call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+    #:endif
+    end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute density matrix contribution from each group
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+  #:endif
+
+  end subroutine getDensityFromCplxEigvecs
+
+
+  !> Creates sparse density matrix from two component complex eigenvectors.
+  subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
+      & tMulliken, kPoint, kWeight, filling, neighbourList, nNeighbourSK, orb, iSparseStart,&
+      & img2CentCell, iCellVec, cellVec, species, parallelKS, deltaDftb, eigvecs, work, dftbEnergy,&
+      & rhoPrim, xi, orbitalL, iRhoPrim)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> Are spin orbit interactions present
+    logical, intent(in) :: tSpinOrbit
+
+    !> Are block population spin orbit interactions present
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> Should Mulliken populations be generated/output
+    logical, intent(in) :: tMulliken
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> occupations of molecular orbitals/Bloch states
+    real(dp), intent(in) :: filling(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
+
+    !> eigenvectors
+    complex(dp), intent(inout) :: eigvecs(:,:,:)
+
+    !> work space array
+    complex(dp), intent(inout) :: work(:,:)
+
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: dftbEnergy
+
+    !> sparse stored density matrix
+    real(dp), intent(out) :: rhoPrim(:,:)
+
+    !> spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> Angular momentum of atomic shells
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
+
+    !> imaginary part of density matrix  if required
+    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
+
+
+    real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
+    integer :: nAtom
+    integer :: iKS, iK
+    logical :: tImHam
+
+    nAtom = size(orb%nOrbAtom)
+    tImHam = allocated(iRhoPrim)
+
+    rhoPrim(:,:) = 0.0_dp
+    if (allocated(iRhoPrim)) then
+      iRhoPrim(:,:) = 0.0_dp
+    end if
+    work(:,:) = 0.0_dp
+
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      dftbEnergy%atomLS(:) = 0.0_dp
+      allocate(rVecTemp(nAtom))
+    end if
+
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      allocate(orbitalLPart(3, orb%mShell, nAtom))
+      orbitalL(:,:,:) = 0.0_dp
+    end if
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+
+    #:if WITH_SCALAPACK
+      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
+          & eigvecs(:,:,iKS), work)
+    #:else
+      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
+    #:endif
+      if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+        call getOnsiteSpinOrbitEnergy(env, rVecTemp, work, denseDesc, xi, orb, species)
+        dftbEnergy%atomLS = dftbEnergy%atomLS + kWeight(iK) * rVecTemp
+        if (tMulliken) then
+          orbitalLPart(:,:,:) = 0.0_dp
+          call getLOnsite(env, orbitalLPart, work, denseDesc, orb, species)
+          orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
+        end if
+      end if
+
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
+    #:if WITH_SCALAPACK
+      if (tImHam) then
+        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, rhoPrim, iRhoPrim)
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, rhoPrim)
+      end if
+    #:else
+      if (tRealHS) then
+        call packHSPauli(rhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        if (tImHam) then
+          call packHSPauliImag(iRhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
+      else
+        call packHS(rhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell)
+        if (tImHam) then
+          call iPackHS(iRhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+              & img2CentCell)
+        end if
+      end if
+    #:endif
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+    end do
+
+  #:if WITH_SCALAPACK
+    call env%globalTimer%startTimer(globalTimers%denseToSparse)
+    ! Add up and distribute contributions from each group
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+    if (allocated(iRhoPrim)) then
+      call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
+    end if
+    call mpifx_allreduceip(env%mpi%globalComm, dftbEnergy%atomLS, MPI_SUM)
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
+    end if
+    call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+  #:endif
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      dftbEnergy%ELS = sum(dftbEnergy%atomLS)
+    end if
+
+  end subroutine getDensityFromPauliEigvecs
 
 
   !> Calculates electron fillings and resulting band energy terms.
