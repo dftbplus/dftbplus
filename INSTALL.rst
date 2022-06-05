@@ -172,6 +172,13 @@ include the Slater-Koster (slako) data for testing the compiled code.
 For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
 
+Slater-Koster file locations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The DFTB+ code checks the shell variable `DFTBPLUS_PARAM_DIR` when
+setting the path to check the Prefix keyword for finding data. If
+unset, it assumes the local directory as the starting path.
+
 
 Building
 ========
