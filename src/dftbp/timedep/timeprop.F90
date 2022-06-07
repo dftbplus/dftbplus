@@ -3724,7 +3724,7 @@ contains
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
-    if (this%tLaser .and. .not. this%tdFieldThroughAPI) then
+    if (this%tLaser .and. .not. this%tdFieldThroughAPI .and. this%iCall == 1) then
       call getTDFunction(this, this%startTime)
     end if
 
@@ -3739,12 +3739,15 @@ contains
       call initLatticeVectors(this, boundaryCond)
     end if
 
+    call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
+        & this%populDat, this%forceDat, this%coorDat)
+
     ! Write density at t=0
     if (this%tPump .and. .not. this%tReadRestart) then
       allocate(velInternal(3,size(this%movedVelo, dim=2)))
         velInternal(:,:) = 0.0_dp
       call writeRestartFile(this%trho, this%trho, coord, velInternal, this%startTime, this%dt,&
-          & '0ppdump', this%tWriteRestartAscii, errStatus)
+          & trim(pumpFilesDir) // '/0ppdump', this%tWriteRestartAscii, errStatus)
       @:PROPAGATE_ERROR(errStatus)
       deallocate(velInternal)
     end if
@@ -3763,9 +3766,6 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
-
-    call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
-        & this%populDat, this%forceDat, this%coorDat)
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
@@ -3799,6 +3799,12 @@ contains
       call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
     end if
 
+    ! after calculating the TD function, set initial time to zero for probe simulations
+    ! this is to properly calculate the dipole fourier transform after the simulation
+    if (this%tProbe) then
+      this%startTime = 0.0_dp
+    end if
+
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
       call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
@@ -3820,14 +3826,7 @@ contains
           & 0)
     end if
 
-
     ! now first step of dynamics is computed (init of leapfrog and first step of nuclei)
-
-    ! after calculating the TD function, set initial time to zero for probe simulations
-    ! this is to properly calculate the dipole fourier transform after the simulation
-    if (this%tProbe) then
-      this%startTime = 0.0_dp
-    end if
 
     ! had to add the "or tKick" option to override rhoOld if tReadRestart = yes, otherwise it will
     ! be badly initialised
