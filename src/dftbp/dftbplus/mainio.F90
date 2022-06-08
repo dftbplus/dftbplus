@@ -4024,11 +4024,8 @@ contains
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
 
-    hamUpDown = ham
-    call qm2ud(hamUpDown)
-
     ! Write out matrices if necessary and quit.
-    call writeHS(env, tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighbourList%iNeighbour,&
+    call writeHS(env, tWriteHS, tWriteRealHS, tRealHS, ham, over, neighbourList%iNeighbour,&
         & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     call env%destruct()
