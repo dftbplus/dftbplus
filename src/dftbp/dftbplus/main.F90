@@ -3392,7 +3392,7 @@ contains
   end subroutine getFillingsAndBandEnergies
 
 
-  !> Returns the sparse density matrix.
+  !> An interface for calculating the density matrix.
   subroutine getDensity(env, denseDesc, electronicSolver, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
       & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, deltaDftb,&
@@ -3532,7 +3532,7 @@ contains
   end subroutine getDensity
 
 
-  !> Returns the density matrix using eigenvectors.
+  !> Returns the sparse density matrix with conventional solvers.
   subroutine getDensityFromEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
       & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, deltaDftb,&
