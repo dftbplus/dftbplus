@@ -4014,7 +4014,6 @@ contains
     !> imaginary part of hamiltonian (used if allocated)
     real(dp), allocatable, intent(in) :: iHam(:,:)
 
-    real(dp), allocatable :: hamUpDown(:,:)
     integer :: nSpin
 
     nSpin = size(ham, dim=2)

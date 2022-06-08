@@ -950,7 +950,6 @@ contains
             & this%reks, this%xi, this%kPoint, this%iCellVec, this%cellVec, this%HSqrReal,&
             & this%SSqrReal, this%HSqrCplx, this%SSqrCplx)
 
-        ! TODO : LC components are not yet added
         if (this%tWriteRealHS .or. this%tWriteHS&
             & .and. any(this%electronicSolver%iSolver&
             & == [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
@@ -2594,7 +2593,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Integral container
-    type(TIntegral), intent(in) :: ints
+    type(TIntegral), intent(inout) :: ints
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -2692,6 +2691,18 @@ contains
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
             & orb, HSqrReal(:,:,iKS), SSqrReal)
       end if
+
+      ! Re-assign the values including rangeseparated contribution to sparse hamiltonian
+      ints%hamiltonian(:,iSpin) = 0.0_dp
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      if (tHelical) then
+        call packHelicalHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
+            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+      else
+        call packHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
 
     #:endif
     end do
