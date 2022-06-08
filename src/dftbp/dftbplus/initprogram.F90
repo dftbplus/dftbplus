@@ -4672,11 +4672,10 @@ contains
 
     ! Decides whether large dense matricese should be allocated
     ! Currently needed by dense eigensolvers, hence not needed if
-    ! 1. only H/S should be printed
-    ! 2. Solver == GreensFunctions
-    ! 3. Solver == TransportOnly
-    ! 4. Solver == ELSI using a sparse solver
-    this%tLargeDenseMatrices = .not. (this%tWriteRealHS .or. this%tWriteHS .or. &
+    ! 1. Solver == GreensFunctions
+    ! 2. Solver == TransportOnly
+    ! 3. Solver == ELSI using a sparse solver
+    this%tLargeDenseMatrices = .not. (&
           &   (this%electronicSolver%iSolver == electronicSolverTypes%GF) .or. &
           &   (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) )
     if (this%electronicSolver%isElsiSolver) then
