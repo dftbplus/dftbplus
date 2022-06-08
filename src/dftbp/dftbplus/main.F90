@@ -2903,7 +2903,7 @@ contains
   end subroutine buildDensePauliHam
 
 
-  !> Solves KS equation by diagonalising dense Hamiltonians.
+  !> An interface for solving SCF problem.
   subroutine solveHamiltonian(env, denseDesc, electronicSolver, parallelKS, tRealHS,&
       & nSpin, nEl, tempElec, kWeight, tSpinSharedEf, tFillKSep, tFixEf, iDistribFn,&
       & energy, deltaDftb, HSqrReal, SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx,&
@@ -2999,21 +2999,10 @@ contains
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%magma_gvd)
 
-      if (nSpin /= 4) then
-        if (tRealHS) then
-          call diagDenseRealHam(env, denseDesc, electronicSolver, parallelKS, HSqrReal,&
-              & SSqrReal, eigvecsReal, eigen(:,1,:), errStatus)
-        else
-          call diagDenseCplxHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
-              & SSqrCplx, eigvecsCplx, eigen, errStatus)
-        end if
-      else
-        call diagDensePauliHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
-            & SSqrCplx, eigvecsCplx, eigen(:,:,1), errStatus)
-      end if
-
-      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-          & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
+      call solveKSEquation(env, denseDesc, electronicSolver, parallelKS, tRealHS,&
+          & nSpin, nEl, tempElec, kWeight, tSpinSharedEf, tFillKSep, tFixEf, iDistribFn,&
+          & energy, deltaDftb, HSqrReal, SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx,&
+          & eigvecsCplx, eigen, errStatus, Ef, filling)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -3023,6 +3012,106 @@ contains
     end select
 
   end subroutine solveHamiltonian
+
+
+  !> Solves KS equation by diagonalising dense Hamiltonians.
+  subroutine solveKSEquation(env, denseDesc, electronicSolver, parallelKS, tRealHS,&
+      & nSpin, nEl, tempElec, kWeight, tSpinSharedEf, tFillKSep, tFixEf, iDistribFn,&
+      & energy, deltaDftb, HSqrReal, SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, eigen, errStatus, Ef, filling)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    !> Number of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Is the Fermi level common across spin channels?
+    logical, intent(in) :: tSpinSharedEf
+
+    !> Fill k-points separately if true (no charge transfer across the BZ)
+    logical, intent(in) :: tFillKSep
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> occupation function for electronic states
+    integer, intent(in) :: iDistribFn
+
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: energy
+
+    !> Determinant derived type
+    type(TDftbDeterminants), intent(inout) :: deltaDftb
+
+    !> dense hamiltonian matrix
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
+
+    !> dense overlap matrix
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> Eigenvectors on eixt
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
+
+    !> eigenvalues
+    real(dp), intent(inout) :: eigen(:,:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
+    !> occupations (level, kpoint, spin)
+    real(dp), intent(out) :: filling(:,:,:)
+
+    if (nSpin /= 4) then
+      if (tRealHS) then
+        call diagDenseRealHam(env, denseDesc, electronicSolver, parallelKS, HSqrReal,&
+            & SSqrReal, eigvecsReal, eigen(:,1,:), errStatus)
+      else
+        call diagDenseCplxHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+            & SSqrCplx, eigvecsCplx, eigen, errStatus)
+      end if
+    else
+      call diagDensePauliHam(env, denseDesc, electronicSolver, parallelKS, HSqrCplx,&
+          & SSqrCplx, eigvecsCplx, eigen(:,:,1), errStatus)
+    end if
+
+    call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
+
+  end subroutine solveKSEquation
 
 
   !> Diagonalises dense Hamiltonians.
