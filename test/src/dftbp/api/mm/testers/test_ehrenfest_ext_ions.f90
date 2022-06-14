@@ -97,7 +97,7 @@ program test_ehrenfest
   call setChild(pElecDyn, "Perturbation", pPerturb)
   call setChild(pPerturb, "Laser", pLaser)
   ! these twovalues will be overriden
-  call setChildValue(pLaser, "PolarizationDirection", [0.0_dp, 1.0_dp, 1.0_dp])
+  call setChildValue(pLaser, "PolarisationDirection", [0.0_dp, 1.0_dp, 1.0_dp])
   call setChildValue(pLaser, "LaserEnergy", 1.0_dp)
 
   norm = sqrt(dot_product(poldir, poldir))
