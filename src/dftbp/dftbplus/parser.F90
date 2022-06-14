@@ -111,12 +111,14 @@ module dftbp_dftbplus_parser
 
   !> Mapping between input version and parser version
   type :: TVersionMap
+    !> named version of parser input
     character(10) :: inputVersion
+    !> Corresponding numerical version of parser input
     integer :: parserVersion
   end type TVersionMap
 
-  !> Actual input version - parser version maps (must be updated at every public release)
-  type(TVersionMap), parameter :: versionMaps(*) = [&
+  !> Actual input version <-> parser version maps (must be updated at every public release)
+  type(TVersionMap), parameter :: versionMaps(*) = [TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -466,11 +468,11 @@ contains
     case ("none")
       modeName = ""
       continue
-    case ("geometryoptimization")
-      modeName = "geometry optimization"
+    case ("geometryoptimisation")
+      modeName = "geometry optimisation"
 
       if (geom%tHelical) then
-        call detailedError(node, "GeometryOptimization driver currently does not support helical&
+        call detailedError(node, "GeometryOptimisation driver currently does not support helical&
             & geometries")
       end if
 
@@ -488,7 +490,7 @@ contains
       modeName = "geometry relaxation"
       call detailedWarning(node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+          & "Please use the GeometryOptimisation driver instead.")
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
@@ -498,7 +500,7 @@ contains
 
       modeName = "geometry relaxation"
       call detailedWarning(node, "This driver is deprecated and will be removed in future&
-          & versions."//new_line('a')// "Please use the GeometryOptimization driver instead.")
+          & versions."//new_line('a')// "Please use the GeometryOptimisation driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
@@ -509,7 +511,7 @@ contains
       modeName = "geometry relaxation"
       call detailedWarning(node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+          & "Please use the GeometryOptimisation driver instead.")
 
       ! Gradient DIIS optimisation, only stable in the quadratic region
       ctrl%iGeoOpt = geoOptTypes%diis
@@ -522,7 +524,7 @@ contains
       modeName = "geometry relaxation"
       call detailedWarning(node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+          & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%lbfgs
 
@@ -546,7 +548,7 @@ contains
       modeName = "geometry relaxation"
       call detailedWarning(node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
-          & "Please use the GeometryOptimization driver instead.")
+          & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
       call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
@@ -1711,7 +1713,7 @@ contains
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
-      call error("Lattice optimization only applies for periodic structures.")
+      call error("Lattice optimisation only applies for periodic structures.")
     end if
 
   #:if WITH_TRANSPORT
@@ -1945,7 +1947,7 @@ contains
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
-      call error("Lattice optimization only applies for periodic structures.")
+      call error("Lattice optimisation only applies for periodic structures.")
     end if
 
   #:if WITH_TRANSPORT
@@ -5576,7 +5578,7 @@ contains
 
     case ("kick")
       input%pertType = pertTypes%kick
-      call getChildValue(value1, "PolarizationDirection", buffer2)
+      call getChildValue(value1, "PolarisationDirection", buffer2)
       input%polDir = directionConversion(unquote(char(buffer2)), value1)
 
       call getChildValue(value1, "SpinType", buffer2, "Singlet")
@@ -5593,8 +5595,8 @@ contains
 
     case ("laser")
       input%pertType = pertTypes%laser
-      call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
-      call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
+      call getChildValue(value1, "PolarisationDirection", input%reFieldPolVec)
+      call getChildValue(value1, "ImagPolarisationDirection", input%imFieldPolVec, &
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), energyUnits, child, input%omega)
@@ -5758,7 +5760,7 @@ contains
     case ("all", "All", "ALL")
       iX = 4
     case default
-      call detailedError(node, "Wrongly specified polarization direction " // trim(direction)&
+      call detailedError(node, "Wrongly specified polarisation direction " // trim(direction)&
           & // ". Must be x, y, z or all.")
     end select
 
@@ -7269,7 +7271,7 @@ contains
     #:endblock
 
     !! Temporarily not supporting surface green function read/load
-    !! for spin polarized, because spin is handled outside of libnegf
+    !! for spin polarised, because spin is handled outside of libnegf
     if (input%ginfo%greendens%defined) then
       if (input%ctrl%tSpin .and. input%ginfo%greendens%saveSGF) then
         call error("SaveSurfaceGFs must be disabled in collinear spin calculations")
@@ -7766,7 +7768,7 @@ contains
     !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
     !> If false, initial eigenvectors are obtained from diagonalisation of H0
     call getChildValue(node, "ReadEigenvectors", ctrl%reksInp%tReadMO, default=.false.)
-    !> Maximum iteration used in FON optimization
+    !> Maximum iteration used in FON optimisation
     call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
     !> Shift value in SCC cycle
     call getChildValue(node, "Shift", ctrl%reksInp%shift, default=0.3_dp)
