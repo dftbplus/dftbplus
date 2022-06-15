@@ -24,14 +24,14 @@ module dftbp_dftbplus_input_geoopt
   public :: readGeoOptInput, TGeoOptInput
 
 
-  !> General input wrapper for optimizers in this package
+  !> General input wrapper for optimisers in this package
   type :: TGeoOptInput
 
     !> Input for coordinate transformation and filter step
     type(TFilterInput) :: filter
 
-    !> Optimizer input choice
-    class(TOptimizerInput), allocatable :: optimizer
+    !> Optimiser input choice
+    class(TOptimizerInput), allocatable :: optimiser
 
     !> Tolerances for optimization
     type(TOptTolerance) :: tolerance
@@ -66,8 +66,8 @@ contains
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
-    call getChildValue(node, "Optimizer", child, "Rational")
-    call readOptimizerInput(child, input%optimizer)
+    call getChildValue(node, "Optimiser", child, "Rational")
+    call readOptimizerInput(child, input%optimiser)
 
     call readFilterInput(node, geom, input%filter, atomsRange)
 
@@ -82,10 +82,10 @@ contains
   end subroutine readGeoOptInput
 
 
-  !> Reads the optimizer
+  !> Reads the optimiser
   subroutine readOptimizerInput(node, input)
 
-    !> Optimizer node
+    !> Optimiser node
     type(fnode), pointer, intent(in) :: node
 
     !> Control structure to be filled
@@ -99,7 +99,7 @@ contains
     call getNodeName(node, buffer)
     select case (char(buffer))
     case default
-      call detailedError(node, "Invalid optimizer name.")
+      call detailedError(node, "Invalid optimiser name.")
     case("fire")
         allocate(fireInput)
         call readFireInput(node, fireInput)
@@ -220,7 +220,7 @@ contains
   end subroutine readLbfgsInput
 
 
-  !> Entry point for reading input for rational function optimizer
+  !> Entry point for reading input for rational function optimiser
   subroutine readRationalFuncInput(node, input)
 
     !> Node to get the information from
