@@ -78,6 +78,7 @@ xtb/gfn2_h2_restart                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_h2_Ascii                      #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_mindless05                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_benzene                       #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_benzene_resltag               #? WITH_TBLITE and MPI_PROCS <= 1
 spin/gfn2_H2                           #? WITH_TBLITE and MPI_PROCS <= 1
 spin/gfn1_Fe4                          #? WITH_TBLITE and MPI_PROCS <= 1
 spin/ipea1_Fe4_noncolinear             #? WITH_TBLITE and MPI_PROCS <= 1
