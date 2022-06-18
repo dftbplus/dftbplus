@@ -9,6 +9,11 @@ Unreleased
 ==========
 
 
+Fixed
+-----
+
+- Onsite and +U potentials in real time-propagation, which was broken
+  in October 2019 by commit 11abba39b
 
 
 22.1 (2022-05-25)

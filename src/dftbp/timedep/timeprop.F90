@@ -1525,12 +1525,14 @@ contains
               & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)), dp)
         end do
       end do
-      do iAt = 1, this%nAtom
-        iOrb1 = iSquare(iAt)
-        iOrb2 = iSquare(iAt+1)
-        nOrb = iOrb2 - iOrb1
-        qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
-            & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+      do iSpin = 1, this%nSpin
+        do iAt = 1, this%nAtom
+          iOrb1 = iSquare(iAt)
+          iOrb2 = iSquare(iAt+1)
+          nOrb = iOrb2 - iOrb1
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
+              & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+        end do
       end do
     end if
 
