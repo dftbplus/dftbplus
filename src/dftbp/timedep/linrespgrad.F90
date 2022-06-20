@@ -729,9 +729,9 @@ contains
           do qq = 1,2
              if(qq==1) then
                 nCoupLev = 1
-                mCoupLev = 3
+                mCoupLev = 2
              else
-                nCoupLev = 3
+                nCoupLev = 2
                 mCoupLev = 1
              endif
 
@@ -756,17 +756,19 @@ contains
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,    &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-          call solveZVectorPrecondMinus(rhsm, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,    &
-            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,        &
-            & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,    &
-            & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+!!$          call solveZVectorPrecondMinus(rhsm, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,    &
+!!$            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,        &
+!!$            & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,    &
+!!$            & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
           call calcNadiaWVectorZ(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans,&
             & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvv,    & 
             & wvvm, transChrg, species0, this%spinW, tRangeSep, lrGamma)      
 
-          call calcPMatrix(t, rhs, win, getIA, pc)
-!          call calcNadiaPMatrix(t, rhs, rhsm, win, getIA, pc)
+          !!TN to change
+          !!rhs = 0
+          !!call calcPMatrix(t, rhs, win, getIA, pc)
+          call calcNadiaPMatrix(t, rhs, rhsm, win, getIA, pc)
 
 !!$          write(67,*)
           !!pc = 0
@@ -4307,7 +4309,8 @@ contains
         else
           tmp3b = xpyq(iAt1,1) * xpyq(iAt2,2) + xpyq(iAt2,1) * xpyq(iAt1,2)
         end if
-
+      
+        write(*,'(A,2(2x,f16.10))') 'tmp3a + tmp3b',tmp3a/ omegaDif,tmp3b/ omegaDif
         nacv(:,iAt1) = nacv(:,iAt1) + dgab(:) * ( tmp3a + tmp3b )
         nacv(:,iAt2) = nacv(:,iAt2) - dgab(:) * ( tmp3a + tmp3b )
 
@@ -4421,6 +4424,7 @@ contains
             end do
 
           end do
+          write(*,'(A,2x,i2,2x,7(2x,f16.10))') 'tmps',xyz, tmp1/ omegaDif,tmp2/ omegaDif,tmp4/ omegaDif, tmp6/ omegaDif, tmp3/ omegaDif,tmp8/ omegaDif,tmp10/ omegaDif
           nacv(xyz,iAt1) = nacv(xyz,iAt1)&
               & + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 + tmp8 + tmp10 - 0.25_dp * tmprs2
           nacv(xyz,iAt2) = nacv(xyz,iAt2)&
@@ -4428,6 +4432,7 @@ contains
         end do
       end do
     end do
+    print *
     
     nacv = nacv / omegaDif
 
