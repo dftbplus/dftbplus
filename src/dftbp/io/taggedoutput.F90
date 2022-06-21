@@ -212,6 +212,9 @@ module dftbp_io_taggedoutput
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
 
+    !> Casida X+Y eigenvector for target state
+    character(lenLabel) :: casidaEigenV = 'casida_eigenvector'
+
   end type TTagLabelsEnum
 
 

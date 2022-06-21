@@ -3171,6 +3171,9 @@ contains
         end if
       end if
 
+      ! X+Y eigenvector of target state
+      call taggedWriter%write(fdTagged, tagLabels%casidaEigenV, xpy)
+
     end if
 
   end subroutine writeExcitations
