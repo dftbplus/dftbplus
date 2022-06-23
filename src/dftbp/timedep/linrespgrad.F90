@@ -715,6 +715,13 @@ contains
           ALLOCATE(xpym, mold = xpy(:,1))
           ALLOCATE(xmyn, mold = xpy(:,1))
           ALLOCATE(xmym, mold = xpy(:,1))
+
+          open(67, file='nacv.out')
+          nCoupLev = 1
+          do qq = 2,5
+             write(67,*) nCoupLev, qq
+             mCoupLev = qq
+
           woo = 0
           woom = 0
           wvvm = 0
@@ -725,15 +732,6 @@ contains
           t = 0 
           rhsm = 0
           rhs = 0
-          open(67, file='nacv.out')
-          do qq = 1,2
-             if(qq==1) then
-                nCoupLev = 1
-                mCoupLev = 2
-             else
-                nCoupLev = 2
-                mCoupLev = 1
-             endif
 
           xpyn = xpy(:,nCoupLev)
           xmyn = xmy(:,nCoupLev)
@@ -768,8 +766,24 @@ contains
           !!TN to change
           !!rhs = 0
           !!call calcPMatrix(t, rhs, win, getIA, pc)
+!!$          print *,'The t and p'
+!!$          do ii = 1, size(t,dim=1)
+!!$             do jj = ii, size(t,dim=1)
+!!$                write(*,'(2x,i2,2x,i2,4(2x,f20.14))') ii,jj,t(ii,jj,1),t(jj,ii,1),pc(ii,jj,1),pc(jj,ii,1)
+!!$             enddo
+!!$          enddo
+!!$          print *,'rhs rhsm'
+!!$          do ii = 1, size(rhs,dim=1)
+!!$             write(*,'(2(2x,f20.14))') rhs(ii),rhsm(ii)
+!!$          enddo
           call calcNadiaPMatrix(t, rhs, rhsm, win, getIA, pc)
-
+          !!call calcPMatrix(t, rhs, win, getIA, pc)
+!!$          print *,'The p out'
+!!$          do ii = 1, size(pc,dim=1)
+!!$             do jj = ii, size(pc,dim=1)
+!!$                write(*,'(2(2x,f20.14))') pc(ii,jj,1),pc(jj,ii,1)
+!!$             enddo
+!!$          enddo
 !!$          write(67,*)
           !!pc = 0
           do iSpin = 1, nSpin
@@ -3981,7 +3995,7 @@ contains
     real(dp), intent(out) :: nacv(:,:)
 
     real(dp), allocatable :: shift_excited(:,:), xpyq(:,:), xpyqds(:,:)
-    real(dp), allocatable :: shxpyq(:,:,:), xpycc(:,:,:,:), wcc(:,:,:), tmp5(:), tmp7(:), tmp11(:)
+    real(dp), allocatable :: shxpyq(:,:,:), xpycc(:,:,:,:), wcc(:,:,:), tmp5(:), tmp7(:,:), tmp11(:)
     real(dp), allocatable :: qTr(:), temp(:), dq(:), dm(:), dsigma(:)
     real(dp), allocatable :: dH0(:,:,:), dSo(:,:,:)
     real(dp), allocatable :: Dens(:,:), SpinDens(:,:)
@@ -4010,7 +4024,7 @@ contains
     ALLOCATE(qTr(natom))
     ALLOCATE(temp(norb))
     ALLOCATE(tmp5(nSpin))
-    ALLOCATE(tmp7(nSpin))
+    ALLOCATE(tmp7(nSpin,2))
 
     !! This should be changed to save memory
     ALLOCATE(xpy(nxov,2))
@@ -4115,8 +4129,8 @@ contains
     ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
     ! complexity norb * norb * norb
     xpyq = 0.0_dp
-    xpycc = 0.0_dp
-    shxpyq = 0.0_dp
+    !!xpycc = 0.0_dp
+    !!shxpyq = 0.0_dp
     xpyqds = 0.0_dp
 
     do iState = 1, 2
@@ -4124,6 +4138,7 @@ contains
            & xpy(:,iState), xpyq(:,iState))
       
       ! complexity norb * norb
+      shxpyq(:,:,iState) = 0.0_dp
       if (.not. tSpin) then
         if (sym == "S") then
           call hemv(shxpyq(:,1,iState), gammaMat, xpyq(:,iState))
@@ -4148,6 +4163,7 @@ contains
       !
       ! xpycc(mu,nu) = sum_ia (X+Y)_ia grndEigVecs(mu,i) grndEigVecs(nu,a)
       ! xpycc(mu, nu) += sum_ia (X+Y)_ia grndEigVecs(mu,a) grndEigVecs(nu,i)
+      xpycc(:,:,:,iState) = 0.0_dp
       do ia = 1, nxov
         call indxov(win, ia, getIA, i, a, iSpin)
         ! should replace with DSYR2 call :
@@ -4310,12 +4326,11 @@ contains
           tmp3b = xpyq(iAt1,1) * xpyq(iAt2,2) + xpyq(iAt2,1) * xpyq(iAt1,2)
         end if
       
-        write(*,'(A,2(2x,f16.10))') 'tmp3a + tmp3b',tmp3a/ omegaDif,tmp3b/ omegaDif
         nacv(:,iAt1) = nacv(:,iAt1) + dgab(:) * ( tmp3a + tmp3b )
         nacv(:,iAt2) = nacv(:,iAt2) - dgab(:) * ( tmp3a + tmp3b )
 
         tmp5(:) = shift_excited(iAt1,:) + shift_excited(iAt2,:)
-        tmp7(:) = 2.0_dp * ( shxpyq(iAt1,:,2) + shxpyq(iAt2,:,2) )
+        tmp7(:,:) = 2.0_dp * ( shxpyq(iAt1,:,:) + shxpyq(iAt2,:,:) )
 
         if (tSpin) then
           tmp9 = spinW(iSp1) * dm(iAt1) + spinW(iSp2) * dm(iAt2)
@@ -4385,7 +4400,9 @@ contains
                 tmp2 = tmp2 + dSo(n,m,xyz) * pc(mu,nu,iSpin) * (shift(iAt1)+shift(iAt2))
                 tmp3 = tmp3 - dSo(n,m,xyz) * wcc(mu,nu,iSpin)
                 tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * Dens(mu,nu)
-                tmp6 = tmp6 + tmp7(iSpin) * dSo(n,m,xyz) * xpycc(mu,nu,iSpin,1)
+                ! tmp6 generalization could be wrong
+                tmp6 = tmp6 + 0.5_dp * dSo(n,m,xyz) * (tmp7(iSpin,2) * xpycc(mu,nu,iSpin,1) + &
+                         & tmp7(iSpin,1) * xpycc(mu,nu,iSpin,2))
 
                 if (tSpin) then
                   tmp8 = tmp8 + tmp9 * dSo(n,m,xyz) * dsigma(iSpin) * pc(mu,nu,iSpin)
@@ -4424,7 +4441,6 @@ contains
             end do
 
           end do
-          write(*,'(A,2x,i2,2x,7(2x,f16.10))') 'tmps',xyz, tmp1/ omegaDif,tmp2/ omegaDif,tmp4/ omegaDif, tmp6/ omegaDif, tmp3/ omegaDif,tmp8/ omegaDif,tmp10/ omegaDif
           nacv(xyz,iAt1) = nacv(xyz,iAt1)&
               & + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 + tmp8 + tmp10 - 0.25_dp * tmprs2
           nacv(xyz,iAt2) = nacv(xyz,iAt2)&
@@ -4432,7 +4448,6 @@ contains
         end do
       end do
     end do
-    print *
     
     nacv = nacv / omegaDif
 
@@ -4862,13 +4877,10 @@ contains
     pc = 0.0_dp
     do ias = 1, size(rhsp)
       call indxov(win, ias, getIA, i, a, s)
-!      pc(i,a,s) = t(i,a,s) + rhsp(ias) + rhsm(ias)
-!      pc(a,i,s) = t(a,i,s) + rhsp(ias) - rhsm(ias)
-      pc(i,a,s) = t(i,a,s) + rhsp(ias) 
-      pc(a,i,s) = t(a,i,s) + rhsp(ias) 
+      pc(i,a,s) = rhsp(ias) 
     end do
 
-    !! pc = pc + t
+    pc = pc + t
 
     do s = 1, nSpin
       pc(:,:,s) = 0.5_dp * ( pc(:,:,s) + transpose(pc(:,:,s)) )
