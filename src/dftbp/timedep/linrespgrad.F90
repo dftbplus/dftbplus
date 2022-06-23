@@ -169,7 +169,6 @@ contains
     real(dp), allocatable :: dqex(:,:), sposz(:), osz(:), pc(:,:,:)
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:), xpym(:),xpyn(:),xmyn(:),xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: rhsm(:), woom(:,:), wvvm(:,:), wovm(:)
     real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
@@ -704,12 +703,7 @@ contains
         end if
 
         if (tNaCoupling) then
-          ! NACV computations require +/- variants of the T,W,Z matrices used for ex. gradients
           ! This overwrites T, RHS and W
-          ALLOCATE(rhsm(nxov_rd))
-          ALLOCATE(woom(nxoo_max, nSpin))
-          ALLOCATE(wvvm(nxvv_max, nSpin))
-          ALLOCATE(wovm(nxov_rd))
           ALLOCATE(nacv, mold = excgrad)
           ALLOCATE(xpyn, mold = xpy(:,1))
           ALLOCATE(xpym, mold = xpy(:,1))
@@ -722,16 +716,11 @@ contains
              write(67,*) nCoupLev, qq
              mCoupLev = qq
 
-          woo = 0
-          woom = 0
-          wvvm = 0
-          wvv = 0
-
-          !!xmy = 0
-          pc = 0
-          t = 0 
-          rhsm = 0
-          rhs = 0
+          woo = 0.0_dp
+          wvv = 0.0_dp
+          pc = 0.0_dp
+          t = 0.0_dp
+          rhs = 0.0_dp
 
           xpyn = xpy(:,nCoupLev)
           xmyn = xmy(:,nCoupLev)
@@ -741,80 +730,38 @@ contains
           nacv = 0
           omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
           omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
-          !!omegaDif = omegaAvg
+   
           ! compute + component of RHS for Z-vector eq. in the NaCoupling case
           ! also computes the + components of W and T
           call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev),  & 
             & xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1), transChrg, getIA, getIJ,      &
             & getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat,     &
-            & lrGamma, this%spinW, omegaAvg, sym, rhs, rhsm, t, wov, wovm, woo, woom, wvv, wvvm)
+            & lrGamma, this%spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
 
           call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,     &
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,    &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-!!$          call solveZVectorPrecondMinus(rhsm, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,    &
-!!$            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,        &
-!!$            & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,    &
-!!$            & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+          call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, iAtomStart,&
+            & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
+            & this%spinW, tRangeSep, lrGamma)
 
-          call calcNadiaWVectorZ(rhs, rhsm, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans,&
-            & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, wovm, woo, woom, wvv,    & 
-            & wvvm, transChrg, species0, this%spinW, tRangeSep, lrGamma)      
-
-          !!TN to change
-          !!rhs = 0
+          call calcNadiaPMatrix(t, rhs, win, getIA, pc)
           !!call calcPMatrix(t, rhs, win, getIA, pc)
-!!$          print *,'The t and p'
-!!$          do ii = 1, size(t,dim=1)
-!!$             do jj = ii, size(t,dim=1)
-!!$                write(*,'(2x,i2,2x,i2,4(2x,f20.14))') ii,jj,t(ii,jj,1),t(jj,ii,1),pc(ii,jj,1),pc(jj,ii,1)
-!!$             enddo
-!!$          enddo
-!!$          print *,'rhs rhsm'
-!!$          do ii = 1, size(rhs,dim=1)
-!!$             write(*,'(2(2x,f20.14))') rhs(ii),rhsm(ii)
-!!$          enddo
-          call calcNadiaPMatrix(t, rhs, rhsm, win, getIA, pc)
-          !!call calcPMatrix(t, rhs, win, getIA, pc)
-!!$          print *,'The p out'
-!!$          do ii = 1, size(pc,dim=1)
-!!$             do jj = ii, size(pc,dim=1)
-!!$                write(*,'(2(2x,f20.14))') pc(ii,jj,1),pc(jj,ii,1)
-!!$             enddo
-!!$          enddo
-!!$          write(67,*)
-          !!pc = 0
+!
           do iSpin = 1, nSpin
-             ! Make MO to AO transformation of the excited density matrix
-             call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-             call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+            ! Make MO to AO transformation of the excited density matrix
+            call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+            call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
           end do
-!!$          woo = 0
-          woom = 0
-          wvvm = 0
-!!$          wov = 0
-          wovm = 0
-!!$          wvv = 0
-!!$          xpym = 0
-!!$          xmym = 0
-!!$          xpyn = 0
-!!$          xmyn = 0
-!!$          !!pc=0
-!!$          nacv = 0
 
           call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
-              & this%HubbardU, this%spinW, shift, woo, woom, wov, wovm, wvv, wvvm, transChrg,      &
+              & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg,      &
               & omegaDif, xpyn, xmyn, xpym, xmym, coord0, orb,   &   
               & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
-!!$         call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
-!!$              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
-!!$              & this%HubbardU, this%spinW, shift, woo, woom, wov, wovm, wvv, wvvm, transChrg,      &
-!!$              & xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev), xmy(:,mCoupLev), coord0, orb,   &   
-!!$              & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
-          
+
           do i= 1, size(nacv(1,:))
              write(67,'(3(f16.8,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
           enddo
@@ -1957,11 +1904,11 @@ contains
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z. Modified version of getZVectorEqRHS for NA couplings. 
-  !> Here the +/- part of the RHS and W is computed. The non-symmetric T is constructed.  
+  !> Here the + part of the RHS and W is computed. The non-symmetric T is constructed.  
   subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,     & 
       & nmatup, transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev,&
-      & grndEigVecs, gammaMat, lrGamma, spinW, omegaAvg, sym, rhsp, rhsm, t, wovp, &
-      & wovm, woop, woom, wvvp, wvvm)
+      & grndEigVecs, gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, &
+      & woo, wvv)
 
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
@@ -2036,46 +1983,33 @@ contains
     character, intent(in) :: sym
 
     !> Right hand side (P+Q)
-    real(dp), intent(out) :: rhsp(:)
-
-    !> Right hand side (P-Q)
-    real(dp), intent(out) :: rhsm(:)
+    real(dp), intent(out) :: rhs(:)
 
     !> T matrix (non-symmetric)
     real(dp), intent(out) :: t(:,:,:)
 
     !> W^+ vector occupied-virtual part
-    real(dp), intent(out) :: wovp(:)
-
-    !> W^- vector occupied-virtual part
-    real(dp), intent(out) :: wovm(:)
+    real(dp), intent(out) :: wov(:)
 
     !> W^+ vector occupied part
-    real(dp), intent(out) :: woop(:,:)
-
-    !> W^- vector occupied part
-    real(dp), intent(out) :: woom(:,:)
+    real(dp), intent(out) :: woo(:,:)
 
     !> W^+ vector virtual part
-    real(dp), intent(out) :: wvvp(:,:)
-
-    !> W^- vector virtual part
-    real(dp), intent(out) :: wvvm(:,:)
-
+    real(dp), intent(out) :: wvv(:,:)
 
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXorY(:), vecHooXorY(:), vecHovT(:), vecHvvT(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovTp(:), vecHovTm(:), vecHooT(:), tp(:,:,:), tm(:,:,:)
+    real(dp), allocatable :: vecHovTp(:), vecHovTm(:), vecHooT(:), tp(:,:,:)
     integer :: nxov
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb, ii, jj
     integer :: iOrb, jOrb
-    real(dp) :: fact, ptmp1, mtmp1, ptmp2, mtmp2, tmp3, tmp4, tmp1
+    real(dp) :: fact, ptmp1, ptmp2, tmp3, tmp4, tmp1
     logical :: tSpin
 
-    nxov = size(rhsp)
+    nxov = size(rhs)
     nOrb = size(ovrXev, dim=1)
 
     ALLOCATE(xpyq(natom))
@@ -2085,14 +2019,10 @@ contains
 
 
     t(:,:,:) = 0.0_dp
-    rhsp(:) = 0.0_dp
-    rhsm(:) = 0.0_dp
-    wovp(:) = 0.0_dp
-    wovm(:) = 0.0_dp
-    woop(:,:) = 0.0_dp
-    woom(:,:) = 0.0_dp
-    wvvp(:,:) = 0.0_dp
-    wvvm(:,:) = 0.0_dp
+    rhs(:) = 0.0_dp
+    wov(:) = 0.0_dp
+    woo(:,:) = 0.0_dp
+    wvv(:,:) = 0.0_dp
 
     nSpin = size(t, dim=3)
 
@@ -2133,27 +2063,19 @@ contains
         ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs) + &
               & xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
    
-        mtmp1 = xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs) - &
-              & xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs)
-
         ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) + &
-              &  xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
-
-        mtmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) - &
               &  xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
 
         tmp3 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)
         tmp4 = xpyn(ibs) * xpym(ias) + xmyn(ibs) * xmym(ias)
 
         t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
-        wvvp(ab,s) = wvvp(ab,s) + 0.5_dp * grndEigVal(i,s) * ptmp1  &
+        wvv(ab,s) = wvv(ab,s) + 0.5_dp * grndEigVal(i,s) * ptmp1  &
                    & + 0.5_dp * omegaAvg * ptmp2 
                             
         ! to prevent double counting
         if (a /= b) then
           t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
-          wvvm(ab,s) = wvvm(ab,s) + 0.5_dp * grndEigVal(i,s) * mtmp1   &
-                     & + 0.5_dp * omegaAvg * mtmp2 
         end if
         
       end do
@@ -2170,27 +2092,19 @@ contains
         ptmp1 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas) + & 
               &  xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
 
-        mtmp1 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) - & 
-              &  xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas))
-
         ptmp2 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) + &
               &  xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas)) 
-
-        mtmp2 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas) - &
-              &  xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
 
         tmp3 = xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)
         tmp4 = xpyn(jas) * xpym(ias) + xmyn(jas) * xmym(ias)
 
         t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
-        woop(ij,s) = woop(ij,s) - 0.5_dp * grndEigVal(a,s) * ptmp1   &
+        woo(ij,s) = woo(ij,s) - 0.5_dp * grndEigVal(a,s) * ptmp1   &
                    & + 0.5_dp * omegaAvg * ptmp2 
 
         ! to prevent double counting
         if (i /= j) then
           t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
-          woom(ij,s) = woom(ij,s) - 0.5_dp * grndEigVal(a,s) * mtmp1   &
-                   & + 0.5_dp * omegaAvg * mtmp2 
         end if
 
       end do
@@ -2207,12 +2121,10 @@ contains
         abs = iatrans(a, b, s) 
         ibs = iatrans(i, b, s)
         ! For the forces, we have a factor of 2 here 
-        rhsp(ias) = rhsp(ias) - xpym(ibs) * vecHvvXorY(abs)
-        rhsm(ias) = rhsm(ias) + xmym(ibs) * vecHvvXorY(abs)
+        rhs(ias) = rhs(ias) - xpym(ibs) * vecHvvXorY(abs)
         ! Since vecHvvXpY has only upper triangle
         if (a /= b) then
-          rhsp(ibs) = rhsp(ibs) - xpym(ias) * vecHvvXorY(abs)
-          rhsm(ibs) = rhsm(ibs) + xmym(ias) * vecHvvXorY(abs)
+          rhs(ibs) = rhs(ibs) - xpym(ias) * vecHvvXorY(abs)
         end if
       end do
 
@@ -2221,18 +2133,12 @@ contains
         ijs = iatrans(i, j, s) 
         ! For the forces, we have a factor of 2 here
         tmp1 = xpym(jas) * vecHooXorY(ijs)
-        rhsp(ias) = rhsp(ias) + tmp1
-        wovp(ias) = wovp(ias) + tmp1 
-        tmp1 = xmym(jas) * vecHooXorY(ijs)
-        rhsm(ias) = rhsm(ias) - tmp1
-        wovm(ias) = wovm(ias) - tmp1        
+        rhs(ias) = rhs(ias) + tmp1
+        wov(ias) = wov(ias) + tmp1 
         if (i /= j) then
            tmp1 = xpym(ias) * vecHooXorY(ijs)
-           rhsp(jas) = rhsp(jas) + tmp1
-           wovp(jas) = wovp(jas) + tmp1 
-           tmp1 = xmym(ias) * vecHooXorY(ijs)
-           rhsm(jas) = rhsm(jas) - tmp1
-           wovm(jas) = wovm(jas) - tmp1 
+           rhs(jas) = rhs(jas) + tmp1
+           wov(jas) = wov(jas) + tmp1 
         end if
       end do
 
@@ -2248,12 +2154,10 @@ contains
         abs = iatrans(a, b, s) 
         ibs = iatrans(i, b, s)
         ! For the forces, we have a factor of 2 here 
-        rhsp(ias) = rhsp(ias) - xpyn(ibs) * vecHvvXorY(abs)
-        rhsm(ias) = rhsm(ias) - xmyn(ibs) * vecHvvXorY(abs)
+        rhs(ias) = rhs(ias) - xpyn(ibs) * vecHvvXorY(abs)
         ! Since vecHvvXpY has only upper triangle
         if (a /= b) then
-          rhsp(ibs) = rhsp(ibs) - xpyn(ias) * vecHvvXorY(abs)
-          rhsm(ibs) = rhsm(ibs) - xmyn(ias) * vecHvvXorY(abs)
+          rhs(ibs) = rhs(ibs) - xpyn(ias) * vecHvvXorY(abs)
         end if
       end do
 
@@ -2262,32 +2166,24 @@ contains
         ijs = iatrans(i, j, s) 
         ! For the forces, we have a factor of 2 here
         tmp1 = xpyn(jas) * vecHooXorY(ijs)
-        rhsp(ias) = rhsp(ias) + tmp1
-        wovp(ias) = wovp(ias) + tmp1
-        tmp1 = xmyn(jas) * vecHooXorY(ijs)
-        rhsm(ias) = rhsm(ias) + tmp1
-        wovm(ias) = wovm(ias) + tmp1        
+        rhs(ias) = rhs(ias) + tmp1
+        wov(ias) = wov(ias) + tmp1
         if (i /= j) then
            tmp1 = xpyn(ias) * vecHooXorY(ijs)
-           rhsp(jas) = rhsp(jas) + tmp1
-           wovp(jas) = wovp(jas) + tmp1
-           tmp1 = xmyn(ias) * vecHooXorY(ijs)
-           rhsm(jas) = rhsm(jas) + tmp1
-           wovm(jas) = wovm(jas) + tmp1 
+           rhs(jas) = rhs(jas) + tmp1
+           wov(jas) = wov(jas) + tmp1
         end if
       end do
 
     end do
 
     allocate(tp, mold=t)
-    allocate(tm, mold=t)
     allocate(vecHovT(nxov))
     allocate(vecHooT(sum(nxoo)))
     allocate(vecHvvT(sum(nxvv)))
 
     do s = 1, nSpin
       tp(:,:,s) = 0.5_dp * (t(:,:,s) + transpose(t(:,:,s)))
-      tm(:,:,s) = 0.5_dp * (t(:,:,s) - transpose(t(:,:,s)))
     end do
 
     !!> -RHS^+ += - H^+_ia[T^+]
@@ -2295,7 +2191,7 @@ contains
       & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg,             &
       & tp, vecHovT)
 
-    rhsp = rhsp - vecHovT
+    rhs = rhs - vecHovT
 
     !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
     call getHplusMfr(1, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
@@ -2305,7 +2201,7 @@ contains
     do s = 1, nSpin
       do ij = 1, nxoo(s)
         ijs = ij + soo(s)
-        woop(ij,s) = woop(ij,s) + vecHooT(ijs) 
+        woo(ij,s) = woo(ij,s) + vecHooT(ijs) 
       end do
     end do
 
@@ -2335,32 +2231,26 @@ contains
         do b = homo(s) + 1, nOrb
           ibs = iaTrans(i, b, s)
           abs = iaTrans(a, b, s)
-          rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXpY(abs)
-          rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXpY(abs)
+          rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXpY(abs)
           if (a >= b) then
-            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+            rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
           !> Only a>b is stored in vecHvvXmY, which is anti-symmetric
           else
-            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xpym(ibs) * vecHvvXmY(abs)
+            rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xmym(ibs) * vecHvvXmY(abs)
           end if
         end do
 
         do j = 1, homo(s)
           jas = iaTrans(j, a, s)
           ijs = iaTrans(i, j, s)
-          rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xpym(jas) * vecHooXpY(ijs)
-          wovp(ias) = wovp(ias) + cExchange * 0.5_dp * xpym(jas) * vecHooXpY(ijs) 
-          wovm(ias) = wovm(ias) - cExchange * 0.5_dp * xmym(jas) * vecHooXpY(ijs) 
+          rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xpym(jas) * vecHooXpY(ijs)
+          wov(ias) = wov(ias) + cExchange * 0.5_dp * xpym(jas) * vecHooXpY(ijs) 
           if (i >= j) then
-            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) + cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
-            wovm(ias) = wovm(ias) - cExchange * 0.5_dp * xpym(jas) * vecHooXmY(ijs)
+            rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) + cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
           else
-            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) - cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
-            wovm(ias) = wovm(ias) + cExchange * 0.5_dp * xpym(jas) * vecHooXmY(ijs)
+            rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) - cExchange * 0.5_dp * xmym(jas) * vecHooXmY(ijs)
           end if
         end do
 
@@ -2387,59 +2277,36 @@ contains
         do b = homo(s) + 1, nOrb
           ibs = iaTrans(i, b, s)
           abs = iaTrans(a, b, s)
-          rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xpyn(ibs) * vecHvvXpY(abs)
-          rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xmyn(ibs) * vecHvvXpY(abs)
+          rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xpyn(ibs) * vecHvvXpY(abs)
           if (a >= b) then
-            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmyn(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) - cExchange * 0.5_dp * xpyn(ibs) * vecHvvXmY(abs)
+            rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xmyn(ibs) * vecHvvXmY(abs)
           !> Only a>b is stored in vecHvvXmY, which is anti-symmetric
           else
-            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmyn(ibs) * vecHvvXmY(abs)
-            rhsm(ias) = rhsm(ias) + cExchange * 0.5_dp * xpyn(ibs) * vecHvvXmY(abs)
+            rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xmyn(ibs) * vecHvvXmY(abs)
           end if
         end do
 
         do j = 1, homo(s)
           jas = iaTrans(j, a, s)
           ijs = iaTrans(i, j, s)
-          rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xpyn(jas) * vecHooXpY(ijs)
-          wovp(ias) = wovp(ias) + cExchange * 0.5_dp * xpyn(jas) * vecHooXpY(ijs) 
-          wovm(ias) = wovm(ias) + cExchange * 0.5_dp * xmyn(jas) * vecHooXpY(ijs) 
+          rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xpyn(jas) * vecHooXpY(ijs)
+          wov(ias) = wov(ias) + cExchange * 0.5_dp * xpyn(jas) * vecHooXpY(ijs) 
           if (i >= j) then
-            rhsp(ias) = rhsp(ias) + cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) + cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
-            wovm(ias) = wovm(ias) + cExchange * 0.5_dp * xpyn(jas) * vecHooXmY(ijs) 
+            rhs(ias) = rhs(ias) + cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) + cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
           else
-            rhsp(ias) = rhsp(ias) - cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
-            wovp(ias) = wovp(ias) - cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs) 
-            wovm(ias) = wovm(ias) - cExchange * 0.5_dp * xpyn(jas) * vecHooXmY(ijs) 
+            rhs(ias) = rhs(ias) - cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) - cExchange * 0.5_dp * xmyn(jas) * vecHooXmY(ijs) 
           end if
         end do
 
       end do
 
-      !!> -RHS^- += H^-_ia[T^-]
-      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
-        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, tm, vecHovT)
-
-      rhsm = rhsm - cExchange * vecHovT
-
       !!> -RHS^+ += - H^+_ia[T^+]
       call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
         & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, tp, vecHovT)
 
-      rhsp = rhsp - cExchange * vecHovT
-
-      !!> Woo^- += 0.5 * H^-_ij[T+Z] / Omega_mn, Z part computed later 
-      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
-       & ovrXev, grndEigVecs, lrGamma, transChrg, tm, vecHooT)
-
-      do s = 1, nSpin
-        do ij = 1, nxoo(s)
-          ijs = ij + soo(s)
-          woom(ij,s) = woom(ij,s) - cExchange * vecHooT(ijs) 
-        end do
-      end do
+      rhs = rhs - cExchange * vecHovT
 
       !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
       call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
@@ -2448,18 +2315,7 @@ contains
       do s = 1, nSpin
         do ij = 1, nxoo(s)
           ijs = ij + soo(s)
-          woop(ij,s) = woop(ij,s) + cExchange * vecHooT(ijs) 
-        end do
-      end do
-
-      !!> Wvv^- += 0.5 * H^+_ab[T+Z] / Omega_mn, Z part computed later 
-      call getHvvT(nxov, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart, &
-       & ovrXev, grndEigVecs, lrGamma, transChrg, tm, vecHvvT)
-
-      do s = 1, nSpin
-        do ab = 1, nxvv(s)
-          abs = ab + svv(s)
-          wvvm(ab,s) = wvvm(ab,s) - cExchange * vecHvvT(abs) 
+          woo(ij,s) = woo(ij,s) + cExchange * vecHooT(ijs) 
         end do
       end do
 
@@ -3861,7 +3717,7 @@ contains
   !> Calculation of nacv using gradient routine
   subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,     &
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
-      & spinW, shift, woop, woom, wovp, wovm, wvvp, wvvm, transChrg, omegaDif, xpyn, xmyn, xpym, xmym,  &
+      & spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn, xpym, xmym,  &
       & coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, &
       & nacv)
 
@@ -3929,22 +3785,13 @@ contains
     real(dp), intent(in) :: shift(:)
 
     !> W vector occupied part
-    real(dp), intent(inout) :: woop(:,:)
-
-    !> W vector occupied part
-    real(dp), intent(in) :: woom(:,:)
+    real(dp), intent(inout) :: woo(:,:)
 
     !> W vector occupied-virtual part
-    real(dp), intent(inout) :: wovp(:)
-
-    !> W vector occupied-virtual part
-    real(dp), intent(in) :: wovm(:)
+    real(dp), intent(inout) :: wov(:)
 
     !> W vector virtual part
-    real(dp), intent(inout) :: wvvp(:,:)
-
-    !> W vector virtual part
-    real(dp), intent(in) :: wvvm(:,:)
+    real(dp), intent(inout) :: wvv(:,:)
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
@@ -4240,11 +4087,9 @@ contains
         ! replace with DSYR2 call :
         do mu = 1, norb
           do nu = 1, norb
-            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + woop(ij,iSpin) *                      &
+            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + woo(ij,iSpin) *                      &
                 & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,j,iSpin)                     &
-                & + grndEigVecs(mu,j,iSpin)*grndEigVecs(nu,i,iSpin) )                   &
-                & + woom(ij,iSpin) * ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,j,iSpin)  &
-                & - grndEigVecs(mu,j,iSpin)*grndEigVecs(nu,i,iSpin) )                              
+                & + grndEigVecs(mu,j,iSpin)*grndEigVecs(nu,i,iSpin) )                   
           end do
         end do
 
@@ -4257,11 +4102,9 @@ contains
       ! again replace with DSYR2 call :
       do nu = 1, norb
         do mu = 1, norb
-          wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wovp(ia) *                     &
+          wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *                     &
               & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)              &
-              & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )            &
-              & + wovm(ia) * ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin) &
-              & - grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) ) 
+              & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )            
         end do
       end do
     end do
@@ -4274,11 +4117,9 @@ contains
         ! replace with DSYR2 call :
         do mu = 1, norb
           do nu = 1, norb
-            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wvvp(ab,iSpin) *                     &
+            wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wvv(ab,iSpin) *                     &
                 & ( grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,b,iSpin)                    &
-                & + grndEigVecs(mu,b,iSpin)*grndEigVecs(nu,a,iSpin) )                  &
-                & + wvvm(ab,iSpin) * ( grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,b,iSpin) &
-                & - grndEigVecs(mu,b,iSpin)*grndEigVecs(nu,a,iSpin) )
+                & + grndEigVecs(mu,b,iSpin)*grndEigVecs(nu,a,iSpin) )                  
           end do
         end do
 
@@ -4850,16 +4691,13 @@ contains
 
   !> Create transition density matrix in MO basis P = T + Z 
   !> non-symmetric for NA
-  subroutine calcNadiaPMatrix(t, rhsp, rhsm, win, getIA, pc)
+  subroutine calcNadiaPMatrix(t, rhsp, win, getIA, pc)
 
     !> T matrix
     real(dp), intent(in) :: t(:,:,:)
 
     !> Z^+ matrix
     real(dp), intent(in) :: rhsp(:)
-
-    !> Z^- matrix
-    real(dp), intent(in) :: rhsm(:)
 
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
