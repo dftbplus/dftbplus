@@ -93,36 +93,34 @@ class Gen:
 
 
     @classmethod
-    def fromhsd(cls, filename, directory='.'):
+    def fromhsd(cls, filename):
         """Creates a Gen instance from a hsd dictionary.
 
         Args:
-            filname (str): filename
-            directory (str): directory
+            filname (str): name of file
         """
 
-        path = os.path.join(directory, filename)
-        dictionary = hsd.load(path)
+        dictionary = hsd.load(filename, lower_tag_names=True)
 
         explicit = True
         try:
-            dictionary["Geometry"]["TypeNames"]
+            dictionary["geometry"]["typenames"]
         except KeyError:
             explicit = False
 
         if explicit:
-            specienames = dictionary["Geometry"]["TypeNames"]
+            specienames = dictionary["geometry"]["typenames"]
             for num, speciesname in enumerate(specienames):
                 specienames[num] = speciesname.strip("'").strip('"')
 
             try:
-                periodic = dictionary["Geometry"]["Periodic"]
+                periodic = dictionary["geometry"]["periodic"]
             except KeyError:
                 periodic = False
 
             try:
-                coords_unit = dictionary["Geometry"]\
-                    ["TypesAndCoordinates.attrib"]
+                coords_unit = dictionary["geometry"]\
+                    ["typesandcoordinates.attrib"]
             except KeyError:
                 coords_unit = None
             if coords_unit is not None and coords_unit.lower() == "relative":
@@ -132,7 +130,7 @@ class Gen:
 
             coords = []
             indexes = []
-            for tac in dictionary["Geometry"]["TypesAndCoordinates"]:
+            for tac in dictionary["geometry"]["typesandcoordinates"]:
                 coords.append(tac[1:4])
                 indexes.append(tac[0] - 1)
             coords = np.asarray(coords, dtype=float)
@@ -142,18 +140,18 @@ class Gen:
 
             if periodic:
                 try:
-                    origin = dictionary["Geometry"]["CoordinateOrigin"]
+                    origin = dictionary["geometry"]["coordinateorigin"]
                     origin = np.asarray(origin, dtype=float)
                 except KeyError:
                     origin = None
 
                 try:
-                    latvecs_unit = dictionary["Geometry"]\
-                        ["LatticeVectors.attrib"]
+                    latvecs_unit = dictionary["geometry"]\
+                        ["latticevectors.attrib"]
                 except KeyError:
                     latvecs_unit = None
 
-                latvecs = dictionary["Geometry"]["LatticeVectors"]
+                latvecs = dictionary["geometry"]["latticevectors"]
                 latvecs = np.asarray(latvecs, dtype=float)
 
                 latvecs = cls.unit_conversion(latvecs, latvecs_unit)
@@ -168,7 +166,7 @@ class Gen:
 
         else:
             filestring = ""
-            for list1 in dictionary["Geometry"]["GenFormat"]:
+            for list1 in dictionary["geometry"]["genformat"]:
                 for content in list1:
                     filestring += str(content) + " "
                 filestring += "\n"
@@ -241,8 +239,9 @@ class Gen:
         Raises:
             NotImplementedError (error): if unit is not supported
         """
-        if unit is None or unit.lower() == "relative":
-            return vector
+        if unit is None:
+            converted = vector / 0.188972598857892E+01
+            return converted
 
         unit = unit.lower()
 
@@ -254,6 +253,8 @@ class Gen:
             converted = vector / 100.0
         elif unit == 'bohr' or unit == 'au':
             converted = vector / 0.188972598857892E+01
+        elif unit == "relative":
+            return vector
         else:
             raise NotImplementedError(f"unit '{unit}' is not supported!")
 

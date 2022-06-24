@@ -15,22 +15,19 @@ import dftbplus_ptools.tagreader as reader
 class Output:
     """Class for reading dftb+ outputs"""
 
-    def __init__(self, directory='.', filename='results.tag'):
+    def __init__(self, filename='results.tag'):
         """Initialises the Output class
 
         Args:
-            directory (str): directory of file
             filename (str): name of file
         """
         self._filename = filename
-        self._directory = directory
         self._resultstag = self._read_resultstag()
 
     def _read_resultstag(self):
         """Function for accessing results.tag file."""
         try:
-            return reader.results_access(filename=self._filename,
-                                         directory=self._directory)
+            return reader.results_access(filename=self._filename)
         except OSError:
             return None
 

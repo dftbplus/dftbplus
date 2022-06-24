@@ -76,18 +76,16 @@ class Xyz:
         return cls(geometry, comment)
 
     @classmethod
-    def fromhsd(cls, filename, directory='.'):
+    def fromhsd(cls, filename):
         """Creates an XYZ instance from a hsd dictionary.
 
         Args:
-            filname (str): filename
-            directory (str): directory
+            filname (str): name of file
         """
 
-        path = os.path.join(directory, filename)
-        dictionary = hsd.load(path)
+        dictionary = hsd.load(filename, lower_tag_names=True)
         filestring = ""
-        for list1 in dictionary["Geometry"]["xyzFormat"]:
+        for list1 in dictionary["geometry"]["xyzformat"]:
             for content in list1:
                 filestring += str(content) + " "
             filestring += "\n"

@@ -34,24 +34,24 @@ class EigenvecoutTest(common.TestWithWorkDir):
 
     def test_eigenvec_1(self):
         """test for pattern 2,4,6"""
-        eigenvecclass = Eigenvecout(directory=self.inputdir,
-                                    filename="eigenvec1.out")
+        path = os.path.join(self.inputdir, "eigenvec1.out")
+        eigenvecclass = Eigenvecout(filename=path)
         self.assertTrue(common.type_diff(eigenvecclass.read_eigenvec(),
                                          eigenvec1_ref))
 
 
     def test_eigenvec_2(self):
         """test for pattern 1,3,5"""
-        eigenvecclass = Eigenvecout(directory=self.inputdir,
-                                    filename="eigenvec2.out")
+        path = os.path.join(self.inputdir, "eigenvec2.out")
+        eigenvecclass = Eigenvecout(filename=path)
         self.assertTrue(common.type_diff(eigenvecclass.read_eigenvec(),
                                          eigenvec2_ref))
 
 
     def test_eigenvec_3(self):
         """test for pattern 7,8,9"""
-        eigenvecclass = Eigenvecout(directory=self.inputdir,
-                                    filename="eigenvec3.out")
+        path = os.path.join(self.inputdir, "eigenvec3.out")
+        eigenvecclass = Eigenvecout(filename=path)
         self.assertTrue(common.type_diff(eigenvecclass.read_eigenvec(),
                                          eigenvec3_ref))
 

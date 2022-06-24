@@ -3,6 +3,7 @@ Hamiltonian {
     MaxAngularMomentum {
       O = "p"
       H = "s"
+      Br = "d"
     }
   }
 }

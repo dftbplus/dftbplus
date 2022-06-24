@@ -10,21 +10,18 @@ Module for interaction with the eigenvec.out file.
 """
 
 
-import os
 import re
 
 
 class Eigenvecout:
     """class for reading eigenvectors"""
 
-    def __init__(self, directory=".", filename="eigenvec.out"):
+    def __init__(self, filename="eigenvec.out"):
         """Initialises the Eigenvecout class
 
         Args:
-            directory (str): directory of file
             filename (str): name of file
         """
-        self._directory = directory
         self._filename = filename
 
 
@@ -35,9 +32,9 @@ class Eigenvecout:
             dictionary (dict/None): dictionary containing the eigenvector or
                 'None' if file not readable/found
         """
-        path = os.path.join(self._directory, self._filename)
+
         try:
-            with open(path, "r") as file:
+            with open(self._filename, "r") as file:
                 lines = file.readlines()
         except OSError:
             return None

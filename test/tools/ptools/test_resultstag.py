@@ -60,14 +60,16 @@ class ResulstagTest(common.TestWithWorkDir):
 
     def test_none(self):
         """tests the case if tag not present"""
-        results = Output(directory=self.inputdir, filename="scalar.tag")
+        path = os.path.join(self.inputdir, "scalar.tag")
+        results = Output(filename=path)
         value = results.get_eigenvalues()
         self.assertTrue(True if value is None else False)
 
 
     def common(self, reference, filename, rtol=1e-05, atol=1e-08):
         """common part of tests"""
-        results = Output(directory=self.inputdir, filename=filename)
+        path = os.path.join(self.inputdir, filename)
+        results = Output(filename=path)
         value = results.get_cell_volume()
         return common.type_diff(reference, value, rtol=rtol, atol=atol)
 

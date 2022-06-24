@@ -9,21 +9,17 @@
 Module for interaction with the detail.out file.
 """
 
-import os
-
 
 class Detailedout:
     """class for reading detailed.out"""
 
-    def __init__(self, directory=".", filenname="detailed.out"):
+    def __init__(self, filename="detailed.out"):
         """Initialises the Detailedout class
 
         Args:
-            directory (str): directory of file
             filename (str): name of file
         """
-        self._directory = directory
-        self._filename = filenname
+        self._filename = filename
 
 
     def check_for_scc_convergence(self):
@@ -33,9 +29,8 @@ class Detailedout:
             (bool/None): 'True/False' if converged or not, 'None' if file not
                 found/readable
         """
-        path = os.path.join(self._directory, self._filename)
         try:
-            with open(path, "r") as file:
+            with open(self._filename, "r") as file:
                 lines = file.readlines()
         except OSError:
             return None
@@ -54,9 +49,8 @@ class Detailedout:
             (bool/None): 'True/False' if converged or not, 'None' if file not
                 found/readable
         """
-        path = os.path.join(self._directory, self._filename)
         try:
-            with open(path, "r") as file:
+            with open(self._filename, "r") as file:
                 lines = file.readlines()
         except OSError:
             return None

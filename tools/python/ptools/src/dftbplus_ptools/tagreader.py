@@ -21,7 +21,6 @@
 
 """contains classes for parsing tagged output of DFTB"""
 
-import os
 import re
 import numpy as np
 
@@ -549,18 +548,17 @@ def product(elements):
     return res
 
 
-def results_access(filename='results.tag', directory='.'):
+def results_access(filename='results.tag'):
     """returns the content of a results file as a dictionary
 
     Args:
-        filename (str): filename of file
-        directory (str): directory of file
+        filename (str): name of file
 
     Retruns:
         dictionary (dict): dictionary of opend results file
     """
     dictionary = {}
-    with open(os.path.join(directory, filename), "r") as file:
+    with open(filename, "r") as file:
         parser = ResultParser(file).entries
         for entry in parser:
             values = entry.fvalue
@@ -569,18 +567,17 @@ def results_access(filename='results.tag', directory='.'):
     return dictionary
 
 
-def property_by_keyword(keyword, filename='results.tag', directory='.'):
+def property_by_keyword(keyword, filename='results.tag'):
     """returns the content of a results file as a dictionary
 
     Args:
         keyword (str): name of the entry
-        filename (str): filename of file
-        directory (str): directory of file
+        filename (str): name of file
 
     Retruns:
         value (array): array containing values of entry
     """
-    with open(os.path.join(directory, filename), "r") as file:
+    with open(filename, "r") as file:
         tagcollection = TaggedCollection(ResultParser(file).entries)
 
     value = tagcollection.get_entry(keyword).fvalue

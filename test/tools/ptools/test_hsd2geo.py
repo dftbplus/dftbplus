@@ -41,18 +41,17 @@ class Hsd2geoTest(common.TestWithWorkDir):
     def test_explicit(self):
         """test for conversion from hsd (explicit format)"""
         self.assertTrue(self.common(Gen, "explicit.ref",
-                                    "explicit.hsd"))
+                                    "explicit.hsd", tolerance=2.6E-10))
 
     def test_explicit_rel(self):
         """test for conversion from hsd (explicit format, relative coords)"""
         self.assertTrue(self.common(Gen, "explicit_rel.ref",
                                     "explicit_rel.hsd"))
 
-    def test_explicit_bohr(self):
-        """test for conversion from hsd (explicit format, unit = bohr)"""
+    def test_explicit_angstrom(self):
+        """test for conversion from hsd (explicit format, unit = angstrom)"""
         self.assertTrue(self.common(Gen, "explicit.ref",
-                                    "explicit_bohr.hsd",
-                                    tolerance=0.000000001))
+                                    "explicit_angstrom.hsd"))
 
     def test_explicit_pm(self):
         """test for conversion from hsd (explicit format, unit = pm)"""
@@ -62,8 +61,8 @@ class Hsd2geoTest(common.TestWithWorkDir):
 
     def common(self, class_obj, reference, filename, tolerance=1E-10):
         """common part of tests"""
-        value = class_obj.fromhsd(filename=filename,
-                                  directory=self.inputdir)
+        path = os.path.join(self.inputdir, filename)
+        value = class_obj.fromhsd(filename=path)
         reference_value = class_obj.fromfile(os.path.join(self.inputdir,
                                                           reference))
         return reference_value.equals(value, tolerance=tolerance)

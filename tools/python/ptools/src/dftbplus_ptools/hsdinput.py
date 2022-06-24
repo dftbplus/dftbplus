@@ -9,28 +9,37 @@
 Module for interaction with the hsd input file.
 """
 
-
+import re
 import os
 import hsd
 import numpy as np
 
-class Changehsd:
+
+class Hsdinput:
     """Class for changing the hsd input"""
 
-    def __init__(self, filename="dftb_in.hsd", directory=".", dictionary=None):
+    def __init__(self, filename="dftb_in.hsd", dictionary=None,
+                 hamiltonian=None):
         """Initialises the changehsd class
 
         Args:
-            directory (str): directory of file
             filename (str): name of file
             dictionary (dict): option to change existing dict
+            hamiltonian (str): Hamiltonian for calculation
         """
         self._filename = filename
-        self._directory = directory
         if dictionary is None:
             self._dictionary = self._read_hsd()
         else:
-            self._dictionary = dictionary
+            self.set_hsd(dictionary)
+        if hamiltonian is None:
+            self._hamiltonian = self._read_hamiltonian()
+        else:
+            self._hamiltonian = hamiltonian.lower()
+
+
+    def __getitem__(self, key):
+        return self._dictionary[key]
 
 
     def _read_hsd(self):
@@ -40,11 +49,50 @@ class Changehsd:
             (dict): dictionary contained in file, empty if file not found/
                 readable
         """
-        path = os.path.join(self._directory, self._filename)
         try:
-            return hsd.load(path)
+            return hsd.load(self._filename, lower_tag_names=True)
         except OSError:
             return {}
+
+
+    def _read_hamiltonian(self):
+        """reads Hamiltonian from hsd dict
+
+        Returns:
+            (str/None): Hamiltonian in dictionary or None if not found
+        """
+
+        try:
+            hamiltonian = list(self._dictionary["hamiltonian"].keys())
+        except KeyError:
+            return None
+        if len(hamiltonian) > 1:
+            return None
+        return hamiltonian[0].lower()
+
+
+    def get_hamiltonian(self):
+        """help function for using self._hamiltonian"""
+
+        if self._hamiltonian is None:
+            raise ValueError("Please specify Hamiltonian when calling " +
+                             "Hsdinput class!")
+        if self._hamiltonian == "dftb":
+            return self._hamiltonian
+        elif self._hamiltonian == "xtb":
+            return self._hamiltonian
+        else:
+            raise ValueError(f"'{self._hamiltonian}' is not a valid " +
+                             "Hamiltonian!")
+
+
+    def set_filename(self, filename):
+        """Sets self._filename
+
+        Args:
+            filename (str): filename
+        """
+        self._filename = filename
 
 
     def set_hsd(self, dictionary):
@@ -53,26 +101,26 @@ class Changehsd:
         Args:
             dictionary (dict): dictionary to change
         """
-        self._dictionary = dictionary
+        self._dictionary = self.to_lowercase(dictionary)
 
 
     def write_hsd(self):
         """Writes dictionary to file
 
         Returns:
-            (file): file named 'filename' at 'directory'
+            (file): file named 'filename'
         """
-        path = os.path.join(self._directory, self._filename)
-        hsd.dump(self._dictionary, path)
+        hsd.dump(self._dictionary, self._filename, use_hsd_attribs=True)
 
 
     def get_hsd(self):
-        """Function for returning self._dictionary
+        """Function for returning self._dictionary in lowercase
 
         Returns:
             (dict): contains hsd dictionary
         """
-        return self._dictionary
+
+        return self.to_lowercase(self._dictionary)
 
 
     def write_resultstag(self, value=True):
@@ -81,8 +129,8 @@ class Changehsd:
         Args:
             value (bool): True for writing results.tag
         """
-        self._set_keyword('Options')
-        self._dictionary['Options']['WriteResultsTag'] = value
+        self._set_keyword('options')
+        self._dictionary['options']['writeresultstag'] = value
 
 
     def calc_forces(self, value=True):
@@ -91,8 +139,8 @@ class Changehsd:
         Args:
             value (bool): True for calculating forces
         """
-        self._set_keyword('Analysis')
-        self._dictionary['Analysis']['CalculateForces'] = value
+        self._set_keyword('analysis')
+        self._dictionary['analysis']['calculateforces'] = value
 
 
     def calc_charges(self, value=True):
@@ -101,8 +149,8 @@ class Changehsd:
         Args:
             value (bool): True for calculating Charges
         """
-        self._set_keyword('Analysis')
-        self._dictionary['Analysis']['MullikenAnalysis'] = value
+        self._set_keyword('analysis')
+        self._dictionary['analysis']['mullikenanalysis'] = value
 
 
     def set_driver(self, driver, drivermaxforce=None, drivermaxsteps=None):
@@ -114,13 +162,13 @@ class Changehsd:
                 criterion of geometry optimization
             drivermaxsteps (int): max. number of geometry steps
         """
-        self._dictionary['Driver'] = {}
-        self._dictionary['Driver'][str(driver)] = {}
+        self._dictionary['driver'] = {}
+        self._dictionary['driver'][str(driver)] = {}
         if drivermaxforce is not None:
-            self._dictionary['Driver'][str(driver)]['MaxForceComponent'] = \
+            self._dictionary['driver'][str(driver)]['maxforcecomponent'] = \
                 drivermaxforce
         if drivermaxsteps is not None:
-            self._dictionary['Driver'][str(driver)]['MaxSteps'] = \
+            self._dictionary['driver'][str(driver)]['maxsteps'] = \
                 drivermaxsteps
 
 
@@ -130,8 +178,8 @@ class Changehsd:
         Args:
             value (bool): True for self-consistent calculations
         """
-        self._set_keyword('Hamiltonian', 'DFTB')
-        self._dictionary['Hamiltonian']['DFTB']['Scc'] = value
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
+        self._dictionary['hamiltonian'][self._hamiltonian]['scc'] = value
 
 
     def set_scctol(self, value=1E-005):
@@ -140,8 +188,9 @@ class Changehsd:
         Args:
             value (float): convergence criterion of SCC cycles
         """
-        self._set_keyword('Hamiltonian', 'DFTB')
-        self._dictionary['Hamiltonian']['DFTB']['SccTolerance'] = value
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
+        self._dictionary['hamiltonian'][self._hamiltonian]['scctolerance'] \
+            = value
 
 
     def set_skdir(self, skdir):
@@ -153,24 +202,35 @@ class Changehsd:
         Raises
             TypeError: if skdir has wrong Type
         """
-        self._set_keyword('Hamiltonian', 'DFTB')
+        if self.get_hamiltonian() != "dftb":
+            raise ValueError("'set_skdir()' not available for " +
+                             f"{self._hamiltonian}")
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
         if isinstance(skdir, str):
             if not skdir.endswith('/'):
                 skdir += '/'
             skfiledict = {}
-            skfiledict['Prefix'] = skdir
-            skfiledict['Separator'] = '"-"'
-            skfiledict['Suffix'] = '".skf"'
+            skfiledict['prefix'] = skdir
+            skfiledict['separator'] = '"-"'
+            skfiledict['suffix'] = '".skf"'
 
-            self._dictionary['Hamiltonian']['DFTB']['SlaterKosterFiles'] = {}
-            self._dictionary['Hamiltonian']['DFTB']['SlaterKosterFiles'] \
-                ['Type2FileNames'] = skfiledict
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['slaterkosterfiles'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['slaterkosterfiles']['type2filenames'] = skfiledict
 
         elif isinstance(skdir, dict):
+            # converts keys to lowercase
+            keys = []
+            paths = []
             for key, path in skdir.items():
-                skdir[key] = '"' + path.strip('"').strip("'") + '"'
-            self._dictionary['Hamiltonian']['DFTB']['SlaterKosterFiles'] = \
-                skdir
+                keys.append(key)
+                paths.append(path)
+            for key, path in zip(keys, paths):
+                del skdir[key]
+                skdir[key.lower()] = '"' + path.strip('"').strip("'") + '"'
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['slaterkosterfiles'] = skdir
         else:
             raise TypeError('Unexpected object type: "skdir" ' +
                             f'is type "{type(skdir).__name__}"' +
@@ -190,7 +250,7 @@ class Changehsd:
         # Handle different K-point formats
         # (note: the ability to handle bandpaths has not yet been
         # implemented)
-        self._set_keyword('Hamiltonian', 'DFTB')
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
         if np.array(kpts).ndim == 1:
             # Case: K-points as (gamma-centered) Monkhorst-Pack grid
             mp_mesh = kpts
@@ -211,9 +271,10 @@ class Changehsd:
                 raise ValueError('Illegal K-Points definition: ' +
                                  str(kpts))
             kpts_mp = np.vstack((np.eye(3) * mp_mesh, offsets))
-            self._dictionary['Hamiltonian']['DFTB']['KPointsAndWeights'] = {}
-            self._dictionary['Hamiltonian']['DFTB']['KPointsAndWeights'] \
-                ['SupercellFolding'] = kpts_mp
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['kpointsandweights'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['kpointsandweights']['supercellfolding'] = kpts_mp
 
         elif np.array(kpts).ndim == 2:
             # Case: single K-points explicitly as (N x 3) or (N x 4) matrix
@@ -227,8 +288,8 @@ class Changehsd:
             else:
                 raise ValueError('Illegal K-Points definition: ' +
                                  str(kpts))
-            self._dictionary['Hamiltonian']['DFTB']['KPointsAndWeights'] = \
-                kptsweights
+            self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['kpointsandweights'] = kptsweights
         else:
             raise ValueError('Illegal K-Points definition: ' + str(kpts))
 
@@ -245,23 +306,24 @@ class Changehsd:
         Raises:
             ValueError: if filling methode unknown
         """
-        self._set_keyword('Hamiltonian', 'DFTB')
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
         if filling.lower() == 'methfesselpaxton':
-            self._dictionary['Hamiltonian']['DFTB']['Filling'] = {}
-            self._dictionary['Hamiltonian']['DFTB']['Filling']\
-                ['MethfesselPaxton'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]['filling'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]['filling']\
+                ['methfesselpaxton'] = {}
             if temperature is not None:
-                self._dictionary['Hamiltonian']['DFTB']['Filling']\
-                    ['MethfesselPaxton']['Temperatur'] = temperature
+                self._dictionary['hamiltonian'][self._hamiltonian]['filling']\
+                    ['methfesselpaxton']['temperatur'] = temperature
             if order is not None:
-                self._dictionary['Hamiltonian']['DFTB']['Filling']\
-                    ['MethfesselPaxton']['Order'] = order
+                self._dictionary['hamiltonian'][self._hamiltonian]['filling']\
+                    ['methfesselpaxton']['order'] = order
         elif filling.lower() == 'fermi':
-            self._dictionary['Hamiltonian']['DFTB']['Filling'] = {}
-            self._dictionary['Hamiltonian']['DFTB']['Filling']['Fermi'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]['filling'] = {}
+            self._dictionary['hamiltonian'][self._hamiltonian]['filling']\
+                ['fermi'] = {}
             if temperature is not None:
-                self._dictionary['Hamiltonian']['DFTB']['Filling']['Fermi']\
-                    ['Temperatur'] = temperature
+                self._dictionary['hamiltonian'][self._hamiltonian]['filling']\
+                    ['fermi']['temperatur'] = temperature
         else:
             raise ValueError(f'Unknown filling methode "{filling}"')
 
@@ -277,28 +339,37 @@ class Changehsd:
         Raises:
             ValueError: if Slater-Koster files not specified or if obtained
                 max. angular momentum is out of range (s-f) or can't be read
-                from Slater-Koster file or if element is in try_reading and
+                from Slater-Koster file or if species is in try_reading and
                 maxangs
         """
+        self.get_hamiltonian()
         if maxangs is None:
             maxangs = {}
 
+        else:
+            maxangs = self.to_lowercase(maxangs)
+
         if try_reading is not None:
-            for element in try_reading:
-                if element in maxangs:
-                    raise ValueError(f"'{element}' is already specified in " +
+            for num, species in enumerate(try_reading):
+                try_reading[num] = species[0].upper() + species[1:].lower()
+
+                if species.lower() in maxangs:
+                    raise ValueError(f"'{species}' is already specified in " +
                                      "'maxangs'!")
 
-
+            if self._hamiltonian != "dftb":
+                raise ValueError("'try_reading' only possible with 'DFTB' " +
+                                 "Hamiltonian")
             try:
-                self._dictionary['Hamiltonian']['DFTB']['SlaterKosterFiles']
+                self._dictionary['hamiltonian'][self._hamiltonian]\
+                    ['slaterkosterfiles']
             except KeyError:
                 raise ValueError("Slater-Koster-Files not available. Please" +
                                  " set them using the function 'set_skdir'.")
-            skdir = self._dictionary['Hamiltonian']['DFTB']\
-                ['SlaterKosterFiles']
+            skdir = self._dictionary['hamiltonian'][self._hamiltonian]\
+                ['slaterkosterfiles']
             try:
-                prefix = skdir['Type2FileNames']['Prefix'].strip('"').strip(
+                prefix = skdir['type2filenames']['prefix'].strip('"').strip(
                     "'")
             except KeyError:
                 prefix = skdir
@@ -308,11 +379,12 @@ class Changehsd:
                     path = os.path.join(prefix, '{0}-{0}.skf'.format(species))
                 else:
                     try:
-                        path = skdir['{0}-{0}'.format(species)].replace('"',
-                                                                        '')
+                        path = skdir['{0}-{0}'.format(species.lower())
+                                     ].replace('"', '')
                     except KeyError:
-                        raise ValueError(f"No path for '{species}-{species}'" +
-                                         " specified!")
+                        raise ValueError("No path for " +
+                                         f"'{species}-" +
+                                         f"{species}' specified!")
                 maxang = self.read_max_angular_momentum(path)
 
                 if maxang is None:
@@ -329,10 +401,11 @@ class Changehsd:
                           ' is out of range. Please check!'
                     raise ValueError(msg)
                 maxang = '"{}"'.format('spdf'[maxang])
-                maxangs[species] = maxang
+                maxangs[species.lower()] = maxang
 
-        self._set_keyword('Hamiltonian', 'DFTB')
-        self._dictionary['Hamiltonian']['DFTB']['MaxAngularMomentum'] = maxangs
+        self._set_keyword('hamiltonian', self.get_hamiltonian())
+        self._dictionary['hamiltonian'][self._hamiltonian]\
+            ['maxangularmomentum'] = maxangs
 
 
     def ignore_unprocessed_nodes(self, value=True):
@@ -341,38 +414,71 @@ class Changehsd:
         Args:
             value (bool): True for ignoring unprocessed nodes
         """
-        self._set_keyword('ParserOptions')
-        self._dictionary['ParserOptions']['IgnoreUnprocessedNodes'] = value
+        self._set_keyword('parseroptions')
+        self._dictionary['parseroptions']['ignoreunprocessednodes'] = value
 
 
-    def set_geometry(self, geometry):
+    def set_geometry(self, geometry, xyz=False, gen=False, vasp=False):
         """Function for setting 'geometry'
 
         Args:
-            geometry (dftbplus_ptools.geometry.Geometry object): contains the
-                geometry informations
+            geometry (dftbplus_ptools.geometry.Geometry object/str): contains
+                the geometry informations / name of the file to include
+            xyz (bool): True if included file uses xyz Format
+            gen (bool): True if included file uses gen Format
+            vasp (bool): True if included file uses vasp Format
+
+        Raises:
+            ValueError: if format is not known
         """
-        specieslist = geometry.specienames
-        indexes = geometry.indexes
+        if isinstance(geometry, str):
+            if sum([xyz, gen, vasp]) == 0:
+                if geometry.endswith(".gen"):
+                    gen = True
+                elif geometry.endswith(".xyz"):
+                    xyz = True
+                else:
+                    raise ValueError("Please specify the Format of the " +
+                                     "included file")
+            elif sum([xyz, gen, vasp]) > 1:
+                raise ValueError("Please specify only one Format for the " +
+                                 "included file")
+            if xyz:
+                geoformat = "xyzformat"
+            elif gen:
+                geoformat = "genformat"
+            elif vasp:
+                geoformat = "vaspformat"
 
-        geodict = {}
-        geodict['TypeNames'] = specieslist
-        typesandcoords = np.empty([len(indexes), 4], dtype=object)
-        typesandcoords[:, 0] = indexes + 1
-        typesandcoords[:, 1:] = np.array(geometry.coords, dtype=float)
-        geodict['TypesAndCoordinates'] = typesandcoords
-        geodict['TypesAndCoordinates.attrib'] = 'Angstrom'
+            geodict = {}
+            geodict[f"{geoformat}"] = {}
+            # the "#" is needed so that the following "=" in the written hsd
+            # is ignored
+            geodict[f"{geoformat}"][f"<<<{geometry} # "] = []
+            self._dictionary["geometry"] = geodict
 
-        periodic = geometry.periodic
-
-        if periodic:
-            geodict['Periodic'] = 'Yes'
-            geodict['LatticeVectors'] = geometry.latvecs
-            geodict['LatticeVectors.attrib'] = 'Angstrom'
         else:
-            geodict['Periodic'] = 'No'
+            specieslist = geometry.specienames
+            indexes = geometry.indexes
 
-        self._dictionary['Geometry'] = geodict
+            geodict = {}
+            geodict['typenames'] = specieslist
+            typesandcoords = np.empty([len(indexes), 4], dtype=object)
+            typesandcoords[:, 0] = indexes + 1
+            typesandcoords[:, 1:] = np.array(geometry.coords, dtype=float)
+            geodict['typesandcoordinates'] = typesandcoords
+            geodict['typesandcoordinates.attrib'] = 'Angstrom'
+
+            periodic = geometry.periodic
+
+            if periodic:
+                geodict['periodic'] = 'Yes'
+                geodict['latticevectors'] = geometry.latvecs
+                geodict['latticevectors.attrib'] = 'Angstrom'
+            else:
+                geodict['periodic'] = 'No'
+
+            self._dictionary['geometry'] = geodict
 
 
     def get_basic_input(self, skdir='./', driver=None, drivermaxforce=None,
@@ -405,7 +511,8 @@ class Changehsd:
         """
 
         self.set_skdir(skdir)
-        self.set_driver(driver, drivermaxforce, drivermaxsteps)
+        if driver is not None:
+            self.set_driver(driver, drivermaxforce, drivermaxsteps)
         self.set_scc(scc)
         if scctol is not None:
             self.set_scctol(scctol)
@@ -444,6 +551,46 @@ class Changehsd:
                 self._dictionary[keyword1][keyword2][keyword3]
             except KeyError:
                 self._dictionary[keyword1][keyword2][keyword3] = {}
+
+
+
+    def to_lowercase(self, dictionary):
+        """Helpfunction for converting keys of a (nested) dictionary to
+        lowercase and to make the types consistent with hsd.
+
+        Args:
+            dictionary (dict): (nested) dictionary in which the keys are
+                converted to lowercase letters
+
+        Returns:
+            converted (dict): converted dictinary
+
+        Raises
+            KeyError: if the key has multiple assignments
+        """
+        pattern = re.compile(r"""
+        # Logical (Yes/No)
+        (?:\s*(?:^|(?<=\s))(?P<logical>[Yy][Ee][Ss]|[Nn][Oo])(?:$|(?=\s+)))
+        """, re.VERBOSE)
+        converted = {}
+        for key, value in dictionary.items():
+            if isinstance(key, str):
+                if key.lower() in converted:
+                    raise KeyError(f"'{key.lower()}' is already assigned!")
+                key = key.lower()
+            if isinstance(value, dict):
+                value = self.to_lowercase(value)
+            # turns arrays to lists
+            # for consistency with hsd
+            elif isinstance(value, np.ndarray):
+                value = value.tolist()
+            elif isinstance(value, str):
+                match = pattern.match(value)
+                if match is not None:
+                    value = match.group("logical").lower() == "yes"
+            converted[key] = value
+        return converted
+
 
     @staticmethod
     def read_max_angular_momentum(path):
