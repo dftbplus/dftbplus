@@ -8,6 +8,11 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+- Born charges from finite difference dipole derivatives
+
 
 Fixed
 -----

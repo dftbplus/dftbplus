@@ -16,7 +16,7 @@ module dftbp_dftbplus_main
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
-  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
+  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd
   use dftbp_derivs_perturb, only : TResponse
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
@@ -69,11 +69,11 @@ module dftbp_dftbplus_main
       & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
       & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
       & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
-      & writeFinalDriverstatus, writeHessianout, writeAutotestTag, writeResultsTag,&
-      & writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm, writeDerivBandOut,&
-      & writeDetailedOut8, writeDetailedOut9
+      & writeFinalDriverstatus, writeHessianout, writeBornChargesOut, writeAutotestTag,&
+      & writeResultsTag, writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm,&
+      & writeDerivBandOut, writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, fCharges, fShifts, fStopScc, mdOut,&
-      & userOut, fStopDriver, hessianOut, resultsTag, derivEBandOut
+      & userOut, fStopDriver, hessianOut, bornChargesOut, resultsTag, derivEBandOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
@@ -189,6 +189,8 @@ contains
     logical :: isUnReduced
 
     type(TStatus) :: errStatus
+    real(dp), pointer :: pDynMatrix(:,:), pDipDerivMatrix(:,:)
+    integer :: iAt
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -285,6 +287,9 @@ contains
       end if
 
       if (this%tForces) then
+        if (this%tDipole.and.allocated(this%derivDriver)) then
+          call dipoleAdd(this%derivDriver, this%dipoleMoment)
+        end if
         call getNextGeometry(this, env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep,&
             & tGeomEnd, tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
         if (tExitGeoOpt) then
@@ -342,10 +347,32 @@ contains
     end if
 
     if (env%tGlobalLead .and. this%tDerivs) then
-      call getHessianMatrix(this%derivDriver, this%pDynMatrix)
-      call writeHessianOut(hessianOut, this%pDynMatrix, this%indMovedAtom)
+      if (this%tDipole) then
+        call getHessianMatrix(this%derivDriver, pDynMatrix, pDipDerivMatrix)
+      else
+        call getHessianMatrix(this%derivDriver, pDynMatrix)
+      end if
+      call writeHessianOut(hessianOut, pDynMatrix, this%indMovedAtom, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
+      if (this%tDipole) then
+        call writeBornChargesOut(bornChargesOut,&
+            & this%eFieldScaling%scaledSoluteDipole(pDipDerivMatrix),&
+            & this%indMovedAtom, size(this%iAtInCentralRegion), errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
+        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+          call writeDetailedOut8(this%fdDetailedOut%unit,&
+              & this%eFieldScaling%scaledSoluteDipole(pDipDerivMatrix))
+        end if
+      end if
     else
-      nullify(this%pDynMatrix)
+      nullify(pDynMatrix)
+      if (this%tDipole) then
+        nullify(pDipDerivMatrix)
+      end if
     end if
 
     if (this%tWriteShifts) then
@@ -419,8 +446,8 @@ contains
           call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
         end if
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut8(this%fdDetailedOut%unit, this%neFermi)
-          call writeDetailedOut9(this%fdDetailedOut%unit, this%orb, this%polarisability,&
+          call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
+          call writeDetailedOut10(this%fdDetailedOut%unit, this%orb, this%polarisability,&
               & this%dqOut, this%dEfdE)
         end if
       end if
@@ -441,7 +468,7 @@ contains
           call error(errStatus%message)
         end if
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut8(this%fdDetailedOut%unit, this%neFermi)
+          call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
         end if
       end if
 
@@ -475,16 +502,16 @@ contains
       end if
       call writeAutotestTag(autotestTag, this%electronicSolver, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
-          & this%tStress, this%totalStress, this%pDynMatrix,&
-          & this%dftbEnergy(this%deltaDftb%iFinal), this%extPressure, this%coord0, this%tLocalise,&
-          & localisation, this%electrostatPot, this%taggedWriter, this%tunneling, this%ldos,&
-          & this%lCurrArray, this%polarisability, this%dEidE, this%dipoleMoment, this%eFieldScaling)
+          & this%tStress, this%totalStress, pDynMatrix, this%dftbEnergy(this%deltaDftb%iFinal),&
+          & this%extPressure, this%coord0, this%tLocalise, localisation, this%electrostatPot,&
+          & this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray, this%polarisability,&
+          & this%dEidE, this%dipoleMoment, this%eFieldScaling)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
           & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
-          & this%tStress, this%totalStress, this%pDynMatrix, this%tPeriodic, this%cellVol,&
-          & this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
+          & this%tStress, this%totalStress, pDynMatrix, pDipDerivMatrix, this%tPeriodic,&
+          & this%cellVol, this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
           & this%coord0, this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
     end if
@@ -1280,7 +1307,7 @@ contains
     end if
 
     if (this%tDipole .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord,&
+      call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
       if (this%hamiltonianType == hamiltonianTypes%dftb) then
@@ -1985,7 +2012,6 @@ contains
     if (allocated(cm5Cont)) then
        call cm5Cont%updateCoords(neighbourList, img2CentCell, coord, species)
     end if
-
 
   end subroutine handleCoordinateChange
 

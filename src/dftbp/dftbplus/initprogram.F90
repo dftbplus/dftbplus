@@ -950,9 +950,6 @@ module dftbp_dftbplus_initprogram
     !> Natural orbitals for excited state density matrix, if requested
     real(dp), allocatable :: occNatural(:)
 
-    !> Dynamical (Hessian) matrix
-    real(dp), pointer :: pDynMatrix(:,:)
-
     !> File descriptor for the human readable output
     type(TFile), allocatable :: fdDetailedOut
 
@@ -2583,7 +2580,8 @@ contains
     if (this%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
-      call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta)
+      call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta,&
+          &this%tDipole)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
