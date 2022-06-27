@@ -702,7 +702,12 @@ contains
               & tRangeSep, rangeSep, excgrad)
         end if
 
-        if (tNaCoupling) then
+        if (this%tNaCoupling) then
+
+          if(this%nExc < this%indNACouplings(2)) then
+            call error('Coupling: Index must not exceed number of states to calculate.')
+          end if  
+ 
           ! This overwrites T, RHS and W
           ALLOCATE(nacv, mold = excgrad)
           ALLOCATE(xpyn, mold = xpy(:,1))
@@ -711,64 +716,66 @@ contains
           ALLOCATE(xmym, mold = xpy(:,1))
 
           open(67, file='nacv.out')
-          nCoupLev = 1
-          do qq = 2,5
-             write(67,*) nCoupLev, qq
-             mCoupLev = qq
+          write(67,'(a)') '# Non-adiabatic couplings: index of state 1 and 2, then coupling vector' 
+          do nCoupLev = this%indNACouplings(1), this%indNACouplings(2)-1
+            do mCoupLev = nCoupLev+1, this%indNACouplings(2)
+              write(67,'(2x,i4,2x,i4)') nCoupLev, mCoupLev
+              nacv = 0
+              woo = 0.0_dp
+              wvv = 0.0_dp
+              pc = 0.0_dp
+              t = 0.0_dp
+              rhs = 0.0_dp
 
-          woo = 0.0_dp
-          wvv = 0.0_dp
-          pc = 0.0_dp
-          t = 0.0_dp
-          rhs = 0.0_dp
+              xpyn = xpy(:,nCoupLev)
+              xmyn = xmy(:,nCoupLev)
+              xpym = xpy(:,mCoupLev)
+              xmym = xmy(:,mCoupLev)
 
-          xpyn = xpy(:,nCoupLev)
-          xmyn = xmy(:,nCoupLev)
-          xpym = xpy(:,mCoupLev)
-          xmym = xmy(:,mCoupLev)
+              omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
+              omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
+              
+              ! compute + component of RHS for Z-vector eq. in the NaCoupling case
+              ! also computes the + components of W and T
+              call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),            & 
+                   & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1),    &
+                   & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
+                   & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t, &
+                   & wov, woo, wvv)
 
-          nacv = 0
-          omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
-          omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
-   
-          ! compute + component of RHS for Z-vector eq. in the NaCoupling case
-          ! also computes the + components of W and T
-          call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev), xpy(:,mCoupLev),  & 
-            & xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1), transChrg, getIA, getIJ,      &
-            & getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat,     &
-            & lrGamma, this%spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
+              call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,      &
+                   & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, &
+                   & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,       &
+                   & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,   &
+                   & lrGamma)
 
-          call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,     &
-            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,    &
-            & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+              call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, &
+                   & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,   &
+                   & transChrg, species0, this%spinW, tRangeSep, lrGamma)
 
-          call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, iAtomStart,&
-            & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
-            & this%spinW, tRangeSep, lrGamma)
-
-          call calcNadiaPMatrix(t, rhs, win, getIA, pc)
-          !!call calcPMatrix(t, rhs, win, getIA, pc)
+              call calcNadiaPMatrix(t, rhs, win, getIA, pc)
+              !!call calcPMatrix(t, rhs, win, getIA, pc)
 !
-          do iSpin = 1, nSpin
-            ! Make MO to AO transformation of the excited density matrix
-            call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-            call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
-          end do
+              do iSpin = 1, nSpin
+                ! Make MO to AO transformation of the excited density matrix
+                call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+                call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+              end do
 
-          call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,    &
-              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,    &
-              & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg,      &
-              & omegaDif, xpyn, xmyn, xpym, xmym, coord0, orb,   &   
-              & skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
+              call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,  &
+                & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn,&
+                & xpym, xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,     &
+                & tRangeSep, rangeSep, nacv)
 
-          do i= 1, size(nacv(1,:))
-             write(67,'(3(f16.8,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
-          enddo
-          write(67,*)
-          enddo
+              do i= 1, size(nacv(1,:))
+                write(67,'(3(f20.12,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
+              enddo
+
+            end do
+          end do 
           close(67)
-
+            
         end if
       end do
 

@@ -4731,6 +4731,8 @@ contains
       call getChildValue(child, "WriteEigenvectors", ctrl%lrespini%tPrintEigVecs, .false.)
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
+      call getChildValue(child, "Couplings", ctrl%lrespini%indNACouplings, default= [0,0], &
+           & modifier=modifier,  child=child2)
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -4756,6 +4758,7 @@ contains
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
       end if
+      
 
     end if
 
