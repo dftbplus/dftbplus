@@ -183,9 +183,8 @@ contains
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
-    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev, ii, jj
+    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev
-    integer :: aa, bb, ss, ab, qq
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -197,7 +196,6 @@ contains
     !> control variables
     logical :: tZVector, tFracOcc
     logical :: tRangeSep = .false.
-    logical :: tNaCoupling = .true.
 
     !> should gradients be calculated
     logical :: tForces
@@ -753,8 +751,7 @@ contains
                    & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,   &
                    & transChrg, species0, this%spinW, tRangeSep, lrGamma)
 
-              call calcNadiaPMatrix(t, rhs, win, getIA, pc)
-              !!call calcPMatrix(t, rhs, win, getIA, pc)
+              call calcPMatrix(t, rhs, win, getIA, pc)
 !
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
@@ -904,7 +901,7 @@ contains
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma, omega
-    integer :: iparam(11), ipntr(11), ii
+    integer :: iparam(11), ipntr(11)
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
     logical :: rvec
@@ -1166,7 +1163,7 @@ contains
 
     integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
-    integer :: ii, jj, ia, ij, ab
+    integer :: ii, jj
     character(lc) :: tmpStr
 
     logical :: didConverge
@@ -1551,7 +1548,7 @@ contains
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovT(:), vecHooT(:), vecHvv(:)
+    real(dp), allocatable :: vecHovT(:), vecHooT(:)
     integer :: nxov
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
@@ -1680,10 +1677,6 @@ contains
 
     end if
 
-    !! Debug TN   
-!!$    ALLOCATE(vecHvv(sum(nxvv))) 
-!!$    call getHvvXYfr(sym, nXvv, nAtom, iaTrans, getIA, getAB, win,&
-!!$      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpy, vecHvv)
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -1691,7 +1684,6 @@ contains
       do b = homo(s) + 1, a
         ab = iatrans(a, b, s) - svv(s)
         ibs = iatrans(i, b, s)
-        !!> TN print *,iatrans(a, b, s),qgamxpyq(ab, s),vecHvv(iatrans(a, b, s)),'Grunfeld'
         rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab, s)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
@@ -1910,8 +1902,9 @@ contains
   end subroutine getZVectorEqRHS
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
-  !> do not depend on Z. Modified version of getZVectorEqRHS for NA couplings. 
-  !> Here the + part of the RHS and W is computed. The non-symmetric T is constructed.  
+  !> do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
+  !> Furche PCCP 21 18999 (2019)
+  !> Here the + (symmetric) part of RHS, T and W is computed. 
   subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,     & 
       & nmatup, transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev,&
       & grndEigVecs, gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, &
@@ -2008,12 +2001,11 @@ contains
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXorY(:), vecHooXorY(:), vecHovT(:), vecHvvT(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovTp(:), vecHovTm(:), vecHooT(:), tp(:,:,:)
+    real(dp), allocatable :: vecHooT(:)
     integer :: nxov
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb, ii, jj
-    integer :: iOrb, jOrb
-    real(dp) :: fact, ptmp1, ptmp2, tmp3, tmp4, tmp1
+    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
+    real(dp) :: ptmp1, ptmp2, tmp3, tmp4, tmp1
     logical :: tSpin
 
     nxov = size(rhs)
@@ -2023,7 +2015,6 @@ contains
     ALLOCATE(qTr(natom))
     ALLOCATE(gamxpyq(natom))
     ALLOCATE(gamqt(natom))
-
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -2057,9 +2048,9 @@ contains
       tSpin = .false.
     end if
 
-    ! Build t_ab = 0.5 * sum_i (X+Y)_ia (X+Y)_ib + (X-Y)_ia (X-Y)_ib
-    ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
-    ! factor 1 / (1 + delta_ab) follows later
+    ! Build state-to-state 1TDM and W (eq. 42 in Furche PCCP)
+    ! We are symmetrizing the non-symmetric T of Furche 
+    ! Factor 1 / (1 + delta_ab) for W follows later
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
 
@@ -2076,24 +2067,22 @@ contains
         tmp3 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)
         tmp4 = xpyn(ibs) * xpym(ias) + xmyn(ibs) * xmym(ias)
 
-        t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3
+        ! Set t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3 for asymmetric T
+        t(a,b,s) = t(a,b,s) + 0.25_dp * (tmp3 + tmp4)
         wvv(ab,s) = wvv(ab,s) + 0.5_dp * grndEigVal(i,s) * ptmp1  &
                    & + 0.5_dp * omegaAvg * ptmp2 
                             
         ! to prevent double counting
         if (a /= b) then
-          t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4
+          ! Set t(b,a,s) = t(b,a,s) + 0.5_dp * tmp4 for asymmetric T
+          t(b,a,s) = t(b,a,s) + 0.25_dp * (tmp3 + tmp4)
         end if
         
       end do
 
-      ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja and 1 / (1 + delta_ij) Q_ij
-      ! with Q_ij as in eq. (B9) (1st part of w_ij)
       do j = i, homo(s)
         jas = iatrans(j,a,s)
 
-        ! ADG: assume no constraint on occ space atm (nocc_r = nocc)
-        ! otherwise first argument should be nocc - nocc_r
         ij = iatrans(i, j, s) - soo(s)
 
         ptmp1 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas) + & 
@@ -2105,13 +2094,15 @@ contains
         tmp3 = xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)
         tmp4 = xpyn(jas) * xpym(ias) + xmyn(jas) * xmym(ias)
 
-        t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
+        !!t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
+        t(i,j,s) = t(i,j,s) - 0.25_dp * (tmp3 + tmp4)
         woo(ij,s) = woo(ij,s) - 0.5_dp * grndEigVal(a,s) * ptmp1   &
                    & + 0.5_dp * omegaAvg * ptmp2 
 
         ! to prevent double counting
         if (i /= j) then
-          t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
+          !!t(j,i,s) = t(j,i,s) - 0.5_dp * tmp4
+          t(j,i,s) = t(j,i,s) - 0.25_dp * (tmp3 + tmp4)
         end if
 
       end do
@@ -2184,19 +2175,14 @@ contains
 
     end do
 
-    allocate(tp, mold=t)
     allocate(vecHovT(nxov))
     allocate(vecHooT(sum(nxoo)))
     allocate(vecHvvT(sum(nxvv)))
 
-    do s = 1, nSpin
-      tp(:,:,s) = 0.5_dp * (t(:,:,s) + transpose(t(:,:,s)))
-    end do
-
     !!> -RHS^+ += - H^+_ia[T^+]
     call getHplusMfr(3, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
       & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg,             &
-      & tp, vecHovT)
+      & t, vecHovT)
 
     rhs = rhs - vecHovT
 
@@ -2311,13 +2297,13 @@ contains
 
       !!> -RHS^+ += - H^+_ia[T^+]
       call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
-        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, tp, vecHovT)
+        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
       rhs = rhs - cExchange * vecHovT
 
       !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
       call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
-       & ovrXev, grndEigVecs, lrGamma, transChrg, tp, vecHooT)
+       & ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
       do s = 1, nSpin
         do ij = 1, nxoo(s)
@@ -2424,7 +2410,7 @@ contains
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
     integer :: nxov
-    integer :: ia, kk, i, a, s, ias, iis, aas
+    integer :: ia, kk, i, a, s, iis, aas
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qTr(:), P(:)
@@ -2519,189 +2505,6 @@ contains
 
   end subroutine solveZVectorPrecond
 
-  !> Solving the (A-B) Z = -R equation via diagonally preconditioned conjugate gradient
-  subroutine solveZVectorPrecondMinus(rhs, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, &
-      & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, iAtomStart, ovrXev, grndEigVecs, &
-      & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, lrGamma)
-
-    !> on entry -R, on exit Z
-    real(dp), intent(inout) :: rhs(:)
-
-    !> logical spin polarization
-    logical, intent(in) :: tSpin
-
-    !> excitation energies (wij = epsion_j - epsilon_i)
-    real(dp), intent(in) :: wij(:)
-
-    !> symmetry flag (singlet or triplet)
-    character, intent(in) :: sym
-
-    !> sorting index of the excitation energies.
-    integer, intent(in) :: win(:)
-
-    !> occupied orbitals per spin channel
-    integer, intent(in) :: nocc_ud(:)
-
-    !> virtual orbitals per spin channel
-    integer, intent(in) :: nvir_ud(:)
-
-    !> number of occ-occ transitions per spin channel
-    integer, intent(in) :: nxoo_ud(:)
-
-    !> number of vir-vir transitions per spin channel
-    integer, intent(in) :: nxvv_ud(:)
-
-    !> number of occ-vir transitions per spin channel
-    integer, intent(in) :: nxov_ud(:)
-
-    !> number of occupied-virtual transitions (possibly reduced by windowing)
-    integer, intent(in) :: nxov_rd
-
-    !> array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
-
-    !> index array for occ-vir single particle excitations
-    integer, intent(in) :: getIA(:,:)
-
-    !> index array for occ-occ single particle excitations
-    integer, intent(in) :: getIJ(:,:)
-
-    !> index array for vir-vir single particle excitations
-    integer, intent(in) :: getAB(:,:)
-
-    !> number of atoms
-    integer, intent(in) :: natom
-
-    !> starting position of each atom in the list of orbitals.
-    integer, intent(in) :: iAtomStart(:)
-
-    !> overlap times eigenvector. (nOrb, nOrb)
-    real(dp), intent(in) :: ovrXev(:,:,:)
-
-    !> eigenvectors (nOrb, nOrb)
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> occupation numbers
-    real(dp), intent(in) :: occNr(:,:)
-
-    ! Square root of occupation difference between vir and occ states
-    real(dp), intent(in) :: sqrOccIA(:)
-
-    !> DFTB gamma matrix (nAtm, nAtom)
-    real(dp), intent(in) :: gammaMat(:,:)
-
-    !> chemical species of the atoms
-    integer, intent(in) :: species0(:)
-
-    !> ground state spin constants for each species
-    real(dp), intent(in) :: spinW(:)
-
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
-    real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
-
-    !> data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
-    !> is calculation range-separated?
-    logical, intent(in) :: tRangeSep
-
-    !> long-range Gamma
-    real(dp), allocatable, intent(in) :: lrGamma(:,:)
-
-    integer :: nxov
-    integer :: ia, kk, i, a, s, ias, iis, aas
-    real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
-    real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qTr(:), P(:)
-
-    nxov = nxov_rd
-    allocate(qTr(nAtom))
-
-    ! diagonal preconditioner
-    ! P^-1 = 1 / (A-B)_ia,ia (diagonal of the supermatrix sum A+B)
-    allocate(P(nxov))
-
-    do ia = 1, nxov
-      rs = wij(ia)
-      !! Possibly reorder spin case
-      if (tRangeSep) then
-        qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
-        call hemv(qTmp, gammaMat, qTr)
-        call hemv(qTmp, lrGamma, qTr)
-        rs = rs + cExchange * dot_product(qTr, qTmp)
-        call indXov(win, ia, getIA, i, a, s)
-        iis = iaTrans(i, i, s)
-        qTr = transChrg%qTransIJ(iis, iAtomStart, ovrXev, grndEigVecs, getIJ)
-        call hemv(qTmp, lrGamma, qTr)
-        aas = iaTrans(a, a, s)
-        qTr = transChrg%qTransAB(aas, iAtomStart, ovrXev, grndEigVecs, getAB)
-        rs = rs - cExchange * dot_product(qTr, qTmp)
-      end if
-      P(ia) = 1.0_dp / rs
-    end do
-
-    ! Free some space, before entering the actionAplusB routine
-    deallocate(qTr)
-
-    ! unit vector as initial guess solution
-    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
-
-    ! action of matrix on vector
-    ! we need the singlet action even for triplet excitations!
-    call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-         & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-         & transChrg, rhs2, rkm1, tRangeSep, lrGamma)
-
-    rkm1(:) = rhs - rkm1
-    zkm1(:) = P * rkm1
-    pkm1(:) = zkm1
-
-    ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
-    do kk = 1, nxov**2
-
-      ! action of matrix on vector
-      call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-           & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-           & transChrg, pkm1, apk, tRangeSep, lrGamma)
-
-      tmp1 = dot_product(rkm1, zkm1)
-      tmp2 = dot_product(pkm1, apk)
-      alphakm1 = tmp1 / tmp2
-
-      rhs2 = rhs2 + alphakm1 * pkm1
-
-      rkm1 = rkm1 -alphakm1 * apk
-
-      tmp2 = dot_product(rkm1, rkm1)
-
-      ! residual
-      if (tmp2 <= epsilon(1.0_dp)**2) then
-        exit
-      end if
-
-      if (kk == nxov**2) then
-        call error("solveZVectorEq : Z vector not converged!")
-      end if
-
-      zkm1(:) = P * rkm1
-
-      tmp2 = dot_product(zkm1, rkm1)
-
-      ! Fletcher-Reeves update
-      bkm1 = tmp2 / tmp1
-
-      pkm1 = zkm1 + bkm1 * pkm1
-
-    end do
-
-    rhs(:) = rhs2(:)
-
-  end subroutine solveZVectorPrecondMinus
-
-
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
   subroutine calcWvectorZ(zz, win, homo, nmatup, getIA, getIJ, getAB, iaTrans, iAtomStart,&
@@ -2773,7 +2576,7 @@ contains
 
     integer :: nxov, natom, nSpin, soo(2), svv(2)
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: ij, ias, ijs, ab, i, j, a, b, s, iAt1
+    integer :: ij, ias, ijs, ab, i, j, a, b, s
     real(dp) :: fact
     real(dp), allocatable :: qTr(:), gamxpyq(:), zq(:), zqds(:), vecHooZ(:)
     logical :: tSpin
@@ -2879,224 +2682,6 @@ contains
     end do
 
   end subroutine calcWvectorZ
-
-  !> Calculate Z-dependent parts of the W-vectors for the NAC vectors
-  subroutine calcNadiaWvectorZ(zzp, zzm, win, homo, nmatup, getIA, getIJ, getAB, iaTrans, &
-      & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wovp, wovm, woop, woom,    & 
-      & wvvp, wvvm, transChrg, species0, spinW, tRangeSep, lrGamma)
-
-    !> Z^+ vector
-    real(dp), intent(in) :: zzp(:)
-
-    !> Z^- vector
-    real(dp), intent(in) :: zzm(:)
-
-    !> index array for single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> highest occupied level
-    integer, intent(in) :: homo(:)
-
-    !> number of same spin excitations
-    integer, intent(in) :: nmatup
-
-    !> index array between occ-vir transitions in square and 1D representations
-    integer, intent(in) :: getIA(:,:)
-
-    !> index array between occ-occ transitions
-    integer, intent(in) :: getIJ(:,:)
-
-    !> index array between vir-vir transitions
-    integer, intent(in) :: getAB(:,:)
-
-    !> array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
-
-    !> index array for S and H0 ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
-
-    !> overlap times ground state wavefunctions
-    real(dp), intent(in) :: ovrXev(:,:,:)
-
-    !> ground state wavefunctions
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> softened coulomb matrix
-    real(dp), intent(in) :: gammaMat(:,:)
-
-    !> ground state MO-energies
-    real(dp), intent(in) :: grndEigVal(:,:)
-
-    !> W^+ vector occupied-virtual part
-    real(dp), intent(inout) :: wovp(:)
-
-    !> W^- vector occupied-virtual part
-    real(dp), intent(inout) :: wovm(:)
-
-    !> W^+ vector occupied part
-    real(dp), intent(inout) :: woop(:,:)
-
-    !> W^- vector occupied part
-    real(dp), intent(inout) :: woom(:,:)
-
-    !> W^+ vector virtual part
-    real(dp), intent(inout) :: wvvp(:,:)
-
-    !> W^- vector virtual part
-    real(dp), intent(inout) :: wvvm(:,:)
-
-    !> machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
-    !> central cell chemical species
-    integer, intent(in) :: species0(:)
-
-    !> ground state spin derivatives for each species
-    real(dp), intent(in) :: spinW(:)
-
-    !> is calculation range-separated?
-    logical, intent(in) :: tRangeSep
-
-    !> long-range Gamma
-    real(dp), allocatable, intent(in) :: lrGamma(:,:)
-
-    integer :: nxov, natom, nSpin, soo(2), svv(2)
-    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: ij, ias, ijs, ab, i, j, a, b, s, abs, iAt1, ii
-    real(dp) :: fact
-    real(dp), allocatable :: qTr(:), gamxpyq(:), zq(:), zqds(:), vecHooZ(:), vecHvvZ(:)
-    logical :: tSpin
-
-    nxov = size(zzp)
-    natom = size(gammaMat, dim=1)
-    nSpin = size(grndEigVal, dim=2)
-
-    ALLOCATE(qTr(natom))
-    ALLOCATE(gamxpyq(natom))
-    ALLOCATE(zq(natom))
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
-
-    nxoo(:) = (homo(:)*(homo(:)+1))/2
-    nvir(:) = size(grndEigVecs, dim=1) - homo(:)
-    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
-
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
-
-    if ( nSpin == 2 ) then
-      tSpin = .true.
-      ALLOCATE(zqds(natom))
-    else
-      tSpin = .false.
-    end if
-
-    ! Adding missing epsilon_i * Z_ia term to W_ia
-    do ias = 1, nxov
-      call indxov(win, ias, getIA, i, a, s)
-      wovp(ias) = wovp(ias) + zzp(ias) * grndEigVal(i, s) 
-      wovm(ias) = wovm(ias) + zzm(ias) * grndEigVal(i, s) 
-    end do
-
-    ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
-    zq(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, zzp, zq)
-    call hemv(gamxpyq, gammaMat, zq)
-
-    if (tSpin) then
-      zqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, zzp, zqds)
-    end if
-
-    ! sum_iAt1 qTr(iAt1) gamxpyq(iAt1)
-    do s = 1, nSpin
-      if (s == 1) then
-        fact = 1.0_dp
-      else
-        fact = -1.0_dp
-      end if
-      do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
-        ! W contains 1/2 for i == j.
-        ! Force contains factors of 4/2 here
-        if (.not. tSpin) then
-          woop(ij,s) = woop(ij,s) + 4.0_dp * sum(qTr * gamxpyq) 
-        else
-          woop(ij,s) = woop(ij,s) + 2.0_dp * sum(qTr * gamxpyq) 
-          woop(ij,s) = woop(ij,s) + 2.0_dp * fact * sum(qTr * zqds * spinW(species0)) 
-        end if
-      end do
-    end do
-
-    if (tRangeSep) then
-
-      allocate(vecHooZ(sum(nxoo)))
-      allocate(vecHvvZ(sum(nxvv)))
-
-      call getHooXY(1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zzp, vecHooZ)
-
-      !! woo should be made 1D
-      do s = 1, nSpin
-        do ij = 1, nxoo(s)
-          i = getIJ(ij + soo(s), 1)
-          j = getIJ(ij + soo(s), 2)
-          ijs = iaTrans(i, j, s)
-          woop(ij,s) = woop(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) 
-        end do
-      end do
-
-      call getHooXY(-1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zzm, vecHooZ)
-
-      !! woo should be made 1D
-      do s = 1, nSpin
-        do ij = 1, nxoo(s)
-          i = getIJ(ij + soo(s), 1)
-          j = getIJ(ij + soo(s), 2)
-          ijs = iaTrans(i, j, s)
-          woom(ij,s) = woom(ij,s) + cExchange * 0.5_dp * vecHooZ(ijs) 
-        end do
-      end do
-
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, zzm, vecHvvZ)
-
-      do s = 1, nSpin
-        do ab = 1, nxvv(s)
-          a = getAB(ab + svv(s), 1)
-          b = getAB(ab + svv(s), 2)
-          abs = iaTrans(a, b, s)
-          wvvm(ab,s) = wvvm(ab,s) + cExchange * 0.5_dp * vecHvvZ(abs) 
-        end do
-      end do
-
-    end if
-
-    ! Division of diagonal elements by 2 
-    do s = 1, nSpin
-      do ij = 1, nxoo(s)
-         i = getIJ(ij + soo(s), 1)
-         j = getIJ(ij + soo(s), 2)
-         if (i == j) then
-           woop(ij,s) = 0.5_dp * woop(ij,s) 
-         end if
-       end do
-    end do
-
-    do s = 1, nSpin
-      do ab = 1, nxvv(s)
-        a = getAB(ab + svv(s), 1)
-        b = getAB(ab + svv(s), 2)
-        if (a == b) then
-          wvvp(ab,s) = 0.5_dp * wvvp(ab,s)
-        end if
-      end do
-    end do
-
-  end subroutine calcNadiaWvectorZ
-
 
   !> Write out density matrix, full if rhoSqr is present
   subroutine writeDM(iLev, pc, rhoSqr)
@@ -3302,12 +2887,11 @@ contains
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:)
     real(dp), allocatable :: XS(:,:,:), SXS(:,:,:), SY(:,:,:), YS(:,:,:), SYS(:,:,:)
-    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, s, ka
+    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, ka
     integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
     integer :: iSp1, iSp2, iSpin, nSpin
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
-    real(dp) :: spinFactor
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:), species(:)
     logical :: tSpin
 
@@ -3858,12 +3442,11 @@ contains
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:,:)
     real(dp), allocatable :: XS(:,:,:,:), SXS(:,:,:,:), SY(:,:,:,:), YS(:,:,:,:), SYS(:,:,:,:)
     real(dp), allocatable :: xpy(:,:), xmy(:,:)
-    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, s, ka
+    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, ka
     integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
     integer :: iSp1, iSp2, iSpin, nSpin, iState
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
-    real(dp) :: spinFactor
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:), species(:)
     logical :: tSpin
 
@@ -4696,43 +4279,6 @@ contains
 
   end subroutine calcPMatrix
 
-  !> Create transition density matrix in MO basis P = T + Z 
-  !> non-symmetric for NA
-  subroutine calcNadiaPMatrix(t, rhsp, win, getIA, pc)
-
-    !> T matrix
-    real(dp), intent(in) :: t(:,:,:)
-
-    !> Z^+ matrix
-    real(dp), intent(in) :: rhsp(:)
-
-    !> index array for single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> array of the occupied->virtual pairs (nTransitions,occ 1 or virtual 2)
-    integer, intent(in) :: getIA(:,:)
-
-    !> resulting excited state density matrix
-    real(dp), intent(out) :: pc(:,:,:)
-
-    integer :: ias, i, a, s, nSpin
-
-    nSpin = size(pc, dim=3)
-
-    pc = 0.0_dp
-    do ias = 1, size(rhsp)
-      call indxov(win, ias, getIA, i, a, s)
-      pc(i,a,s) = rhsp(ias) 
-    end do
-
-    pc = pc + t
-
-    do s = 1, nSpin
-      pc(:,:,s) = 0.5_dp * ( pc(:,:,s) + transpose(pc(:,:,s)) )
-    end do
-
-  end subroutine calcNadiaPMatrix
-
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(ipm, nXvv, homo, nAtom, iaTrans, getIA, getAB, win,&
@@ -5035,7 +4581,7 @@ contains
     !> output vector H[M] 
     real(dp), intent(out) :: vecH(:)
 
-    integer :: nSpin, ab, i, j, a, b, s, abs, svv(2), ij, ijs, soo(2), ias
+    integer :: nSpin, ab, i, j, a, b, s, abs, svv(2), ij, soo(2), ias
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
     real(dp), allocatable  :: gamqt(:)
@@ -5450,7 +4996,7 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:), qXa(:,:,:)
     integer :: nOrb, iSpin, nSpin, iMx, svv(2)
-    integer :: j, b, s, jbs, i, ibs, jas, abs, a, c, cbs, d, ads, bcs, ab
+    integer :: j, b, s, jbs, i, ibs, jas, abs, a, c, d, ads, bcs, ab
 
     nOrb = size(ovrXev, dim=1)
     nSpin = size(t, dim=3)
