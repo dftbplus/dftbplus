@@ -207,6 +207,9 @@ module dftbp_timedep_timeprop
     !> If initial fillings are provided in an external file
     logical :: tFillingsFromFile
 
+    !> if bond currents should be calculated and printed
+    logical :: tCurrents
+
   end type TElecDynamicsInp
 
 
@@ -804,6 +807,7 @@ contains
     this%restartFreq = inp%restartFreq
     this%speciesName = speciesName
     this%tFillingsFromFile = inp%tFillingsFromFile
+    this%tCurrents = inp%tCurrents
     this%tRealHS = tRealHS
     this%kPoint = kPoint
     this%kWeight = kWeight
@@ -819,8 +823,6 @@ contains
     if (allocated(tblite)) then
       this%tblite = tblite
     end if
-
-    this%tCurrents = .true.
 
     if (inp%envType /= envTypes%constant) then
       this%time0 = inp%time0
@@ -4498,7 +4500,7 @@ contains
         & errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
-    if (this%tCurrents) then
+    if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
       call getTdCurrents(this, this%rho, iSquare)
     end if
 
