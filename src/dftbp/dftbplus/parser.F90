@@ -5851,6 +5851,7 @@ contains
     call getChildValue(node, "WriteAtomicEnergies", input%tWriteAtomEnergies, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
     call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)
+    call getChildValue(node, "Currents", input%tCurrents, .false.)
 
     if (input%tPump) then
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
