@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -208,13 +208,10 @@ int main()
 {
   DftbPlus calculator;
   DftbPlusInput input;
-  DftbPlusAtomList dummyAtomList;
 
   Context cont;
   double mermin_energy;
   double *gradients, *charges;
-
-  dummyAtomList.pDftbPlusAtomList = NULL;
 
   /* Fill up the context with all the relevant data */
   initialize_context(&cont);
@@ -227,7 +224,7 @@ int main()
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
 
   /* Set up the calculator by processing the input tree */
-  dftbp_process_input(&calculator, &input, &dummyAtomList);
+  dftbp_process_input(&calculator, &input);
 
   /* Register the callback functions calculating population dependent external potential */
   dftbp_register_ext_pot_generator(&calculator, &cont, get_external_potential,
@@ -269,7 +266,7 @@ int main()
 
 
   /* Save some data for the internal test system */
-  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, mermin_energy, gradients, NULL, charges, NULL);
+  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL, NULL);
 
   free(gradients);
   free(charges);

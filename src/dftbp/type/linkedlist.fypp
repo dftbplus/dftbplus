@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2021  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -40,13 +40,13 @@
 #:if ITEM_RANK == 1
   public :: asVector
 #:endif
-  
+
 
   type :: TNode
     ${NODE_TYPE}$${NODE_ATTRIB}$ :: data
     type(TNode), pointer :: pNext
   end type TNode
-  
+
 
   type :: ${TYPE_NAME}$
     private
@@ -142,7 +142,7 @@ contains
 
   end subroutine ${TYPE_NAME}$_init
 
-  
+
   !!* Destructs the list.
   !!* @param list The list to destruct.
   subroutine ${TYPE_NAME}$_destruct(list)
@@ -208,7 +208,7 @@ contains
   #:endif
 
   end subroutine ${TYPE_NAME}$_append
-  
+
 
   !!* Returns the length(nr. of elements) of the list
   !!* @param list The list to get the length of.
@@ -280,8 +280,8 @@ contains
     end if
 
   end function ${TYPE_NAME}$_hasElement
-  
-  
+
+
   !!* Fills a variable with the speciefied element of the list
   !!* @param list  The list object.
   !!* @param data The variable to put the element in.
@@ -297,11 +297,11 @@ contains
     @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNode(list, index)
-    
+
     data = pCur%data
 
   end subroutine ${TYPE_NAME}$_get
-  
+
 
   !!* Fills a speciefied element of the list with a variable
   !!* @param list  The list object.
@@ -324,8 +324,8 @@ contains
     pCur%data = data
 
   end subroutine ${TYPE_NAME}$_set
-  
-  
+
+
   !!* Checks if list contains members with equal shaped
   !!* @param list The list object.
   !!* @return     True, if elements have equals shaped, False otherwise.
@@ -334,7 +334,7 @@ contains
     @:ASSERT(list%tInitialized)
     isUnishaped = list%tUnishaped
   end function ${TYPE_NAME}$_isUnishaped
-  
+
 
   !!* Returns the list as an array of elements.
   !!* @param list The list to get the elements from.
@@ -357,7 +357,7 @@ contains
     integer :: ii
 
     lenVal = size(val, dim=size(shape(val)))
-    
+
     @:ASSERT(list%tInitialized)
     @:ASSERT(list%tUnishaped)
     @:ASSERT(lenVal >= list%length)
@@ -380,7 +380,7 @@ contains
       val(${ITEM_SHAPE}$, ii:lenVal) = ${PADDING}$
     #:endif
     end if
-    
+
   end subroutine ${TYPE_NAME}$_asArray
 
 
@@ -410,7 +410,7 @@ contains
   end subroutine ${TYPE_NAME}$_elemShape
 
 #:endif
-  
+
 
 #:if ITEM_RANK > 0
 
@@ -440,7 +440,7 @@ contains
   #:endif
   end subroutine ${TYPE_NAME}$_intoArray
 
-#:endif  
+#:endif
 
 
 #:if ITEM_RANK == 1
@@ -482,7 +482,7 @@ contains
     if (ii <= lenVal) then
       val(ii:) = ${PADDING}$
     end if
-    
+
   end subroutine ${TYPE_NAME}$_asVector
 
 #:endif
@@ -498,7 +498,7 @@ contains
     integer, intent(in) :: index
 
     integer :: ii, iStart
-    
+
     @:ASSERT(index > 0 .and. index <= list%length)
 
     if (list%iCache == index) then
@@ -522,7 +522,7 @@ contains
 
    end function getNode
 
-#:enddef define_list   
+#:enddef define_list
 
-#:endif   
+#:endif
 #:endmute

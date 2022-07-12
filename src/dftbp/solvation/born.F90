@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,7 +22,7 @@ module dftbp_solvation_born
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
   public :: writeGeneralizedBornInfo, fgbKernel
@@ -51,6 +51,9 @@ module dftbp_solvation_born
 
     !> Dielectric screening
     real(dp) :: keps = 1.0_dp
+
+    !> Dielectric constant for solvent
+    real(dp) :: dielectricConstant
 
     !> Scaling factor for Born radii
     real(dp) :: bornScale = 1.0_dp
@@ -189,6 +192,10 @@ module dftbp_solvation_born
 
     !> Is the electrostic field modified by this solvent model?
     procedure :: isEFieldModified
+
+    !> Relative dielectric constant for solvent
+    procedure :: getEpsilon_r
+
   end type TGeneralizedBorn
 
 
@@ -1444,7 +1451,7 @@ contains
           sigma = sigma + dS/2
         end if
 
-        ! -(Rζ/(2·ab²·(1 + Rζ/(16·ab))¹⁷) + 1/(2·ab·(1 + Rζ/(16·ab))¹⁶))/(R + ab/(1 + Rζ/(16·ab))¹⁶)²
+        !-(Rζ/(2·ab²·(1 + Rζ/(16·ab))¹⁷) + 1/(2·ab·(1 + Rζ/(16·ab))¹⁶))/(R + ab/(1 + Rζ/(16·ab))¹⁶)²
         bp = -0.5_dp*(r1 * zetaP16 / ab * arg1 + 1.0_dp) / ab * arg16 * dfgb2
         dEdbr1 = bornRad(iAt2) * bp * kEps * qq
         dEdbr2 = bornRad(iAt1) * bp * kEps * qq
@@ -1608,7 +1615,7 @@ contains
 
 
   !> Is the electrostic field modified by this solvent model?
-  function isEFieldModified(this) result(isChanged)
+  pure function isEFieldModified(this) result(isChanged)
 
     !> Data structure
     class(TGeneralizedBorn), intent(in) :: this
@@ -1619,5 +1626,19 @@ contains
     isChanged = .true.
 
   end function isEFieldModified
+
+
+  !> Returns solvent region relative dielectric constant
+  pure function getEpsilon_r(this) result(e_r)
+
+    !> Data structure
+    class(TGeneralizedBorn), intent(in) :: this
+
+    !> epsilon_r
+    real(dp) :: e_r
+
+    e_r = this%param%dielectricConstant
+
+  end function getEpsilon_r
 
 end module dftbp_solvation_born

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,12 +12,11 @@
 module waveplot_molorb
 
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_periodic, only: getCellTranslations, foldCoordToUnitCell
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_periodic, only: getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
 
-  use waveplot_grids, only : TGridData, subgridsToGlobalGrid
-  use waveplot_parallel, only : getStartAndEndIndices
   use waveplot_slater, only : TRadialWavefunc
 
 #:if WITH_OMP
@@ -118,7 +117,7 @@ contains
 
 
   !> Initialises MolecularOrbital instance.
-  subroutine MolecularOrbital_init(this, geometry, basis)
+  subroutine MolecularOrbital_init(this, geometry, boundaryCond, basis)
 
     !> Molecular Orbital
     type(TMolecularOrbital), intent(out) :: this
@@ -126,7 +125,10 @@ contains
     !> Geometrical information
     type(TGeometry), intent(in) :: geometry
 
-    !> Basis for each species
+    !> Boundary condition
+    type(TBoundaryConditions), intent(in) :: boundaryCond
+
+    !> Basis for each species.
     type(TSpeciesBasis), intent(in) :: basis(:)
 
     integer :: nOrb
@@ -204,11 +206,9 @@ contains
 
     ! Create coordinates for central cell and periodic images
     allocate(this%coords(3, this%nAtom, this%nCell))
-    this%coords(:,:,1) = geometry%coords
+    this%coords(:,:,1) = geometry%coords(:,:)
+    call boundaryCond%foldCoordsToCell(this%coords(:,:,1), this%latVecs)
     if (this%tPeriodic) then
-
-      call foldCoordToUnitCell(this%coords(:,:, 1), this%latVecs, this%recVecs2p)
-
       do iCell = 2, this%nCell
         do iAtom = 1, this%nAtom
           this%coords(:, iAtom, iCell) = this%coords(:, iAtom, 1) + rCellVec(:, iCell)

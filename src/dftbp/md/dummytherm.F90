@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@ module dftbp_md_dummytherm
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame, rescaleTokT
   implicit none
-  
+
   private
   public :: TDummythermostat
   public :: init, getInitVelocities, state

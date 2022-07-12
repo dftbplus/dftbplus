@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,12 +8,38 @@
 !> FIRE optimiser
 module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
+  use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   implicit none
-  
-  private
-  public :: TFire, TFire_init
 
-  type TFire
+  private
+  public :: TFireInput, TFire, TFire_init
+
+
+  type, extends(TOptimizerInput) :: TFireInput
+
+    !> Minimum steps before step size changes are allowed
+    integer :: nMin
+
+    !> Initial scaling choice
+    real(dp) :: a_start
+
+    !> Decrement scaling factor for forces
+    real(dp) :: f_inc
+
+    !> Increment scaling factor for forces
+    real(dp) :: f_dec
+
+    !> Scaling factor for dynamical variable
+    real(dp) :: f_alpha
+
+    !> Maximum step
+    real(dp) :: dt_max
+
+  end type TFireInput
+
+
+  !> Fast inertial relaxation engine, FIRE.
+  type, extends(TOptimizer) :: TFire
 
     !> Iteration count
     integer :: iter
@@ -61,13 +87,50 @@ module dftbp_geoopt_fire
 
     procedure :: reset
     procedure :: next
+    procedure :: step
 
   end type TFire
+
+  interface TFire_init
+    module procedure :: TFire_init
+    module procedure :: TFire_init_old
+  end interface TFire_init
 
 contains
 
   !> Initialise type
-  subroutine TFire_init(this, nElem, tol, maxStep)
+  subroutine TFire_init(this, input, nVar)
+
+    !> instance
+    type(TFire), intent(out) :: this
+
+    !> Input for the optimizer
+    type(TFireInput), intent(in) :: input
+
+    !> Number of variables to optimize
+    integer, intent(in) :: nVar
+
+    allocate(this%velocity(nVar))
+    this%velocity(:) = 0.0_dp
+
+    this%nMin = input%nMin
+    this%a_start = input%a_start
+    this%f_inc = input%f_inc
+    this%f_dec = input%f_dec
+    this%f_alpha = input%f_alpha
+    this%dt_max = input%dt_max
+    this%dt_init = 0.1_dp * input%dt_max
+
+    this%iter = 0
+    this%resetStep = 0
+    this%a = this%a_start
+    this%dt = this%dt_init
+
+  end subroutine TFire_init
+
+
+  !> Initialise type
+  subroutine TFire_init_old(this, nElem, tol, maxStep)
 
     !> instance
     type(TFire), intent(out) :: this
@@ -81,37 +144,27 @@ contains
     !> Maximum step size
     real(dp), intent(in) :: maxStep
 
-    this%tol = tol
-
-    if (allocated(this%velocity)) then
-      if (size(this%velocity) /= nElem) then
-        deallocate(this%velocity)
-        allocate(this%velocity(nElem))
-      end if
-    else
-      allocate(this%velocity(nElem))
-    end if
-    this%velocity(:) = 0.0_dp
-    if (allocated(this%x)) then
-      if (size(this%x) /= nElem) then
-        deallocate(this%x)
-        allocate(this%x(nElem))
-      end if
-    else
-      allocate(this%x(nElem))
-    end if
-    this%x(:) = 0.0_dp
+    type(TFireInput) :: input
 
     ! default values from the paper
-    this%nMin = 5
-    this%a_start = 0.1_dp
-    this%f_inc = 1.1_dp
-    this%f_dec = 0.5_dp
-    this%f_alpha = 0.99_dp
-    this%dt_max = maxStep
-    this%dt_init = 0.1_dp * this%dt_max
+    input = TFireInput( &
+        & nMin = 5, &
+        & a_start = 0.1_dp, &
+        & f_inc = 1.1_dp, &
+        & f_dec = 0.5_dp, &
+        & f_alpha = 0.99_dp, &
+        & dt_max = maxStep &
+        & )
 
-  end subroutine TFire_init
+    call TFire_init(this, input, nElem)
+
+    this%tol = tol
+
+    allocate(this%x(nElem))
+    this%x(:) = 0.0_dp
+
+  end subroutine TFire_init_old
+
 
   !> Reset the integrator state
   subroutine reset(this, x0)
@@ -128,8 +181,33 @@ contains
     this%dt = this%dt_init
     this%velocity(:) = 0.0_dp
     this%x(:) = x0
-    
+
   end subroutine reset
+
+
+  !> Leap frog Verlet integrator with fire modification
+  subroutine step(this, val, grad, displ)
+
+    !> Instance
+    class(TFire), intent(inout) :: this
+
+    !> Current function value
+    real(dp), intent(in) :: val
+
+    !> Current gradient
+    real(dp), intent(in) :: grad(:)
+
+    !> Next displacement step
+    real(dp), intent(out) :: displ(:)
+
+    call fireModifyVelocity(this, grad)
+    ! all masses 1, so f = a, note that f = - grad
+    this%velocity(:) = this%velocity - this%dt * grad
+    displ(:) = this%velocity * this%dt
+
+    this%iter = this%iter + 1
+
+  end subroutine step
 
 
   !> Leap frog Verlet integrator with fire modification
@@ -148,18 +226,14 @@ contains
     logical, intent(out) :: isConverged
 
     if( maxval(abs(dx)) < this%tol ) then
+      xNew(:) = 0.0_dp
       isConverged = .true.
     else
-      call fireModifyVelocity(this, dx)
-      ! all masses 1, so f = a, note that f = - dx
-      this%velocity(:) = this%velocity - this%dt * dx
-      this%x(:) = this%x + this%velocity * this%dt
+      call this%step(0.0_dp, dx, xNew)
       isConverged = .false.
     end if
-
+    this%x(:) = this%x + xNew
     xNew(:) = this%x
-
-    this%iter = this%iter + 1
 
   end subroutine next
 

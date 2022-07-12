@@ -1,9 +1,14 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2021  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
+#!
+#:mute
+#:if not defined("_ERROR_FYPP_")
+#:set _ERROR_FYPP_
+
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #! Error string handling wrappers for returns from routinese
@@ -98,3 +103,7 @@
     return
   end if
 #:enddef PROPAGATE_ERROR
+
+
+#:endif
+#:endmute

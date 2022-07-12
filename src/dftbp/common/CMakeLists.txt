@@ -8,7 +8,7 @@ set(sources-fpp
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90
-  ${curdir}/fileregistry.F90
+  ${curdir}/file.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
   ${curdir}/hamiltoniantypes.F90
@@ -27,7 +27,7 @@ if(WITH_MPI)
     ${curdir}/mpienv.F90)
 endif()
 
-if(WITH_GPU)
+if(WITH_MAGMA)
   list(APPEND sources-fpp
     ${curdir}/gpuenv.F90)
 endif()

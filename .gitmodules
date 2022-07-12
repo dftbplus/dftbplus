@@ -1,19 +1,15 @@
 [submodule "external/mpifx/origin"]
-        path = external/mpifx/origin
-        url = https://github.com/dftbplus/mpifx.git
-        #branch = release
+	path = external/mpifx/origin
+	url = https://github.com/dftbplus/mpifx.git
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
 	url = https://github.com/libnegf/libnegf.git
-	branch = master
 [submodule "external/scalapackfx/origin"]
-        path = external/scalapackfx/origin
-        url = https://github.com/dftbplus/scalapackfx.git
-        branch = release
+	path = external/scalapackfx/origin
+	url = https://github.com/dftbplus/scalapackfx.git
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git
-        branch = master
 [submodule "external/fytest/origin"]
 	path = external/fytest/origin
 	url = https://github.com/aradi/fytest.git
@@ -38,3 +34,6 @@
 [submodule "external/toml-f/origin"]
 	path = external/toml-f/origin
 	url = https://github.com/toml-f/toml-f
+[submodule "external/chimes/origin"]
+	path = external/chimes/origin
+	url = https://github.com/rk-lindsey/chimes_calculator

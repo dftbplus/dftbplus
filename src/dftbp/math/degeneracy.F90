@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_math_degeneracy
 
     !> Ranges of degenerate groups of levels
     integer, allocatable :: levelRange(:,:)
-    
+
     !> To which group of states any particular level belongs
     integer, allocatable :: degenerateGroup(:)
 
@@ -32,7 +32,7 @@ module dftbp_math_degeneracy
 
     !> Number of groups of degenerate orbitals
     integer :: nGrp
-    
+
   contains
 
     !> Initialises instance and set some optional parameters
@@ -40,7 +40,7 @@ module dftbp_math_degeneracy
 
     !> Set up degeneracy test on levels
     procedure :: degeneracyTest
-    
+
     !> Are a pair of states in the same degenerate group
     procedure :: areDegenerate
 
@@ -49,7 +49,7 @@ module dftbp_math_degeneracy
 
     !> Returns range of levels in each degenerate group
     procedure :: degenerateRanges
-    
+
   end type TDegeneracyFind
 
   !> a few times eps, just in case of minor symmetry breaking
@@ -89,7 +89,7 @@ contains
     logical, intent(out), optional :: tDegenerate
 
     integer :: maxRange, nOrb
-    
+
     nOrb = size(levels)
 
     if (allocated(this%levelRange)) then
@@ -114,7 +114,7 @@ contains
         & grpMembership=this%degenerateGroup)
 
     maxRange = maxval(this%levelRange(2,:this%nGrp) - this%levelRange(1,:this%nGrp)) + 1
-    
+
     if (present(tDegenerate)) then
       tDegenerate = .false.
     end if
@@ -160,7 +160,7 @@ contains
     integer :: degenerateGroups
 
     degenerateGroups = this%nGrp
-    
+
   end function degenerateGroups
 
 
@@ -174,10 +174,10 @@ contains
     integer :: degenerateRanges(2,this%nGrp)
 
     degenerateRanges(:,:) = this%levelRange(:2,:this%nGrp)
-    
+
   end function degenerateRanges
-  
-  
+
+
   ! internal routines
 
   !> Find which groups of eigenvales are degenerate to within a tolerance
@@ -202,7 +202,7 @@ contains
 
     !> sub range of eigenvalues to process
     integer, intent(in), optional :: levelSubRange(2)
-    
+
     integer :: ii, jj, nOrb, iStart, iEnd
     real(dp) :: localTol
 
@@ -213,7 +213,7 @@ contains
     end if
     nOrb = size(levels)
     levelRange(:,:) = 0
-    
+
     if (present(levelSubRange)) then
       ! set states before group as not of interest
       iStart = levelSubRange(1)
@@ -227,7 +227,7 @@ contains
     do ii = 1, iStart - 1
       levelRange(:, ii) = ii
     end do
-    
+
     nGrp = iStart - 1
 
     do ii = 1, nGrp
@@ -258,5 +258,5 @@ contains
     end do
 
   end subroutine degeneracyRanges
-  
+
 end module dftbp_math_degeneracy

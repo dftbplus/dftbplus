@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -84,7 +84,7 @@ for iAt1 in range(nAtom):
       sys.stdout.write(line2)
       format = ("%24.15E" * nOrb[iAt1Real] + "\n") * nOrb[iAt2fReal]
       sys.stdout.write(format % tuple(sqrMtx.flatten()))
-    
+
 fp.close()
 
 ### Local Variables:

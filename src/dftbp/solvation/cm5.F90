@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_solvation_cm5
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
-  
+
   private
   public :: TChargeModel5, TCM5Input, TChargeModel5_init
 
@@ -206,6 +206,7 @@ contains
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
+    ! number of neighbours for all atoms
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
@@ -255,7 +256,7 @@ contains
     @:ASSERT(allocated(this%cm5))
     @:ASSERT(size(charges) == this%nAtom)
 
-    charges(:) = charges + this%cm5
+    charges(:) = charges - this%cm5
 
   end subroutine addCharges
 
@@ -276,7 +277,7 @@ contains
     @:ASSERT(allocated(this%dcm5dr))
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
-    call gemv(gradients, this%dcm5dr, dEdcm5, beta=1.0_dp)
+    call gemv(gradients, this%dcm5dr, dEdcm5, beta=1.0_dp, alpha=-1.0_dp)
 
   end subroutine addGradients
 
@@ -297,7 +298,7 @@ contains
     @:ASSERT(allocated(this%dcm5dL))
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-    call gemv(stress, this%dcm5dL, dEdcm5, beta=1.0_dp)
+    call gemv(stress, this%dcm5dL, dEdcm5, beta=1.0_dp, alpha=-1.0_dp)
 
   end subroutine addSigma
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: TTransCharges, TTransCharges_init
   public :: transq
@@ -93,7 +93,7 @@ contains
     !> number of vir-vir excitations per spin channel
     integer, intent(in) :: nXvvUD(:)
 
-    !> should occ-vir transitions be stored? 
+    !> should occ-vir transitions be stored?
     !> this is sufficient for single-point TD-DFTB
     logical, intent(in) :: tStoreOccVir
 

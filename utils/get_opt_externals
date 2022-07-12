@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -37,8 +37,6 @@ Possible choices for OPTEXT:
       the combined code beyond the LGPLv3 license of DFTB+.
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
-
-  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
 
   gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
@@ -130,9 +128,9 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    url = 'https://github.com/dftbplus/testparams/archive/26439495c4b5b0d07be6ceec4dade3d149425465.tar.gz'
+    url = 'https://github.com/aradi/testparams/archive/cd7536f659be2665cd78d0297f00d377544840aa.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
-    unpackname = os.path.join(destdir, 'testparams-26439495c4b5b0d07be6ceec4dade3d149425465')
+    unpackname = os.path.join(destdir, 'testparams-cd7536f659be2665cd78d0297f00d377544840aa')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)
@@ -142,26 +140,6 @@ def get_slakos(destdir):
     unpack_file(fname)
     os.remove(fname)
     os.rename(unpackname, targetname)
-
-
-def get_dftd3(destdir):
-    '''Downloads the dftd3 library.'''
-
-    url = "https://github.com/dftbplus/dftd3-lib/archive/fcda698be614f893ed6a4ecd355678b874edd0b9.tar.gz"
-    fname = os.path.join(destdir, 'dftd3-lib.tar.gz')
-    unpackname = os.path.join(destdir, 'dftd3-lib-fcda698be614f893ed6a4ecd355678b874edd0b9')
-    targetname = os.path.join(destdir, 'origin')
-    if os.path.exists(unpackname):
-        shutil.rmtree(unpackname)
-    if os.path.exists(targetname):
-        shutil.rmtree(targetname)
-    if query_download_confirmation('dftd3', False):
-        download_file(url, fname)
-        unpack_file(fname)
-        os.remove(fname)
-        os.rename(unpackname, targetname)
-    else:
-        sys.stdout.write("    Skipping dftd3 download")
 
 
 def get_gbsa(destdir):
@@ -257,7 +235,6 @@ def read_input():
 # Contains (function, targetfolder, restriction) tuples
 GETTERS = {
     'slakos': (get_slakos, 'slakos', UNRESTRICTED_EXTERNAL),
-    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL),
     'gbsa': (get_gbsa, 'gbsa', UNRESTRICTED_EXTERNAL),
 }
 

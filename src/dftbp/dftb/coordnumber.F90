@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftb_coordnumber
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
-  
+
   private
   public :: TCNCont, TCNInput, cnType, init
   public :: getElectronegativity, getCovalentRadius
@@ -473,19 +473,19 @@ contains
     real(dp), parameter :: k5 = 19.08857_dp
     real(dp), parameter :: k6 = 2*11.28174_dp**2
 
-    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh
-    real(dp) :: r2, r1, rc, vec(3), countf, countd(3), stress(3, 3), dEN
+    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ic, jc
+    real(dp) :: r2, r1, rc, vec(3), countf, countd(3), dEN, sij
 
     cn(:) = 0.0_dp
     dcndr(:, :, :) = 0.0_dp
     dcndL(:, :, :) = 0.0_dp
 
     !$omp parallel do default(none) schedule(runtime) &
-    !$omp reduction(+:cn, dcndr, dcndL) &
+    !$omp shared(cn, dcndr, dcndL) &
     !$omp shared(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
     !$omp shared(neighDist2, covalentRadius, tENScale, electronegativity, kcn) &
     !$omp private(iAt1, iSp1, iAt2, vec, iAt2f, iSp2, r2, r1, rc, dEN, countf) &
-    !$omp private(countd, stress)
+    !$omp private(countd, ic, jc, sij)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
@@ -508,22 +508,35 @@ contains
         countf = dEN * countFunc(kcn, r1, rc)
         countd = dEN * countDeriv(kcn, r1, rc) * vec / r1
 
+        !$omp atomic
         cn(iAt1) = cn(iAt1) + countf
         if (iAt1 /= iAt2f) then
+          !$omp atomic
           cn(iAt2f) = cn(iAt2f) + countf
         end if
 
-        dcndr(:, iAt1, iAt1) = dcndr(:, iAt1, iAt1) + countd
-        dcndr(:, iAt2f, iAt2f) = dcndr(:, iAt2f, iAt2f) - countd
-        dcndr(:, iAt1, iAt2f) = dcndr(:, iAt1, iAt2f) + countd
-        dcndr(:, iAt2f, iAt1) = dcndr(:, iAt2f, iAt1) - countd
+        do ic = 1, 3
+          !$omp atomic
+          dcndr(ic, iAt1, iAt1) = dcndr(ic, iAt1, iAt1) + countd(ic)
+          !$omp atomic
+          dcndr(ic, iAt2f, iAt2f) = dcndr(ic, iAt2f, iAt2f) - countd(ic)
+          !$omp atomic
+          dcndr(ic, iAt1, iAt2f) = dcndr(ic, iAt1, iAt2f) + countd(ic)
+          !$omp atomic
+          dcndr(ic, iAt2f, iAt1) = dcndr(ic, iAt2f, iAt1) - countd(ic)
+        end do
 
-        stress = spread(countd, 1, 3) * spread(vec, 2, 3)
-
-        dcndL(:, :, iAt1) = dcndL(:, :, iAt1) - stress
-        if (iAt1 /= iAt2f) then
-          dcndL(:, :, iAt2f) = dcndL(:, :, iAt2f) - stress
-        end if
+        do ic = 1, 3
+          do jc = 1, 3
+            sij = countd(ic) * vec(jc)
+            !$omp atomic
+            dcndL(jc, ic, iAt1) = dcndL(jc, ic, iAt1) - sij
+            if (iAt1 /= iAt2f) then
+              !$omp atomic
+              dcndL(jc, ic, iAt2f) = dcndL(jc, ic, iAt2f) - sij
+            end if
+          end do
+        end do
 
       end do
     end do

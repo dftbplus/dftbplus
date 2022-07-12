@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1663,80 +1663,6 @@ module dftbp_extlibs_lapack
   end interface dsytrf
 
 
-  !> Solve a system of linear equations for a real symmetric matrix A*X = B
-  interface ssytrs
-
-    !> Solve a system of linear equations for a real symmetric matrix A*X = B
-    subroutine ssytrs(uplo, nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-      import rsp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of right hand side equations
-      integer, intent(in) :: nrhs
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> matrix A
-      real(rsp), intent(in) :: aa(lda, *)
-
-      !> pivot array
-      integer, intent(in) :: ipiv(*)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> matrix B
-      real(rsp), intent(inout) :: bb(ldb, *)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine ssytrs
-  end interface ssytrs
-
-
-  !> Solve a system of linear equations for a double precision symmetric matrix A*X = B
-  interface dsytrs
-
-    !> Solve a system of linear equations for a double precision symmetric matrix A*X = B
-    subroutine dsytrs(uplo, nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of right hand side equations
-      integer, intent(in) :: nrhs
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> matrix A
-      real(rdp), intent(in) :: aa(lda, *)
-
-      !> pivot array
-      integer, intent(in) :: ipiv(*)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> matrix B
-      real(rdp), intent(inout) :: bb(ldb, *)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine dsytrs
-  end interface dsytrs
-
-
   !> Returns a vector of real random numbers from a uniform or normal distribution
   interface slarnv
 
@@ -2065,10 +1991,10 @@ module dftbp_extlibs_lapack
     end subroutine cgesvd
 
   end interface cgesvd
-  
+
   !> Double complex singular value decomposition
   interface zgesvd
-    
+
     !> Double complex singular value decomposition
     subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
       import rdp

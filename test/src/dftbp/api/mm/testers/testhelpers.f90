@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,8 @@ contains
 
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces, atomMasses)
+      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, &
+      & tdCoords, tdForces, atomMasses, potential, cm5Charges)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -54,6 +55,12 @@ contains
 
     !> Atomic masses
     real(dp), optional, intent(in) :: atomMasses(:)
+
+    !> Electrostatic potential in points
+    real(dp), optional, intent(in) :: potential(:)
+
+    !> Gross CM5 charges
+    real(dp), optional, intent(in) :: cm5Charges(:)
 
     type(TTaggedWriter) :: taggedWriter
     integer :: autotestTag
@@ -94,6 +101,12 @@ contains
     if(present(atomMasses)) then
       call taggedWriter%write(autotestTag, tagLabels%atomMass, atomMasses)
     end if
+    if(present(potential)) then
+      call taggedWriter%write(autotestTag, tagLabels%internField, potential)
+    end if
+    if (present(cm5Charges)) then
+      call taggedWriter%write(autotestTag, tagLabels%qOutAtCM5, cm5Charges)
+    end if
 
     close(autotestTag)
 
@@ -101,14 +114,18 @@ contains
 
 
   !> C wrapper for the write autotest tag routine.
-  subroutine c_writeAutotestTag(nAtom, nExtCharge, merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients) bind(C, name='dftbp_write_autotest_tag')
+  subroutine c_writeAutotestTag(nAtom, nExtCharge, nPotLocations, merminEnergy, gradients,&
+      & stressTensor, grossCharges, extChargeGradients, potential, cm5Charges)&
+      & bind(C, name='dftbp_write_autotest_tag')
 
     !> Number of atoms
     integer(c_int), intent(in), value :: nAtom
 
     !> Number of external charges (set it to zero, if none)
     integer(c_int), intent(in), value :: nExtCharge
+
+    !> Number of requeseted potential points
+    integer(c_int), intent(in), value :: nPotLocations
 
     !> Mermin energy
     real(c_double), intent(in), value :: merminEnergy
@@ -125,15 +142,22 @@ contains
     !> Gradients on the external charges or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: extChargeGradients
 
+    !> Electrostatic potential in nPotLocations points
+    type(c_ptr), intent(in), value :: potential
+
+    !> Gross CM5 charges or null pointer, if not avaialable.
+    type(c_ptr), intent(in), value :: cm5Charges
+
     real(dp), pointer :: pGradients(:,:), pGrossCharges(:), &
-      & pExtChargeGradients(:,:), pStressTensor(:,:)
+      & pExtChargeGradients(:,:), pStressTensor(:,:), pPotential(:), &
+      & pCM5Charges(:)
 
     if (c_associated(gradients)) then
       call c_f_pointer(gradients, pGradients, [3, nAtom])
     else
       pGradients => null()
     end if
-    
+
     if (c_associated(stressTensor)) then
       call c_f_pointer(stressTensor, pStressTensor, [3, 3])
     else
@@ -152,9 +176,22 @@ contains
       pExtChargeGradients => null()
     end if
 
+    if (nPotLocations > 0 .and. c_associated(potential)) then
+      call c_f_pointer(potential, pPotential, [nPotLocations])
+    else
+      pPotential => null()
+    end if
+
+    if (c_associated(cm5Charges)) then
+      call c_f_pointer(cm5Charges, pCM5Charges, [nAtom])
+    else
+      pCM5Charges => null()
+    end if
+
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=pGradients, &
         & stressTensor=pStressTensor, grossCharges=pGrossCharges, &
-        & extChargeGradients=pExtChargeGradients)
+        & extChargeGradients=pExtChargeGradients, potential=pPotential, &
+        & cm5Charges=pCM5charges)
 
   end subroutine c_writeAutotestTag
 

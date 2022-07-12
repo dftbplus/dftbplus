@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2021  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -30,11 +30,15 @@ extern "C" {
  * \param gross_charges[in]  Pointer to the array with the gross charges. Pass NULL if not
  *     available.
  *
+ * \param cm5_charges[in]  Pointer to the array with the cm5 charges. Pass NULL if not
+ *     available.
+ *
  * \param ext_charges_gradients[in]  Pointer to the array with the gradients of the external charges
  *     Pass NULL if not available.
  */
-void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, double mermin_energy, double *gradients,
-                              double *stress_tensor, double *gross_charges, double * ext_charge_gradients);
+void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, int n_pot_locations, double mermin_energy, double *gradients,
+                              double *stress_tensor, double *gross_charges, double * ext_charge_gradients, double *potential,
+                              double *cm5_charges);
 
 #ifdef __cplusplus
 }

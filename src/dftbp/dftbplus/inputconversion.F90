@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,11 @@
 !> Contains routines to convert data (typically delivered by the parser) to the internal form.
 module dftbp_dftbplus_inputconversion
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_dftb_periodic, only : buildSquaredAtomIndex
+  use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
-  
+
   private
   public :: transformPdosRegionInfo
 

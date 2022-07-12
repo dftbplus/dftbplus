@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 module dftbp_type_latpointiter
   use dftbp_common_accuracy, only : dp
   implicit none
-  
+
   private
   public :: TLatPointIter, TLatPointIter_init
 
@@ -207,7 +207,7 @@ contains
 
     !> Current lattice point, next one on exit.
     integer, intent(inout) :: point(3)
-    
+
     point(3) = point(3) + 1
     if (point(3) > ranges(2, 3)) then
       point(3) = ranges(1, 3)

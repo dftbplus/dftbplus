@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -20,7 +20,7 @@ class FreeSepString(str):
 
     def strip(self, strSeparator = None):
         """Return itself without the leading or trailing separators.
-        
+
         Arguments:
             strSeparator -- separator string (default: None -- whitespace
                                             characters)
@@ -44,14 +44,14 @@ class FreeSepString(str):
         else:
             return str.strip(self)
 
-                
+
 
 class UncommLines(object):
     """Simple iterator which returnes the nonempty lines in a file. Comment
     strings and text behind them is ignored. Whitespace chars (\t \n etc.)
     before/after the first/last non-whitespace char in the lines are stripped.
     """
-        
+
     def __init__(self, file, iStartLine = 0, iEndLine = 0, strComment = "#",
                              strSeparator = None, returnLineNr = None):
         """Constructor for UncommLines
@@ -117,7 +117,7 @@ class UncommLines(object):
                 else:
                     break
         raise StopIteration
-                        
+
 
     def __next__(self):
         return self.next()

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,8 +14,11 @@
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
   use dftbp_common_accuracy, only : dp, elecTolMax, mc, lc, sc, rsp, rdp
-  use dftbp_extlibs_blas, only : ssyr, cher, zher
+  use dftbp_extlibs_blas, only : ssyr, cher, zher, sspmv, dspmv
   implicit none
+
+  private
+  public ::  gemv, gemm, ger, hemm, hemv, her, herk, her2k, sbmv, scal, spmv, symm, swap
 
 
   !> Rank 1 update of a matrix A := alpha*x*x' + A
@@ -131,6 +134,15 @@ module dftbp_math_blasroutines
     module procedure swap_cmplx
     module procedure swap_dblecmplx
  end interface swap
+
+
+ !> Symmetric packed matrix-vector product
+ interface spmv
+ #:for SUFFIX in ['real', 'dble']
+   module procedure spmv_${SUFFIX}$
+ #:endfor
+ end interface spmv
+
 
 contains
 
@@ -943,7 +955,7 @@ contains
     !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in) :: side
 
-    !> symmetric matrix, size
+    !> symmetric matrix
     real(rdp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1795,6 +1807,11 @@ contains
 
   end subroutine scal_${ITYPE}$
 
+#:endfor
+
+
+#:for ITYPE, VTYPE, LABEL, NAME in [('cmplx', 'rsp', 'single', 'c'),&
+  & ('dblecmplx', 'rdp', 'double', 'z')]
 
   !> ${LABEL}$ precision complex matrix swapping
   subroutine swap_${ITYPE}$(a,b)
@@ -1810,5 +1827,64 @@ contains
   end subroutine swap_${ITYPE}$
 
 #:endfor
+
+
+#:for SUFFIX, KIND, ROUTINE in [('real', 'rsp', 'sspmv'), ('dble', 'rdp', 'dspmv')]
+
+  !> Performs the matrix-vector operation
+  !>
+  !>    y := alpha*A*x + beta*y,
+  !>
+  !> where alpha and beta are scalars, x and y are n element vectors and
+  !> A is an n by n symmetric matrix, supplied in packed form.
+  !>
+  pure subroutine spmv_${SUFFIX}$(amat, xvec, yvec, uplo, alpha, beta)
+
+    !> Matrix A
+    real(${KIND}$), intent(in) :: amat(:)
+
+    !> Vector x
+    real(${KIND}$), intent(in) :: xvec(:)
+
+    !> Vector y
+    real(${KIND}$), intent(inout) :: yvec(:)
+
+    !> Whether upper or lower matrix was provided ('u' or 'l', default 'l')
+    character(len=1), intent(in), optional :: uplo
+
+    !> Prefactor alpha (default 1.0)
+    real(${KIND}$), intent(in), optional :: alpha
+
+    !> Prefactor beta (default 0.0)
+    real(${KIND}$), intent(in), optional :: beta
+
+    character(len=1) :: ula
+    real(${KIND}$) :: a, b
+    integer :: incx, incy, n
+
+    if (present(alpha)) then
+      a = alpha
+    else
+      a = 1.0_dp
+    end if
+    if (present(beta)) then
+      b = beta
+    else
+      b = 0
+    end if
+    if (present(uplo)) then
+      ula = uplo
+    else
+      ula = 'u'
+    end if
+    incx = 1
+    incy = 1
+    n = size(xvec)
+    call ${ROUTINE}$(ula, n, a, amat, xvec, incx, b, yvec, incy)
+
+  end subroutine spmv_${SUFFIX}$
+
+#:endfor
+
 
 end module dftbp_math_blasroutines

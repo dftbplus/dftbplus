@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -76,7 +76,7 @@ program test_ehrenfest
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "C", "p")
   call setChildValue(pMaxAng, "H", "s")
-  
+
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "./")
@@ -97,7 +97,7 @@ program test_ehrenfest
   call setChild(pElecDyn, "Perturbation", pPerturb)
   call setChild(pPerturb, "Laser", pLaser)
   ! these twovalues will be overriden
-  call setChildValue(pLaser, "PolarizationDirection", [0.0_dp, 1.0_dp, 1.0_dp])
+  call setChildValue(pLaser, "PolarisationDirection", [0.0_dp, 1.0_dp, 1.0_dp])
   call setChildValue(pLaser, "LaserEnergy", 1.0_dp)
 
   norm = sqrt(dot_product(poldir, poldir))

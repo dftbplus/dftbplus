@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -83,7 +83,7 @@ class BandOut:
             ncols = len(tmp) // nrows
             tmp.shape = (nrows, ncols)
             tmp = tmp[:, ncols - 2 : ncols]
-            
+
             eigvalarrays.append(tmp)
             match = _PAT_BLOCK.search(txt, match.end())
 

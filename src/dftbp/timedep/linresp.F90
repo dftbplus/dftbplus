@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,18 +22,18 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_io_fileid, only : getFileId 
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
   use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   implicit none
-  
+
   private
   public :: TLinresp, TLinrespini
-  public :: LinResp_init, linResp_calcExcitations, addGradients
+  public :: LinResp_init, linResp_calcExcitations, LinResp_addGradients
 
   !> Data type for initial values for linear response calculations
   type :: TLinrespini
@@ -102,7 +102,7 @@ module dftbp_timedep_linresp
     !> RPA solver is Arpack (or Stratmann if .false.)
     logical :: tUseArpack
 
-    !> subspace dimension factor Stratmann diagonalizer
+    !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
 
     !> print state of Arnoldi solver
@@ -111,16 +111,8 @@ module dftbp_timedep_linresp
     !> diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
-    !> Initialised data structure?
-    logical :: tInit = .false.
-
   end type TLinrespini
 
-
-  !> excitations plus forces and some other properties (excited
-  interface addGradients
-    module procedure LinResp_addGradients
-  end interface addGradients
 
 contains
 
@@ -153,7 +145,7 @@ contains
       this%energyWindow = ini%energyWindow
       this%tOscillatorWindow = ini%tOscillatorWindow
       this%oscillatorWindow = ini%oscillatorWindow
-      ! Final decision on value of tCacheChargesSame in linRespGrad
+      ! Final decision on value of tCacheChargesSame is made in linRespGrad
       this%tCacheChargesOccVir = ini%tCacheCharges
       this%tCacheChargesSame = ini%tCacheCharges
       this%nStat = ini%nStat
@@ -168,49 +160,17 @@ contains
         call error("Excited energy window should be non-zero if used")
       end if
 
-      if (ini%tMulliken) then
-        this%fdMulliken = getFileId()
-      else
-        this%fdMulliken = -1
-      end if
-      if (ini%tCoeffs) then
-        this%fdCoeffs = getFileId()
-      else
-        this%fdCoeffs = -1
-      end if
+      this%writeMulliken = ini%tMulliken
+      this%writeCoeffs = ini%tCoeffs
       this%tGrndState = ini%tGrndState
-
-      if (ini%tTrans) then
-        this%fdTrans = getFileId()
-      else
-        this%fdTrans = -1
-      end if
-
-      if (ini%tTransQ) then
-        this%fdTransQ = getFileId()
-      else
-        this%fdTransQ = -1
-      end if
-
-      if (ini%tSPTrans) then
-        this%fdSPTrans = getFileId()
-      else
-        this%fdSPTrans = -1
-      end if
-      if (ini%tXplusY) then
-        this%fdXplusY = getFileId()
-      else
-        this%fdXplusY = -1
-      end if
-      if (ini%tTradip) then
-        this%fdTradip = getFileId()
-      else
-        this%fdTradip = -1
-      end if
+      this%writeTrans = ini%tTrans
+      this%writeTransQ = ini%tTransQ
+      this%writeSPTrans = ini%tSPTrans
+      this%writeXplusY = ini%tXplusY
+      this%writeTransDip = ini%tTradip
 
       this%nAtom = nAtom
       this%nEl = nEl
-      this%fdExc = getFileId() ! file for excitations
 
       call move_alloc(ini%spinW, this%spinW)
       call move_alloc(ini%hubbardU, this%HubbardU)
@@ -226,13 +186,8 @@ contains
 
     if (withArpack) then
 
-      if (ini%tDiagnoseArnoldi) then
-        this%fdArnoldiDiagnosis = getFileId()
-      else
-        this%fdArnoldiDiagnosis = -1
-      end if
+      this%testArnoldi = ini%tDiagnoseArnoldi
       this%tArnoldi = ini%tArnoldi
-      this%fdArnoldi = getFileId()
       this%tinit = .true.
 
     else
@@ -247,7 +202,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, excEnergy, allExcEnergies)
+      & taggedWriter, rangeSep, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
@@ -300,18 +255,23 @@ contains
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> excitation energy (only when nStat /=0, otherwise set numerically 0)
+    !> Data for range separated calcualtion
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
     !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
+
+    real(dp), pointer :: dummyPtr(:,:,:) => null()
 
     if (withArpack) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
           & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, excEnergy, allExcEnergies)
+          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
@@ -322,8 +282,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & tWriteTagged, fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
+      & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -340,7 +300,7 @@ contains
     !> ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix (must be symmetrized)
+    !> square overlap matrix (must be symmetrised)
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> ground state occupations
@@ -379,6 +339,9 @@ contains
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
+    !> difference density matrix (vs. uncharged atoms)
+    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
+
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -388,6 +351,9 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
+    !> Data for range-separated calculation
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
 
@@ -395,7 +361,7 @@ contains
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
     !> contribution to forces from derivative of excited state energy
-    real(dp), intent(out) :: excgradient(:,:)
+    real(dp), intent(inout), allocatable :: excgradient(:,:)
 
     !> occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), allocatable :: occNatural(:)
@@ -420,13 +386,13 @@ contains
       if (allocated(occNatural)) then
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
+            & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr)
+            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
+            & skOverCont, excgradient, derivator, rhoSqr)
       end if
 
     else

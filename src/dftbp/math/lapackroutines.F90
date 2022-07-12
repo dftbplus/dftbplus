@@ -1,11 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 #! suffix and kinds for real types
 #:set REAL_KIND_PARAMS = [('real', 's'), ('dble', 'd')]
@@ -14,12 +15,13 @@
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_math_lapackroutines
   use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error, warning
   ! use dftbp_extlibs_lapack
   implicit none
 
   private
-  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
+  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, larnv
   public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
@@ -45,25 +47,29 @@ module dftbp_math_lapackroutines
 
   !> Bunch-Kaufman factorization of a symmetric matrix.
   interface sytrf
-    module procedure sytrf_real, sytrf_dreal
+    module procedure sytrf_real
+    module procedure sytrf_dreal
   end interface sytrf
 
 
   !> Bunch-Kaufman factorization of a Hermitian matrix.
   interface hetrf
-    module procedure hetrf_complex, hetrf_dcomplex
+    module procedure hetrf_cmplx
+    module procedure hetrf_dcmplx
   end interface hetrf
 
 
   !> Inverts a symmetric matrix.
   interface sytri
-    module procedure sytri_real, sytri_dreal
+    module procedure sytri_real
+    module procedure sytri_dreal
   end interface sytri
 
 
   !> Inverts a Hermitian matrix.
   interface hetri
-    module procedure hetri_complex, hetri_dcomplex
+    module procedure hetri_cmplx
+    module procedure hetri_dcmplx
   end interface hetri
 
 
@@ -72,14 +78,6 @@ module dftbp_math_lapackroutines
     module procedure getri_real
     module procedure getri_dble
   end interface getri
-
-
-  !> Solves a system of linear equations A*X = B with a real symmetric matrix A using the
-  !> factorization A = U*D*U**T or A = L*D*L**T computed by DSYTRF.
-  interface sytrs
-    module procedure sytrs_dble
-    module procedure sytrs_real
-  end interface sytrs
 
 
   !> returns a vector of random numers, either from a uniform or normal distribution
@@ -122,7 +120,7 @@ module dftbp_math_lapackroutines
   end interface getrs
 
 
-  
+
 
 contains
 
@@ -258,7 +256,7 @@ contains
 
   end subroutine gesv_dble
 
-  
+
   !> Double precision version of gesv
   subroutine gesv_dcomplex(aa, bb, nEquation, nSolution, iError)
 
@@ -718,556 +716,122 @@ contains
 
   end subroutine matinv
 
+#:for SUFFIX, TYPE, KIND, NAME in [('sym', 'sy', 'real', 'symmetric'),&
+  & ('her', 'he', 'complex', 'hermitian')]
 
-  !> Inverts a symmetric matrix.
-  subroutine symmatinv(aa, uplo, info)
+  !> Inverts a ${NAME}$ matrix.
+  subroutine ${SUFFIX}$matinv(aa, status, uplo)
 
     !> Symmetric matrix to invert on entry, inverted matrix on exit.
-    real(dp), intent(inout) :: aa(:,:)
+    ${KIND}$(dp), intent(inout) :: aa(:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: status
 
     !> Upper ('U') or lower ('L') matrix. Default: 'L'.
     character, intent(in), optional :: uplo
 
-    !> Info flag. If not specified and an error occurs, the subroutine will stop.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0
+    integer :: nn
     integer, allocatable :: ipiv(:)
-    character(len=100) :: error_string
-
-    nn = size(aa, dim=1)
-    allocate(ipiv(nn))
-    call sytrf(aa, ipiv, uplo, info0)
-
-    if (info0 /= 0) then
-      write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf. Info flag:", info0
-      if (present(info)) then
-        call warning(error_string)
-        info = info0
-        return
-      else
-        call error(error_string)
-      end if
-    end if
-
-    call sytri(aa, ipiv, uplo, info0)
-
-    if (info0 /= 0) then
-      write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytri. Info flag:", info0
-      if (present(info)) then
-        call warning(error_string)
-        info = info0
-      elseif (info0 /= 0) then
-        call error(error_string)
-      end if
-    end if
-
-  end subroutine symmatinv
-
-
-  !> Inverts a Hermitian matrix.
-  subroutine hermatinv(aa, uplo, info)
-
-    !> Hermitian matrix to invert on entry, inverted matrix on exit.
-    complex(dp), intent(inout) :: aa(:,:)
-
-    !> Upper ('U') or lower ('L') matrix. Default: 'L'.
-    character, intent(in), optional :: uplo
-
-    !> Info flag. If not specified and an error occurs, the subroutine will stop.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0
-    integer, allocatable :: ipiv(:)
-    character(len=100) :: error_string
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
 
-    call hetrf(aa, ipiv, uplo, info0)
+    call ${TYPE}$trf(aa, ipiv, status, uplo=uplo)
+    @:PROPAGATE_ERROR(status)
 
-    if (info0 /= 0) then
-      write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in hetrf. Info flag:", info0
-      if (present(info)) then
-        call warning(error_string)
-        info = info0
-        return
-      else
-        call error(error_string)
-      end if
-    end if
+    call ${TYPE}$tri(aa, ipiv, status, uplo=uplo)
+    @:PROPAGATE_ERROR(status)
 
-    call hetri(aa, ipiv, uplo, info0)
+  end subroutine ${SUFFIX}$matinv
 
-    if (info0 /= 0) then
-      write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in hetri. Info flag:", info0
-      if (present(info)) then
-        call warning(error_string)
-        info = info0
-      elseif (info0 /= 0) then
-        call error(error_string)
-      end if
-    end if
-
-  end subroutine hermatinv
+#:endfor
 
 
-  !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
-  subroutine sytrf_real(aa, ipiv, uplo, info)
+#:for TYPE, KIND, NAME, PRC, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytrf'),&
+  & ('sy', 'real', 'symmetric', 'rdp', 'dreal', 'dsytrf'),&
+  & ('he', 'complex', 'hermitian', 'rsp', 'cmplx', 'chetrf'),&
+  & ('he', 'complex', 'hermitian', 'rdp', 'dcmplx', 'zhetrf')]
 
-    !> Symmetric matrix
-    real(rsp), intent(inout) :: aa(:,:)
+  !> Computes the Bunch-Kaufman factorization of a ${NAME}$ matrix.
+  subroutine ${TYPE}$trf_${LABEL}$(aa, ipiv, status, uplo)
+
+    !> ${NAME}$ matrix
+    ${KIND}$(${PRC}$), intent(inout) :: aa(:,:)
 
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
 
-    !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
-    character, intent(in), optional :: uplo
-
-    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0, lwork
-    real(rsp), allocatable :: work(:)
-    real(rsp) :: tmpwork(1)
-    character :: uplo0
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=2)
-    lwork = -1
-    call ssytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
-    if (info0 == 0) then
-      lwork = int(tmpwork(1))
-      allocate(work(lwork))
-      call ssytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
-    end if
-
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Failure dsytrf, info: ", info0
-    end if
-
-  end subroutine sytrf_real
-
-
-  !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
-  subroutine sytrf_dreal(aa, ipiv, uplo, info)
-
-    !> Symmetric matrix
-    real(rdp), intent(inout) :: aa(:,:)
-
-    !> Interchanges of blocks on exit.
-    integer, intent(out) :: ipiv(:)
+    !> Status of operation
+    type(TStatus), intent(out) :: status
 
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
 
-    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0, lwork
-    real(rdp), allocatable :: work(:)
-    real(rdp) :: tmpwork(1)
+    integer :: nn, info, lwork
+    ${KIND}$(${PRC}$), allocatable :: work(:)
+    ${KIND}$(${PRC}$) :: tmpwork(1)
     character :: uplo0
-    character(len=100) :: error_string
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
-    call dsytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
-    if (info0 == 0) then
-      lwork = int(tmpwork(1))
-      allocate(work(lwork))
-      call dsytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
+    call ${PRF}$(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info)
+    if (info /= 0) then
+      @:RAISE_FORMATTED_ERROR(status, -1, "('Failure in ${PRF}$ memory check, info: ',I0)", info)
+    end if
+    lwork = int(tmpwork(1))
+    allocate(work(lwork), stat=info)
+    if (info /= 0) then
+      @:RAISE_ERROR(status, -1, "Out of memory in ${PRF}$")
+    end if
+    call ${PRF}$(uplo0, nn, aa, nn, ipiv, work, lwork, info)
+    if (info /= 0) then
+      @:RAISE_FORMATTED_ERROR(status, -1, "('Failure in ${PRF}$, info: ',I0)", info)
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Failure dsytrf, info: ", info0
-    end if
+  end subroutine ${TYPE}$trf_${LABEL}$
 
-  end subroutine sytrf_dreal
+#:endfor
 
+#:for TYPE, KIND, NAME, PRC, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytri'),&
+  & ('sy', 'real', 'symmetric', 'rdp', 'dreal', 'dsytri'),&
+  & ('he', 'complex', 'hermitian', 'rsp', 'cmplx', 'chetri'),&
+  & ('he', 'complex', 'hermitian', 'rdp', 'dcmplx', 'zhetri')]
 
-  !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (complex).
-  subroutine hetrf_complex(aa, ipiv, uplo, info)
+  !> Computes the inverse of a ${NAME}$ matrix.
+  subroutine ${TYPE}$tri_${LABEL}$(aa, ipiv, status, uplo)
 
-    !> Hermitian matrix
-    complex(rsp), intent(inout) :: aa(:,:)
-
-    !> Interchanges of blocks on exit.
-    integer, intent(out) :: ipiv(:)
-
-    !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
-    character, intent(in), optional :: uplo
-
-    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0, lwork
-    complex(rsp), allocatable :: work(:)
-    complex(rsp) :: tmpwork(1)
-    character :: uplo0
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=2)
-    lwork = -1
-    call chetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
-    if (info0 == 0) then
-      lwork = int(tmpwork(1))
-      allocate(work(lwork))
-      call chetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
-    end if
-
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Failure dsytrf, info: ", info0
-    end if
-
-  end subroutine hetrf_complex
-
-
-  !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (dcomplex).
-  subroutine hetrf_dcomplex(aa, ipiv, uplo, info)
-
-    !> Hermitian matrix
-    complex(rdp), intent(inout) :: aa(:,:)
-
-    !> Interchanges of blocks on exit.
-    integer, intent(out) :: ipiv(:)
-
-    !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
-    character, intent(in), optional :: uplo
-
-    !> Info flag (0 = OK). If not set and an error occurred, the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: nn, info0, lwork
-    complex(rdp), allocatable :: work(:)
-    complex(rdp) :: tmpwork(1)
-    character :: uplo0
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=2)
-    lwork = -1
-    call zhetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
-    if (info0 == 0) then
-      lwork = int(tmpwork(1))
-      allocate(work(lwork))
-      call zhetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
-    end if
-
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Failure dsytrf, info: ", info0
-    end if
-
-  end subroutine hetrf_dcomplex
-
-
-  !> Computes the inverse of a symmetric matrix (real).
-  subroutine sytri_real(aa, ipiv, uplo, info)
-
-    !> Symmetric matrix to be inverted.
-    real(rsp), intent(in) :: aa(:,:)
+    !> ${NAME}$ matrix to be inverted.
+    ${KIND}$(${PRC}$), intent(in) :: aa(:,:)
 
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: status
 
     !> Upper ('U') or lower ('L') matrix (default: 'L')
     character, intent(in), optional :: uplo
 
-    !> Info flag. If not present and an error occurs the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: info0, nn
+    integer :: info, nn
     character :: uplo0
-    real(rsp), allocatable :: work(:)
-    character(len=100) :: error_string
+    ${KIND}$(${PRC}$), allocatable :: work(:)
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
-    allocate(work(max(1, 2 * nn)))
-    call ssytri(uplo0, nn, aa, nn, ipiv, work, info0)
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
-      call error(error_string)
+    allocate(work(max(1, 2 * nn)), stat=info)
+    if (info /= 0) then
+      @:RAISE_ERROR(status, -1, "Out of memory in ${PRF}$ wrapper")
+    end if
+    call ${PRF}$(uplo0, nn, aa, nn, ipiv, work, info)
+    if (info /= 0) then
+      @:RAISE_FORMATTED_ERROR(status, -1, "('Failure in ${PRF}$, info: ',I0)", info)
     end if
 
-  end subroutine sytri_real
+  end subroutine ${TYPE}$tri_${LABEL}$
 
-
-  !> Computes the inverse of a symmetric matrix (dreal).
-  subroutine sytri_dreal(aa, ipiv, uplo, info)
-
-    !> Symmetric matrix to be inverted.
-    real(rdp), intent(in) :: aa(:,:)
-
-    !> Block interchanges as created by the sytrf() routine.
-    integer, intent(in) :: ipiv(:)
-
-    !> upper or lower triangle
-    character, intent(in), optional :: uplo
-
-    !> Info flag. If not present and an error occurs the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: info0, nn
-    character :: uplo0
-    real(rdp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=1)
-    allocate(work(max(1, 2 * nn)))
-    call dsytri(uplo0, nn, aa, nn, ipiv, work, info0)
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
-      call error(error_string)
-    end if
-
-  end subroutine sytri_dreal
-
-
-  !> Computes the inverse of a Hermitian matrix (complex).
-  subroutine hetri_complex(aa, ipiv, uplo, info)
-
-    !> Symmetric matrix to be inverted.
-    complex(rsp), intent(in) :: aa(:,:)
-
-    !> Block interchanges as created by the sytrf() routine.
-    integer, intent(in) :: ipiv(:)
-
-    !> Upper ('U') or lower ('L') matrix (default: 'L')
-    character, intent(in), optional :: uplo
-
-    !> Info flag. If not present and an error occurs the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: info0, nn
-    character :: uplo0
-    complex(rsp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=1)
-    allocate(work(max(1, 2 * nn)))
-    call chetri(uplo0, nn, aa, nn, ipiv, work, info0)
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
-      call error(error_string)
-    end if
-
-  end subroutine hetri_complex
-
-
-  !> Computes the inverse of a Hermitian matrix (dreal).
-  subroutine hetri_dcomplex(aa, ipiv, uplo, info)
-
-    !> Hermitian matrix to be inverted.
-    complex(rdp), intent(in) :: aa(:,:)
-
-    !> Block interchanges as created by the sytrf() routine.
-    integer, intent(in) :: ipiv(:)
-
-    !> Upper ('U') or lower ('L') matrix (default: 'L')
-    character, intent(in), optional :: uplo
-
-    !> Info flag. If not present and an error occurs the subroutine stops.
-    integer, intent(out), optional :: info
-
-    integer :: info0, nn
-    character :: uplo0
-    complex(rdp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    uplo0 = uploHelper(uplo)
-    nn = size(aa, dim=1)
-    allocate(work(max(1, 2 * nn)))
-    call zhetri(uplo0, nn, aa, nn, ipiv, work, info0)
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
-      write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
-      call error(error_string)
-    end if
-
-  end subroutine hetri_dcomplex
-
-
-  !> Single precision version of sytrs
-  subroutine sytrs_real(A,B, nRow, uplo,iError)
-
-    !> On entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
-    !> A contains the upper triangular part of the matrix A, and the strictly lower triangular part
-    !> of A is not referenced.  If UPLO = 'L', the leading N-by-N lower triangular part of A
-    !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
-    !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
-    !> the factor U or L
-    real(rsp), intent(inout) :: A(:,:)
-
-    !> On entry, the right hand side matrix B. On exit, the solution matrix X.
-    real(rsp), intent(inout) :: B(:,:)
-
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
-    !> the passed matrix)
-    integer, intent(in), optional :: nRow
-
-    !> upper or lower triangle of the matrix, defaults to lower
-    character, intent(in), optional :: uplo
-
-    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
-    !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
-    integer, intent(out), optional :: iError
-
-    integer, allocatable :: ipiv(:)
-    character :: iUplo
-    integer :: nn, lda, ldb, info, lwork, nrhs
-    real(rsp), allocatable :: work(:)
-    real(rsp) :: work2(1)
-    character(len=100) :: error_string
-
-    lda = size(A, dim=1)
-    if (present(nRow)) then
-      @:ASSERT(nRow >= 1 .and. nRow <= lda)
-      nn = nRow
-    else
-      nn = lda
-    end if
-
-    ldb = size(b, dim=1)
-    @:ASSERT(ldb >= nn)
-
-    if (present(uplo)) then
-      iUplo = uplo
-    else
-      iUplo = 'L'
-    end if
-    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-
-    @:ASSERT(size(A, dim=2) >= nn)
-    nrhs = size(B, dim=2)
-
-    allocate(ipiv(nn))
-
-    lwork = -1
-    call ssytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
-    lwork = int(work2(1))
-    if (info == 0) then
-      allocate(work(lwork))
-      call ssytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-    end if
-
-    if (info == 0) then
-      call ssytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
-    end if
-
-    if (present(iError)) then
-      iError = info
-    elseif (info /= 0) then
-99130 format ('Solution failed because of error in sytrf or sytrs.',&
-          & ' Info flag: ',i10)
-      write (error_string, 99130) info
-      call error(error_string)
-    end if
-
-  end subroutine sytrs_real
-
-
-  !> Double precision version of sytrs
-  subroutine sytrs_dble(A,B, nRow, uplo,iError)
-
-    !> On entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
-    !> A contains the upper triangular part of the matrix A, and the strictly lower triangular part
-    !> of A is not referenced.  If UPLO = 'L', the leading N-by-N lower triangular part of A
-    !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
-    !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
-    !> the factor U or L
-    real(rdp), intent(inout) :: A(:,:)
-
-    !> On entry, the right hand side matrix B. On exit, the solution matrix X.
-    real(rdp), intent(inout) :: B(:,:)
-
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
-    !> the passed matrix)
-    integer, intent(in), optional :: nRow
-
-    !> upper or lower triangle of the matrix, defaults to lower
-    character, intent(in), optional :: uplo
-
-    !> Error flag. Zero on successful exit. If not present, any lapack error causes program
-    !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
-    integer, intent(out), optional :: iError
-
-    integer, allocatable :: ipiv(:)
-    character :: iUplo
-    integer :: nn, lda, ldb, info, lwork, nrhs
-    real(rdp), allocatable :: work(:)
-    real(rdp) :: work2(1)
-    character(len=100) :: error_string
-
-    lda = size(A, dim=1)
-    if (present(nRow)) then
-      @:ASSERT(nRow >= 1 .and. nRow <= lda)
-      nn = nRow
-    else
-      nn = lda
-    end if
-
-    ldb = size(b, dim=1)
-    @:ASSERT(ldb >= nn)
-
-    if (present(uplo)) then
-      iUplo = uplo
-    else
-      iUplo = 'L'
-    end if
-    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-
-    @:ASSERT(size(A, dim=2) >= nn)
-    nrhs = size(B, dim=2)
-
-    allocate(ipiv(nn))
-
-    lwork = -1
-    call dsytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
-    lwork = int(work2(1))
-    if (info == 0) then
-      allocate(work(lwork))
-      call dsytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-    end if
-
-    if (info == 0) then
-      call dsytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
-    end if
-
-    if (present(iError)) then
-      iError = info
-    elseif (info /= 0) then
-99130 format ('Solution failed because of error in sytrf or sytrs.',&
-          & ' Info flag: ',i10)
-      write (error_string, 99130) info
-      call error(error_string)
-    end if
-
-  end subroutine sytrs_dble
+#:endfor
 
 
   !> single precision version of larnv

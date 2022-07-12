@@ -27,7 +27,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }
 
 ExcitedState {
@@ -35,7 +35,7 @@ ExcitedState {
         NrOfExcitations = 5
         StateOfInterest = 0
         Symmetry = Triplet
-	Diagonalizer = Stratmann {
+	Diagonaliser = Stratmann {
 	  SubSpaceFactor = 30	 
 	}
     }

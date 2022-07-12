@@ -25,7 +25,7 @@ ExcitedState {
         Symmetry = Singlet
         WriteMulliken = Yes
         CacheCharges = No
-        Diagonalizer = Stratmann {}
+        Diagonaliser = Stratmann {}
     }
 }
 
@@ -38,7 +38,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }
 
 Parallel {

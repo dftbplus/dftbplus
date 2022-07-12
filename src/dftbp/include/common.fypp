@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2021  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -14,20 +14,22 @@
 
 #:set DEBUG = getvar('DEBUG', 0)
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
-#:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_OMP = defined('WITH_OMP')
+#:set WITH_GPU = defined('WITH_GPU')
+#:set WITH_MAGMA = defined('WITH_MAGMA')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
-#:set WITH_DFTD3 = defined('WITH_DFTD3')
 #:set WITH_MBD = defined('WITH_MBD')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
 #:set WITH_ARPACK = defined('WITH_ARPACK')
 #:set WITH_PLUMED = defined('WITH_PLUMED')
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set WITH_POISSON = defined('WITH_POISSON')
+#:set WITH_SDFTD3 = defined('WITH_SDFTD3')
 #:set WITH_TBLITE = defined('WITH_TBLITE')
+#:set WITH_CHIMES = defined('WITH_CHIMES')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
@@ -57,8 +59,6 @@
   $:code
   #:endif
 #:enddef DEBUG_CODE
-
-#:endif
 
 
 #! Adds a code block depending on the availability of an optional build component.
@@ -102,4 +102,22 @@
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
 #:enddef
 
+
+#! Creates a class instance by allocating, initializing and move_allocing a specific type
+#!
+#! Args:
+#!     cls (str): Name of the LHS variable (must be a class)
+#!     dyntype (str): Dynamic type of the actual instance to be initialized
+#!     init (str): Initialization routine to call (with allocated instance as first arg)
+#!     initargs (str): Further arguments to pass to the init routine.
+#:def CREATE_CLASS(cls, dyntype, init, *initargs)
+block
+  type(${dyntype}$), allocatable :: inst
+  allocate(inst)
+  call ${init}$(inst, ${", ".join(initargs)}$)
+  call move_alloc(inst, ${cls}$)
+end block
+#:enddef
+
+#:endif
 #:endmute

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,16 +22,8 @@
 !> conventions of DFTB+, while all intermediate quantities passed from the library to DFTB+
 !> will follow tblite's conventions (usually encapsulated in derived types already).
 !>
-!> Conventions for spherical harmonics are different in tblite and DFTB+.
-!> This requires shuffling them correctly when returned from the library.
-!>
-!> ang.  | DFTB+
-!> ----- | ------------------------------
-!> 0 (s) | 0
-!> 1 (p) | -1, 0, 1
-!> 2 (d) | -2, -1, 0, 1, 2
-!> 3 (f) | -3, -2, -1, 0, 1, 2, 3
-!> 4 (g) | -4, -3, -2, -1, 0, 1, 2, 3, 4
+!> Both tblite and DFTB+ use consistent ordering of spherical harmonics
+!> in the standard sorting, *i.e.* [-l, ..., 0, ..., l].
 module dftbp_extlibs_tblite
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -49,9 +41,8 @@ module dftbp_extlibs_tblite
   use mctc_io_symbols, only : symbol_length
   use tblite_basis_type, only : get_cutoff, basis_type
   use tblite_context_type, only : context_type
-  use tblite_coulomb_cache, only : coulomb_cache
+  use tblite_container, only : container_cache
   use tblite_cutoff, only : get_lattice_points
-  use tblite_disp_cache, only : dispersion_cache
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
   use tblite_param, only : param_record
   use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
@@ -150,10 +141,10 @@ module dftbp_extlibs_tblite
     type(potential_type) :: pot
 
     !> Reuseable data for Coulombic interactions
-    type(coulomb_cache) :: cache
+    type(container_cache) :: cache
 
     !> Reuseable data for Dispersion interactions
-    type(dispersion_cache) :: dcache
+    type(container_cache) :: dcache
   #:endif
 
     !> Parametrization info
@@ -178,19 +169,19 @@ module dftbp_extlibs_tblite
     real(dp), allocatable :: dsedcn(:)
 
     !> Repulsion energy
-    real(dp) :: erep
+    real(dp), allocatable :: erep(:)
 
     !> Halogen bonding energy
-    real(dp) :: ehal
+    real(dp), allocatable :: ehal(:)
 
     !> Non-self consistent dispersion energy
-    real(dp) :: edisp
+    real(dp), allocatable :: edisp(:)
 
     !> Self-consistent dispersion energy
-    real(dp) :: escd
+    real(dp), allocatable :: escd(:)
 
     !> Electrostatic energy
-    real(dp) :: ees
+    real(dp), allocatable :: ees(:)
 
     !> Contributions to the gradient
     real(dp), allocatable :: gradient(:, :)
@@ -242,6 +233,9 @@ module dftbp_extlibs_tblite
     !> Evaluate shift related derivatives from Hamiltonian and overlap related integrals
     procedure :: buildDerivativeShift
 
+    !> Calculates nonadiabatic matrix: overlap gradient (Sprime) times velocities (Rdot)
+    procedure :: buildRdotSprime
+
   end type TTBLite
 
 
@@ -281,6 +275,10 @@ contains
 
     symbol = speciesNames(species0)
     call new(this%mol, symbol, coords0, lattice=latVecs)
+
+    if (any(this%mol%num <= 0)) then
+      call error("Unidentified species present in species list")
+    end if
   #:else
     call notImplementedError
   #:endif
@@ -364,6 +362,9 @@ contains
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
 
+    ! Spin channels in the system
+    integer, parameter :: nSpin = 1
+
     !> Species of every atom in the unit cell
     integer, intent(in) :: species0(:)
 
@@ -395,9 +396,9 @@ contains
     end if
 
     call new_wavefunction(this%wfn, this%mol%nat, this%calc%bas%nsh, this%calc%bas%nao, &
-        & 0.0_dp)
+        & nSpin, 0.0_dp)
 
-    call new_potential(this%pot, this%mol, this%calc%bas)
+    call new_potential(this%pot, this%mol, this%calc%bas, this%wfn%nspin)
 
     if (allocated(this%calc%ncoord)) then
       allocate(this%cn(this%mol%nat))
@@ -406,6 +407,8 @@ contains
 
     allocate(this%selfenergy(this%calc%bas%nsh), this%dsedcn(this%calc%bas%nsh))
 
+    allocate(this%erep(this%mol%nat), this%ehal(this%mol%nat), this%edisp(this%mol%nat), &
+        & this%escd(this%mol%nat), this%ees(this%mol%nat))
     allocate(this%gradient(3, this%mol%nat))
 
     allocate(this%sp2id(maxval(species0)))
@@ -534,27 +537,24 @@ contains
     integer, intent(in) :: species0(:)
 
   #:if WITH_TBLITE
-    real(dp) :: cutoff
-    real(dp), allocatable :: lattr(:, :)
+    type(container_cache) :: hcache, rcache
 
     this%mol%xyz(:, :) = coords(:, :this%mol%nat)
-    this%ehal = 0.0_dp
-    this%erep = 0.0_dp
-    this%edisp = 0.0_dp
+    this%ehal(:) = 0.0_dp
+    this%erep(:) = 0.0_dp
+    this%edisp(:) = 0.0_dp
     this%gradient(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
 
     if (allocated(this%calc%halogen)) then
-      cutoff = 20.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%halogen%get_engrad(this%mol, lattr, cutoff, this%ehal, &
+      call this%calc%halogen%update(this%mol, hcache)
+      call this%calc%halogen%get_engrad(this%mol, hcache, this%ehal, &
           & this%gradient, this%sigma)
     end if
 
     if (allocated(this%calc%repulsion)) then
-      cutoff = 25.0_dp
-      call get_lattice_points(this%mol%periodic, this%mol%lattice, cutoff, lattr)
-      call this%calc%repulsion%get_engrad(this%mol, lattr, cutoff, this%erep, &
+      call this%calc%repulsion%update(this%mol, rcache)
+      call this%calc%repulsion%get_engrad(this%mol, rcache, this%erep, &
           & this%gradient, this%sigma)
     end if
 
@@ -564,7 +564,7 @@ contains
           & this%gradient, this%sigma)
     end if
 
-    call new_potential(this%pot, this%mol, this%calc%bas)
+    call new_potential(this%pot, this%mol, this%calc%bas, this%wfn%nspin)
     if (allocated(this%calc%coulomb)) then
       call this%calc%coulomb%update(this%mol, this%cache)
     end if
@@ -608,7 +608,7 @@ contains
     real(dp), intent(out) :: energies(:)
 
   #:if WITH_TBLITE
-    energies(:) = (this%ehal + this%erep + this%edisp + this%escd + this%ees) / size(energies)
+    energies(:) = this%ehal + this%erep + this%edisp + this%escd + this%ees
   #:else
     call notImplementedError
   #:endif
@@ -715,10 +715,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: dipAtom(:,:)
+    real(dp), intent(in), optional :: dipAtom(:,:,:)
 
-    !> Cumulative atomic dipole populations
-    real(dp), intent(in), optional :: quadAtom(:,:)
+    !> Cumulative atomic quadrupole populations
+    real(dp), intent(in), optional :: quadAtom(:,:,:)
 
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -731,26 +731,26 @@ contains
     real(dp), allocatable :: dQAtom(:), dQShell(:, :)
 
     call this%pot%reset
-    this%escd = 0.0_dp
-    this%ees = 0.0_dp
+    this%escd(:) = 0.0_dp
+    this%ees(:) = 0.0_dp
 
     allocate(dQAtom(this%mol%nat), dQShell(orb%mShell, this%mol%nat))
     call getSummedCharges(species, orb, qq, q0, dQAtom=dQAtom, dQShell=dQShell)
 
-    this%wfn%qat(:) = -dQAtom
+    this%wfn%qat(:, 1) = -dQAtom
     do iAt = 1, size(dQShell, 2)
       ii = this%calc%bas%ish_at(iAt)
       do iSh = 1, this%calc%bas%nsh_at(iAt)
-        this%wfn%qsh(ii+iSh) = -dQShell(iSh, iAt)
+        this%wfn%qsh(ii+iSh, 1) = -dQShell(iSh, iAt)
       end do
     end do
 
     if (present(dipAtom)) then
-      this%wfn%dpat(:, :) = -dipAtom
+      this%wfn%dpat(:, :, 1) = -dipAtom(:, :, 1)
     end if
 
     if (present(quadAtom)) then
-      this%wfn%qpat(:, :) = -quadAtom
+      this%wfn%qpat(:, :, 1) = -quadAtom(:, :, 1)
     end if
 
     if (allocated(this%calc%coulomb)) then
@@ -797,22 +797,22 @@ contains
   #:if WITH_TBLITE
     integer :: iAt, iSh, ii
 
-    shiftPerAtom(:) = -this%pot%vat
+    shiftPerAtom(:) = -this%pot%vat(:, 1)
 
     shiftPerShell(:,:) = 0.0_dp
     do iAt = 1, size(shiftPerShell, 2)
       ii = this%calc%bas%ish_at(iAt)
       do iSh = 1, this%calc%bas%nsh_at(iAt)
-        shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh)
+        shiftPerShell(iSh, iAt) = -this%pot%vsh(ii+iSh, 1)
       end do
     end do
 
     if (present(dipShift)) then
-      dipShift(:,:) = -this%pot%vdp
+      dipShift(:,:) = -this%pot%vdp(:, :, 1)
     end if
 
     if (present(quadShift)) then
-      quadshift(:,:) = -this%pot%vqp
+      quadshift(:,:) = -this%pot%vqp(:, :, 1)
     end if
   #:else
     call notImplementedError
@@ -1239,7 +1239,7 @@ contains
           nao = msao(lj)
           do iao = 1, msao(li)
             do jao = 1, nao
-              ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+              ij = jao + nao*(iao-1)
               iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
               dpintBra(:, iblk) = dtmp(:, ij)
@@ -1371,7 +1371,7 @@ contains
             nao = msao(lj)
             do iao = 1, msao(li)
               do jao = 1, nao
-                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+                ij = jao + nao*(iao-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
                 call shiftOperator(vec, stmp(ij), dtmpi(:, ij), qtmpi(:, ij), dtmpj, qtmpj)
 
@@ -1742,7 +1742,7 @@ contains
             nao = msao(lj)
             do iao = 1, msao(li)
               do jao = 1, nao
-                ij = mlIdx(jao, lj) + nao*(mlIdx(iao, li)-1)
+                ij = jao + nao*(iao-1)
                 iblk = ind + jj+jao + nBlk*(ii+iao-1)
 
                 pij = pmat(iblk, 1)
@@ -1785,33 +1785,45 @@ contains
 #:endif
 
 
-  !> Index gymnastic to transfer magnetic quantum number ordering from one convention to another
-  elemental function mlIdx(ml, l) result(idx)
-    integer, intent(in) :: ml, l
-    integer :: idx
+  !> Calculates nonadiabatic matrix: overlap gradient (Sprime) times velocities (Rdot)
+  subroutine buildRdotSprime(this, env, RdotSprime, coords, dcoord, species, nNeighbour, &
+      & iNeighbour, img2CentCell, iSquare, orb)
 
-    ! -1, 0, +1 -> +1, -1, 0
-    integer, parameter :: p(3) = [2, 3, 1]
-    ! -2, -1, 0, +1, +2 -> 0, +1, -1, +2, -2
-    integer, parameter :: d(5) = [5, 3, 1, 2, 4]
-    ! -3, -2, -1, 0, +1, +2, +3 -> 0, +1, -1, +2, -2, 3, -3
-    integer, parameter :: f(7) = [7, 5, 3, 1, 2, 4, 6]
-    ! -4, -3, -2, -1, 0, +1, +2, +3, +4 -> 0, +1, -1, +2, -2, +3, -3, +4, -4
-    integer, parameter :: g(9) = [9, 7, 5, 3, 1, 2, 4, 6, 8]
+    !> Data structure
+    class(TTBLite), intent(inout) :: this
 
-    select case(l)
-    case default
-      idx = ml
-    case(1)
-      idx = p(ml)
-    case(2)
-      idx = d(ml)
-    case(3)
-      idx = f(ml)
-    case(4)
-      idx = g(ml)
-    end select
-  end function mlIdx
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Nonadiabatic coupling matrix elements
+    complex(dp), intent(out) :: RdotSprime(:,:)
+
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Change in coords of the atoms (3, nAtom)
+    real(dp), intent(in) :: dcoord(:,:)
+
+    !> List of all atomic species
+    integer, intent(in) :: species(:)
+
+    !> Number of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, intent(in) :: nNeighbour(:)
+
+    !> Neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    call error("Forces currently not available in Ehrenfest dynamic with this Hamiltonian")
+  end subroutine buildRdotSprime
 
 
 #:if not WITH_TBLITE

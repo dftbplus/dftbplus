@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,6 +15,7 @@ module dftbp_dftb_dispdftd4
   use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
   use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
@@ -26,7 +27,7 @@ module dftbp_dftb_dispdftd4
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
 
   public :: TDispDftD4, TDispDftD4Inp, TDispDftD4_init, init, writeDftD4Info
@@ -261,19 +262,19 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Status of operation
-    integer, intent(out), optional :: stat
+    type(TStatus), intent(out) :: stat
 
     integer, allocatable :: nNeighbour(:)
 
     if (this%tPeriodic) then
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
-          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, &
-          & stress=this%stress, volume=this%vol, stat=stat)
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat,&
+          & stress=this%stress, volume=this%vol)
     else
       call evalDispersion(this%calc, this%ref, env, this%nAtom, species0, coords, neigh,&
-          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat=stat)
+          & img2CentCell, this%eeqCont, this%cnCont, this%energies, this%gradients, stat)
     end if
-    @:HANDLE_ERROR(stat)
+    @:PROPAGATE_ERROR(stat)
 
     if (allocated(this%sc)) then
       allocate(nNeighbour(this%nAtom))
@@ -981,7 +982,7 @@ contains
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
   subroutine evalDispersion(calc, ref, env, nAtom, species, coords, neigh, img2CentCell, &
-      & eeqCont, cnCont, energies, gradients, stress, volume, stat)
+      & eeqCont, cnCont, energies, gradients, stat, stress, volume)
 
     !> DFT-D dispersion model
     type(TDftD4Calc), intent(in) :: calc
@@ -1019,14 +1020,14 @@ contains
     !> Updated gradient vector at return
     real(dp), intent(out) :: gradients(:, :)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: stat
+
     !> Upgraded stress
     real(dp), intent(out), optional :: stress(:, :)
 
     !> Volume, if system is periodic
     real(dp), intent(in), optional :: volume
-
-    !> Status of operation
-    integer, intent(out), optional :: stat
 
     integer :: iAtFirst, iAtLast, nRef
     real(dp) :: sigma(3, 3)
@@ -1054,7 +1055,7 @@ contains
 
     if (present(eeqCont)) then
       call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
-      @:HANDLE_ERROR(stat)
+      @:PROPAGATE_ERROR(stat)
     end if
 
     call cnCont%updateCoords(neigh, img2CentCell, coords, species)
@@ -1346,7 +1347,7 @@ contains
     real(dp) :: eta1, zEff1, qRef1, refc6(size(dispMat, 1))
     real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
     real(dp) :: dEr, rc, r2, r4, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
-    real(dp) :: f6, f8, f10
+    real(dp) :: f6, f8, f10, dd
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -1396,11 +1397,11 @@ contains
 
     dispMat(:, :, :, :) = 0.0_dp
 
-    !$omp parallel do default(none) schedule(runtime) reduction(+:dispMat) &
+    !$omp parallel do default(none) schedule(runtime) shared(dispMat) &
     !$omp shared(iAtFirst, iAtLast, calc, ref, species, nNeighbour, neigh) &
     !$omp shared(img2CentCell, gwVec) private(iAt1, iSp1, iNeigh, iAt2) &
     !$omp private(iRef1, iRef2, nRef1, nRef2, iAt2f, iSp2, r2, r4, r6, r8, r10) &
-    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, refc6)
+    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, refc6, dd)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
@@ -1428,16 +1429,22 @@ contains
         nRef1 = ref%nRef(iSp1)
         nRef2 = ref%nRef(iSp2)
         do iRef1 = 1, nRef1
-          refc6(:nRef2) = ref%c6(:nRef2, iRef1, iSp2, iSp1) * gwVec(:nRef2, iAt2f)
-          dispMat(:nRef2, iAt2f, iRef1, iAt1) = dispMat(:nRef2, iAt2f, iRef1, iAt1) &
-              & - (dEr * gwVec(iRef1, iAt1)) * refc6(:nRef2)
+          do iRef2 = 1, nRef2
+            dd = - dEr * gwVec(iRef1, iAt1) * gwVec(iRef2, iAt2f) &
+                & * ref%c6(iRef2, iRef1, iSp2, iSp1)
+            !$omp atomic
+            dispMat(iRef2, iAt2f, iRef1, iAt1) = dispMat(iRef2, iAt2f, iRef1, iAt1) + dd
+          end do
         end do
 
         if (iAt1 /= iAt2) then
           do iRef2 = 1, nRef2
-            refc6(:nRef1) = ref%c6(:nRef1, iRef2, iSp1, iSp2) * gwVec(:nRef1, iAt1)
-            dispMat(:nRef1, iAt1, iRef2, iAt2f) = dispMat(:nRef1, iAt1, iRef2, iAt2f) &
-                & - (dEr * gwVec(iRef2, iAt2f)) * refc6(:nRef1)
+            do iRef1 = 1, nRef1
+              dd = - dEr * gwVec(iRef2, iAt2f) * gwVec(iRef1, iAt1) &
+                  & * ref%c6(iRef1, iRef2, iSp1, iSp2)
+              !$omp atomic
+              dispMat(iRef1, iAt1, iRef2, iAt2f) = dispMat(iRef1, iAt1, iRef2, iAt2f) + dd
+            end do
           end do
         end if
 

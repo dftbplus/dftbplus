@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@ module dftbp_type_commontypes
   use dftbp_type_orbitals, only : TOrbitals
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   implicit none
-  
+
   private
   public :: TOrbitals
   public :: TParallelKS, TParallelKS_init

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_dftb_elstatpot
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_scc, only : TScc
   implicit none
-  
+
   private
   public :: TElStatPotentialsInp
   public :: TElStatPotentials, TElStatPotentials_init
@@ -39,7 +39,7 @@ module dftbp_dftb_elstatpot
 
     !> Axes of the grid if regular
     real(dp) :: axes(3,3)
-    
+
     !> short range softening of the potential
     real(dp) :: softenEsp = 1.0E-6_dp
 
@@ -60,7 +60,7 @@ module dftbp_dftb_elstatpot
 
     !> Axes of the grid if regular
     real(dp) :: axes(3,3)
-        
+
     !> Value of a short-distance softening term
     real(dp) :: softenEsp
 

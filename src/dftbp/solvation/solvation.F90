@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_solvation_solvation
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
-  
+
   private
   public :: TSolvation
 
@@ -48,6 +48,10 @@ module dftbp_solvation_solvation
 
     !> Does the solvent model modify the electrostatics
     procedure(isEFieldModified), deferred :: isEFieldModified
+
+    !> Relative dielectric constant in solvent region
+    procedure(getEpsilon_r), deferred :: getEpsilon_r
+
   end type TSolvation
 
   abstract interface
@@ -195,7 +199,7 @@ module dftbp_solvation_solvation
     end subroutine getShifts
 
     !> Is the electrostic field modified by this solvent model?
-    function isEFieldModified(this) result(isChanged)
+    pure function isEFieldModified(this) result(isChanged)
       import :: TSolvation
 
       !> Data structure
@@ -205,6 +209,19 @@ module dftbp_solvation_solvation
       logical :: isChanged
 
     end function isEFieldModified
+
+
+    !> Returns solvent region relative dielectric constant
+    pure function getEpsilon_r(this) result(e_r)
+      import :: TSolvation, dp
+
+      !> Data structure
+      class(TSolvation), intent(in) :: this
+
+      !> epsilon_r for solvent
+      real(dp) :: e_r
+
+    end function getEpsilon_r
 
   end interface
 

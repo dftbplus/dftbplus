@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 module dftbp_type_parallelks
   use dftbp_common_environment, only : TEnvironment
   implicit none
-  
+
   private
   public :: TParallelKS, TParallelKS_init
 
@@ -40,7 +40,7 @@ module dftbp_type_parallelks
   end type TParallelKS
 
 contains
-  
+
   !> Returns the (k-point, spin) tuples to be processed by current processor grid (if parallel) or
   !> put everything in one group if serial.
   subroutine TParallelKS_init(this, env, nKpoint, nSpin)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -171,6 +171,8 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                      latvecs, chargeRestart):
     """Calculates forces by finite differences"""
 
+    cart =('x','y','z')
+    delta =('-','+')
     energy = np.empty((2,), dtype=float)
     forces = np.empty((len(coords), 3), dtype=float)
     for iat in range(len(coords)):
@@ -187,7 +189,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
-                print("iat: %2d, ii: %2d, jj: %2d" % (iat, ii, jj))
+                print("iat: %2d, dir: %s, delta: %s" % (iat, cart[ii],delta[jj]))
                 if match:
                     energy[jj] = float(match.group("value"))
                     print("energy:", energy[jj])
@@ -201,6 +203,7 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                         origin, chargeRestart):
     """Calculates lattice derivatives by finite differences"""
 
+    delta =('-','+')
     energy = np.empty((2,), dtype=float)
     latderivs = np.empty((3, 3), dtype=float)
     for ii in range(3):
@@ -220,7 +223,7 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
-                print("ii: %2d, jj: %2d, kk: %2d" % (ii, jj, kk))
+                print("ii: %2d, jj: %2d, delta: %s" % (ii, jj, delta[kk]))
                 print("energy:", energy[kk])
                 if match:
                     energy[kk] = float(match.group("value"))

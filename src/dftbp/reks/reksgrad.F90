@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,7 +25,7 @@ module dftbp_reks_reksgrad
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_slakocont, only : TSlakoCont 
+  use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
@@ -326,7 +326,7 @@ contains
                     & = sPrimeTmp(1:nOrb2,1:nOrb1,ii)
               end do
             end if
-            
+
             derivTmp(:) = 0.0_dp
             ! note factor of 2 for implicit summation over lower triangle of density matrix:
             do ii = 1, 3
@@ -2411,7 +2411,7 @@ contains
 
           ! In this case onsite elements remain except diagonal
           ! elements, but it does not affect the gradient
-          ! since T derivative for scc, spin, pc shows only 
+          ! since T derivative for scc, spin, pc shows only
           ! diagonal elements in onsite block. Thus, tr(R*T)
           ! can show correct values in sparse case
           tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
@@ -2527,7 +2527,7 @@ contains
 
 
   !> In this routine, I do not use the equation in REKS document
-  !> (calculated from g and h vectors), I directly calculate 
+  !> (calculated from g and h vectors), I directly calculate
   !> G vector from SSR gradients and H vector from SA and SI gradients
   !> compute the NAC vectors (G, H)
   subroutine getReksNAC(SAgrad, SIgrad, SSRgrad, eigvecsSSR, energy, nacG, nacH)
@@ -3963,7 +3963,7 @@ contains
 
       ! In this case onsite elements remain except diagonal
       ! elements, but it does not affect the gradient
-      ! since H-XC kernel for scc, spin shows only 
+      ! since H-XC kernel for scc, spin shows only
       ! diagonal elements in onsite block. Thus, sum(R*Hxc)
       ! can show correct values in sparse case
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
@@ -4106,7 +4106,7 @@ contains
 
       ! In this case onsite elements remain except diagonal
       ! elements, but it does not affect the gradient
-      ! since H-XC kernel for scc, spin shows only 
+      ! since H-XC kernel for scc, spin shows only
       ! diagonal elements in onsite block. Thus, sum(R*Hxc)
       ! can show correct values in sparse case
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
@@ -5252,9 +5252,9 @@ contains
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) &
 !$OMP& REDUCTION(+:deriv1) SCHEDULE(RUNTIME)
       do k = 1, nAtomPair
-  
+
         call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
-  
+
         call shiftRTgradLr1st_(deriv1(:,:,1), RmatL(:,:,:,1), SPS, LrGammaDeriv, &
             & weight, iSquare, orderRmatL, mOrb, iAtom1, iAtom2)
         call shiftRTgradLr1st_(deriv1(:,:,1), SRS, deltaRhoSqrL(:,:,1,:), LrGammaDeriv, &
@@ -5263,7 +5263,7 @@ contains
             & weight, iSquare, orderRmatL, mOrb, iAtom1, iAtom2, 1)
         call shiftRTgradLr2nd_(deriv1(:,:,1), SR, SP, LrGammaDeriv, &
             & weight, iSquare, orderRmatL, mOrb, iAtom1, iAtom2, 2)
-  
+
       end do
 !$OMP END PARALLEL DO
 
@@ -5420,7 +5420,7 @@ contains
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,mu,nu,iAtom3,iAtom4, &
 !$OMP& tmpCoulombDeriv) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     do iAtom1 = 1, nAtom
-      
+
     #:if WITH_OMP
       id = OMP_GET_THREAD_NUM() + 1
     #:else

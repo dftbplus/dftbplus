@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_math_erfcalc
   !> wp: working precision, sp: real single, dp: real double
   use dftbp_common_accuracy,  only : wp => dp, sp => rsp, dp => rdp
   implicit none
-  
+
   private
 #:if INTERNAL_ERFC
   public :: erf, erfc

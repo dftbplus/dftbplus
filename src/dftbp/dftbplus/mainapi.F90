@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -27,11 +27,11 @@ module dftbp_dftbplus_mainapi
   use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
 #:endif
   implicit none
-  
+
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
-  public :: nrOfAtoms, getAtomicMasses
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
+  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
 
@@ -184,6 +184,63 @@ contains
   end subroutine getGrossCharges
 
 
+  !> get the CM5 charges
+  subroutine getCM5Charges(env, main, atomCharges)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> resulting charges
+    real(dp), intent(out) :: atomCharges(:)
+
+    !> number of neighbours for all atoms
+    integer, allocatable :: nNeigh(:)
+
+    !> handle the case that CM5 was not added in the input
+    if (.not. allocated(main%cm5Cont)) then
+      call error("CM5 analysis has not been carried out.")
+    end if
+
+    call recalcGeometry(env, main)
+    if (.not. allocated(main%cm5Cont%cm5)) then
+      call error("CM5 could not be calculated.")
+    end if
+    atomCharges(:) = sum(main%q0(:, :, 1) - main%qOutput(:, :, 1), dim=1) + main%cm5Cont%cm5
+
+    !> Pass to the charges of the excited state if relevant
+    if (main%isLinResp) then
+      atomCharges(:) = atomCharges + main%dQAtomEx
+    end if
+
+  end subroutine getCM5Charges
+
+
+  !>  get electrostatic potential at specified points
+  subroutine getElStatPotential(env, main, pot, locations)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Resulting potentials
+    real(dp), intent(out) :: pot(:)
+
+    !> Sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Default potential softening
+    real(dp) :: epsSoften = 1E-6
+
+    call main%scc%getInternalElStatPotential(pot, env, locations, epsSoften)
+
+  end subroutine getElStatPotential
+
+
   !> Sets up an external population independent electrostatic potential.
   !>
   !> Sign convention: charge of electron is considered to be positive.
@@ -227,6 +284,10 @@ contains
       main%refExtPot%potGrad(:,:) = potGrad
     end if
     main%isExtField = .true.
+
+    ! work around for lack (at the moment) for a flag to re-calculate ground state even if
+    ! geometries are unchanged.
+    main%tCoordsChanged = .true.
 
   end subroutine setExternalPotential
 
@@ -298,6 +359,19 @@ contains
     nrOfAtoms = main%nAtom
 
   end function nrOfAtoms
+
+
+  !> Obtains number of k-points in the system (1 if not a repeating structure)
+  function nrOfKPoints(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    integer :: nrOfKPoints
+
+    nrOfKPoints = main%nKPoint
+
+  end function nrOfKPoints
 
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
@@ -373,7 +447,7 @@ contains
     endif
 
     if (main%atomOrderMatters) then
-      call error("This DftbPlus instance can not cope with atom reordeirng (by initialization)")
+      call error("This DftbPlus instance can not cope with atom reordering (by initialization)")
     end if
 
     main%species0 = inputSpecies
@@ -437,15 +511,15 @@ contains
 
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
-      call initializeDynamics(main%electronDynamics, main%coord0, main%orb, main%neighbourList,&
-          & main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-          & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%H0,&
-          & main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%referenceN0,&
-          & main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal, main%eigvecsCplx,&
-          & main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec, main%invLatVec,&
-          & main%iCellVec, main%rCellVec, main%cellVec, main%species, main%electronicSolver,&
-          & errStatus)
+      call initializeDynamics(main%electronDynamics, main%boundaryCond, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
+          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
+          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
+          & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
+          & main%electronicSolver, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -492,13 +566,13 @@ contains
     type(TStatus) :: errStatus
 
     if (main%electronDynamics%tPropagatorsInitialized) then
-      call doTdStep(main%electronDynamics, iStep, main%coord0, main%orb, main%neighbourList,&
-           & main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell,&
-           & main%skHamCont, main%skOverCont, main%ints, env, main%coord, main%q0,&
-           & main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-           & main%onSiteElements, main%refExtPot, main%solvation, main%rangeSep, main%repulsive,&
-           & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
-           & errStatus)
+      call doTdStep(main%electronDynamics, main%boundaryCond, iStep, main%coord0, main%orb,&
+          & main%neighbourList, main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart,&
+          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
+          & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
+          & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
+          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+          & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -564,7 +638,7 @@ contains
   end subroutine setTdCoordsAndVelos
 
 
-  !> gets atomic forces from td propagation
+  !> gets atomic forces from time dependent propagation
   subroutine getTdForces(main, forces)
 
     !> Instance
@@ -574,6 +648,7 @@ contains
     real(dp), intent(out) :: forces(:,:)
 
     forces(:,:) = main%electronDynamics%totalForce
+
   end subroutine getTdForces
 
 
@@ -640,7 +715,7 @@ contains
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call main%getDenseDescCommon()
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize,&
-        & main%denseDesc)
+        & main%denseDesc, main%isSparseReorderRequired)
 
   end subroutine updateBLACSDecomposition
 
@@ -727,8 +802,14 @@ contains
 
     logical :: tStopScc, tExitGeoOpt
 
+    !> Status of operation
+    type(TStatus) :: errStatus
+
     if (main%tLatticeChanged .or. main%tCoordsChanged) then
-      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt)
+      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
       main%tLatticeChanged = .false.
       main%tCoordsChanged = .false.
     end if

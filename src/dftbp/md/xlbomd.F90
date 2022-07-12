@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_md_xlbomd
   use dftbp_io_message, only : error
   use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
   implicit none
-  
+
   private
   public :: TXLBOMDInp, TXLBOMD, Xlbomd_init
 
@@ -273,10 +273,11 @@ contains
 
     !> Instance.
     class(TXLBOMD), intent(inout) :: this
+    integer :: fp
 
-    open(12, file=JacobianKernelFile, status="old", action="read")
-    read(12, *) this%invJacobian
-    close(12)
+    open(newunit=fp, file=JacobianKernelFile, status="old", action="read")
+    read(fp, *) this%invJacobian
+    close(fp)
     this%invJacobian = transpose(this%invJacobian)
     write(stdout, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"

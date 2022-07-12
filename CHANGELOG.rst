@@ -8,8 +8,75 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
-Addded
-------
+
+Fixed
+-----
+
+- Onsite and +U potentials in real time-propagation, which was broken
+  in October 2019 by commit 11abba39b
+
+
+22.1 (2022-05-25)
+=================
+
+Added
+-----
+
+- Real time electronic dynamics for xTB Hamiltonian
+
+- Real time electronic dynamics for range separated DFTB
+
+- Support for MPI-parallel GPU accelerated calculations via ELPA/ELSI library
+
+- (Optionally) rescale externally applied fields and dipole moments
+  when implicit solvents are used
+
+- Enable lattice constraints in new geometry optimization driver
+
+- Dynamic polarizability and response kernel at finite frequencies
+
+- API call for CM5 charges
+
+- Numerical Hessian calculation can be split over multiple runs
+
+
+Changed
+-------
+
+- PLUMED simulations may deliver due to an incompatible change in version 2.8.0
+  of the external PLUMED library slightly different results as before. See also
+  the `change log of PLUMED 2.8
+  <https://www.plumed.org/doc-v2.8/user-doc/html/_c_h_a_n_g_e_s-2-8.html>`_.
+
+- Allow electric fields in periodic systems even when interactions
+  cross the sawtooth in the field
+
+- Allow printing of dipole moments, even in cases where the absolute
+  value is ill-defined (charged systems or periodic cases), but its
+  derivative may be meaningful.
+
+- Use the DFTB+ xyz writer for the modes program, removing the
+  XMakemol output option.
+
+- Re-enable q=0 (sawtooth) electric fields for periodic/helical structures
+
+
+Fixed
+-----
+
+- incorrect atomic mass unit for xTB calculations
+
+- electronic temperature read for Green's function solver
+
+- MPI code for spin polarised metallic perturbation at q=0 for spin
+  polarized molecules with processor groups
+
+
+21.2 (2021-12-13)
+=================
+
+Added
+-----
 
 - On-site potentials added
 
@@ -25,15 +92,34 @@ Addded
   (except self-consistent dispersion) with molecular, periodic and helical
   boundary conditions.
 
+- Stratmann solver for excited state, including range separated calculations
+
+- Rational function geometry optimization driver
+
+- ChIMES force field corrections of the repulsive potentials implemented
+
+- New geometry optimization drivers with coupled cartesian and lattice parameter
+  optimization
+
+
 Changed
 -------
 
 - Source tree reorganised to match the `Fortran package manager
   <https://fpm.fortran-lang.org/>`_ preferred structure.
 
+- Updated parser version to 10.
+
+- Replace backend to implement DFT-D3 dispersion correction.
+  Use `s-dftd3 <https://github.com/awvwgk/simple-dftd3>`_ instead of
+  `dftd3-lib <https://github.com/dftbplus/dftd3-lib>`_.
+  Option ``WITH_DFTD3`` is removed and replaced with ``WITH_SDFTD3``.
+
 
 Fixed
 -----
+
+- CM5 correction added with incorrect sign to charge populations
 
 - External fields disabled for XLBOMD
 
@@ -43,7 +129,10 @@ Fixed
 - Number of electrons for Fixed / spin-common Fermi energies and transport in
   results.tag
 
-- Updated version of dftd3-lib fixes a numerical typo in the Ba parameters
+- D3(BJ)-ATM calculator was not being passed the exponent for ATM zero damping
+  calculations
+
+- LBFGS implementation fixed in new geometry optimization driver
 
 
 21.1 (2021-05-12)

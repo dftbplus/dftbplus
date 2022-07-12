@@ -44,7 +44,7 @@ ExcitedState {
         StateOfInterest = 0
         WriteTransitions = Yes
         WriteSPTransitions = Yes
-        Diagonalizer = Stratmann {}
+        Diagonaliser = Stratmann {}
     }
 }
 
@@ -58,7 +58,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }
 
 Parallel {

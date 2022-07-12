@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,11 +13,11 @@ module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
-  use dftbp_dftb_reppoly, only : TRepPolyIn
-  use dftbp_dftb_repspline, only : TRepSplineIn
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
   use dftbp_io_message, only : error
   implicit none
-  
+
   private
   public :: TOldSKData, readFromFile, readSplineRep
 
@@ -78,7 +78,7 @@ contains
 
 
   !> Reads the data from an SK-file.
-  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, repSplineIn, repPolyIn,&
+  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, splineRepIn, polyRepIn,&
       & rangeSepSK)
 
     !> Contains the content of the SK-file on exit
@@ -97,10 +97,10 @@ contains
     integer, intent(in), optional :: iSp2
 
     !> Repulsive spline part of the SK-file.
-    type(TRepSplineIn), intent(out), optional :: repSplineIn
+    type(TSplineRepInp), intent(out), optional :: splineRepIn
 
     !> Repulsive polynomial part of the SK-file.
-    type(TRepPolyIn), intent(out), optional :: repPolyIn
+    type(TPolyRepInp), intent(out), optional :: polyRepIn
 
     !> Reads rangeseparation parameter from SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
@@ -117,7 +117,7 @@ contains
     real(dp) :: coeffs(2:9), polyCutoff
     integer :: iostat
 
-    @:ASSERT(present(repSplineIn) .eqv. present(iSp1))
+    @:ASSERT(present(splineRepIn) .eqv. present(iSp1))
     @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
     open(newunit=file, file=fileName, status="old", action="read", iostat=iostat)
@@ -157,9 +157,9 @@ contains
       call checkIoError(iostat, fileName, "Unable to read 1st data line")
     end if
 
-    if (present(repPolyIn)) then
-      repPolyIn%polyCoeffs(:) = coeffs(:)
-      repPolyIn%cutoff = polyCutoff
+    if (present(polyRepIn)) then
+      polyRepIn%polyCoeffs(:) = coeffs(:)
+      polyRepIn%cutoff = polyCutoff
     end if
 
     allocate(skData%skHam(skData%nGrid, nSKInter))
@@ -180,12 +180,12 @@ contains
       end if
     end do
 
-    if (.not. present(repSplineIn)) then
+    if (.not. present(splineRepIn)) then
       close(file)
       return
     end if
 
-    call readSplineRep(file, fileName, repSplineIn, iSp1, iSp2)
+    call readSplineRep(file, fileName, splineRepIn, iSp1, iSp2)
 
     !> Read range separation parameter
     if (present(rangeSepSK)) then
@@ -199,13 +199,13 @@ contains
 
 
   !> Reads the repulsive from an open file.
-  subroutine OldSKData_readsplinerep(fp, fname, repsplinein, isp1, isp2)
+  subroutine OldSKData_readsplinerep(fp, fname, splinerepin, isp1, isp2)
     !! File identifier.
     integer, intent(in) :: fp
     !! Name of the file (for printing help messages).
     character(*), intent(in) :: fname
     !! Input structure for the spline repulsives
-    type(TRepSplinein), intent(inout) :: repsplinein
+    type(TSplineRepInp), intent(inout) :: splinerepin
     !! Index of the first species in the repulsive (for messages)
     integer, intent(in), optional :: isp1
     !! Index of the second species in the repulsive (for messsages)
@@ -235,26 +235,26 @@ contains
       call error(chdummy)
     end if
 
-    read(fp, *, iostat=iostat) nint, repsplinein%cutoff
+    read(fp, *, iostat=iostat) nint, splinerepin%cutoff
     call checkioerror(iostat, fname, "Error in reading nint and cutoff")
-    read(fp, *, iostat=iostat) (repsplinein%expcoeffs(ii), ii = 1, 3)
+    read(fp, *, iostat=iostat) (splinerepin%expcoeffs(ii), ii = 1, 3)
     call checkioerror(iostat, fname, "Error in reading exponential coeffs")
-    allocate(repsplinein%xstart(nint))
-    allocate(repsplinein%spcoeffs(4, nint - 1))
+    allocate(splinerepin%xstart(nint))
+    allocate(splinerepin%spcoeffs(4, nint - 1))
     allocate(xend(nint))
 
     do jj = 1, nint - 1
-      read(fp, *, iostat=iostat) repsplinein%xstart(jj), xend(jj),&
-          & (repsplinein%spcoeffs(ii,jj), ii = 1, 4)
+      read(fp, *, iostat=iostat) splinerepin%xstart(jj), xend(jj),&
+          & (splinerepin%spcoeffs(ii,jj), ii = 1, 4)
       call checkioerror(iostat, fname, "Error in reading spline coeffs")
     end do
-    read(fp, *, iostat=iostat) repsplinein%xstart(nint), xend(nint),&
-        & (repsplinein%spLastCoeffs(ii), ii = 1, 6)
+    read(fp, *, iostat=iostat) splinerepin%xstart(nint), xend(nint),&
+        & (splinerepin%spLastCoeffs(ii), ii = 1, 6)
     call checkioerror(iostat, fname, "Error in reading last spline coeffs")
-    repsplinein%cutoff = xend(nint)
+    splinerepin%cutoff = xend(nint)
     ! Check on consistenty
     do jj = 2, nint
-      if (abs(xend(jj-1) - repsplinein%xstart(jj)) > 1e-8_dp) then
+      if (abs(xend(jj-1) - splinerepin%xstart(jj)) > 1e-8_dp) then
         if (present(isp1) .and. present(isp2)) then
           write(chdummy, "(A,I2,A,I2,A)") "Repulsive not continuous for species&
               & pair ", isp1, "-", isp2, "."
@@ -273,10 +273,10 @@ contains
 
     !> File identifier
     integer, intent(in) :: fp
- 
+
     !> File name
     character(*), intent(in) :: fname
- 
+
     !> Rangesep data
     type(TRangeSepSKTag), intent(inout) :: rangeSepSK
 
@@ -296,7 +296,7 @@ contains
         exit
       end if
     end do
-    
+
     if ( .not. hasRangeSep) then
       write(chdummy, "(A,A,A)") "RangeSep extension tag not found in file '",&
           & trim(fname), "'"
@@ -311,7 +311,7 @@ contains
       call error(chdummy)
     end if
 
-    if (omega < 0.0_dp) then 
+    if (omega < 0.0_dp) then
       write(chdummy, "(A)") "Range-separation parameter is negative"
       call error(chdummy)
    end if

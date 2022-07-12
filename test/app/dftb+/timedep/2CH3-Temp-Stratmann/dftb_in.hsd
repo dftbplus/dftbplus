@@ -30,14 +30,14 @@ ExcitedState {
         NrOfExcitations = 10
         StateOfInterest = 0
         Symmetry = Singlet
-        Diagonalizer = Stratmann {
+        Diagonaliser = Stratmann {
             SubSpaceFactor = 10
         }
     }
 }
 
 ParserOptions {
-    ParserVersion = 9
+    ParserVersion = 10
 }
 
 Parallel {

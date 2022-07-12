@@ -1,11 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Dispersion a la Slater-Kirkwood as implemented by M. Elstner in old DFTB.
 !>
@@ -26,6 +27,7 @@ module dftbp_dftb_dispslaterkirkw
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
       &addDispEGr_per_atom
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -34,7 +36,7 @@ module dftbp_dftb_dispslaterkirkw
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
-  
+
   private
   public :: TDispSlaKirkInp, TDispSlaKirk, DispSlaKirk_init
 
@@ -239,8 +241,9 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
-    !> Status of operation
-    integer, intent(out), optional :: stat
+    !> Status of operation. Will appear as an unused variable, as no error can currently be set in
+    !> this routine
+    type(TStatus), intent(out) :: stat
 
 
     ! Neighbours for real space summation
@@ -248,10 +251,6 @@ contains
 
     ! Nr. of neighbours with damping
     integer, allocatable :: nNeighDamp(:)
-
-    if (present(stat)) then
-      stat = 0
-    end if
 
     allocate(nNeighReal(this%nAtom))
     call getNrOfNeighboursForAll(nNeighReal, neigh, this%rCutoff)

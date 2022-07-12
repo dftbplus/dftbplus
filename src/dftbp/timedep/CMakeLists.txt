@@ -10,9 +10,4 @@ set(sources-fpp
   ${curdir}/transcharges.F90
   ${curdir}/timeprop.F90)
 
-if(WITH_ARPACK)
-  list(APPEND sources-fpp
-  ${curdir}/rslinresp.F90)
-endif(WITH_ARPACK)
-
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

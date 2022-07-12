@@ -86,10 +86,6 @@ if(WITH_SOCKETS)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-if(WITH_DFTD3)
-  target_link_libraries(dftbplus PUBLIC dftd3)
-endif()
-
 if(WITH_MBD)
   target_link_libraries(dftbplus PUBLIC Mbd::Mbd)
 endif()
@@ -99,8 +95,14 @@ if(WITH_TRANSPORT)
 endif()
 target_link_libraries(dftbplus PUBLIC mudpack)
 
+if(WITH_SDFTD3)
+  target_link_libraries(dftbplus PUBLIC s-dftd3::s-dftd3)
+endif()
 if(WITH_TBLITE)
-  target_link_libraries(dftbplus PUBLIC tblite::tblite mctc-lib::mctc-lib)
+  target_link_libraries(dftbplus PUBLIC tblite::tblite)
+endif()
+if(WITH_TBLITE OR WITH_SDFTD3)
+  target_link_libraries(dftbplus PUBLIC mctc-lib::mctc-lib)
 endif()
 
 if(WITH_ELSI)
@@ -110,10 +112,18 @@ if(WITH_ELSI)
   if(ELSI_WITH_PEXSI)
     target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
   endif()
+  if(WITH_GPU)
+    target_link_libraries(dftbplus PRIVATE CUDA::cudart)
+    target_link_libraries(dftbplus PRIVATE CUDA::cublas)
+  endif()
 endif()
 
 if(WITH_PLUMED)
   target_link_libraries(dftbplus PRIVATE Plumed::Plumed)
+endif()
+
+if(WITH_CHIMES)
+  target_link_libraries(dftbplus PUBLIC ChimesCalc::ChimesCalc_Fortran)
 endif()
 
 if(WITH_MPI)
@@ -129,15 +139,11 @@ if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE Arpack::Arpack)
 endif()
 
-target_link_libraries(dftbplus INTERFACE LAPACK::LAPACK)
+target_link_libraries(dftbplus PUBLIC LAPACK::LAPACK)
 
-if (WITH_GPU)
+if(WITH_MAGMA)
   target_link_libraries(dftbplus PUBLIC Magma::Magma)
 endif()
-
-target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})
-
-target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
 
 # Installation
@@ -163,6 +169,12 @@ if(INSTALL_INCLUDE_FILES)
   foreach(moddir IN LISTS moddirs)
     install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
   endforeach()
+
+  get_target_property(moddirs ddcosmo_objlib INTERFACE_INCLUDE_DIRECTORIES)
+  foreach(moddir IN LISTS moddirs)
+    install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
+  endforeach()
+
 
   if (WITH_SOCKETS)
     get_target_property(moddirs fsockets_objlib INTERFACE_INCLUDE_DIRECTORIES)

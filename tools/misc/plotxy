@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -34,15 +34,15 @@ parser.add_argument('-l', '--labels', dest='labels', metavar='LABEL',
                     nargs='+', default=None,
                     help='label for each data column (default: filename:'
                     'column_number)')
-parser.add_argument('--xlabel', dest='xlabel', default='', 
+parser.add_argument('--xlabel', dest='xlabel', default='',
                     help='label for x-axis')
-parser.add_argument('--ylabel', dest='ylabel', default='', 
+parser.add_argument('--ylabel', dest='ylabel', default='',
                     help='label for y-axis')
 parser.add_argument('--title', dest='title', default='',
                     help='title of the plot')
-parser.add_argument('--xlimits', dest='xlim', nargs=2, type=float, 
+parser.add_argument('--xlimits', dest='xlim', nargs=2, type=float,
                     default=None, help='limits for x axis.')
-parser.add_argument('--ylimits', dest='ylim', nargs=2, type=float, 
+parser.add_argument('--ylimits', dest='ylim', nargs=2, type=float,
                     default=None, help='limits for y axis.')
 parser.add_argument('--xshift', type=float, default=0.0,
                     help='shift all x values by this')

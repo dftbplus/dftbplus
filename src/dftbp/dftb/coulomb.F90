@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,8 @@ module dftbp_dftb_coulomb
   use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, nSearchIter
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2,&
+      & assembleChunks
   use dftbp_dftb_boundarycond, only : boundaryConditions
   use dftbp_dftb_periodic, only : TNeighbourList, getLatticePoints, getCellTranslations
   use dftbp_io_message, only : error
@@ -109,7 +110,7 @@ module dftbp_dftb_coulomb
     ! Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom_(:)
 
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
     !> Descriptor for 1/R matrix
     integer :: descInvRMat_(DLEN_)
 
@@ -121,7 +122,7 @@ module dftbp_dftb_coulomb
 
     !> Distributed charge vector
     real(dp), allocatable :: qGlobal_(:,:)
-#:endif
+  #:endif
 
   contains
 
@@ -2225,7 +2226,7 @@ contains
     real(dp) :: dewr(3)
 
     real(dp) :: rNew(3)
-    real(dp) :: rr
+    real(dp) :: rr, factor
     integer :: iR
 
     dewr = 0.0_dp
@@ -2238,12 +2239,14 @@ contains
           cycle
         end if
         ! derivative of -erf(alpha*r)/r
-        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* alpha*rr&
-            & - erfcwrap(alpha*rr))/(rr*rr*rr)
+        factor = alpha*rr
+        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi) * exp(-factor*factor) * factor&
+            & - erfcwrap(factor))/(rr*rr*rr)
         ! deriv of erf(r/blur)/r
         if (rr < erfArgLimit_ * blurWidth) then
-          dewr(:) = dewr + rNew(:) * (2.0_dp/sqrt(pi)*exp(-rr*rr/(blurWidth**2))*rr/blurWidth&
-              & + erfcwrap(rr/blurWidth))/(rr*rr*rr)
+          factor = rr/blurWidth
+          dewr(:) = dewr + rNew(:) * (2.0_dp/sqrt(pi) * exp(-factor*factor) * factor&
+              & + erfcwrap(factor))/(rr*rr*rr)
         end if
       end do
     else
@@ -2253,8 +2256,9 @@ contains
         if (rr < tolSameDist2) then
           cycle
         end if
-        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* alpha*rr&
-            & - erfcwrap(alpha*rr))/(rr*rr*rr)
+        factor = alpha*rr
+        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi) * exp(-factor*factor) * factor&
+            & - erfcwrap(factor))/(rr*rr*rr)
       end do
     end if
 
@@ -2344,13 +2348,14 @@ contains
     !> real space derivative term
     real(dp) :: derivRTerm(3)
 
-    real(dp) :: rr
+    real(dp) :: rr, factor
     rr = sqrt(sum(r(:)**2))
 
     @:ASSERT(rr >= epsilon(1.0_dp))
 
-    derivRTerm (:) = r(:)*(-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* &
-        & alpha*rr - erfcwrap(alpha*rr))/(rr*rr*rr)
+    factor = alpha*rr
+    derivRTerm (:) = r(:)*(-2.0_dp/sqrt(pi)*exp(-factor*factor)* &
+        & factor - erfcwrap(factor))/(rr*rr*rr)
 
   end function derivRTerm
 

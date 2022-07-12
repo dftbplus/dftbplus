@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,14 +16,12 @@ module dftbp_dftb_dispersions
   use dftbp_dftb_dispuff, only : TDispUffInp, TDispUFF, dispuff_init
   use dftbp_dftb_dispuffdata, only : getuffvalues
   use dftbp_dftb_simpledftd3, only : TSimpleDftD3Input, TSimpleDftD3, init
-#:if WITH_DFTD3
-  use dftbp_dftb_dispdftd3, only : TDispDftD3Inp
-#:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbdInp
 #:endif
+  use dftbp_extlibs_sdftd3, only : TSDFTD3Input
   implicit none
-  
+
   public
 
   !> Types of dispersion model
@@ -35,17 +33,15 @@ module dftbp_dftb_dispersions
     !> Slater-Kirkwood
     type(TDispSlaKirkInp), allocatable :: slakirk
 
-  #:if WITH_DFTD3
-    !> Grimme DFT-D3
-    type(TDispDftD3Inp), allocatable :: dftd3
-  #:endif
+    !> D3 dispersion model
+    type(TSDFTD3Input), allocatable :: dftd3
 
     !> Simple D3 dispersion model.
     type(TSimpleDftD3Input), allocatable :: sdftd3
 
     !> D4 dispersion model.
     type(TDispDftD4Inp), allocatable :: dftd4
-  
+
   #:if WITH_MBD
     !> Many-body dispersion
     type(TDispMbdInp), allocatable :: mbd

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,8 +20,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
-  use dftbp_dftb_repcont, only : TRepCont
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder
@@ -183,7 +182,7 @@ contains
           & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
       if (allocated(potential%extDipoleAtom) .and. allocated(multipole%dipoleAtom)) then
         energy%atomExt(:) = energy%atomExt &
-            & - sum(potential%extDipoleAtom * multipole%dipoleAtom, 1)
+            & + sum(potential%extDipoleAtom * multipole%dipoleAtom(:, :, 1), 1)
       end if
     end if
     if (allocated(qDepExtPot)) then

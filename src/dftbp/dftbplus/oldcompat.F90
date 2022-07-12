@@ -1,9 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
+
+#:include 'common.fypp'
 
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
@@ -18,7 +20,7 @@ module dftbp_dftbplus_oldcompat
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
   implicit none
-  
+
   private
   public :: convertOldHSD
 
@@ -67,6 +69,15 @@ contains
       case (8)
         call convert_8_9(root)
         version = 9
+      case (9)
+        call convert_9_10(root)
+        version = 10
+      case (10)
+        call convert_10_11(root)
+        version = 11
+      case (11)
+        call convert_11_12(root)
+        version = 12
       end select
     end do
 
@@ -522,15 +533,29 @@ contains
       call detailedWarning(ch2, "Set 'oldLineSearch = Yes'")
     end if
 
+  end subroutine convert_8_9
+
+
+  !> Converts input from version 9 to 10. (Version 10 introduced in November 2021)
+  subroutine convert_9_10(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    logical :: tVal1, tVal2
+    type(fnode), pointer :: pTaskType
+    type(string) :: buffer
+
     call getDescendant(root, "ExcitedState/Casida", ch1)
     if (associated(ch1)) then
       call getChildValue(ch1, "WriteStatusArnoldi", tVal1, default=.false., child=ch2)
       dummy => removeChild(ch1, ch2)
       call getChildValue(ch1, "TestArnoldi", tVal2, default=.false., child=ch2)
       dummy => removeChild(ch1, ch2)
-      call detailedWarning(ch1, "Keyword moved to Diagonalizer block.")
+      call detailedWarning(ch1, "Keyword moved to Diagonaliser block.")
       call setUnprocessed(ch1)
-      call setChild(ch1, "Diagonalizer", ch2)
+      call setChild(ch1, "Diagonaliser", ch2)
       call setUnprocessed(ch2)
       call setChild(ch2, "Arpack", ch3)
       call setUnprocessed(ch3)
@@ -539,8 +564,221 @@ contains
       call setChildValue(ch3, "TestArnoldi", tVal2, child=ch4)
       call setUnprocessed(ch4)
     end if
-    
-  end subroutine convert_8_9
+
+    ! move ConvergentSccOnly and ConvergentForces into a common keyword
+
+    call getDescendant(root, "Hamiltonian/Dispersion/Ts/ConvergentSCCOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentSCCOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Hamiltonian/Dispersion/Mbd/ConvergentSCCOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentSCCOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/ConjugateGradient/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/VelocityVerlet/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/SteepestDescent/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/gDiis/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/LBfgs/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/Fire/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/SecondDerivatives/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+    call getDescendant(root, "Driver/Socket/ConvergentForcesOnly", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "ConvergentForcesOnly", tVal1)
+      call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+      dummy => removeChild(par, ch1)
+      call destroyNode(ch1)
+      call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
+      if (associated(ch3)) then
+        call detailedError(ch3, "ConvergentSCCOnly already present.")
+      end if
+      call getDescendant(root, "Hamiltonian", ch1)
+      call setChildValue(ch1, "ConvergentSCCOnly", tVal1, child=ch2)
+      call setUnprocessed(ch2)
+    end if
+
+  end subroutine convert_9_10
+
+
+  !> Converts input from version 10 to 11. (Version 11 introduced in April 2022)
+  subroutine convert_10_11(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/GeneralizedBorn", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/Cosmo", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Solvation/Sasa", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
+    end if
+
+  end subroutine convert_10_11
+
+
+  !> Converts input from version 11 to 12. (Version 12 introduced in June 2022)
+  subroutine convert_11_12(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+
+    call getDescendant(root, "Driver/GeometryOptimization", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'GeometryOptimisation'.")
+      call setNodeName(ch1, "GeometryOptimisation")
+      call getDescendant(root, "Driver/GeometryOptimisation/Optimizer", ch2)
+      if (associated(ch2)) then
+        call detailedWarning(ch2, "Keyword renamed to 'Optimiser'.")
+        call setNodeName(ch2, "Optimiser")
+      end if
+    end if
+
+  #:for LABEL in [("Kick"), ("Laser")]
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
+      call setNodeName(ch1, "PolarisationDirection")
+    end if
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
+        & ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
+      call setNodeName(ch1, "ImagPolarisationDirection")
+    end if
+  #:endfor
+
+  end subroutine convert_11_12
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

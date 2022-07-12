@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@ module dftbp_dftb_extfields
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : warning
   implicit none
 
   public :: TEField, TElecFieldInput, addUpExternalField
@@ -122,6 +122,7 @@ contains
 
     integer :: nAtom, iAt1, iAt2, iNeigh, ii
     character(lc) :: tmpStr
+    logical :: isBoundaryCrossed
 
     if (allocated(eField)) then
       nAtom = size(nNeighbourSK)
@@ -134,6 +135,7 @@ contains
         end if
         eField%absEfield = sqrt(sum(eField%Efield**2))
         if (tPeriodic) then
+          isBoundaryCrossed = .false.
           do iAt1 = 1, nAtom
             do iNeigh = 1, nNeighbourSK(iAt1)
               iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
@@ -142,14 +144,15 @@ contains
                 ! component of electric field projects onto vector between cells
                 if (abs(dot_product(cellVec(:, iCellVec(iAt2)), eField%EfieldVector))&
                     & > epsilon(1.0_dp)) then
-                  write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
-                      & img2CentCell(iAt2), ' crosses the saw-tooth discontinuity in the electric&
-                      & field.'
-                  call error(tmpStr)
+                  isBoundaryCrossed = .true.
                 end if
               end if
             end do
           end do
+          if (isBoundaryCrossed) then
+            call warning("Interactions between atoms cross the saw-tooth discontinuity in the&
+                & electric field")
+          end if
           do iAt1 = 1, nAtom
             potential%extAtom(iAt1,1) = potential%extAtom(iAt1,1)&
                 & + dot_product(coord0Fold(:, iAt1), eField%Efield)

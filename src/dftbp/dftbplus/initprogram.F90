@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,13 +16,17 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
+  use dftbp_derivs_perturb, only : TResponse, TResponse_init, responseSolverTypes
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+      & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
+  use dftbp_dftb_dense, only :buildSquaredAtomIndex
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
@@ -38,26 +42,30 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, buildSquaredAtomIndex,&
-      & getCellTranslations
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_dftb_repcont, only : TRepCont, getCutOff
-  use dftbp_dftb_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
+  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
+  use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont, TRepulsiveCont_init
+  use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
+  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep, TTwoBodyRep_init
   use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
   use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
       & initQFromShellChrg
   use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGammaDamp
   use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftb_splinepolyrep, only : TSplinePolyRepInput, TSplinePolyRep, TSplinePolyRep_init
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
   use dftbp_dftbplus_mainio, only : initOutputFile
+  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&
+      & resultsTag, userOut, fCharges, fStopDriver, fStopSCC
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes,&
@@ -67,13 +75,17 @@ module dftbp_dftbplus_initprogram
   use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_extlibs_poisson, only : TPoissonInput
+  use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
   use dftbp_geoopt_conjgrad, only : TConjGrad
+  use dftbp_geoopt_filter, only : TFilter, TFilter_init
   use dftbp_geoopt_fire, only : TFire, TFire_init
   use dftbp_geoopt_gdiis, only : TDIIS
   use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
+  use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
   use dftbp_geoopt_steepdesc, only : TSteepDesc
+  use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_formatout, only : clearFile
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -99,12 +111,13 @@ module dftbp_dftbplus_initprogram
   use dftbp_mixer_simplemixer, only : TSimpleMixer, init
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
+  use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
   use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_pprpa, only : TppRPAcal
-  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init
+  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral, TIntegral_init
@@ -113,9 +126,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_type_multipole, only : TMultipole, TMultipole_init
   use dftbp_type_orbitals, only : getShellNames
   use dftbp_type_wrappedintr, only : TWrappedInt1
-#:if WITH_DFTD3
-  use dftbp_dftb_dispdftd3, only : TDispDftD3, DispDftD3_init
-#:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
 #:endif
@@ -138,9 +148,6 @@ module dftbp_dftbplus_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: autotestTag, userOut, bandOut, derivEBandOut, derivVBandOut, mdOut, resultsTag
-  public :: hessianOut
-  public :: fCharges, fStopDriver, fStopScc, fShifts
   public :: initReferenceCharges, initElectronNumbers
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -148,44 +155,6 @@ module dftbp_dftbplus_initprogram
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
-
-
-  !> Tagged output files (machine readable)
-  character(*), parameter :: autotestTag = "autotest.tag"
-
-  !> Detailed user output
-  character(*), parameter :: userOut = "detailed.out"
-
-  !> File for band structure and filling information
-  character(*), parameter :: bandOut = "band.out"
-
-  !> File for derivatives of band structure
-  character(*), parameter :: derivEBandOut = "dE_band.out"
-
-  !> File for derivatives of band structure
-  character(*), parameter :: derivVBandOut = "dV_band.out"
-
-  !> File accumulating data during an MD run
-  character(*), parameter :: mdOut = "md.out"
-
-  !> Machine readable tagged output
-  character(*), parameter :: resultsTag = "results.tag"
-
-  !> Second derivative of the energy with respect to atomic positions
-  character(*), parameter :: hessianOut = "hessian.out"
-
-  !> file name prefix for charge data
-  character(*), parameter :: fCharges = "charges"
-
-  !> file to stop code during geometry driver
-  character(*), parameter :: fStopDriver = "stop_driver"
-
-  !> file to stop code during scc cycle
-  character(*), parameter :: fStopSCC = "stop_scc"
-
-  !> file name for shift data
-  character(*), parameter :: fShifts = "shifts.dat"
-
 
   !> Interaction cutoff distances
   type :: TCutoffs
@@ -273,12 +242,11 @@ module dftbp_dftbplus_initprogram
     !> reciprocal lattice vectors as columns
     real(dp), allocatable :: recVec(:,:)
 
-    !> original lattice vectors used for optimizing
+    !> original lattice vectors used for optimising
     real(dp) :: origLatVec(3,3)
 
     !> normalized vectors in those directions
     real(dp) :: normOrigLatVec(3,3)
-
 
     !> reciprocal vectors in 2 pi units
     real(dp), allocatable :: invLatVec(:,:)
@@ -348,7 +316,6 @@ module dftbp_dftbplus_initprogram
     !> Integral container
     type(TIntegral) :: ints
 
-
     !> nr. of K-points
     integer :: nKPoint
 
@@ -357,7 +324,6 @@ module dftbp_dftbplus_initprogram
 
     !> weight of the K-Points
     real(dp), allocatable :: kWeight(:)
-
 
     !> external pressure if periodic
     real(dp) :: extPressure
@@ -447,19 +413,19 @@ module dftbp_dftbplus_initprogram
     logical :: tSpinSharedEf
 
 
-    !> Geometry optimization needed?
+    !> Geometry optimisation needed?
     logical :: isGeoOpt
 
-    !> optimize coordinates inside unit cell (periodic)?
+    !> optimise coordinates inside unit cell (periodic)?
     logical :: tCoordOpt
 
-    !> optimize lattice constants?
+    !> optimise lattice constants?
     logical :: tLatOpt
 
-    !> Fix angles between lattice vectors when optimizing?
+    !> Fix angles between lattice vectors when optimising?
     logical :: tLatOptFixAng
 
-    !> Fix length of specified lattice vectors when optimizing?
+    !> Fix length of specified lattice vectors when optimising?
     logical :: tLatOptFixLen(3)
 
     !> Optimise lattice isotropically
@@ -522,6 +488,9 @@ module dftbp_dftbplus_initprogram
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
 
+    !> Index of the atoms for which second derivatives are computed
+    integer, allocatable :: indDerivAtom(:)
+
     !> Nr. of moved coordinates
     integer :: nMovedCoord
 
@@ -540,20 +509,26 @@ module dftbp_dftbplus_initprogram
     !> Density functional tight binding perturbation theory
     logical :: isDFTBPT = .false.
 
-    !> Tolerance for degeneracy between eigenvalues in DFTB-PT
-    real(dp) :: tolDegenDFTBPT
+    !> Response property calculations
+    type(TResponse), allocatable :: response
 
     !> Static polarisability
-    logical :: isStatEResp = .false.
+    logical :: isEResp = .false.
+
+    !> Dynamic polarisability at finite frequencies
+    real(dp), allocatable :: dynRespEFreq(:)
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isRespKernelPert
+    logical :: isKernelResp
 
     !> Should the response Kernel use RPA (non-SCC) or self-consistent
     logical :: isRespKernelRPA
 
+    !> Dynamic polarisability at finite frequencies
+    real(dp), allocatable :: dynKernelFreq(:)
+
     !> Electric static polarisability
-    real(dp), allocatable :: polarisability(:,:)
+    real(dp), allocatable :: polarisability(:,:,:)
 
     !> Number of electrons  at the Fermi energy
     real(dp), allocatable :: neFermi(:)
@@ -587,11 +562,23 @@ module dftbp_dftbplus_initprogram
     !> labels of atomic species
     character(mc), allocatable :: speciesName(:)
 
-    !> General geometry optimizer
+    !> General geometry optimiser
     type(TGeoOpt), allocatable :: pGeoCoordOpt
 
-    !> Geometry optimizer for lattice consts
+    !> Geometry optimiser for lattice consts
     type(TGeoOpt), allocatable :: pGeoLatOpt
+
+    !> Coordinate transformation filter
+    type(TFilter), allocatable :: filter
+
+    !> General geometry optimiser
+    class(TOptimizer), allocatable :: geoOpt
+
+    !> Convergence thresholds for geometry optimiser
+    type(TOptTolerance) :: optTol
+
+    real(dp) :: elast
+    real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer
     type(TMixer), allocatable :: pChrgMixer
@@ -825,6 +812,9 @@ module dftbp_dftbplus_initprogram
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
+    !> Dielectric scaling of electric fields (if relevant)
+    type(TScaleExtEField) :: eFieldScaling
+
     !> Charge Model 5 for printout
     type(TChargeModel5), allocatable :: cm5Cont
 
@@ -942,6 +932,9 @@ module dftbp_dftbplus_initprogram
     !> dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
 
+    !> Additional dipole moment related message to write out
+    character(lc) :: dipoleMessage
+
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
 
@@ -961,10 +954,10 @@ module dftbp_dftbplus_initprogram
     real(dp), pointer :: pDynMatrix(:,:)
 
     !> File descriptor for the human readable output
-    integer :: fdDetailedOut
+    type(TFile), allocatable :: fdDetailedOut
 
     !> File descriptor for extra MD output
-    integer :: fdMD
+    type(TFile), allocatable :: fdMd
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS) :: parallelKS
@@ -1025,7 +1018,7 @@ module dftbp_dftbplus_initprogram
     !> Whether Poisson solver is invoked
     logical :: tPoisson
 
-    !> Whether the scc (2nd-order) potentials should be updated after the diagonalization
+    !> Whether the scc (2nd-order) potentials should be updated after the diagonalisation
     logical :: updateSccAfterDiag
 
     !> Calculate terminal tunneling and current
@@ -1103,12 +1096,25 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: dQAtomEx(:)
 
     !> Boundary condition
-    integer :: boundaryCond
+    type(TBoundaryConditions) :: boundaryCond
 
     !> Whether the order of the atoms matter. Typically the case, when properties were specified
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+
+  #:if WITH_SCALAPACK
+
+    !> Should the dense matrices be re-ordered for sparse operations
+    logical :: isSparseReorderRequired = .false.
+
+    !> Re-orded real eigenvectors (if required)
+    real(dp), allocatable :: eigVecsRealReordered(:,:,:)
+
+    !> Re-orded complex eigenvectors (if required)
+    complex(dp), allocatable :: eigVecsCplxReordered(:,:,:)
+
+  #:endif
 
   contains
 
@@ -1123,9 +1129,6 @@ module dftbp_dftbplus_initprogram
     procedure :: initArrays
     procedure :: initDetArrays
     procedure :: allocateDenseMatrices
-  #:if WITH_SCALAPACK
-    procedure :: initScalapack
-  #:endif
     procedure :: getDenseDescCommon
     procedure :: ensureRangeSeparatedReqs
     procedure :: initRangeSeparated
@@ -1167,7 +1170,7 @@ contains
     !> DIIS mixer (if used)
     type(TDIISMixer), allocatable :: pDIISMixer
 
-    ! Geometry optimizer related local variables
+    ! Geometry optimiser related local variables
 
     !> Conjugate gradient driver
     type(TConjGrad), allocatable :: pConjGrad
@@ -1216,9 +1219,6 @@ contains
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
     type(TDispUFF), allocatable :: uff
-  #:if WITH_DFTD3
-    type(TDispDftD3), allocatable :: dftd3
-  #:endif
     type(TSimpleDftD3), allocatable :: sdftd3
     type(TDispDftD4), allocatable :: dftd4
   #:if WITH_MBD
@@ -1275,11 +1275,8 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized, tGeoOptRequiresEgy
+    logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
-
-    !> Format for two using exponential notation values with units
-    character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
     @:ASSERT(input%tInitialized)
 
@@ -1326,7 +1323,11 @@ contains
 
     call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
-        & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol)
+        & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
+        & errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     ! Get species names and output file
     this%geoOutFile = input%ctrl%outFile
@@ -1342,7 +1343,6 @@ contains
         end if
       end do
     end do
-
 
     select case(this%hamiltonianType)
     case default
@@ -1386,6 +1386,12 @@ contains
         call error("Sum of k-point weights should be greater than zero!")
       end if
       this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+      if (this%tHelical) then
+        if (any(abs(this%kPoint(2,:)*nint(this%latVec(3,1))&
+            & -nint(this%kPoint(2,:)*nint(this%latVec(3,1)))) > epsilon(1.0_dp))) then
+          call error("Specified k-value(s) incommensurate with C_n symmetry operation.")
+        end if
+      end if
     else
       this%nKPoint = 1
       allocate(this%kPoint(3, this%nKPoint))
@@ -1418,7 +1424,7 @@ contains
 
 
   #:if WITH_SCALAPACK
-    call this%initScalapack(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
+    call initBlacs(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
         & this%t2Component, env, errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
@@ -1468,8 +1474,8 @@ contains
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
-      call initSplinePolyRepulsive_(this%nAtom, this%tHelical, input%slako%repCont, this%repulsive)
-
+      call initRepulsive_(this%nAtom, this%tPeriodic, this%tHelical, input%slako%pairRepulsives,&
+          & input%ctrl%chimesRepInput, this%speciesName, this%species0, this%repulsive)
       allocate(this%atomEigVal(this%orb%mShell, this%nType))
       @:ASSERT(size(input%slako%skSelf, dim=1) == this%orb%mShell)
       @:ASSERT(size(input%slako%skSelf, dim=2) == size(this%atomEigVal, dim=2))
@@ -1594,11 +1600,11 @@ contains
       else
         call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
             & this%uniqHubbU, shortGammaDamp, shortGammaInput)
-        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald, this%boundaryCond,&
-            & this%nAtom, coulombInput)
+        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+            & this%boundaryCond%iBoundaryCondition, this%nAtom, coulombInput)
       end if
-      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond, coulombInput,&
-          & shortGammaInput, poissonInput, this%scc)
+      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+          & coulombInput, shortGammaInput, poissonInput, this%scc)
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
@@ -1677,7 +1683,8 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole)
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+        & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
     ! Initialize Hamilton and overlap
@@ -1807,7 +1814,7 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = input%ctrl%lrespini%tInit
+    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -1942,10 +1949,32 @@ contains
     end if
 
     if (this%nMovedAtom > 0) then
-      allocate(this%indMovedAtom(size(input%ctrl%indMovedAtom)))
-      this%indMovedAtom(:) = input%ctrl%indMovedAtom(:)
+      this%indMovedAtom = input%ctrl%indMovedAtom
+      if (allocated(input%ctrl%indDerivAtom)) then
+        this%indDerivAtom = input%ctrl%indDerivAtom
+      end if
     else
       allocate(this%indMovedAtom(0))
+      allocate(this%indDerivAtom(0))
+    end if
+
+    if (allocated(input%ctrl%geoOpt)) then
+      if (this%tHelical) then
+        call error("GeometryOptimisation driver currently does not support helical geometries")
+      end if
+
+      allocate(this%filter)
+      call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
+      call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(),&
+          & this%geoOpt)
+      this%optTol = input%ctrl%geoOpt%tolerance
+      allocate(this%gcurr(this%filter%getDimension()))
+      allocate(this%displ(this%filter%getDimension()))
+      this%gcurr(:) = 0.0_dp
+      this%displ(:) = 0.0_dp
+      this%elast = 0.0_dp
+      this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps
+      this%geoOutFile = input%ctrl%geoOpt%outFile
     end if
 
     allocate(this%pGeoCoordOpt)
@@ -2012,11 +2041,11 @@ contains
         call init(this%pGeoLatOpt, pFireLat)
       end select
       if (this%tLatOptIsotropic ) then
-        ! optimization uses scaling factor of unit cell
+        ! optimisation uses scaling factor of unit cell
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else if (this%tLatOptFixAng) then
-        ! optimization uses scaling factor of lattice vectors
+        ! optimisation uses scaling factor of lattice vectors
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else
@@ -2024,7 +2053,7 @@ contains
       end if
     end if
 
-    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket)) then
+    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket.or.allocated(this%geoOpt))) then
       this%nGeoSteps = 0
     end if
 
@@ -2069,22 +2098,20 @@ contains
         end if
         call move_alloc(uff, this%dispersion)
 
-    #:if WITH_DFTD3
-      elseif (allocated(input%ctrl%dispInp%dftd3)) then
-        allocate(dftd3)
-        tHHRepulsion = input%ctrl%dispInp%dftd3%hhrepulsion
-        if (tHHRepulsion .and. .not. any(this%speciesMass < 3.5_dp * amu__au)) then
-          call error("H-H repulsion correction used without H atoms present")
-        end if
-        if (this%tPeriodic) then
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0,&
-              & this%speciesName, this%latVec)
-        else
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0,&
-              & this%speciesName)
-        end if
-        call move_alloc(dftd3, this%dispersion)
-    #:endif
+      else if (allocated(input%ctrl%dispInp%dftd3)) then
+        block
+          type(TSDFTD3), allocatable :: dftd3
+          allocate(dftd3)
+          if (this%tPeriodic) then
+            call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
+                & this%speciesName, this%coord0, this%latVec)
+          else
+            call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
+                & this%speciesName, this%coord0)
+          end if
+          call move_alloc(dftd3, this%dispersion)
+        end block
+
       else if (allocated(input%ctrl%dispInp%sdftd3)) then
         allocate(sdftd3)
         if (this%tPeriodic) then
@@ -2170,17 +2197,42 @@ contains
         call error("Could not initialize solvation model!")
       end if
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
+
+      call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
+          & input%ctrl%isSolvatedFieldRescaled)
+
+      if (allocated(this%eField)) then
+        if (allocated(this%eField%EFieldStrength)) then
+          this%eField%EFieldStrength =&
+              & this%eFieldScaling%scaledExtEField(this%eField%EFieldStrength)
+        end if
+      end if
+
     end if
 
     if (allocated(this%halogenXCorrection)) then
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(this%tPeriodic.or.this%tHelical) .and.&
-        & this%tMulliken) then
-      this%tDipole = .true.
-    else
-      this%tDipole = .false.
+    this%tDipole = this%tMulliken
+    if (this%tDipole) then
+      block
+        logical :: isDipoleDefined
+        isDipoleDefined = .true.
+        if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
+          call warning("Dipole printed for a charged system : origin dependent quantity")
+          isDipoleDefined = .false.
+        end if
+        if (this%tPeriodic.or.this%tHelical) then
+          call warning("Dipole printed for extended system : value printed is not well defined")
+          isDipoleDefined = .false.
+        end if
+        if (.not.isDipoleDefined) then
+          write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
+        else
+          write(this%dipoleMessage, "(A)")""
+        end if
+      end block
     end if
 
     if (this%tMulliken) then
@@ -2228,17 +2280,36 @@ contains
 
     this%isDFTBPT = input%ctrl%isDFTBPT
     if (this%isDFTBPT) then
-      this%tolDegenDFTBPT = input%ctrl%tolDegenDFTBPT
-      this%isStatEResp = input%ctrl%isStatEPerturb
-      this%isRespKernelPert = input%ctrl%isRespKernelPert
-      if (this%isRespKernelPert) then
+
+      allocate(this%response)
+      call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
+          & input%ctrl%tolDegenDFTBPT, input%ctrl%etaFreq)
+
+      this%isEResp = allocated(input%ctrl%dynEFreq)
+      if (this%isEResp) then
+        call move_alloc(input%ctrl%dynEFreq, this%dynRespEFreq)
+        if (this%isRangeSep .and. any(this%dynRespEFreq /= 0.0_dp)) then
+          call error("Finite frequency range separated calculation not currently supported")
+        end if
+      end if
+
+      this%isKernelResp = allocated(input%ctrl%dynKernelFreq)
+      if (this%isKernelResp) then
+        call move_alloc(input%ctrl%dynKernelFreq, this%dynKernelFreq)
+        if (this%isRangeSep .and. any(this%dynKernelFreq /= 0.0_dp)) then
+          call error("Finite frequency range separated calculation not currently supported")
+        end if
         this%isRespKernelRPA = input%ctrl%isRespKernelRPA
         if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
           call error("RPA option only relevant for SCC calculations of response kernel")
         end if
-      else
-        this%isRespKernelRPA = .false.
       end if
+
+      if (this%iDistribFn /= fillingTypes%Fermi) then
+        call error("Choice of filling function currently incompatible with perturbation&
+            & calculations")
+      end if
+
       if (this%tNegf) then
         call error("Currently the perturbation expressions for NEGF are not implemented")
       end if
@@ -2246,24 +2317,12 @@ contains
         call error("Perturbation expression for polarisability require eigenvalues and&
             & eigenvectors")
       end if
-      if (this%isStatEResp) then
-        if (this%tPeriodic) then
-          call error("Currently the electric field perturbation expressions periodic systems are&
-              & not implemented")
-        end if
-        if (this%tHelical) then
-          call error("Currently the electric field perturbation expressions for helical systems are&
-              & not implemented")
-        end if
-      end if
+
       if (this%t3rd) then
         call error("Only full 3rd order currently supported for perturbation")
       end if
       if (allocated(this%reks)) then
         call error("REKS not currently supported for perturbation")
-      end if
-      if (this%tFixEf) then
-        call error("Perturbation for fixed Fermi energy is not currently supported")
       end if
       if (this%deltaDftb%isNonAufbau) then
         call error("Delta-DFTB not currently supported for perturbation")
@@ -2276,26 +2335,26 @@ contains
             & perturbation")
       end if
 
-      if (this%isStatEResp) then
-        allocate(this%polarisability(3,3))
-        this%polarisability(:,:) = 0.0_dp
+      if (this%isEResp) then
+        allocate(this%polarisability(3, 3, size(this%dynRespEFreq)))
+        this%polarisability(:,:,:) = 0.0_dp
         if (input%ctrl%tWriteBandDat) then
+          ! only one frequency at the moment if dynamic!
           allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
           this%dEidE(:,:,:,:) = 0.0_dp
         end if
+        ! only one frequency at the moment if dynamic!
         allocate(this%dqOut(this%orb%mOrb, this%nAtom, this%nSpin, 3))
         this%dqOut(:,:,:,:) = 0.0_dp
       end if
 
     else
-      this%isStatEResp = .false.
+      this%isEResp = .false.
+      this%isKernelResp = .false.
     end if
 
-    if (allocated(this%solvation)) then
-      if ((this%tExtChrg .or. this%isExtField) .and. this%solvation%isEFieldModified()) then
-        call error('External fields are not currently compatible with this implicit solvent.')
-      end if
-    end if
+    ! turn on if LinResp and RangSep turned on, no extra input required for now
+    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
 
     if (this%isLinResp) then
 
@@ -2304,9 +2363,11 @@ contains
         call error("This binary has been compiled without support for linear response&
             & calculations.")
       end if
+      isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
-          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec, input)
+          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
+          & isOnsiteCorrected, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(this%nType))
@@ -2352,9 +2413,6 @@ contains
           & this%onSiteElements)
 
     end if
-
-    ! turn on if LinResp and RangSep turned on, no extra input required for now
-    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -2505,6 +2563,12 @@ contains
       if (this%tExtChrg .or. this%isExtField) then
         call error("External fields currently disabled for XLBOMD calculations")
       end if
+      if (this%hamiltonianType /= hamiltonianTypes%dftb) then
+        call error("XLBOMD calculations currently only supported for the DFTB hamiltonian")
+      end if
+      if (allocated(this%solvation)) then
+        call error("XLBOMD does not work with solvation models yet!")
+      end if
       allocate(this%xlbomdIntegrator)
       call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
     end if
@@ -2519,7 +2583,7 @@ contains
     if (this%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
-      call create(this%derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
+      call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -2618,7 +2682,8 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
+          & this%isSparseReorderRequired)
     end associate
   #:endif
 
@@ -2925,7 +2990,11 @@ contains
     elseif (this%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdOut, *) this%indMovedAtom
+      write(stdOut, *) this%indDerivAtom
+      if (size(this%indDerivAtom) > size(this%indMovedAtom)) then
+        write(stdOut, "('Mode:',T30,A)") "Moved atoms:"
+        write(stdOut, *) this%indMovedAtom
+      end if
     elseif (this%tSocket) then
       write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else
@@ -3012,7 +3081,7 @@ contains
     end if
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-      #:if WITH_GPU
+      #:if WITH_MAGMA
         call env%initGpu()
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
@@ -3024,7 +3093,7 @@ contains
           write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
        else
           write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann 
+          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
        end if
     end if
 
@@ -3180,10 +3249,8 @@ contains
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (TDispUff)
         write(stdOut, "(A)") "Using Lennard-Jones dispersion corrections"
-    #:if WITH_DFTD3
-      type is (TDispDftD3)
-        write(stdOut, "(A)") "Using DFT-D3 dispersion corrections"
-    #:endif
+      type is (TSDFTD3)
+        call writeSDFTD3Info(stdout, o)
       type is (TSimpleDftD3)
         write(stdOut, "(A)") "Using simple DFT-D3 dispersion corrections"
       type is (TDispDftD4)
@@ -3199,6 +3266,11 @@ contains
 
     if (allocated(this%solvation)) then
       call writeSolvationInfo(stdOut, this%solvation)
+      if (this%eFieldScaling%isRescaled) then
+        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "Yes"
+      else
+        write(stdOut, "(A,':',T30,A)")"Solvated fields rescaled", "No"
+      end if
     end if
 
     if (this%tSccCalc) then
@@ -3337,7 +3409,7 @@ contains
       case(forceTypes%orig)
         write(stdOut, "(A,T30,A)") "Force type", "original"
       case(forceTypes%dynamicT0)
-        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalised eigenvalues"
         write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
       case(forceTypes%dynamicTFinite)
         write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
@@ -3493,7 +3565,7 @@ contains
         call error("Sorry, MD with a barostat requires stress evaluation")
       end if
       if (this%tLatOpt) then
-        call error("Sorry, lattice optimization requires stress tensor evaluation")
+        call error("Sorry, lattice optimisation requires stress tensor evaluation")
       end if
     end if
 
@@ -3548,17 +3620,21 @@ contains
         call error("Electron dynamics does not work with MD")
       end if
 
-      if (this%isRangeSep) then
-        call error("Electron dynamics does not work with range separated calculations yet.")
-      end if
-
       if (.not. this%tRealHS .and. input%ctrl%elecDynInp%tBondE) then
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
       end if
 
-      if (this%isExtField) then
-        call error("Electron dynamics does not work yet with static external fields/potentials in&
-            & the initial ground state.")
+      if (this%isRangeSep) then
+        if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
+          call error("Triplet perturbations currently disabled for electron dynamics with&
+              & range-separated functionals")
+        end if
+        if (input%ctrl%elecDynInp%tForces) then
+          call error("Forces for time propagation currently disabled for range-separated")
+        end if
+        if (input%ctrl%elecDynInp%tIons) then
+          call error("Ion dynamics time propagation currently disabled for range-separated")
+        end if
       end if
 
       allocate(this%electronDynamics)
@@ -3567,8 +3643,8 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%solvation,&
-          & errStatus)
+          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%eFieldScaling,&
+          & this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -4439,7 +4515,7 @@ contains
       end if
 
       if (input%ctrl%tLatOpt) then
-        call error("Lattice optimization is not currently possible with transport")
+        call error("Lattice optimisation is not currently possible with transport")
       end if
 
     end if
@@ -4478,7 +4554,7 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
-      if (this%isDFTBPT .and. this%isStatEResp) then
+      if (this%isDFTBPT .and. this%isEResp) then
         call initOutputFile(derivEBandOut)
       end if
     end if
@@ -4486,12 +4562,10 @@ contains
       call initOutputFile(hessianOut)
     end if
     if (this%tWriteDetailedOut) then
-      call initOutputFile(userOut, this%fdDetailedOut)
-      call env%fileFinalizer%register(this%fdDetailedOut)
+      call initOutputFile(userOut)
     end if
     if (this%tMD) then
-      call initOutputFile(mdOut, this%fdMD)
-      call env%fileFinalizer%register(this%fdMD)
+      call initOutputFile(mdOut)
     end if
     if (this%isGeoOpt .or. this%tMD) then
       call clearFile(trim(this%geoOutFile) // ".gen")
@@ -4531,7 +4605,6 @@ contains
       allocate(this%iRhoPrim(0, this%nSpin))
     end if
 
-    allocate(this%excitedDerivs(0,0))
     if (this%tForces) then
       if (.not.isREKS) then
         allocate(this%ERhoPrim(0))
@@ -4549,8 +4622,7 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect) then
-        deallocate(this%excitedDerivs)
+      if (this%tLinRespZVect .and. this%tCasidaForces) then
         allocate(this%excitedDerivs(3, this%nAtom))
       end if
     end if
@@ -4716,9 +4788,6 @@ contains
     !> Block charges from contact(s), if present
     real(dp), allocatable, intent(out) :: blockUp(:,:,:,:)
 
-    !> Format for two values with units
-    character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
     integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
@@ -4743,7 +4812,6 @@ contains
     !> Computing environment
     type(TEnvironment), intent(in) :: env
 
-
     integer :: nLocalCols, nLocalRows, nLocalKS
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
@@ -4765,6 +4833,20 @@ contains
       allocate(this%eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
     end if
 
+  #:if WITH_SCALAPACK
+
+    if (this%isSparseReorderRequired) then
+      call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, this%denseDesc%blacsColumnSqr,&
+          & nLocalRows, nLocalCols)
+      if (this%t2Component .or. .not. this%tRealHS) then
+        allocate(this%eigVecsCplxReordered(nLocalRows, nLocalCols, nLocalKS))
+      else
+        allocate(this%eigVecsRealReordered(nLocalRows, nLocalCols, nLocalKS))
+      end if
+    end if
+
+  #:endif
+
   end subroutine allocateDenseMatrices
 
 
@@ -4774,10 +4856,7 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(this, blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
-
-    !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
+  subroutine initBlacs(blacsOpts, nAtom, nOrb, t2Component, env, errStatus)
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
@@ -4807,14 +4886,14 @@ contains
     call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
-  end subroutine initScalapack
+  end subroutine initBlacs
 
 
   !> Generate descriptions of large dense matrices in BLACS decomposition
   !>
   !> Note: It must be called after getDenseDescCommon() has been called.
   !>
-  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc)
+  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isSparseReorderRequired)
 
     !> parallel environment
     type(TEnvironment), intent(in) :: env
@@ -4828,11 +4907,19 @@ contains
     !> Descriptor of the dense matrix
     type(TDenseDescr), intent(inout) :: denseDesc
 
+    !> Is a data distribution for sparse with dense operations needed?
+    logical, intent(in) :: isSparseReorderRequired
+
     integer :: nn
 
     nn = denseDesc%fullSize
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
+
+    if (isSparseReorderRequired) then
+      ! Distribution to put entire rows on each processor
+      call scalafx_getdescriptor(env%blacs%rowOrbitalGrid, nn, nn, nn, 1, denseDesc%blacsColumnSqr)
+    end if
 
   end subroutine getDenseDescBlacs
 
@@ -5148,32 +5235,14 @@ contains
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
-    if (this%isRS_LinResp) then
-
-      if (allocated(this%onSiteElements)) then
-        call error("Excited state range separated calculations not implemented for onsite&
-            & corrections")
-      end if
-
-      if (this%nSpin > 1) then
-        call error("Excited state range separated calculations not implemented for spin polarized&
-            & calculations")
-      end if
-
-      if (this%linearResponse%symmetry /= "S") then
-        call error("Excited state range separated calculations currently only implemented for&
-            & singlet excitaions")
-      end if
-
-    end if
-
   end subroutine ensureRangeSeparatedReqs
 
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, input)
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected,&
+      & input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5214,10 +5283,15 @@ contains
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
 
+    !> Is this a onsite corrected TD-DFTB calculation?
+    logical, intent(in) :: isOnsiteCorrected
+
     !> Holds the parsed input data.
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+
+    @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
@@ -5273,14 +5347,26 @@ contains
       end if
     end if
 
+    if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
+      call error("Onsite corrections not implemented for Stratmann diagonaliser.")
+    end if
+
     if (isRS_LinResp) then
+      if (input%ctrl%lrespini%tUseArpack) then
+        call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
+      end if
       if (tPeriodic) then
         call error("Range separated excited states for periodic geometries are currently&
             & unavailable")
       end if
-      if (nSpin > 1) then
-        call error("Range separated excited states for spin polarized calculations are currently&
-            & unavailable")
+      if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
+        call error("Range separated excited states not available for window options.")
+      end if
+      if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
+        call warning("Range separated excited states not well tested for triplet excited states!")
+      end if
+      if (input%ctrl%tSpin) then
+        call warning("Range separated excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -5477,7 +5563,7 @@ contains
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
-    !> optimize lattice constants?
+    !> optimise lattice constants?
     logical, intent(in) :: tLatOpt
 
     !> If initial charges/dens mtx. from external file.
@@ -5525,7 +5611,7 @@ contains
     end if
 
     if (reksInp%Efunction /= 1 .and. tLatOpt) then
-      call error("Lattice optimization is only possible&
+      call error("Lattice optimisation is only possible&
           & with single-state REKS, not SA-REKS or SI-SA-REKS")
     end if
 
@@ -5687,7 +5773,7 @@ contains
     if (reks%tReadMO) then
       write (stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
     else
-      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalize H0 matrix"
+      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
     end if
 
     write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
@@ -5763,16 +5849,19 @@ contains
   ! Initializes the variables directly related to the user specified geometry.
   subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol)
+      & recCellVol, errStatus)
     type(TInputData), intent(in) :: input
     integer, intent(out) :: nAtom, nType
     logical, intent(out) :: tPeriodic, tHelical
-    integer, intent(out) :: boundaryCond
+    type(TBoundaryConditions), intent(out) :: boundaryCond
     real(dp), allocatable, intent(out) :: coord0(:,:)
     integer, allocatable, intent(out) :: species0(:)
     logical, intent(out) :: tCoordsChanged, tLatticeChanged
     real(dp), allocatable, intent(out) :: latVec(:,:), origin(:), recVec(:,:), invLatVec(:,:)
     real(dp), intent(out) :: cellVol, recCellVol
+
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
 
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
@@ -5780,18 +5869,22 @@ contains
     tPeriodic = input%geom%tPeriodic
     tHelical = input%geom%tHelical
 
+
     if (tPeriodic) then
-      boundaryCond = boundaryConditions%pbc3d
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
     else if (tHelical) then
-      boundaryCond = boundaryConditions%helical
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%helical, errStatus)
     else
-      boundaryCond = boundaryConditions%cluster
+      call TBoundaryConditions_init(boundaryCond, boundaryConditions%cluster, errStatus)
     end if
+    @:PROPAGATE_ERROR(errStatus)
 
     coord0 = input%geom%coords
     species0 = input%geom%species
     tCoordsChanged = .true.
 
+    cellVol = 0.0_dp
+    recCellVol = 0.0_dp
     if (tPeriodic) then
       tLatticeChanged = .true.
       latVec = input%geom%latVecs
@@ -5987,24 +6080,48 @@ contains
   end subroutine initSccCalculator_
 
 
-  !> Initializes the repulsive interactions
-  subroutine initSplinePolyRepulsive_(nAtom, isHelical, twoBodyCont, repulsive)
+  subroutine initRepulsive_(nAtom, isPeriodic, isHelical, pairRepulsives, chimesInp, speciesNames,&
+        & species0, repulsive)
     integer, intent(in) :: nAtom
-    logical, intent(in) :: isHelical
-    type(TRepCont), intent(in) :: twoBodyCont
+    logical, intent(in) :: isPeriodic, isHelical
+    type(TPairRepulsiveItem), allocatable, intent(inout) :: pairRepulsives(:,:)
+    type(TChimesRepInp), allocatable, intent(in) :: chimesInp
+    character(*), intent(in) :: speciesNames(:)
+    integer, intent(in) :: species0(:)
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
-    type(TSplinePolyRepInput) :: input
-    type(TSplinePolyRep), allocatable :: splinePolyRep
+    type(TRepulsiveList), allocatable :: repulsiveList
+    type(TTwoBodyRepInp) :: twoBodyInp
 
-    input%nAtom = nAtom
-    input%isHelical = isHelical
-    input%twoBodyCont = twoBodyCont
-    allocate(splinePolyRep)
-    call TSplinePolyRep_init(splinePolyRep, input)
-    call move_alloc(splinePolyRep, repulsive)
+    allocate(repulsiveList)
 
-  end subroutine initSplinePolyRepulsive_
+    twoBodyInp%nAtom = nAtom
+    twoBodyInp%isHelical = isHelical
+    call move_alloc(pairRepulsives, twoBodyInp%pairRepulsives)
+    @:CREATE_CLASS(repulsive, TTwoBodyRep, TTwoBodyRep_init, twoBodyInp)
+    call repulsiveList%push(repulsive)
+
+    #:if WITH_CHIMES
+      if (allocated(chimesInp)) then
+        if (.not. isPeriodic) then
+          call error("ChIMES repulsives currently require periodic boundary conditions")
+        end if
+        if (isHelical) then
+          call error("ChIMES repulsive is not compatible with helical boundary conditions")
+        end if
+        @:CREATE_CLASS(repulsive, TChimesRep, TChimesRep_init, chimesInp, speciesNames, species0)
+        call repulsiveList%push(repulsive)
+      end if
+    #:endif
+
+    ! If multiple repulsives, wrap via container, otherwise use the one directly
+    if (repulsiveList%size() > 1) then
+        @:CREATE_CLASS(repulsive, TRepulsiveCont, TRepulsiveCont_init, repulsiveList)
+    else
+      call repulsiveList%pop(repulsive)
+    end if
+
+  end subroutine initRepulsive_
 
 
   ! Decides how many Cholesky-decompositions should be buffered

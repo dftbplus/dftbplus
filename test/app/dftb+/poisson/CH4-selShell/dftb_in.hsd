@@ -1,0 +1,50 @@
+Geometry = GenFormat {
+    5  C
+    C H
+    1  1  0.000000000000000  0.000000000000000  0.000000000000000
+    2  2  0.000000000000000  0.000000000000000  1.100000000000000
+    3  2  1.131370849898476  0.000000000000000 -0.200000000000000
+    4  2 -0.565685424949238  0.879795897113271 -0.400000000000000
+    5  2 -0.465685424949238 -0.979795897113271 -0.400000000000000
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1E-8
+    MaxAngularMomentum = {
+        H = "s"
+        C = SelectedShells {"p" "s"} # reverse usual order
+    }
+    ShellResolvedSCC = Yes
+    SlaterKosterFiles = {
+        C-C = "./C-C.skf" "./C-C.skf" "./C-C.skf" "./C-C.skf"
+        C-H = "./C-H.skf"  "./C-H.skf"
+        H-C = "./H-C.skf" "./H-C.skf"
+        H-H = "./H-H.skf"
+    }
+    Electrostatics = Poisson {
+        PoissonBox [Angstrom] = 10.0 10.0 10.0
+        MinimalGrid [Angstrom] = 0.3 0.3 0.3
+        AtomDensityCutoff [Angstrom] = 7.05
+        SavePotential = No
+        BuildBulkpotential = No
+        ReadOldBulkPotential = No
+        BoundaryRegion = Global {}
+        PoissonAccuracy = 1E-7
+        RecomputeAfterDensity = No
+    }
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 11
+}

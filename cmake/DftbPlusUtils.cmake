@@ -66,16 +66,16 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_ARPACK)
   endif()
 
-  if(WITH_DFTD3)
-    list(APPEND _fyppflags -DWITH_DFTD3)
-  endif()
-
   if(WITH_MBD)
       list(APPEND _fyppflags -DWITH_MBD)
   endif()
 
   if(WITH_PLUMED)
     list(APPEND _fyppflags -DWITH_PLUMED)
+  endif()
+
+  if(WITH_CHIMES)
+    list(APPEND _fyppflags -DWITH_CHIMES)
   endif()
 
   if(WITH_MPI)
@@ -98,12 +98,20 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_GPU)
   endif()
 
+  if(WITH_MAGMA)
+    list(APPEND _fyppflags -DWITH_MAGMA)
+  endif()
+
   if(WITH_TRANSPORT)
     list(APPEND _fyppflags -DWITH_TRANSPORT)
   endif()
 
   if(WITH_POISSON)
     list(APPEND _fyppflags -DWITH_POISSON)
+  endif()
+
+  if(WITH_SDFTD3)
+    list(APPEND _fyppflags -DWITH_SDFTD3)
   endif()
 
   if(WITH_TBLITE)
@@ -191,16 +199,8 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(WITH_PYTHON AND NOT WITH_API)
-    message(FATAL_ERROR "Building Python API requires building with general API support")
-  endif()
-
-  if(WITH_PYTHON AND NOT BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "Building Python API requires shared libraries for dynamic loading")
-  endif()
-
-  if(WITH_GPU AND WITH_MPI)
-    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
+  if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
+    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
   endif()
 
   if(INSTANCE_SAFE_BUILD)
@@ -217,8 +217,8 @@ function (dftbp_ensure_config_consistency)
       message(FATAL_ERROR "Instance safe build with ARPACK is not supported")
     endif()
 
-    if(WITH_DFTD3)
-      message(FATAL_ERROR "Instance safe build with D3 dispersion is not supported")
+    if(WITH_CHIMES)
+      message(FATAL_ERROR "Instance safe build with ChIMES is not supported")
     endif()
 
   endif()

@@ -1,0 +1,245 @@
+#!-------------------------------------------------------------------------------------------------!
+#!  DFTB+: general package for performing fast atomistic simulations                               !
+#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
+#!                                                                                                 !
+#!  See the LICENSE file for terms of usage and distribution.                                      !
+#!-------------------------------------------------------------------------------------------------!
+#!
+#:mute
+#:if not defined('_POINTERLIST_FYPP_')
+#:set _POINTERLIST_FYPP_
+
+#:include "common.fypp"
+
+
+#:def declare_pointer_list(NAME, TYPE)
+
+real, parameter :: ${NAME}$_scalingFactor = 1.5
+
+integer, parameter :: ${NAME}$_minSlots = 4
+
+
+!> Container for an item pointer
+type :: ${NAME}$Item
+  private
+  ${TYPE}$, pointer :: ptr => null()
+end type ${NAME}$Item
+
+
+!> Defines a pointer list of a specific type.
+!>
+!> The list stores pointers. All pointers transfered to the list via the push() method
+!> and not removed via the pop() method will be deallocated if the list goes out of scope.
+!>
+type :: ${NAME}$
+  private
+  type(${NAME}$Item), allocatable :: items(:)
+  integer :: nItem = 0
+  integer :: minSlots = ${NAME}$_minSlots
+  real :: scalingFactor = ${NAME}$_scalingFactor
+contains
+  procedure :: push => ${NAME}$_push
+  procedure :: pop => ${NAME}$_pop
+  procedure :: view => ${NAME}$_view
+  procedure :: size => ${NAME}$_size
+  final :: ${NAME}$_final
+end type ${NAME}$
+
+#:enddef
+
+
+#:def implement_pointer_list(NAME, TYPE)
+
+!> Initializes the list with explicit prealloc size.
+!>
+!> The initialization is optional and only needed, if you wish to override the preallocated
+!> list size.
+!>
+subroutine ${NAME}$_init(this, minSlots, scalingFactor)
+
+  !> Instance
+  type(${NAME}$), intent(out) :: this
+
+  !> Minimal number of empty slots to create at startup or when resizing the internal storage
+  !> (default ${NAME}$_minElements).
+  integer, optional, intent(in) :: minSlots
+
+  !> Growth scaling factor to use when enlarging or shrinking the list
+  real, optional, intent(in) :: scalingFactor
+
+  if (present(minSlots)) then
+    @:ASSERT(minSlots > 0)
+    this%minSlots = minSlots
+  end if
+  if (present(scalingFactor)) then
+    @:ASSERT(scalingFactor > 1.0)
+    this%scalingFactor = scalingFactor
+  end if
+  allocate(this%items(this%minSlots))
+
+end subroutine ${NAME}$_init
+
+
+!> Pushes an item to the list.
+!>
+!> The list takes ownership over the pointer and deallocates it, if it gets out of scope.
+!>
+subroutine ${NAME}$_push(this, item, pos)
+
+  !> Instance.
+  class(${NAME}$), intent(inout) :: this
+
+  !> Pointer to push.
+  ${TYPE}$, pointer, intent(inout) :: item
+
+  !> The item will be pushed at the specified position. Possible values: from 1 to size() + 1,
+  !> or from -size() to 0. The original element at this position and all following ones are
+  !> shifted by one position. Default: size() + 1, the pushed element will be the last one.
+  integer, optional, intent(in) :: pos
+
+  type(${NAME}$Item), allocatable :: buffer(:)
+  integer :: pos_
+
+  if (.not. allocated(this%items)) call ${NAME}$_init(this)
+  if (present(pos)) then
+    @:ASSERT(pos >= -this%nItem .and. pos <= this%nItem + 1)
+    pos_ = pos
+  else
+    pos_ = this%nItem + 1
+  end if
+
+  if (this%nItem == size(this%items)) then
+    allocate(buffer(max(nint(real(this%nItem) * this%scalingFactor), this%nItem + this%minSlots)))
+    buffer(1:this%nItem) = this%items(1:this%nItem)
+    call move_alloc(buffer, this%items)
+  end if
+
+  if (pos_ == 0) then
+    pos_ = this%nItem + 1
+  else if (pos_ < 0) then
+    pos_ = this%nItem + 1 + pos_
+  end if
+  this%items(pos_ + 1 : this%nItem + 1) = this%items(pos_ : this%nItem)
+  this%items(pos_)%ptr => item
+  this%nItem = this%nItem + 1
+  item => null()
+
+end subroutine ${NAME}$_push
+
+
+!> Pops an element from the list.
+!>
+!> The list releases the ownership over the pointer, so it has to deallocated by the caller.
+!> This method can only be called, if at least one element had been already pushed to the list.
+!>
+subroutine ${NAME}$_pop(this, item, pos)
+
+  !> Instance.
+  class(${NAME}$), intent(inout) :: this
+
+  !> Item which was popped from the list.
+  ${TYPE}$, pointer, intent(out) :: item
+
+  !> The item will be poped from the specified position. Possible values: from 1 to size(),
+  !> or from -size() to -1. The original elements following this position will be shifted backwards
+  !> by one position. Default: size(this), the last element is popped from the list.
+  integer, optional, intent(in) :: pos
+
+  integer :: newSize, pos_
+  type(${NAME}$Item), allocatable :: buffer(:)
+
+  @:ASSERT(allocated(this%items) .and. this%nItem > 0)
+  if (present(pos)) then
+    @:ASSERT(pos >= -this%nItem .and. pos <= this%nItem .and. pos /= 0)
+    pos_ = pos
+  else
+    pos_ = this%nItem
+  end if
+  if (pos_ < 0) pos_ = this%nItem + 1 + pos_
+
+  item => this%items(pos_)%ptr
+  this%items(pos_ : this%nItem - 1) = this%items(pos_ + 1 : this%nItem)
+  this%items(this%nItem)%ptr => null()
+  this%nItem = this%nItem - 1
+
+  newSize = nint(size(this%items) / this%scalingFactor)
+  if (newSize > this%nItem + this%minSlots) then
+    allocate(buffer(newSize))
+    buffer(1 : this%nItem) = this%items(1 : this%nItem)
+    call move_alloc(buffer, this%items)
+  end if
+
+end subroutine ${NAME}$_pop
+
+
+!> Gives a view to a given item in the list.
+!>
+!> NOTE: The ownership of the pointer is not transfered, so while caller can modify the
+!> content of the pointer, it should not deallocate the pointer under any circumstances,
+!> as the list will try to deallocate it when it goes out of scope (and probably segfault, if
+!> it had been already allocated outside). Use this method with care.
+!>
+!> This routine may only be called, if at least one element had already been pushed to the list.
+!>
+subroutine ${NAME}$_view(this, pos, item)
+
+  !> Instance
+  class(${NAME}$), intent(in) :: this
+
+  !> The view is returned for the specified position. Possible values: from 1 to size(),
+  !> or from -size() to -1.
+  integer, intent(in) :: pos
+
+  !> Pointer to the item at the given position. Do not deallocate it!
+  ${TYPE}$, pointer, intent(out) :: item
+
+  integer :: pos_
+
+  @:ASSERT(allocated(this%items) .and. this%nItem > 0)
+  @:ASSERT(pos >= -this%nItem .and. pos <= this%nItem .and. pos /= 0)
+  if (pos < 0) then
+    pos_ = this%nItem + 1 + pos
+  else
+    pos_ = pos
+  end if
+  item => this%items(pos_)%ptr
+
+end subroutine ${NAME}$_view
+
+
+!> Returns the size of the list
+function ${NAME}$_size(this) result(nItem)
+
+  !> Instance
+  class(${NAME}$), intent(in) :: this
+
+  !> Nr. of elements in the list.
+  integer :: nItem
+
+  nItem = this%nItem
+
+end function ${NAME}$_size
+
+
+!> Destructor
+subroutine ${NAME}$_final(this)
+
+  !> Instance.
+  type(${NAME}$), intent(inout) :: this
+
+  integer :: ii
+
+  if (allocated(this%items)) then
+    do ii = 1, this%nItem
+      deallocate(this%items(ii)%ptr)
+    end do
+  end if
+
+end subroutine ${NAME}$_final
+
+
+#:enddef
+
+
+#:endif
+#:endmute
