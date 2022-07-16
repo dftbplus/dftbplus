@@ -9,14 +9,14 @@
 Module for interaction with the eigenvec.out file.
 """
 
-
+from __future__ import annotations
 import re
 
 
 class Eigenvecout:
     """class for reading eigenvectors"""
 
-    def __init__(self, filename="eigenvec.out"):
+    def __init__(self, filename: str = "eigenvec.out") -> None:
         """Initialises the Eigenvecout class
 
         Args:
@@ -25,7 +25,7 @@ class Eigenvecout:
         self._filename = filename
 
 
-    def read_eigenvec(self):
+    def read_eigenvec(self) -> dict | None:
         """function for reading eigenvector
 
         Returns:

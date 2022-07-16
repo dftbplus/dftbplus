@@ -7,7 +7,8 @@
 #
 '''Information from band.out like files'''
 
-from __future__ import division
+from __future__ import division, annotations
+from typing import TextIO
 import re
 import numpy as np
 from dftbplus_ptools.common import openfile
@@ -36,7 +37,7 @@ class BandOut:
             the energy of the states and their occupation.
     """
 
-    def __init__(self, kweights, eigvalarray):
+    def __init__(self, kweights: np.ndarray, eigvalarray: np.ndarray) -> None:
         """Initializes band.out file instance.
 
         Args:
@@ -50,7 +51,7 @@ class BandOut:
         self.nspin, self.nkpt, self.nstate = self.eigvalarray.shape[:3]
 
     @classmethod
-    def fromfile(cls, fobj):
+    def fromfile(cls, fobj: str | TextIO) -> BandOut:
         """Returns a band.out representation created from a file object.
 
         Args:

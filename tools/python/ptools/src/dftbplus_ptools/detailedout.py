@@ -9,11 +9,13 @@
 Module for interaction with the detail.out file.
 """
 
+from __future__ import annotations
+
 
 class Detailedout:
     """class for reading detailed.out"""
 
-    def __init__(self, filename="detailed.out"):
+    def __init__(self, filename: str = "detailed.out") -> None:
         """Initialises the Detailedout class
 
         Args:
@@ -22,7 +24,7 @@ class Detailedout:
         self._filename = filename
 
 
-    def check_for_scc_convergence(self):
+    def check_for_scc_convergence(self) -> bool | None:
         """function for checking scc convergence
 
         Returns:
@@ -42,7 +44,7 @@ class Detailedout:
         return False
 
 
-    def check_for_geometry_convergence(self):
+    def check_for_geometry_convergence(self) -> bool | None:
         """function for checking geometry convergence
 
         Returns:

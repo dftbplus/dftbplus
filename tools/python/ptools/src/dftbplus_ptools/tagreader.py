@@ -21,6 +21,8 @@
 
 """contains classes for parsing tagged output of DFTB"""
 
+from __future__ import annotations
+from typing import TextIO
 import re
 import numpy as np
 
@@ -33,7 +35,7 @@ class InvalidEntry(Exception):
     """Raised if entry can't be initialized or wrong type of entry is passed"""
 
 
-    def __init__(self, start=0, end=0, msg=""):
+    def __init__(self, start: int = 0, end: int = 0, msg: str = "") -> None:
         """initializes InvalidEntry class
 
         Args:
@@ -59,7 +61,7 @@ class ConversionError(Exception):
 class Converter():
     """Base class for string to value converters"""
 
-    def __init__(self, nolist=False):
+    def __init__(self, nolist: bool = False) -> None:
         """initializes Converter class
 
         Args:
@@ -69,7 +71,7 @@ class Converter():
         self.nolist = nolist
 
 
-    def __call__(self, str_value):
+    def __call__(self, str_value: str) -> list:
         """function call operator for Converter class
 
         Args:
@@ -88,7 +90,7 @@ class Converter():
         return result
 
     @staticmethod
-    def convert(values):
+    def convert(values: list) -> list:
         """Conversion function
 
         Args:
@@ -103,7 +105,7 @@ class Converter():
 class FloatConverter(Converter):
     """Converts string to float"""
     @staticmethod
-    def convert(values):
+    def convert(values: list) -> list:
         """Conversion function
 
         Args:
@@ -128,7 +130,7 @@ class FloatConverter(Converter):
 class IntConverter(Converter):
     """Converts string to integer"""
     @staticmethod
-    def convert(values):
+    def convert(values: list) -> list:
         """Conversion function
 
         Args:
@@ -153,7 +155,7 @@ class IntConverter(Converter):
 class ComplexConverter(Converter):
     """Converts string to complex"""
 
-    def __call__(self, str_value):
+    def __call__(self, str_value: str) -> list:
         """function call operator for ComplexConverter class
 
         Args:
@@ -178,7 +180,7 @@ class ComplexConverter(Converter):
         return result
 
     @staticmethod
-    def convert(values):
+    def convert(values: list) -> list:
         """Conversion function
 
         Args:
@@ -206,7 +208,7 @@ class ComplexConverter(Converter):
 class LogicalConverter(Converter):
     """Converts string to logical"""
 
-    def convert(self, values):
+    def convert(self, values: list) -> list:
         """Conversion function
 
         Args:
@@ -245,7 +247,8 @@ class TaggedEntry():
     _validTypes = list(_strToValue.keys())
 
 
-    def __init__(self, name, dtype, rank, shape, str_value):
+    def __init__(self, name: str, dtype: str, rank: int, shape: tuple,
+                 str_value: str) -> None:
         """Instantiates an TaggedEntry object.
 
         Args:
@@ -276,7 +279,7 @@ class TaggedEntry():
             raise InvalidEntry(msg="Invalid nr. of values")
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Returns name of the entry
 
         Returns:
@@ -285,7 +288,7 @@ class TaggedEntry():
         return self._name
 
     @property
-    def dtype(self):
+    def dtype(self) -> str:
         """Returns type of the data in the entry
 
         Returns:
@@ -294,7 +297,7 @@ class TaggedEntry():
         return self._dtype
 
     @property
-    def rank(self):
+    def rank(self) -> int:
         """Returns rank of the data in the entry
 
         Returns:
@@ -303,7 +306,7 @@ class TaggedEntry():
         return self._rank
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         """Returns shape of the data in the entry
 
         Returns:
@@ -312,7 +315,7 @@ class TaggedEntry():
         return self._shape
 
     @property
-    def value(self):
+    def value(self) -> list:
         """Returns value of the data in the entry
 
         Returns:
@@ -321,7 +324,7 @@ class TaggedEntry():
         return self._value
 
     @property
-    def fvalue(self):
+    def fvalue(self) -> np.ndarray:
         """Returns value of the data in the entry as formated array
 
         Returns:
@@ -349,7 +352,7 @@ class TaggedEntry():
         return result
 
 
-    def is_comparable(self, other):
+    def is_comparable(self, other: TaggedEntry) -> bool:
         """Check if two entries are comparable
 
         Args:
@@ -366,7 +369,7 @@ class TaggedEntry():
 class TaggedCollection():
     """Contains a collection of tagged entries"""
 
-    def __init__(self, entries):
+    def __init__(self, entries: list) -> None:
         """initializes TaggedCollection class
 
         Args:
@@ -379,7 +382,7 @@ class TaggedCollection():
         self.add_entries(entries)
 
 
-    def add_entries(self, entries):
+    def add_entries(self, entries: list) -> None:
         """adding entries to lists in self
 
         Args:
@@ -394,7 +397,7 @@ class TaggedCollection():
             self._entries.append(entry)
 
 
-    def get_matching_entries(self, pattern):
+    def get_matching_entries(self, pattern: re.Pattern) -> list:
         """Returns entries from the collection matching a given pattern
 
         Args:
@@ -412,7 +415,7 @@ class TaggedCollection():
         return result
 
 
-    def get_entry(self, name):
+    def get_entry(self, name: str) -> TaggedEntry:
         """Returns an entry with a given name from the collection
 
         Args:
@@ -432,7 +435,7 @@ class TaggedCollection():
         return result
 
 
-    def del_entry(self, name):
+    def del_entry(self, name: str) -> None:
         """Deletes the specified entry from the collection
 
         Args:
@@ -464,7 +467,7 @@ class ResultParser():
                             """, re.VERBOSE)
 
 
-    def __init__(self, file):
+    def __init__(self, file: TextIO) -> None:
         """initializes ResultParser class
 
         Args:
@@ -473,7 +476,7 @@ class ResultParser():
         self._file = file
 
 
-    def iterate_entries(self):
+    def iterate_entries(self) -> list:
         """Generator for iterating over the entries of the data file.
 
         Returns:
@@ -500,7 +503,7 @@ class ResultParser():
                 if name:
                     try:
                         result.append(TaggedEntry(name, dtype, rank, shape,
-                                          " ".join(value)))
+                                      " ".join(value)))
                     except InvalidEntry as error:
                         raise InvalidEntry(itagged_line + 1, iline,
                                            msg=error.msg) from error
@@ -532,7 +535,7 @@ class ResultParser():
                        "Iterator over parsed entries")
 
 
-def product(elements):
+def product(elements: tuple) -> int:
     """calculates form size of array the number of elements in array
 
     Args:
@@ -548,7 +551,7 @@ def product(elements):
     return res
 
 
-def results_access(filename='results.tag'):
+def results_access(filename: str = 'results.tag') -> dict:
     """returns the content of a results file as a dictionary
 
     Args:
@@ -567,7 +570,8 @@ def results_access(filename='results.tag'):
     return dictionary
 
 
-def property_by_keyword(keyword, filename='results.tag'):
+def property_by_keyword(keyword: str,
+                        filename: str = 'results.tag') -> np.ndarray:
     """returns the content of a results file as a dictionary
 
     Args:

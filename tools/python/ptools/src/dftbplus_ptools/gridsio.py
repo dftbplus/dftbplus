@@ -7,11 +7,16 @@
 #
 '''I/O routines for grids.'''
 
+from __future__ import annotations
+from typing import TextIO
 import numpy as np
+
+import dftbplus_ptools.grids
 from . import grids
 
 
-def scalarvtk(fname, griddata, varname='var'):
+def scalarvtk(fname: str | TextIO, griddata: dftbplus_ptools.grids.GridData,
+              varname: str = 'var') -> None:
     """Save a scalar field from a GridData object as a structured 3D VTK ASCII
     file.
 
@@ -68,7 +73,8 @@ def scalarvtk(fname, griddata, varname='var'):
         fh.close()
 
 
-def cube(fname, griddata, header='dptools cube file'):
+def cube(fname: str | TextIO, griddata: dftbplus_ptools.grids.GridData,
+         header: str = 'dptools cube file') -> None:
     """Save a scalar field from a Grid Data oject as a Gaussian cube file.
         (without any atomistic structure)
 

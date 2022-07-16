@@ -9,13 +9,14 @@
 Module for interaction with the results.tag file.
 """
 
+from __future__ import annotations
 import dftbplus_ptools.tagreader as reader
-
+import numpy as np
 
 class Output:
     """Class for reading dftb+ outputs"""
 
-    def __init__(self, filename='results.tag'):
+    def __init__(self, filename: str = 'results.tag')  -> None:
         """Initialises the Output class
 
         Args:
@@ -24,7 +25,7 @@ class Output:
         self._filename = filename
         self._resultstag = self._read_resultstag()
 
-    def _read_resultstag(self):
+    def _read_resultstag(self) -> dict | None:
         """Function for accessing results.tag file."""
         try:
             return reader.results_access(filename=self._filename)
@@ -32,7 +33,7 @@ class Output:
             return None
 
 
-    def get_cell_volume(self):
+    def get_cell_volume(self) -> np.ndarray | None:
         """Help function for reading 'unit cell volume' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -41,7 +42,7 @@ class Output:
                 return None
 
 
-    def get_end_coords(self):
+    def get_end_coords(self) -> np.ndarray | None:
         """Help function for reading 'final geometry' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -50,7 +51,7 @@ class Output:
                 return None
 
 
-    def get_exc_energies_sqr(self):
+    def get_exc_energies_sqr(self) -> np.ndarray | None:
         """Help function for reading 'excitation energies in Casida formalism'
         from results.tag"""
         if self._resultstag is not None:
@@ -60,7 +61,7 @@ class Output:
                 return None
 
 
-    def get_exc_forces(self):
+    def get_exc_forces(self) -> np.ndarray | None:
         """Help function for reading 'excited state force contributions'
         from results.tag"""
         if self._resultstag is not None:
@@ -70,7 +71,7 @@ class Output:
                 return None
 
 
-    def get_exc_oscillator(self):
+    def get_exc_oscillator(self) -> np.ndarray | None:
         """Help function for reading 'oscillator strength for excitations'
         from results.tag"""
         if self._resultstag is not None:
@@ -80,7 +81,7 @@ class Output:
                 return None
 
 
-    def get_exc_transdip(self):
+    def get_exc_transdip(self) -> np.ndarray | None:
         """Help function for reading 'Transition dipole moments for
         excitations' from results.tag"""
         if self._resultstag is not None:
@@ -90,7 +91,7 @@ class Output:
                 return None
 
 
-    def get_coupling_vectors(self):
+    def get_coupling_vectors(self) -> np.ndarray | None:
         """Help function for reading 'nonadiabatic coupling vector, H' from
         results.tag"""
         if self._resultstag is not None:
@@ -100,7 +101,7 @@ class Output:
                 return None
 
 
-    def get_forces(self):
+    def get_forces(self) -> np.ndarray | None:
         """Help function for reading 'ground state total forces' from
         results.tag"""
         if self._resultstag is not None:
@@ -110,7 +111,7 @@ class Output:
                 return None
 
 
-    def get_forces_ext_charges(self):
+    def get_forces_ext_charges(self) -> np.ndarray | None:
         """Help function for reading 'forces on any external charges present'
         from results.tag"""
         if self._resultstag is not None:
@@ -120,7 +121,7 @@ class Output:
                 return None
 
 
-    def get_fermi_level(self):
+    def get_fermi_level(self) -> np.ndarray | None:
         """Help function for reading 'Fermi level(s)' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -129,7 +130,7 @@ class Output:
                 return None
 
 
-    def get_number_of_electrons(self):
+    def get_number_of_electrons(self) -> np.ndarray | None:
         """Help function for reading 'number of electrons' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -138,7 +139,7 @@ class Output:
                 return None
 
 
-    def get_eigenvalues(self):
+    def get_eigenvalues(self) -> np.ndarray | None:
         """Help function for reading 'eigenvalues/single particle states' from
         results.tag"""
         if self._resultstag is not None:
@@ -148,7 +149,7 @@ class Output:
                 return None
 
 
-    def get_filling(self):
+    def get_filling(self) -> np.ndarray | None:
         """Help function for reading 'filling of the eigenstates' from
         results.tag"""
         if self._resultstag is not None:
@@ -158,7 +159,7 @@ class Output:
                 return None
 
 
-    def get_gibbs_energy(self):
+    def get_gibbs_energy(self) -> np.ndarray | None:
         """Help function for reading 'Gibbs free energy for finite pressure
         periodic systems' from results.tag"""
         if self._resultstag is not None:
@@ -168,7 +169,7 @@ class Output:
                 return None
 
 
-    def get_gross_atomic_charges(self):
+    def get_gross_atomic_charges(self) -> np.ndarray | None:
         """Help function for reading 'Gross atomic charges' from
         results.tag"""
         if self._resultstag is not None:
@@ -178,7 +179,7 @@ class Output:
                 return None
 
 
-    def get_cm5_atomic_charges(self):
+    def get_cm5_atomic_charges(self) -> np.ndarray | None:
         """Help function for reading 'Charge model 5 corrected atomic gross
         charges' from results.tag"""
         if self._resultstag is not None:
@@ -188,7 +189,7 @@ class Output:
                 return None
 
 
-    def get_gross_atomic_spins(self):
+    def get_gross_atomic_spins(self) -> np.ndarray | None:
         """Help function for reading 'Gross atomic spin polarizations' from
         results.tag"""
         if self._resultstag is not None:
@@ -198,7 +199,7 @@ class Output:
                 return None
 
 
-    def get_hessian_numerical(self):
+    def get_hessian_numerical(self) -> np.ndarray | None:
         """Help function for reading 'numerically calculated second
         derivatives matrix' from results.tag"""
         if self._resultstag is not None:
@@ -208,7 +209,7 @@ class Output:
                 return None
 
 
-    def get_final_energy(self):
+    def get_final_energy(self) -> np.ndarray | None:
         """Help function for reading 'final energy components after real-time
         propagation' from results.tag"""
         if self._resultstag is not None:
@@ -218,7 +219,7 @@ class Output:
                 return None
 
 
-    def get_final_dipole_moment(self):
+    def get_final_dipole_moment(self) -> np.ndarray | None:
         """Help function for reading 'final dipole moment vector after
         real-time propagation' from results.tag"""
         if self._resultstag is not None:
@@ -228,7 +229,7 @@ class Output:
                 return None
 
 
-    def get_final_td_charges(self):
+    def get_final_td_charges(self) -> np.ndarray | None:
         """Help function for reading 'final negative gross atomic Mulliken
         charges after real-time propagation' from results.tag"""
         if self._resultstag is not None:
@@ -238,7 +239,7 @@ class Output:
                 return None
 
 
-    def get_final_ehrenfest_forc(self):
+    def get_final_ehrenfest_forc(self) -> np.ndarray | None:
         """Help function for reading 'final forces components after real-time
         (Ehrenfest) propagation' from results.tag"""
         if self._resultstag is not None:
@@ -248,7 +249,7 @@ class Output:
                 return None
 
 
-    def get_final_ehrenfest_geom(self):
+    def get_final_ehrenfest_geom(self) -> np.ndarray | None:
         """Help function for reading 'final geometry after real-time
         (Ehrenfest) propagation' from results.tag"""
         if self._resultstag is not None:
@@ -258,7 +259,7 @@ class Output:
                 return None
 
 
-    def get_final_ehrenfest_velo(self):
+    def get_final_ehrenfest_velo(self) -> np.ndarray | None:
         """Help function for reading 'final velocities after real-time
         (Ehrenfest) propagation' from results.tag"""
         if self._resultstag is not None:
@@ -268,7 +269,7 @@ class Output:
                 return None
 
 
-    def get_final_td_proj_occ(self):
+    def get_final_td_proj_occ(self) -> np.ndarray | None:
         """Help function for reading 'final molecular orbitals occupations
         after real-time (Ehrenfest) propagation' from results.tag"""
         if self._resultstag is not None:
@@ -278,7 +279,7 @@ class Output:
                 return None
 
 
-    def get_sum_bond_pops(self):
+    def get_sum_bond_pops(self) -> np.ndarray | None:
         """Help function for reading 'Sum of bond populaion values (should be
         number of electrons)' from results.tag"""
         if self._resultstag is not None:
@@ -288,7 +289,7 @@ class Output:
                 return None
 
 
-    def get_mermin_energy(self):
+    def get_mermin_energy(self) -> np.ndarray | None:
         """Help function for reading 'total energy including electron TS
         contribution' from results.tag"""
         if self._resultstag is not None:
@@ -298,7 +299,7 @@ class Output:
                 return None
 
 
-    def get_orbital_charges(self):
+    def get_orbital_charges(self) -> np.ndarray | None:
         """Help function for reading 'Mulliken charges' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -307,7 +308,7 @@ class Output:
                 return None
 
 
-    def get_pm_localisation(self):
+    def get_pm_localisation(self) -> np.ndarray | None:
         """Help function for reading 'Pipek-Mezey localisation score of single
         particle levels' from results.tag"""
         if self._resultstag is not None:
@@ -317,7 +318,7 @@ class Output:
                 return None
 
 
-    def get_stress(self):
+    def get_stress(self) -> np.ndarray | None:
         """Help function for reading 'total stress tensor for periodic
         geometries' from results.tag"""
         if self._resultstag is not None:
@@ -327,7 +328,7 @@ class Output:
                 return None
 
 
-    def get_total_tunneling(self):
+    def get_total_tunneling(self) -> np.ndarray | None:
         """Help function for reading 'total tunneling vector' from
         results.tag"""
         if self._resultstag is not None:
@@ -337,7 +338,7 @@ class Output:
                 return None
 
 
-    def get_total_localdos(self):
+    def get_total_localdos(self) -> np.ndarray | None:
         """Help function for reading 'total projected DOS vector' from
         results.tag"""
         if self._resultstag is not None:
@@ -347,7 +348,7 @@ class Output:
                 return None
 
 
-    def get_local_currents(self):
+    def get_local_currents(self) -> np.ndarray | None:
         """Help function for reading 'total bond currents' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -356,7 +357,7 @@ class Output:
                 return None
 
 
-    def get_total_energy(self):
+    def get_total_energy(self) -> np.ndarray | None:
         """Help function for reading 'total internal energy' from
         results.tag"""
         if self._resultstag is not None:
@@ -366,7 +367,7 @@ class Output:
                 return None
 
 
-    def get_extrapolated0_energy(self):
+    def get_extrapolated0_energy(self) -> np.ndarray | None:
         """Help function for reading 'total internal energy extrapolated to
         0 K' from results.tag"""
         if self._resultstag is not None:
@@ -376,7 +377,7 @@ class Output:
                 return None
 
 
-    def get_forcerelated_energy(self):
+    def get_forcerelated_energy(self) -> np.ndarray | None:
         """Help function for reading 'Energy, which if differentiated gives -
         force' from results.tag"""
         if self._resultstag is not None:
@@ -386,7 +387,7 @@ class Output:
                 return None
 
 
-    def get_internal_efield(self):
+    def get_internal_efield(self) -> np.ndarray | None:
         """Help function for reading 'Internal electric field' from
         results.tag"""
         if self._resultstag is not None:
@@ -396,7 +397,7 @@ class Output:
                 return None
 
 
-    def get_external_efield(self):
+    def get_external_efield(self) -> np.ndarray | None:
         """Help function for reading 'External electric field' from
         results.tag"""
         if self._resultstag is not None:
@@ -406,7 +407,7 @@ class Output:
                 return None
 
 
-    def get_staticPolResponse(self):
+    def get_staticPolResponse(self) -> np.ndarray | None:
         """Help function for reading 'Static electric polarizability from
         linear response/perturbation' from results.tag"""
         if self._resultstag is not None:
@@ -416,7 +417,7 @@ class Output:
                 return None
 
 
-    def get_staticChargeReponse(self):
+    def get_staticChargeReponse(self) -> np.ndarray | None:
         """Help function for reading 'Static gross charge (Mulliken) response
         from linear response/perturbation' from results.tag"""
         if self._resultstag is not None:
@@ -426,7 +427,7 @@ class Output:
                 return None
 
 
-    def get_dEidEfield(self):
+    def get_dEidEfield(self) -> np.ndarray | None:
         """Help function for reading 'Derivatives of ground state single
         particle eigenvalues wrt. k' from results.tag"""
         if self._resultstag is not None:
@@ -436,7 +437,7 @@ class Output:
                 return None
 
 
-    def get_neFermi(self):
+    def get_neFermi(self) -> np.ndarray | None:
         """Help function for reading 'Number of electrons at the Fermi energy'
         from results.tag"""
         if self._resultstag is not None:
@@ -446,7 +447,7 @@ class Output:
                 return None
 
 
-    def get_dEfdE(self):
+    def get_dEfdE(self) -> np.ndarray | None:
         """Help function for reading 'Derivative of the Fermi energy with
         respect to electric field' from results.tag"""
         if self._resultstag is not None:
@@ -456,7 +457,7 @@ class Output:
                 return None
 
 
-    def get_dEidVons(self):
+    def get_dEidVons(self) -> np.ndarray | None:
         """Help function for reading 'Derivatives of ground state single
         particle eigenvalues wrt. onsite potentials' from results.tag"""
         if self._resultstag is not None:
@@ -466,7 +467,7 @@ class Output:
                 return None
 
 
-    def get_dEidV(self):
+    def get_dEidV(self) -> np.ndarray | None:
         """Help function for reading 'Derivatives of ground state single
         particle eigenvalues wrt. potential at an atom' from results.tag"""
         if self._resultstag is not None:
@@ -476,7 +477,7 @@ class Output:
                 return None
 
 
-    def get_dqdV(self):
+    def get_dqdV(self) -> np.ndarray | None:
         """Help function for reading 'Static gross charge (Mulliken) response
         with respect to potential at an atom' from results.tag"""
         if self._resultstag is not None:
@@ -486,7 +487,7 @@ class Output:
                 return None
 
 
-    def get_dqnetdV(self):
+    def get_dqnetdV(self) -> np.ndarray | None:
         """Help function for reading 'Static net charge (onsite) response with
         respect to potential at an atom' from results.tag"""
         if self._resultstag is not None:
@@ -496,7 +497,7 @@ class Output:
                 return None
 
 
-    def get_2e_add_rem_energies(self):
+    def get_2e_add_rem_energies(self) -> np.ndarray | None:
         """Help function for reading 'two-electron addition/removal energies
         in ppRPA formalism' from results.tag"""
         if self._resultstag is not None:
@@ -506,7 +507,7 @@ class Output:
                 return None
 
 
-    def get_atomic_masses(self):
+    def get_atomic_masses(self) -> np.ndarray | None:
         """Help function for reading 'atomic masses' from results.tag"""
         if self._resultstag is not None:
             try:
@@ -515,7 +516,7 @@ class Output:
                 return None
 
 
-    def get_atomic_dipole_moments(self):
+    def get_atomic_dipole_moments(self) -> np.ndarray | None:
         """Help function for reading 'Atomic dipole moments' from
         results.tag"""
         if self._resultstag is not None:
@@ -525,7 +526,7 @@ class Output:
                 return None
 
 
-    def get_dipole_moments(self):
+    def get_dipole_moments(self) -> np.ndarray | None:
         """Help function for reading 'Total dipole moment' from
         results.tag"""
         if self._resultstag is not None:

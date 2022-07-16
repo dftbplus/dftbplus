@@ -7,6 +7,8 @@
 #
 '''Information in CIF-files (only basic informations)'''
 
+from __future__ import annotations
+from typing import TextIO
 import numpy as np
 from dftbplus_ptools.common import openfile
 from dftbplus_ptools.geometry import Geometry
@@ -28,7 +30,7 @@ class Cif:
         cellangles: Angles between the cell vectors in radian.
     '''
 
-    def __init__(self, geometry):
+    def __init__(self, geometry: Geometry) -> None:
         '''Initializes a CIF instance.
 
         Args:
@@ -48,7 +50,7 @@ class Cif:
             self.cellangles[ii] = np.arccos(dot)
 
     @classmethod
-    def fromfile(cls, fobj):
+    def fromfile(cls, fobj: str | TextIO) -> Cif:
         '''Reads crystallographic information from a CIF file.
 
         Args:
@@ -81,11 +83,12 @@ class Cif:
                 indexes[ii] = index
             coords[ii] = np.array(words[1:4], dtype=float)
         latvecs = get_latvecs_fromcif(celllengths, cellangles)
-        geometry = Geometry(specienames, indexes, coords, latvecs=latvecs, relcoords=True)
+        geometry = Geometry(specienames, indexes, coords, latvecs=latvecs,
+                            relcoords=True)
         return cls(geometry)
 
 
-    def tofile(self, fobj):
+    def tofile(self, fobj: str | TextIO) -> None:
         '''Writes a CIF file.
 
         Args:
@@ -108,7 +111,8 @@ class Cif:
                 geo.specienames[geo.indexes[ii]], *geo.relcoords[ii]))
         fp.close()
 
-    def equals(self, other, abstolerance=_ABSTOLERANCE, reltolerance=_RELTOLERANCE):
+    def equals(self, other: Cif, abstolerance: float = _ABSTOLERANCE,
+               reltolerance: float = _RELTOLERANCE) -> bool:
         '''Checks whether object equals to an other one.
 
         Args:

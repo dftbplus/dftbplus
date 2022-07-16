@@ -7,6 +7,8 @@
 #
 '''Representation of the NXY-format'''
 
+from __future__ import annotations
+from typing import TextIO
 import numpy as np
 
 __all__ = ['Nxy']
@@ -23,7 +25,7 @@ class Nxy:
         band_struc: Object which contains band structure informations.
     '''
 
-    def __init__(self, band_struc):
+    def __init__(self, band_struc: np.ndarray) -> None:
         '''Creates NXY-instance.
 
         Args:
@@ -33,7 +35,7 @@ class Nxy:
 
 
     @classmethod
-    def fromfile(cls, fobj):
+    def fromfile(cls, fobj: str | TextIO) -> Nxy:
         '''Creates an XYZ instance from a file.
 
         Args:
@@ -45,7 +47,7 @@ class Nxy:
         return cls(band_struc)
 
 
-    def tofile(self, fobj):
+    def tofile(self, fobj: str | TextIO) -> None:
         '''Writes an NXY file.
 
         Args:
@@ -54,7 +56,8 @@ class Nxy:
         np.savetxt(self.band_struc, fobj)
 
 
-    def equals(self, other, abstolerance=_ABSTOLERANCE, reltolerance=_RELTOLERANCE):
+    def equals(self, other: Nxy, abstolerance: float = _ABSTOLERANCE,
+               reltolerance: float = _RELTOLERANCE) -> bool:
         '''Checks whether object equals to an other one.
 
         Args:

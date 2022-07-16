@@ -8,6 +8,7 @@
 
 '''Representation of a geometry'''
 
+from __future__ import annotations
 import numpy as np
 import numpy.linalg as la
 
@@ -30,8 +31,10 @@ class Geometry:
         relcoords: Relative lattice coordinates (None if non-periodic).
     """
 
-    def __init__(self, specienames, indexes, coords, latvecs=None, origin=None,
-                 relcoords=False):
+    def __init__(self, specienames: list, indexes: np.ndarray,
+                 coords: np.ndarray, latvecs: np.ndarray | None = None,
+                 origin: np.ndarray | None = None,
+                 relcoords: bool = False) -> None:
         """Initializes a geometry object.
 
         Args:
@@ -69,7 +72,8 @@ class Geometry:
             self.relcoords = None
 
 
-    def setlattice(self, latvecs, origin=None):
+    def setlattice(self, latvecs: np.ndarray,
+                   origin: np.ndarray | None = None) -> None:
         """Makes geometry periodic or changes supercell vectors.
 
         Args:
@@ -86,7 +90,7 @@ class Geometry:
         self.periodic = True
 
 
-    def equals(self, other, tolerance):
+    def equals(self, other: Geometry, tolerance: float) -> bool:
         '''Checks whether object equals to an other one.
 
         Args:
@@ -112,7 +116,8 @@ class Geometry:
         return True
 
 
-def get_latvecs_fromcif(celllengths, cellangles):
+def get_latvecs_fromcif(celllengths: list | np.ndarray,
+                        cellangles: list | np.ndarray) -> np.ndarray:
     '''Calculate cartesian lattice vectors from crystallographic CIF information
 
     Args:

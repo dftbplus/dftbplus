@@ -8,9 +8,12 @@
 
 '''Various commonly used items of the dptools package.'''
 
+from __future__ import annotations
+from typing import TextIO
 import gzip
 
-def openfile(fobj, mode=None):
+
+def openfile(fobj: str | TextIO, mode: str | None = None) -> TextIO:
     """Opens a file or a file like object.
 
     Args:
@@ -33,7 +36,6 @@ def openfile(fobj, mode=None):
     return fp
 
 
-
 class OpenFile:
     '''Represents an open file.
 
@@ -41,7 +43,7 @@ class OpenFile:
     (file like object) or open a file itself and close it at exit.
     '''
 
-    def __init__(self, fobj, mode=None):
+    def __init__(self, fobj, mode: str | None = None) -> None:
         '''Initialises an open file.
 
         Args:
@@ -63,7 +65,7 @@ class OpenFile:
         self._fp = None
 
 
-    def __enter__(self):
+    def __enter__(self) -> TextIO:
         if self._open is not None:
             self._fp = self._open(self._fobj, self._mode)
         else:
@@ -71,6 +73,6 @@ class OpenFile:
         return self._fp
 
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         if self._open is not None:
             self._fp.close()

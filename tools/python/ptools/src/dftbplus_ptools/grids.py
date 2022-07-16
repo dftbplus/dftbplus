@@ -7,6 +7,7 @@
 #
 '''General grid and grid data representations'''
 
+from __future__ import annotations
 import numpy as np
 import numpy.linalg as la
 
@@ -41,7 +42,8 @@ class Grid:
         dimension: Dimension of the grid.
     """
 
-    def __init__(self, origin, basis, ranges):
+    def __init__(self, origin: list | np.ndarray,
+                 basis: list | np.ndarray, ranges: list | np.ndarray) -> None:
         self.origin = np.array(origin, dtype=float)
         self.basis = np.array(basis, dtype=float)
         self.ranges = np.array(ranges, dtype=int)
@@ -53,7 +55,7 @@ class Grid:
         self.dimension = len(self.origin)
 
 
-    def set_origin(self, origin):
+    def set_origin(self, origin: list | np.ndarray) -> None:
         """Sets a new origin for the grid.
 
         Args:
@@ -62,7 +64,7 @@ class Grid:
         self.origin = np.array(origin, dtype=float)
 
 
-    def gridcoord_to_cartesian(self, gridcoords):
+    def gridcoord_to_cartesian(self, gridcoords: np.ndarray) -> np.ndarray:
         """Returns cartesian coordinates for given grid coordinates.
 
         Args:
@@ -76,7 +78,7 @@ class Grid:
         return coords
 
 
-    def cartesian_to_gridcoord(self, cartcoords):
+    def cartesian_to_gridcoord(self, cartcoords: np.ndarray) -> np.ndarray:
         """Returns grid coordinates for given Cartesian coordinates.
 
         Args:
@@ -89,7 +91,7 @@ class Grid:
         return gridcoords
 
 
-    def get_corners(self, coordtype):
+    def get_corners(self, coordtype: str) -> np.ndarray:
         """Returns the corners of the grid.
 
         Args:
@@ -119,7 +121,7 @@ class Grid:
             return self.gridcoord_to_cartesian(corner_gridcoords)
 
 
-    def get_gridpoints(self, coordtype):
+    def get_gridpoints(self, coordtype: str) -> np.ndarray:
         """Returns all grid points of the grid.
 
         Args:
@@ -139,7 +141,7 @@ class Grid:
             return self.gridcoord_to_cartesian(gridcoords)
 
 
-    def get_subgrid_ranges(self, subgrid):
+    def get_subgrid_ranges(self, subgrid: Grid) -> np.ndarray:
         """Returns the grid coordinate ranges for a subgrid.
 
         Args:
@@ -169,7 +171,7 @@ class Grid:
         return np.transpose([lower_bounds, upper_bounds])
 
 
-    def get_intersection_grid(self, other):
+    def get_intersection_grid(self, other: Grid) -> Grid:
         """Returns a grid which represents the intersection with an other grid.
 
         Args:
@@ -194,7 +196,7 @@ class Grid:
         return intersection_grid
 
 
-    def has_subgrid(self, subgrid):
+    def has_subgrid(self, subgrid: Grid) -> bool:
         """Checks whether a grid is contained as subgrid.
 
         Args:
@@ -210,7 +212,7 @@ class Grid:
         return True
 
 
-    def has_gridcoord(self, gridcoord):
+    def has_gridcoord(self, gridcoord: np.ndarray) -> bool:
         """Checks whether a given position is within the boundaries of the grid.
 
         Args:
@@ -235,12 +237,12 @@ class GridData:
         data: Volumetric data.
     """
 
-    def __init__(self, grid, data):
+    def __init__(self, grid: Grid, data: np.ndarray) -> None:
         self.grid = grid
         self.data = data
 
 
-    def set_grid_origin(self, origin):
+    def set_grid_origin(self, origin: np.ndarray) -> None:
         """Sets origin of the grid.
 
         Args:
@@ -249,7 +251,7 @@ class GridData:
         self.grid.set_origin(origin)
 
 
-    def get_subgrid_dataview(self, subgrid):
+    def get_subgrid_dataview(self, subgrid: Grid) -> np.ndarray:
         """Returns a view to the data array for a given subgrid.
 
         Args:
@@ -264,7 +266,7 @@ class GridData:
         return self.data[tuple(sliceobj)]
 
 
-    def get_value(self, gridcoords):
+    def get_value(self, gridcoords: np.ndarray) -> np.ndarray:
         """Returns the value for a given (exact) grid position.
 
         Args:
@@ -279,7 +281,8 @@ class GridData:
         return self.data[datainds]
 
 
-    def get_interpolated_value(self, coords, coordtype):
+    def get_interpolated_value(self, coords: np.ndarray,
+                               coordtype: str) -> np.ndarray:
         """Returns an interpolated value for an arbitrary position.
 
         Args:
@@ -299,7 +302,7 @@ class GridData:
         return self.get_interpolated_value_gc(gridcoords)
 
 
-    def get_interpolated_value_gc(self, gridcoords):
+    def get_interpolated_value_gc(self, gridcoords: np.ndarray) -> np.ndarray:
         """Returns an interpolated value for an arbitrary grid position.
 
         In the current implementation this is the crudest possible

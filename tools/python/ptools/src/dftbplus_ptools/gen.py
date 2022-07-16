@@ -8,9 +8,9 @@
 
 """Representation of the GEN format."""
 
-import os
+from __future__ import annotations
 from io import StringIO
-
+from typing import TextIO
 import hsd
 import numpy as np
 
@@ -30,7 +30,7 @@ class Gen:
         geometry: Geometry object with atom positions and lattice vectors.
     """
 
-    def __init__(self, geometry, fractional=False):
+    def __init__(self, geometry: Geometry, fractional: bool = False) -> None:
         """Initializes the instance.
 
         Args:
@@ -42,7 +42,7 @@ class Gen:
 
 
     @classmethod
-    def fromfile(cls, fobj):
+    def fromfile(cls, fobj: str | TextIO) -> Gen:
         """Creates a Gen instance from a file.
 
         Args:
@@ -93,7 +93,7 @@ class Gen:
 
 
     @classmethod
-    def fromhsd(cls, filename):
+    def fromhsd(cls, filename: str) -> Gen:
         """Creates a Gen instance from a hsd dictionary.
 
         Args:
@@ -174,7 +174,7 @@ class Gen:
             return cls.fromfile(fp)
 
 
-    def tofile(self, fobj):
+    def tofile(self, fobj: str | TextIO) -> None:
         """Writes a GEN file.
 
         Args:
@@ -210,7 +210,7 @@ class Gen:
             fp.writelines(lines)
 
 
-    def equals(self, other, tolerance=_TOLERANCE):
+    def equals(self, other: Gen, tolerance: float = _TOLERANCE) -> bool:
         """Checks whether object equals to an other one.
 
         Args:
@@ -226,7 +226,7 @@ class Gen:
 
 
     @staticmethod
-    def unit_conversion(vector, unit):
+    def unit_conversion(vector: np.ndarray, unit: str) -> np.ndarray:
         """converts vectors to Ångström
 
         Args:
@@ -260,7 +260,8 @@ class Gen:
 
         return converted
 
-def _round_to_zero(array, tolerance):
+
+def _round_to_zero(array: np.ndarray, tolerance: float | None) -> np.ndarray:
     """Rounds elements of an array to zero below given tolerance."""
     if tolerance is None:
         return array

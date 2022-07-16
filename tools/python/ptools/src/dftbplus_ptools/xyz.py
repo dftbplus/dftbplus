@@ -5,9 +5,11 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+
 """Representation of the XYZ-format"""
 
-import os
+from __future__ import annotations
+from typing import TextIO
 from io import StringIO
 
 import hsd
@@ -31,7 +33,7 @@ class Xyz:
         comment: Content of the comment line in the XYZ-file.
     """
 
-    def __init__(self, geometry, comment=""):
+    def __init__(self, geometry: Geometry, comment: str = "") -> None:
         """Creates XYZ-instance.
 
         Args:
@@ -43,7 +45,7 @@ class Xyz:
 
 
     @classmethod
-    def fromfile(cls, fobj):
+    def fromfile(cls, fobj: str | TextIO) -> Xyz:
         """Creates an XYZ instance from a file.
 
         Args:
@@ -76,7 +78,7 @@ class Xyz:
         return cls(geometry, comment)
 
     @classmethod
-    def fromhsd(cls, filename):
+    def fromhsd(cls, filename: str) -> Xyz:
         """Creates an XYZ instance from a hsd dictionary.
 
         Args:
@@ -92,7 +94,7 @@ class Xyz:
         fp = StringIO(filestring)
         return cls.fromfile(fp)
 
-    def tofile(self, fobj):
+    def tofile(self, fobj: str | TextIO) -> None:
         """Writes an XYZ file.
 
         Args:
@@ -107,7 +109,8 @@ class Xyz:
                 geo.specienames[geo.indexes[ii]], *geo.coords[ii]))
         fp.close()
 
-    def equals(self, other, tolerance=_TOLERANCE, check_comment=False):
+    def equals(self, other: Xyz, tolerance: float = _TOLERANCE,
+               check_comment: bool = False) -> bool:
         """Checks whether object equals to an other one.
 
         Args:

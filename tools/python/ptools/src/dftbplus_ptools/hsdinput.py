@@ -9,17 +9,21 @@
 Module for interaction with the hsd input file.
 """
 
+from __future__ import annotations
 import re
 import os
 import hsd
 import numpy as np
 
+import dftbplus_ptools.geometry
+
 
 class Hsdinput:
     """Class for changing the hsd input"""
 
-    def __init__(self, filename="dftb_in.hsd", dictionary=None,
-                 hamiltonian=None):
+    def __init__(self, filename: str = "dftb_in.hsd",
+                 dictionary: dict | None = None,
+                 hamiltonian: str | None = None) -> None:
         """Initialises the changehsd class
 
         Args:
@@ -38,11 +42,11 @@ class Hsdinput:
             self._hamiltonian = hamiltonian.lower()
 
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         return self._dictionary[key]
 
 
-    def _read_hsd(self):
+    def _read_hsd(self) -> dict:
         """Reads dictionary from file
 
         Returns:
@@ -55,7 +59,7 @@ class Hsdinput:
             return {}
 
 
-    def _read_hamiltonian(self):
+    def _read_hamiltonian(self) -> str | None:
         """reads Hamiltonian from hsd dict
 
         Returns:
@@ -71,7 +75,7 @@ class Hsdinput:
         return hamiltonian[0].lower()
 
 
-    def get_hamiltonian(self):
+    def get_hamiltonian(self) -> str:
         """help function for using self._hamiltonian"""
 
         if self._hamiltonian is None:
@@ -86,7 +90,7 @@ class Hsdinput:
                              "Hamiltonian!")
 
 
-    def set_filename(self, filename):
+    def set_filename(self, filename: str) -> None:
         """Sets self._filename
 
         Args:
@@ -95,7 +99,7 @@ class Hsdinput:
         self._filename = filename
 
 
-    def set_hsd(self, dictionary):
+    def set_hsd(self, dictionary: dict) -> None:
         """Sets self._dictionary
 
         Args:
@@ -104,7 +108,7 @@ class Hsdinput:
         self._dictionary = self.to_lowercase(dictionary)
 
 
-    def write_hsd(self):
+    def write_hsd(self) -> None:
         """Writes dictionary to file
 
         Returns:
@@ -113,7 +117,7 @@ class Hsdinput:
         hsd.dump(self._dictionary, self._filename, use_hsd_attribs=True)
 
 
-    def get_hsd(self):
+    def get_hsd(self) -> dict:
         """Function for returning self._dictionary in lowercase
 
         Returns:
@@ -123,7 +127,7 @@ class Hsdinput:
         return self.to_lowercase(self._dictionary)
 
 
-    def write_resultstag(self, value=True):
+    def write_resultstag(self, value: bool = True) -> None:
         """Function for setting 'WriteResultsTag'
 
         Args:
@@ -133,7 +137,7 @@ class Hsdinput:
         self._dictionary['options']['writeresultstag'] = value
 
 
-    def calc_forces(self, value=True):
+    def calc_forces(self, value: bool = True) -> None:
         """Function for setting 'CalculateForces'
 
         Args:
@@ -143,7 +147,7 @@ class Hsdinput:
         self._dictionary['analysis']['calculateforces'] = value
 
 
-    def calc_charges(self, value=True):
+    def calc_charges(self, value: bool = True) -> None:
         """Function for setting 'MullikenAnalysis'
 
         Args:
@@ -153,7 +157,8 @@ class Hsdinput:
         self._dictionary['analysis']['mullikenanalysis'] = value
 
 
-    def set_driver(self, driver, drivermaxforce=None, drivermaxsteps=None):
+    def set_driver(self, driver: str, drivermaxforce: float = None,
+                   drivermaxsteps: int = None) -> None:
         """Function for setting 'Driver', 'MaxForceComponent' and 'MaxSteps'
 
         Args:
@@ -172,7 +177,7 @@ class Hsdinput:
                 drivermaxsteps
 
 
-    def set_scc(self, value=True):
+    def set_scc(self, value: bool = True) -> None:
         """Function for setting 'self-consistent calculations'
 
         Args:
@@ -182,7 +187,7 @@ class Hsdinput:
         self._dictionary['hamiltonian'][self._hamiltonian]['scc'] = value
 
 
-    def set_scctol(self, value=1E-005):
+    def set_scctol(self, value: float = 1E-005) -> None:
         """Function for setting 'convergence criterion of SCC cycles'
 
         Args:
@@ -193,7 +198,7 @@ class Hsdinput:
             = value
 
 
-    def set_skdir(self, skdir):
+    def set_skdir(self, skdir: str | dict) -> None:
         """Function for setting 'Slater-Koster files'
 
         Args:
@@ -237,7 +242,7 @@ class Hsdinput:
                             ' instead of "dict" or "str"')
 
 
-    def set_kpts(self, kpts):
+    def set_kpts(self, kpts: list | tuple) -> None:
         """Function for setting 'K-points'
 
         Args:
@@ -294,7 +299,8 @@ class Hsdinput:
             raise ValueError('Illegal K-Points definition: ' + str(kpts))
 
 
-    def set_filling(self, filling, order=None, temperature=None):
+    def set_filling(self, filling: str, order: int | None = None,
+                    temperature: float | None = None) -> None:
         """Function for setting 'filling methode', 'filling order' and
         'temperature'
 
@@ -328,7 +334,8 @@ class Hsdinput:
             raise ValueError(f'Unknown filling methode "{filling}"')
 
 
-    def set_maxang(self, maxangs=None, try_reading=None):
+    def set_maxang(self, maxangs: dict | None = None,
+                   try_reading: list | None = None) -> None:
         """Function for setting 'max. angular momenta'
 
         Args:
@@ -408,7 +415,7 @@ class Hsdinput:
             ['maxangularmomentum'] = maxangs
 
 
-    def ignore_unprocessed_nodes(self, value=True):
+    def ignore_unprocessed_nodes(self, value: bool = True) -> None:
         """Function for setting 'IgnoreUnprocessedNodes'
 
         Args:
@@ -418,7 +425,9 @@ class Hsdinput:
         self._dictionary['parseroptions']['ignoreunprocessednodes'] = value
 
 
-    def set_geometry(self, geometry, xyz=False, gen=False, vasp=False):
+    def set_geometry(self, geometry: dftbplus_ptools.geometry.Geometry | str,
+                     xyz: bool = False, gen: bool = False,
+                     vasp: bool = False) -> None:
         """Function for setting 'geometry'
 
         Args:
@@ -481,11 +490,20 @@ class Hsdinput:
             self._dictionary['geometry'] = geodict
 
 
-    def get_basic_input(self, skdir='./', driver=None, drivermaxforce=None,
-                        drivermaxsteps=None, scc=False, scctol=None,
-                        maxang=None, try_reading=None, kpts=None,
-                        temperature=None, filling=None, filling_order=None,
-                        resultstag=True, unprocessed=True, forces=True):
+    def get_basic_input(self, skdir: str | dict = './',
+                        driver: str | None = None,
+                        drivermaxforce: float | None = None,
+                        drivermaxsteps: int | None = None,
+                        scc: bool = False, scctol: float | None = None,
+                        maxang: dict | None = None,
+                        try_reading: list | None = None,
+                        kpts: list | tuple | None = None,
+                        temperature: float | None = None,
+                        filling: str | None = None,
+                        filling_order: int | None = None,
+                        resultstag: bool = True,
+                        unprocessed: bool = True,
+                        forces: bool = True) -> None:
         """Generates a suitable Python dictionary for a calculation with the
         hamiltonian set to DFTB.
 
@@ -529,7 +547,8 @@ class Hsdinput:
         self.calc_forces(forces)
 
 
-    def _set_keyword(self, keyword1, keyword2=None, keyword3=None):
+    def _set_keyword(self, keyword1: str, keyword2: str | None = None,
+                     keyword3: str | None = None) -> None:
         """Help function for setting new Keywords in self._dictionary
 
         Args:
@@ -554,7 +573,7 @@ class Hsdinput:
 
 
 
-    def to_lowercase(self, dictionary):
+    def to_lowercase(self, dictionary: dict) -> dict:
         """Helpfunction for converting keys of a (nested) dictionary to
         lowercase and to make the types consistent with hsd.
 
@@ -593,7 +612,7 @@ class Hsdinput:
 
 
     @staticmethod
-    def read_max_angular_momentum(path):
+    def read_max_angular_momentum(path: str) -> int | None:
         """Read maximum angular momentum from .skf file.
            See dftb.org/fileadmin/DFTB/public/misc/slakoformat.pdf
            for a detailed description of the Slater-Koster file format.
