@@ -8,7 +8,7 @@
 #
 '''Convolves band.out-like files into DOS/PDOS via broadening functions'''
 
-from __future__ import print_function
+from __future__ import print_function, annotations
 import argparse
 import math
 import numpy as np
@@ -52,7 +52,7 @@ DEFAULT_WIDTHS = {
 }
 
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver for dp_dos.
 
     Args:
@@ -64,7 +64,8 @@ def main(cmdlineargs=None):
     dp_dos(args, broadening, sigma, sigmarange, infile, outfile)
 
 
-def parse_arguments(cmdlineargs=None):
+def parse_arguments(cmdlineargs: list | None = None) -> tuple[
+        argparse.Namespace, str, float, float, str, str]:
     '''Parses command line arguments.
 
     Args:
@@ -140,7 +141,8 @@ def parse_arguments(cmdlineargs=None):
     return args, broadening, sigma, sigmarange, infile, outfile
 
 
-def dp_dos(args, broadening, sigma, sigmarange, infile, outfile):
+def dp_dos(args: argparse.Namespace, broadening: str, sigma: float,
+           sigmarange: float, infile: str, outfile: str) -> None:
     '''convolves the eigenlevels with a broadening function to produce nice
        DOS/PDOS curves.
 

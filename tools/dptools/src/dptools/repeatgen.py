@@ -8,6 +8,7 @@
 
 '''Repeats a geometry along supercell vectors'''
 
+from __future__ import annotations
 import sys
 import argparse
 import numpy as np
@@ -22,7 +23,7 @@ output
 '''
 
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Repeatgen main driver.
 
     Args:
@@ -33,7 +34,7 @@ def main(cmdlineargs=None):
     repeatgen(args)
 
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> argparse.Namespace:
     '''Parses command line arguments.
 
     Args:
@@ -71,7 +72,7 @@ def parse_cmdline_args(cmdlineargs=None):
     return args
 
 
-def repeatgen(args):
+def repeatgen(args: argparse.Namespace) -> None:
     '''Repeats geometry from gen files.
 
     Args:
@@ -111,7 +112,8 @@ def repeatgen(args):
     newgen.tofile(outfile)
 
 
-def _repeatgeo(geo, latvecs, repeats):
+def _repeatgeo(geo: Geometry, latvecs: np.ndarray, repeats: list[
+        int, int, int]) -> Geometry:
     '''Repeats geometry along given lattice vectors'''
     natoms = geo.natom
     coords = geo.coords
@@ -138,7 +140,8 @@ def _repeatgeo(geo, latvecs, repeats):
                       origin=geo.origin)
     return newgeo
 
-def _repeatgeo2(geo, latvecs, repeats):
+def _repeatgeo2(geo: Geometry, latvecs: np.ndarray, repeats: list[
+        int, int, int]) -> Geometry:
     '''Repeats geometry along given lattice vectors for phonon calculations'''
     natoms = geo.natom
     coords = geo.coords

@@ -8,6 +8,7 @@
 #
 '''Converts band.out to plottable data.'''
 
+from __future__ import annotations
 import argparse
 import numpy as np
 from dftbplus_ptools.bandout import BandOut
@@ -22,7 +23,7 @@ the output files OUTPREFIX_s1.dat, OUTPREFIX_s2.dat, etc. will be created for
 each spin channel.
 '''
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver for dp_bands.
 
     Args:
@@ -33,7 +34,7 @@ def main(cmdlineargs=None):
     dp_bands(args)
 
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> argparse.Namespace:
     '''Parses command line arguments.
 
     Args:
@@ -57,7 +58,7 @@ def parse_cmdline_args(cmdlineargs=None):
     return args
 
 
-def dp_bands(args):
+def dp_bands(args: argparse.Namespace) -> None:
     '''Converts band structure information of DFTB+ output to NXY-format.
 
     Args:

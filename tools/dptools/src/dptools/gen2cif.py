@@ -8,6 +8,7 @@
 #
 '''Converts DFTB+ gen format to CIF.'''
 
+from __future__ import annotations
 import sys
 import argparse
 import numpy as np
@@ -24,7 +25,7 @@ contains a non-periodic geometry, the lattice in the CIF format is set to
 simple cubic.
 '''
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver routine of gen2cif.
 
     Args:
@@ -34,7 +35,7 @@ def main(cmdlineargs=None):
     args = parse_cmdline_args(cmdlineargs)
     gen2cif(args)
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> argparse.Namespace:
     '''Parses command line arguments.
 
     Args:
@@ -56,7 +57,7 @@ def parse_cmdline_args(cmdlineargs=None):
 
     return args
 
-def gen2cif(args):
+def gen2cif(args: argparse.Namespace) -> None:
     '''Converts the given INPUT file in DFTB+ GEN format to CIF format.
 
     Args:

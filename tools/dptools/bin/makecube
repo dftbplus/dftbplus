@@ -20,7 +20,7 @@ calculation to a Gaussian Cube format.
 """
 
 
-def main():
+def main() -> None:
     '''Main driver routine for makecube.'''
 
     parser = argparse.ArgumentParser(description=USAGE)

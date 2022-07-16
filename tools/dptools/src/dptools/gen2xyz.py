@@ -8,6 +8,7 @@
 #
 '''Convert DFTB+ gen format to XYZ.'''
 
+from __future__ import annotations
 import sys
 import argparse
 from dftbplus_ptools.gen import Gen
@@ -21,7 +22,7 @@ otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
 file in a separate file.
 '''
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver routine for gen2xyz.
 
     Args:
@@ -31,7 +32,7 @@ def main(cmdlineargs=None):
     args = parse_cmdline_args(cmdlineargs)
     gen2xyz(args)
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> argparse.Namespace:
     '''Parses command line arguments.
 
     Args:
@@ -55,7 +56,7 @@ def parse_cmdline_args(cmdlineargs=None):
 
     return args
 
-def gen2xyz(args):
+def gen2xyz(args: argparse.Namespace) -> None:
     '''Converts the given INPUT file in DFTB+ GEN format to XYZ format.
 
     Args:

@@ -8,6 +8,7 @@
 
 '''Applies strain to a DFTB+ gen file.'''
 
+from __future__ import annotations
 import sys
 import argparse
 import numpy as np
@@ -28,7 +29,7 @@ LABELS = {'xx': (0, ), 'yy': (1, ), 'zz': (2, ), 'yz': (3, ), 'xz': (4, ),
           'xy': (5, ), 'i': (0, 1, 2)}
 
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver for straingen.
 
     Args:
@@ -39,7 +40,8 @@ def main(cmdlineargs=None):
     straingen(args, strain)
 
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> tuple[
+        argparse.Namespace, float]:
     '''Parses command line arguments.
 
     Args:
@@ -73,7 +75,7 @@ def parse_cmdline_args(cmdlineargs=None):
     return args, strain
 
 
-def straingen(args, strain):
+def straingen(args: argparse.Namespace, strain: float) -> None:
     '''Strains a geometry from a gen file.
 
     Args:

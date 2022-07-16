@@ -8,6 +8,7 @@
 #
 '''Converts XYZ to DFTB+ gen format'''
 
+from __future__ import annotations
 import sys
 import argparse
 import numpy as np
@@ -23,7 +24,7 @@ vectors to create a periodic structure in the GEN file.
 '''
 
 
-def main(cmdlineargs=None):
+def main(cmdlineargs: list | None = None) -> None:
     '''Main driver routine of xyz2gen.
 
     Args:
@@ -33,7 +34,7 @@ def main(cmdlineargs=None):
     args = parse_cmdline_args(cmdlineargs)
     xyz2gen(args)
 
-def parse_cmdline_args(cmdlineargs=None):
+def parse_cmdline_args(cmdlineargs: list | None = None) -> argparse.Namespace:
     '''Parses command line arguments.
 
     Args:
@@ -57,7 +58,7 @@ def parse_cmdline_args(cmdlineargs=None):
 
     return args
 
-def xyz2gen(args):
+def xyz2gen(args: argparse.Namespace) -> None:
     '''Converts the given INPUT file in XYZ format to DFTB+ GEN format.
 
     Args:
