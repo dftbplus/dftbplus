@@ -11,6 +11,7 @@ and Python via the foreign function C-library ctypes.
 '''
 
 
+from __future__ import annotations
 import os
 import ctypes
 import numpy as np
@@ -32,8 +33,9 @@ class DftbPlus:
     '''
 
 
-    def __init__(self, libpath=None, hsdpath='./dftb_in.hsd',
-                 logfile=None):
+    def __init__(self, libpath: str | None = None,
+                 hsdpath: str = './dftb_in.hsd',
+                 logfile: str | None = None) -> None:
         '''Initializes a ctypes DFTB+ calculator object.
 
         Args:
@@ -98,7 +100,8 @@ class DftbPlus:
         self._natoms = self._dftbpluslib.dftbp_get_nr_atoms(self._dftb_handler)
 
 
-    def set_geometry(self, coords, latvecs=None):
+    def set_geometry(self, coords: np.ndarray,
+                     latvecs: np.ndarray | None = None) -> None:
         '''Sets up the desired geometry.
 
         Args:
@@ -119,7 +122,8 @@ class DftbPlus:
             self._dftbpluslib.dftbp_set_coords(self._dftb_handler, coords)
 
 
-    def set_external_potential(self, extpot, extpotgrad=None):
+    def set_external_potential(self, extpot: np.ndarray,
+                               extpotgrad: np.ndarray | None = None) -> None:
         '''Sets up an external potential.
 
         Args:
@@ -140,7 +144,8 @@ class DftbPlus:
             self._dftb_handler, extpot, extpotgrad)
 
 
-    def register_ext_pot_generator(self, refobj, calc_extpot, calc_extpotgrad):
+    def register_ext_pot_generator(self, refobj, calc_extpot,
+                                   calc_extpotgrad) -> None:
         '''Registers callback functions for population dependent external
            potential calculations.
 
@@ -171,7 +176,7 @@ class DftbPlus:
             self._calc_extpot_c, self._calc_extpotgrad_c)
 
 
-    def _calc_extpot_callback(self, refobj, dqatom, extpotatom):
+    def _calc_extpot_callback(self, refobj, dqatom, extpotatom) -> None:
         '''Callback function wrapper to hide the necessary conversions of low
            level types into numpy arrays.
 
@@ -196,7 +201,8 @@ class DftbPlus:
         self._calc_extpot_usr(refobj, dqatom_array, extpot_array)
 
 
-    def _calc_extpotgrad_callback(self, refobj, dqatom, extpotatomgrad):
+    def _calc_extpotgrad_callback(self, refobj, dqatom,
+                                  extpotatomgrad) -> None:
         '''Callback function wrapper to hide the necessary conversions of low
            level types into numpy arrays.
 
@@ -222,7 +228,7 @@ class DftbPlus:
         self._calc_extpotgrad_usr(refobj, dqatom_array, extpotgrad_array)
 
 
-    def get_nr_atoms(self):
+    def get_nr_atoms(self) -> int:
         '''Queries the number of atoms.
 
         Returns:
@@ -234,7 +240,7 @@ class DftbPlus:
         return self._natoms
 
 
-    def get_energy(self):
+    def get_energy(self) -> float:
         '''Performs the energy (Mermin free) calculation and queries the energy
            of the current geometry.
 
@@ -251,7 +257,7 @@ class DftbPlus:
         return energy[0]
 
 
-    def get_gradients(self):
+    def get_gradients(self) -> np.ndarray:
         '''Performs the calculation of the atomic gradients and queries the
            gradients of the current geometry.
 
@@ -269,7 +275,7 @@ class DftbPlus:
         return gradients
 
 
-    def get_gross_charges(self):
+    def get_gross_charges(self) -> np.ndarray:
         '''Queries the atomic Gross charges.
 
            Until state commit: 7c13358d (base: 19.1) of DFTB+:
@@ -296,7 +302,7 @@ class DftbPlus:
         return grosschg
 
 
-    def get_cm5_charges(self):
+    def get_cm5_charges(self) -> np.ndarray:
         '''Queries the atomic CM5 charges.
 
            Sign convention: Electron has negative charge, so negative values
@@ -315,13 +321,13 @@ class DftbPlus:
         return charges
 
 
-    def close(self):
+    def close(self) -> None:
         '''Finalizes the DFTB+ calculator.'''
 
         self._dftbpluslib.dftbp_final(self._dftb_handler)
 
 
-    def _setup_interface(self):
+    def _setup_interface(self) -> None:
         '''Bundle registrations of provided routines. Each time a wrap function
            is called to specify the argument and result types.
         '''
@@ -381,7 +387,7 @@ class DftbPlus:
         self._wrap('dftbp_final', None, [ctypes.POINTER(ctypes.c_void_p)])
 
 
-    def _wrap(self, funcname, restype, argtypes):
+    def _wrap(self, funcname: str, restype, argtypes) -> None:
         '''Wrap frequently used ctypes functions.
 
         Args:
