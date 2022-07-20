@@ -11,7 +11,9 @@ orbitals and charge distributions should be plotted for which spatial
 region. Since the information about the shape of the basis functions
 is usually not contained in the Slater-Koster files, the coefficients
 and exponents for the Slater type orbitals must be entered by the user
-as part of the input file.
+as part of the input file. Alternatively the tabulated radial wavefunction
+for different ranges and its second derivative can be entered. In this
+case the radial wavefunctions will be calculated via interpolation.
 
 The \waveplot{} tool offers the following plotting capabilities:
 \begin{itemize}
@@ -72,7 +74,8 @@ The following properties can be specified:
 
 \begin{ptable}
   \kw{PlottedRegion} &p|m&  & - &\pref{sec:waveplot.PlottedRegion}\\
-  \kw{NrOfPoints} & 3i & & - &  \\
+  \kw{TotGridPoints} & 3i & & - &  \\
+  \kw{SpGridPoints} & 3i & & - &  \\
   \kw{PlottedKPoints} & i+|m & \textrm{periodic system} & - & \\
   \kw{PlottedLevels} & i+|m &  & - & \\
   \kw{PlottedSpins} & i+|m & & - &  \\
@@ -85,16 +88,18 @@ The following properties can be specified:
   \kw{ImagComponent} & l & \textrm{complex wavefunction} & No & \\
   \kw{FoldAtomsToUnitCell} & l & \textrm{periodic system} & No & \\
   \kw{FillBoxWithAtoms} & l & & No & \\
-  \kw{NrOfCachedGrids} & i & & -1 &  \\
   \kw{Verbose} & l & & No &  \\
   \kw{RepeatBox} & 3i & & \{1 1 1\} & \\
   \kw{ShiftGrid} & l & & Yes & \\
+  \kw{RadialWFTabulation} & s & & explicit & \\
+  \kw{GridInterpolation} & s & & linear & \\
+  \kw{ParallelRegionNum} & i & & number of threads & \\
   \hline
 \end{ptable}
 \begin{description}
 \item[\is{PlottedRegion}] Regulates the region which should be
   plotted. See p.~\pref{sec:waveplot.PlottedRegion}.
-\item[\is{NrOfPoints}] Specifies the resolution of the equidistant grid on
+\item[\is{TotGridPoints}] Specifies the resolution of the equidistant grid on
   which the various quantities should be calculated. The three
   integers represent the number of points along the three vectors of
   the parallelepiped specifying the plotted region. The number of all
@@ -102,8 +107,12 @@ The following properties can be specified:
 
 Example:
 \begin{verbatim}
-NrOfPoints = { 50 50 50 }     # 125 000 grid points
+TotGridPoints = { 50 50 50 }     # 125 000 grid points
 \end{verbatim}
+
+\item[\is{SpGridPoints}] Same functionality as "TotGridPoints". Specifies the
+  resolution of the equidistant grid on which the Slater type orbitals are
+  tabulated before they get mapped onto the total grid.
 
 \item[\is{PlottedKPoints}] The list of integers specified here represent the k-points, at which the
   molecular orbitals should be plotted. The first k-point in the original \dftbp{} calculation is
@@ -175,17 +184,6 @@ PlottedSpins =  1 2      # Both spin-up and spin-down plotted
   periodic images of the original atoms, which falls in the plotted
   region or on its borders.  It sets \is{FoldAtomsToUnitCell} to Yes.
 
-\item[\is{NrOfCachedGrids}] Specifies how many grids should be cached
-  at the same time. The value \is{-1} stands for as many as necessary
-  to be as fast as possible. Since the plotted grids could eventually
-  become quite big, you should set it to some positive non-zero value
-  if you experience memory problems.
-
-Example:
-\begin{verbatim}
-NrOfCachedGrids = 5     # Maximal 5 cached grids
-\end{verbatim}
-
 \item[\is{RepeatBox}] The three integers specify how often the plotted
   region should be repeated in the generated cube files. Since
   repeating the grid is not connected with any extra calculations,
@@ -209,6 +207,37 @@ Example:
 
 \item[\is{Verbose}] If true, some extra messages are printed out
   during the calculation.
+  
+\item[\is{RadialWFTabulation}] Specifies the method which should be used for the
+  tabulation of the radial wavefunctions of the Slater type orbitals. Available
+  options are
+  \begin{itemize}
+	  \item{explicit} Calculates the radial wavefunctions explicitly with Eq.
+	  	(\ref{eq:raddef})
+      \item{trivial} Interpolates the radial wavefunctions from an pre-tabulated
+      	file with trivial interpolation
+      \item{linear} Interpolates the radial wavefunctions from an pre-tabulated
+      	file with linear interpolation
+      \item{spline} Interpolates the radial wavefunctions from an pre-tabulated
+      	file with spline interpolation
+  \end{itemize}
+  If "explicit" is specified you need to provide an file with the coefficients and
+  exponents for the Slater type orbitals. If one of the interpolation types is
+  specified, you need to provide an file with the tabulated radial wavefunction
+  and its second derivative.
+  
+\item[\is{GridInterpolation}] Specifies the 3d interpolation method which should
+	be used for the mapping of the Slater type orbitals from the species grids onto
+	the total grid. Available options are
+	\begin{itemize}
+	  \item{trivial} Uses trivial interpolation for the grid mapping
+    \item{linear} Uses linear interpolation for the grid mapping
+  \end{itemize}
+  
+\item[\is{ParallelRegionNum}] During the grid mapping, the total grid is divided
+	into "ParallelRegionNum" grid slices. OpenMP is used to speed up the calculation
+	and calculate the grid slices with different threads. The default is the number
+	of threads which your machine offers.
 
 \end{description}
 
@@ -298,20 +327,18 @@ Example:
 \subsection{Basis}
 \label{sec:waveplot.Basis}
 
-The basis definition is done by specifying the following properties:
+The basis definition which uses the coefficients and exponents for an explicit
+calculation of the radial wavefunctions can be used if "RadialWFTabulation"
+in the options block is set to "explicit". Then the basis definition is done
+by specifying the following properties: 
 
 \begin{ptable}
-  \kw{Resolution} & r &  & - &  \\
-  \textit{ElementName1} & p & & - & \pref{sec:waveplot.speciesBasis} \\
-  \textit{ElementName2} & p & & - &  \pref{sec:waveplot.speciesBasis} \\
+  \textit{ElementName1} & p & RadialWFTabulation = explicit & - &
+  	\pref{sec:waveplot.speciesBasis} \\
+  \textit{ElementName2} & p & RadialWFTabulation = explicit & - &  \pref{sec:waveplot.speciesBasis} \\
   \hspace*{0.8cm}$\vdots$ & & & & \\
 \end{ptable}
 \begin{description}
-\item[\is{Resolution}] Specifies the grid distance used for
-  discretising the radial wavefunctions.  Setting it too small, causes
-  a long initialisation time for \waveplot{}. Setting it too high
-  causes a very coarse grid with bad mapping and inaccurate charges.
-  Values around $0.01$ seem to work fine. (Units must be in Bohr.)
 
 \item[\textit{ElementName1}] Basis for the first atom type. The name
   of this property is the name of that atom type.
@@ -326,7 +353,6 @@ example:
 
 \begin{verbatim}
 Basis = {
-  Resolution = 0.01
   C = {                          # Basis of the C atom
     AtomicNumber = 6
     Orbital = {                 # 2s orbital
@@ -367,7 +393,6 @@ Basis = {
   }
 }
 \end{verbatim}
-
 
 
 
@@ -436,6 +461,51 @@ wavefunction. Thereby the following properties must be used:
 
 
 \end{description}
+
+
+Alternatively, the pre-tabulated radial wavefunction and its derivatives has to
+be provided, if one of the interpolation types is specified for "RadialWFTabulation".
+The Basis definition is similar to the previous case, but the radial wavefunction is
+tabulated instead of the coefficients and exponents. As an example, the "Basis"
+section could look like:
+
+\begin{verbatim}
+Basis = {
+  H = {
+    AtomicNumber = 1
+    Orbital = {
+      AngularMomentum = 0
+      Occupation = 1.000000
+      Cutoff = 5.0
+      RadialWaveFunc = {
+        9.830308526563000292e-06 2.475712095616000141e+00 3.091155745115000020e+00
+        ...
+      }
+    }
+  }
+  O = {
+    AtomicNumber = 8
+    Orbital = {
+      AngularMomentum = 0
+      Occupation = 2.000000
+      Cutoff = 5.0
+      RadialWaveFunc = {
+        9.830308526563000292e-06 -1.059886964684999988e+01 -6.025328228465999700e+02
+        ...
+      }
+    }
+  	Orbital = {
+      AngularMomentum = 1
+      Occupation = 4.000000
+      Cutoff = 5.0
+      RadialWaveFunc = {
+        9.830308526563000292e-06 1.622019064264999940e-04 -1.238026858581000056e+02
+        ...
+      }
+    }
+  }
+}
+\end{verbatim}
 
 
 \subsection{ParserOptions}
