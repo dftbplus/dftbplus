@@ -65,12 +65,12 @@ module dftbp_type_orbitals
 
 contains
 
-  !> Builds a unique names for the atomic orbitals
-  !> Assign 's', 'p', 'd' to first occurring shells, then 's2', 'p2', ...
-  subroutine getShellNames(iSpecie, orb, shellNamesTmp)
+  !> Builds a unique names for the atomic orbitals.
+  !> Assign 's', 'p', 'd' to first occurring shells of each angular momentum, then 's2', 'p2', ...
+  subroutine getShellNames(iSpecies, orb, shellNamesTmp)
 
-    !> atomic specie
-    integer, intent(in) :: iSpecie
+    !> specific atomic species
+    integer, intent(in) :: iSpecies
 
     !> orbital info
     type(TOrbitals), intent(in) :: orb
@@ -82,13 +82,12 @@ contains
     integer, allocatable :: ind(:)
     character(sc) :: sindx
 
-    !allocate(names(orb%nShell(iSpecie)))
-    allocate(shellNamesTmp(orb%nShell(iSpecie)))
-    allocate(ind(orb%nShell(iSpecie)))
-    ind = 1
+    allocate(shellNamesTmp(orb%nShell(iSpecies)))
+    allocate(ind(orb%nShell(iSpecies)))
+    ind(:) = 1
 
-    do ii = 1, orb%nShell(iSpecie)
-      write(shellNamesTmp(ii), "(A)") shellNames(orb%angShell(ii, iSpecie) + 1)
+    do ii = 1, orb%nShell(iSpecies)
+      write(shellNamesTmp(ii), "(A)") shellNames(orb%angShell(ii, iSpecies) + 1)
       if (any(shellNamesTmp(ii) == shellNamesTmp(1:ii-1))) then
         ! at least one example of this shell already
         ind(ii) = ind(ii) + 1
