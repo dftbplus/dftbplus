@@ -969,11 +969,11 @@ contains
           call error(errStatus%message)
         end if
 
-        call getDensity(env, this%denseDesc, this%ints, this%electronicSolver, this%neighbourList,&
-            & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec,&
-            & this%kPoint, this%kWeight, this%orb, this%tHelical, this%coord, this%species, this%nSpin,&
-            & this%tRealHS, this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tMulliken,&
-            & this%parallelKS, this%dftbEnergy(this%deltaDftb%iDeterminant), this%deltaDftb, this%filling,&
+        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints, this%electronicSolver,&
+            & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%iCellVec,&
+            & this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical, this%coord, this%species,&
+            & this%nSpin, this%tRealHS, this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tMulliken,&
+            & this%parallelKS, this%dftbEnergy(this%deltaDftb%iDeterminant), this%deltaDftb, this%mu, this%filling,&
             & this%rhoPrim, this%xi, this%Ef, this%orbitalL, this%iRhoPrim, this%HSqrReal, this%SSqrReal,&
             & this%eigvecsReal, this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoOutSqr)
 
@@ -2400,16 +2400,16 @@ contains
 
     call convertToUpDownRepr(ints%hamiltonian, ints%iHamiltonian)
 
-    ! TODO : GF and ELSI should be added
     select case (electronicSolver%iSolver)
 
     case (electronicSolverTypes%GF)
 
-      call error("GF case not yet modified")
+      ! For libNEGF, the separation of getDensity into three routines is
+      ! blocked since only compute_density_dft is supported for this solver.
 
     case (electronicSolverTypes%onlyTransport)
 
-      call error("OnlyTransport case not yet modified")
+      call error("OnlyTransport solver cannot calculate the density matrix")
 
     case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
@@ -2424,7 +2424,7 @@ contains
         &electronicSolverTypes%elpadm)
 
       ! For OMM, PEXSI, NTPoly, and spare ELPA, the separation of getDensity
-      ! into three routines is impossible since only elsi_dm_xxx is supported
+      ! into three routines is blocked since only elsi_dm_xxx is supported
       ! for these solvers.
 
     end select
@@ -2985,16 +2985,16 @@ contains
     !> occupations (level, kpoint, spin)
     real(dp), intent(out) :: filling(:,:,:)
 
-    ! TODO : GF and ELSI should be added
     select case (electronicSolver%iSolver)
 
     case (electronicSolverTypes%GF)
 
-      call error("GF case not yet modified")
+      ! For libNEGF, the separation of getDensity into three routines is
+      ! blocked since only compute_density_dft is supported for this solver.
 
     case (electronicSolverTypes%onlyTransport)
 
-      call error("OnlyTransport case not yet modified")
+      call error("OnlyTransport solver cannot calculate the density matrix")
 
     case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
@@ -3009,7 +3009,7 @@ contains
         &electronicSolverTypes%elpadm)
 
       ! For OMM, PEXSI, NTPoly, and spare ELPA, the separation of getDensity
-      ! into three routines is impossible since only elsi_dm_xxx is supported
+      ! into three routines is blocked since only elsi_dm_xxx is supported
       ! for these solvers.
 
     end select
@@ -3396,14 +3396,20 @@ contains
 
 
   !> An interface for calculating the density matrix.
-  subroutine getDensity(env, denseDesc, ints, electronicSolver, neighbourList, nNeighbourSK,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
-      & nSpin, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy,&
-      & deltaDftb, filling, rhoPrim, xi, Ef, orbitalL, iRhoPrim, HSqrReal, SSqrReal, eigvecsReal,&
-      & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoOutSqr)
+  subroutine getDensity(env, negfInt, iSCC, denseDesc, ints, electronicSolver, neighbourList,&
+      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical,&
+      & coord, species, nSpin, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken,&
+      & parallelKS, energy, deltaDftb, mu, filling, rhoPrim, xi, Ef, orbitalL, iRhoPrim, HSqrReal,&
+      & SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoOutSqr)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> NEGF interface
+    type(TNegfInt), intent(inout) :: negfInt
+
+    !> SCC iteration counter (needed by GF)
+    integer, intent(in) :: iSCC
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3477,6 +3483,9 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
 
+    !> Electrochemical potentials (contact, spin)
+    real(dp), allocatable, intent(in) :: mu(:,:)
+
     !> occupations (level, kpoint, spin)
     real(dp), intent(inout) :: filling(:,:,:)
 
@@ -3519,16 +3528,26 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    ! TODO : GF and ELSI should be added
     select case (electronicSolver%iSolver)
 
     case (electronicSolverTypes%GF)
 
-      call error("GF case not yet modified")
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
+    #:if WITH_TRANSPORT
+      call negfInt%calcdensity_green(iSCC, env, parallelKS%localKS, ints%hamiltonian, ints%overlap,&
+          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef,&
+          & energy%E0, energy%TS)
+    #:else
+      call error("Internal error: getDensity : GF solver called although code compiled without&
+          & transport")
+    #:endif
+      call ud2qm(rhoPrim)
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
     case (electronicSolverTypes%onlyTransport)
 
-      call error("OnlyTransport case not yet modified")
+      call error("OnlyTransport solver cannot calculate the density matrix")
 
     case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
