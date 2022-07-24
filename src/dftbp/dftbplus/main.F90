@@ -972,26 +972,11 @@ contains
         call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints, this%electronicSolver,&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%iCellVec,&
             & this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical, this%coord, this%species,&
-            & this%nSpin, this%tRealHS, this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tMulliken,&
-            & this%parallelKS, this%dftbEnergy(this%deltaDftb%iDeterminant), this%deltaDftb, this%mu, this%filling,&
-            & this%rhoPrim, this%xi, this%Ef, this%orbitalL, this%iRhoPrim, this%HSqrReal, this%SSqrReal,&
-            & this%eigvecsReal, this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoOutSqr)
-
-        !> For rangeseparated calculations deduct atomic charges from deltaRho
-        if (this%isRangeSep) then
-          select case(this%nSpin)
-          case(2)
-            do iSpin = 1, 2
-              call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart,&
-                  & this%deltaRhoOutSqr, iSpin)
-            end do
-          case(1)
-            call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart,&
-                & this%deltaRhoOutSqr)
-          case default
-            call error("Range separation not implemented for non-colinear spin")
-          end select
-        end if
+            & this%nSpin, this%tRealHS, this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit,&
+            & this%tMulliken, this%q0, this%parallelKS, this%dftbEnergy(this%deltaDftb%iDeterminant),&
+            & this%deltaDftb, this%mu, this%filling, this%rhoPrim, this%xi, this%Ef, this%orbitalL,&
+            & this%iRhoPrim, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%HSqrCplx, this%SSqrCplx,&
+            & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoOutSqr)
 
         if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
           call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
@@ -3398,7 +3383,7 @@ contains
   !> An interface for calculating the density matrix.
   subroutine getDensity(env, negfInt, iSCC, denseDesc, ints, electronicSolver, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical,&
-      & coord, species, nSpin, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken,&
+      & coord, species, nSpin, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, q0,&
       & parallelKS, energy, deltaDftb, mu, filling, rhoPrim, xi, Ef, orbitalL, iRhoPrim, HSqrReal,&
       & SSqrReal, eigvecsReal, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoOutSqr)
 
@@ -3473,6 +3458,9 @@ contains
 
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -3555,7 +3543,7 @@ contains
 
       call getDensityFromEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
-          & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy,&
+          & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, q0, parallelKS, energy,&
           & deltaDftb, filling, rhoPrim, xi, orbitalL, iRhoPrim, SSqrReal, eigvecsReal, SSqrCplx,&
           & eigvecsCplx, rhoSqrReal, deltaRhoOutSqr)
 
@@ -3578,7 +3566,7 @@ contains
   !> Returns the sparse density matrix with conventional solvers.
   subroutine getDensityFromEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
-      & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, deltaDftb,&
+      & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, q0, parallelKS, energy, deltaDftb,&
       & filling, rhoPrim, xi, orbitalL, iRhoPrim, SSqrReal, eigvecsReal, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal, deltaRhoOutSqr)
 
@@ -3639,6 +3627,9 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
+
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
@@ -3681,7 +3672,10 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
+    integer :: iSpin
+
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
+
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
@@ -3702,6 +3696,23 @@ contains
           & eigvecsCplx, SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
+
+    !> For rangeseparated calculations deduct atomic charges from deltaRho
+    if (associated(deltaRhoOutSqr)) then
+      select case(nSpin)
+      case(2)
+        do iSpin = 1, 2
+          call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart,&
+              & deltaRhoOutSqr, iSpin)
+        end do
+      case(1)
+        call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart,&
+            & deltaRhoOutSqr)
+      case default
+        call error("Range separation not implemented for non-colinear spin")
+      end select
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine getDensityFromEigvecs
