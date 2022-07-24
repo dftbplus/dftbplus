@@ -1451,7 +1451,7 @@ contains
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
 
-    HSqrCplx(:,:,:) = 0.0_dp
+    HSqrCplx(:,:,iKS) = 0.0_dp
     if (tHelical) then
       call unpackHSHelicalCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
