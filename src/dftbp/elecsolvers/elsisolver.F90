@@ -1023,8 +1023,6 @@ contains
       energy%ELS = sum(energy%atomLS)
     end if
 
-    call env%globalTimer%stopTimer(globalTimers%densityMatrix)
-
   #:else
 
     call error("Internal error: TELsiSolver_getDensity() called despite missing ELSI support")

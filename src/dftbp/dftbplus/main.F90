@@ -3543,11 +3543,13 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
 
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
       call electronicSolver%elsi%getDensity(env, denseDesc, ints%hamiltonian, ints%overlap,&
           & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint,&
           & kWeight, tHelical, orb, species, coord, tRealHS, tSpinSharedEf, tSpinOrbit,&
           & tDualSpinOrbit, tMulliken, parallelKS, Ef, energy, rhoPrim, energy%Eband, energy%TS,&
           & ints%iHamiltonian, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx)
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
     end select
 
