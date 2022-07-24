@@ -969,13 +969,13 @@ contains
           call error(errStatus%message)
         end if
 
-        call getDensity(env, this%denseDesc, this%electronicSolver, this%neighbourList,&
+        call getDensity(env, this%denseDesc, this%ints, this%electronicSolver, this%neighbourList,&
             & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%iCellVec, this%cellVec,&
             & this%kPoint, this%kWeight, this%orb, this%tHelical, this%coord, this%species, this%nSpin,&
-            & this%tRealHS, this%tSpinOrbit, this%tDualSpinOrbit, this%tMulliken, this%parallelKS,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%deltaDftb, this%filling, this%rhoPrim,&
-            & this%xi, this%orbitalL, this%iRhoPrim, this%SSqrReal, this%eigvecsReal, this%SSqrCplx,&
-            & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoOutSqr)
+            & this%tRealHS, this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tMulliken,&
+            & this%parallelKS, this%dftbEnergy(this%deltaDftb%iDeterminant), this%deltaDftb, this%filling,&
+            & this%rhoPrim, this%xi, this%Ef, this%orbitalL, this%iRhoPrim, this%HSqrReal, this%SSqrReal,&
+            & this%eigvecsReal, this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoOutSqr)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -2423,7 +2423,9 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
 
-      call error("ELSI case not yet modified")
+      ! For OMM, PEXSI, NTPoly, and spare ELPA, the separation of getDensity
+      ! into three routines is impossible since only elsi_dm_xxx is supported
+      ! for these solvers.
 
     end select
 
@@ -3006,7 +3008,9 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
 
-      call error("ELSI case not yet modified")
+      ! For OMM, PEXSI, NTPoly, and spare ELPA, the separation of getDensity
+      ! into three routines is impossible since only elsi_dm_xxx is supported
+      ! for these solvers.
 
     end select
 
@@ -3392,17 +3396,20 @@ contains
 
 
   !> An interface for calculating the density matrix.
-  subroutine getDensity(env, denseDesc, electronicSolver, neighbourList, nNeighbourSK, iSparseStart,&
-      & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
-      & nSpin, tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, deltaDftb,&
-      & filling, rhoPrim, xi, orbitalL, iRhoPrim, SSqrReal, eigvecsReal, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, deltaRhoOutSqr)
+  subroutine getDensity(env, denseDesc, ints, electronicSolver, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord, species,&
+      & nSpin, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy,&
+      & deltaDftb, filling, rhoPrim, xi, Ef, orbitalL, iRhoPrim, HSqrReal, SSqrReal, eigvecsReal,&
+      & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoOutSqr)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -3449,6 +3456,9 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
+    !> Is the Fermi level common across spin channels?
+    logical, intent(in) :: tSpinSharedEf
+
     !> Are spin orbit interactions present
     logical, intent(in) :: tSpinOrbit
 
@@ -3476,17 +3486,26 @@ contains
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
     !> orbital moments of atomic shells
     real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix
     real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
+    !> dense hamiltonian matrix
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
+
     !> dense real overlap storage
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> real eigenvectors on exit
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
@@ -3524,7 +3543,11 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
 
-      call error("ELSI case not yet modified")
+      call electronicSolver%elsi%getDensity(env, denseDesc, ints%hamiltonian, ints%overlap,&
+          & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint,&
+          & kWeight, tHelical, orb, species, coord, tRealHS, tSpinSharedEf, tSpinOrbit,&
+          & tDualSpinOrbit, tMulliken, parallelKS, Ef, energy, rhoPrim, energy%Eband, energy%TS,&
+          & ints%iHamiltonian, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx)
 
     end select
 
