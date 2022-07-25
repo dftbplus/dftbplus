@@ -3133,17 +3133,19 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
+    real(dp), allocatable :: tmpS(:,:)
     integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iSpin = parallelKS%localKS(2, iKS)
+      tmpS = SSqrReal
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal(:,:,iKS),&
-          & SSqrReal, eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
+          & tmpS, eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
     #:else
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal(:,:,iKS), SSqrReal, eigen(:,iSpin),&
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal(:,:,iKS), tmpS, eigen(:,iSpin),&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
       eigvecsReal(:,:,iKS) = HSqrReal(:,:,iKS)
@@ -3189,18 +3191,20 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
+    complex(dp), allocatable :: tmpS(:,:)
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
+      tmpS = SSqrCplx
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
-          & SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), errStatus)
+          & tmpS, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
     #:else
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), SSqrCplx, eigen(:,iK,iSpin),&
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), tmpS, eigen(:,iK,iSpin),&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
       eigvecsCplx(:,:,iKS) = HSqrCplx(:,:,iKS)
@@ -3246,17 +3250,19 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
+    complex(dp), allocatable :: tmpS(:,:)
     integer :: iKS, iK
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
+      tmpS = SSqrCplx
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
-          & SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS), errStatus)
+          & tmpS, eigen(:,iK), eigvecsCplx(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
     #:else
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), SSqrCplx, eigen(:,iK),&
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrCplx(:,:,iKS), tmpS, eigen(:,iK),&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
       eigvecsCplx(:,:,iKS) = HSqrCplx(:,:,iKS)
