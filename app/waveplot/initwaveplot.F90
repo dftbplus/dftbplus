@@ -21,7 +21,7 @@ module waveplot_initwaveplot
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
       & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : getModifierIndex, readHSDAsXML, warnUnprocessedNodes
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes
   use dftbp_io_message, only : warning, error
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
@@ -523,7 +523,7 @@ contains
         & "the current files could therefore be different.                "]
 
     !> Auxiliary variables
-    integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
+    integer :: ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
     real(dp), allocatable :: mcutoffs(:)
     real(dp) :: minEdge
@@ -673,18 +673,12 @@ contains
     case ("origin","box")
       !! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs)
       if (abs(determinant(this%opt%boxVecs)) < 1e-08_dp) then
         call detailedError(field, "Vectors are linearly dependent")
       end if
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%boxVecs(:,:) = this%opt%boxVecs(:,:) * lengthUnits(ind)%convertValue
-      end if
       call getChildValue(subnode, "Origin", this%opt%origin, modifier=modifier, child=field)
-      if (len(modifier) > 0) then
-        ind = getModifierIndex(char(modifier), lengthUnits, field)
-        this%opt%origin(:) = this%opt%origin(:) * lengthUnits(ind)%convertValue
-      end if
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%origin)
 
     case default
       !! Object with unknown name passed

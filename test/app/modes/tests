@@ -6,3 +6,4 @@
 #:set LONG_TEST = not defined('TRAVIS')
 
 C24O6H8                  #? MPI_PROCS <= 1
+C24O6H8_prefix           #? MPI_PROCS <= 1

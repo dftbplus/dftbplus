@@ -44,7 +44,7 @@ ElectronDynamics = {
   TimeStep [au] = 0.2
   Perturbation = Laser {
     PolarizationDirection = 0.0 1.0 1.0
-    LaserEnergy [eV] = 6.795
+    LaserEnergy [nm] = 182.4638696480521   # = 6.795 eV
   }
   FieldStrength [v/a] = 0.01
   Populations = Yes

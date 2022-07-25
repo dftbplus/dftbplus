@@ -33,6 +33,7 @@ foreach(test IN LISTS tests)
     COMMAND ${srcdir}/bin/autotest2
         -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
         -P "${TEST_RUNNER}" -p "$<TARGET_FILE:dftb+>"
+	-G ${srcdir}/bin/globalpostrun.sh
         -s P,R,C,S ${test})
   set_tests_properties(
     dftb+_${test}

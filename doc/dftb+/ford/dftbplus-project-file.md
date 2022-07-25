@@ -4,7 +4,7 @@ macro:
         WITH_ARPACK=1
         WITH_DFTD3=1
         WITH_SOCKETS=1
-        RELEASE=21.2
+        RELEASE=22.1
 preprocess: true
 src_dir:
         ../../../app/dftb+

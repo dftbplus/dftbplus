@@ -23,7 +23,7 @@ module dftbp_solvation_solvparser
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning
-  use dftbp_io_hsdutils2, only : convertByMul
+  use dftbp_io_hsdutils2, only : convertUnitHsd
   use dftbp_math_bisect, only : bisection
   use dftbp_solvation_born, only : TGBInput, fgbKernel
   use dftbp_solvation_cm5, only : TCM5Input
@@ -151,12 +151,12 @@ contains
       call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
           & child=field)
     end if
-    call convertByMul(char(modifier), energyUnits, field, shift)
+    call convertUnitHsd(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
     call getChildValue(node, "Temperature", temperature, ambientTemperature, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), energyUnits, field, temperature)
+    call convertUnitHsd(char(modifier), energyUnits, field, temperature)
 
     ! reference state for free energy calculation
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
@@ -169,7 +169,7 @@ contains
       call getChildValue(node, "BornScale", input%bornScale)
       call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
     end if
-    call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%bornOffset)
     call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
 
     call getChild(node, "CM5", child, requested=.false.)
@@ -204,7 +204,7 @@ contains
 
     call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
     call getChild(node, "SASA", value1, requested=.false.)
     if (associated(value1) .or. allocated(defaults)) then
@@ -285,12 +285,12 @@ contains
     ! shift value for the free energy (usually zero)
     call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, &
       & child=field)
-    call convertByMul(char(modifier), energyUnits, field, shift)
+    call convertUnitHsd(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
     call getChildValue(node, "Temperature", temperature, ambientTemperature, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), energyUnits, field, temperature)
+    call convertUnitHsd(char(modifier), energyUnits, field, temperature)
 
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
 
@@ -365,11 +365,11 @@ contains
 
     call getChildValue(node, "ProbeRadius", input%probeRad, probeRadDefault, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%probeRad)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%probeRad)
 
     call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%smoothingPar)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%smoothingPar)
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
 
@@ -399,7 +399,7 @@ contains
 
     call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%sOffset)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%sOffset)
 
   end subroutine readSolvSASA
 
@@ -423,13 +423,13 @@ contains
 
     call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
       & modifier=modifier, child=field)
-    call convertByMul(char(modifier), inverseLengthUnits, field, input%alpha)
+    call convertUnitHsd(char(modifier), inverseLengthUnits, field, input%alpha)
 
     conv = 1.0_dp
     allocate(input%atomicRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, "AtomicRadii", child=child)
     call getChild(value1, "", dummy, modifier=modifier)
-    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call convertUnitHsd(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -450,7 +450,7 @@ contains
 
     call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
         & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+    call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readCM5
 
@@ -491,10 +491,10 @@ contains
       end if
       call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
         & modifier=modifier, child=field)
-      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
+      call convertUnitHsd(char(modifier), massUnits, field, solvent%molecularMass)
       call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
         & child=field)
-      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
+      call convertUnitHsd(char(modifier), massDensityUnits, field, solvent%density)
     end select
 
   end subroutine readSolvent
@@ -563,7 +563,7 @@ contains
     allocate(vdwRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, "vanDerWaalsRadiiD3", child=child)
     call getChild(value1, "", dummy, modifier=modifier)
-    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call convertUnitHsd(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default

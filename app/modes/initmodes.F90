@@ -10,6 +10,7 @@
 !> Contains the routines for initialising modes.
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
@@ -18,7 +19,7 @@ module modes_initmodes
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
       & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertByMul, setUnprocessed, warnUnprocessedNodes, getNodeName2
+  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes, getNodeName2
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_type_linkedlist, only : TListCharLc, TListRealR1, TListString, init, destruct, append,&
@@ -115,6 +116,8 @@ contains
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     logical :: tWriteHSD ! HSD output?
+    type(string), allocatable :: searchPath(:)
+    character(len=:), allocatable :: strOut
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
@@ -164,7 +167,8 @@ contains
     ! oscillation cycles in animation
     nCycles = 3
 
-    !! Slater-Koster files
+    ! Slater-Koster files
+    call getParamSearchPath(searchPath)
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
         call init(skFiles(iSp1))
@@ -189,6 +193,8 @@ contains
         end if
         strTmp = trim(prefix) // trim(elem1) // trim(separator) &
             &// trim(elem1) // trim(suffix)
+        call findFile(searchPath, strTmp, strOut)
+        if (allocated(strOut)) strTmp = strOut
         call append(skFiles(iSp1), strTmp)
         inquire(file=strTmp, exist=tExist)
         if (.not. tExist) then
@@ -347,7 +353,7 @@ contains
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
       call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
-      call convertByMul(char(modifier), massUnits, child, rTmp)
+      call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then

@@ -60,31 +60,12 @@ utils/srccheck/pylint/pylintrc-3.ini tools/dptools/bin/*
 Installation
 ============
 
-Please note, that the package needs at least **Python 2.6** or
-later. It should also work with Python 3.X. It additionally needs
-Numerical Python (the numpy module).
-
-System install
---------------
+Please note, that the package needs at least **Python 2.6** or later,
+with Python 3.X preferred. It additionally needs Numerical Python (the
+numpy module).
 
 You can install the script package via the standard 'python setup'
-mechanism. If you want to install it system-wide into your normal
-python installation, you simply issue::
+mechanism::
 
-  python setup.py
+  pip install .
 
-Local install
--------------
-
-Alternatively, you can install it locally in your home space, e.g.::
-
-  python setup.py install --user
-
-If the local python install directory is not in your path, you should
-add this. For the bash shell you should include in .bashrc::
-
-  export PATH=$PATH:/home/user/.local/bin
-
-while in tcsh shell, you would have to add to your .cshrc::
-
-  setenv PATH $PATH:/home/user/.local/bin

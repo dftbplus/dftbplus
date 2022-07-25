@@ -2039,10 +2039,8 @@ contains
 
     if (allocated(dipoleMoment)) then
       call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      if (eFieldScaling%isRescaled) then
-        call taggedWriter%write(fd, tagLabels%scaledDipole,&
-            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
-      end if
+      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
 
     close(fd)
@@ -2207,19 +2205,13 @@ contains
 
     if (allocated(dipoleMoment)) then
       call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      if (eFieldScaling%isRescaled) then
-        call taggedWriter%write(fd, tagLabels%scaledDipole,&
-            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
-      end if
+      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
 
     if (allocated(multipole%dipoleAtom)) then
-      block
-        real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
-        qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
-        call taggedWriter%write(fd, tagLabels%dipoleAtom,&
-           & eFieldScaling%scaledSoluteDipole(dipoleAtom))
-      end block
+      call taggedWriter%write(fd, tagLabels%dipoleAtom,&
+          & eFieldScaling%scaledSoluteDipole(multipole%dipoleAtom))
     end if
 
     if (allocated(polarisability)) then
@@ -3913,9 +3905,9 @@ contains
         write(fd, "(A)")trim(dipoleMessage)
       end if
       ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+      write(fd, "(A, 3F14.8, 1X,A)") 'Dipole moment:',&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)),  'au'
-      write(fd, "(A, 3F14.8, A)") 'Dipole moment:',&
+      write(fd, "(A, 3F14.8, 1X, A)") 'Dipole moment:',&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye,  'Debye'
     end if
 

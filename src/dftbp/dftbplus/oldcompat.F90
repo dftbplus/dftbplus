@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
@@ -73,6 +75,9 @@ contains
       case (10)
         call convert_10_11(root)
         version = 11
+      case (11)
+        call convert_11_12(root)
+        version = 12
       end select
     end do
 
@@ -738,6 +743,42 @@ contains
     end if
 
   end subroutine convert_10_11
+
+
+  !> Converts input from version 11 to 12. (Version 12 introduced in June 2022)
+  subroutine convert_11_12(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+
+    call getDescendant(root, "Driver/GeometryOptimization", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'GeometryOptimisation'.")
+      call setNodeName(ch1, "GeometryOptimisation")
+      call getDescendant(root, "Driver/GeometryOptimisation/Optimizer", ch2)
+      if (associated(ch2)) then
+        call detailedWarning(ch2, "Keyword renamed to 'Optimiser'.")
+        call setNodeName(ch2, "Optimiser")
+      end if
+    end if
+
+  #:for LABEL in [("Kick"), ("Laser")]
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
+      call setNodeName(ch1, "PolarisationDirection")
+    end if
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
+        & ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
+      call setNodeName(ch1, "ImagPolarisationDirection")
+    end if
+  #:endfor
+
+  end subroutine convert_11_12
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

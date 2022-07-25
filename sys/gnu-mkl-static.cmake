@@ -8,7 +8,8 @@
 # various reasons.
 #
 
-set(WITH_OMP TRUE CACHE BOOL "Whether OpenMP thread parallisation should be enabled" FORCE)
+# OpenMP will be added via compiler/linker flag further below to enable for static linking
+set(WITH_OMP FALSE CACHE BOOL "Whether OpenMP thread parallisation should be enabled" FORCE)
 
 set(WITH_MPI FALSE CACHE BOOL "Whether DFTB+ should support MPI-parallelism" FORCE)
 
@@ -59,7 +60,7 @@ set(ENABLE_DYNAMIC_LOADING FALSE CACHE BOOL "Whether the library should be dynam
 set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
   CACHE STRING "Build type independent Fortran compiler flags")
 
-set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops"
+set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops -fopenmp"
   CACHE STRING "Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"

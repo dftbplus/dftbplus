@@ -243,7 +243,7 @@ module dftbp_dftbplus_initprogram
     !> reciprocal lattice vectors as columns
     real(dp), allocatable :: recVec(:,:)
 
-    !> original lattice vectors used for optimizing
+    !> original lattice vectors used for optimising
     real(dp) :: origLatVec(3,3)
 
     !> normalized vectors in those directions
@@ -414,19 +414,19 @@ module dftbp_dftbplus_initprogram
     logical :: tSpinSharedEf
 
 
-    !> Geometry optimization needed?
+    !> Geometry optimisation needed?
     logical :: isGeoOpt
 
-    !> optimize coordinates inside unit cell (periodic)?
+    !> optimise coordinates inside unit cell (periodic)?
     logical :: tCoordOpt
 
-    !> optimize lattice constants?
+    !> optimise lattice constants?
     logical :: tLatOpt
 
-    !> Fix angles between lattice vectors when optimizing?
+    !> Fix angles between lattice vectors when optimising?
     logical :: tLatOptFixAng
 
-    !> Fix length of specified lattice vectors when optimizing?
+    !> Fix length of specified lattice vectors when optimising?
     logical :: tLatOptFixLen(3)
 
     !> Optimise lattice isotropically
@@ -563,19 +563,19 @@ module dftbp_dftbplus_initprogram
     !> labels of atomic species
     character(mc), allocatable :: speciesName(:)
 
-    !> General geometry optimizer
+    !> General geometry optimiser
     type(TGeoOpt), allocatable :: pGeoCoordOpt
 
-    !> Geometry optimizer for lattice consts
+    !> Geometry optimiser for lattice consts
     type(TGeoOpt), allocatable :: pGeoLatOpt
 
     !> Coordinate transformation filter
     type(TFilter), allocatable :: filter
 
-    !> General geometry optimizer
+    !> General geometry optimiser
     class(TOptimizer), allocatable :: geoOpt
 
-    !> Convergence thresholds for geometry optimizer
+    !> Convergence thresholds for geometry optimiser
     type(TOptTolerance) :: optTol
 
     real(dp) :: elast
@@ -1175,7 +1175,7 @@ contains
     !> DIIS mixer (if used)
     type(TDIISMixer), allocatable :: pDIISMixer
 
-    ! Geometry optimizer related local variables
+    ! Geometry optimiser related local variables
 
     !> Conjugate gradient driver
     type(TConjGrad), allocatable :: pConjGrad
@@ -1964,9 +1964,13 @@ contains
     end if
 
     if (allocated(input%ctrl%geoOpt)) then
+      if (this%tHelical) then
+        call error("GeometryOptimisation driver currently does not support helical geometries")
+      end if
+
       allocate(this%filter)
       call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
-      call createOptimizer(input%ctrl%geoOpt%optimizer, this%filter%getDimension(),&
+      call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(),&
           & this%geoOpt)
       this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
@@ -2042,11 +2046,11 @@ contains
         call init(this%pGeoLatOpt, pFireLat)
       end select
       if (this%tLatOptIsotropic ) then
-        ! optimization uses scaling factor of unit cell
+        ! optimisation uses scaling factor of unit cell
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else if (this%tLatOptFixAng) then
-        ! optimization uses scaling factor of lattice vectors
+        ! optimisation uses scaling factor of lattice vectors
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else
@@ -3566,7 +3570,7 @@ contains
         call error("Sorry, MD with a barostat requires stress evaluation")
       end if
       if (this%tLatOpt) then
-        call error("Sorry, lattice optimization requires stress tensor evaluation")
+        call error("Sorry, lattice optimisation requires stress tensor evaluation")
       end if
     end if
 
@@ -4516,7 +4520,7 @@ contains
       end if
 
       if (input%ctrl%tLatOpt) then
-        call error("Lattice optimization is not currently possible with transport")
+        call error("Lattice optimisation is not currently possible with transport")
       end if
 
     end if
@@ -5564,7 +5568,7 @@ contains
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
-    !> optimize lattice constants?
+    !> optimise lattice constants?
     logical, intent(in) :: tLatOpt
 
     !> If initial charges/dens mtx. from external file.
@@ -5612,7 +5616,7 @@ contains
     end if
 
     if (reksInp%Efunction /= 1 .and. tLatOpt) then
-      call error("Lattice optimization is only possible&
+      call error("Lattice optimisation is only possible&
           & with single-state REKS, not SA-REKS or SI-SA-REKS")
     end if
 

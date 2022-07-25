@@ -621,8 +621,8 @@ module phonons_libnegfint
 
     call get_params(negf, params)
 
-    params%kpoint = qpoint
-    params%wght = wght
+    params%ikpoint = qpoint
+    params%kwght = wght
 
     call set_params(negf, params)
 

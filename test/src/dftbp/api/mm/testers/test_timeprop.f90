@@ -86,7 +86,7 @@ program test_timeprop
   call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au)
   call setChild(pElecDyn, "Perturbation", pPerturb)
   call setChild(pPerturb, "Kick", pKick)
-  call setChildValue(pKick, "PolarizationDirection", "z")
+  call setChildValue(pKick, "PolarisationDirection", "z")
   call setChildValue(pElecDyn, "WriteBondPopulation", .true.)
 
   print "(A)", 'Input tree in HSD format:'

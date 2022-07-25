@@ -80,6 +80,7 @@ Options (default value in parenthesis):
     -w workdir		workdir to run the tests (./)
     -P prerun           command to use before executing binary
     -Q postrun          command on line after binary
+    -G globalpostrun    post-run program to run ancillary tests
     -p program		application program generating tagged output
     -d tagdiff		path to the tagdiff program (SCRIPTDIR/tagdiff)
     -f testspec		file containing test names -- cumulative
@@ -162,6 +163,7 @@ do
         -Q)     app_postrun=$2; shift 2;;
 	-p)	app_cmd=$2; shift 2 ;;
         -d)	tagdiff_cmd=$2; shift 2 ;;
+	-G)     app_globalpost=$2; shift 2 ;;
 
 	# the following act cumulatively:
 	-f)	testspec_files="$testspec_files $2"; shift 2 ;;
@@ -344,6 +346,15 @@ do
 	    $TIME_CMD ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
 	else
 	    $TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
+	fi
+
+	if [ -n "$app_globalpost" ]; then
+	    if [ ! -x "$app_globalpost" ]; then
+		echo "${SCRIPTNAME}: Error: Executable '${app_globalpost}' does not exist" 1>&2
+		echo "Type '${SCRIPTNAME} -h' for help" 1>&2
+		exit 1
+	    fi
+	    $app_globalpost
 	fi
 
 	if [ -z "$STAGE_COMPARE" ]; then

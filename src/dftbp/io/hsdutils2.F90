@@ -7,11 +7,13 @@
 
 #:include 'common.fypp'
 
+#:set UNIT_CONVERSION_RANKS = [0, 1, 2]
+
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_unitconversion, only : unit
+  use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
       & normalize, append_to_string, destroyNodeList, removeAttribute
@@ -24,20 +26,20 @@ module dftbp_io_hsdutils2
   implicit none
 
   private
-  public :: getUnprocessedNodes, warnUnprocessedNodes,  getModifierIndex
+  public :: getUnprocessedNodes, warnUnprocessedNodes
   public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
   public :: setUnprocessed, getDescendant
-  public :: convertByMul
+  public :: convertUnitHsd
 
 
   !> Converts according to passed modifier and array of possible units by multplicating the provided
   !> value with the appropriate conversion factor.
-  interface convertByMul
-    module procedure convertByMul_real
-    module procedure convertByMul_realR1
-    module procedure convertByMul_realR2
-  end interface convertByMul
+  interface convertUnitHsd
+    #:for RANK in UNIT_CONVERSION_RANKS
+      module procedure convertUnitHsdR${RANK}$
+    #:endfor
+  end interface convertUnitHsd
 
 
   !> Separator for modifiers
@@ -61,50 +63,6 @@ contains
     end if
 
   end subroutine setUnprocessed
-
-
-  !> Gets the index of a modifier from an array of possible modifier names.
-  function getModifierIndex(modifier, modifiers, node, requested) result(ind)
-
-    !> String containing the parsed modifier
-    character(len=*), intent(in) :: modifier
-
-    !> Array containing the names of the possible modifiers
-    type(unit), intent(in) :: modifiers(:)
-
-    !> Node for which the modifier was obtained (for errors)
-    type(fnode), pointer :: node
-
-    !> Should an error be raised, if the modifier is not found?
-    logical, intent(in), optional :: requested
-
-    !> Index of the modifer (zero if not found)
-    integer :: ind
-
-    character(len=len(modifier)) :: modifierLo
-    logical :: mandatory
-    integer :: ii
-
-    if (present(requested)) then
-      mandatory = requested
-    else
-      mandatory = .true.
-    end if
-    modifierLo = tolower(modifier)
-
-    ind = 0
-    do ii = 1, size(modifiers)
-      if (trim(modifiers(ii)%name) == modifierLo) then
-        ind = ii
-        exit
-      end if
-    end do
-
-    if (ind == 0 .and. mandatory) then
-      call detailedError(node, MSG_INVALID_MODIFIER // modifier)
-    end if
-
-  end function getModifierIndex
 
 
   !> Prints a warning message about unprocessed nodes
@@ -283,20 +241,25 @@ contains
   end subroutine splitModifier
 
 
-  !> Implementation of convertByMul for real scalar.
-  subroutine convertByMul_real(modifier, units, child, convertValue, replace, changed)
+#:for RANK in UNIT_CONVERSION_RANKS
+
+  !> Implementation of convertUnitHsd for given rank
+  !>
+  !> Stops by calling detailedError(), if modifier is not found among the passed units.
+  !>
+  subroutine convertUnitHsdR${RANK}$(modifier, units, child, convertValue, replace, changed)
 
     !> Modifier (name of the unit to use)
     character(len=*), intent(in) :: modifier
 
     !> Array of the possible units
-    type(unit), intent(in) :: units(:)
+    type(TUnit), intent(in) :: units(:)
 
     !> The child, which carries the modifier.
     type(fnode), pointer :: child
 
     !> Value to convert, converted value on return.
-    real(dp), intent(inout) :: convertValue
+    real(dp), intent(inout) :: convertValue${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
     !> If childs value should replaced by the new value (default: .false.)
     logical, intent(in), optional :: replace
@@ -304,127 +267,33 @@ contains
     !> Contains flag on return, if childs value was changed.
     logical, intent(out), optional :: changed
 
-    logical :: tReplace, tChanged
-    integer :: ind
+
+    logical :: replace_, changed_
+    integer :: status
 
     if (present(replace)) then
-      tReplace = replace
+      replace_ = replace
     else
-      tReplace = .false.
+      replace_ = .false.
     end if
 
-    if (len(modifier) > 0) then
-      tChanged = .true.
-      ind = getModifierIndex(modifier, units, child)
-      convertValue = convertValue * units(ind)%convertValue
-      if (tReplace) then
+    changed_ = len(modifier) > 0
+    if (changed_) then
+      call convertUnit(units, modifier, convertValue, status)
+      if (status /= unitConvStat%ok) then
+        call detailedError(child, MSG_INVALID_MODIFIER // modifier)
+      end if
+      if (replace_) then
         call setChildValue(child, "", convertValue, .true.)
       end if
-    else
-      tChanged = .false.
     end if
 
-    if (present(changed)) then
-      changed = tChanged
-    end if
+    if (present(changed)) changed = changed_
 
-  end subroutine convertByMul_real
+  end subroutine convertUnitHsdR${RANK}$
 
+#:endfor
 
-  !> Implementation of convertByMul for real rank one array.
-  subroutine convertByMul_realR1(modifier, units, child, convertValue, replace, changed)
-
-    !> Modifier (name of the unit to use)
-    character(len=*), intent(in) :: modifier
-
-    !> Array of the possible units
-    type(unit), intent(in) :: units(:)
-
-    !> The child, which carries the modifier.
-    type(fnode), pointer :: child
-
-    !> Value to convert, converted value on return.
-    real(dp), intent(inout) :: convertValue(:)
-
-    !> If childs value should replaced by the new value (default: .false.)
-    logical, intent(in), optional :: replace
-
-    !> Contains flag on return, if childs value was changed.
-    logical, intent(out), optional :: changed
-
-    logical :: tReplace, tChanged
-    integer :: ind
-
-    if (present(replace)) then
-      tReplace = replace
-    else
-      tReplace = .false.
-    end if
-
-    if (len(modifier) > 0) then
-      tChanged = .true.
-      ind = getModifierIndex(modifier, units, child)
-      convertValue = convertValue * units(ind)%convertValue
-      if (tReplace) then
-        call setChildValue(child, "", convertValue, .true.)
-      end if
-    else
-      tChanged = .false.
-    end if
-
-    if (present(changed)) then
-      changed = tChanged
-    end if
-
-  end subroutine convertByMul_realR1
-
-
-  !> Implementation of convertByMul for real rank two array.
-  subroutine convertByMul_realR2(modifier, units, child, convertValue, replace, changed)
-
-    !> Modifier (name of the unit to use)
-    character(len=*), intent(in) :: modifier
-
-    !> Array of the possible units
-    type(unit), intent(in) :: units(:)
-
-    !> The child, which carries the modifier.
-    type(fnode), pointer :: child
-
-    !> Value to convert, converted value on return.
-    real(dp), intent(inout) :: convertValue(:,:)
-
-    !> If childs value should replaced by the new value (default: .false.)
-    logical, intent(in), optional :: replace
-
-    !> Contains flag on return, if childs value was changed.
-    logical, intent(out), optional :: changed
-
-    logical :: tReplace, tChanged
-    integer :: ind
-
-    if (present(replace)) then
-      tReplace = replace
-    else
-      tReplace = .false.
-    end if
-
-    if (len(modifier) > 0) then
-      tChanged = .true.
-      ind = getModifierIndex(modifier, units, child)
-      convertValue = convertValue * units(ind)%convertValue
-      if (tReplace) then
-        call setChildValue(child, "", convertValue, .true.)
-      end if
-    else
-      tChanged = .false.
-    end if
-
-    if (present(changed)) then
-      changed = tChanged
-    end if
-
-  end subroutine convertByMul_realR2
 
 
   !> Returns a descendant of a given node.
