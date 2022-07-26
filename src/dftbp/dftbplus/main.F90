@@ -808,14 +808,14 @@ contains
         if (iSccIter == 1) then
           call getReksInitialSettings(env, this%denseDesc, this%h0, this%ints, this%neighbourList,&
               & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%electronicSolver,&
-              & iGeoStep, this%HSqrReal(:,:,1), this%SSqrReal, this%eigvecsReal, this%eigen, this%reks,&
+              & iGeoStep, this%HSqrReal(:,:,1), this%SSqrReal(:,:,1), this%eigvecsReal, this%eigen, this%reks,&
               & errStatus)
           @:PROPAGATE_ERROR(errStatus)
         end if
 
         call getDensityMatrixL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%orb, this%species, this%coord,&
-            & this%tHelical, this%eigvecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal,&
+            & this%tHelical, this%eigvecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal(:,:,1),&
             & this%rhoSqrReal, this%q0, this%deltaRhoOutSqr, this%reks)
         call getMullikenPopulationL(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%rhoPrim, this%ints,&
@@ -840,7 +840,7 @@ contains
         call getDensityFromRealEigvecs(env, this%denseDesc, this%filling(:,1,:),&
             & this%neighbourList, this%nNeighbourSK, this%iSparseStart, this%img2CentCell,&
             & this%orb, this%species, this%denseDesc%iAtomStart, this%coord, this%tHelical,&
-            & this%eigVecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal, this%rhoSqrReal,&
+            & this%eigVecsReal, this%parallelKS, this%rhoPrim, this%SSqrReal(:,:,1), this%rhoSqrReal,&
             & this%deltaRhoOutSqr)
         ! For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
@@ -1223,19 +1223,19 @@ contains
           & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
           & this%img2CentCell, this%tWriteAutotest, this%tCasidaForces, this%tLinRespZVect,&
           & this%tPrintExcitedEigvecs, this%tPrintEigvecsTxt, this%nonSccDeriv,&
-          & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal, this%rhoSqrReal,&
+          & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal(:,:,1), this%rhoSqrReal,&
           & this%deltaRhoOutSqr, this%excitedDerivs, this%dQAtomEx, this%occNatural, this%rangeSep)
     end if
 
     if (allocated(this%ppRPA)) then
-      call unpackHS(this%SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
+      call unpackHS(this%SSqrReal(:,:,1), this%ints%overlap, this%neighbourList%iNeighbour,&
           & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
-      call blockSymmetrizeHS(this%SSqrReal, this%denseDesc%iAtomStart)
+      call blockSymmetrizeHS(this%SSqrReal(:,:,1), this%denseDesc%iAtomStart)
       if (withMpi) then
         call error("pp-RPA calc. does not work with MPI yet")
       end if
       call ppRPAenergies(this%ppRPA, this%denseDesc, this%eigvecsReal, this%eigen(:,1,:),&
-          & this%scc, this%SSqrReal, this%species0, this%nEl(1), this%neighbourList%iNeighbour,&
+          & this%scc, this%SSqrReal(:,:,1), this%species0, this%nEl(1), this%neighbourList%iNeighbour,&
           & this%img2CentCell, this%orb, this%tWriteAutotest, autotestTag, this%taggedWriter)
     end if
 
@@ -2371,13 +2371,13 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> dense hamiltonian matrix
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species,&
         & orb, iSparseStart, img2CentCell, potential, allocated(reks),&
@@ -2494,13 +2494,13 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> dense hamiltonian matrix
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     integer :: nSpin
 
@@ -2617,7 +2617,7 @@ contains
     real(dp), intent(out) :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(out) :: SSqrReal(:,:,:)
 
     integer :: iKS, iSpin
 
@@ -2631,14 +2631,14 @@ contains
             & coord, denseDesc, HSqrReal(:,:,iKS))
         if (.not. electronicSolver%hasCholesky(1)) then
           call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
-              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal)
+              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal(:,:,1))
         end if
       else
         call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
             & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, HSqrReal(:,:,iKS))
         if (.not. electronicSolver%hasCholesky(1)) then
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-              & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+              & iSparseStart, img2CentCell, denseDesc, SSqrReal(:,:,1))
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2647,12 +2647,12 @@ contains
       if (tHelical) then
         call unpackHelicalHS(HSqrReal(:,:,iKS), ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-        call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call unpackHS(HSqrReal(:,:,iKS), ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2661,10 +2661,10 @@ contains
       ! Assumes deltaRhoInSqr only used by rangeseparation
       ! Should this be used elsewhere, need to pass isRangeSep
       if (allocated(rangeSep)) then
-        call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
+        call denseMulliken(deltaRhoInSqr, SSqrReal(:,:,1), denseDesc%iAtomStart, qOutput)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
-            & orb, HSqrReal(:,:,iKS), SSqrReal)
+            & orb, HSqrReal(:,:,iKS), SSqrReal(:,:,1))
       end if
 
       ! Re-assign the values including rangeseparated contribution to sparse hamiltonian
@@ -2742,7 +2742,7 @@ contains
     complex(dp), intent(out) :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(out) :: SSqrCplx(:,:,:)
 
     integer :: iKS, iK, iSpin
 
@@ -2758,7 +2758,7 @@ contains
         if (.not. electronicSolver%hasCholesky(iKS)) then
           call unpackHSHelicalCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK),&
               & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
-              & img2CentCell, orb, species, coord, denseDesc, SSqrCplx)
+              & img2CentCell, orb, species, coord, denseDesc, SSqrCplx(:,:,iK))
         end if
       else
         call unpackHSCplxBlacs(env%blacs, ints%hamiltonian(:,iSpin), kPoint(:,iK),&
@@ -2766,7 +2766,7 @@ contains
             & img2CentCell, denseDesc, HSqrCplx(:,:,iKS))
         if (.not. electronicSolver%hasCholesky(iKS)) then
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx(:,:,iK))
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2776,13 +2776,13 @@ contains
         call unpackHelicalHS(HSqrCplx(:,:,iKS), ints%hamiltonian(:,iSpin), kPoint(:,iK),&
             & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell, orb, species, coord)
-        call unpackHelicalHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
+        call unpackHelicalHS(SSqrCplx(:,:,iK), ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
             & orb, species, coord)
       else
         call unpackHS(HSqrCplx(:,:,iKS), ints%hamiltonian(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call unpackHS(SSqrCplx, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(SSqrCplx(:,:,iK), ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -2840,7 +2840,7 @@ contains
     complex(dp), intent(out) :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(out) :: SSqrCplx(:,:,:)
 
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
@@ -2866,7 +2866,7 @@ contains
       if (.not. electronicSolver%hasCholesky(iKS)) then
         call unpackSPauliBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-            & SSqrCplx)
+            & SSqrCplx(:,:,iK))
       end if
     #:else
       if (allocated(ints%iHamiltonian)) then
@@ -2878,7 +2878,7 @@ contains
             & iSparseStart, denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx(:,:,iKS))
       end if
       call unpackSPauli(ints%overlap, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx(:,:,iK))
     #:endif
       if (allocated(xi) .and. .not. allocated(ints%iHamiltonian)) then
         call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx(:,:,iKS))
@@ -2944,7 +2944,7 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -2953,7 +2953,7 @@ contains
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> Eigenvectors on eixt
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
@@ -3057,7 +3057,7 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3066,7 +3066,7 @@ contains
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> Eigenvectors on eixt
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
@@ -3122,7 +3122,7 @@ contains
     real(dp), intent(inout) :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(inout) :: SSqrReal(:,:)
+    real(dp), intent(inout) :: SSqrReal(:,:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(out) :: eigvecsReal(:,:,:)
@@ -3139,7 +3139,7 @@ contains
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iSpin = parallelKS%localKS(2, iKS)
-      tmpS = SSqrReal
+      tmpS = SSqrReal(:,:,1)
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal(:,:,iKS),&
           & tmpS, eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
@@ -3180,7 +3180,7 @@ contains
     complex(dp), intent(inout) :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout) :: SSqrCplx(:,:)
+    complex(dp), intent(inout) :: SSqrCplx(:,:,:)
 
     !> Eigenvectors on eixt
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
@@ -3198,7 +3198,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
-      tmpS = SSqrCplx
+      tmpS = SSqrCplx(:,:,iK)
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
           & tmpS, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), errStatus)
@@ -3239,7 +3239,7 @@ contains
     complex(dp), intent(inout) :: HSqrCplx(:,:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(inout) :: SSqrCplx(:,:)
+    complex(dp), intent(inout) :: SSqrCplx(:,:,:)
 
     !> Eigenvectors on eixt
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
@@ -3256,7 +3256,7 @@ contains
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-      tmpS = SSqrCplx
+      tmpS = SSqrCplx(:,:,iK)
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(env, electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx(:,:,iKS),&
           & tmpS, eigen(:,iK), eigvecsCplx(:,:,iKS), errStatus)
@@ -3502,7 +3502,7 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense real overlap storage
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> real eigenvectors on exit
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3511,7 +3511,7 @@ contains
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> complex eigenvectors on exit
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
@@ -3661,13 +3661,13 @@ contains
     real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
     !> dense real overlap storage
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> real eigenvectors on exit
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> complex eigenvectors on exit
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
@@ -3686,11 +3686,11 @@ contains
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, species, denseDesc%iAtomStart, coord, tHelical,&
-            & eigvecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
+            & eigvecsReal, parallelKS, rhoPrim, SSqrReal(:,:,1), rhoSqrReal, deltaRhoOutSqr)
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
-            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx)
+            & parallelKS, tHelical, species, coord, eigvecsCplx, rhoPrim, SSqrCplx(:,:,1))
       end if
       call ud2qm(rhoPrim)
     else
@@ -3699,7 +3699,7 @@ contains
       call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
           & tMulliken, kPoint, kWeight, filling(:,:,1), neighbourList, nNeighbourSK, orb,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, species, parallelKS, deltaDftb,&
-          & eigvecsCplx, SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
+          & eigvecsCplx, SSqrCplx(:,:,1), energy, rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
 
@@ -4422,7 +4422,7 @@ contains
       & tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff, qBlockIn, qBlockOut)
 
     !> Square dense overlap storage
-    real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: SSqrReal(:,:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -4529,14 +4529,14 @@ contains
       else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
         if (tHelical) then
-          call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+          call unpackHelicalHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
               & iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
-          call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
+          call unpackHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
               & iSparseStart, img2CentCell)
         end if
         deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
-        call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+        call denseMulliken(deltaRhoInSqr, SSqrReal(:,:,1), iAtomStart, qInput)
 
         ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
@@ -4548,7 +4548,7 @@ contains
         end if
 
         if (allocated(qBlockIn)) then
-          call denseBlockMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qBlockIn)
+          call denseBlockMulliken(deltaRhoInSqr, SSqrReal(:,:,1), iAtomStart, qBlockIn)
           do iSpin = 1, nSpin
             do iAt = 1, size(qInput, dim=2)
               do iOrb = 1, size(qInput, dim=1)
@@ -5252,13 +5252,13 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -5393,13 +5393,13 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -5411,17 +5411,17 @@ contains
     if (nSpin == 4) then
       call getEDensityMtxFromPauliEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
           & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
-          & cellVec, tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim, errStatus)
+          & cellVec, tRealHS, parallelKS, HSqrCplx, SSqrCplx(:,:,1), ERhoPrim, errStatus)
     else
       if (tRealHS) then
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ints,&
-            & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal, ERhoPrim, errStatus)
+            & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal(:,:,1), ERhoPrim, errStatus)
 
       else
         call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
-            & cellVec, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx, ERhoPrim,&
+            & cellVec, ints, parallelKS, tHelical, species, coord, HSqrCplx, SSqrCplx(:,:,1), ERhoPrim,&
             & errStatus)
       end if
     end if
@@ -6064,7 +6064,7 @@ contains
     type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> dense overlap matrix, required for rangeSep
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Integral container
     type(TIntegral), intent(in) :: ints
@@ -6203,17 +6203,17 @@ contains
 
     if (allocated(rangeSep)) then
       if (tHelical) then
-        call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
-        call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       if (size(deltaRhoOutSqr, dim=3) > 2) then
         call error("Range separated forces do not support non-colinear spin")
       else
         call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
-            & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
+            & species, orb, denseDesc%iAtomStart, SSqrReal(:,:,1), neighbourList%iNeighbour, nNeighbourSK)
       end if
     end if
 
@@ -6958,13 +6958,13 @@ contains
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     !> Is the geometry helical
     logical, intent(in) :: tHelical
@@ -6984,28 +6984,28 @@ contains
 
     if (allocated(eigvecsReal)) then
       if (tHelical) then
-        call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
-        call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
       do iKS = 1, parallelKS%nLocalKS
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = nint(nEl(iSpin) / real(3 - nSpin, dp))
-        localisation = pipekMezey%getLocalisation(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
+        localisation = pipekMezey%getLocalisation(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal(:,:,1),&
             & denseDesc%iAtomStart)
         write(stdOut, "(A, E15.8)") 'Original localisation', localisation
-        call pipekMezey%calcCoeffs(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
+        call pipekMezey%calcCoeffs(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal(:,:,1),&
             & denseDesc%iAtomStart)
-        localisation = pipekMezey%getLocalisation(eigvecsReal(:,1:nFilledLev,iKS), SSqrReal,&
+        localisation = pipekMezey%getLocalisation(eigvecsReal(:,1:nFilledLev,iKS), SSqrReal(:,:,1),&
             & denseDesc%iAtomStart)
         write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
       end do
 
       call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
           & img2CentCell, species(:nAtom), speciesName, orb, ints%overlap, parallelKS,&
-          & tPrintEigvecsTxt, eigvecsReal, SSqrReal, fileName="localOrbs")
+          & tPrintEigvecsTxt, eigvecsReal, SSqrReal(:,:,1), fileName="localOrbs")
     else
 
       localisation = 0.0_dp
@@ -7014,7 +7014,7 @@ contains
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = nint(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation(&
-            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, ints%overlap, kpoint(:,iK), neighbourList,&
+            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx(:,:,iK), ints%overlap, kpoint(:,iK), neighbourList,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Original localisation', localisation
@@ -7024,7 +7024,7 @@ contains
         iK = parallelKS%localKS(1, iKS)
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = nint(nEl(iSpin) / real( 3 - nSpin, dp))
-        call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, ints%overlap,&
+        call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx(:,:,iK), ints%overlap,&
             & kpoint(:,iK), neighbourList, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
       end do
@@ -7035,14 +7035,15 @@ contains
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = nint(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation(&
-            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, ints%overlap, kpoint(:,iK), neighbourList,&
+            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx(:,:,iK), ints%overlap, kpoint(:,iK), neighbourList,&
             & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Final localisation', localisation
 
+      ! Here, SSqrCplx is used as work array, so only single array is needed
       call writeCplxEigvecs(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec, denseDesc,&
           & iSparseStart, img2CentCell, species, speciesName, orb, kPoint, ints%overlap,&
-          & parallelKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName="localOrbs")
+          & parallelKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx(:,:,1), fileName="localOrbs")
 
     end if
 

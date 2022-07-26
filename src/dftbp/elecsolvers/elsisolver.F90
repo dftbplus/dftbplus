@@ -922,13 +922,13 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense real overlap storage
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> dense complex (k-points) hamiltonian storage
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
   #:if WITH_ELSI
 
@@ -1095,10 +1095,10 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
   #:if WITH_ELSI
 
@@ -1316,7 +1316,7 @@ contains
     real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> dense real overlap storage
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     real(dp), allocatable :: rhoSqrReal(:,:)
     integer :: iKS, iS
@@ -1330,14 +1330,14 @@ contains
           & iSparseStart, img2CentCell, orb, species, coord, denseDesc, HSqrReal(:,:,iKS))
       if (.not. this%tCholeskyDecomposed) then
         call unpackHSHelicalRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
-            & iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal)
+            & iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal(:,:,1))
       end if
     else
       call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal(:,:,iKS))
       if (.not. this%tCholeskyDecomposed) then
         call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
-            & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+            & iSparseStart, img2CentCell, denseDesc, SSqrReal(:,:,1))
       end if
     end if
 
@@ -1352,11 +1352,11 @@ contains
     Eband(iS) = 0.0_dp
     if (this%tWriteHS) then
       call elsi_write_mat_real(this%rwHandle, "ELSI_Hreal.bin", HSqrReal(:,:,iKS))
-      call elsi_write_mat_real(this%rwHandle, "ELSI_Sreal.bin", SSqrReal)
+      call elsi_write_mat_real(this%rwHandle, "ELSI_Sreal.bin", SSqrReal(:,:,1))
       call elsi_finalize_rw(this%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_real(this%handle, HSqrReal(:,:,iKS), SSqrReal, rhoSqrReal, Eband(iS))
+    call elsi_dm_real(this%handle, HSqrReal(:,:,iKS), SSqrReal(:,:,1), rhoSqrReal, Eband(iS))
 
     if (tHelical) then
       call packRhoHelicalRealBlacs(env%blacs, denseDesc, rhoSqrReal, neighbourList%iNeighbour,&
@@ -1439,7 +1439,7 @@ contains
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     integer :: iKS, iK, iS
@@ -1458,7 +1458,7 @@ contains
         SSqrCplx(:,:) = 0.0_dp
         call unpackHSHelicalCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
-            & denseDesc, SSqrCplx)
+            & denseDesc, SSqrCplx(:,:,iK))
       end if
     else
       call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
@@ -1467,7 +1467,7 @@ contains
         SSqrCplx(:,:) = 0.0_dp
         call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
-            & SSqrCplx)
+            & SSqrCplx(:,:,iK))
       end if
     end if
     if (.not. this%tCholeskyDecomposed) then
@@ -1482,11 +1482,11 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Hcmplex.bin",&
           & HSqrCplx(:,:,iKS))
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
-          & SSqrCplx)
+          & SSqrCplx(:,:,iK))
       call elsi_finalize_rw(this%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_complex(this%handle, HSqrCplx(:,:,iKS), SSqrCplx, rhoSqrCplx,&
+    call elsi_dm_complex(this%handle, HSqrCplx(:,:,iKS), SSqrCplx(:,:,iK), rhoSqrCplx,&
         & Eband(iS))
     if (tHelical) then
       call packRhoHelicalCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
@@ -1589,7 +1589,7 @@ contains
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
@@ -1626,7 +1626,7 @@ contains
       SSqrCplx(:,:) = 0.0_dp
       call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-          & SSqrCplx)
+          & SSqrCplx(:,:,iK))
       if (this%ommCholesky .or. this%iSolver == electronicSolverTypes%pexsi) then
         this%tCholeskyDecomposed = .true.
       end if
@@ -1640,11 +1640,11 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Hcmplex.bin",&
           & HSqrCplx(:,:,iKS))
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
-          & SSqrCplx)
+          & SSqrCplx(:,:,iK))
       call elsi_finalize_rw(this%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_complex(this%handle, HSqrCplx(:,:,iKS), SSqrCplx, rhoSqrCplx,&
+    call elsi_dm_complex(this%handle, HSqrCplx(:,:,iKS), SSqrCplx(:,:,iK), rhoSqrCplx,&
         & Eband(iS))
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       call getOnsiteSpinOrbitEnergy(env, rVecTemp, rhoSqrCplx, denseDesc, xi, orb, species)
@@ -1940,7 +1940,7 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     real(dp), allocatable :: EDMnzValLocal(:)
 
@@ -1958,12 +1958,12 @@ contains
       end if
 
     else
-      call elsi_get_edm_real(this%handle, SSqrReal)
+      call elsi_get_edm_real(this%handle, SSqrReal(:,:,1))
       if (tHelical) then
-        call packRhoHelicalRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
+        call packRhoHelicalRealBlacs(env%blacs, denseDesc, SSqrReal(:,:,1), neighbourList%iNeighbour,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, ERhoPrim)
       else
-        call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
+        call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal(:,:,1), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
       end if
     end if
@@ -2031,7 +2031,7 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     complex(dp), allocatable :: EDMnzValLocal(:)
     integer :: iK
@@ -2053,13 +2053,13 @@ contains
 
       end if
     else
-      call elsi_get_edm_complex(this%handle, SSqrCplx)
+      call elsi_get_edm_complex(this%handle, SSqrCplx(:,:,iK))
       if (tHelical) then
-        call packRhoHelicalCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+        call packRhoHelicalCplxBlacs(env%blacs, denseDesc, SSqrCplx(:,:,iK), kPoint(:,iK), kWeight(iK),&
             & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
             & img2CentCell, orb, species, coord, ERhoPrim)
       else
-        call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+        call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx(:,:,iK), kPoint(:,iK), kWeight(iK),&
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
             & img2CentCell, ERhoPrim)
       end if
@@ -2117,7 +2117,7 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     integer :: iK
 
@@ -2126,8 +2126,8 @@ contains
     else
       ! iKS always 1, as number of groups matches the number of k-points
       iK = parallelKS%localKS(1, 1)
-      call elsi_get_edm_complex(this%handle, SSqrCplx)
-      call packERhoPauliBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+      call elsi_get_edm_complex(this%handle, SSqrCplx(:,:,iK))
+      call packERhoPauliBlacs(env%blacs, denseDesc, SSqrCplx(:,:,iK), kPoint(:,iK), kWeight(iK),&
           & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, ERhoPrim)
       call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)

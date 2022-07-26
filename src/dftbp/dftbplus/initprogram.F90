@@ -879,7 +879,7 @@ module dftbp_dftbplus_initprogram
     complex(dp), allocatable :: HSqrCplx(:,:,:)
 
     !> Square dense overlap storage for cases with k-points
-    complex(dp), allocatable :: SSqrCplx(:,:)
+    complex(dp), allocatable :: SSqrCplx(:,:,:)
 
     !> Complex eigenvectors
     complex(dp), allocatable :: eigvecsCplx(:,:,:)
@@ -888,7 +888,7 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: HSqrReal(:,:,:)
 
     !> Square dense overlap storage
-    real(dp), allocatable :: SSqrReal(:,:)
+    real(dp), allocatable :: SSqrReal(:,:,:)
 
     !> Real eigenvectors
     real(dp), allocatable :: eigvecsReal(:,:,:)
@@ -4824,11 +4824,11 @@ contains
 
     if (this%t2Component .or. .not. this%tRealHS) then
       allocate(this%HSqrCplx(nLocalRows, nLocalCols, nLocalKS))
-      allocate(this%SSqrCplx(nLocalRows, nLocalCols))
+      allocate(this%SSqrCplx(nLocalRows, nLocalCols, this%nKPoint))
       allocate(this%eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
     else
       allocate(this%HSqrReal(nLocalRows, nLocalCols, nLocalKS))
-      allocate(this%SSqrReal(nLocalRows, nLocalCols))
+      allocate(this%SSqrReal(nLocalRows, nLocalCols, this%nKPoint))
       allocate(this%eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
     end if
 

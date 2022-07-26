@@ -175,13 +175,13 @@ contains
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:,:)
 
     !> Complex eigenvectors (will be overwritten)
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:,:)
 
     @:ASSERT(allocated(eigvecsReal) .neqv. allocated(eigvecsCplx))
     @:ASSERT(allocated(SSqrReal) .neqv. allocated(SSqrCplx))
@@ -189,11 +189,11 @@ contains
     if (allocated(eigvecsCplx)) then
       call writeCplxEigvecs(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec, denseDesc,&
           & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
-          & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
+          & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx(:,:,1))
     else
       call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iPair,&
           & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt,&
-          & eigvecsReal, SSqrReal)
+          & eigvecsReal, SSqrReal(:,:,1))
     end if
 
   end subroutine writeEigenvectors
@@ -1175,13 +1175,13 @@ contains
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Work space (real)
-    real(dp), intent(inout), allocatable :: workReal(:,:)
+    real(dp), intent(inout), allocatable :: workReal(:,:,:)
 
     !> Storage for eigenvectors (complex)
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Work space (complex)
-    complex(dp), intent(inout), allocatable :: workCplx(:,:)
+    complex(dp), intent(inout), allocatable :: workCplx(:,:,:)
 
     @:ASSERT(allocated(eigvecsReal) .neqv. allocated(eigvecsCplx))
     @:ASSERT(allocated(workReal) .neqv. allocated(workCplx))
@@ -1206,15 +1206,15 @@ contains
       if (denseDesc%t2Component) then
         call writeProjPauliEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
-            & eigvecsCplx, workCplx, iOrbRegion)
+            & eigvecsCplx, workCplx(:,:,1), iOrbRegion)
       else
         call writeProjCplxEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
-            & eigvecsCplx, workCplx, iOrbRegion)
+            & eigvecsCplx, workCplx(:,:,1), iOrbRegion)
       end if
     else
       call writeProjRealEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, denseDesc,&
-          & iPair, img2CentCell, over, parallelKS, eigvecsReal, workReal, iOrbRegion)
+          & iPair, img2CentCell, over, parallelKS, eigvecsReal, workReal(:,:,1), iOrbRegion)
     end if
   #:endif
 
