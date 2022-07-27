@@ -2250,6 +2250,13 @@ contains
 
     if (this%tWriteAtomEnergies) then
       call openFile(this, atomEnergyDat, 'atomenergies.dat')
+      write(atomEnergyDat, "(A)", advance = "NO")"#             time (fs)      |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E total (H)  |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_1) (H)   |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_2) (H)   |"
+      write(atomEnergyDat, "(A)", advance = "NO")"        ...        |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_N) (H)   |"
+      write(atomEnergyDat, "(A)")
     end if
 
   end subroutine initTDOutput
