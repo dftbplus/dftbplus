@@ -5247,6 +5247,7 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
   \kw{EulerFrequency} & i & & 0 & \\
   \kw{WriteBondEnergy} & l & & No & \\
   \kw{WriteBondPopulation} & l & & No & \\
+  \kw{WriteAtomicEnergies} & l & & No & \\
   \kw{FillingsFromFile} & l & & No & \\
 \end{ptable}
 
@@ -5368,6 +5369,9 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
   where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
   matrix. They are stored in binary format (see \ref{sec:bpformatout}).
 
+\item[\is{WriteAtomicEnergies}] If the atom-resolved contributions to the total energy
+shpuld be written to the \verb|atomenergies.dat| file.
+  
 \item[\is{FillingsFromFile}] If the initial fillings (molecular
   orbital occupations) should be read from a file named
   ``fillings.ini'' present in the working directory. If used, the
@@ -6389,8 +6393,18 @@ following column order:
 time (in fs), net total charge, charge (atom 1), charge (atom 2), ...,
 charge (atom N)
 
-where N is the number of atoms, and the net total charge should always
+where N is the number of atoms, and the net totael charge should always
 be zero (up to numerical presicion) for a neutral system.
+
+\subsection{atomenergies.dat}
+\index{atomenergies.dat}
+
+Atom-wise contribution to total energy (without nuclear kinetic energy)
+as a function of time, written every \kw{WriteFrequency} steps, with the
+following column order:
+
+time (in fs), total energy, energy (atom 1), energy (atom 2), ...,
+energy (atom N)
 
 \subsection{mu.dat/mux.dat/muy.dat/muz.dat}
 \index{mu.dat}
