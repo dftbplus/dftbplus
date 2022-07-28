@@ -808,7 +808,7 @@ contains
         if (iSccIter == 1) then
           call getReksInitialSettings(env, this%denseDesc, this%h0, this%ints, this%neighbourList,&
               & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%electronicSolver,&
-              & iGeoStep, this%HSqrReal(:,:,1), this%SSqrReal(:,:,1), this%eigvecsReal, this%eigen, this%reks,&
+              & iGeoStep, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%eigen, this%reks,&
               & errStatus)
           @:PROPAGATE_ERROR(errStatus)
         end if
@@ -7158,10 +7158,10 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> dense hamiltonian matrix
-    real(dp), intent(out) :: HSqrReal(:,:)
+    real(dp), intent(out) :: HSqrReal(:,:,:)
 
     !> dense overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(out) :: SSqrReal(:,:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
@@ -7176,11 +7176,11 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
-    call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, &
+    call unpackHS(SSqrReal(:,:,1), ints%overlap, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%overSqr(:,:) = SSqrReal
+    reks%overSqr(:,:) = SSqrReal(:,:,1)
     call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
 
     if (iGeoStep == 0) then
@@ -7188,16 +7188,17 @@ contains
       if (.not. reks%tReadMO) then
 
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
-        call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
+        call unpackHS(HSqrReal(:,:,1), h0, neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
         eigen(:,:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%diagonalization)
-        call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1), errStatus)
+        call diagDenseMtx(env, electronicSolver, 'V', HSqrReal(:,:,1), SSqrReal(:,:,1), &
+            & eigen(:,1,1), errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%diagonalization)
-        eigvecsReal(:,:,1) = HSqrReal
+        eigvecsReal(:,:,1) = HSqrReal(:,:,1)
 
       else
 
