@@ -2665,19 +2665,19 @@ contains
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
             & orb, HSqrReal(:,:,iKS), SSqrReal(:,:,1))
-      end if
 
-      ! Re-assign the values including rangeseparated contribution to sparse hamiltonian
-      ints%hamiltonian(:,iSpin) = 0.0_dp
-      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-      if (tHelical) then
-        call packHelicalHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
-            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-      else
-        call packHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        ! Re-assign the values including rangeseparated contribution to sparse hamiltonian
+        ints%hamiltonian(:,iSpin) = 0.0_dp
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        if (tHelical) then
+          call packHelicalHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call packHS(ints%hamiltonian(:,iSpin), HSqrReal(:,:,iKS), neighbourlist%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       end if
-      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
 
     #:endif
     end do
