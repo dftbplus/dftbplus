@@ -1455,7 +1455,7 @@ contains
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
           & denseDesc, HSqrCplx(:,:,iKS))
       if (.not. this%tCholeskyDecomposed) then
-        SSqrCplx(:,:) = 0.0_dp
+        SSqrCplx(:,:,iK) = 0.0_dp
         call unpackHSHelicalCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
             & denseDesc, SSqrCplx(:,:,iK))
@@ -1464,7 +1464,7 @@ contains
       call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx(:,:,iKS))
       if (.not. this%tCholeskyDecomposed) then
-        SSqrCplx(:,:) = 0.0_dp
+        SSqrCplx(:,:,iK) = 0.0_dp
         call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
             & SSqrCplx(:,:,iK))
@@ -1623,7 +1623,7 @@ contains
           & HSqrCplx(:,:,iKS))
     end if
     if (.not. this%tCholeskyDecomposed) then
-      SSqrCplx(:,:) = 0.0_dp
+      SSqrCplx(:,:,iK) = 0.0_dp
       call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & SSqrCplx(:,:,iK))
