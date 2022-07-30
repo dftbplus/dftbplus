@@ -738,19 +738,19 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Square dense hamiltonian storage for cases with k-points
-    complex(dp), allocatable, intent(inout) :: HSqrCplx(:,:)
+    complex(dp), allocatable, intent(inout) :: HSqrCplx(:,:,:)
 
     !> Square dense overlap storage for cases with k-points
-    complex(dp), allocatable, intent(inout) :: SSqrCplx(:,:)
+    complex(dp), allocatable, intent(inout) :: SSqrCplx(:,:,:)
 
     !> Complex eigenvectors
     complex(dp), allocatable, intent(inout) :: eigvecsCplx(:,:,:)
 
     !> Square dense hamiltonian storage
-    real(dp), allocatable, intent(inout) :: HSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: HSqrReal(:,:,:)
 
     !> Square dense overlap storage
-    real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: SSqrReal(:,:,:)
 
     !> Real eigenvectors
     real(dp), allocatable, intent(inout) :: eigvecsReal(:,:,:)
@@ -770,8 +770,8 @@ contains
         deallocate(HSqrCplx)
         deallocate(SSqrCplx)
         deallocate(eigVecsCplx)
-        allocate(HSqrCplx(nLocalRows, nLocalCols))
-        allocate(SSqrCplx(nLocalRows, nLocalCols))
+        allocate(HSqrCplx(nLocalRows, nLocalCols, nLocalKS))
+        allocate(SSqrCplx(nLocalRows, nLocalCols, main%nKPoint))
         allocate(eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
       endif
     else
@@ -780,8 +780,8 @@ contains
         deallocate(HSqrReal)
         deallocate(SSqrReal)
         deallocate(eigVecsReal)
-        allocate(HSqrReal(nLocalRows, nLocalCols))
-        allocate(SSqrReal(nLocalRows, nLocalCols))
+        allocate(HSqrReal(nLocalRows, nLocalCols, nLocalKS))
+        allocate(SSqrReal(nLocalRows, nLocalCols, main%nKPoint))
         allocate(eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
       endif
 
