@@ -6305,6 +6305,8 @@ contains
     call getChildValue(pNode,"Gate",pTmp2,"none",child=pChild)
     call getNodeName(pTmp2, buffer)
 
+    poisson%insLength = 0.0_dp
+    poisson%insRad = 0.0_dp
     select case(char(buffer))
     case ("none")
       poisson%gateType = "N"
