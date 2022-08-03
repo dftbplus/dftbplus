@@ -14,6 +14,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
@@ -3975,6 +3976,7 @@ contains
     integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
     type(TNeighbourList) :: neighs
+    type(TStatus) :: errStatus
 
     allocate(tmpR2(3, geo%nAtom))
     allocate(input%polar(geo%nAtom))
@@ -4040,8 +4042,11 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec)
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geo%coords,&
+          & mCutoff, rCellVec, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom

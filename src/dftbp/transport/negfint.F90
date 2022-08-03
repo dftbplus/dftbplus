@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include "common.fypp"
+#:include 'error.fypp'
 
 !> Interface to LIBNEGF for DFTB+
 module dftbp_transport_negfint
@@ -13,6 +14,7 @@ module dftbp_transport_negfint
   use dftbp_common_constants, only : Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut, tIOproc
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, unpackHS
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
@@ -1808,7 +1810,7 @@ contains
   ! NOTE: Limited to non-periodic systems
   subroutine local_currents(this, env, groupKS, ham, over, neighbourList, nNeighbour, skCutoff,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoints, kWeights,&
-      & coord0, species0, speciesName, chempot, testArray)
+      & coord0, species0, speciesName, chempot, testArray, errStatus)
 
     !> Instance.
     class(TNegfInt), target, intent(inout) :: this
@@ -1868,6 +1870,8 @@ contains
     !> Array passed back to main for autotests (will become the output)
     real(dp), allocatable, intent(out) :: testArray(:,:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(out) :: errStatus
 
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow
@@ -1937,7 +1941,8 @@ contains
     call TNeighbourlist_init(lc_neigh, nAtom, nInitNeigh)
 
     call updateNeighbourListAndSpecies(env, lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
-        & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
+        & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, errStatus, symmetric=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     allocate(lcurr(maxval(lc_neigh%nNeighbour), nAtom, nSpin))
     lcurr(:,:,:) = 0.0_dp
