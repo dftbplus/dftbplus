@@ -991,7 +991,7 @@ module dftbp_dftbplus_initprogram
 
     !> Stress tensors for various contribution in periodic calculations
     !> Sign convention: Positive diagonal elements expand the supercell
-    real(dp) :: totalStress(3,3)
+    real(dp) :: totalStress(3,3) = 0.0_dp
 
     !> Stress tensors for determinants if using TI-DFTB
     real(dp), allocatable :: mixedStress(:,:), tripletStress(:,:)
