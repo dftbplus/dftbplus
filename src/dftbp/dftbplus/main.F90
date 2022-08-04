@@ -382,7 +382,10 @@ contains
           & this%ints%overlap, this%neighbourList, this%nNeighbourSK, this%cutOff%skCutoff,&
           & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%iCellVec,&
           & this%cellVec, this%rCellVec, this%orb, this%kPoint, this%kWeight, this%coord0Fold,&
-          & this%species0, this%speciesName, this%mu, this%lCurrArray)
+          & this%species0, this%speciesName, this%mu, this%lCurrArray, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
     end if
 
     if (this%tTunn) then
@@ -1906,11 +1909,12 @@ contains
     if (tHelical) then
       call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
           & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
-          & helicalBoundConds=latVec)
+          & errStatus, helicalBoundConds=latVec)
     else
       call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
+          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
     end if
+    @:PROPAGATE_ERROR(errStatus)
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
 

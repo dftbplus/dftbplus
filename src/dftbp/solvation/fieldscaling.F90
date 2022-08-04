@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Scale electrostatic field properties in presence of a solvent. Note, expressions assume spherical
 !> solvent cavity contains the system.
 module dftbp_solvation_fieldscaling
@@ -20,7 +22,7 @@ module dftbp_solvation_fieldscaling
   type TScaleExtEField
 
     !> Should dipoles / fields be re-scaled for external dielectric?
-    logical :: isRescaled
+    logical :: isRescaled = .false.
 
     !> External media dielectric constant
     real(dp) :: eps_r
@@ -34,8 +36,10 @@ module dftbp_solvation_fieldscaling
     procedure, private :: scaledExtEField_1
     procedure, private :: scaledSoluteDipole_1
     procedure, private :: scaledSoluteDipole_2
+    procedure, private :: scaledSoluteDipole_3
     generic :: scaledExtEField => scaledExtEField_0, scaledExtEField_1
-    generic :: scaledSoluteDipole => scaledSoluteDipole_1, scaledSoluteDipole_2
+    generic :: scaledSoluteDipole => scaledSoluteDipole_1, scaledSoluteDipole_2,&
+        & scaledSoluteDipole_3
 
   end type TScaleExtEField
 
@@ -130,51 +134,31 @@ contains
   end function scaledExtEField_1
 
 
-  !> Scale dipole moment of solute. Note, these expressions are for a point dipole inside a
-  !> spherical cavity.
-  pure function scaledSoluteDipole_1(this, mu0) result (mu)
+#:for LABEL, DIMS in [('1', ':'), ('2', ':,:'), ('3', ':,:,:')]
+
+  !> Scale ${LABEL}$ dim array of dipole moment(s) of solute. Note, these expressions are for a
+  !> point dipole inside a spherical cavity.
+  pure function scaledSoluteDipole_${LABEL}$(this, mu0) result (mu)
 
     !> Instance
     class(TScaleExtEField), intent(in) :: this
 
     !> Dipole moment of solute charges
-    real(dp), intent(in) :: mu0(:)
+    real(dp), intent(in) :: mu0(${DIMS}$)
 
-    real(dp) :: mu(size(mu0))
+    real(dp), allocatable :: mu(${DIMS}$)
 
-    mu(:) = mu0
+    mu = mu0
     if (this%isRescaled) then
       if (this%is_finite) then
-        mu(:) = 3.0_dp * this%eps_r * mu / (2.0_dp * this%eps_r + 1.0_dp)
+        mu(${DIMS}$) = 3.0_dp * this%eps_r * mu / (2.0_dp * this%eps_r + 1.0_dp)
       else
-        mu(:) = 3.0_dp * mu / 2.0_dp
+        mu(${DIMS}$) = 3.0_dp * mu / 2.0_dp
       end if
     end if
 
-  end function scaledSoluteDipole_1
+  end function scaledSoluteDipole_${LABEL}$
 
-
-  !> Scale dipole moment of solute. Note, these expressions are for a point dipole inside a
-  !> spherical cavity.
-  pure function scaledSoluteDipole_2(this, mu0) result (mu)
-
-    !> Instance
-    class(TScaleExtEField), intent(in) :: this
-
-    !> Dipole moment of solute charges
-    real(dp), intent(in) :: mu0(:, :)
-
-    real(dp) :: mu(size(mu0, dim=1), size(mu0, dim=2))
-
-    mu(:, :) = mu0
-    if (this%isRescaled) then
-      if (this%is_finite) then
-        mu(:, :) = 3.0_dp * this%eps_r * mu / (2.0_dp * this%eps_r + 1.0_dp)
-      else
-        mu(:, :) = 3.0_dp * mu / 2.0_dp
-      end if
-    end if
-
-  end function scaledSoluteDipole_2
+#:endfor
 
 end module dftbp_solvation_fieldscaling

@@ -266,8 +266,8 @@ structure during the calculation.\\ \bigskip Currently the following
 methods are available:
 \begin{description}
 \item[\iscb{}] Static calculation with the input geometry.
-\item[\iscb{GeometryOptimization}] Geometry optimisation of the input geometry.
-  See p.~\pref{sec:dftbp.GeometryOptimization}.
+\item[\iscb{GeometryOptimisation}] Geometry optimisation of the input geometry.
+  See p.~\pref{sec:dftbp.GeometryOptimisation}.
 \item[\iscb{SteepestDescent}] (\textbf{deprecated}) Geometry optimisation by moving atoms
   along the acting forces. See p.~\pref{sec:dftbp.SteepestDescent}.
 \item[\iscb{ConjugateGradient}] (\textbf{deprecated}) Geometry optimisation using the
@@ -287,11 +287,11 @@ methods are available:
 \end{description}
 
 
-\subsection{GeometryOptimization}
-\label{sec:dftbp.GeometryOptimization}
+\subsection{GeometryOptimisation}
+\label{sec:dftbp.GeometryOptimisation}
 
 \begin{ptable}
-  \kw{Optimizer} & m &  & Rational & \\
+  \kw{Optimiser} & m &  & Rational & \\
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{LatticeOpt} & l & & \is{No} & \\
   \kw{FixAngles} & l & LatticeOpt = Yes & \is{No} & \\
@@ -306,27 +306,27 @@ methods are available:
   %\kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
-Example for performing a full lattice optimization using the rational function optimizer:
+Example for performing a full lattice optimisation using the rational function optimiser:
 
 \begin{verbatim}
-Driver = GeometryOptimization {
-  Optimizer = Rational {}
+Driver = GeometryOptimisation {
+  Optimiser = Rational {}
   LatticeOpt = Yes
 }
 \end{verbatim}
 
 
-\subsubsection{Optimizer: Rational}
-\label{sec:dftbp.Optimizer.RF}
+\subsubsection{Optimiser: Rational}
+\label{sec:dftbp.Optimiser.RF}
 
-Provides a rational function based optimizer.
+Provides a rational function based optimiser.
 The geometry displacement step is determining obtaining the lowest eigenvalue of the augmented Hessian matrix.
-The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimization cycle.
+The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimisation cycle.
 The augmented Hessian is build from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme.
 A unit matrix is used as guess for the model hessian.
 
-The scaling behaviour of the computational cost and memory usage for this optimization step is quadratic in the number of optimized variables.
-Carefully evaluate the runtime of the optimization step for (very) large systems together linear-scaling electronic solvers.
+The scaling behaviour of the computational cost and memory usage for this optimisation step is quadratic in the number of optimised variables.
+Carefully evaluate the runtime of the optimisation step for (very) large systems together linear-scaling electronic solvers.
 
 \begin{ptable}
   \kw{DiagLimit} & r &  & 1.0e-2 & \\
@@ -337,18 +337,18 @@ Carefully evaluate the runtime of the optimization step for (very) large systems
 \end{description}
 
 \begin{verbatim}
-Driver = GeometryOptimization {
-  Optimizer = Rational { DiagLimit = 1.0e-2 }
+Driver = GeometryOptimisation {
+  Optimiser = Rational { DiagLimit = 1.0e-2 }
 }
 \end{verbatim}
 
 
-\subsubsection{Optimizer: LBFGS}
-\label{sec:dftbp.Optimizer.LBFGS}
+\subsubsection{Optimiser: LBFGS}
+\label{sec:dftbp.Optimiser.LBFGS}
 
-Limited memory BFGS optimizer provides a quasi-Newton optimization method using limited amount of memory.
+Limited memory BFGS optimiser provides a quasi-Newton optimisation method using limited amount of memory.
 
-The scaling behaviour of the computational cost and memory usage for this optimization step is linear in the number of optimized variables.
+The scaling behaviour of the computational cost and memory usage for this optimisation step is linear in the number of optimised variables.
 
 \begin{ptable}
   \kw{Memory} & i &  & 20 & \\
@@ -359,14 +359,14 @@ The scaling behaviour of the computational cost and memory usage for this optimi
 \end{description}
 
 \begin{verbatim}
-Driver = GeometryOptimization {
-  Optimizer = LBFGS { Memory = 20 }
+Driver = GeometryOptimisation {
+  Optimiser = LBFGS { Memory = 20 }
 }
 \end{verbatim}
 
 
-\subsubsection{Optimizer: FIRE}
-\label{sec:dftbp.Optimizer.FIRE}
+\subsubsection{Optimiser: FIRE}
+\label{sec:dftbp.Optimiser.FIRE}
 
 The {\itshape fast inertial relaxation engine} of Bitzek {\itshape et al.}~\cite{Bitzek-PRL-97-170201},
 using the default values from their paper and a Leap-frog integrator.
@@ -374,7 +374,7 @@ This can be faster than conjugate gradient and competitive with LBFGS in some ca
 but you should verify if FIRE is stable and efficient for your system before using it
 over other optimisers.
 
-The scaling behaviour of the computational cost and memory usage for this optimization step is linear in the number of optimized variables.
+The scaling behaviour of the computational cost and memory usage for this optimisation step is linear in the number of optimised variables.
 
 \begin{ptable}
   \kw{nMin} & i &  & 5 & \\
@@ -400,8 +400,8 @@ The scaling behaviour of the computational cost and memory usage for this optimi
 \end{description}
 
 \begin{verbatim}
-Driver = GeometryOptimization {
-  Optimizer = FIRE {
+Driver = GeometryOptimisation {
+  Optimiser = FIRE {
     nMin = 5
     aPar = 0.1
     fInc = 1.1
@@ -416,7 +416,7 @@ Driver = GeometryOptimization {
 \subsubsection{Convergence}
 \label{sec:dftbp.Convergence}
 
-Data group to provide the convergence thresholds for the geometry optimizations.
+Data group to provide the convergence thresholds for the geometry optimisations.
 To disable a convergence criterium a large value should be provided.
 
 \begin{ptable}
@@ -428,19 +428,19 @@ To disable a convergence criterium a large value should be provided.
 \end{ptable}
 \begin{description}
 \item[\is{Energy}]\modif{\modtype{energy}}
-  Maximum energy change in one geometry step to consider optimization converged.
+  Maximum energy change in one geometry step to consider optimisation converged.
   Disabled by default.
 \item[\is{GradElem}]\modif{\modtype{force}}
-  Maximum absolute gradient element in one geometry step to consider optimization converged
+  Maximum absolute gradient element in one geometry step to consider optimisation converged
   Default threshold is 1e-4 Hartree/Bohr.
 \item[\is{GradNorm}]\modif{\modtype{force}}
-  Maximum gradient norm in one geometry step to consider optimization converged
+  Maximum gradient norm in one geometry step to consider optimisation converged
   Disabled by default.
 \item[\is{DispElem}]\modif{\modtype{length}}
-  Maximum absolute displacement element in one geometry step to consider optimization converged
+  Maximum absolute displacement element in one geometry step to consider optimisation converged
   Disabled by default.
 \item[\is{DispNorm}]\modif{\modtype{length}}
-  Maximum displacement norm in one geometry step to consider optimization converged
+  Maximum displacement norm in one geometry step to consider optimisation converged
   Disabled by default.
 \end{description}
 
@@ -448,8 +448,8 @@ To disable a convergence criterium a large value should be provided.
 \subsection{SteepestDescent\cb}
 \label{sec:dftbp.SteepestDescent}
 
-\textbf{This geometry optimizer is deprecated and will be removed in future versions.
-Please use the new \is{GeometryOptimization} driver instead.}
+\textbf{This geometry optimiser is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimisation} driver instead.}
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
@@ -559,8 +559,8 @@ Please use the new \is{GeometryOptimization} driver instead.}
 \subsection{ConjugateGradient\cb}
 \label{sec:dftbp.ConjugateGradient}
 
-\textbf{This geometry optimizer is deprecated and will be removed in future versions.
-Please use the new \is{GeometryOptimization} driver instead.}
+\textbf{This geometry optimiser is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimisation} driver instead.}
 
 \begin{ptable}
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
@@ -582,8 +582,8 @@ See previous subsection for the description of the properties.
 \subsection{gDIIS\cb}
 \label{sec:dftbp.gDIIS}
 
-\textbf{This geometry optimizer is deprecated and will be removed in future versions.
-Please use the new \is{GeometryOptimization} driver instead.}
+\textbf{This geometry optimiser is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimisation} driver instead.}
 
 \begin{ptable}
   \kw{Alpha} & r & & 0.1 & \\
@@ -615,8 +615,8 @@ properties.\footnote{This approach is distinct from
 \htcbsubsection{LBFGS}
 \label{sec:dftbp.LBFGS}
 
-\textbf{This geometry optimizer is deprecated and will be removed in future versions.
-Please use the new \is{GeometryOptimization} driver instead.}
+\textbf{This geometry optimiser is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimisation} driver instead.}
 
 \begin{ptable}
   \kw{Memory}            & i & & 20 & \\
@@ -651,8 +651,8 @@ Specific properties for this method are:
 \htcbsubsection{FIRE}
 \label{sec:dftbp.FIRE}
 
-\textbf{This geometry optimizer is deprecated and will be removed in future versions.
-Please use the new \is{GeometryOptimization} driver instead.}
+\textbf{This geometry optimiser is deprecated and will be removed in future versions.
+Please use the new \is{GeometryOptimisation} driver instead.}
 
 The {\it fast inertial relaxation engine} of Bitzek {\it et
   al.}~\cite{Bitzek-PRL-97-170201}, using the default values from their paper
@@ -1670,7 +1670,7 @@ library.
 
 \begin{description}
 \item[\is{Method}]
-  Request library to initialize the xTB parametrisation for the given method.
+  Request library to initialise the xTB parametrisation for the given method.
   Doing so will hand over the energy, potential and force evaluation to the
   \texttt{tblite} library.
   Supported methods are GFN1-xTB\cite{grimme2017}, IPEA1-xTB\cite{asgeirsson2017},
@@ -1678,7 +1678,7 @@ library.
   If present \kw{ParameterFile} must not be provided.
 
 \item[\is{ParameterFile}]
-  Request library to initialize the xTB parametrisation from a parameter file.
+  Request library to initialise the xTB parametrisation from a parameter file.
   Doing so will hand over the energy, potential and force evaluation to the
   \texttt{tblite} library.
   The parameter format is documented in
@@ -2184,8 +2184,8 @@ variable.)
 
 \subsubsection{ELPA}
 
-The ELPA solver provides an efficient and scalable diagonalizer, which is also
-able to utilize GPUs (provided the ELSI library was compiled with GPU support).
+The ELPA solver provides an efficient and scalable diagonaliser, which is also
+able to utilise GPUs (provided the ELSI library was compiled with GPU support).
 It accepts following options
 
 \begin{ptable}
@@ -2196,7 +2196,7 @@ It accepts following options
 \end{ptable}
 \begin{description}
 \item[\is{Autotune}] Whether ELPAs autotune capability should be used to
-  optimize performance (default: \is{No})
+  optimise performance (default: \is{No})
 \item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
   that you can only enable this option, if \dftbp{} was built with GPU support.
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
@@ -2399,7 +2399,7 @@ significant.
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
 singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
-optimized under non-Aufbau orbital occupation constraints via promotion of an
+optimised under non-Aufbau orbital occupation constraints via promotion of an
 electron from the highest occupied molecular orbital (HOMO) of the ground state
 to lowest unoccupied molecular orbital (LUMO) at each SCC
 iteration. Specifically, the \kwcb{NonAufbau} block in \dftbp manipulates the
@@ -2696,7 +2696,7 @@ the default value of \kw{MaxSccIterations} is set to be 1 in this case.
 
 \htcbsubsubsection{HelicalUniform}
 
-This method specifies $k$-points lying along the generalized reciprocal vector
+This method specifies $k$-points lying along the generalised reciprocal vector
 of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
 (currently the $k$-points that exactly represent the $C_n$ rotation are
 used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
@@ -3414,7 +3414,7 @@ can be adjusted in the input.
 \subsubsection{DftD4 ChargeModel}
 \label{sec:dftbp.ChargeModel}
 
-This implementation of DFT-D4 supports the \is{EEQ\cb} method to initialize
+This implementation of DFT-D4 supports the \is{EEQ\cb} method to initialise
 the charge model with an electronegativity equilibration~(EEQ) model\cite{rappe1991}
 as well as a self-consistent evaluation of the dispersion with \is{SelfConsistent\cb}.
 
@@ -3620,14 +3620,14 @@ Hamiltonian = DFTB {
 \subsection{Implicit Solvation Model}
 \label{sec:dftbp.Solvation}
 
-\subsubsection{Generalized Born Model}
-\label{sec:dftbp.GeneralizedBorn}
+\subsubsection{Generalised Born Model}
+\label{sec:dftbp.GeneralisedBorn}
 
-In generalized Born (GB) theory,\cite{onufriev2019} a molecule is considered as
+In generalised Born (GB) theory,\cite{onufriev2019} a molecule is considered as
 continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
 infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
 Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
-and their interaction in the presence of a polarized solvent can be
+and their interaction in the presence of a polarised solvent can be
 expressed as the solvation energy
 %
 \begin{equation}
@@ -3673,14 +3673,14 @@ is scaled by the element-specific descreening value~$s_\text{B}$
 to compensate the systematic overestimation of the volume by this
 approach.
 
-To use the generalized Born model in the SCC procedure use the
-\is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
+To use the generalised Born model in the SCC procedure use the
+\is{GeneralisedBorn\cb} method in the input to \kw{Solvation}.
 The non-polar solvent area model can be combinded with the GB model
 enabling to additionally correct for hydrogen bonding, the resulting
 model is called GBSA.
 The parameters for the GBSA model are currently available at
 \url{https://github.com/grimme-lab/gbsa-parameters} and can be read in with
-\kw{ParamFile} and will setup the complete \kw{GeneralizedBorn\cb} input.
+\kw{ParamFile} and will setup the complete \kw{GeneralisedBorn\cb} input.
 
 Note that the GB(SA) model implemented is only available for finite
 systems.
@@ -3786,7 +3786,7 @@ systems.
 
   \item[\is{ALPB}]
     Use analytical lineared Poisson Boltzmann (ALPB) model\cite{sigalov2006}
-    instead of Generalized Born.
+    instead of Generalised Born.
     The main difference is a molecular shape dependent contribution for charged
     systems.
 
@@ -3799,7 +3799,7 @@ Example for a GB model with \cf{CS2} as solvent:
 
 \begin{verbatim}
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromName { "cs2" }
     FreeEnergyShift [kcal/mol] = 2.81072250
     Radii = vanDerWaalsRadiiD3 [Bohr] {}
@@ -3821,7 +3821,7 @@ Example for a GBSA model for water
 
 \begin{verbatim}
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(water)
     Solvent = fromConstants {
       Epsilon = 80.2
       MolecularMass [amu] = 18.0
@@ -3905,7 +3905,7 @@ CM5 {
 \label{sec:dftbp.COSMO}
 
 The conductor like screening model (COSMO)\cite{klamt1993} allows to include dielectric screening effects in quantum chemical calculations.
-DFTB+ uses the fast domain decomposition algorithm\cite{lipparini2013} to minimize the overhead of solving the COSMO equations in the SCC iterations.
+DFTB+ uses the fast domain decomposition algorithm\cite{lipparini2013} to minimise the overhead of solving the COSMO equations in the SCC iterations.
 
 In the domain decomposition algorithm the solvation energy is given by
 %
@@ -3998,13 +3998,13 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     Both methods accept \modif{\modtype{length}} units.
     Alternatively, \is{VanDerWaalsRadiiCosmo\cb} and \is{VanDerWaalsRadiiBondi\cb}
     can be used to provide van-der-Waals radii. Note that Bondi radii\cite{mantina2009}
-    are only available for main group elements and Cosmo optimized radii default to
-    2.223~AA if no optimized values are available.
+    are only available for main group elements and Cosmo optimised radii default to
+    2.223~AA if no optimised values are available.
 
   \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.3 and 1.5 are recommended when using DFT-D3 van-der-Waals
     radii, while for Bondi radii usually values between 1.2 and 1.3 are used.
-    Cosmo optimized radius should be used with a scaling factor of unity.
+    Cosmo optimised radius should be used with a scaling factor of unity.
 
   \item[\is{Solver}] for the COSMO equation. Currently only
     \is{DomainDecomposition\cb} is implemented (default). If specified
@@ -4289,7 +4289,7 @@ atoms are also required. \dftbp{} stores these for most of the periodic table,
 but for cases that are not available their contribution to this correction are
 neglected.
 
-For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
+For a DFTB3-D3H5 calculation, a specific parametrisation of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
 parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
 hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
@@ -5388,15 +5388,15 @@ No time-dependent perturbation is included, free dynamics are calculated.
 Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
 
 \begin{ptable}
-  \kw{PolarizationDirection} & s &  & - & \\
+  \kw{PolarisationDirection} & s &  & - & \\
   \kw{SpinType} & s & SpinPolarisation = Colinear \cb & Singlet & \\
 \end{ptable}
 
 \begin{description}
- \item[\is{PolarizationDirection}] The cartesian axis for the kick:
+ \item[\is{PolarisationDirection}] The cartesian axis for the kick:
    \verb|"x"|, \verb|"y"| or \verb|"z"|. If set to \verb|"all"|,
    calculates the three directions $x,y,z$ consecutively. For
-   polarization direction \verb|x,y,z| the dipole moment output file
+   polarisation direction \verb|x,y,z| the dipole moment output file
    will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|,
    respectively.
 
@@ -5410,19 +5410,19 @@ Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
 Apply time-dependent sinusoidal perturbation to the system.
 
 \begin{ptable}
-  \kw{PolarizationDirection} & 3r &  & - & \\
-  \kw{ImagPolarizationDirection} & 3r & & 0 0 0 & \\
+  \kw{PolarisationDirection} & 3r &  & - & \\
+  \kw{ImagPolarisationDirection} & 3r & & 0 0 0 & \\
   \kw{LaserEnergy} & r & & & \\
   \kw{Phase} & r & & 0 & \\
   \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
 \end{ptable}
 
 \begin{description}
- \item[\is{PolarizationDirection}] Vector along which the electric
-   field is polarized.
+ \item[\is{PolarisationDirection}] Vector along which the electric
+   field is polarised.
 
- \item[\is{ImagPolarizationDirection}] Imaginary part of the
-   polarization vector. Useful for circularly polarized fields.
+ \item[\is{ImagPolarisationDirection}] Imaginary part of the
+   polarisation vector. Useful for circularly polarised fields.
 
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
    \omega$ of the laser.
@@ -5437,7 +5437,7 @@ Apply time-dependent sinusoidal perturbation to the system.
 \end{description}
 
 \textbf{Note:} when working with periodic systems, {\bf the
-  polarization direction must be orthogonal to the periodic
+  polarisation direction must be orthogonal to the periodic
   directions} of the system. Therefore, the code does not work with 3D
 periodic systems with laser perturbations.
 
@@ -5457,13 +5457,13 @@ keywords are a combination of the ones for kick and laser.
 \end{ptable}
 
 \begin{description}
- \item[\is{KickPolDir}] Same as PolarizationDirection in \is{Kick}.
+ \item[\is{KickPolDir}] Same as PolarisationDirection in \is{Kick}.
 
  \item[\is{SpinType}] Same as \is{Kick}.
 
- \item[\is{LaserPolDir}] Same as PolarizationDirection in \is{Laser}.
+ \item[\is{LaserPolDir}] Same as PolarisationDirection in \is{Laser}.
 
- \item[\is{LaserImagPolDir}] Same as ImagPolarizationDirection in \is{Laser}.
+ \item[\is{LaserImagPolDir}] Same as ImagPolarisationDirection in \is{Laser}.
 
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Same as in \is{Laser}.
 
@@ -5538,7 +5538,7 @@ The properties of this method are the same as for the Gaussian
     # Total time will be then 4000 a.u. = 96.8 fs
     FieldStrength [v/a] = 0.01
     Perturbation = Laser {
-      PolarizationDirection = 0.5 0.5 0
+      PolarisationDirection = 0.5 0.5 0
       LaserEnergy [ev] = 2.55
     }
     EnvelopeShape = Sin2 {
@@ -5607,7 +5607,7 @@ or the \is {SSR22}\cb\ block as value.
 
 This tag contains the specifications for a DFTB/SSR(2,2) calculation~\cite{Lee_JCTC_2019}, based on ensemble DFT theory.
 
-\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelization
+\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelisation
 and DFTB/SSR calculation is not compatible with time-dependent DFTB calculation.
 In addition, it is not compatible with spin-polarisation, but it requires spin constants to treat open-shell microstates.
 
@@ -5651,7 +5651,7 @@ The specifications for this block have the following properties:
   \end{ptable}
 
   \begin{description}
-  \item[\is{Functional}] Specifies the minimized energy functional in DFTB/SSR.
+  \item[\is{Functional}] Specifies the minimised energy functional in DFTB/SSR.
     This keyword reads a block consisted of the energy functionals that you want to include in the calculation.
     In DFTB/SSR(2,2), there are two possible choices for the minimzied energy functionals.
     One is PPS and the other is (PPS+OSS)/2. The former represents single-state REKS and the latter
@@ -5679,9 +5679,9 @@ The specifications for this block have the following properties:
   fifth microstate is triplet configuration, thus this microstate can be roughly considered as triplet state.
 
 \item[\is{ReadEigenvectors}] If set to \is{Yes}, the initial molecular orbitals are read from the
-  eigenvec.bin file. If not, the initial orbitals are obtained from the diagonalization of non-SCC Hamiltonian.
+  eigenvec.bin file. If not, the initial orbitals are obtained from the diagonalisation of non-SCC Hamiltonian.
 
-\item[\is{FonMaxIter}] Specifies the maximum number of iterations used in the optimization of
+\item[\is{FonMaxIter}] Specifies the maximum number of iterations used in the optimisation of
   fractional occupation numbers. In general, the value of 20 is enough to converge the fractional
   occupation numbers in SCC cycle.
 
@@ -6397,7 +6397,7 @@ be zero (up to numerical presicion) for a neutral system.
 
 Dipole moment cartesian components $\mu_i$ as a function of time. The
 units of the quantities are given at the top of the file. The name
-depends on the type or perturbation: for kicks the polarization
+depends on the type or perturbation: for kicks the polarisation
 direction of the Dirac-delta field is indicated in the name of the
 file; for lasers and pulses, the name is always mu.dat. The column
 order for a spin unpolarised calculation is the following:

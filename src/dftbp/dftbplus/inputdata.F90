@@ -472,7 +472,7 @@ module dftbp_dftbplus_inputdata
     class(TSolvationInp), allocatable :: solvInp
 
     !> Rescaling of electric fields (applied or dipole) if the system is solvated
-    logical :: isSolvatedFieldRescaled
+    logical :: isSolvatedFieldRescaled = .false.
 
     !> Input for tblite library
     type(TTBLiteInput), allocatable :: tbliteInp

@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_dftb_periodic
@@ -14,9 +15,10 @@ module dftbp_dftb_periodic
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_memman, only : incrmntOfArray
   use dftbp_common_schedule, only : getChunkRanges
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, MPI_MAX
+  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR
 #:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
@@ -265,7 +267,7 @@ contains
 
   !> Updates the neighbour list and the species arrays.
   subroutine updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec, neigh,&
-      & nAllAtom, coord0, species0, cutoff, rCellVec, symmetric, helicalBoundConds)
+      & nAllAtom, coord0, species0, cutoff, rCellVec, errStatus, symmetric, helicalBoundConds)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -300,6 +302,9 @@ contains
     !> Cell vector for the translated cells to consider.
     real(dp), intent(in) :: rCellVec(:,:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(out) :: errStatus
+
     !> Whether the neighbour list should be symmetric or not (default)
     logical, intent(in), optional :: symmetric
 
@@ -307,7 +312,8 @@ contains
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec, env, symmetric, helicalBoundConds)
+        & rCellVec, errStatus, env, symmetric, helicalBoundConds)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (size(species) /= nAllAtom) then
       deallocate(species)
@@ -323,7 +329,7 @@ contains
   !> neighbour list determination is a simple N^2 algorithm, calculating the distance between the
   !> possible atom pairs.
   subroutine updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-      & rCellVec, env, symmetric, helicalBoundConds)
+      & rCellVec, errStatus, env, symmetric, helicalBoundConds)
 
     !> Coordinates of the objects interacting with the objects in the central cell (on exit).
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -350,6 +356,9 @@ contains
     !> Absolute coordinates of the shifted supercells which could have interacting
     !> atoms with the central cell.
     real(dp), intent(in) :: rCellVec(:,:)
+
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(out) :: errStatus
 
     !> Environment settings
     type(TEnvironment), intent(in), optional :: env
@@ -378,10 +387,10 @@ contains
     real(dp) :: dist2
     real(dp) :: rCell(3), rr(3)
     integer :: ii, iAtom1, oldIAtom1, iAtom2, startAtom, endAtom
-    integer :: nn1, iAtom2End
-    logical :: symm, isParallel, isParallelSetupError
+    integer :: nn1, iAtom2End, pairError(2)
+    logical :: symm, isParallel, isParallelSetupError, isSetupError
     real(dp), allocatable :: neighDist2(:,:)
-    integer, allocatable :: indx(:), iNeighbour(:,:)
+    integer, allocatable :: indx(:), iNeighbour(:,:), buffer(:,:)
     character(len=100) :: strError
 
     nAtom = size(neigh%nNeighbour, dim=1)
@@ -432,6 +441,9 @@ contains
     iNeighbour(:,:) = 0
     neighDist2(:,:) = 0.0_dp
 
+    ! No erroneous atom pair(s) at moment
+    pairError(:) = 0
+
     ! Loop over all possible neighbours for all atoms in the central cell.
     ! Only those neighbours are considered which map on atom with a higher
     ! or equal index in the central cell.
@@ -468,7 +480,7 @@ contains
           !  If distance greater than cutoff -> skip
           dist2 = sum((coord0(:, iAtom2) - rr(:))**2)
           if (dist2 > cutoff2) then
-            cycle
+            cycle lpIAtom2
           end if
           ! New interacting atom -> append
           ! We need that before checking for interaction with dummy atom or
@@ -491,11 +503,11 @@ contains
             if (dist2 < minNeighDist2) then
               if (ii == 1 .and. iAtom1 == iAtom2) then
                 ! We calculated the distance between the same atom in the unit cell
-                cycle
+                cycle lpIAtom2
               else
-99000           format ('Atoms ',I5,' and ',I5,' too close to each other!', ' (dist=',E13.6,')')
-                write (strError, 99000) iAtom2, nAllAtom, sqrt(dist2)
-                call warning(strError)
+                ! proximity problem
+                pairError(:) = [iAtom1, iAtom2]
+                exit lpCellVec
               end if
             end if
 
@@ -511,6 +523,28 @@ contains
       end do lpIAtom1
     end do lpCellVec
 
+    isSetupError = .false.
+    if (pairError(1) /= 0) then
+      isSetupError = .true.
+    end if
+  #:if WITH_MPI
+    if (isParallel) then
+      ! find if any of the processes in the node comm are in error state
+      call mpifx_allreduceip(env%mpi%nodeComm, isSetupError, MPI_LOR)
+      if (isSetupError) then
+        ! synchronize over node and choose highest atom in erroneous pair
+        allocate(buffer(2,env%mpi%nodeComm%size))
+        call mpifx_allgather(env%mpi%nodeComm, pairError, buffer)
+        pairError(:) = reshape(buffer(:,maxloc(buffer(1,:))),[2])
+      end if
+    end if
+  #:endif
+    if (isSetupError) then
+      write(strError, "(A,I0,A,I0,A)") "Atoms ", pairError(1), " and ", pairError(2),&
+          & " too close together"
+      @:RAISE_ERROR(errStatus, -1, strError)
+    end if
+
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
     if (isParallel) then
@@ -524,7 +558,7 @@ contains
 
     ! Sort neighbours for all atom by distance
     allocate(indx(maxNeighbourLocal))
-    do iAtom1 = startAtom, endAtom
+    lpStoreAtoms: do iAtom1 = startAtom, endAtom
       nn1 = neigh%nNeighbour(iAtom1)
       call index_heap_sort(indx(1:nn1), neighDist2(1:nn1, iAtom1), tolSameDist2)
       iNeighbour(1:nn1, iAtom1) = iNeighbour(indx(1:nn1), iAtom1)
@@ -535,13 +569,7 @@ contains
         neighDist2(nn1+1:maxNeighbourLocal, iAtom1) = 0.0_dp
       end if
 
-      ! check for atoms on top of each other
-      if (nn1 > 0 .and. neighDist2(1,iAtom1) < minNeighDist2) then
-        iAtom2 = img2CentCell(iNeighbour(1,iAtom1))
-        write(strError, "(A,I0,A,I0,A)") "Atoms ", iAtom1, " and ", iAtom2, " too close together"
-        call error(strError)
-      end if
-    end do
+    end do lpStoreAtoms
 
     call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
         & nAtom, isParallel, env)

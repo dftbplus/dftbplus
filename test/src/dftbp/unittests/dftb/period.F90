@@ -8,9 +8,9 @@
 #:include "fytest.fypp"
 
 #:block TEST_SUITE("period")
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, fillNeighbourArrays,&
-      & TNeighbourList
+      & TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
   implicit none
 
@@ -35,7 +35,6 @@
       @:ASSERT(startAtom == 1)
       @:ASSERT(endAtom == 7)
       @:ASSERT(.not. error)
-
       call distributeAtoms(1, 2, 13, startAtom, endAtom, error)
       @:ASSERT(startAtom == 8)
       @:ASSERT(endAtom == 13)
@@ -114,8 +113,8 @@
       @:ASSERT(lbound(neighDist2, dim=2) == startAtom)
       @:ASSERT(ubound(neighDist2, dim=2) == endAtom)
 
-      @:ASSERT(all(neighDist2(:maxNeighbour,startAtom:endAtom) == neighDist2Test(:maxNeighbour,startAtom:endAtom)))
-
+      @:ASSERT(all(neighDist2(:maxNeighbour,startAtom:endAtom) ==&
+          & neighDist2Test(:maxNeighbour,startAtom:endAtom)))
       deallocate(iNeighbour, neighDist2, neighDist2Test)
     #:endblock
 
@@ -140,7 +139,8 @@
 
       call createTestArray(neighDist2)
 
-      call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour, nAtom, .false.)
+      call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
+          & nAtom, .false.)
 
       @:ASSERT(lbound(neigh%iNeighbour, dim=1) == 0)
       @:ASSERT(ubound(neigh%iNeighbour, dim=1) == maxNeighbour)
@@ -157,11 +157,53 @@
       do i = 1, nAtom
         @:ASSERT(neigh%iNeighbour(0,i) == i)
       end do
-
       deallocate(iNeighbour, neighDist2)
     #:endblock
 
   #:endblock TEST_FIXTURE
+
+
+  #:block TEST_FIXTURE("neighbourdistance")
+
+    real(dp), allocatable :: coords(:,:), coords0(:,:), rCellVec(:,:)
+    integer, allocatable :: img2CentCell(:), iCellVec(:)
+    type(TNeighbourList) :: neigh
+    real(dp) :: mCutoff
+    type(TStatus) :: errStatus
+    integer :: nAtom
+    type(TNeighbourList) :: neighs
+
+  #:contains
+
+    #:block TEST("serialdist")
+
+      @:ASSERT(.true.)
+      nAtom = 2
+      allocate(coords(3, nAtom))
+      allocate(img2CentCell(nAtom))
+      allocate(iCellVec(nAtom))
+      allocate(coords0(3, nAtom))
+      allocate(rCellVec(3, 1))
+      rCellVec(:, :) = 0.0_dp
+      iCellVec(:) = 0
+      mCutoff = 1.0_dp
+      coords0(:, :) = 0.0_dp
+      call TNeighbourlist_init(neighs, nAtom, 2)
+      coords0(1, 2) = minNeighDist
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAtom, coords0, mCutoff,&
+          & rCellVec, errStatus)
+      @:ASSERT(.not.errStatus%hasError())
+      ! tolerance is small, so this value is now smaller and corresponds to a previous code
+      ! regression (but _should_ trigger an error):
+      coords0(1, 2) = minNeighDist**2
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAtom, coords0, mCutoff,&
+          & rCellVec, errStatus)
+      @:ASSERT(errStatus%hasError())
+
+    #:endblock
+
+  #:endblock TEST_FIXTURE
+
 
   subroutine createTestArray(input)
     real(dp), intent(inout) :: input(:,:)
