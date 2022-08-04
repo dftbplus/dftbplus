@@ -92,7 +92,10 @@ def main():
         # stress x lattive volume
         buf = receive_all(connection, 9*8)
         unpacked_data = struct.unpack('9d', buf)
-        print(unpacked_data)
+        if tPeriodic:
+            print(unpacked_data)
+            # contains numerical junk if not peridic, so do nothing
+            # otherwise
 
         # dummy '0' at the end of the data
         buf = receive_all(connection, 4)
