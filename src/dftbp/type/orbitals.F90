@@ -78,20 +78,18 @@ contains
     !> output string naming the atomic orbital
     character(sc), intent(out), allocatable :: shellNamesTmp(:)
 
-    integer :: ii
-    integer, allocatable :: ind(:)
+    integer :: ii, ind
     character(sc) :: sindx
 
     allocate(shellNamesTmp(orb%nShell(iSpecies)))
-    allocate(ind(orb%nShell(iSpecies)))
-    ind(:) = 1
 
     do ii = 1, orb%nShell(iSpecies)
       write(shellNamesTmp(ii), "(A)") shellNames(orb%angShell(ii, iSpecies) + 1)
-      if (any(shellNamesTmp(ii) == shellNamesTmp(1:ii-1))) then
+      ind = count(shellNamesTmp(ii) == shellNamesTmp(:ii-1)(1:1))
+      if (ind > 0) then
         ! at least one example of this shell already
-        ind(ii) = ind(ii) + 1
-        write(sindx,'(I0)') ind(ii)
+        ! start count at 2 for repeating orbitals:
+        write(sindx,'(I0)') ind + 1
         if (len(trim(adjustl(shellNamesTmp(ii)))) + len(trim(sindx)) > sc) then
           call error("Shell labels are too long: "//trim(adjustl(shellNamesTmp(ii)))//trim(sindx))
         else
@@ -99,7 +97,6 @@ contains
         end if
       end if
     end do
-    deallocate(ind)
 
   end subroutine getShellNames
 
