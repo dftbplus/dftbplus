@@ -7,4 +7,10 @@ set(sources-fpp
   ${curdir}/mmapi.F90
   ${curdir}/qdepextpotgenc.F90)
 
+if(NOT WITH_EXTERNALHAM)
+  list(APPEND sources-fpp
+    ${curdir}/dummyextham.F90
+    )
+endif()
+
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

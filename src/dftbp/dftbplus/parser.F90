@@ -84,6 +84,7 @@ module dftbp_dftbplus_parser
   use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
       & ContactInfo
 #:endif
+  use dftbp_externalham, only : hamProvides
   implicit none
 
   private
@@ -1262,8 +1263,14 @@ contains
   #:else
       call readXTBHam(node, ctrl, geo, poisson)
   #:endif
+    case ("external")
+  #:if WITH_TRANSPORT
+      call readExternalHam(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+      call readExternalHam(node, ctrl, geo, poisson)
+  #:endif
     case default
-      call detailedError(node, "Invalid Hamiltonian")
+      call detailedError(node, "Invalid Hamiltonian choice")
     end select
 
   end subroutine readHamiltonian
@@ -1971,6 +1978,47 @@ contains
     end if
 
   end subroutine readXTBHam
+
+
+  !> Reads xTB-Hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readExternalHam(node, ctrl, geo, tp, greendens, poisson)
+#:else
+  subroutine readExternalHam(node, ctrl, geo, poisson)
+#:endif
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+  #:endif
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+
+    type(TStatus) :: status
+
+    call hamprovides(status)
+
+    if (status%hasError()) then
+      call error(status%message)
+    end if
+
+    ctrl%hamiltonian = hamiltonianTypes%api
+
+  end subroutine readExternalHam
 
 
   !> Read in maximal angular momenta or selected shells

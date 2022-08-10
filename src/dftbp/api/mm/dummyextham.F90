@@ -5,32 +5,30 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_common_hamiltoniantypes
+#:include 'common.fypp'
+#:include 'error.fypp'
+
+!> Provides a dummy external hamiltonian if no external library is linked
+module dftbp_externalham
+  use dftbp_common_status, only : TStatus
   implicit none
 
   private
-  public :: hamiltonianTypes
+  public :: TExternalHamiltonian, hamProvides
 
-  !> Namespace for possible hamiltonian models
-  type :: THamiltonianTypesEnum
+  type TExternalHamiltonian
 
-    ! Hamiltonian models
+  end type TExternalHamiltonian
 
-    !> Dummy none
-    integer :: none = 0
+contains
 
-    !> DFTB
-    integer :: dftb = 1
+  subroutine hamprovides(status)
 
-    !> XTB
-    integer :: xtb = 2
+    !> Status of operation
+    type(TStatus), intent(out) :: status
 
-    !> Externally specified via API
-    integer :: api = 3
+    @:RAISE_ERROR(status, -1, "Dummy hamiltonian present, non-functioning calculation")
 
-  end type THamiltonianTypesEnum
+  end subroutine hamprovides
 
-  !> Actual values for hamiltonianTypes.
-  type(THamiltonianTypesEnum), parameter :: hamiltonianTypes = THamiltonianTypesEnum()
-
-end module dftbp_common_hamiltoniantypes
+end module dftbp_externalham
