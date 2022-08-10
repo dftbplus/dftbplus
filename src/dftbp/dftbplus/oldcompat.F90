@@ -751,9 +751,12 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2
+    type(fnode), pointer :: ch1, ch2, par
     type(string) :: buffer
 
+<<<<<<< HEAD
+=======
+>>>>>>> 30b223707 (External model(s) via an API suply)
     call getDescendant(root, "Transport", ch1)
     if (associated(ch1)) then
       call getChildValue(root, "Transport/Task", ch1, child=ch2, default='uploadcontacts')
@@ -854,6 +857,29 @@ contains
           & 'Hamiltonian/DFTB/Hybrid'.")
       call setNodeName(ch1, "Hybrid")
     end if
+
+    call getDescendant(root, "Hamiltonian", ch1, parent=par)
+    if (.not.associated(ch1)) then
+      call detailedError(ch2, "Input file missing Hamiltonian{} block.")
+    else
+      call setNodeName(ch1, "Model")
+      call detailedWarning(ch1, "Hamiltonian{} environment renamed to Model{} block.")
+    end if
+
+  #:for LABEL in [("Kick"), ("Laser")]
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
+      call setNodeName(ch1, "PolarisationDirection")
+    end if
+    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
+        & ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
+      call setNodeName(ch1, "ImagPolarisationDirection")
+    end if
+  #:endfor
+
 
   end subroutine convert_13_14
 
