@@ -68,7 +68,7 @@ program test_ehrenfest
   call setChildValue(pGeo, "TypeNames", ["C", "H"])
   coords(:,:) = 0.0_dp
   call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
-  call setChild(pRoot, "Hamiltonian", pHam)
+  call setChild(pRoot, "Model", pHam)
   call setChild(pHam, "Dftb", pDftb)
   call setChildValue(pDftb, "Scc", .true.)
   call setChildValue(pDftb, "SccTolerance", 1e-10_dp)

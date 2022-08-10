@@ -67,7 +67,11 @@ function (dftbp_add_fypp_defines fyppflags)
   endif()
 
   if(WITH_MBD)
-      list(APPEND _fyppflags -DWITH_MBD)
+    list(APPEND _fyppflags -DWITH_MBD)
+  endif()
+
+  if(WITH_EXTERNALMODEL)
+    list(APPEND _fyppflags -DWITH_EXTERNALMODEL)
   endif()
 
   if(WITH_PLUMED)

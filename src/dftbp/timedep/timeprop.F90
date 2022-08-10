@@ -18,7 +18,7 @@ module dftbp_timedep_timeprop
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_modelTypes, only : modelTypes
   use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
@@ -234,7 +234,7 @@ module dftbp_timedep_timeprop
     logical :: tPopulations, tSpinPol=.false.
     logical :: tReadRestart, tWriteRestart, tRestartAscii, tWriteRestartAscii, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
-    integer :: hamiltonianType
+    integer :: modelType
     type(TScc), allocatable :: sccCalc
     type(TTBLite), allocatable :: tblite
     type(TMultipole) :: multipole
@@ -363,7 +363,7 @@ contains
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite,&
-      & eFieldScaling, hamiltonianType, errStatus)
+      & eFieldScaling, modelType, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -440,8 +440,8 @@ contains
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
-    !> Type of Hamiltonian used
-    integer, intent(in) :: hamiltonianType
+    !> Type of model used
+    integer, intent(in) :: modelType
 
     !> Error status
     type(TStatus), intent(out) :: errStatus
@@ -470,7 +470,7 @@ contains
     this%tRealHS = tRealHS
     this%kPoint = kPoint
     this%KWeight = KWeight
-    this%hamiltonianType = hamiltonianType
+    this%modelType = modelType
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
     if (.not.any([allocated(sccCalc), allocated(tblite)])) then
@@ -2868,15 +2868,15 @@ contains
       @:PROPAGATE_ERROR(errStatus)
     end if
 
-    select case(this%hamiltonianType)
+    select case(this%modelType)
     case default
       @:ASSERT(.false.)
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
       call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
           & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
       call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
           & this%speciesAll, iSparseStart, orb)
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
       @:ASSERT(allocated(this%tblite))
       call this%tblite%buildSH0(env, this%speciesAll, coordAll, nNeighbourSk, &
           & neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, ham0,&
@@ -4014,14 +4014,16 @@ contains
     end if
 
     if (this%tIons) then
-      select case(this%hamiltonianType)
+      select case(this%modelType)
       case default
         @:ASSERT(.false.)
-      case(hamiltonianTypes%dftb)
+      case(modelTypes%dftb)
         call getRdotSprime(this, this%RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
-      case(hamiltonianTypes%xtb)
-        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for xTB Hamiltonian yet")
+      case(modelTypes%xtb)
+        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for xTB model yet")
+      case(modelTypes%externalmodel)
+        @:RAISE_ERROR(errStatus, -1, "Nuclei dynamic not implemented for external model yet")
       end select
       if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
         call updateBasisMatrices(this, env, electronicSolver, this%Eiginv, this%EiginvAdj, this%H1,&

@@ -25,6 +25,9 @@ module dftbp_mmapi
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
+#:if WITH_EXTERNALMODEL
+  use dftbp_externalmodel
+#:endif
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_message, only: error
@@ -67,7 +70,7 @@ module dftbp_mmapi
   end type TDftbPlusInput
 
 
-  !> A DFTB+ calculation
+  !> A DFTB+ framework for calculation(s)
   type :: TDftbPlus
     private
     type(TEnvironment), allocatable :: env

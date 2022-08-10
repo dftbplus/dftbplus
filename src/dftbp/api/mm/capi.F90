@@ -13,6 +13,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
+  use dftbp_io_clang, only : fortranChar, handleOutputFileName
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
@@ -482,59 +483,5 @@ contains
     call instance%getCM5Charges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getCM5Charges
-
-
-  !> Converts a 0-char terminated C-type string into a Fortran string.
-  function fortranChar(cstring, maxlen)
-
-    !> C-type string as array
-    character(kind=c_char), intent(in) :: cstring(*)
-
-    !> Maximal string length. If C-string is longer, it will be chopped.
-    integer, intent(in), optional  :: maxlen
-
-    !> Resulting Fortran string
-    character(:, kind=c_char), allocatable :: fortranChar
-
-    integer :: ii, maxlen0
-
-    if (present(maxlen)) then
-      maxlen0 = maxlen
-    else
-      maxlen0 = huge(maxlen0) - 1
-    end if
-
-    do ii = 1, maxlen0
-      if (cstring(ii) == c_null_char) then
-        exit
-      end if
-    end do
-    allocate(character(ii - 1) :: fortranChar)
-    fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
-
-  end function fortranChar
-
-
-  !> Handles the optional output file name (which should be a NULL-ptr if not present)
-  subroutine handleOutputFileName(outputFileName, outputUnit, tOutputOpened)
-    type(c_ptr), intent(in) :: outputFileName
-    integer, intent(out) :: outputUnit
-    logical, intent(out) :: tOutputOpened
-
-    character(c_char), pointer :: pOutputFileName
-    character(:), allocatable :: fortranFileName
-
-    if (c_associated(outputFileName)) then
-      call c_f_pointer(outputFileName, pOutputFileName)
-      fortranFileName = fortranChar(pOutputFileName)
-      open(newunit=outputUnit, file=fortranFileName, action="write")
-      tOutputOpened = .true.
-    else
-      outputUnit = output_unit
-      tOutputOpened = .false.
-    end if
-
-  end subroutine handleOutputFileName
-
 
 end module dftbp_capi

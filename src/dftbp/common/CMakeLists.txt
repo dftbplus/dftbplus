@@ -7,12 +7,13 @@ set(sources-fpp
   ${curdir}/atomicmass.F90
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
+  ${curdir}/clang.F90
   ${curdir}/environment.F90
   ${curdir}/file.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
-  ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
+  ${curdir}/modeltypes.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
   ${curdir}/status.F90

@@ -15,6 +15,9 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY)
   add_executable(dftb+ ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
   target_link_libraries(dftb+ dftbplus)
+  if (WITH_EXTERNALMODEL)
+    target_link_libraries(dftb+ ${EXTERNAL_MODEL_LIBRARIES})
+  endif()
 
   install(TARGETS dftb+ DESTINATION ${CMAKE_INSTALL_BINDIR})
 

@@ -8,6 +8,10 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+- External models (electronic or energy based) from linked (static or
+  dynamic) library outside the code base.
+
+- Rename "Hamiltonian" to "Model" in input, as more descriptive
 
 Fixed
 -----

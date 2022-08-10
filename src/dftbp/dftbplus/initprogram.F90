@@ -18,7 +18,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut, withMpi
-  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_modelTypes, only : modelTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
   use dftbp_derivs_perturb, only : TResponse, TResponse_init, responseSolverTypes
@@ -144,6 +144,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
+  use dftbp_externalmodel, only : externalModel_init, TExternalModel
   implicit none
 
   private
@@ -292,8 +293,11 @@ module dftbp_dftbplus_initprogram
     !> list of atomic masses for each species
     real(dp), allocatable :: speciesMass(:)
 
-    !> Hamiltonian type
-    integer :: hamiltonianType
+    !> Hamiltonian and energy model type
+    integer :: modelType
+
+    !> External model to the main code (if used)
+    type(TExternalModel), allocatable :: externalModel
 
     !> Raw H^0 hamiltonian data
     type(TSlakoCont) :: skHamCont
@@ -1287,7 +1291,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
-    this%hamiltonianType = input%ctrl%hamiltonian
+    this%modelType = input%ctrl%model
     this%tSccCalc = input%ctrl%tScc
     if (allocated(input%ctrl%dftbUInp)) then
       allocate(this%dftbU)
@@ -1344,13 +1348,27 @@ contains
       end do
     end do
 
-    select case(this%hamiltonianType)
+
+  #:if WITH_SOCKETS
+    this%tSocket = allocated(input%ctrl%socketInput)
+    if (this%tSocket) then
+      this%tForces = .true.
+    end if
+  #:endif
+    this%tPrintForces = input%ctrl%tPrintForces
+    this%tForces = input%ctrl%tForces .or. this%tPrintForces
+
+    select case(this%modelType)
     case default
-      call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+
+      call error("Invalid Model choice")
+
+    case(modelTypes%dftb)
+
       this%orb = input%slako%orb
-    case(hamiltonianTypes%xtb)
-      ! TODO
+
+    case(modelTypes%xtb)
+
       if (.not.allocated(input%ctrl%tbliteInp)) then
         call error("xTB calculation supported only with tblite library")
       end if
@@ -1370,7 +1388,31 @@ contains
 
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
+
+    case(modelTypes%externalmodel)
+
+      if (.not.(input%ctrl%extModel%gives_dc_energy .and. input%ctrl%extModel%gives_ham)) then
+        if (this%tForces) then
+          call error("Force expressions are not available for this calculation")
+        end if
+      end if
+
+      allocate(this%externalModel)
+      call externalModel_init(this%externalModel, this%speciesName, this%cutOff%skCutOff, this%orb,&
+          & errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
+
+      call this%externalModel%orbData(this%orb, this%species0, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
+
+      call error("Got got here so far on API development for external model")
+
     end select
+
     this%nOrb = this%orb%nOrb
 
     ! start by assuming stress can be calculated if periodic
@@ -1467,10 +1509,10 @@ contains
     this%tWriteHS = input%ctrl%tWriteHS
     this%tWriteRealHS = input%ctrl%tWriteRealHS
 
-    select case(this%hamiltonianType)
+    select case(this%modelType)
     case default
       call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
       ! Slater-Koster tables
       this%skHamCont = input%slako%skHamCont
       this%skOverCont = input%slako%skOverCont
@@ -1485,7 +1527,7 @@ contains
       @:ASSERT(size(input%slako%mass) == this%nType)
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = input%slako%mass(:)
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
       ! TODO
       ! call error("xTB calculation currently not supported")
       allocate(this%speciesMass(this%nType))
@@ -1523,30 +1565,30 @@ contains
 
     this%tMixBlockCharges = allocated(this%dftbU) .or. allocated(this%onSiteElements)
 
-    select case(this%hamiltonianType)
+    select case(this%modelType)
     case default
       call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
       ! Cut-offs for SlaKo, repulsive
       this%cutOff%skCutOff = max(getCutOff(this%skHamCont), getCutOff(this%skOverCont))
       this%cutOff%mCutoff = this%cutOff%skCutOff
       if (allocated(this%repulsive)) then
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
       end if
-    case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+    case(modelTypes%xtb)
       this%cutOff%skCutoff = this%tblite%getRCutoff()
       this%cutOff%mCutoff = this%cutOff%skCutoff
+    case(modelTypes%externalmodel)
+      ! cutoff returned from API call already
     end select
 
-    call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
+    call initHubbardUs_(input, this%orb, this%modelType, hubbU)
     if (this%tSccCalc) then
       allocate(this%uniqHubbU)
       call TUniqueHubbard_init(this%uniqHubbU, hubbU, this%orb)
     end if
 
-    call initReferencePopulation_(input, this%orb, this%hamiltonianType, this%referenceN0)
+    call initReferencePopulation_(input, this%orb, this%modelType, this%referenceN0)
 
     this%atomOrderMatters = this%atomOrderMatters .or. allocated(input%ctrl%customOccAtoms)
     call initReferenceCharges(this%species0, this%orb, this%referenceN0, this%nSpin, this%q0,&
@@ -1637,7 +1679,7 @@ contains
     end if
 
   #:block DEBUG_CODE
-    call inputCoherenceCheck(env, this%hamiltonianType, this%nSpin, this%nAtom, this%coord0,&
+    call inputCoherenceCheck(env, this%modelType, this%nSpin, this%nAtom, this%coord0,&
        & this%species0, this%speciesName, this%tSccCalc, this%tPeriodic, this%tFracCoord,&
        & this%latVec, this%origin)
   #:endblock DEBUG_CODE
@@ -1767,11 +1809,9 @@ contains
     this%BarostatStrength = input%ctrl%BarostatStrength
 
   #:if WITH_SOCKETS
-    this%tSocket = allocated(input%ctrl%socketInput)
     if (this%tSocket) then
       input%ctrl%socketInput%nAtom = this%nAtom
       call this%initSocket(env, input%ctrl%socketInput)
-      this%tForces = .true.
       this%isGeoOpt = .false.
       this%tMD = .false.
     end if
@@ -1812,8 +1852,6 @@ contains
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
-    this%tPrintForces = input%ctrl%tPrintForces
-    this%tForces = input%ctrl%tForces .or. this%tPrintForces
     this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
@@ -2563,7 +2601,7 @@ contains
       if (this%tExtChrg .or. this%isExtField) then
         call error("External fields currently disabled for XLBOMD calculations")
       end if
-      if (this%hamiltonianType /= hamiltonianTypes%dftb) then
+      if (this%modelType /= modelTypes%dftb) then
         call error("XLBOMD calculations currently only supported for the DFTB hamiltonian")
       end if
       if (allocated(this%solvation)) then
@@ -2695,7 +2733,7 @@ contains
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
-          & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
+          & this%modelType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
           & this%isRangeSep, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
           & this%tPeriodic, this%tStress, this%tDipole)
     end if
@@ -3363,7 +3401,8 @@ contains
           write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
           ii = count(shortGammaDamp%isDamped)
           write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName, shortGammaDamp%isDamped)
+          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName,&
+              & shortGammaDamp%isDamped)
         end if
       end if
 
@@ -3644,7 +3683,7 @@ contains
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%eFieldScaling,&
-          & this%hamiltonianType, errStatus)
+          & this%modelType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -3662,14 +3701,14 @@ contains
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
   !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, speciesName,&
+  subroutine inputCoherenceCheck(env, modelType, nSpin, nAtom, coord0, species0, speciesName,&
        & tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Hamiltonian type
-    integer, intent(in) :: hamiltonianType
+    integer, intent(in) :: modelType
 
     !> Number of spin components
     integer, intent(in) :: nSpin
@@ -3703,7 +3742,7 @@ contains
 
     integer :: iSp
 
-    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")
+    call checkExactCoherence(env, modelType, "modelType in initProgramVariables")
     call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
     call checkExactCoherence(env, nAtom, "the number of atoms in initProgramVariables")
     call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
@@ -4193,22 +4232,22 @@ contains
 
 
   ! Set up reference population
-  subroutine initReferencePopulation_(input, orb, hamiltonianType, referenceN0)
+  subroutine initReferencePopulation_(input, orb, modelType, referenceN0)
     type(TInputData), intent(in) :: input
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: hamiltonianType
+    integer, intent(in) :: modelType
     real(dp), allocatable, intent(out) :: referenceN0(:,:)
 
     integer :: nSpecies
 
     nSpecies = size(orb%nOrbSpecies)
     allocate(referenceN0(orb%mShell, nSpecies))
-    select case (hamiltonianType)
+    select case (modelType)
     case default
       call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
       referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
       ! It's an xTB Hamiltonian masquerading as a DFTB one (for now)
       referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     end select
@@ -4248,10 +4287,10 @@ contains
 
 
   ! Set up Hubbard U values
-  subroutine initHubbardUs_(input, orb, hamiltonianType, hubbU)
+  subroutine initHubbardUs_(input, orb, modelType, hubbU)
     type(TInputData), intent(in) :: input
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: hamiltonianType
+    integer, intent(in) :: modelType
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 
     integer :: nSpecies
@@ -4260,14 +4299,14 @@ contains
 
     allocate(hubbU(orb%mShell, nSpecies), source=0.0_dp)
 
-    select case(hamiltonianType)
+    select case(modelType)
     case default
       call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
       @:ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
       @:ASSERT(size(input%slako%skHubbU, dim=2) == nSpecies)
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
       ! TODO
       ! call error("xTB calculation currently not supported")
     end select
@@ -5631,7 +5670,7 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated,&
+      & modelType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated,&
       & tForces, tPeriodic, tStress, tDipole)
 
     !> data type for REKS
@@ -5659,7 +5698,7 @@ contains
     real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> Hamiltonian type
-    integer, intent(in) :: hamiltonianType
+    integer, intent(in) :: modelType
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(inout) :: nSpin
@@ -5692,10 +5731,10 @@ contains
     logical, intent(inout) :: tDipole
 
     ! Condition for Hamiltonian types
-    select case(hamiltonianType)
+    select case(modelType)
     case default
       call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+    case(modelTypes%dftb)
 
       ! Condition for electronicSolver
       select case (electronicSolver%iSolver)
@@ -5715,8 +5754,14 @@ contains
         call error("REKS is not compatible with ELSI-solvers")
       end select
 
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
+
       call error("xTB calculation currently not supported for REKS")
+
+    case(modelTypes%externalmodel)
+
+      call error("Externally supplied model calculation currently not supported for REKS")
+
     end select
 
   end subroutine TReksCalc_init
