@@ -166,6 +166,20 @@ else()
   option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
+#
+# Add external model from a library
+#
+if (EXTERNAL_MODEL_LIBRARIES)
+  message("EXTERNAL_MODEL_LIBRARIES defined as" ${EXTERNAL_MODEL_LIBRARIES})
+  set(EXTERNAL_MODEL_INTERNAL NO)
+  find_library(EXTERNALMODEL_LIBRARY externalmodel HINTS ${EXTERNAL_MODEL_LIBRARIES})
+  add_library(externalmodel INTERFACE IMPORTED)
+else()
+  message("EXTERNAL_MODEL_LIBRARIES not defined, falling back to internal toy model")
+  add_subdirectory(external/dftbp-extmodel/origin/ EXCLUDE_FROM_ALL)
+  set(EXTERNAL_MODEL_INTERNAL YES)
+endif()
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 

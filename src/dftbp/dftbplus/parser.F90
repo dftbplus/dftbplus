@@ -49,6 +49,7 @@ module dftbp_dftbplus_parser
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
+  use dftbp_extlibs_externalmodel, only : getExtModelCapabilities
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
   use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
@@ -208,9 +209,9 @@ contains
       !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
-    ! electronic Hamiltonian
-    call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
+    ! electronic Hamiltonian and energy model
+    call getChildValue(root, "Model", hamNode)
+    call readModelChoice(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
         & input%ginfo%greendens, input%poisson, errStatus)
 
   #:else
@@ -219,9 +220,9 @@ contains
       call detailedError(child, "Program has been compiled without transport enabled")
     end if
 
-    ! electronic Hamiltonian
-    call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
+    ! electronic Hamiltonian and energy model
+    call getChildValue(root, "Model", hamNode)
+    call readModelChoice(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
 
   #:endif
 
@@ -275,12 +276,15 @@ contains
     call readOptions(child, input%ctrl)
 
     ! W values if needed by Hamiltonian or excited state calculation
-    if (allocated(input%ctrl%tbliteInp)) then
+    select case (input%ctrl%hamiltonian)
+    case(hamiltonianTypes%api)
+      ! Need to decide what to do if external model supports spin
+    case(hamiltonianTypes%xtb)
       call input%ctrl%tbliteInp%setupOrbitals(input%geom%species, orb)
       call readSpinConstants(hamNode, input%geom, orb, input%ctrl)
-    else
+    case(hamiltonianTypes%dftb)
       call readSpinConstants(hamNode, input%geom, input%slako%orb, input%ctrl)
-    end if
+    end select
 
     ! analysis settings that need to know settings from the options block
     if (tReadAnalysis) then
@@ -885,6 +889,7 @@ contains
 
   end subroutine readDriver
 
+
   !> Simple function to check that an array of indices is a contigous range
   function isContiguousRange(indices) result(isContiguous)
 
@@ -1234,9 +1239,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readModelChoice(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readModelChoice(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1271,30 +1276,36 @@ contains
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+      call readDFTBModel(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+      call readDFTBModel(node, ctrl, geo, slako, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+      call readXTBModel(node, ctrl, geo, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson, errStatus)
+      call readXTBModel(node, ctrl, geo, poisson, errStatus)
+  #:endif
+    case ("external")
+  #:if WITH_TRANSPORT
+      call readExternalHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+  #:else
+      call readExternalHam(node, ctrl, geo, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case default
-      call detailedError(node, "Invalid Hamiltonian")
+      call detailedError(node, "Invalid model choice")
     end select
 
-  end subroutine readHamiltonian
+  end subroutine readModelChoice
 
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readDFTBModel(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readDFTBModel(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1814,14 +1825,14 @@ contains
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
 
-  end subroutine readDFTBHam
+  end subroutine readDFTBModel
 
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+  subroutine readXTBModel(node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
+  subroutine readXTBModel(node, ctrl, geo, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -2003,7 +2014,166 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
-  end subroutine readXTBHam
+  end subroutine readXTBModel
+
+
+  !> Reads externally provided hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readExternalHam(node, ctrl, geo, tp, greendens, poisson)
+#:else
+  subroutine readExternalHam(node, ctrl, geo, poisson)
+#:endif
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+  #:endif
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+
+    type(TStatus) :: status
+    type(fnode), pointer :: intModelNode, value1, child
+    type(string) :: buffer
+    logical :: tBadIntegratingKPoints
+
+    allocate(ctrl%extModel)
+    call getExtModelCapabilities(ctrl%extModel, status)
+
+    if (status%hasError()) then
+      call error(status%message)
+    end if
+
+    if (.not.ctrl%extModel%gives_ham .or. .not.ctrl%extModel%gives_dc_energy) then
+
+      call getChildValue(node, "Model", intModelNode, "", child=child, allowEmptyValue=.true.)
+      call getNodeName2(intModelNode, buffer)
+      select case(char(buffer))
+      case ("dftb")
+        ctrl%extModel%intModel = hamiltonianTypes%dftb
+
+        ctrl%extModel%is_dc_internal = .true.
+      case("xtb")
+        ctrl%extModel%intModel = hamiltonianTypes%xtb
+
+        ctrl%extModel%is_dc_internal = .true.
+      case ("")
+        if (.not.ctrl%extModel%gives_ham) then
+          call detailedError(node, 'The external model "' // ctrl%extModel%modelName //&
+              & '" does not provide a hamiltonian.'  // newline //&
+              & 'An internal DFTB+ hamiltonian model selection is required to provide this.')
+        end if
+        ctrl%extModel%is_dc_internal = .false.
+      case default
+        call getNodeHSDName(intModelNode, buffer)
+        call detailedError(child, "Invalid model selection '" // char(buffer) // "'")
+      end select
+
+    end if
+
+    if (ctrl%extModel%is_self_consistent) then
+
+      ! get charge mixing options etc.
+      call readSccOptions(node, ctrl, geo)
+
+      !> TI-DFTB varibles for Delta DFTB
+      call getChild(node, "NonAufbau", child, requested=.false.)
+      if (associated(child)) then
+        ctrl%isNonAufbau = .true.
+        call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
+        call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
+        ctrl%nrChrg = 0.0_dp
+        ctrl%tSpin = .true.
+        ctrl%t2Component = .false.
+        ctrl%nrSpinPol = 0.0_dp
+        ctrl%tSpinSharedEf = .false.
+      else
+        ctrl%isNonAufbau = .false.
+      end if
+
+      ! Spin calculation
+      if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau) then
+      #:if WITH_TRANSPORT
+        call readSpinPolarisation(node, ctrl, geo, tp)
+      #:else
+        call readSpinPolarisation(node, ctrl, geo)
+      #:endif
+      end if
+
+    else
+      ctrl%tSCC = .false.
+    end if
+
+    ctrl%tSpinOrbit = .false.
+    ctrl%t2Component = .false.
+    ctrl%t3rd = .false.
+    ctrl%t3rdFull = .false.
+
+    ! temporary
+    ctrl%iDerivMethod = 1
+
+    ! External fields and potentials
+    call readExternal(node, ctrl, geo)
+
+    ! Electronic solver
+  #:if WITH_TRANSPORT
+    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+    call readSolver(node, ctrl, geo, poisson)
+  #:endif
+
+    ! Charge
+    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+
+    ! K-Points
+    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+
+    ! Dispersion
+    call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%dispInp)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+    end if
+
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
+      call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
+    end if
+
+    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
+      call error("Lattice optimisation only applies for periodic structures.")
+    end if
+
+  #:if WITH_TRANSPORT
+    call readElectrostatics(node, ctrl, geo, tp, poisson)
+  #:else
+    call readElectrostatics(node, ctrl, geo, poisson)
+  #:endif
+
+    ctrl%forceType = forceTypes%orig
+
+
+    ctrl%hamiltonian = hamiltonianTypes%api
+
+  end subroutine readExternalHam
 
 
   !> Reads in settings for spin orbit enabled calculations
@@ -5605,7 +5775,7 @@ contains
     select case(ctrl%hamiltonian)
     case(hamiltonianTypes%xtb)
       call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
-    case(hamiltonianTypes%dftb)
+    case(hamiltonianTypes%dftb, hamiltonianTypes%api)
       call readFilling(hamNode, ctrl, geo, 0.0_dp)
     end select
 

@@ -25,6 +25,9 @@ module dftbp_common_hamiltoniantypes
     !> XTB
     integer :: xtb = 2
 
+    !> Externally specified via API
+    integer :: api = 3
+
   end type THamiltonianTypesEnum
 
   !> Actual values for hamiltonianTypes.

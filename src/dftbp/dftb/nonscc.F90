@@ -20,7 +20,7 @@ module dftbp_dftb_nonscc
   implicit none
 
   private
-  public :: buildH0, buildS
+  public :: buildH0, buildS, buildOrthogonalS
   public :: TNonSccDiff, NonSccDiff_init
   public :: diffTypes
 
@@ -117,6 +117,7 @@ contains
 
   end subroutine buildH0
 
+
   !> Driver for making the overlap matrix in the primitive sparse format.
   subroutine buildS(env, over, skOverCont, coords, nNeighbourSK, iNeighbours, species, iPair, orb)
 
@@ -147,24 +148,14 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer :: nAtom, iAt1, iSp1, ind, iOrb1, iAtFirst, iAtLast
+    integer :: nAtom, iAtFirst, iAtLast
 
     nAtom = size(nNeighbourSK)
     over(:) = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    ! Put 1.0 for the diagonal elements of the overlap.
-    !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = iAtFirst, iAtLast
-      iSp1 = species(iAt1)
-      ind = iPair(0, iAt1) + 1
-      do iOrb1 = 1, orb%nOrbAtom(iAt1)
-        over(ind) = 1.0_dp
-        ind = ind + orb%nOrbAtom(iAt1) + 1
-      end do
-    end do
-    !$OMP END PARALLEL DO
+    call buildDiagS(over, iAtFirst, iAtLast, species, iPair, orb)
 
     call buildDiatomicBlocks(iAtFirst, iAtLast, skOverCont, coords, nNeighbourSK, iNeighbours,&
         & species, iPair, orb, over)
@@ -172,6 +163,7 @@ contains
     call assembleChunks(env, over)
 
   end subroutine buildS
+
 
   !> Initializes a differentiator for the non-scc contributions.
   !> Note: Second derivative can not be calculated currently via Richardson
@@ -196,6 +188,7 @@ contains
     end if
 
   end subroutine NonSccDiff_init
+
 
   !> Calculates the first derivative of H0 or S.
   subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ, orb)
@@ -233,6 +226,7 @@ contains
     end select
 
   end subroutine getFirstDeriv
+
 
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
   subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ, orb)
@@ -360,6 +354,7 @@ contains
 
   end subroutine getFirstDerivFiniteDiff
 
+
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
     real(dp), intent(out) :: deriv(:,:,:)
@@ -460,6 +455,7 @@ contains
 
   end subroutine getFirstDerivRichardson
 
+
   !> Contains code to calculate the numerical second derivative of a diatomic block of the H0
   !> Hamiltonian and overlap.
   subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
@@ -540,5 +536,77 @@ contains
     end do
 
   end subroutine getSecondDerivFiniteDiff
+
+
+  !> Generates a dummy unit matrix overlap, if needed for orthogonal hamiltonian
+  subroutine buildOrthogonalS(env, over, nAtom, species, iPair, orb)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Returns the overlap
+    real(dp), intent(out) :: over(:)
+
+    !> Number of central cell atoms
+    integer, intent(in) :: nAtom
+
+    !> Chemical species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Index vector, where the interaction between two atoms starts in the sparse format.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    integer :: iAtFirst, iAtLast
+
+    over(:) = 0.0_dp
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    call buildDiagS(over, iAtFirst, iAtLast, species, iPair, orb)
+
+    call assembleChunks(env, over)
+
+  end subroutine buildOrthogonalS
+
+
+  !> Generates the diagonal of the overlap matrix
+  subroutine buildDiagS(over, iAtFirst, iAtLast, species, iPair, orb)
+
+    !> Returns the additions to the overlap
+    real(dp), intent(inout) :: over(:)
+
+    !> First atom to construct this for
+    integer, intent(in) :: iAtFirst
+
+    !> Last atom to construct this for
+    integer, intent(in) :: iAtLast
+
+    !> Chemical species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Index vector, where the interaction between two atoms starts in the sparse format.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    integer :: iAt1, iSp1, ind, iOrb1
+
+    ! Put 1.0 for the diagonal elements of the overlap.
+    !$OMP PARALLEL DO PRIVATE(iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
+    do iAt1 = iAtFirst, iAtLast
+      iSp1 = species(iAt1)
+      ind = iPair(0,iAt1) + 1
+      do iOrb1 = 1, orb%nOrbAtom(iAt1)
+        over(ind) = 1.0_dp
+        ind = ind + orb%nOrbAtom(iAt1) + 1
+      end do
+    end do
+    !$OMP  END PARALLEL DO
+
+  end subroutine buildDiagS
 
 end module dftbp_dftb_nonscc

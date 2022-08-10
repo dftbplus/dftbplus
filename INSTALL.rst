@@ -505,6 +505,13 @@ pkg-config files in their specified install location(s).
 For external dependencies without pkg-config files (e.g. mbd, negf), the options for linking those
 libraries can not be queried via pkg-config, and they must be added manually.
 
+Linking external models to DFTB+ as libraries
+=============================================
+
+DFTB+ can also use externally provided hamiltonian or energy models
+from external libraries that folow the relevant API. For further
+details see the `external model instructions
+<doc/api/EXTERNALMODEL.rst>`_.
 
 Generating developer documentation
 ==================================

@@ -82,7 +82,7 @@ contains
     call setChildValue(pGeo, "TypeNames", ["C", "H"])
     coords(:,:) = 0.0_dp
     call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
-    call setChild(pRoot, "Hamiltonian", pHam)
+    call setChild(pRoot, "Model", pHam)
     call setChild(pHam, "Dftb", pDftb)
     call setChildValue(pDftb, "Scc", .true.)
     call setChildValue(pDftb, "SccTolerance", 1e-10_dp)
@@ -97,11 +97,11 @@ contains
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 
-  call setChild(pRoot, "ParserOptions", pParserOpt)
-  call setChildValue(pParserOpt, "ParserVersion", 13)
+    call setChild(pRoot, "ParserOptions", pParserOpt)
+    call setChildValue(pParserOpt, "ParserVersion", 13)
 
-  call setChild(pRoot, "Analysis", pAnalysis)
-  call setChildValue(pAnalysis, "CalculateForces", .true.)
+    call setChild(pRoot, "Analysis", pAnalysis)
+    call setChildValue(pAnalysis, "CalculateForces", .true.)
 
     !  set up electron dynamics options
     call setChild(pRoot, "ElectronDynamics", pElecDyn)
