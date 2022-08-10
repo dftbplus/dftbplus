@@ -314,7 +314,7 @@ contains
     nSpecies = maxval(species)
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
-    @:ASSERT(size(speciesNames) == nSpecies)
+    @:ASSERT(size(speciesNames) >= nSpecies)
   #:block DEBUG_CODE
     if (present(charges)) then
       @:ASSERT(size(charges) == nAtom)

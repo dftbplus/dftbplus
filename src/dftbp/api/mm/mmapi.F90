@@ -69,7 +69,7 @@ module dftbp_mmapi
   end type TDftbPlusInput
 
 
-  !> A DFTB+ calculation
+  !> A DFTB+ framework for calculation(s)
   type :: TDftbPlus
     private
     type(TEnvironment), allocatable :: env

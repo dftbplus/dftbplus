@@ -7,6 +7,7 @@ set(sources-fpp
   ${curdir}/atomicmass.F90
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
+  ${curdir}/clang.F90
   ${curdir}/envcheck.F90
   ${curdir}/environment.F90
   ${curdir}/file.F90

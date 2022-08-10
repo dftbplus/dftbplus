@@ -10,11 +10,12 @@
 
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
-  use dftbp_common_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
+  use dftbp_common_accuracy, only : rsp, dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist,&
+      & tolEfEquiv
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
-      & Bohr__nm, Hartree__kJ_mol, Boltzmann
+      & Bohr__nm, Hartree__kJ_mol, Boltzmann, AA__Bohr
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, clearFile
@@ -73,6 +74,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_init, TElsiSolver_final
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI
+  use dftbp_extlibs_externalmodel, only : TExtModel, externalModel_init
   use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_extlibs_poisson, only : TPoissonInput
   use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
@@ -108,6 +110,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_mixer_diismixer, only : TDIISMixer, init
   use dftbp_mixer_mixer, only : TMixer, mixerTypes, init
   use dftbp_mixer_simplemixer, only : TSimpleMixer, init
+  use dftbp_modelindependent_localclusters, only : TLocalClusters, TLocalClusters_init
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
@@ -265,7 +268,6 @@ module dftbp_dftbplus_initprogram
     !> Index in cellVec for each atom
     integer, allocatable :: iCellVec(:)
 
-
     !> ADT for neighbour parameters
     type(TNeighbourList), allocatable :: neighbourList
 
@@ -294,11 +296,20 @@ module dftbp_dftbplus_initprogram
     !> Hamiltonian type
     integer :: hamiltonianType
 
+    !> External model
+    type(TExtModel), allocatable :: extModel
+
+    !> Local environments around atomic sites
+    type(TLocalClusters), allocatable :: localClusters
+
     !> Raw H^0 hamiltonian data
     type(TSlakoCont) :: skHamCont
 
     !> Raw overlap hamiltonian data
     type(TSlakoCont) :: skOverCont
+
+    !> Is this an orthogonal basis used
+    logical :: isNonOrthogonal
 
     !> Repulsive (force-field like) interactions
     class(TRepulsive), allocatable :: repulsive
@@ -1284,6 +1295,7 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
+    integer :: nAts
 
     @:ASSERT(input%tInitialized)
 
@@ -1355,12 +1367,29 @@ contains
       end do
     end do
 
+
+  #:if WITH_SOCKETS
+    this%tSocket = allocated(input%ctrl%socketInput)
+    if (this%tSocket) then
+      this%tForces = .true.
+    end if
+  #:endif
+    this%tPrintForces = input%ctrl%tPrintForces
+    this%tForces = input%ctrl%tForces .or. this%tPrintForces
+
+    this%isNonOrthogonal = .true.
+
     select case(this%hamiltonianType)
     case default
-      call error("Invalid Hamiltonian")
+
+      call error("Invalid Model choice")
+
     case(hamiltonianTypes%dftb)
+
       this%orb = input%slako%orb
+
     case(hamiltonianTypes%xtb)
+
       if (.not.allocated(input%ctrl%tbliteInp)) then
         call error("xTB calculation supported only with tblite library")
       end if
@@ -1381,7 +1410,85 @@ contains
       ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
       !this%orb = input%slako%orb
       call move_alloc(input%slako%orb, this%orb)
+
+    case(hamiltonianTypes%api)
+
+      if (.not.(input%ctrl%extModel%gives_dc_energy .and. input%ctrl%extModel%gives_ham)) then
+        if (this%tForces) then
+          call error("Force expressions are not available for this calculation")
+        end if
+      end if
+
+      call externalModel_init(this%extModel, input%ctrl%extModel, this%speciesName, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
+
+      if (input%ctrl%extModel%gives_ham) then
+
+        ! distance over which external model predicts matrix elements
+        this%cutOff%skCutOff = this%extModel%interactionCutoff
+        ! longer distance for producing a 'rounded cyclinder' containing nearby atoms, such that the
+        ! distance to a diatomic bond axis is at least this%cutOff%skCutOff
+        this%cutOff%mCutOff = max(this%cutOff%skCutOff,&
+            & sqrt(this%extModel%environmentCutoff**2 + (this%cutOff%skCutoff**2)/4.0_dp)&
+            & + epsilon(0.0_rsp))
+
+        allocate(this%orb)
+        allocate(this%orb%nshell(input%geom%nSpecies))
+        this%orb%nshell = this%extModel%nShellsOnSpecies
+        allocate(this%orb%nOrbSpecies(input%geom%nSpecies), source=0)
+        do iSp = 1, input%geom%nSpecies
+          do iSh = 1, this%orb%nshell(iSp)
+            this%orb%nOrbSpecies(iSp) = this%orb%nOrbSpecies(iSp)&
+                & + 2 * this%extModel%shellLValues(iSh,iSp) + 1
+          end do
+        end do
+        allocate(this%orb%nOrbAtom(this%nAtom))
+        this%orb%nOrbAtom(:) = this%orb%nOrbSpecies(this%species0)
+        allocate(this%orb%angShell(maxval(this%orb%nShell), input%geom%nSpecies))
+        this%orb%angShell(:,:) = 0
+        do iSp = 1, input%geom%nSpecies
+          do iSh = 1, this%orb%nshell(iSp)
+            this%orb%angShell(iSh,iSp) = this%extModel%shellLValues(iSh,iSp)
+          end do
+        end do
+
+        allocate(this%orb%iShellOrb(maxval(this%orb%nOrbSpecies), input%geom%nSpecies))
+        this%orb%iShellOrb(:,:) = 0
+        allocate(this%orb%posShell(maxval(this%orb%nshell) + 1, input%geom%nSpecies))
+        this%orb%posShell(:,:) = 0
+        do iSp = 1, input%geom%nSpecies
+          ii = 1
+          do iSh = 1, this%orb%nshell(iSp)
+            this%orb%posShell(iSh, iSp) = ii
+            this%orb%iShellOrb(ii:ii+2*this%extModel%shellLValues(iSh,iSp), iSp) = iSh
+            ii = ii + 2*this%extModel%shellLValues(iSh,iSp) + 1
+          end do
+          this%orb%posShell(this%orb%nshell(iSp) + 1, iSp) = ii
+        end do
+
+        this%orb%mShell = maxval(this%orb%nshell)
+        this%orb%mOrb = maxval(this%orb%nOrbSpecies)
+        this%orb%nOrb = sum(this%orb%nOrbAtom)
+
+        allocate(input%slako%skOcc(this%orb%mShell, input%geom%nSpecies))
+        input%slako%skOcc(:,:) = this%extModel%shellOccs
+
+        this%isNonOrthogonal = input%ctrl%extModel%gives_overlap
+
+      elseif (input%ctrl%extModel%gives_dc_energy) then
+
+        this%cutOff%mCutOff = this%extModel%interactionCutoff
+
+      else
+
+        call error("Model provides neither energy nor hamiltonian components")
+
+      end if
+
     end select
+
     this%nOrb = this%orb%nOrb
 
     ! start by assuming stress can be calculated if periodic
@@ -1500,9 +1607,7 @@ contains
       @:ASSERT(size(input%slako%mass) == this%nType)
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = input%slako%mass(:)
-    case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+    case(hamiltonianTypes%xtb, hamiltonianTypes%api)
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = getAtomicMass(this%speciesName)
     end select
@@ -1549,10 +1654,10 @@ contains
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
       end if
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
       this%cutOff%skCutoff = this%tblite%getRCutoff()
       this%cutOff%mCutoff = this%cutOff%skCutoff
+    case(hamiltonianTypes%api)
+      ! Already set above
     end select
 
     call initHubbardUs_(input, this%orb, this%hamiltonianType, hubbU)
@@ -1783,11 +1888,9 @@ contains
     this%BarostatStrength = input%ctrl%BarostatStrength
 
   #:if WITH_SOCKETS
-    this%tSocket = allocated(input%ctrl%socketInput)
     if (this%tSocket) then
       input%ctrl%socketInput%nAtom = this%nAtom
       call this%initSocket(env, input%ctrl%socketInput)
-      this%tForces = .true.
       this%isGeoOpt = .false.
       this%tMD = .false.
     end if
@@ -1828,8 +1931,6 @@ contains
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
-    this%tPrintForces = input%ctrl%tPrintForces
-    this%tForces = input%ctrl%tForces .or. this%tPrintForces
     this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
@@ -2768,6 +2869,19 @@ contains
     do iAt = 1, size(this%iAtInCentralRegion)
       this%iAtInCentralRegion(iAt) = iAt
     end do
+
+    nAts = size(this%iAtInCentralRegion)
+  #:if WITH_TRANSPORT
+    if (this%transpar%ncont > 0) then
+      nAts = this%transpar%contacts(this%transpar%ncont)%idxrange(2)
+    end if
+  #:endif
+
+    if (this%hamiltonianType == hamiltonianTypes%api) then
+      allocate(this%localClusters)
+      call TLocalClusters_init(this%localClusters, nAts, this%extModel%environmentCutoff,&
+          & this%cutOff%skCutoff)
+    end if
 
     if (allocated(this%eField)) then
       if (allocated(input%ctrl%atomicExtPotential)) then
@@ -4240,6 +4354,8 @@ contains
     case(hamiltonianTypes%xtb)
       ! It's an xTB Hamiltonian masquerading as a DFTB one (for now)
       referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
+    case(hamiltonianTypes%api)
+      referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     end select
 
   end subroutine initReferencePopulation_
@@ -4299,6 +4415,7 @@ contains
     case(hamiltonianTypes%xtb)
       ! TODO
       ! call error("xTB calculation currently not supported")
+    case(hamiltonianTypes%api)
     end select
 
     if (allocated(input%ctrl%hubbU)) then
