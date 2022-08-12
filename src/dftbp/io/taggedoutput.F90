@@ -110,6 +110,9 @@ module dftbp_io_taggedoutput
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 
+    !> numerically calculated Born charges
+    character(lenLabel) :: BorndDipNum = 'born_mudrv_numerical'
+
     !> final energy components after real-time propagation
     character(lenLabel) :: tdenergy = 'final_energy'
 
