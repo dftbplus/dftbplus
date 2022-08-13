@@ -10,6 +10,7 @@
 !> Contains the routines for initialising modes.
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_unitconversion, only : massUnits
@@ -22,8 +23,8 @@ module modes_initmodes
   use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes, getNodeName2
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_type_linkedlist, only : TListCharLc, TListRealR1, TListString, init, destruct, append,&
-      & get, len, asArray
+  use dftbp_type_linkedlist, only : TListCharLc, TListReal, TListRealR1, TListString, init,&
+      & destruct, append, get, len, asArray
   use dftbp_type_oldskdata, only : TOldSkData, readFromFile
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
       & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
@@ -31,9 +32,9 @@ module modes_initmodes
 
   private
   public :: initProgramVariables
-  public :: geo, atomicMasses, dynMatrix, modesToPlot, nModesToPlot, nCycles, nSteps
+  public :: geo, atomicMasses, dynMatrix, bornMatrix, modesToPlot, nModesToPlot, nCycles, nSteps
   public :: nMovedAtom, iMovedAtoms, nDerivs
-  public :: tVerbose, tPlotModes, tAnimateModes, tRemoveTranslate, tRemoveRotate
+  public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
 
 
   !> program version
@@ -64,8 +65,15 @@ module modes_initmodes
   !> dynamical matrix
   real(dp), allocatable :: dynMatrix(:,:)
 
-  !> produce plots of modes, orjust eigenvalues
+  !> Born charges matrix
+  real(dp), allocatable :: bornMatrix(:)
+
+  !> produce plots of modes
   logical :: tPlotModes
+
+  !> produce eigenvectors of modes, either for plotting or for property changes along mode
+  !> directions
+  logical :: tEigenVectors
 
   !> animate mode  or as vectors
   logical :: tAnimateModes
@@ -106,7 +114,8 @@ contains
     type(TOldSKData) :: skData
     type(fnode), pointer :: root, node, tmp, hsdTree
     type(fnode), pointer :: value, child, child2
-    type(TListRealR1) :: realBuffer
+    type(TListRealR1) :: realBufferList
+    type(TListReal) :: realBuffer
     type(string) :: buffer, buffer2
     type(TListString) :: lStr
     integer :: inputVersion
@@ -114,7 +123,7 @@ contains
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
-    logical :: tLower, tExist
+    logical :: tLower, tExist, tMultiple, tDumpPHSD
     logical :: tWriteHSD ! HSD output?
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut
@@ -164,98 +173,133 @@ contains
       tAnimateModes = .false.
     end if
 
-    ! oscillation cycles in animation
+    ! oscillation cycles in an animation
     nCycles = 3
 
     ! Slater-Koster files
     call getParamSearchPath(searchPath)
-    allocate(skFiles(geo%nSpecies))
+    allocate(speciesMass(geo%nSpecies))
+    speciesMass(:) = 0.0_dp
     do iSp1 = 1, geo%nSpecies
-        call init(skFiles(iSp1))
+      speciesMass(iSp1) = getAtomicMass(geo%speciesNames(iSp1))
     end do
 
-    call getChildValue(root, "SlaterKosterFiles", value, child=child)
-    call getNodeName(value, buffer)
-    select case(char(buffer))
-    case ("type2filenames")
-      call getChildValue(value, "Prefix", buffer2, "")
-      prefix = unquote(char(buffer2))
-      call getChildValue(value, "Suffix", buffer2, "")
-      suffix = unquote(char(buffer2))
-      call getChildValue(value, "Separator", buffer2, "")
-      separator = unquote(char(buffer2))
-      call getChildValue(value, "LowerCaseTypeName", tLower, .false.)
+    call getChildValue(root, "SlaterKosterFiles", value, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value)) then
+      allocate(skFiles(geo%nSpecies))
       do iSp1 = 1, geo%nSpecies
-        if (tLower) then
-          elem1 = tolower(geo%speciesNames(iSp1))
-        else
-          elem1 = geo%speciesNames(iSp1)
-        end if
-        strTmp = trim(prefix) // trim(elem1) // trim(separator) &
-            &// trim(elem1) // trim(suffix)
-        call findFile(searchPath, strTmp, strOut)
-        if (allocated(strOut)) strTmp = strOut
-        call append(skFiles(iSp1), strTmp)
-        inquire(file=strTmp, exist=tExist)
-        if (.not. tExist) then
-          call detailedError(value, "SK file with generated name '" &
-              &// trim(strTmp) // "' does not exist.")
-        end if
+        call init(skFiles(iSp1))
       end do
-    case default
-      call setUnprocessed(value)
-      do iSp1 = 1, geo%nSpecies
-        strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-            &// trim(geo%speciesNames(iSp1))
-        call init(lStr)
-        call getChildValue(child, trim(strTmp), lStr, child=child2)
-        ! We can't handle selected shells here (also not needed I guess)
-        if (len(lStr) /= 1) then
-          call detailedError(child2, "Incorrect number of Slater-Koster &
-              &files")
-        end if
-        do ii = 1, len(lStr)
-          call get(lStr, strTmp, ii)
+      call getNodeName(value, buffer)
+      select case(char(buffer))
+      case ("type2filenames")
+        call getChildValue(value, "Prefix", buffer2, "")
+        prefix = unquote(char(buffer2))
+        call getChildValue(value, "Suffix", buffer2, "")
+        suffix = unquote(char(buffer2))
+        call getChildValue(value, "Separator", buffer2, "")
+        separator = unquote(char(buffer2))
+        call getChildValue(value, "LowerCaseTypeName", tLower, .false.)
+        do iSp1 = 1, geo%nSpecies
+          if (tLower) then
+            elem1 = tolower(geo%speciesNames(iSp1))
+          else
+            elem1 = geo%speciesNames(iSp1)
+          end if
+          strTmp = trim(prefix) // trim(elem1) // trim(separator) &
+              &// trim(elem1) // trim(suffix)
+          call findFile(searchPath, strTmp, strOut)
+          if (allocated(strOut)) strTmp = strOut
+          call append(skFiles(iSp1), strTmp)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
-            call detailedError(child2, "SK file '" // trim(strTmp) &
-                &// "' does not exist'")
+            call detailedError(value, "SK file with generated name '" // trim(strTmp) //&
+                & "' does not exist.")
           end if
-          call append(skFiles(iSp1), strTmp)
         end do
-        call destruct(lStr)
+      case default
+        call setUnprocessed(value)
+        do iSp1 = 1, geo%nSpecies
+          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
+              &// trim(geo%speciesNames(iSp1))
+          call init(lStr)
+          call getChildValue(child, trim(strTmp), lStr, child=child2)
+          ! We can't handle selected shells here (also not needed)
+          if (len(lStr) /= 1) then
+            call detailedError(child2, "Incorrect number of Slater-Koster files")
+          end if
+          do ii = 1, len(lStr)
+            call get(lStr, strTmp, ii)
+            inquire(file=strTmp, exist=tExist)
+            if (.not. tExist) then
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' does not exist'")
+            end if
+            call append(skFiles(iSp1), strTmp)
+          end do
+          call destruct(lStr)
+        end do
+      end select
+      do iSp1 = 1, geo%nSpecies
+        call get(skFiles(iSp1), fileName, 1)
+        call readFromFile(skData, fileName, .true.)
+        speciesMass(iSp1) = skData%mass
+        call destruct(skFiles(iSp1))
       end do
-    end select
-
-    allocate(speciesMass(geo%nSpecies))
-    do iSp1 = 1, geo%nSpecies
-      call get(skFiles(iSp1), fileName, 1)
-      call readFromFile(skData, fileName, .true.)
-      speciesMass(iSp1) = skData%mass
-      call destruct(skFiles(iSp1))
-    end do
+    end if
 
     call getInputMasses(root, geo, replacementMasses)
+    allocate(atomicMasses(nMovedAtom))
+    do iAt = 1, nMovedAtom
+      atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
+    end do
+    if (allocated(replacementMasses)) then
+      do iAt = 1, nMovedAtom
+        if (replacementMasses(iMovedAtoms(iAt)) >= 0.0_dp) then
+          atomicMasses(iAt) = replacementMasses(iMovedAtoms(iAt))
+        end if
+      end do
+    end if
 
     allocate(dynMatrix(nDerivs,nDerivs))
-    call getChildValue(root, "Hessian", value, "", child=child, &
-        & allowEmptyValue=.true.)
+
+    tDumpPHSD = .true.
+
+    call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value, buffer)
     if (char(buffer) == "") then
       call error("No derivative matrix supplied!")
     else
-      call init(realBuffer)
-      call getChildValue(child, "", nDerivs, realBuffer)
-      if (len(realBuffer)/=nDerivs) then
+      call init(realBufferList)
+      call getChildValue(child, "", nDerivs, realBufferList)
+      if (len(realBufferList)/=nDerivs) then
         call detailedError(root,"wrong number of derivatives supplied:" &
-            & // i2c(len(realBuffer)) // " supplied, " &
+            & // i2c(len(realBufferList)) // " supplied, " &
             & // i2c(nDerivs) // " required.")
       end if
-      call asArray(realBuffer, dynMatrix)
-      call destruct(realBuffer)
+      call asArray(realBufferList, dynMatrix)
+      call destruct(realBufferList)
+      tDumpPHSD = .false.
     end if
 
-    call getChildValue(root, "WriteHSDInput", tWriteHSD, .false.)
+    call getChild(root, "BornCharges", child, requested=.false.)
+    call getNodeName2(child, buffer)
+    if (char(buffer) /= "") then
+      call init(realBuffer)
+      call getChildValue(child, "", realBuffer)
+      if (len(realBuffer)/=3*nDerivs) then
+        call detailedError(root,"wrong number of Born charges supplied:"&
+            & // i2c(len(realBuffer)) // " supplied, " // i2c(3*nDerivs) // " required.")
+      end if
+      allocate(bornMatrix(len(realBuffer)))
+      call asArray(realBuffer, bornMatrix)
+      call destruct(realBuffer)
+      tDumpPHSD = .false.
+    end if
+
+    call getChildValue(root, "WriteHSDInput", tWriteHSD, tDumpPHSD)
+
+    tEigenVectors = tPlotModes .or. allocated(bornMatrix)
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root,.true.)
@@ -268,18 +312,6 @@ contains
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, *)
     call destroyNode(hsdTree)
-
-    allocate(atomicMasses(nMovedAtom))
-    do iAt = 1, nMovedAtom
-      atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
-    end do
-    if (allocated(replacementMasses)) then
-      do iAt = 1, nMovedAtom
-        if (replacementMasses(iMovedAtoms(iAt)) >= 0.0_dp) then
-          atomicMasses(iAt) = replacementMasses(iMovedAtoms(iAt))
-        end if
-      end do
-    end if
 
   end subroutine initProgramVariables
 
@@ -318,7 +350,7 @@ contains
   end subroutine readGeometry
 
 
-  !> Reads atomic masses from input file, overwriting those from the SK files
+  !> Reads atomic masses from input file
   subroutine getInputMasses(node, geo, masses)
 
     !> relevant node of input data

@@ -13,6 +13,7 @@ Added
 
 - Born charges from finite difference dipole derivatives
 
+- Infrared intensities from the modes code
 
 Fixed
 -----

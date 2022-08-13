@@ -7,3 +7,4 @@
 
 C24O6H8                  #? MPI_PROCS <= 1
 C24O6H8_prefix           #? MPI_PROCS <= 1
+C6H6_ir                  #? MPI_PROCS <= 1

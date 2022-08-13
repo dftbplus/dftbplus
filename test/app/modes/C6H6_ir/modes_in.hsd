@@ -1,0 +1,29 @@
+# Needs the equilibrium geometry, at which the Hessian had been calculated
+Geometry = GenFormat { 
+  <<< geom.gen
+}
+
+Mass = {
+  Atoms = C
+  MassPerAtom [amu] = 12
+}
+
+Mass = {
+  Atoms = H
+  MassPerAtom [amu] = 1
+}
+
+RemoveTranslation = Yes
+RemoveRotation = Yes
+
+# Include the Hessian, which was calculated by DFTB+
+Hessian = {
+  <<< "hessian.out"
+}
+
+BornCharges = {
+  <<< born.out
+}
+
+# This file uses the 3rd input format of the modes code
+InputVersion = 3

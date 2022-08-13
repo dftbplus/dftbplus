@@ -17,7 +17,6 @@ input file \verb|modes_in.hsd|:
 \begin{ptableh}
   \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
   \kw{Hessian} & p & & \cb & \pref{sec:modes.Hessian} \\
-  \kw{SlaterKosterFiles} &p|m&  & - &  \\
 \end{ptableh}
 
 Additionally optional definitions may be present:
@@ -27,7 +26,9 @@ Additionally optional definitions may be present:
   \kw{WriteHSDInput} & l & & No & \\
   \kw{RemoveTranslation} & l & & No & \\
   \kw{RemoveRotation} & l & & No & \\
+  \kw{SlaterKosterFiles} &p|m&  & - &  \\
   \kw{Masses} & p & & & \pref{sec:modes.Masses} \\
+  \kw{BornCharges} & p & & \cb & \pref{sec:modes.BornCharges} \\
 \end{ptableh}
 
 \begin{description}
@@ -36,8 +37,11 @@ Additionally optional definitions may be present:
 \item[\is{Hessian}] Contains the second derivatives matrix of the
   system energy with respect to atomic positions. See
   p.~\pref{sec:modes.Hessian}.
-\item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for every atom
-  type pair combination. See p.~\pref{sec:dftbp.SlaterKosterFiles}.
+\item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for
+  every atom type pair combination. See
+  p.~\pref{sec:dftbp.SlaterKosterFiles}. This is used to obtain the
+  masses, so if these are explicitly set using \kwcb{Masses}, it is
+  not required.
 \item[\is{DisplayModes}] Optional settings to plot the eigenmodes of the
   vibrations. See p.~\pref{sec:modes.DisplayModes}.
 \item[\is{Atoms}] Optional list of atoms, ranges of atoms and/or the species of
@@ -76,6 +80,32 @@ as
 {\em Note}: for supercell calculations, the modes are currently
 obtained at the $\mathbf{q}=0$ point, irrespective of the k-point
 sampling used.
+
+\subsection{BornCharges\{\}}
+\label{sec:modes.BornCharges}
+
+If the mixed derivatives of the energy with respect to field and
+position are available ($Z^\star$ values), these can be used to gain
+an estimate of the infrared activitiy of the vibrational modes. The
+resulting transition strengths (in arbitrary units) are then
+printed. The derivatives are also equivalent to the first derivatives
+of the dipole moment with respect to atomic positions, or the
+derivatives of forces with respect to external electric field.
+
+The Data is ordered in the same way as the hessian information:
+\begin{align*}
+  \frac{\partial \mu_x}{\partial x_{i1}} \frac{\partial \mu_y}{\partial x_{i1}}
+  \frac{\partial \mu_z}{\partial x_{i1}}\\
+  \frac{\partial \mu_x}{\partial x_{j1}} \frac{\partial \mu_y}{\partial x_{j1}}
+  \frac{\partial \mu_z}{\partial x_{j1}}\\
+  \frac{\partial \mu_x}{\partial x_{k1}} \frac{\partial \mu_y}{\partial x_{k1}}
+  \frac{\partial \mu_z}{\partial x_{k1}}\\
+  .\\
+  .\\
+  .\\
+  \frac{\partial \mu_x}{\partial x_{kn}} \frac{\partial \mu_y}{\partial x_{kn}}
+  \frac{\partial \mu_z}{\partial x_{kn}}\\
+\end{align*}
 
 
 \subsection{DisplayModes\{\}}
