@@ -507,7 +507,10 @@ module dftbp_dftbplus_initprogram
     type(TPipekMezey), allocatable :: pipekMezey
 
     !> Density functional tight binding perturbation theory
-    logical :: isDFTBPT = .false.
+    logical :: doPerturbation = .false.
+
+    !> Density functional tight binding perturbation for each geometry step
+    logical :: doPerturbEachGeom = .false.
 
     !> Response property calculations
     type(TResponse), allocatable :: response
@@ -2276,8 +2279,10 @@ contains
           & spin orbit calculations")
     end if
 
-    this%isDFTBPT = input%ctrl%isDFTBPT
-    if (this%isDFTBPT) then
+    this%doPerturbation = input%ctrl%doPerturbation
+    this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
+
+    if (this%doPerturbation .or. this%doPerturbEachGeom) then
 
       allocate(this%response)
       call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
@@ -2582,7 +2587,7 @@ contains
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
       call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta,&
-          &this%tDipole)
+          &this%tDipole, this%doPerturbEachGeom)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -4591,7 +4596,7 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
-      if (this%isDFTBPT .and. this%isEResp) then
+      if (this%doPerturbation .and. this%isEResp) then
         call initOutputFile(derivEBandOut)
       end if
     end if

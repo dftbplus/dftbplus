@@ -39,6 +39,9 @@ module dftbp_dftbplus_outputfiles
   !> with respect to external electric field
   character(*), parameter :: bornChargesOut = "born.out"
 
+  !> Second derivative of the dipole moment with respect to atomic positions and electric field
+  character(*), parameter :: bornDerivativesOut = "bornderiv.out"
+
   !> file name prefix for charge data
   character(*), parameter :: fCharges = "charges"
 

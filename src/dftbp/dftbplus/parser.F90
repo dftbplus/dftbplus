@@ -5038,19 +5038,19 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
-      ctrl%isDFTBPT = .false.
+      ctrl%doPerturbation = .false.
 
       ! electric field polarisability of system
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
-        ctrl%isDFTBPT = .true.
+        ctrl%doPerturbation = .true.
         ctrl%isEPerturb = .true.
         call freqRanges(child, ctrl%dynEFreq)
       end if
 
       call getChild(node, "ResponseKernel", child=child, requested=.false.)
       if (associated(child)) then
-        ctrl%isDFTBPT = .true.
+        ctrl%doPerturbation = .true.
         ctrl%isRespKernelPert = .true.
         if (ctrl%tSCC) then
           call getChildValue(child, "RPA", ctrl%isRespKernelRPA, .false.)
@@ -5060,7 +5060,7 @@ contains
         call freqRanges(child, ctrl%dynKernelFreq)
       end if
 
-      if (ctrl%isDFTBPT) then
+      if (ctrl%doPerturbation) then
         call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
             & child=child)
         if (ctrl%tolDegenDFTBPT < 1.0_dp) then
