@@ -144,8 +144,7 @@ contains
         call detailedError(ch1, "Sorry, non-variational energy calculation &
             &is not supported any more!")
       else
-        call detailedWarning(ch1, "Energy calculation is made only &
-            &variational, option removed.")
+        call detailedWarning(ch1, "Energy calculation is made only variational, option removed.")
         call destroyNode(ch1)
       end if
     end if
@@ -752,6 +751,7 @@ contains
     type(fnode), pointer :: root
 
     type(fnode), pointer :: ch1, ch2
+    type(string) :: buffer
 
     call getDescendant(root, "Driver/GeometryOptimization", ch1)
     if (associated(ch1)) then
@@ -777,6 +777,22 @@ contains
       call setNodeName(ch1, "ImagPolarisationDirection")
     end if
   #:endfor
+
+    call getDescendant(root, "Transport", ch1)
+    if (associated(ch1)) then
+      call getChildValue(root, "Transport/Task", ch1, child=ch2, default='uploadcontacts')
+      call getNodeName(ch1, buffer)
+      if (char(buffer) /= "contacthamiltonian") then
+      #:for LABEL in [("xTB"), ("DFTB")]
+        call getDescendant(root, "Hamiltonian/${LABEL}$/Charge", ch1)
+        if (associated(ch1)) then
+          call setUnprocessed(ch1)
+          call detailedWarning(ch1, "Device region charge cannot be set if contacts are present.")
+          call destroyNode(ch1)
+        end if
+      #:endfor
+      end if
+    end if
 
   end subroutine convert_11_12
 
