@@ -13,14 +13,14 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 module dftbp_poisson_parameters
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, mc
 
   implicit none
 
   private
   public :: init_defaults
-  public :: set_verbose, set_scratch, set_contdir, set_fermi, set_potentials
-  public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces
+  public :: set_verbose, set_scratch, set_contdir, set_contlabels, set_fermi, set_potentials
+  public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indices
   public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy
   public :: set_cluster, set_builtin
 
@@ -37,6 +37,7 @@ module dftbp_poisson_parameters
   integer,  public :: biasdir
   integer,  public :: gatedir
   integer,  public :: contdir(MAXNCONT)
+  character(mc), allocatable, public :: contnames(:)
   integer,  public :: ncont
   integer,  public :: ni(MAXNCONT)
   integer,  public :: nf(MAXNCONT)
@@ -217,13 +218,13 @@ module dftbp_poisson_parameters
     end if
   end subroutine set_mol_indeces
 
-  subroutine set_cont_indeces(continds,ii)
+  subroutine set_cont_indices(continds,ii)
     integer, intent(in) :: continds(:)
     integer, intent(in) :: ii
     integer :: nconts
     nconts = size(continds)
     iatc(ii,1:nconts) = continds(1:nconts)
-  end subroutine set_cont_indeces
+  end subroutine set_cont_indices
 
   subroutine set_contdir(dir)
     integer, intent(in) :: dir(:)
@@ -235,6 +236,20 @@ module dftbp_poisson_parameters
       contdir(1:nconts) = dir(1:nconts)
     end if
   end subroutine set_contdir
+
+  !> Set labels for contacts
+  subroutine set_contlabels(names)
+
+    !> Names of contacts
+    character(mc), intent(in) :: names(:)
+
+    if (allocated(contnames)) then
+      deallocate(contnames)
+    end if
+    allocate(contnames(size(names)))
+    contnames(:) = names
+
+  end subroutine set_contlabels
 
   subroutine set_potentials(pot)
     real(dp), intent(in) :: pot(:)
