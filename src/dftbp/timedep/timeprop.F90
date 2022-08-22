@@ -184,7 +184,7 @@ module dftbp_timedep_timeprop
     !> if pairwise bond population should be calculated and written
     logical :: tBondP
 
-    !> if pairwise bond population should be calculated and written
+    !> if atom-resolved energies should be written
     logical :: tWriteAtomEnergies
 
     !> if this is a pump trajectory (for a pump-probe simulation)
@@ -2731,7 +2731,9 @@ contains
     if (this%tBondP) then
       call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, lastBondPopul)
     end if
-
+    if (this%tWriteAtomEnergies) then
+      call taggedWriter%write(fdAutotest, tagLabels%atomenergies, energy%atomTotal)
+    end if
     close(fdAutotest)
 
   end subroutine writeTDAutotest
