@@ -10,10 +10,14 @@ module dftbp_io_commonformats
   implicit none
 
   private
-  public :: formatHessian, formatGeoOut, format1U, format2U, format1Ue, format2Ue, format1U1e
+  public :: formatHessian, formatBorn, formatGeoOut, format1U, format2U, format1Ue, format2Ue,&
+      & format1U1e
 
   !> Format string for energy second derivative matrix
   character(len=*), parameter :: formatHessian = '(4f16.10)'
+
+  !> Format string for Born charges
+  character(len=*), parameter :: formatBorn = '(3f16.10)'
 
   !> Atomic geometries format
   character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"

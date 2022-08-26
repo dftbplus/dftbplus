@@ -278,8 +278,10 @@ methods are available:
   algorithm. See p.~\pref{sec:dftbp.LBFGS}.
 \item[\iscb{FIRE}] (\textbf{deprecated}) Geometry optimisation using the FIRE
   algorithm. See p.~\pref{sec:dftbp.FIRE}.
-\item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
-  energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
+\item[\iscb{SecondDerivatives}] Calculation of the second derivatives
+  of the energy (the \index{Hessian}Hessian) and the derivatives of
+  the dipole moment (the \index{Born charges}Born charges). See
+  p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
   Verlet algorithm. See p.~\pref{sec:dftbp.VelocityVerlet}.
 \item[\iscb{Socket}] Hands over control to an external program via a socket
@@ -673,9 +675,12 @@ Specific properties for this method are:
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
-Calculates the second derivatives\index{Hessian} of the energy (currently only
-using a numerical differentiation of the forces). The derivatives matrix is
-written out for the $i$, $j$ and $k$ directions of atoms $1 \ldots n$ as
+Calculates the second derivatives\index{Hessian} of the energy and the
+Born charges (currently both only using a numerical first
+differentiation).
+
+The hessian matrix is written out for the $i$, $j$ and $k$ directions
+of atoms $1 \ldots n$ as
 \begin{equation*}
   \frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
     E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
@@ -684,10 +689,35 @@ written out for the $i$, $j$ and $k$ directions of atoms $1 \ldots n$ as
     E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial
     x_{kn} \partial x_{kn}}
 \end{equation*}
-into {\it hessian.out}
+into {\it hessian.out}\index{hessian.out}
 
-\textbf{Note}: for supercell calculations, the derivatives are obtained at the $\mathbf{q}=0$ point,
-irrespective of the k-point sampling used.
+If the dipole moment is available, the Born charges for the $n$ atoms
+are writen as
+\begin{align*}
+  \frac{\partial^2 E}{\partial \varepsilon_{i} \partial x_{i1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{j} \partial x_{i1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{i1}}\\
+  \frac{\partial^2 E}{\partial \varepsilon_{i} \partial x_{j1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{j} \partial x_{j1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{j1}}\\
+  \frac{\partial^2 E}{\partial \varepsilon_{i} \partial x_{k1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{j} \partial x_{k1}}
+  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{k1}}\\
+  .\\
+  .\\
+  .\\
+  \frac{\partial^2 E}{\partial \varepsilon_{i} \partial x_{kn}}
+  \frac{\partial^2 E}{\partial \varepsilon_{j} \partial x_{kn}}
+  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{kn}}\\  
+\end{align*}
+where $\boldsymbol\varepsilon$ is a cartesian electric field and
+$\mathbf{x}$ the cartesian directions written into {\it
+  born.out}\index{born.out}
+
+
+\textbf{Note}: for periodic calculations, the derivatives are obtained
+at the $\mathbf{q}=0$ point, irrespective of the k-point sampling
+used.
 
 \textbf{Important:} In order to get accurate results for the second derivatives
 (and the resulting frequencies) you must set a smaller self-consistent

@@ -1,0 +1,46 @@
+Geometry = genFormat {
+ 12  C
+ H C
+    1  1    0.1548999301E+01   -0.3556877402E-12    0.2199715021E+01
+    2  1    0.3708109669E+01   -0.7932019936E-13    0.5885764974E+01
+    3  1    0.1564843049E+01   -0.5367391276E-12    0.4665823016E+01
+    4  1    0.5820751924E+01    0.4093003088E-12    0.2172894092E+01
+    5  1    0.3677028940E+01    0.4397163897E-12    0.9538836896E+00
+    6  1    0.5835620339E+01    0.1254619105E-12    0.4638888374E+01
+    7  2    0.2488359688E+01   -0.3591126628E-13    0.2734342552E+01
+    8  2    0.3701231855E+01    0.6953938661E-13    0.4804903695E+01
+    9  2    0.2497549694E+01   -0.4365462022E-12    0.4119471275E+01
+   10  2    0.4888131070E+01    0.3833459314E-12    0.2719197121E+01
+   11  2    0.3683941852E+01    0.7203445989E-13    0.2034858143E+01
+   12  2    0.4896129971E+01   -0.5523081585E-13    0.4104257756E+01
+}
+
+Driver = SecondDerivatives {}
+
+Hamiltonian = xtb {
+  Method = "GFN2-xTB"
+  SCCTolerance = 1.0E-10
+  Solvation = GeneralizedBorn {
+    ParamFile = "param_gbsa_benzene.txt"
+  }
+  Filling = Fermi {
+    Temperature [K] = 300
+  }
+}
+
+Options {
+  WriteAutotestTag = No
+  WriteResultsTag = Yes
+}
+
+Analysis {
+  AtomResolvedEnergies = Yes
+  CalculateForces = Yes
+  MullikenAnalysis = Yes
+  WriteBandOut = Yes
+  WriteNetCharges = Yes
+}
+
+ParserOptions { ParserVersion = 11 }
+
+Parallel { UseOmpThreads = Yes }

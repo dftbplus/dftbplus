@@ -261,7 +261,7 @@ class GridData:
         subgrid_ranges = self.grid.get_subgrid_ranges(subgrid)
         relative_ranges = subgrid_ranges - self.grid.lower_bounds[:, np.newaxis]
         sliceobj = [slice(*relrange) for relrange in relative_ranges]
-        return self.data[sliceobj]
+        return self.data[tuple(sliceobj)]
 
 
     def get_value(self, gridcoords):

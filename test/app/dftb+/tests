@@ -283,6 +283,8 @@ solvation/cosmo_quinoline              #? MPI_PROCS <= 1
 solvation/cosmo_nitralin               #? MPI_PROCS <= 2
 solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 
+derivatives/gfn2_c6h6_dipole           #? WITH_TBLITE and MPI_PROCS <= 1
+
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
@@ -377,6 +379,7 @@ spinorbit/As4S4                        #? MPI_PROCS <= 8
 dispersion/DNA-damped                  #? MPI_PROCS <= 4
 md/ice_Ic                              #? MPI_PROCS <= 4
 derivatives/C6H6_scc                   #? MPI_PROCS <= 1
+derivatives/GaAs_2                     #? MPI_PROCS <= 1
 dftb+u/GaAs_2                          #? MPI_PROCS <= 1
 geoopt/diamond_presure                 #? MPI_PROCS <= 1
 scc/C60_Fermi                          #? MPI_PROCS <= 4
