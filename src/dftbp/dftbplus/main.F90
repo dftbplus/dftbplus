@@ -2457,7 +2457,7 @@ contains
     type(TDftbDeterminants), intent(inout) :: deltaDftb
     
     !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
-    type(TAPICallback), intent(in) :: apicallback
+    type(TAPICallback), intent(inout) :: apicallback
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -2679,7 +2679,7 @@ contains
     type(TDftbDeterminants), intent(inout) :: deltaDftb
 
     !> Object for invocation of the density, overlap, and hamiltonian matrices exporting callbacks
-    type(Tapicallback), intent(in) :: apicallback
+    type(Tapicallback), intent(inout) :: apicallback
 
     !> SCC iteration index. Used here to determine if we need invoke overlap and hamiltonian 
     !> matrices exporting callbacks now.
@@ -2690,10 +2690,7 @@ contains
 
     integer :: nSpin
     
-    type(Tapicallback) :: hs_apicallback
-    
-    !hs_apicallback = merge(apicallback, null_apicallback, iSCC == 1)
-    hs_apicallback = apicallback
+    apicallback%iSCCIter = iSCC
 
     nSpin = size(ints%hamiltonian, dim=2)
     call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -2702,13 +2699,13 @@ contains
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, iAtomStart, tHelical, coord,&
             & electronicSolver, parallelKS, rangeSep, deltaRhoInSqr, qOutput, nNeighbourLC,&
-            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:), hs_apicallback, errStatus)
+            & HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:), apicallback, errStatus)
         @:PROPAGATE_ERROR(errStatus)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
             & parallelKS, tHelical, orb, species, coord, HSqrCplx, SSqrCplx, eigVecsCplx, eigen,&
-            & hs_apicallback, errStatus)
+            & apicallback, errStatus)
         @:PROPAGATE_ERROR(errStatus)
       end if
     else
@@ -2856,7 +2853,9 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
       if (present(apicallback)) then
-        call apicallback%invokeS(iK, iSpin, SSqrReal, denseDesc%blacsOrbSqr)
+        if (apicallback%iSCCIter == 1) then
+          call apicallback%invokeS(iK, iSpin, SSqrReal, denseDesc%blacsOrbSqr)
+        endif
         call apicallback%invokeH(iK, iSpin, HSqrReal, denseDesc%blacsOrbSqr)
       endif
 
@@ -2879,7 +2878,9 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
       if (present(apicallback)) then
-        call apicallback%invokeS(iK, iSpin, SSqrReal)
+        if (apicallback%iSCCIter == 1) then
+          call apicallback%invokeS(iK, iSpin, SSqrReal)
+        endif
         call apicallback%invokeH(iK, iSpin, HSqrReal)
       endif
 

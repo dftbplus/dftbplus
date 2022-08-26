@@ -18,6 +18,10 @@ if(WITH_C_EXECUTABLES)
   add_executable(test_expdmhs test_expdmhs.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_expdmhs dftbplus)
   set_target_properties(test_expdmhs PROPERTIES LINKER_LANGUAGE C)
+
+  add_executable(test_imp_ham test_imp_ham.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_imp_ham dftbplus)
+  set_target_properties(test_imp_ham PROPERTIES LINKER_LANGUAGE C)
   
   if(WITH_MPI)
     find_package(MPI REQUIRED)

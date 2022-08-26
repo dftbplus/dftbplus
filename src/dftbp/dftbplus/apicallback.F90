@@ -38,27 +38,30 @@ module dftbp_dftbplus_apicallback
   !> This type incapsulates registering and invocation of callbacks for export of the density,
   !> overlap, and hamiltonian matrices.
   type :: TAPICallback
-    private
-    !> 
+
+    !> Flag that signals that the density matrix callback is associated with a function
     logical :: dm_callback_associated = .false.
     !> Callback for density matrix export
     procedure(dmhs_callback_t), nopass, pointer :: dm_callback
     !> Pointer to auxilary data that is set when the density matrix callback is registered. Can be NULL.
     class(*), pointer :: dm_aux_ptr
 
-    !> 
+    !> Flag that signals that the overlap matrix callback is associated with a function
     logical :: s_callback_associated = .false.
     !> Callback for the overlap matrix export
     procedure(dmhs_callback_t), pointer, nopass :: s_callback
     !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be NULL.
     class(*), pointer :: s_aux_ptr
 
-    !> 
+    !> Flag that signals that the hamiltonian matrix callback is associated with a function
     logical :: h_callback_associated = .false.
     !> Callback for the hamiltonian matrix export
     procedure(dmhs_callback_t), pointer, nopass :: h_callback
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
     class(*), pointer :: h_aux_ptr
+
+    !> Number (index) of the current self-consistent charge iteration. Meant to be used by the calling code
+    integer :: iSCCIter
 
   contains
     !> Register callback to be invoked on each density matrix evaluation

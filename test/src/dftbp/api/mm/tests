@@ -20,4 +20,5 @@ resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
 mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)
 expdmhs             #? not WITH_MPI
+imp_ham             #? not WITH_MPI
 mpiexpdmhs          #? WITH_MPI and (MPI_PROCS % 2 == 0)
