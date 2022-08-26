@@ -2662,7 +2662,8 @@ contains
     
     type(Tapicallback) :: hs_apicallback
     
-    hs_apicallback = merge(apicallback, null_apicallback, iSCC == 1)
+    !hs_apicallback = merge(apicallback, null_apicallback, iSCC == 1)
+    hs_apicallback = apicallback
 
     nSpin = size(ints%hamiltonian, dim=2)
     call env%globalTimer%startTimer(globalTimers%diagonalization)

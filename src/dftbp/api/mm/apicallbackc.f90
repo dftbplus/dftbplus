@@ -51,8 +51,8 @@ contains
     !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
     integer, intent(in), target, optional :: blacs_descr(:)
     !> Matrix, that can be either real or complex
-    real(dp),    intent(in), target, optional :: data_buf_real(:,:)
-    complex(dp), intent(in), target, optional :: data_buf_cplx(:,:)
+    real(dp),    intent(inout), target, optional :: data_buf_real(:,:)
+    complex(dp), intent(inout), target, optional :: data_buf_cplx(:,:)
     
     procedure(dmhs_callback_c_t), pointer :: callback_proc
     type(c_ptr) :: blacs_descr_ptr

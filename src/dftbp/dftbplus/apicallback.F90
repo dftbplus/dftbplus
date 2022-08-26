@@ -29,8 +29,8 @@ module dftbp_dftbplus_apicallback
       !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
       integer, intent(in), target, optional :: blacs_descr(:)
       !> Matrix, that can be either real or complex
-      real(dp),    intent(in), target, optional :: data_buf_real(:,:)
-      complex(dp), intent(in), target, optional :: data_buf_cplx(:,:)
+      real(dp),    intent(inout), target, optional :: data_buf_real(:,:)
+      complex(dp), intent(inout), target, optional :: data_buf_cplx(:,:)
     end subroutine dmhs_callback_t
   end interface
 
@@ -106,7 +106,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Density matrix in dense format
-    real(dp), intent(in), target :: data_buf(:,:)
+    real(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
@@ -127,7 +127,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Density matrix in dense format
-    complex(dp), intent(in), target :: data_buf(:,:)
+    complex(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
@@ -160,7 +160,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Overlap matrix in dense format
-    real(dp), intent(in), target :: data_buf(:,:)
+    real(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
     
@@ -181,7 +181,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Overlap matrix in dense format
-    complex(dp), intent(in), target :: data_buf(:,:)
+    complex(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
@@ -213,7 +213,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Hamiltonian matrix in dense format
-    real(dp), intent(in), target :: data_buf(:,:)
+    real(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
@@ -233,7 +233,7 @@ contains
     !> Indices of k-point and spin chanel
     integer, value :: i_kpoint, i_spin
     !> Hamiltonian matrix in dense format
-    complex(dp), intent(in), target :: data_buf(:,:)
+    complex(dp), intent(inout), target :: data_buf(:,:)
     !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacs_descr(:)
 
