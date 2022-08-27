@@ -155,15 +155,18 @@ endif()
 
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
-  CONFIGURE_FILE(
-    "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
-    @ONLY
-  )
-  install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  )
+
+  if(WITH_API OR BUILD_SHARED_LIBS)
+    CONFIGURE_FILE(
+      "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
+      "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+      @ONLY
+      )
+    install(
+      FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+      )
+  endif()
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)
