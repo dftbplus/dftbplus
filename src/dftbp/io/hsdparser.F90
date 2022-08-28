@@ -280,8 +280,8 @@ contains
         strLine = adjustl(residual)
         residual = ""
       else
-        read (fd, lineFormat, iostat=iostat) strLine
         curLine = curLine + 1
+        call getLine(fd, curFile, curLine, strLine, iostat)
         call convertWhitespaces(strLine)
         strLine = adjustl(strLine)
         !! If reading error (e.g. EOF) -> close current scope
@@ -919,5 +919,52 @@ contains
     end if
 
   end subroutine getHSDPath_recursive
+
+
+  !> Safely reads a line from an open file into a static character variable.
+  !>
+  !> Issues an error message, if the line is longer then the length of the output variable.
+  !>
+  subroutine getLine(unit, curFile, curLine, line, iostat)
+
+    !> File unit
+    integer, intent(in) :: unit
+
+    !> Name of current file (for error messages)
+    character(*), intent(in) :: curFile
+
+    !> Current line
+    integer, intent(in) :: curLine
+
+    !> Line read
+    character(*), intent(out) :: line
+
+    !> Status of the I/O (0 on success, otherwise the iostat value of the read operation)
+    integer, intent(out) :: iostat
+
+    character(len(line) + 1) :: buffer
+    integer :: nCharRead, iLast
+
+    line = ""
+    iLast = 0
+    do
+      read(unit, "(a)", advance="no", iostat=iostat, size=nCharRead) buffer
+      ! Fatal, irrecoverable error
+      if (iostat > 0) return
+      if (iLast + nCharRead > len(line)) then
+        call parsingError("Line exceeds maximal line length of the HSD parser", curFile, curLine)
+      end if
+      line(iLast + 1 : iLast + nCharRead) = buffer(1:nCharRead)
+      iLast = iLast + nCharRead
+      ! End of file or end of record error
+      if (iostat < 0) then
+        ! End of record is expected when entire line had been read, so we reset it
+        if (is_iostat_eor(iostat)) iostat = 0
+        return
+      end if
+    end do
+
+  end subroutine getLine
+
 
 end module dftbp_io_hsdparser
