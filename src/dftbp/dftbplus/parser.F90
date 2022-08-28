@@ -1498,7 +1498,6 @@ contains
         ctrl%isNonAufbau = .true.
         call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
         call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
-        ctrl%nrChrg = 0.0_dp
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
@@ -1561,13 +1560,20 @@ contains
     ! Electronic solver
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
+
+    if (tp%taskUpload) then
+      ! Initialise variable, but unused
+      ctrl%nrChrg =  0.0_dp
+    else
+      ! Charge
+      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    end if
   #:else
     call readSolver(node, ctrl, geo, poisson)
-  #:endif
-
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+  #:endif
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
@@ -1886,7 +1892,6 @@ contains
         ctrl%isNonAufbau = .true.
         call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
         call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
-        ctrl%nrChrg = 0.0_dp
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
@@ -1920,12 +1925,20 @@ contains
     ! Electronic solver
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
+
+    if (tp%taskUpload) then
+      ! Initialise, but unused
+      ctrl%nrChrg =  0.0_dp
+    else
+      ! Charge
+      call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+    end if
   #:else
     call readSolver(node, ctrl, geo, poisson)
-  #:endif
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+  #:endif
 
     ! K-Points
     call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
@@ -5863,10 +5876,11 @@ contains
 
     call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
 
+    transpar%taskUpload = .false.
+
     select case (char(buffer))
     case ("contacthamiltonian")
 
-      transpar%taskUpload = .false.
       call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
           & pTmp)
