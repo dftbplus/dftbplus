@@ -51,7 +51,7 @@ The input file for {\dftbp} (\verb|dftb_in.hsd|)
 must contain the following property definitions:
 \begin{ptableh}
   \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
-  \kw{Hamiltonian} & m &  & - & \pref{sec:dftbp.Hamiltonian} \\
+  \kw{Model} & m &  & - & \pref{sec:dftbp.Model} \\
 \end{ptableh}
 
 Additionally optional blocks of definitions may be present:
@@ -70,8 +70,8 @@ Additionally optional blocks of definitions may be present:
 \begin{description}
 \item[\is{Geometry}] Specifies the geometry for the system to be
   calculated.  See p.~\pref{sec:dftbp.Geometry}.
-\item[\is{Hamiltonian}] Configures the Hamiltonian and its options. See
-  p.~\pref{sec:dftbp.Hamiltonian}.
+\item[\is{Model}] Configures the Hamiltonian and its energy options. See
+  p.~\pref{sec:dftbp.Model}.
 \item[\is{Driver}] Specifies a geometry driver for your system.  See
   p.~\pref{sec:dftbp.Driver}.
 \item[\is{Options}]  Various global options for the run. See
@@ -692,7 +692,7 @@ irrespective of the k-point sampling used.
 \textbf{Important:} In order to get accurate results for the second derivatives
 (and the resulting frequencies) you must set a smaller self-consistent
 tolerance than the default value in the
-\islcb{Hamiltonian}{sec:dftbp.Hamiltonian} section. We suggest \is{SCCTolerance
+\islcb{Model}{sec:dftbp.Model} section. We suggest \is{SCCTolerance
   = 1e-7} or better. A less accurate tolerance can yield nonphysical vibrational
 frequencies.
 
@@ -1234,19 +1234,19 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \is{WriteBandOut} = \is{No}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%  Hamiltonian
+%%%  Model
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Hamiltonian}
-\label{sec:dftbp.Hamiltonian}
+\section{Model}
+\label{sec:dftbp.Model}
 
-Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Hamiltonians are
+Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Models are
 implemented.
 
 \subsection{Density Functional based Tight Binding}
 \label{sec:dftbp.DFTB}
 
-To select the DFTB Hamiltonian you must set \is{Hamiltonian =
+To select the DFTB Model you must set \is{Model =
   DFTB\cb}. The \iscb{DFTB} method may contain the following properties:
 
 \begin{ptable}
@@ -1647,10 +1647,10 @@ expressions, as described in appendix \ref{sec:index_selection}.):
 \end{description}
 
 
-\subsection{Extended Tight Binding Hamiltonian}
+\subsection{Extended Tight Binding Model}
 \label{sec:dftbp.XTB}
 
-The extended tight binding~(xTB) Hamiltonian\cite{bannwarth2020} is available if
+The extended tight binding~(xTB) Model\cite{bannwarth2020} is available if
 \dftbp{} is built with support for a communication bridge to the \texttt{tblite}
 library.
 
@@ -1725,7 +1725,7 @@ library.
 \end{description}
 
 \begin{verbatim}
-Hamiltonian = xTB {
+Model = xTB {
   Method = "GFN1-xTB"
 }
 \end{verbatim}
@@ -3605,7 +3605,7 @@ interactions (see Section \ref{sec:dftbp.hcorr}).
   3rd order), you must specify a list of derivatives for every element, with one
   Hubbard U derivative for each shell of the given element.
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   :
   ThirdOrder = Yes
   HubbardDerivs {
@@ -3798,7 +3798,7 @@ systems.
 Example for a GB model with \cf{CS2} as solvent:
 
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromName { "cs2" }
     FreeEnergyShift [kcal/mol] = 2.81072250
@@ -3820,7 +3820,7 @@ Hamiltonian = DFTB {
 Example for a GBSA model for water
 
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(water)
     Solvent = fromConstants {
       Epsilon = 80.2
@@ -4027,7 +4027,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
 Example for a COSMO model
 
 \begin{verbatim}
-Hamiltonian = Dftb {
+Model = Dftb {
   Solvation = Cosmo {
     Solvent = FromConstants {
       Epsilon = 80.2
@@ -4116,7 +4116,7 @@ This model is currently only available for finite systems.
 \end{description}
 
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
     ProbeRadius [AA] = 1.59772343
     Smoothing [AA] = 0.3
@@ -4269,7 +4269,7 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
 \end{description}
 
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   :
   HCorrection = H5 {
     RScaling = 0.714
@@ -4295,7 +4295,7 @@ parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
 hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
 activated. The complete input is:
 \begin{verbatim}
-Hamiltonian = DFTB {
+Model = DFTB {
   :
   Dispersion = DftD3 {
     Damping = ZeroDamping {
@@ -4636,9 +4636,9 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
-  \kw{Polarisability} & m & Hamiltonian = DFTB & \cb &
+  \kw{Polarisability} & m & Model = DFTB & \cb &
   \pref{sec:dftbp.eperturb} \\
-  \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
+  \kw{ResponseKernel} & m & Model = DFTB & \cb &
   \pref{sec:dftbp.rperturb} \\
 \end{ptable}
 
@@ -5219,7 +5219,7 @@ section~\ref{sec:ppRPAout}.
 Calculate the real-time propagation of both the electronic state of the system
 and the nuclei within the Ehfenfest approximation in the presence of an optional
 external time-dependent perturbation, as described in Ref.~\cite{realtime1}.
-The real-time propagation is available with DFTB as well as xTB Hamiltonians.
+The real-time propagation is available with DFTB as well as xTB Models.
 
 \begin{ptable}
   \kw{Steps} &i &  & - & \\
