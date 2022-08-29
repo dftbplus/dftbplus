@@ -44,6 +44,10 @@ option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allow
 
 option(WITH_CHIMES "Whether repulsive corrections via the ChIMES library should be enabled" FALSE)
 
+option(WITH_EXTERNALMODEL "External library is (at least partly) supplying model" FALSE)
+
+option(EXTERNAL_MODEL_LIBRARIES "External model location")
+
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)

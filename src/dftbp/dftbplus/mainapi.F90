@@ -437,7 +437,7 @@ contains
     call checkExactCoherence(env, inputSpecies, "inputSpecies in "//routine)
     call checkExactCoherence(env, main%tSccCalc, "tSccCalc in" //routine)
     call checkExactCoherence(env, main%nSpin, "nSpin in "//routine)
-    call checkExactCoherence(env, main%hamiltonianType, "hamiltonianType in "//routine)
+    call checkExactCoherence(env, main%modelType, "modelType in "//routine)
 
   #:endblock DEBUG_CODE
 

@@ -10,7 +10,7 @@
 !> Contains data type representing the input data for DFTB
 module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_modeltypes, only : modelTypes
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -44,6 +44,7 @@ module dftbp_dftbplus_inputdata
 #:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
 #:endif
+  use dftbp_externalmodel, only : TExtModelProvides
   implicit none
 
   private
@@ -117,8 +118,11 @@ module dftbp_dftbplus_inputdata
   !> Main control data for program as extracted by the parser
   type TControl
 
-    !> Choice of electronic hamiltonian
-    integer :: hamiltonian = hamiltonianTypes%none
+    !> Choice of model
+    integer :: model = modelTypes%none
+
+    !> External model to the main code (if used)
+    type(TExtModelProvides), allocatable :: extModel
 
     !> random number generator seed
     integer :: iSeed       = 0

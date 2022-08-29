@@ -157,6 +157,15 @@ else()
   option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
+#
+# Add optional external model library
+#
+if (WITH_EXTERNALMODEL)
+  message("EXTERNAL_MODEL_LIBRARIES defined at top")
+else()
+  message("EXTERNAL_MODEL_LIBRARIES not defined at top")
+endif()
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 

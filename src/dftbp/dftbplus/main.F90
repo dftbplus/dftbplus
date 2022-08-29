@@ -14,7 +14,7 @@ module dftbp_dftbplus_main
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut, withMpi
-  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_modeltypes, only : modelTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix
   use dftbp_derivs_perturb, only : TResponse
@@ -726,15 +726,15 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%sparseH0S)
-    select case(this%hamiltonianType)
+    select case(this%modelType)
     case default
-      call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
+      call error("Invalid model")
+    case(modelTypes%dftb)
       call buildH0(env, this%H0, this%skHamCont, this%atomEigVal, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
       call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
-    case(hamiltonianTypes%xtb)
+    case(modelTypes%xtb)
       @:ASSERT(allocated(this%tblite))
       call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
           & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
@@ -1283,7 +1283,7 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      if (this%hamiltonianType == hamiltonianTypes%dftb) then
+      if (this%modelType == modelTypes%dftb) then
         call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
             & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
             & this%img2CentCell, this%eFieldScaling)

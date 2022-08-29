@@ -11,8 +11,8 @@ set(sources-fpp
   ${curdir}/file.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
-  ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
+  ${curdir}/modeltypes.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
   ${curdir}/status.F90

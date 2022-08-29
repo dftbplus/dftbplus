@@ -5,16 +5,16 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module dftbp_common_hamiltoniantypes
+module dftbp_common_modeltypes
   implicit none
 
   private
-  public :: hamiltonianTypes
+  public :: modelTypes
 
-  !> Namespace for possible hamiltonian models
-  type :: THamiltonianTypesEnum
+  !> Namespace for possible models
+  type :: TModelTypesEnum
 
-    ! Hamiltonian models
+    ! models
 
     !> Dummy none
     integer :: none = 0
@@ -26,11 +26,11 @@ module dftbp_common_hamiltoniantypes
     integer :: xtb = 2
 
     !> Externally specified via API
-    integer :: api = 3
+    integer :: externalmodel = 3
 
-  end type THamiltonianTypesEnum
+  end type TModelTypesEnum
 
-  !> Actual values for hamiltonianTypes.
-  type(THamiltonianTypesEnum), parameter :: hamiltonianTypes = THamiltonianTypesEnum()
+  !> Actual values for modelTypes.
+  type(TModelTypesEnum), parameter :: modelTypes = TModelTypesEnum()
 
-end module dftbp_common_hamiltoniantypes
+end module dftbp_common_modeltypes
