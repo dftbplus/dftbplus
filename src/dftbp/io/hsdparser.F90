@@ -258,7 +258,7 @@ contains
     type(fnode), pointer :: childNode, dummy
     type(string) :: buffer
     integer :: newFile
-    integer :: iostat
+    integer :: iostat, newIoStat
     integer :: iType, sepPos
     integer :: newCurLine
     logical :: tTagClosed, tNewNodeCreated
@@ -272,6 +272,7 @@ contains
     tNewNodeCreated = .false.
     nTextLine = 0
     nodetype = 0
+    iostat = 0
 
     lpMain: do while ((.not. tTagClosed) .and. (.not. tFinished))
 
@@ -281,16 +282,21 @@ contains
         residual = ""
       else
         curLine = curLine + 1
-        call getLine(fd, curFile, curLine, strLine, iostat)
-        call convertWhitespaces(strLine)
-        strLine = adjustl(strLine)
-        !! If reading error (e.g. EOF) -> close current scope
-        if (iostat /= 0) then
+
+        if (iostat == 0) then
+          call getLine(fd, curFile, curLine, strLine, iostat)
+        else
+          ! If iostat from previous cycle is non-zero, empty strLine to stop processing
+          strLine = ""
+        end if
+        ! Non-advancing I/O in getLine() might return non-empty content in strLine and iostat /= 0.
+        ! In that case, process content, but keep iostat /= 0 so that we exit in the next cycle.
+        if (iostat /= 0 .and. len_trim(strLine) == 0) then
           tTagClosed = .true.
           if (depth /= 0) then
             call getAttribute(curNode, attrStart, buffer)
-            call parsingError("Unexpected end of input (probably open node at &
-                &line " // char(buffer) // " or after).", curFile, curLine)
+            call parsingError("Unexpected end of input (probably open node at line "&
+                & // char(buffer) // " or after).", curFile, curLine)
           end if
           !! If outermost file, we are ready
           if (fileDepth == 0) then
@@ -298,6 +304,8 @@ contains
           end if
           exit
         end if
+        call convertWhitespaces(strLine)
+        strLine = adjustl(strLine)
       end if
 
       !! Remove comments
@@ -393,11 +401,10 @@ contains
                 &operator.", curFile, curLine)
           end if
 
-          open(newunit=newFile, file=trim(word), status='old', action='read', &
-              &iostat=iostat, recl=lc)
-          if (iostat /= 0) then
-            call parsingError("Error in opening file '" // trim(word) // &
-                &"'.", curFile, curLine)
+          open(newunit=newFile, file=trim(word), status='old', action='read', iostat=newIoStat,&
+              & recl=lc)
+          if (newIoStat /= 0) then
+            call parsingError("Error in opening file '" // trim(word) // "'.", curFile, curLine)
           end if
           strLine = ""
           newCurLine = 0
@@ -412,7 +419,7 @@ contains
           end if
           tFinished = parse_recursive(curNode, 0, strLine, .false., newFile, &
               &word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
-          close(newFile, iostat=iostat)
+          close(newFile, iostat=newIoStat)
         end if
 
       case(4)
@@ -924,6 +931,9 @@ contains
   !> Safely reads a line from an open file into a static character variable.
   !>
   !> Issues an error message, if the line is longer then the length of the output variable.
+  !> Note: due to compiler dependent behaviour on non-advancing I/O, this routine might return
+  !> valid, non-empty content and iostat /=0 (end of file) at the same time, when dealing with
+  !> the last line of a file without trailing newline.
   !>
   subroutine getLine(unit, curFile, curLine, line, iostat)
 
