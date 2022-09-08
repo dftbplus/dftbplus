@@ -7905,8 +7905,6 @@ contains
     #:if WITH_CHIMES
       allocate(chimesRepInput)
       call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
-      print *, "LENS:", len(unquote(char(buffer))), len_trim(unquote(char(buffer)))
-      print *, "|", unquote(char(buffer)), "|"
       chimesFile = unquote(char(buffer))
       call getParamSearchPath(searchPath)
       call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
