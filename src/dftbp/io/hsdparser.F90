@@ -23,11 +23,17 @@ module dftbp_io_hsdparser
       & getAttribute, getNodeName, getNodeValue, destroyNode, setAttribute, getAttribute, normalize
   use dftbp_io_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
       & unquotedScan, convertWhitespaces, getFirstOccurance
+  use dftbp_io_linereader, only : TLineReader
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : getFirstChildByName
   implicit none
 
+
   private
+  public :: parseHSD, dumpHSD, newline
+  public :: getNodeHSDName, getHSDPath
+  public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
+
 
   !> Wrapper around the parsing function
   interface parseHSD
@@ -134,24 +140,9 @@ module dftbp_io_hsdparser
   !> list label
   character(len=*), parameter :: attrList = "l"
 
-  #:set HSD_LINE_LENGTH = 1024
-
-  !> Length of a parsed line (adjust lineFormat below, if you change this number)
-  integer, parameter :: lc = ${HSD_LINE_LENGTH}$
-
-  !> Format string to read in one parse line (field length must correspond to lc above)
-  character(len=*), parameter :: lineFormat = "(A${HSD_LINE_LENGTH}$)"
-
-  !> Maximal record length on output in characters (bytes).
-  !> If text nodes bigger than that occur runtime error can be expected.
-  integer, parameter :: MAXRECL = 1024 * 1024
-
-
-  public :: parseHSD, dumpHSD, newline
-  public :: getNodeHSDName, getHSDPath
-  public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
 
 contains
+
 
   !> Parser HSD format from a file
   subroutine parseHSD_file(initRootName, file, xmlDoc)
@@ -168,7 +159,8 @@ contains
     integer :: fd
     integer :: iostat
 
-    open(newunit=fd, file=file, iostat=iostat, status='old', action='read', recl=lc)
+    open(newunit=fd, file=file, status='old', action='read', access='stream', form="formatted",&
+        & iostat=iostat)
     if (iostat /= 0) then
       call parsingError("Error in opening file '" // trim(file) //"'.", file, -1)
     end if
@@ -196,7 +188,8 @@ contains
     type(fnode), pointer :: rootNode, dummy
     logical :: tFinished
     integer :: curLine
-    character(len=lc) :: rootName, residual, curFile
+    character(:), allocatable :: rootName, curFile, residual
+    type(TLineReader) :: lineReader
 
     if (present(file)) then
       curFile = file
@@ -204,22 +197,21 @@ contains
       curFile = "???"
     end if
 
-    rootName = tolower(initRootName(:min(lc, len(initRootName))))
+    rootName = tolower(initRootName)
     xmlDoc => createDocumentNode()
     rootNode => createElement(trim(rootName))
     dummy => appendChild(xmlDoc, rootNode)
     curLine = 0
-    residual = ""
-    tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
-        &0, curLine, &
-        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
+    lineReader = TLineReader(fd)
+    tFinished = parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
+        & [.true., .true., .true., .true., .true., .true., .true.], .false.)
 
   end subroutine parseHSD_opened
 
 
   !> Recursive parsing function for the HSD parser making the actual work
-  recursive function parse_recursive(curNode, depth, residual, tRightValue, fd, curFile, fileDepth,&
-      & curLine, parsedTypes, tNew) result (tFinished)
+  recursive function parse_recursive(curNode, depth, residual, tRightValue, lineReader, curFile,&
+      & fileDepth, curLine, parsedTypes, tNew) result (tFinished)
 
     !> Node which should contain parsed input
     type(fnode), pointer :: curNode
@@ -228,16 +220,16 @@ contains
     integer, intent(in) :: depth
 
     !> Unparsed text from the previous line
-    character(len=lc), intent(inout) :: residual
+    character(:), allocatable, intent(inout) :: residual
 
     !> Is next parsed token a right value of an assignment?
     logical, intent(in) :: tRightValue
 
-    !> File descriptor of the input
-    integer, intent(in) :: fd
+    !> Line reader
+    type(TLineReader), intent(inout) :: lineReader
 
     !> Name of the current input file
-    character(len=lc), intent(in) :: curFile
+    character(*), intent(in) :: curFile
 
     !> Number of open files
     integer, intent(in) :: fileDepth
@@ -253,11 +245,12 @@ contains
 
     logical :: tFinished
 
-    character(len=lc) :: strLine, word
+    character(:), allocatable :: strLine, word
 
     type(fnode), pointer :: childNode, dummy
     type(string) :: buffer
     integer :: newFile
+    type(TLineReader) :: newLineReader
     integer :: iostat
     integer :: iType, sepPos
     integer :: newCurLine
@@ -273,6 +266,8 @@ contains
     nTextLine = 0
     nodetype = 0
 
+    if (.not. allocated(residual)) residual = ""
+
     lpMain: do while ((.not. tTagClosed) .and. (.not. tFinished))
 
       !! Read in next line or process residual from last line.
@@ -281,16 +276,13 @@ contains
         residual = ""
       else
         curLine = curLine + 1
-        call getLine(fd, curFile, curLine, strLine, iostat)
-        call convertWhitespaces(strLine)
-        strLine = adjustl(strLine)
-        !! If reading error (e.g. EOF) -> close current scope
+        call lineReader%readLine(strLine, iostat)
         if (iostat /= 0) then
           tTagClosed = .true.
           if (depth /= 0) then
             call getAttribute(curNode, attrStart, buffer)
-            call parsingError("Unexpected end of input (probably open node at &
-                &line " // char(buffer) // " or after).", curFile, curLine)
+            call parsingError("Unexpected end of input (probably open node at line "&
+                & // char(buffer) // " or after).", curFile, curLine)
           end if
           !! If outermost file, we are ready
           if (fileDepth == 0) then
@@ -298,6 +290,8 @@ contains
           end if
           exit
         end if
+        call convertWhitespaces(strLine)
+        strLine = adjustl(strLine)
       end if
 
       !! Remove comments
@@ -393,12 +387,12 @@ contains
                 &operator.", curFile, curLine)
           end if
 
-          open(newunit=newFile, file=trim(word), status='old', action='read', &
-              &iostat=iostat, recl=lc)
+          open(newunit=newFile, file=word, status='old', action='read', access='stream',&
+              & form='formatted', iostat=iostat)
           if (iostat /= 0) then
-            call parsingError("Error in opening file '" // trim(word) // &
-                &"'.", curFile, curLine)
+            call parsingError("Error in opening file '" // trim(word) // "'.", curFile, curLine)
           end if
+          newLineReader = TLineReader(newFile)
           strLine = ""
           newCurLine = 0
           if (iType == 2) then
@@ -410,8 +404,8 @@ contains
             newParsedTypes = (/ .false., .false., .false., .false., .false., &
                 &.false., .false. /)
           end if
-          tFinished = parse_recursive(curNode, 0, strLine, .false., newFile, &
-              &word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
+          tFinished = parse_recursive(curNode, 0, strLine, .false., newLineReader,&
+              & word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
           close(newFile, iostat=iostat)
         end if
 
@@ -442,8 +436,8 @@ contains
         !! Only block opening/closing sign and single child separator are parsed
         newParsedTypes = (/ .false., .false., .false., .false., .true., &
             &.true., .true. /)
-        tFinished = parse_recursive(childNode, depth+1, strLine, .true., fd, &
-            &curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+        tFinished = parse_recursive(childNode, depth+1, strLine, .true., lineReader,&
+            & curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
         nodetype = 1
 
@@ -477,7 +471,7 @@ contains
         newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
             &.true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
-            &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+            & lineReader, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
         nodetype = 1
 
@@ -507,19 +501,19 @@ contains
     type(fnode), pointer :: parentNode
 
     !> Name of the new child
-    character(len=lc), intent(in) :: childName
+    character(*), intent(in) :: childName
 
     !> Number of the current line
     integer, intent(in) :: curLine
 
     !> Name of the current file
-    character(len=lc), intent(in) :: file
+    character(*), intent(in) :: file
 
     !> Pointer to the new (appended) child node
     type(fnode), pointer :: newChild
 
     type(fnode), pointer :: dummy, sameChild
-    character(len=lc) :: lowerName, truncName, modifier
+    character(:), allocatable :: lowerName, truncName, modifier
     logical :: tModifier, tCreate
     integer :: pos1, pos2, iType
     integer :: ii
@@ -652,16 +646,15 @@ contains
     !> Number of current line
     integer, intent(in) :: line
 
-    character(len=lc) :: msgArray(2)
+    character(:), allocatable :: msgArray(:)
+    character(:), allocatable :: header
+    character(100) :: buffer
 
-    !! Watch out to trunk away enough from the file name to prevent overflow
-    if (len_trim(file) > lc - 40) then
-      write (msgArray(1), 9991) trim(file(1:lc-40)), line
-    else
-      write (msgArray(1), 9991) trim(file), line
-    end if
-9991 format("HSD parser error: File '",A,"', Line",I5,".")
-    write (msgArray(2), "(A)") trim(message(:min(lc, len(message))))
+    write(buffer, '(i0)') line
+    header = "HSD parser error: File '" // trim(file) // "', Line " // trim(buffer) // "."
+    allocate(character(max(len_trim(message), len(header))) :: msgArray(2))
+    msgArray(1) = header
+    msgArray(2) = message
     call error(msgArray)
 
   end subroutine parsingError
@@ -682,12 +675,11 @@ contains
 
     integer :: fd
     integer :: iostat
-    character(len=lc) :: fileName
 
-    open(newunit=fd, file=file, iostat=iostat, status='replace', action='write', recl=MAXRECL)
+    open(newunit=fd, file=file, status='replace', action='write', access='stream',&
+        & form='formatted', iostat=iostat)
     if (iostat /= 0) then
-      fileName = file
-      call parsingError("Error in opening file for the HSD output.", fileName, -1)
+      call parsingError("Error in opening file for the HSD output.", file, -1)
     end if
     call dumpHSD_opened(myDoc, fd, subnode)
     close(fd)
@@ -919,52 +911,6 @@ contains
     end if
 
   end subroutine getHSDPath_recursive
-
-
-  !> Safely reads a line from an open file into a static character variable.
-  !>
-  !> Issues an error message, if the line is longer then the length of the output variable.
-  !>
-  subroutine getLine(unit, curFile, curLine, line, iostat)
-
-    !> File unit
-    integer, intent(in) :: unit
-
-    !> Name of current file (for error messages)
-    character(*), intent(in) :: curFile
-
-    !> Current line
-    integer, intent(in) :: curLine
-
-    !> Line read
-    character(*), intent(out) :: line
-
-    !> Status of the I/O (0 on success, otherwise the iostat value of the read operation)
-    integer, intent(out) :: iostat
-
-    character(len(line) + 1) :: buffer
-    integer :: nCharRead, iLast
-
-    line = ""
-    iLast = 0
-    do
-      read(unit, "(a)", advance="no", iostat=iostat, size=nCharRead) buffer
-      ! Fatal, irrecoverable error
-      if (iostat > 0) return
-      if (iLast + nCharRead > len(line)) then
-        call parsingError("Line exceeds maximal line length of the HSD parser", curFile, curLine)
-      end if
-      line(iLast + 1 : iLast + nCharRead) = buffer(1:nCharRead)
-      iLast = iLast + nCharRead
-      ! End of file or end of record error
-      if (iostat < 0) then
-        ! End of record is expected when entire line had been read, so we reset it
-        if (is_iostat_eor(iostat)) iostat = 0
-        return
-      end if
-    end do
-
-  end subroutine getLine
 
 
 end module dftbp_io_hsdparser
