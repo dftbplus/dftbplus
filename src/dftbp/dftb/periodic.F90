@@ -71,7 +71,7 @@ module dftbp_dftb_periodic
 
   contains
 
-    procedure :: finalize => TNeighbourlist_finalize
+    final :: TNeighbourlist_final
 
   end type TNeighbourList
 
@@ -103,10 +103,10 @@ contains
 
 
   !> Deallocates MPI shared memory if required
-  subroutine TNeighbourlist_finalize(neighbourList)
+  subroutine TNeighbourlist_final(neighbourList)
 
     !> Neighbourlist data.
-    class(TNeighbourList), intent(inout) :: neighbourList
+    type(TNeighbourList), intent(inout) :: neighbourList
 
   #:if WITH_MPI
     if (associated(neighbourList%iNeighbourMemory)) then
@@ -118,7 +118,7 @@ contains
     end if
   #:endif
 
-  end subroutine TNeighbourlist_finalize
+  end subroutine TNeighbourlist_final
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
