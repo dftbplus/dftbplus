@@ -1865,7 +1865,7 @@ contains
 #:endif
 
 
-  !> Open an output file and return its unit number
+  !> Open an output file and clear it
   subroutine initOutputFile(fileName)
 
     !> File name
