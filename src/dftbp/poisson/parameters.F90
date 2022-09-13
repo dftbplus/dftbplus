@@ -243,11 +243,7 @@ module dftbp_poisson_parameters
     !> Names of contacts
     character(mc), intent(in) :: names(:)
 
-    if (allocated(contnames)) then
-      deallocate(contnames)
-    end if
-    allocate(contnames(size(names)))
-    contnames(:) = names
+    contnames = names
 
   end subroutine set_contlabels
 
