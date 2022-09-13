@@ -35,8 +35,8 @@ module dftbp_extlibs_poisson
   use libmpifx_module, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_poisson_poisson, only : ncont, set_cont_indeces, set_contdir, set_fermi,&
-      & set_potentials, set_builtin
+  use dftbp_poisson_poisson, only : ncont, set_cont_indices, set_contdir, set_contlabels,&
+      & set_fermi, set_potentials, set_builtin
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
@@ -576,9 +576,10 @@ contains
       ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
       !-----------------------------------------------------------------------------+
       call set_mol_indeces(transpar%idxdevice(1:2), structure%natom)
-      call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(1), 1)
-      call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(2), 2)
+      call set_cont_indices(transpar%contacts(1:ncont)%idxrange(1), 1)
+      call set_cont_indices(transpar%contacts(1:ncont)%idxrange(2), 2)
       call set_contdir(transpar%contacts(1:ncont)%dir)
+      call set_contlabels(transpar%contacts(1:ncont)%name)
       call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
       call set_potentials(transpar%contacts(1:ncont)%potential)
       call set_builtin()
