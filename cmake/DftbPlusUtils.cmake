@@ -82,6 +82,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()
 
+  if(WITH_MPI_WIN)
+    list(APPEND _fyppflags -DWITH_MPI_WIN)
+  endif()
+
   if(WITH_SOCKETS)
     list(APPEND _fyppflags -DWITH_SOCKETS)
   endif()

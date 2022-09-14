@@ -15,6 +15,7 @@
 #:set DEBUG = getvar('DEBUG', 0)
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_MPI = defined('WITH_MPI')
+#:set WITH_MPI_WIN = defined('WITH_MPI_WIN')
 #:set WITH_OMP = defined('WITH_OMP')
 #:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MAGMA = defined('WITH_MAGMA')

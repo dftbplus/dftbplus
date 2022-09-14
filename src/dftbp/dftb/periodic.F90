@@ -58,7 +58,7 @@ module dftbp_dftb_periodic
     !> pointer to MPI shared memory segment for atom distances
     real(dp), pointer :: neighDist2Memory(:) => null()
 
-  #:if WITH_MPI
+  #:if WITH_MPI and WITH_MPI_WIN
     !> handle of the MPI shared memory window
     type(mpifx_win) :: iNeighbourWin, neighDist2Win
   #:endif
@@ -74,6 +74,8 @@ module dftbp_dftb_periodic
     final :: TNeighbourlist_final
 
   end type TNeighbourList
+
+
 
 contains
 
@@ -108,7 +110,7 @@ contains
     !> Neighbourlist data.
     type(TNeighbourList), intent(inout) :: neighbourList
 
-  #:if WITH_MPI
+  #:if WITH_MPI and WITH_MPI_WIN
     if (associated(neighbourList%iNeighbourMemory)) then
       call neighbourList%iNeighbourWin%free()
     end if
@@ -416,7 +418,7 @@ contains
     nAllAtom = 0
 
     isParallel = .false.
-  #:if WITH_MPI
+  #:if WITH_MPI and WITH_MPI_WIN
     if (present(env)) then
       call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
           & startAtom, endAtom, isParallelSetupError)
@@ -527,8 +529,8 @@ contains
     if (pairError(1) /= 0) then
       isSetupError = .true.
     end if
-  #:if WITH_MPI
     if (isParallel) then
+    #:if WITH_MPI
       ! find if any of the processes in the node comm are in error state
       call mpifx_allreduceip(env%mpi%nodeComm, isSetupError, MPI_LOR)
       if (isSetupError) then
@@ -537,8 +539,8 @@ contains
         call mpifx_allgather(env%mpi%nodeComm, pairError, buffer)
         pairError(:) = reshape(buffer(:,maxloc(buffer(1,:))),[2])
       end if
+    #:endif
     end if
-  #:endif
     if (isSetupError) then
       write(strError, "(A,I0,A,I0,A)") "Atoms ", pairError(1), " and ", pairError(2),&
           & " too close together"
@@ -608,7 +610,7 @@ contains
     integer :: dataLength, maxNeighbourLocal, ii
 
     if (isParallel) then
-    #:if WITH_MPI
+    #:if WITH_MPI and WITH_MPI_WIN
       if (associated(neigh%iNeighbourMemory)) then
         call neigh%iNeighbourWin%free()
         nullify(neigh%iNeighbourMemory)
