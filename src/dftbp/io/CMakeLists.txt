@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/hsdutils2.F90
   ${curdir}/indexselection.F90
   ${curdir}/intrinsicpr.F90
+  ${curdir}/linereader.F90
   ${curdir}/logger.F90
   ${curdir}/message.F90
   ${curdir}/taggedoutput.F90

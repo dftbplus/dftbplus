@@ -3366,7 +3366,8 @@ contains
           write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
           ii = count(shortGammaDamp%isDamped)
           write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName, shortGammaDamp%isDamped)
+          write(stdOut, strTmp) "Damped species(s):", pack(this%speciesName,&
+              & shortGammaDamp%isDamped)
         end if
       end if
 
@@ -5232,10 +5233,6 @@ contains
 
     if (this%t3rd) then
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
-    end if
-
-    if (allocated(this%dftbU)) then
-      call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
   end subroutine ensureRangeSeparatedReqs

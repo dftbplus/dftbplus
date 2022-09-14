@@ -35,10 +35,10 @@ module dftbp_poisson_poisson
       & init_defaults, InitPot, LmbMax, localBC, maxiter, maxpoissiter, mbound_end, mixed, mu,&
       & ncdim, ncont, nf, ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds,&
       & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
-      & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indeces,&
-      & set_contdir, set_dopoisson, set_fermi, set_mol_indeces, set_ncont, set_poissonbox,&
-      & set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose, telec, temp,&
-      & tip_atom, tipbias, verbose, x0, y0, z0
+      & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indices,&
+      & set_contdir, set_contlabels, set_dopoisson, set_fermi, set_mol_indeces, set_ncont,&
+      & set_poissonbox, set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose,&
+      & telec, temp, tip_atom, tipbias, verbose, x0, y0, z0
   use dftbp_poisson_parcheck, only: check_biasdir, check_contacts, check_localbc, check_parameters,&
       & check_poisson_box, write_parameters
   use dftbp_poisson_structure, only : dqmat, init_charges, init_skdata, init_structure, izp, lmax,&
@@ -66,9 +66,9 @@ module dftbp_poisson_poisson
   public :: do_renorm, fixed_renorm
   public :: scratchfolder
   public :: init_defaults
-  public :: set_verbose, set_scratch, set_contdir, set_cluster
+  public :: set_verbose, set_scratch, set_contdir, set_contlabels, set_cluster
   public :: set_fermi, set_potentials, set_builtin
-  public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces
+  public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indices
   public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy
   ! from structure
   public :: init_structure, init_charges, init_skdata

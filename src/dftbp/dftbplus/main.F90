@@ -539,8 +539,6 @@ contains
     end if
   #:endif
 
-  call this%neighbourList%finalize()
-
   end subroutine runDftbPlus
 
 

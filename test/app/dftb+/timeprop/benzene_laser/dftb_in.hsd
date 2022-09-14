@@ -48,6 +48,7 @@ ElectronDynamics = {
   }
   FieldStrength [v/a] = 0.01
   Populations = Yes
+  WriteAtomicEnergies = Yes
 }
 
 Parallel {

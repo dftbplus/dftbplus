@@ -41,6 +41,7 @@ module dftbp_dftbplus_mainio
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : hemv
+  use dftbp_math_eigensolver, only : heev
   use dftbp_md_mdintegrator, only : TMdIntegrator, state
   use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_solvation_cm5, only : TChargeModel5
@@ -1864,7 +1865,7 @@ contains
 #:endif
 
 
-  !> Open an output file and return its unit number
+  !> Open an output file and clear it
   subroutine initOutputFile(fileName)
 
     !> File name
@@ -2814,7 +2815,7 @@ contains
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
 
-    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:), ev(:,:), ei(:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom
@@ -2926,6 +2927,16 @@ contains
             do iOrb = 1, orb%nOrbSpecies(iSp)
               write(fd, "(16F8.4)") qBlockOut(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
             end do
+            if (orb%nOrbSpecies(iSp) > 1) then
+              allocate(ei(orb%nOrbSpecies(iSp)))
+              ev = qBlockOut(:orb%nOrbSpecies(iSp), :orb%nOrbSpecies(iSp), iAt, iSpin)
+              call heev(ev, ei, 'l', 'v')
+              write(fd,*)'Eigen-decomposition'
+              do iOrb = 1, orb%nOrbSpecies(iSp)
+                write(fd, "(F8.4,A,16F8.4)") ei(iOrb),':',ev(:, iOrb)
+              end do
+              deallocate(ev, ei)
+            end if
             write(fd, *)
           end do
         end do
@@ -3039,6 +3050,16 @@ contains
             do iOrb = 1, orb%nOrbSpecies(iSp)
               write(fd, "(16F8.4)") qBlockOutUpDown(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
             end do
+            if (orb%nOrbSpecies(iSp) > 1) then
+              allocate(ei(orb%nOrbSpecies(iSp)))
+              ev = qBlockOutUpDown(:orb%nOrbSpecies(iSp), :orb%nOrbSpecies(iSp), iAt, iSpin)
+              call heev(ev, ei, 'l', 'v')
+              write(fd,*)'Eigen-decomposition'
+              do iOrb = 1, orb%nOrbSpecies(iSp)
+                write(fd, "(F8.4,A,16F8.4)") ei(iOrb),':',ev(:, iOrb)
+              end do
+              deallocate(ev, ei)
+            end if
           end do
           write(fd, *)
         end if

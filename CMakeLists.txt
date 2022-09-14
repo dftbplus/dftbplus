@@ -223,7 +223,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
-    set(MSTORE_GIT_TAG "90fc6fc4d8a6c3d72e5a910347a45edabf65343c")  # do not change manually!
+    set(MSTORE_GIT_TAG "5964ec311e7ed92665e8bff48f3e804a657dc0de")  # do not change manually!
     dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES mstore)
@@ -238,7 +238,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "02dead293e59408100eb382e97be56e2a03fb317")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "d76ce4037540a66fac459111c975908a41a3807c")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -247,7 +247,7 @@ endif()
 if(WITH_TBLITE)
   if(INCLUDE_INDIRECT_DEPS)
     set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
-    set(MULTICHARGE_GIT_TAG "46ea4e370b1a59e01cc022d1f65c64bae8dbf968")  # do not change manually!
+    set(MULTICHARGE_GIT_TAG "42818911d5754604504ed553dcf0b5db33f3c867")  # do not change manually!
     dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}"
       "QUIET" external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}"
       "${MULTICHARGE_GIT_TAG}")
@@ -256,7 +256,7 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "f572723f5a5cb8243ea88b0253e182088311c6f3")  # do not change manually!
+    set(DFTD4_GIT_TAG "3e4ea97f90b2e93c73e52c210135ccd49c338796")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)

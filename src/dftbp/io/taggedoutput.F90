@@ -137,6 +137,9 @@ module dftbp_io_taggedoutput
     !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 
+    !> final atom-resolved energies
+    character(lenLabel) :: atomenergies = 'atomic_energies'
+
     !> total energy including electron TS contribution
     character(lenLabel) :: freeEgy = 'mermin_energy'
 
