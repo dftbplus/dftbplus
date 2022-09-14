@@ -20,7 +20,16 @@ module dftbp_common_mpienv
   implicit none
 
   private
-  public :: TMpiEnv, TMpiEnv_init, TMpiEnv_final
+  public :: TMpiConfig, TMpiEnv, TMpiEnv_init, TMpiEnv_final
+
+
+  !> Possible configurion options for the MPI usage
+  type :: TMpiConfig
+
+    !> Whether MPI windows should be used
+    logical :: useMpiWindows = .true.
+
+  end type TMpiConfig
 
 
   !> Contains MPI related environment settings
@@ -59,6 +68,9 @@ module dftbp_common_mpienv
     !> Whether current process is the group lead
     logical :: tGroupLead
 
+    !> Various MPI configuration options
+    type(TMpiConfig) :: config
+
   contains
 
     procedure :: mpiSerialEnv
@@ -94,7 +106,7 @@ contains
   ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
   ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
   ! ---------------------------------------------------------------
-  subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
+  subroutine TMpiEnv_init(this, globalMpiComm, nGroup, mpiConfig)
 
     !> Initialised instance on exit
     type(TMpiEnv), intent(out) :: this
@@ -104,6 +116,10 @@ contains
 
     !> Number of process groups to create
     integer, intent(in), optional :: nGroup
+
+    !> MPI configuration options
+    type(TMpiConfig), optional, intent(in) :: mpiConfig
+
 
     if (present(globalMpiComm)) then
       this%globalComm = globalMpiComm
@@ -115,6 +131,7 @@ contains
     else
       this%nGroup = 1
     end if
+    if (present(mpiConfig)) this%config = mpiConfig
 
     call setup_inter_node_communicator(this)
 

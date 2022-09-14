@@ -129,6 +129,9 @@ module dftbp_dftbplus_initprogram
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
 #:endif
+#:if WITH_MPI
+  use dftbp_common_mpienv, only : TMpiConfig
+#:endif
 #:if WITH_OMP
   use omp_lib, only : omp_get_max_threads
 #:endif
@@ -1416,7 +1419,8 @@ contains
       call error(trim(tmpStr))
     end if
 
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    call env%initMpi(input%ctrl%parallelOpts%nGroup,&
+        & TMpiConfig(useMpiWindows=input%ctrl%parallelOpts%useMpiWindows))
   #:endif
 
 
@@ -2887,6 +2891,7 @@ contains
     else
       write(stdOut, "('MPI processes:',T30,I0)") env%mpi%globalComm%size
     end if
+    if (.not. env%mpi%config%useMpiWindows) write(stdOut, "(a, t30, a)") "MPI Windows:", "disabled"
   #:endif
 
   #:if WITH_OMP

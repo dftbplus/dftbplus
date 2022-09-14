@@ -72,8 +72,11 @@ module dftbp_dftbplus_inputdata
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
 
-    !> Whether hybrid parallelisation is enable
+    !> Whether hybrid parallelisation is enabled
     logical :: tOmpThreads
+
+    !> Whether usage of MPI Windows is enabled
+    logical :: useMpiWindows
 
   end type TParallelOpts
 

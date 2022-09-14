@@ -418,10 +418,12 @@ contains
     isParallel = .false.
   #:if WITH_MPI
     if (present(env)) then
-      call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
-          & startAtom, endAtom, isParallelSetupError)
-      if (.not. isParallelSetupError) then
-        isParallel = .true.
+      if (env%mpi%config%useMpiWindows) then
+        call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
+            & startAtom, endAtom, isParallelSetupError)
+        if (.not. isParallelSetupError) then
+          isParallel = .true.
+        end if
       end if
     end if
   #:endif

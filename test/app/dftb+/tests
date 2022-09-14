@@ -341,6 +341,7 @@ non-scc/Ctube_Fermi                    #? MPI_PROCS <= 4
 analysis/10-0Ctube_ESP                 #? MPI_PROCS <= 4
 md/H2O-extfield                        #? MPI_PROCS <= 1
 non-scc/10-0Ctube                      #? MPI_PROCS <= 4
+non-scc/10-0Ctube-noMpiWin             #? WITH_MPI and MPI_PROCS <= 4
 spin/Fe4_noncolinear                   #? MPI_PROCS <= 4
 non-scc/HBDI-neutral                   #? MPI_PROCS <= 4
 non-scc/HBDI-cationic                  #? MPI_PROCS <= 4

@@ -7401,6 +7401,7 @@ contains
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
       call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
+      call getChildValue(node, "UseMpiWindows", input%ctrl%parallelOpts%useMpiWindows, .true.)
       call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
     end if
 

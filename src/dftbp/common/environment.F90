@@ -18,7 +18,7 @@ module dftbp_common_environment
 #:endif
 #:if WITH_MPI
   use dftbp_common_globalenv, only : globalMpiComm
-  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init, TMpiEnv_final
+  use dftbp_common_mpienv, only : TMpiConfig, TMpiEnv, TMpiEnv_init, TMpiEnv_final
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
@@ -235,7 +235,7 @@ contains
 #:if WITH_MPI
 
   !> Initializes MPI environment.
-  subroutine TEnvironment_initMpi(this, nGroup)
+  subroutine TEnvironment_initMpi(this, nGroup, mpiConfig)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -243,8 +243,11 @@ contains
     !> Number of process groups to create
     integer, intent(in) :: nGroup
 
+    !> MPI configuration options
+    type(TMpiConfig), intent(in) :: mpiConfig
+
     ! MPI settings
-    call TMpiEnv_init(this%mpi, globalMpiComm=globalMpiComm, nGroup=nGroup)
+    call TMpiEnv_init(this%mpi, globalMpiComm=globalMpiComm, nGroup=nGroup, mpiConfig=mpiConfig)
     this%tGlobalLead = this%mpi%tGlobalLead
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
