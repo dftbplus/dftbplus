@@ -9,6 +9,7 @@
 module dftbp_apicallbackc
   use iso_c_binding
   use dftbp_dftbplus_apicallback, only: dmhs_callback_t
+  use dftbp_common_accuracy, only : dp
 
   implicit none
 
@@ -45,8 +46,6 @@ contains
   !> details.
   subroutine  dmhs_callback_c_wrapper(aux_obj, i_kpoint, i_spin, blacs_descr, data_buf_real, &
       & data_buf_cplx)
-    use dftbp_common_accuracy, only : dp
-    use iso_c_binding
 
     !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
     class(*), intent(inout) :: aux_obj
