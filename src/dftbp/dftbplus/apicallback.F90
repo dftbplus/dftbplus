@@ -20,12 +20,12 @@ module dftbp_dftbplus_apicallback
   !> the task (number of k-points) 
   !> Total matrix size is NxN, where N - number of basis functions.
   abstract interface
-    subroutine dmhs_callback_t(aux_obj, i_kpoint, i_spin, blacsDescr, dataBufReal, dataBufCplx)
+    subroutine dmhs_callback_t(auxObj, iKpoint, iSpin, blacsDescr, dataBufReal, dataBufCplx)
       use dftbp_common_accuracy, only : dp
       !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
-      class(*), intent(inout) :: aux_obj
+      class(*), intent(inout) :: auxObj
       !> 1-based indices of k-point and spin chanel of the matrix
-      integer, value :: i_kpoint, i_spin
+      integer, value :: iKpoint, iSpin
       !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
       integer, intent(in), target, optional :: blacsDescr(:)
       !> Matrix, that can be either real or complex
@@ -40,25 +40,25 @@ module dftbp_dftbplus_apicallback
   type :: TAPICallback
 
     !> Flag that signals that the density matrix callback is associated with a function
-    logical :: dm_callback_associated = .false.
+    logical :: dmCallbackAssociated = .false.
     !> Callback for density matrix export
     procedure(dmhs_callback_t), nopass, pointer :: dm_callback
     !> Pointer to auxilary data that is set when the density matrix callback is registered. Can be NULL.
-    class(*), pointer :: dm_aux_ptr
+    class(*), pointer :: dmAuxPtr
 
     !> Flag that signals that the overlap matrix callback is associated with a function
     logical :: s_callback_associated = .false.
     !> Callback for the overlap matrix export
     procedure(dmhs_callback_t), pointer, nopass :: s_callback
     !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be NULL.
-    class(*), pointer :: s_aux_ptr
+    class(*), pointer :: sAuxPtr
 
     !> Flag that signals that the hamiltonian matrix callback is associated with a function
-    logical :: h_callback_associated = .false.
+    logical :: hCallbackAssociated = .false.
     !> Callback for the hamiltonian matrix export
     procedure(dmhs_callback_t), pointer, nopass :: h_callback
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
-    class(*), pointer :: h_aux_ptr
+    class(*), pointer :: hAuxPtr
 
     !> Number (index) of the current self-consistent charge iteration. Meant to be used by the calling code
     integer :: iSCCIter
@@ -96,49 +96,45 @@ contains
     class(*), pointer :: aux_ptr
     
     this%dm_callback => callback
-    this%dm_aux_ptr => aux_ptr
-    this%dm_callback_associated = .true.
+    this%dmAuxPtr => aux_ptr
+    this%dmCallbackAssociated = .true.
   end subroutine TAPICallback_registerDM
   
 
-  subroutine TAPICallback_invokeDM_real(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeDM_real(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Density matrix in dense format
-    real(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    real(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%dm_callback_associated) then
+    if (.not. this%dmCallbackAssociated) then
       return
     endif
 
-    if (present(blacsDescr)) then
-      call this%dm_callback(this%dm_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufReal=data_buf)
-    else
-      call this%dm_callback(this%dm_aux_ptr, i_kpoint, i_spin, dataBufReal=data_buf)
-    endif
+    call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
 
   end subroutine TAPICallback_invokeDM_real
 
-  subroutine TAPICallback_invokeDM_cplx(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeDM_cplx(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Density matrix in dense format
-    complex(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    complex(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%dm_callback_associated) then
+    if (.not. this%dmCallbackAssociated) then
       return
     endif
     
     if (present(blacsDescr)) then
-      call this%dm_callback(this%dm_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufCplx=data_buf)
+      call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
     else
-      call this%dm_callback(this%dm_aux_ptr, i_kpoint, i_spin, dataBufCplx=data_buf)
+      call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
     endif
 
   end subroutine TAPICallback_invokeDM_cplx
@@ -150,18 +146,18 @@ contains
     class(*), pointer :: aux_ptr
     
     this%s_callback => callback
-    this%s_aux_ptr => aux_ptr
+    this%sAuxPtr => aux_ptr
     this%s_callback_associated = .true.
   end subroutine TAPICallback_registerS
   
 
-  subroutine TAPICallback_invokeS_real(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeS_real(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Overlap matrix in dense format
-    real(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    real(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
     
     if (.not. this%s_callback_associated) then
@@ -169,20 +165,20 @@ contains
     endif
 
     if (present(blacsDescr)) then
-      call this%s_callback(this%s_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufReal=data_buf)
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr, dataBufReal=dataBuf)
     else
-      call this%s_callback(this%s_aux_ptr, i_kpoint, i_spin, dataBufReal=data_buf)
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, dataBufReal=dataBuf)
     endif
   
   end subroutine TAPICallback_invokeS_real
 
-  subroutine TAPICallback_invokeS_cplx(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeS_cplx(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Overlap matrix in dense format
-    complex(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    complex(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
     if (.not. this%s_callback_associated) then
@@ -190,9 +186,9 @@ contains
     endif
 
     if (present(blacsDescr)) then
-      call this%s_callback(this%s_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufCplx=data_buf)
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
     else
-      call this%s_callback(this%s_aux_ptr, i_kpoint, i_spin, dataBufCplx=data_buf)
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
     endif
 
   end subroutine TAPICallback_invokeS_cplx
@@ -203,48 +199,48 @@ contains
     class(*), pointer :: aux_ptr
     
     this%h_callback => callback
-    this%h_aux_ptr => aux_ptr
-    this%h_callback_associated = .true.
+    this%hAuxPtr => aux_ptr
+    this%hCallbackAssociated = .true.
   end subroutine TAPICallback_registerH
   
 
-  subroutine TAPICallback_invokeH_real(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeH_real(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Hamiltonian matrix in dense format
-    real(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    real(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%h_callback_associated) then
+    if (.not. this%hCallbackAssociated) then
       return
     endif
 
     if (present(blacsDescr)) then
-      call this%h_callback(this%h_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufReal=data_buf)
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr, dataBufReal=dataBuf)
     else
-      call this%h_callback(this%h_aux_ptr, i_kpoint, i_spin, dataBufReal=data_buf)
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, dataBufReal=dataBuf)
     endif
   end subroutine TAPICallback_invokeH_real
 
-  subroutine TAPICallback_invokeH_cplx(this, i_kpoint, i_spin, data_buf, blacsDescr)
+  subroutine TAPICallback_invokeH_cplx(this, iKpoint, iSpin, dataBuf, blacsDescr)
     class(TAPICallback) :: this
     !> Indices of k-point and spin chanel
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> Hamiltonian matrix in dense format
-    complex(dp), intent(inout), target :: data_buf(:,:)
-    !> Optional BLACS descriptor for the matrix in data_buf. Not present if SCALAPACK is not supported
+    complex(dp), intent(inout), target :: dataBuf(:,:)
+    !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%h_callback_associated) then
+    if (.not. this%hCallbackAssociated) then
       return
     endif
     
     if (present(blacsDescr)) then
-      call this%h_callback(this%h_aux_ptr, i_kpoint, i_spin, blacsDescr, dataBufCplx=data_buf)
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
     else
-      call this%h_callback(this%h_aux_ptr, i_kpoint, i_spin, dataBufCplx=data_buf)
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
     endif
   end subroutine TAPICallback_invokeH_cplx
 

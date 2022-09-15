@@ -708,7 +708,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(in) :: this
     
-    integer BasisSize
+    integer :: BasisSize
 
     call this%checkInit()
     

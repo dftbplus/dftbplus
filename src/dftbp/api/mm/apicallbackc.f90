@@ -58,13 +58,13 @@ contains
     complex(dp), intent(inout), target, optional, contiguous :: dataBufCplx(:,:)
     
     procedure(dmhs_callback_c_t), pointer :: callbackProc
-    type(c_ptr) :: blacsDescr_ptr
+    type(c_ptr) :: blacsDescrPtr
     type(c_ptr) :: dataPtr
 
     if (present(blacsDescr)) then
-      blacsDescr_ptr = c_loc(blacsDescr(1))
+      blacsDescrPtr = c_loc(blacsDescr(1))
     else
-      blacsDescr_ptr = c_null_ptr
+      blacsDescrPtr = c_null_ptr
     endif
     
     if (present(dataBufReal)) then
@@ -75,7 +75,7 @@ contains
     select type(auxObj)
     type is (TCAuxWrapper)
       call c_f_procpointer(auxObj%callback, callbackProc)
-      call callbackProc(auxObj%auxPtr, iKpoint, iSpin, blacsDescr_ptr, dataPtr)
+      call callbackProc(auxObj%auxPtr, iKpoint, iSpin, blacsDescrPtr, dataPtr)
     end select
   end subroutine dmhs_callback_c_wrapper
   
