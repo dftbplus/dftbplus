@@ -17,22 +17,22 @@ module dftbp_apicallbackc
   public :: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
   type :: TCAuxWrapper
-    type(c_ptr) :: aux_ptr
+    type(c_ptr) :: auxPtr
     type(c_funptr) :: callback
   end type TCAuxWrapper
 
   !> C-style wrapper for dmhs_callback_t from apicallback.f90 (see for details).
   abstract interface
-    subroutine dmhs_callback_c_t(aux_ptr, i_kpoint, i_spin, blacs_descr, data_ptr) bind(c)
+    subroutine dmhs_callback_c_t(auxPtr, iKpoint, iSpin, blacsDescr, dataPtr) bind(c)
       use iso_c_binding
       !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
-      type(c_ptr), value :: aux_ptr
+      type(c_ptr), value :: auxPtr
       !> 1-based indices of k-point and spin chanel of the matrix
-      integer(c_int), value :: i_kpoint, i_spin
+      integer(c_int), value :: iKpoint, iSpin
       !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
-      type(c_ptr), value :: blacs_descr
+      type(c_ptr), value :: blacsDescr
       !> Pointer to the matrix elements, that can be real or complex
-      type(c_ptr), value :: data_ptr
+      type(c_ptr), value :: dataPtr
     end subroutine dmhs_callback_c_t
   end interface
   
@@ -44,38 +44,38 @@ contains
 
   !> Register callback to be invoked on each density matrix evaluation. See apicallback.f90 for 
   !> details.
-  subroutine  dmhs_callback_c_wrapper(aux_obj, i_kpoint, i_spin, blacs_descr, data_buf_real, &
-      & data_buf_cplx)
+  subroutine  dmhs_callback_c_wrapper(auxObj, iKpoint, iSpin, blacsDescr, dataBufReal, &
+      & dataBufCplx)
 
     !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
-    class(*), intent(inout) :: aux_obj
+    class(*), intent(inout) :: auxObj
     !> 1-based indices of k-point and spin chanel of the matrix
-    integer, value :: i_kpoint, i_spin
+    integer, value :: iKpoint, iSpin
     !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
-    integer, intent(in), target, optional :: blacs_descr(:)
+    integer, intent(in), target, optional :: blacsDescr(:)
     !> Matrix, that can be either real or complex
-    real(dp), intent(inout), target, optional :: data_buf_real(:,:)
-    complex(dp), intent(inout), target, optional :: data_buf_cplx(:,:)
+    real(dp), intent(inout), target, optional, contiguous :: dataBufReal(:,:)
+    complex(dp), intent(inout), target, optional, contiguous :: dataBufCplx(:,:)
     
-    procedure(dmhs_callback_c_t), pointer :: callback_proc
-    type(c_ptr) :: blacs_descr_ptr
-    type(c_ptr) :: data_ptr
+    procedure(dmhs_callback_c_t), pointer :: callbackProc
+    type(c_ptr) :: blacsDescr_ptr
+    type(c_ptr) :: dataPtr
 
-    if (present(blacs_descr)) then
-      blacs_descr_ptr = c_loc(blacs_descr(1))
+    if (present(blacsDescr)) then
+      blacsDescr_ptr = c_loc(blacsDescr(1))
     else
-      blacs_descr_ptr = c_null_ptr
+      blacsDescr_ptr = c_null_ptr
     endif
     
-    if (present(data_buf_real)) then
-      data_ptr = c_loc(data_buf_real(1,1))
+    if (present(dataBufReal)) then
+      dataPtr = c_loc(dataBufReal(1,1))
     else
-      data_ptr = c_loc(data_buf_cplx(1,1))
+      dataPtr = c_loc(dataBufCplx(1,1))
     endif
-    select type(aux_obj)
+    select type(auxObj)
     type is (TCAuxWrapper)
-      call c_f_procpointer(aux_obj%callback, callback_proc)
-      call callback_proc(aux_obj%aux_ptr, i_kpoint, i_spin, blacs_descr_ptr, data_ptr)
+      call c_f_procpointer(auxObj%callback, callbackProc)
+      call callbackProc(auxObj%auxPtr, iKpoint, iSpin, blacsDescr_ptr, dataPtr)
     end select
   end subroutine dmhs_callback_c_wrapper
   
