@@ -16,6 +16,8 @@ module dftbp_capi
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
+  use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
+
   implicit none
   private
 
@@ -264,7 +266,6 @@ contains
   !> register DM exporting callback
   subroutine c_DftbPlus_registerDMCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_dm_callback')
-    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -293,7 +294,6 @@ contains
   !> register S exporting callback
   subroutine c_DftbPlus_registerSCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_s_callback')
-    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
@@ -323,7 +323,6 @@ contains
   !> register H exporting callback
   subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_h_callback')
-    use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
