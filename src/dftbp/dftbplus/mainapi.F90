@@ -86,7 +86,7 @@ contains
         main%origin = [0.0_dp,0.0_dp,0.0_dp]
       end if
     else
-      !main%tLatticeChanged = .false.
+      main%tLatticeChanged = .false.
       @:ASSERT(.not.present(coordOrigin))
     end if
 

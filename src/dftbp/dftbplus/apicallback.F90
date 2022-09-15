@@ -12,7 +12,7 @@ module dftbp_dftbplus_apicallback
 
   private
   public :: TAPICallback
-  public :: null_apicallback, dmhs_callback_t
+  public :: dmhs_callback_t
 
 
   !> Callback function signature for overlap, or hamiltonian, or density matrix export in square 
