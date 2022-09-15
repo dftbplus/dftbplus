@@ -317,7 +317,6 @@ contains
     end select
     
     call instance%registerSCallback(dmhs_callback_c_wrapper_ptr, wrapper)
-    !call instance%registerSCallback(callback, aux_ptr)
 
   end subroutine c_DftbPlus_registerSCallback
 

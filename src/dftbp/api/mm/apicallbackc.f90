@@ -35,12 +35,16 @@ module dftbp_apicallbackc
     end subroutine dmhs_callback_c_t
   end interface
   
+  !> That is necessary,because otherwise the compilation error arises:
+  !>    Error: Expected a procedure pointer for argument ‘callback’ at (1)
   procedure(dmhs_callback_t), pointer:: dmhs_callback_c_wrapper_ptr => dmhs_callback_c_wrapper
 
 contains
 
-  !> Register callback to be invoked on each density matrix evaluation. See apicallback.f90 for details.
-  subroutine  dmhs_callback_c_wrapper(aux_obj, i_kpoint, i_spin, blacs_descr, data_buf_real, data_buf_cplx)
+  !> Register callback to be invoked on each density matrix evaluation. See apicallback.f90 for 
+  !> details.
+  subroutine  dmhs_callback_c_wrapper(aux_obj, i_kpoint, i_spin, blacs_descr, data_buf_real, &
+      & data_buf_cplx)
     use dftbp_common_accuracy, only : dp
     use iso_c_binding
 
@@ -51,7 +55,7 @@ contains
     !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
     integer, intent(in), target, optional :: blacs_descr(:)
     !> Matrix, that can be either real or complex
-    real(dp),    intent(inout), target, optional :: data_buf_real(:,:)
+    real(dp), intent(inout), target, optional :: data_buf_real(:,:)
     complex(dp), intent(inout), target, optional :: data_buf_cplx(:,:)
     
     procedure(dmhs_callback_c_t), pointer :: callback_proc

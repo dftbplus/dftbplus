@@ -121,7 +121,7 @@ module dftbp_dftbplus_main
       & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
 #:endif
-  use dftbp_dftbplus_apicallback, only : TAPICallback, null_apicallback
+  use dftbp_dftbplus_apicallback, only : TAPICallback
 
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
