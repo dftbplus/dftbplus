@@ -60,9 +60,6 @@ module dftbp_dftbplus_apicallback
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
     class(*), pointer :: hAuxPtr
 
-    !> Number (index) of the current self-consistent charge iteration. Meant to be used by the calling code
-    integer :: iSCCIter
-
   contains
     !> Register callback to be invoked on each density matrix evaluation
     procedure :: registerDM => TAPICallback_registerDM

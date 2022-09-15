@@ -703,30 +703,30 @@ contains
   end function TDftbPlus_nrOfLocalKS
   
   !> Returns size of the basis set
-  function TDftbPlus_getBasisSize(this) result(BasisSize)
+  function TDftbPlus_getBasisSize(this) result(basisSize)
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
     
-    integer :: BasisSize
+    integer :: basisSize
 
     call this%checkInit()
     
-    BasisSize = this%main%denseDesc%fullSize
+    basisSize = this%main%denseDesc%fullSize
 
   end function TDftbPlus_getBasisSize
 
   !> Whether the system is described with real matrices
-  function TDftbPlus_isHSReal(this) result(HSReal)
+  function TDftbPlus_isHSReal(this) result(isHSReal)
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
     
-    logical HSReal
+    logical isHSReal
 
     call this%checkInit()
     
-    HSReal = this%main%tRealHS
+    isHSReal = this%main%tRealHS
 
   end function TDftbPlus_isHSReal
 
