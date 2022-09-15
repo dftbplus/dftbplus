@@ -284,7 +284,7 @@ contains
     allocate(TCAuxWrapper :: wrapper)
     select type(wrapper)
     type is (TCAuxWrapper)
-      wrapper%aux_ptr = aux_ptr
+      wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
     call instance%registerDMCallback(dmhs_callback_c_wrapper_ptr, wrapper)
@@ -312,7 +312,7 @@ contains
     allocate(TCAuxWrapper :: wrapper)
     select type(wrapper)
     type is (TCAuxWrapper)
-      wrapper%aux_ptr = aux_ptr
+      wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
     
@@ -341,7 +341,7 @@ contains
     allocate(TCAuxWrapper :: wrapper)
     select type(wrapper)
     type is (TCAuxWrapper)
-      wrapper%aux_ptr = aux_ptr
+      wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
     call instance%registerHCallback(dmhs_callback_c_wrapper_ptr, wrapper)
