@@ -29,7 +29,7 @@ module dftbp_dftbplus_apicallback
       !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
       integer, intent(in), target, optional :: blacs_descr(:)
       !> Matrix, that can be either real or complex
-      real(dp),    intent(inout), target, optional :: data_buf_real(:,:)
+      real(dp), intent(inout), target, optional :: data_buf_real(:,:)
       complex(dp), intent(inout), target, optional :: data_buf_cplx(:,:)
     end subroutine dmhs_callback_t
   end interface
@@ -85,9 +85,6 @@ module dftbp_dftbplus_apicallback
     procedure :: invokeH_cplx => TAPICallback_invokeH_cplx
     generic :: invokeH => invokeH_real, invokeH_cplx
   end type TAPICallback
-
-  !> Empty TAPICallback. Value for unregistered callbacks
-  type(TAPICallback) :: null_apicallback
 
 contains
   !> Register callback to be invoked on each density matrix evaluation
