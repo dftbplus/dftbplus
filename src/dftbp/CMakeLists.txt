@@ -93,7 +93,10 @@ endif()
 if(WITH_TRANSPORT)
   target_link_libraries(dftbplus PUBLIC Negf::Negf)
 endif()
-target_link_libraries(dftbplus PUBLIC mudpack)
+
+if(WITH_POISSON)
+  target_link_libraries(dftbplus PUBLIC mudpack)
+endif()
 
 if(WITH_SDFTD3)
   target_link_libraries(dftbplus PUBLIC s-dftd3::s-dftd3)
