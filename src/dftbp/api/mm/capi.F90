@@ -19,15 +19,12 @@ module dftbp_capi
   implicit none
   private
 
-  !> DFTB+ atom list structure
-  type, bind(C) :: c_DftbPlusAtomList
-    type(c_ptr) :: pDftbPlusAtomList
-  end type c_DftbPlusAtomList
 
   !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
     type(c_ptr) :: pDftbPlusInput
   end type c_DftbPlusInput
+
 
   !> DFTB+ calculation
   type, bind(C) :: c_DftbPlus
