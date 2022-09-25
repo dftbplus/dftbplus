@@ -42,18 +42,18 @@ module dftbp_dftbplus_apicallback
     !> Callback for density matrix export
     procedure(dmhs_callback_t), nopass, pointer :: dm_callback => null()
     !> Pointer to auxilary data that is set when the density matrix callback is registered. Can be NULL.
-    class(*), pointer :: dmAuxPtr
+    class(*), pointer :: dmAuxPtr => null()
 
     !> Flag that signals that the overlap matrix callback is associated with a function
     !> Callback for the overlap matrix export
     procedure(dmhs_callback_t), pointer, nopass :: s_callback => null()
     !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be NULL.
-    class(*), pointer :: sAuxPtr
+    class(*), pointer :: sAuxPtr => null()
 
     !> Callback for the hamiltonian matrix export
     procedure(dmhs_callback_t), pointer, nopass :: h_callback => null()
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
-    class(*), pointer :: hAuxPtr
+    class(*), pointer :: hAuxPtr => null()
 
   contains
     !> Register callback to be invoked on each density matrix evaluation
@@ -80,15 +80,15 @@ module dftbp_dftbplus_apicallback
 
 contains
   !> Register callback to be invoked on each density matrix evaluation
-  subroutine TAPICallback_registerDM(this, callback, aux_ptr)
+  subroutine TAPICallback_registerDM(this, callback, auxPtr)
     !> Instance
     class(TAPICallback) :: this
 
     procedure(dmhs_callback_t), pointer, intent(in) :: callback
-    class(*), pointer :: aux_ptr
+    class(*), pointer :: auxPtr
     
     this%dm_callback => callback
-    this%dmAuxPtr => aux_ptr
+    this%dmAuxPtr => auxPtr
   end subroutine TAPICallback_registerDM
   
 
@@ -126,13 +126,13 @@ contains
   end subroutine TAPICallback_invokeDM_cplx
   
 
-  subroutine TAPICallback_registerS(this, callback, aux_ptr)
+  subroutine TAPICallback_registerS(this, callback, auxPtr)
     class(TAPICallback) :: this
     procedure(dmhs_callback_t), pointer :: callback
-    class(*), pointer :: aux_ptr
+    class(*), pointer :: auxPtr
     
     this%s_callback => callback
-    this%sAuxPtr => aux_ptr
+    this%sAuxPtr => auxPtr
   end subroutine TAPICallback_registerS
   
 
@@ -168,13 +168,13 @@ contains
     call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
   end subroutine TAPICallback_invokeS_cplx
 
-  subroutine TAPICallback_registerH(this, callback, aux_ptr)
+  subroutine TAPICallback_registerH(this, callback, auxPtr)
     class(TAPICallback) :: this
     procedure(dmhs_callback_t), pointer :: callback
-    class(*), pointer :: aux_ptr
+    class(*), pointer :: auxPtr
     
     this%h_callback => callback
-    this%hAuxPtr => aux_ptr
+    this%hAuxPtr => auxPtr
   end subroutine TAPICallback_registerH
   
 
