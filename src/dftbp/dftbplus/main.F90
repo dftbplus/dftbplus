@@ -109,6 +109,7 @@ module dftbp_dftbplus_main
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
+  use dftbp_dftbplus_apicallback, only : TAPICallback
 #:if WITH_SCALAPACK
   use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
@@ -121,7 +122,6 @@ module dftbp_dftbplus_main
       & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
 #:endif
-  use dftbp_dftbplus_apicallback, only : TAPICallback
 
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
