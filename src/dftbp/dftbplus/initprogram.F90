@@ -1592,6 +1592,7 @@ contains
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
+    this%tExtChrg = .false.
     if (this%tSccCalc .and. .not.allocated(this%tblite)) then
       call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
       if (this%tPoisson) then
@@ -1610,7 +1611,7 @@ contains
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
-      this%tExtChrg =  this%nExtChrg > 0
+      this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
 
       ! Longest cut-off including the softening part of gamma

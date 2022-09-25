@@ -212,7 +212,10 @@ if(WITH_TRANSPORT)
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
-add_subdirectory(external/mudpack)
+
+if(WITH_POISSON)
+    add_subdirectory(external/mudpack)
+endif()
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
