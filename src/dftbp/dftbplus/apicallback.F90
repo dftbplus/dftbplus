@@ -39,24 +39,19 @@ module dftbp_dftbplus_apicallback
   !> overlap, and hamiltonian matrices.
   type :: TAPICallback
 
-    !> Flag that signals that the density matrix callback is associated with a function
-    logical :: dmCallbackAssociated = .false.
     !> Callback for density matrix export
-    procedure(dmhs_callback_t), nopass, pointer :: dm_callback
+    procedure(dmhs_callback_t), nopass, pointer :: dm_callback => null()
     !> Pointer to auxilary data that is set when the density matrix callback is registered. Can be NULL.
     class(*), pointer :: dmAuxPtr
 
     !> Flag that signals that the overlap matrix callback is associated with a function
-    logical :: s_callback_associated = .false.
     !> Callback for the overlap matrix export
-    procedure(dmhs_callback_t), pointer, nopass :: s_callback
+    procedure(dmhs_callback_t), pointer, nopass :: s_callback => null()
     !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be NULL.
     class(*), pointer :: sAuxPtr
 
-    !> Flag that signals that the hamiltonian matrix callback is associated with a function
-    logical :: hCallbackAssociated = .false.
     !> Callback for the hamiltonian matrix export
-    procedure(dmhs_callback_t), pointer, nopass :: h_callback
+    procedure(dmhs_callback_t), pointer, nopass :: h_callback => null()
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
     class(*), pointer :: hAuxPtr
 
@@ -94,7 +89,6 @@ contains
     
     this%dm_callback => callback
     this%dmAuxPtr => aux_ptr
-    this%dmCallbackAssociated = .true.
   end subroutine TAPICallback_registerDM
   
 
@@ -107,7 +101,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%dmCallbackAssociated) then
+    if (.not. associated(this%dm_callback)) then
       return
     endif
 
@@ -124,7 +118,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%dmCallbackAssociated) then
+    if (.not. associated(this%dm_callback)) then
       return
     endif
     
@@ -144,7 +138,6 @@ contains
     
     this%s_callback => callback
     this%sAuxPtr => aux_ptr
-    this%s_callback_associated = .true.
   end subroutine TAPICallback_registerS
   
 
@@ -157,7 +150,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
     
-    if (.not. this%s_callback_associated) then
+    if (.not. associated(this%s_callback)) then
       return
     endif
 
@@ -178,7 +171,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%s_callback_associated) then
+    if (.not. associated(this%s_callback)) then
       return
     endif
 
@@ -197,7 +190,6 @@ contains
     
     this%h_callback => callback
     this%hAuxPtr => aux_ptr
-    this%hCallbackAssociated = .true.
   end subroutine TAPICallback_registerH
   
 
@@ -210,7 +202,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%hCallbackAssociated) then
+    if (.not. associated(this%h_callback)) then
       return
     endif
 
@@ -230,7 +222,7 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. this%hCallbackAssociated) then
+    if (.not. associated(this%h_callback)) then
       return
     endif
     
