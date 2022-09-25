@@ -121,13 +121,8 @@ contains
     if (.not. associated(this%dm_callback)) then
       return
     endif
-    
-    if (present(blacsDescr)) then
-      call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
-    else
-      call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
-    endif
 
+    call this%dm_callback(this%dmAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
   end subroutine TAPICallback_invokeDM_cplx
   
 
@@ -154,12 +149,7 @@ contains
       return
     endif
 
-    if (present(blacsDescr)) then
-      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr, dataBufReal=dataBuf)
-    else
-      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, dataBufReal=dataBuf)
-    endif
-  
+    call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
   end subroutine TAPICallback_invokeS_real
 
   subroutine TAPICallback_invokeS_cplx(this, iKpoint, iSpin, dataBuf, blacsDescr)
@@ -175,12 +165,7 @@ contains
       return
     endif
 
-    if (present(blacsDescr)) then
-      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
-    else
-      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
-    endif
-
+    call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
   end subroutine TAPICallback_invokeS_cplx
 
   subroutine TAPICallback_registerH(this, callback, aux_ptr)
@@ -206,11 +191,7 @@ contains
       return
     endif
 
-    if (present(blacsDescr)) then
-      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr, dataBufReal=dataBuf)
-    else
-      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, dataBufReal=dataBuf)
-    endif
+    call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
   end subroutine TAPICallback_invokeH_real
 
   subroutine TAPICallback_invokeH_cplx(this, iKpoint, iSpin, dataBuf, blacsDescr)
@@ -225,12 +206,8 @@ contains
     if (.not. associated(this%h_callback)) then
       return
     endif
-    
-    if (present(blacsDescr)) then
-      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr, dataBufCplx=dataBuf)
-    else
-      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, dataBufCplx=dataBuf)
-    endif
+
+    call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
   end subroutine TAPICallback_invokeH_cplx
 
 end module dftbp_dftbplus_apicallback
