@@ -7,7 +7,7 @@
 
 !> Contains types for the callback interface that exports density matrix, overlap, and hamiltonians
 module dftbp_apicallbackc
-  use iso_c_binding
+  use iso_c_binding, only: c_ptr, c_funptr, c_loc, c_null_ptr, c_f_procpointer
   use dftbp_dftbplus_apicallback, only: TDMHSCallbackFunc
   use dftbp_common_accuracy, only : dp
 
@@ -24,7 +24,7 @@ module dftbp_apicallbackc
   !> C-style wrapper for TDMHSCallbackFunc from apicallback.f90 (see for details).
   abstract interface
     subroutine dmhs_callback_c_t(auxPtr, iKpoint, iSpin, blacsDescr, dataPtr) bind(c)
-      use iso_c_binding
+      use iso_c_binding, only: c_int, c_ptr
       !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
       type(c_ptr), value :: auxPtr
       !> 1-based indices of k-point and spin chanel of the matrix
