@@ -12,7 +12,7 @@ module dftbp_dftbplus_apicallback
 
   private
   public :: TAPICallback
-  public :: dmhs_callback_t
+  public :: TDMHSCallbackFunc
 
 
   !> Callback function signature for overlap, or hamiltonian, or density matrix export in square 
@@ -20,7 +20,7 @@ module dftbp_dftbplus_apicallback
   !> the task (number of k-points) 
   !> Total matrix size is NxN, where N - number of basis functions.
   abstract interface
-    subroutine dmhs_callback_t(auxObj, iKpoint, iSpin, blacsDescr, dataBufReal, dataBufCplx)
+    subroutine TDMHSCallbackFunc(auxObj, iKpoint, iSpin, blacsDescr, dataBufReal, dataBufCplx)
       use dftbp_common_accuracy, only : dp
       !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
       class(*), intent(inout) :: auxObj
@@ -31,7 +31,7 @@ module dftbp_dftbplus_apicallback
       !> Matrix, that can be either real or complex
       real(dp), intent(inout), target, optional, contiguous :: dataBufReal(:,:)
       complex(dp), intent(inout), target, optional, contiguous :: dataBufCplx(:,:)
-    end subroutine dmhs_callback_t
+    end subroutine TDMHSCallbackFunc
   end interface
 
   
@@ -40,18 +40,18 @@ module dftbp_dftbplus_apicallback
   type :: TAPICallback
 
     !> Callback for density matrix export
-    procedure(dmhs_callback_t), nopass, pointer :: dm_callback => null()
+    procedure(TDMHSCallbackFunc), nopass, pointer :: dm_callback => null()
     !> Pointer to auxilary data that is set when the density matrix callback is registered. Can be NULL.
     class(*), pointer :: dmAuxPtr => null()
 
     !> Flag that signals that the overlap matrix callback is associated with a function
     !> Callback for the overlap matrix export
-    procedure(dmhs_callback_t), pointer, nopass :: s_callback => null()
+    procedure(TDMHSCallbackFunc), pointer, nopass :: s_callback => null()
     !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be NULL.
     class(*), pointer :: sAuxPtr => null()
 
     !> Callback for the hamiltonian matrix export
-    procedure(dmhs_callback_t), pointer, nopass :: h_callback => null()
+    procedure(TDMHSCallbackFunc), pointer, nopass :: h_callback => null()
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can be NULL.
     class(*), pointer :: hAuxPtr => null()
 
@@ -84,7 +84,7 @@ contains
     !> Instance
     class(TAPICallback) :: this
 
-    procedure(dmhs_callback_t), pointer, intent(in) :: callback
+    procedure(TDMHSCallbackFunc), pointer, intent(in) :: callback
     class(*), pointer :: auxPtr
     
     this%dm_callback => callback
@@ -128,7 +128,7 @@ contains
 
   subroutine TAPICallback_registerS(this, callback, auxPtr)
     class(TAPICallback) :: this
-    procedure(dmhs_callback_t), pointer :: callback
+    procedure(TDMHSCallbackFunc), pointer :: callback
     class(*), pointer :: auxPtr
     
     this%s_callback => callback
@@ -170,7 +170,7 @@ contains
 
   subroutine TAPICallback_registerH(this, callback, auxPtr)
     class(TAPICallback) :: this
-    procedure(dmhs_callback_t), pointer :: callback
+    procedure(TDMHSCallbackFunc), pointer :: callback
     class(*), pointer :: auxPtr
     
     this%h_callback => callback

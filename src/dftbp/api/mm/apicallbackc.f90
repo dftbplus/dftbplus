@@ -8,7 +8,7 @@
 !> Contains types for the callback interface that exports density matrix, overlap, and hamiltonians
 module dftbp_apicallbackc
   use iso_c_binding
-  use dftbp_dftbplus_apicallback, only: dmhs_callback_t
+  use dftbp_dftbplus_apicallback, only: TDMHSCallbackFunc
   use dftbp_common_accuracy, only : dp
 
   implicit none
@@ -21,7 +21,7 @@ module dftbp_apicallbackc
     type(c_funptr) :: callback
   end type TCAuxWrapper
 
-  !> C-style wrapper for dmhs_callback_t from apicallback.f90 (see for details).
+  !> C-style wrapper for TDMHSCallbackFunc from apicallback.f90 (see for details).
   abstract interface
     subroutine dmhs_callback_c_t(auxPtr, iKpoint, iSpin, blacsDescr, dataPtr) bind(c)
       use iso_c_binding
@@ -38,7 +38,7 @@ module dftbp_apicallbackc
   
   !> That is necessary,because otherwise the compilation error arises:
   !>    Error: Expected a procedure pointer for argument ‘callback’ at (1)
-  procedure(dmhs_callback_t), pointer:: dmhs_callback_c_wrapper_ptr => dmhs_callback_c_wrapper
+  procedure(TDMHSCallbackFunc), pointer:: dmhs_callback_c_wrapper_ptr => dmhs_callback_c_wrapper
 
 contains
 

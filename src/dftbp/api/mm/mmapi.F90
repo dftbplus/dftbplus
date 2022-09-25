@@ -732,13 +732,13 @@ contains
 
   !> Register callback function to be invoked on each evaluation of the desity matrix
   subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
-    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for DM export
-    procedure(dmhs_callback_t), pointer:: callback
+    procedure(TDMHSCallbackFunc), pointer:: callback
 
     !> pointer to a context object for the DM callback
     class(*), pointer :: aux_ptr
@@ -749,13 +749,13 @@ contains
   
   !> Register callback function to be invoked on the first evaluation of the overlap matrix
   subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
-    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for S export
-    procedure(dmhs_callback_t), pointer :: callback
+    procedure(TDMHSCallbackFunc), pointer :: callback
 
     !> pointer to a context object for the S callback
     class(*), pointer :: aux_ptr
@@ -766,13 +766,13 @@ contains
 
   !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
   subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
-    use dftbp_dftbplus_apicallback, only : TAPICallback, dmhs_callback_t
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for H export
-    procedure(dmhs_callback_t), pointer :: callback
+    procedure(TDMHSCallbackFunc), pointer :: callback
 
     !> pointer to a context object for the H callback
     class(*), pointer :: aux_ptr
