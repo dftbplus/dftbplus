@@ -19,6 +19,12 @@ module dftbp_extlibs_poisson
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
+  use dftbp_type_commontypes, only : TOrbitals
+#:if WITH_MPI
+  use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
+  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
+#:endif
+#:if WITH_POISSON
   use dftbp_poisson_poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms,&
       & verbose, bufferBox, deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm,&
       & FoundBox, Gate, GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter,&
@@ -29,10 +35,6 @@ module dftbp_extlibs_poisson
       & set_poissonbox, set_poissongrid, set_accuracy, set_verbose, check_biasdir,&
       & check_poisson_box, check_parameters, check_localbc, check_contacts, write_parameters,&
       & poiss_getlatvecs
-  use dftbp_type_commontypes, only : TOrbitals
-#:if WITH_MPI
-  use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
-  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_poisson_poisson, only : ncont, set_cont_indices, set_contdir, set_contlabels,&
