@@ -19,7 +19,9 @@ module dftbp_solvation_solvinput
   implicit none
 
   private
-  public :: TSolvationInp, createSolvationModel, writeSolvationInfo
+  public :: TSolvationInp
+  public :: createGeneralizedBornModel, createCosmoModel, createSASAModel
+  public :: writeSolvationInfo
 
 
   !> Collection of solvation input data
@@ -35,14 +37,6 @@ module dftbp_solvation_solvinput
     type(TSASAInput), allocatable :: SASAInp
 
   end type TSolvationInp
-
-
-  !> Wrapper to create a solvation model from its respective input
-  interface createSolvationModel
-    module procedure :: createGeneralizedBornModel
-    module procedure :: createCosmoModel
-    module procedure :: createSASAModel
-  end interface
 
 
 contains
@@ -117,7 +111,7 @@ contains
 
 
   !> Wrapper to create a conductor like screening model
-  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, latVecs)
+  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, masses, latVecs)
 
     !> Generic solvation model
     class(TSolvation), allocatable, intent(out) :: solvation
@@ -137,11 +131,14 @@ contains
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !> Masses of the atoms, shape [nAtom]
+    real(dp), intent(in) :: masses(:)
+
     type(TCosmo), allocatable :: model
 
     allocate(model)
 
-    call TCosmo_init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TCosmo_init(model, input, nAtom, species0, speciesNames, masses, latVecs)
 
     call move_alloc(model, solvation)
 

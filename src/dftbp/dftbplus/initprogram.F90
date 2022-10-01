@@ -113,7 +113,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
+  use dftbp_solvation_solvinput, only : createGeneralizedBornModel, createCosmoModel,&
+      & createSASAModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
   use dftbp_timedep_linresptypes, only : TLinResp
   use dftbp_timedep_pprpa, only : TppRPAcal
@@ -2168,26 +2169,26 @@ contains
     if (allocated(input%ctrl%solvInp)) then
       if (allocated(input%ctrl%solvInp%GBInp)) then
         if (this%tPeriodic) then
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
+          call createGeneralizedBornModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName, this%latVec)
         else
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
+          call createGeneralizedBornModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName)
         end if
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+          call createCosmoModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName, this%mass, this%latVec)
         else
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName)
+          call createCosmoModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
+              & this%nAtom, this%species0, this%speciesName, this%mass)
         end if
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
+          call createSASAModel(this%solvation, input%ctrl%solvInp%SASAInp, &
               & this%nAtom, this%species0, this%speciesName, this%latVec)
         else
-          call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
+          call createSASAModel(this%solvation, input%ctrl%solvInp%SASAInp, &
               & this%nAtom, this%species0, this%speciesName)
         end if
       end if

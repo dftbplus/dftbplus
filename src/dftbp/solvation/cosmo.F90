@@ -55,6 +55,9 @@ module dftbp_solvation_cosmo
     !> Input for solvent accessible surface area model
     type(TSASAInput), allocatable :: sasaInput
 
+    !> Masses of the atoms, shape: (nAtom).
+    real(dp), allocatable :: masses(:)
+
   end type TCosmoInput
 
 
@@ -115,6 +118,9 @@ module dftbp_solvation_cosmo
     !> Solvent accessible surface area model
     type(TSASACont), allocatable :: sasaCont
 
+    !> Masses of the atoms, shape [nAtom].
+    real(dp), allocatable :: masses(:)
+
   contains
 
     !> update internal copy of coordinates
@@ -160,7 +166,7 @@ module dftbp_solvation_cosmo
 contains
 
 
-  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, masses, latVecs)
 
     !> Instance of the solvation model
     type(TCosmo), intent(out) :: this
@@ -176,6 +182,9 @@ contains
 
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Masses of the atoms (needed for calculating the center of mass), shape [nAtom]
+    real(dp), intent(in) :: masses(:)
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
@@ -213,6 +222,8 @@ contains
        call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
            & speciesNames, latVecs)
     end if
+
+    this%masses = masses
 
   end subroutine TCosmo_init
 
@@ -975,10 +986,16 @@ contains
     integer :: ii, ig, iat
     real(dp) :: dielEnergy
     real(dp), allocatable :: phi(:), zeta(:), area(:)
+    real(dp) :: surfint, surfInt2
+    real(dp) :: massCentre(3), cavityVol, cavityVolDelta
+
+    massCentre(:) = sum(coords0 * spread(this%masses, 1, 3), dim=2) / sum(this%masses)
 
     allocate(phi(this%ddCosmo%ncav), zeta(this%ddCosmo%ncav), area(this%ddCosmo%ncav))
     ! Reset potential on the cavity, note that the potential is expected in e/Å
     call getPhi(this%chargesPerAtom, this%jmat, phi)
+    surfint = 0.0_dp
+    surfInt2 = 0.0_dp
     ii = 0
     do iat = 1, this%ddCosmo%nat
       do ig = 1, this%ddCosmo%ngrid
@@ -987,11 +1004,20 @@ contains
           ! Calculate surface charge per area
           zeta(ii) = this%ddCosmo%w(ig) * this%ddCosmo%ui(ig, iat) &
               & * dot_product(this%ddCosmo%basis(:, ig), this%s(:, iat))
-          ! Save surface area in Ångström²
-          area(ii) = this%ddCosmo%w(ig) * Bohr__AA**2 * this%vdwRad(iat)**2
+          area(ii) = this%ddCosmo%w(ig) * this%vdwRad(iat)**2
+          surfInt = surfInt&
+              & + dot_product((this%ddCosmo%ccav(:, ii) - massCentre), this%ddCosmo%grid(:, ig))&
+              & * area(ii)
+          surfInt2 = surfInt2 + dot_product(massCentre, this%ddCosmo%grid(:, ig)) * area(ii)
         end if
       end do
     end do
+
+    ! Volume via divergence theorem (int_Volume div(r) d^3r = int_ClosedSurface r . dA)
+    cavityVol = 1.0_dp  / 3.0_dp * surfInt
+    ! If sampling were perfect, integral agove should be independent of the choice of origin
+    ! (center of mass in our case), and the integral below zero.
+    cavityVolDelta = 1.0_dp / 3.0_dp * surfInt2
 
     ! Dielectric energy is the energy on the dielectric continuum
     dielEnergy = this%keps * dot_product(zeta, phi)
@@ -1002,14 +1028,16 @@ contains
 
     write(unit, '(a)') &
         & "$cosmo"
-    write(unit, '(2x, a:, "=", g0)') &
+    write(unit, '(2x, a:, "= ", g0)') &
         & "epsilon", this%dielectricConst
 
     write(unit, '(a)') &
         & "$cosmo_data"
-    write(unit, '(2x, a:, "=", g0)') &
+    write(unit, '(2x, a:, "= ", g0)') &
         & "fepsi", this%keps, &
-        & "area", sum(area)
+        & "area", sum(area),&
+        & "volume", cavityVol,&
+        & "volumedelta", cavityVolDelta
 
     write(unit, '(a)') &
         & "$coord_rad", &
@@ -1017,7 +1045,7 @@ contains
     do iat = 1, size(coords0, 2)
       write(unit, '(i4, 3(1x, f18.14), 2x, a4, 1x, f9.5)') &
           & iat, coords0(:, iat), trim(tolower(speciesNames(species0(iat)))), &
-          & this%vdwRad(iat)*Bohr__AA
+          & this%vdwRad(iat) * Bohr__AA
     end do
 
     write(unit, '(a)') &
@@ -1028,7 +1056,7 @@ contains
         & "!DATE"
     do iat = 1, size(coords0, 2)
       write(unit, '(a, i0, t5, 3(1x, f14.9), 1x, "COSM 1", 2(6x, a2), 1x, f6.3)') &
-          & trim(speciesNames(species0(iat))), iat, coords0(:, iat)*Bohr__AA, &
+          & trim(speciesNames(species0(iat))), iat, coords0(:, iat) * Bohr__AA, &
           & tolower(speciesNames(species0(iat))), speciesNames(species0(iat)), 0.0_dp
     end do
     write(unit, '(a)') &
@@ -1036,14 +1064,14 @@ contains
 
     write(unit, '(a)') &
         & "$screening_charge"
-    write(unit, '(2x, a:, "=", g0)') &
+    write(unit, '(2x, a:, "= ", g0)') &
         & "cosmo", sum(zeta), &
         & "correction", 0.0_dp, &
         & "total", sum(zeta)
 
     write(unit, '(a)') &
         & "$cosmo_energy"
-    write(unit, '(2x, a:, "=", f21.10)') &
+    write(unit, '(2x, a:, "= ", f21.10)') &
         & "Total energy [a.u.]            ", energy, &
         & "Total energy + OC corr. [a.u.] ", energy, &
         & "Total energy corrected [a.u.]  ", energy, &
@@ -1070,10 +1098,12 @@ contains
           ii = ii + 1
           write(unit, '(2i5, 7(1x, f14.9))') &
               & ii, iat, this%ddCosmo%ccav(:, ii), &
-              & zeta(ii), area(ii), zeta(ii)/area(ii), phi(ii)/Bohr__AA
+              & zeta(ii), area(ii) * Bohr__AA**2, zeta(ii) / (area(ii) * Bohr__AA**2),&
+              & phi(ii) / Bohr__AA
         end if
       end do
     end do
+
   end subroutine writeCosmoFile
 
 
