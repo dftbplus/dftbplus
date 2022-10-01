@@ -55,9 +55,6 @@ module dftbp_solvation_cosmo
     !> Input for solvent accessible surface area model
     type(TSASAInput), allocatable :: sasaInput
 
-    !> Masses of the atoms, shape: (nAtom).
-    real(dp), allocatable :: masses(:)
-
   end type TCosmoInput
 
 
@@ -118,9 +115,6 @@ module dftbp_solvation_cosmo
     !> Solvent accessible surface area model
     type(TSASACont), allocatable :: sasaCont
 
-    !> Masses of the atoms, shape [nAtom].
-    real(dp), allocatable :: masses(:)
-
   contains
 
     !> update internal copy of coordinates
@@ -166,7 +160,7 @@ module dftbp_solvation_cosmo
 contains
 
 
-  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, masses, latVecs)
+  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, latVecs)
 
     !> Instance of the solvation model
     type(TCosmo), intent(out) :: this
@@ -182,9 +176,6 @@ contains
 
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
-
-    !> Masses of the atoms (needed for calculating the center of mass), shape [nAtom]
-    real(dp), intent(in) :: masses(:)
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
@@ -222,8 +213,6 @@ contains
        call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
            & speciesNames, latVecs)
     end if
-
-    this%masses = masses
 
   end subroutine TCosmo_init
 
@@ -985,38 +974,53 @@ contains
 
     integer :: ii, ig, iat
     real(dp) :: dielEnergy
-    real(dp), allocatable :: phi(:), zeta(:), area(:)
+    real(dp), allocatable :: phi(:), zeta(:), area(:), surfaceWeights(:), surfaceContribs(:)
     real(dp) :: surfint, surfInt2
-    real(dp) :: massCentre(3), cavityVol, cavityVolDelta
+    real(dp) :: refPoint(3), cavityVol, cavityVolDelta
 
-    massCentre(:) = sum(coords0 * spread(this%masses, 1, 3), dim=2) / sum(this%masses)
+    allocate(surfaceContribs(this%ddCosmo%nat), source=0.0_dp)
+    allocate(surfaceWeights(this%ddCosmo%ncav), source=0.0_dp)
+    ii = 0
+    do iat = 1, this%ddCosmo%nat
+      do ig = 1, this%ddCosmo%ngrid
+        if (this%ddCosmo%ui(ig, iat) <= 0.0_dp) cycle
+        ii = ii + 1
+        ! Weight from the spherical integration * weight from the switch function
+        ! Switch function = 1, if point is outside of the vdW sphere of any other atoms
+        ! Switch function < 1, if point falls within the vdW spheres of further atoms
+        surfaceWeights(ii) = this%ddCosmo%w(ig)* this%ddCosmo%ui(ig, iat)
+        surfaceContribs(iat) = surfaceContribs(iat) + surfaceWeights(ii) * this%vdwRad(iat)**2
+      end do
+    end do
+    surfaceContribs(:) = surfaceContribs / sum(surfaceContribs)
+
+    ! Weight the atom positions by how much they contribute to the cavity surface
+    refPoint(:) = sum(coords0 * spread(surfaceContribs, 1, 3), dim=2)
 
     allocate(phi(this%ddCosmo%ncav), zeta(this%ddCosmo%ncav), area(this%ddCosmo%ncav))
     ! Reset potential on the cavity, note that the potential is expected in e/Å
     call getPhi(this%chargesPerAtom, this%jmat, phi)
-    surfint = 0.0_dp
+    surfInt = 0.0_dp
     surfInt2 = 0.0_dp
     ii = 0
     do iat = 1, this%ddCosmo%nat
       do ig = 1, this%ddCosmo%ngrid
-        if (this%ddCosmo%ui(ig, iat) > 0.0_dp) then
-          ii = ii + 1
-          ! Calculate surface charge per area
-          zeta(ii) = this%ddCosmo%w(ig) * this%ddCosmo%ui(ig, iat) &
-              & * dot_product(this%ddCosmo%basis(:, ig), this%s(:, iat))
-          area(ii) = this%ddCosmo%w(ig) * this%vdwRad(iat)**2
-          surfInt = surfInt&
-              & + dot_product((this%ddCosmo%ccav(:, ii) - massCentre), this%ddCosmo%grid(:, ig))&
-              & * area(ii)
-          surfInt2 = surfInt2 + dot_product(massCentre, this%ddCosmo%grid(:, ig)) * area(ii)
-        end if
+        if (this%ddCosmo%ui(ig, iat) <= 0.0_dp) cycle
+        ii = ii + 1
+        ! Calculate surface charge per area
+        zeta(ii) = dot_product(this%ddCosmo%basis(:, ig), this%s(:, iat)) * surfaceWeights(ii)
+        area(ii) = this%vdwRad(iat)**2 * surfaceWeights(ii)
+        surfInt = surfInt&
+            & + dot_product((this%ddCosmo%ccav(:, ii) - refPoint), this%ddCosmo%grid(:, ig))&
+            & * area(ii)
+        surfInt2 = surfInt2 + dot_product(refPoint, this%ddCosmo%grid(:, ig)) * area(ii)
       end do
     end do
 
     ! Volume via divergence theorem (int_Volume div(r) d^3r = int_ClosedSurface r . dA)
     cavityVol = 1.0_dp  / 3.0_dp * surfInt
     ! If sampling were perfect, integral agove should be independent of the choice of origin
-    ! (center of mass in our case), and the integral below zero.
+    ! (surface contribution weighted center of the molecule), and the integral below zero.
     cavityVolDelta = 1.0_dp / 3.0_dp * surfInt2
 
     ! Dielectric energy is the energy on the dielectric continuum

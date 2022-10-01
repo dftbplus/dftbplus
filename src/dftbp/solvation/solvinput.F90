@@ -111,7 +111,7 @@ contains
 
 
   !> Wrapper to create a conductor like screening model
-  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, masses, latVecs)
+  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, latVecs)
 
     !> Generic solvation model
     class(TSolvation), allocatable, intent(out) :: solvation
@@ -131,14 +131,11 @@ contains
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    !> Masses of the atoms, shape [nAtom]
-    real(dp), intent(in) :: masses(:)
-
     type(TCosmo), allocatable :: model
 
     allocate(model)
 
-    call TCosmo_init(model, input, nAtom, species0, speciesNames, masses, latVecs)
+    call TCosmo_init(model, input, nAtom, species0, speciesNames, latVecs)
 
     call move_alloc(model, solvation)
 
