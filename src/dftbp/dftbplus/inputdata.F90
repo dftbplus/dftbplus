@@ -46,8 +46,9 @@ module dftbp_dftbplus_inputdata
   use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos, TTransPar
+  use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
   implicit none
 
   private
@@ -634,8 +635,8 @@ module dftbp_dftbplus_inputdata
     type(TControl) :: ctrl
     type(TGeometry) :: geom
     type(TSlater) :: slako
-  #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
+  #:if WITH_TRANSPORT
     type(TNEGFInfo) :: ginfo
   #:endif
     type(TPoissonInfo) :: poisson

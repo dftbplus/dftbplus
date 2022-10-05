@@ -94,9 +94,9 @@ module dftbp_dftbplus_parser
   use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : ContactInfo, TElPh, TNEGFGreenDensInfo, TNEGFTunDos,&
-      & TTransPar
+  use dftbp_transport_negfvars, only : ContactInfo, TElPh, TNEGFGreenDensInfo, TNEGFTunDos
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
   implicit none
 
   private
