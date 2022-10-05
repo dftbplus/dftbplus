@@ -48,6 +48,7 @@ Changed
 - Degeneracy tolerance for perturbation theory switched to absolute
   tolerance of differences between eigenvalues.
 
+
 Fixed
 -----
 
@@ -146,6 +147,9 @@ Added
 
 - Dual American and British English spelling for various input keywords
 
+- Dispersion (for some models) with transport calculations
+
+- Printing of atom-resolved dispersion energies in detailed.out
 
 Fixed
 -----
