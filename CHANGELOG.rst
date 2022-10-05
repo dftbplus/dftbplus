@@ -13,6 +13,9 @@ Added
 
 - Born charges from finite difference dipole derivatives
 
+- Dispersion (for some models) with transport calculations
+
+- Printing of atom-resolved dispersion energies in detailed.out
 
 Fixed
 -----

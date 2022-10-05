@@ -3395,6 +3395,17 @@ contains
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
+      if (allocated(dispersion)) then
+        if (dispersion%energyAvailable()) then
+          write(fd, *)
+          write(fd, "(A)") 'Atom resolved dispersion energies '
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
+            write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomDisp(iAt), ' H',&
+                & Hartree__eV * energy%atomDisp(iAt), ' eV'
+          end do
+        end if
+      end if
       write(fd, *)
     end if
 

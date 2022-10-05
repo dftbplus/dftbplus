@@ -60,6 +60,9 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt
+#:if WITH_TRANSPORT
+  use dftbp_dftbplus_initprogram, only : overrideContactCharges
+#:endif
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
       & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
@@ -107,6 +110,10 @@ module dftbp_dftbplus_main
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
+#:if WITH_TRANSPORT
+  use dftbp_transport_negfint, only : TNegfInt_final
+#:endif
+  use dftbp_transport_negfvars, only : TTransPar
 #:if WITH_SCALAPACK
   use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
@@ -122,11 +129,6 @@ module dftbp_dftbplus_main
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketComm
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
-#:endif
-#:if WITH_TRANSPORT
-  use dftbp_dftbplus_initprogram, only : overrideContactCharges
-  use dftbp_transport_negfint, only : TNegfInt_final
-  use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
 
@@ -719,7 +721,7 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec, this%boundaryCond)
+          & this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
     end if
 
     if (this%tCoordsChanged) then
@@ -1744,7 +1746,7 @@ contains
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond, transpar)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1800,6 +1802,9 @@ contains
     !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
+    !> Transport settings
+    type(TTransPar), intent(in) :: transpar
+
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
     call matinv(recVecs2p)
@@ -1822,7 +1827,9 @@ contains
       call repulsive%updateLatVecs(latVecs)
     end if
     if (allocated(dispersion)) then
-      call dispersion%updateLatVecs(latVecs)
+      if (transpar%ncont == 0) then
+        call dispersion%updateLatVecs(latVecs)
+      end if
       mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
     if (allocated(solvation)) then
