@@ -13,6 +13,7 @@ module test_math_matrixops
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors, pseudoInv
+  use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
