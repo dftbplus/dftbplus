@@ -39,6 +39,8 @@ Added
   energies or forces in the input leads them to also be included in
   the md.out file.
 
+- Printing of atom-resolved dispersion energies in detailed.out
+
 - MAGMA GPU accelerated solver for the modes code
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
@@ -62,7 +64,6 @@ Changed
 
 - Raise a warning if neither the input of parser version is set in the
   input
-
 
 - Degeneracy tolerance for perturbation theory switched to absolute
   tolerance of differences between eigenvalues.
@@ -170,7 +171,6 @@ Added
 - Spin-orbit coupling for xTB
 
 - Dual American and British English spelling for various input keywords
-
 
 Fixed
 -----
