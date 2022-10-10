@@ -34,9 +34,9 @@ module dftbp_extlibs_poisson
       & set_poissonbox, set_poissongrid, set_accuracy, set_verbose, check_biasdir,&
       & check_poisson_box, check_parameters, check_localbc, check_contacts, write_parameters,&
       & poiss_getlatvecs
-#:if WITH_MPI
+  #:if WITH_MPI
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
-#:endif
+  #:endif
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_poisson_poisson, only : ncont, set_cont_indices, set_contdir, set_contlabels,&
