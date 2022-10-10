@@ -62,6 +62,7 @@ module dftbp_dftbplus_parser
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
   use dftbp_mixer_mixer, only : mixerTypes
+  use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
   use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
@@ -3291,13 +3292,13 @@ contains
     call getNodeName(val, buffer)
     select case (char(buffer))
     case ("finitediff")
-      ctrl%iDerivMethod = 1
+      ctrl%iDerivMethod = diffTypes%finiteDiff
       call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta,&
           & modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), lengthUnits, child,&
           & ctrl%deriv1stDelta)
     case ("richardson")
-      ctrl%iDerivMethod = 2
+      ctrl%iDerivMethod = diffTypes%richardson
     case default
       call getNodeHSDName(val, buffer)
       call detailedError(child, "Invalid derivative calculation '" &
