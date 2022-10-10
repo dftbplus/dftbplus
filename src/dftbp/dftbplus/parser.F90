@@ -6363,7 +6363,7 @@ contains
 
       call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gatepot)
+      call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
 
     case default
       call getNodeHSDName(pTmp2, buffer)
