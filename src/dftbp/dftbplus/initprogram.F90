@@ -115,7 +115,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
-  use dftbp_timedep_linresptypes, only : TLinResp
+  use dftbp_timedep_linresptypes, only : TLinResp, linRespSolverTypes
   use dftbp_timedep_pprpa, only : TppRPAcal
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
@@ -2357,9 +2357,9 @@ contains
     if (this%isLinResp) then
 
       ! input checking for linear response
-      if (.not. withArpack) then
+      if (input%ctrl%lrespini%iLinRespSolver==linrespSolverTypes%Arpack .and. .not.withArpack) then
         call error("This binary has been compiled without support for linear response&
-            & calculations.")
+            & calculations using the Arpack solver.")
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
@@ -3088,12 +3088,17 @@ contains
     endif
 
     if(this%isLinResp) then
-       if(input%ctrl%lrespini%tUseArpack) then
-          write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
-       else
-          write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
-       end if
+      select case(input%ctrl%lrespini%iLinRespSolver)
+      case (linrespSolverTypes%None)
+        call error("Casida solver has not been selected")
+      case (linrespSolverTypes%Arpack)
+        write(stdOut, "(A,':',T30,A)") "Casida solver", "Arpack"
+      case (linrespSolverTypes%Stratmann)
+        write(stdOut, "(A,':',T30,A,i4)") "Casida solver", "Stratmann, SubSpace: ",&
+            & input%ctrl%lrespini%subSpaceFactorStratmann
+      case default
+        call error("Unknown Casida solver")
+      end select
     end if
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
@@ -5368,12 +5373,13 @@ contains
       end if
     end if
 
-    if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
+    if (isOnsiteCorrected .and. input%ctrl%lrespini%iLinRespSolver == linRespSolverTypes%Stratmann)&
+        & then
       call error("Onsite corrections not implemented for Stratmann diagonaliser.")
     end if
 
     if (isRS_LinResp) then
-      if (input%ctrl%lrespini%tUseArpack) then
+      if (input%ctrl%lrespini%iLinRespSolver /= linRespSolverTypes%Stratmann) then
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then

@@ -65,6 +65,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
+  use dftbp_timedep_linresptypes, only : linRespSolverTypes
   use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
@@ -4753,18 +4754,10 @@ contains
     type(fnode), pointer :: child
     type(fnode), pointer :: child2
     type(fnode), pointer :: value
-    type(string) :: buffer
-
-  #:if WITH_ARPACK
-    type(string) :: modifier
+    type(string) :: buffer, modifier
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
-
-    if (associated(child) .and. .not. withArpack) then
-      call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
-          & response calculations (requires the ARPACK/ngARPACK libraries).')
-    end if
 
     if (associated(child)) then
 
@@ -4837,20 +4830,24 @@ contains
       if (allocated(ctrl%rangeSepInp)) then
         call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       end if
-      ctrl%lrespini%tUseArpack = .true.
+      ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call getChildValue(child, "Diagonaliser", child2)
       call getNodeName(child2, buffer)
       select case(char(buffer))
-        case ("arpack")
-          call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
-          call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
-          ctrl%lrespini%tUseArpack = .true.
-        case ("stratmann")
-          ctrl%lrespini%tUseArpack = .false.
-          call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
-        case default
-          call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
+      case ("arpack")
+        if (.not. withArpack) then
+          call detailedError(child2, 'This DFTB+ binary has been compiled without support for&
+              & linear response calculations using the ARPACK/ngARPACK library.')
+        end if
+        call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
+        call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+        ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Arpack
+      case ("stratmann")
+        ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
+        call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      case default
+        call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
@@ -4858,8 +4855,6 @@ contains
       end if
 
     end if
-
-  #:endif
 
     !pp-RPA
     call getChild(node, "PP-RPA", child, requested=.false.)
