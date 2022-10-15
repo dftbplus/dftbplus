@@ -225,6 +225,7 @@ dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
 dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
+dispersion/C6H6_sdftd3_transp          #? WITH_TRANSPORT and MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
 h-bonds/D3H5_water_dimer               #? WITH_SDFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1

@@ -1,0 +1,51 @@
+Geometry = GenFormat {
+    <<< Ordered_C6H6.gen
+}
+
+Transport{
+    Device{
+        AtomRange = 1 36
+        FirstLayerAtoms = 1 13 25
+    }
+    Contact{
+        Id = "source"
+        AtomRange = 37 60
+    }
+    Contact{
+        Id = "drain"
+        AtomRange = 61 84
+    }
+    Task= contactHamiltonian{
+        contactId = "drain"
+    }
+}
+
+Hamiltonian = DFTB {
+    SCC = No
+    Filling = Fermi { Temperature [K] = 300 }
+    KPointsAndWeights { 0.0 0.0 0.0 1.0 }
+    MaxAngularMomentum {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "slakos/origin/mio-1-1/"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    # Warning, the DftD3 parameters below are fake ones for test purposes only!
+    Dispersion = SimpleDftD3 {
+        a1 = 0.52
+        a2 = 3.6
+        s6 = 1.0
+        s8 = 0.61
+        CutoffInter = 60
+        CoordinationNumber = exp {
+            Cutoff = 34
+        }
+    }
+}
+
+Options { WriteAutotestTag = No }
+ParserOptions { ParserVersion = 12 }
+Parallel { UseOmpThreads = Yes }
