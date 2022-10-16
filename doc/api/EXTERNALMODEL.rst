@@ -2,11 +2,11 @@ Supplying external models to DFTB+
 ==================================
 
 Use from within DFTB+::
-  
+
   Model = External {
-  
+
   }
-  
+
 Will use the externally declared model
 
 Building
