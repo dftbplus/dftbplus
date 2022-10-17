@@ -169,13 +169,13 @@ endif()
 #
 # Add external model from a library
 #
-if (NOT EXTERNAL_MODEL_LIBRARY)
+if (EXTERNALMODEL_LIBRARY)
+  find_package(CustomExternalModel REQUIRED)
+  list(APPEND PKG_CONFIG_REQUIRES externalmodel)
+else()
   message("EXTERNAL_MODEL_LIBRARIES not defined, falling back to internal toy model")
-  # TO DO!
+  add_subdirectory(external/dftbp-extmodel/origin EXCLUDE_FROM_ALL)
 endif()
-
-find_package(CustomExternalModel REQUIRED)
-list(APPEND PKG_CONFIG_REQUIRES externalmodel)
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
