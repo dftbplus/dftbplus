@@ -210,7 +210,7 @@ module dftbp_extlibs_externalmodel
     end function model_update
 
     !> Retrieve predictions from external model
-    function model_predictions(modelstate, h0, over, iSparseStart, nMaxStart, msgString)&
+    function model_predictions(modelstate, h0, over, msgString)&
         & bind(C, name='predict_model_for_dftbp')
       import :: c_int, c_double, c_ptr, c_intptr_t
       implicit none
@@ -220,10 +220,6 @@ module dftbp_extlibs_externalmodel
       real(c_double), intent(inout) :: h0
       !> Overlap (if accessed)
       real(c_double), intent(inout) :: over
-      !> Indexing for sparse structures
-      integer(c_int), intent(in) :: iSparseStart
-      !> Indexing for sparse structures
-      integer(c_int), intent(in) :: nMaxStart
       !> Any returned error string
       type(c_ptr), intent(out) :: msgString
       !> Model state after operation
@@ -487,8 +483,7 @@ contains
     H0(:) = 0.0_dp
     over(:) = 0.0_dp
 
-    iStatus = model_predictions(this%modelState, h0(1), over(1), iSparseStart(1,1),&
-        & size(iSparseStart,dim=1), msgString)
+    iStatus = model_predictions(this%modelState, h0(1), over(1), msgString)
 
     if (iStatus /= 0) then
       @:RAISE_ERROR(status, iStatus, "To do : from predict_model_for_dftbp")
