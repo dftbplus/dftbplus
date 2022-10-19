@@ -14,7 +14,7 @@ module dftbp_apicallbackc
   implicit none
 
   private
-  public :: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
+  public :: dmhs_callback_c_wrapper, TCAuxWrapper
 
   type :: TCAuxWrapper
     type(c_ptr) :: auxPtr
@@ -35,10 +35,6 @@ module dftbp_apicallbackc
       type(c_ptr), value :: dataPtr
     end subroutine dmhs_callback_c_t
   end interface
-  
-  !> That is necessary,because otherwise the compilation error arises:
-  !>    Error: Expected a procedure pointer for argument ‘callback’ at (1)
-  procedure(TDMHSCallbackFunc), pointer:: dmhs_callback_c_wrapper_ptr => dmhs_callback_c_wrapper
 
 contains
 

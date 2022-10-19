@@ -84,7 +84,7 @@ contains
     !> Instance
     class(TAPICallback) :: this
 
-    procedure(TDMHSCallbackFunc), pointer, intent(in) :: callback
+    procedure(TDMHSCallbackFunc) :: callback
     class(*), pointer :: auxPtr
     
     this%dm_callback => callback
@@ -128,7 +128,7 @@ contains
 
   subroutine TAPICallback_registerS(this, callback, auxPtr)
     class(TAPICallback) :: this
-    procedure(TDMHSCallbackFunc), pointer :: callback
+    procedure(TDMHSCallbackFunc) :: callback
     class(*), pointer :: auxPtr
     
     this%s_callback => callback
@@ -170,7 +170,7 @@ contains
 
   subroutine TAPICallback_registerH(this, callback, auxPtr)
     class(TAPICallback) :: this
-    procedure(TDMHSCallbackFunc), pointer :: callback
+    procedure(TDMHSCallbackFunc) :: callback
     class(*), pointer :: auxPtr
     
     this%h_callback => callback

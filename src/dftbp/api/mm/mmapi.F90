@@ -738,7 +738,7 @@ contains
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for DM export
-    procedure(TDMHSCallbackFunc), pointer:: callback
+    procedure(TDMHSCallbackFunc) :: callback
 
     !> pointer to a context object for the DM callback
     class(*), pointer :: aux_ptr
@@ -755,7 +755,7 @@ contains
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for S export
-    procedure(TDMHSCallbackFunc), pointer :: callback
+    procedure(TDMHSCallbackFunc) :: callback
 
     !> pointer to a context object for the S callback
     class(*), pointer :: aux_ptr
@@ -772,7 +772,7 @@ contains
     class(TDftbPlus), intent(inout) :: this
 
     !> callback function for H export
-    procedure(TDMHSCallbackFunc), pointer :: callback
+    procedure(TDMHSCallbackFunc) :: callback
 
     !> pointer to a context object for the H callback
     class(*), pointer :: aux_ptr

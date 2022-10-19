@@ -16,7 +16,7 @@ module dftbp_capi
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
-  use dftbp_apicallbackc, only: dmhs_callback_c_wrapper_ptr, TCAuxWrapper
+  use dftbp_apicallbackc, only: dmhs_callback_c_wrapper, TCAuxWrapper
 
   implicit none
   private
@@ -284,7 +284,7 @@ contains
       wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
-    call instance%registerDMCallback(dmhs_callback_c_wrapper_ptr, wrapper)
+    call instance%registerDMCallback(dmhs_callback_c_wrapper, wrapper)
 
   end subroutine c_DftbPlus_registerDMCallback
 
@@ -313,7 +313,7 @@ contains
       wrapper%callback = callback
     end select
     
-    call instance%registerSCallback(dmhs_callback_c_wrapper_ptr, wrapper)
+    call instance%registerSCallback(dmhs_callback_c_wrapper, wrapper)
 
   end subroutine c_DftbPlus_registerSCallback
 
@@ -341,7 +341,7 @@ contains
       wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
-    call instance%registerHCallback(dmhs_callback_c_wrapper_ptr, wrapper)
+    call instance%registerHCallback(dmhs_callback_c_wrapper, wrapper)
 
   end subroutine c_DftbPlus_registerHCallback
 
