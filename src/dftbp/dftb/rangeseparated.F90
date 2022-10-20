@@ -86,12 +86,6 @@ module dftbp_dftb_rangeseparated
     !> total long range energy
     real(dp) :: lrEnergy
 
-    !> spin up part of energy
-    real(dp) :: lrEnergyUp
-
-    !> spin down part of energy
-    real(dp) :: lrEnergyDn
-
     !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
 
