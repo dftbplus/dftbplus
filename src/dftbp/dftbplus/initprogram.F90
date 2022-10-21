@@ -4898,10 +4898,10 @@ contains
     !> parallel environment
     type(TEnvironment), intent(in) :: env
 
-    !> Number of matrix rows
+    !> Size of matrix row blocks
     integer, intent(in) :: rowBlock
 
-    !> Number of matrix columns
+    !> Size of matrix column blocks
     integer, intent(in) :: colBlock
 
     !> Descriptor of the dense matrix
