@@ -52,11 +52,8 @@ contains
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0, k=0
   subroutine dRhoReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
-      & dEi, dPsi, coord, errStatus, omega, isHelical, eta)
+      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species, dEi, dPsi, coord,&
+      & errStatus, omega, isHelical, eta)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -128,11 +125,6 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Derivative of single particle eigenvalues
     real(dp), allocatable, intent(inout) :: dEi(:,:,:)
 
@@ -169,6 +161,13 @@ contains
     logical :: isTransformed
 
     logical :: isHelical_
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -480,11 +479,7 @@ contains
   !> systems
   subroutine dRhoFermiChangeReal(dRhoExtra, env, maxFill, parallelKS, iKS, neighbourList,&
       & nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef, nFilled, nEmpty, eigVecsReal, orb,&
-      & denseDesc, tempElec, eigVals, dRhoSqr, species, coord,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
-      & isHelical)
+      & denseDesc, tempElec, eigVals, dRhoSqr, species, coord, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
     real(dp), intent(inout) :: dRhoExtra(:)
@@ -549,11 +544,6 @@ contains
     !> Coordinates of all atoms including images
     real(dp), intent(in) :: coord(:,:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -567,6 +557,13 @@ contains
     real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
     real(dp), allocatable :: work2Real(:,:)
     logical :: isHelical_
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -640,11 +637,8 @@ contains
   !> k-points
   subroutine dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species, coord,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
-      & dEi, dPsi, errStatus, omega, isHelical, eta)
+      & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species, coord, dEi, dPsi,&
+      & errStatus, omega, isHelical, eta)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -715,11 +709,6 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Derivative of single particle eigenvalues
     real(dp), allocatable, intent(inout) :: dEi(:,:,:)
 
@@ -751,6 +740,13 @@ contains
     complex(dp), allocatable :: workLocal(:,:), dRho(:,:), eigVecsTransformed(:,:)
     complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:)
     logical :: isTransformed, isHelical_, isFreqDep
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1038,11 +1034,7 @@ contains
   !> k-points
   subroutine dRhoFermiChangeCmplx(dRhoExtra, env, maxFill, parallelKS, iKS, kPoint, kWeight,&
       & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef,&
-      & nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
-      & isHelical)
+      & nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change,
     real(dp), intent(inout) :: dRhoExtra(:,:)
@@ -1116,11 +1108,6 @@ contains
     !> Coordinates of all atoms including images
     real(dp), intent(in) :: coord(:,:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Is the geometry helical
     logical, intent(in), optional :: isHelical
 
@@ -1136,6 +1123,13 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1211,11 +1205,7 @@ contains
   subroutine dRhoPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform,&
-      & species, coord,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
-      & dEi, dPsi, errStatus, omega, isHelical, eta)
+      & species, coord, dEi, dPsi, errStatus, omega, isHelical, eta)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1292,11 +1282,6 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Derivative of single particle eigenvalues
     real(dp), allocatable, intent(inout) :: dEi(:,:,:)
 
@@ -1328,6 +1313,13 @@ contains
     complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:), cWorkLocal3(:,:), dRho(:,:)
     complex(dp), allocatable :: eigVecsTransformed(:,:)
     logical :: isTransformed, isHelical_, isFreqDep
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1609,9 +1601,6 @@ contains
   subroutine dRhoFermiChangePauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
       & kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dE_F,&
       & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord,&
-    #:if WITH_SCALAPACK
-      & desc,&
-    #:endif
       & errStatus, isHelical)
 
     !> Additional contribution to the density matrix to cancel effect of Fermi energy change
@@ -1687,11 +1676,6 @@ contains
     !> Coordinates of all atoms including images
     real(dp), intent(in) :: coord(:,:)
 
-  #:if WITH_SCALAPACK
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(DLEN_)
-  #:endif
-
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
 
@@ -1710,6 +1694,13 @@ contains
     complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
   #:endif
     logical :: isHelical_
+
+  #:if WITH_SCALAPACK
+    ! BLACS matrix descriptor
+    integer :: desc(DLEN_)
+
+    desc(:) = denseDesc%blacsOrbSqr
+  #:endif
 
     if (present(isHelical)) then
       isHelical_ = isHelical
