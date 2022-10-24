@@ -1274,6 +1274,7 @@ contains
 
     logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
+    integer ::  nLocalRows, nLocalCols
 
     @:ASSERT(input%tInitialized)
 
@@ -2593,14 +2594,6 @@ contains
       call error("Charge restart not currently supported for Delta DFTB")
     end if
 
-    if (this%isRangeSep) then
-      call this%ensureRangeSeparatedReqs(input%ctrl%tShellResolved, input%ctrl%rangeSepInp)
-      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff)
-      call this%initRangeSeparated(this%nAtom, this%species0, hubbU, input%ctrl%rangeSepInp,&
-          & this%tSpin, allocated(this%reks), this%rangeSep, this%deltaRhoIn, this%deltaRhoOut,&
-          & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
-    end if
-
     this%tReadShifts = input%ctrl%tReadShifts
     this%tWriteShifts = input%ctrl%tWriteShifts
 
@@ -2685,6 +2678,23 @@ contains
           & this%isSparseReorderRequired)
     end associate
   #:endif
+
+    if (this%isRangeSep) then
+      call this%ensureRangeSeparatedReqs(input%ctrl%tShellResolved, input%ctrl%rangeSepInp)
+      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff)
+
+    #:if WITH_SCALAPACK
+      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+          & nLocalCols)
+    #:else
+      nLocalRows = this%denseDesc%fullSize
+      nLocalCols = this%denseDesc%fullSize
+    #:endif
+      call this%initRangeSeparated(this%nAtom, this%species0, hubbU, input%ctrl%rangeSepInp,&
+          & this%tSpin, allocated(this%reks), this%rangeSep, this%deltaRhoIn, this%deltaRhoOut,&
+          & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements,&
+          & nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+    end if
 
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
@@ -5188,10 +5198,6 @@ contains
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
-    if (withMpi) then
-      call error("Range separated calculations do not work with MPI yet")
-    end if
-
     if (this%tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
@@ -5397,7 +5403,8 @@ contains
 
   !> Initialise range separated extension.
   subroutine initRangeSeparated(this, nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
-      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements,&
+      & nLocalRows, nLocalCols, nLocalKS)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -5441,17 +5448,20 @@ contains
     !> Number of mixer elements
     integer, intent(out) :: nMixElements
 
+    integer, intent(in) :: nLocalRows, nLocalCols, nLocalKS
+
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, hubbU(1,:), rangeSepInp%screeningThreshold,&
         & rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
-    allocate(deltaRhoIn(this%nOrb * this%nOrb * this%nSpin))
-    allocate(deltaRhoOut(this%nOrb * this%nOrb * this%nSpin))
-    allocate(deltaRhoDiff(this%nOrb * this%nOrb * this%nSpin))
-    deltaRhoInSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&
-        & deltaRhoIn(1 : this%nOrb * this%nOrb * this%nSpin)
-    deltaRhoOutSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&
-        & deltaRhoOut(1 : this%nOrb * this%nOrb * this%nSpin)
-    nMixElements = this%nOrb * this%nOrb * this%nSpin
+    allocate(deltaRhoIn(nLocalRows * nLocalCols * nLocalKS))
+    allocate(deltaRhoOut(nLocalRows * nLocalCols * nLocalKS))
+    allocate(deltaRhoDiff(nLocalRows * nLocalCols * nLocalKS))
+    deltaRhoInSqr(1:nLocalRows, 1:nLocalCols, 1:nLocalKS) =>&
+        & deltaRhoIn(1: nLocalRows * nLocalCols * nLocalKS)
+    deltaRhoOutSqr(1:nLocalRows, 1:nLocalCols, 1:nLocalKS) =>&
+        & deltaRhoOut(1: nLocalRows * nLocalCols * nLocalKS)
+    nMixElements = nLocalRows * nLocalCols * nLocalKS
+
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated

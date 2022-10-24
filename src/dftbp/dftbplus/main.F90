@@ -284,6 +284,11 @@ contains
       tWriteCharges =  allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
           & .and. this%tSccCalc .and. .not. this%tDerivs&
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
+    #:if WITH_SCALAPACK
+      if (this%isRangeSep) then
+        tWriteCharges = .false.
+      end if
+    #:endif
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
             & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
@@ -1016,6 +1021,10 @@ contains
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (this%isRangeSep) then
+        #:if WITH_SCALAPACK
+          call denseSubtractDensityOfAtoms(env, this%parallelKS, this%q0, this%denseDesc,&
+              & this%deltaRhoOutSqr)
+        #:else
           select case(this%nSpin)
           case(2)
             do iSpin = 1, 2
@@ -1028,6 +1037,7 @@ contains
           case default
             call error("Range separation not implemented for non-colinear spin")
           end select
+        #:endif
         end if
 
         if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
@@ -1145,6 +1155,11 @@ contains
               & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd, &
               & this%isGeoOpt .or. allocated(this%geoOpt),&
               & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
+        #:if WITH_SCALAPACK
+          if (this%isRangeSep) then
+            tWriteSccRestart = .false.
+          end if
+        #:endif
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
                 & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
@@ -2832,7 +2847,7 @@ contains
       ! Should this be used elsewhere, need to pass isRangeSep
       if (allocated(rangeSep)) then
         call denseMulliken_blacs(env, parallelKS, denseDesc, deltaRhoInSqr, SSqrReal, qOutput)
-        ! Also need distributed version of rangeSep%addLRHamiltonian
+        call rangeSep%addLRHamiltonian(env, denseDesc, SSqrReal, deltaRhoInSqr(:,:,iSpin), HSqrReal)
       end if
 
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
@@ -3193,17 +3208,34 @@ contains
       iSpin = parallelKS%localKS(2, iKS)
 
     #:if WITH_SCALAPACK
-      call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iSpin),&
-          & eigvecs(:,:,iKS), work)
-      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-      if (tHelical) then
-        call packRhoHelicalRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour,&
-            & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
+      if(.not. associated(deltaRhoOutSqr)) then
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & filling(:,iSpin), eigvecs(:,:,iKS), work)
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        if (tHelical) then
+          call packRhoHelicalRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iSpin))
+        else
+          call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
+              & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+        end if
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
-        call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
-            & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+        ! Range separated case: store in delta density matrix
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & filling(:,iSpin), eigvecs(:,:,iKS), deltaRhoOutSqr(:,:,iKS))
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        if (tHelical) then
+          call packRhoHelicalRealBlacs(env%blacs, denseDesc, deltaRhoOutSqr(:,:,iKS),&
+              & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, orb, species,&
+              & coord, rhoPrim(:,iSpin))
+        else
+          call packRhoRealBlacs(env%blacs, denseDesc, deltaRhoOutSqr(:,:,iKS),&
+              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+              & rhoPrim(:,iSpin))
+        end if
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       end if
-      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
       !> Either pack density matrix or delta density matrix
       if(.not. associated(deltaRhoOutSqr)) then
@@ -3218,9 +3250,8 @@ contains
         end if
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
-        ! Rangeseparated case: pack delta density matrix
-        call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
-            & eigvecs(:,:,iKS), filling(:,iSpin))
+        ! Range separated case: store in delta density matrix
+        call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin), eigvecs(:,:,iKS), filling(:,iSpin))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packHelicalHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
@@ -4057,17 +4088,27 @@ contains
       #:else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
       #:endif
-        if (tHelical) then
-          call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-              & iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-        else
-          call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
-              & iSparseStart, img2CentCell)
-        end if
 
       #:if WITH_SCALAPACK
-        !need distributed version
-        call denseMulliken_blacs(env, parallelKS, denseDesc, deltaRhoInSqr, SSqrReal, qInput)
+        if (tHelical) then
+          call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc, sSqrReal)
+        else
+          call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & iSparseStart, img2CentCell, denseDesc, sSqrReal)
+        end if
+      #:else
+        if (tHelical) then
+          call unpackHelicalHS(sSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call unpackHS(sSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
+              & iSparseStart, img2CentCell)
+        end if
+      #:endif
+
+      #:if WITH_SCALAPACK
+        call denseMulliken_blacs(env, parallelKS, denseDesc, deltaRhoInSqr, sSqrReal, qInput)
       #:else
         deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
         call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
@@ -4096,7 +4137,6 @@ contains
             end do
           end do
         end if
-
         call ud2qm(qInput)
         if (allocated(qBlockIn)) then
           call ud2qm(qBlockIn)
@@ -7253,9 +7293,14 @@ contains
       tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add rangeseparated contribution
+      #:if WITH_SCALAPACK
+        call rangeSep%addLRHamiltonian(env, denseDesc, reks%overSqr, reks%deltaRhoSqrL(:,:,1,iL),&
+            & reks%hamSqrL(:,:,1,iL))
+      #:else
         call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), ints%overlap, &
             & neighbourList%iNeighbour, nNeighbourLC, denseDesc%iAtomStart, &
             & iSparseStart, orb, reks%hamSqrL(:,:,1,iL), reks%overSqr)
+      #:endif
         ! Calculate the long-range exchange energy for up spin
         call rangeSep%addLREnergy(tmpEn(iL))
       end do

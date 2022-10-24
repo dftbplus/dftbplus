@@ -17,6 +17,7 @@ module dftbp_dftb_populations
   use dftbp_common_environment, only : TEnvironment
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, scalafx_indxl2g, scalafx_getdescriptor
+  use dftbp_extlibs_scalapackfx, only : scalafx_addl2g
   use dftbp_math_bisect, only : bisection
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS
@@ -53,6 +54,9 @@ module dftbp_dftb_populations
      module procedure denseSubtractDensityOfAtoms_spin_real
      module procedure denseSubtractDensityOfAtoms_nospin_cmplx
      module procedure denseSubtractDensityOfAtoms_spin_cmplx
+   #:if WITH_SCALAPACK
+     module procedure denseSubtractDensity_BLACS_real
+   #:endif
   end interface denseSubtractDensityOfAtoms
 
 
@@ -543,6 +547,58 @@ contains
 
 
   end subroutine denseSubtractDensityOfAtoms_spin_cmplx
+
+
+#:if WITH_SCALAPACK
+
+  subroutine denseSubtractDensity_BLACS_real(env, parallelKS, q0, denseDesc, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:, :, :)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Spin polarized (lower triangular) matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    real(dp), allocatable :: tmpBlock(:,:)
+
+    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    real(dp) :: tmp(size(q0,dim=1),size(q0,dim=1))
+    real(dp) :: scale
+
+    nAtom = size(q0, dim=2)
+    select case(size(q0, dim=3))
+    case(1)
+      scale = 1.0_dp
+    case(2)
+      scale = 0.5_dp
+    end select
+
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
+      do iAt = 1, nAtom
+        iOrbStart = denseDesc%iAtomStart(iAt)
+        nOrb = denseDesc%iAtomStart(iAt+1) - iOrbStart
+        tmp(:, :) = 0.0_dp
+        do iOrb = 1, nOrb
+          tmp(iOrb, iOrb) = -scale*q0(iOrb, iAt, iS)
+        end do
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp(:nOrb,:nOrb), denseDesc%blacsOrbSqr,&
+            & iOrbStart, iOrbStart, rho(:,:,iKS))
+      end do
+    end do
+
+  end subroutine denseSubtractDensity_BLACS_real
+
+#:endif
 
 
   !> Calculate the number of charges per shell given the orbital charges.

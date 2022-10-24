@@ -20,6 +20,15 @@ module dftbp_dftb_rangeseparated
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_commontypes, only : TOrbitals
+#:if WITH_SCALAPACK
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_math_bisect, only : bisection
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
+      & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g,&
+      & scalafx_getdescriptor, scalafx_getlocalshape
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+
   implicit none
 
   private
@@ -268,6 +277,44 @@ contains
   end subroutine updateCoords
 
 
+#:if WITH_SCALAPACK
+
+  !> Interface routine.
+  subroutine addLrHamiltonian(this, env, denseDescr, overlap, densSqr, HH)
+
+    !> class instance
+    class(TRangeSepFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDescr
+
+    !> square real overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    real(dp), dimension(:,:), target, intent(in) :: densSqr
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    real(dp), dimension(:,:), intent(inout), target :: HH
+
+    call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
+    select case(this%rsAlg)
+    case (rangeSepTypes%threshold)
+      call error("Not implemented")
+    case (rangeSepTypes%neighbour)
+      call error("Not implemented")
+    case (rangeSepTypes%matrixBased)
+      call addLrHamiltonianMatrixBlacs(this, env, denseDescr, overlap, densSqr, HH)
+    end select
+    call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)
+
+  end subroutine addLrHamiltonian
+
+#:else
+
   !> Interface routine.
   subroutine addLrHamiltonian(this, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
       & orb, HH, overlap)
@@ -278,10 +325,10 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    ! Neighbour based screening
-
     !> Square (unpacked) density matrix
     real(dp), dimension(:,:), target, intent(in) :: densSqr
+
+    ! Neighbour based screening
 
     !> Sparse (packed) overlap matrix.
     real(dp), dimension(:), intent(in) :: over
@@ -324,6 +371,8 @@ contains
     call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)
 
   end subroutine addLrHamiltonian
+
+#:endif
 
 
   !> Adds the LR-exchange contribution to hamiltonian using the thresholding algorithm
@@ -879,6 +928,179 @@ contains
   end subroutine addLrHamiltonianMatrixCmplx
 
 
+#:if WITH_SCALAPACK
+
+  !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
+  !>
+  subroutine addLrHamiltonianMatrixBlacs(this, env, denseDescr, overlap, densSqr, HH)
+
+    !> class instance
+    type(TRangeSepFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDescr
+
+    !> Square (unpacked) overlap matrix.
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    real(dp), intent(in) :: densSqr(:,:)
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    real(dp), intent(inout) :: HH(:,:)
+
+    real(dp), allocatable :: Smat(:,:)
+    real(dp), allocatable :: Dmat(:,:)
+    real(dp), allocatable :: LrGammaAO(:,:)
+    real(dp), allocatable :: Hlr(:,:)
+
+    integer :: nLocCol, nLocRow
+    real(dp) :: Etmp
+
+    nLocCol = size(overlap,dim=1)
+    nLocRow = size(overlap,dim=2)
+
+    sMat = overlap
+    dMat = densSqr
+    allocate(LrGammaAO(nLocCol, nLocRow))
+    allocate(Hlr(nLocCol, nLocRow))
+
+    ! Compared to serial algorithm, no need to symmetrize hamiltonian, overlap and density matrices
+    ! as both triangles should be constructed if MPI parallel Compared to serial algorithm, no need
+    ! to symmetrize hamiltonian, overlap and density matrices as both triangles should be
+    ! constructed if MPI parallel
+
+    call initGamma(this, env, denseDescr, LrGammaAO)
+    call evaluateHamiltonian(this, denseDescr%blacsOrbSqr, sMat, dMat, LrGammaAO, Hlr)
+    HH(:,:) = HH + Hlr
+
+    Etmp = 0.5_dp * sum(Dmat * Hlr)
+    ! probably wrong communicator for k & spin:
+    call mpifx_allreduceip(env%mpi%interGroupComm, Etmp, MPI_SUM)
+    this%lrenergy = this%lrenergy + Etmp
+
+  contains
+
+    !> Get orbital-by-orbital gamma matrix
+    subroutine initGamma(this, env, denseDescr, LrGammaAO)
+
+      !> class instance
+      type(TRangeSepFunc), intent(inout) :: this
+
+      !> Environment settings
+      type(TEnvironment), intent(inout) :: env
+
+      !> Dense matrix descriptor
+      type(TDenseDescr), intent(in) :: denseDescr
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(out) :: LrGammaAO(:,:)
+
+      integer :: nn, iAt1, iAt2, iAt1Start, iAt1End, iSp1, iSp2, ii, jj, iOrb1, iOrb2
+      real(dp) :: dist, vect(3)
+
+      ! Get long-range gamma variable
+      LrGammaAO(:,:) = 0.0_dp
+
+      !$OMP PARALLEL DO&
+      !$OMP& DEFAULT(SHARED) PRIVATE(iOrb1, iAt1, iSp1, ii, iOrb2, iAt2, iSp2, vect, dist)&
+      !$OMP& SCHEDULE(RUNTIME)
+      do jj = 1, size(LrGammaAO, dim=2)
+        iOrb1 = scalafx_indxl2g(jj, denseDescr%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDescr%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        call bisection(iAt1, denseDescr%iAtomStart, iOrb1)
+        iSp1 = this%species(iAt1)
+        do ii = 1, size(LrGammaAO, dim=1)
+          iOrb2 = scalafx_indxl2g(ii, denseDescr%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+              & denseDescr%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+          call bisection(iAt2, denseDescr%iAtomStart, iOrb2)
+          iSp2 = this%species(iAt2)
+          vect(:) = this%coords(:,iAt1) - this%coords(:,iAt2)
+          dist = sqrt(sum(vect**2))
+          LrGammaAO(ii, jj) = getAnalyticalGammaValue(this, iSp1, iSp2, dist)
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end subroutine initGamma
+
+
+    !> Evaluate the hamiltonian using GEMM operations
+
+    subroutine evaluateHamiltonian(this, desc, Smat, Dmat, LrGammaAO, Hlr)
+
+      !> class instance
+      type(TRangeSepFunc), intent(inout) :: this
+
+      !> BLACS matrix descriptor
+      integer, intent(in) :: desc(:)
+
+      !> Symmetrized square overlap matrix
+      real(dp), intent(in) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      real(dp), intent(in) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(in) :: LrGammaAO(:,:)
+
+      !> Symmetrized long-range Hamiltonian matrix
+      real(dp), intent(inout) :: Hlr(:,:)
+
+      real(dp), allocatable :: Hmat(:,:)
+      real(dp), allocatable :: tmpMat(:,:)
+
+      integer :: m, n
+
+      m = size(Smat,dim=1)
+      n = size(Smat,dim=2)
+
+      allocate(Hmat(m,n), source=0.0_dp)
+      allocate(tmpMat(m,n), source=0.0_dp)
+
+      Hlr(:,:) = 0.0_dp
+
+      call pblasfx_pgemm(sMat, desc, dMat, desc, tmpMat, desc)
+      !call gemm(tmpMat, Smat, Dmat)
+      call pblasfx_pgemm(tmpMat, desc, sMat, desc, Hlr, desc)
+      !call gemm(Hlr, tmpMat, Smat)
+      Hlr(:,:) = Hlr * LrGammaAO
+
+      tmpMat(:,:) = tmpMat * LrGammaAO
+
+      call pblasfx_pgemm(tmpMat, desc, sMat, desc, Hlr, desc, alpha=1.0_dp, beta=1.0_dp)
+      !call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+
+      Hmat(:,:) = Dmat * LrGammaAO
+      call pblasfx_pgemm(sMat, desc, hMat, desc, tmpMat, desc)
+      !call gemm(tmpMat, Smat, Hmat)
+      call pblasfx_pgemm(tmpMat, desc, sMat, desc, Hlr, desc, alpha=1.0_dp, beta=1.0_dp)
+      !call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+
+      call pblasfx_pgemm(dMat, desc, sMat, desc, tmpMat, desc)
+      !call gemm(tmpMat, Dmat, Smat)
+      tmpMat(:,:) = tmpMat * LrGammaAO
+      call pblasfx_pgemm(sMat, desc, tmpMat, desc, Hlr, desc, alpha=1.0_dp, beta=1.0_dp)
+      !call gemm(Hlr, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+
+      if (this%tSpin .or. this%tREKS) then
+        Hlr(:,:) = -0.25_dp * Hlr
+      else
+        Hlr(:,:) = -0.125_dp * Hlr
+      end if
+
+    end subroutine evaluateHamiltonian
+
+  end subroutine addLrHamiltonianMatrixBlacs
+
+#:else
+
   !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
   !>
   !> The routine provides a matrix-matrix multiplication based implementation of
@@ -1027,6 +1249,8 @@ contains
 
   end subroutine addLRHamiltonianMatrix
 
+#:endif
+
 
   !> Add the LR-Energy contribution to the total energy
   subroutine addLrEnergy(this, energy)
@@ -1039,6 +1263,7 @@ contains
 
     energy = energy + this%lrEnergy
     ! hack for spin unrestricted calculation
+    ! probably broken for MPI groups over spin
     this%lrEnergy = 0.0_dp
 
   end subroutine addLrenergy
