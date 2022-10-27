@@ -7,8 +7,9 @@
 
 !> Simple geometry calculations
 module dftbp_math_simplegeometry
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, tolSameDist
   use dftbp_math_sorting, only : merge_sort
+
   implicit none
 
   private
@@ -67,12 +68,12 @@ contains
 
     dist2 = sum(points**2, dim=1)
     allocate(indxR(size(points, dim=2)))
-    call merge_sort(indxR, dist2, epsilon(0.0_dp))
+    call merge_sort(indxR, dist2, tolSameDist)
     dist2(:) = dist2(indxR)
     nPoints = 0
     iStart = 1
     do iEnd = 1, size(points, dim=2)
-      if (abs(dist2(iStart)-dist2(iEnd))<=epsilon(0.0_dp)) then
+      if (abs(dist2(iStart)-dist2(iEnd))<=tolSameDist) then
         cycle
       end if
       call uniqueCoords(points(:,indxR(iStart:iEnd-1)) ,iUniq)
@@ -113,7 +114,7 @@ contains
         work(nUnique) = ii
       end if
       do jj = ii+1, n
-        if (all(abs(coords(:,ii) - coords(:,jj)) < 1024_dp*epsilon(0.0_dp))) then
+        if (sum((coords(:,ii) - coords(:,jj))**2) < tolSameDist**2) then
           work(jj) = -1
         end if
       end do
