@@ -363,8 +363,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     integer :: ii, iat, ig
-    real(dp) :: xx(1), esolv
-    real(dp), allocatable :: fx(:, :), zeta(:), ef1(:, :), ef2(:, :)
+    real(dp), allocatable :: fx(:,:), zeta(:), ef1(:,:), ef2(:,:)
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
@@ -540,9 +539,6 @@ contains
     !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
-    real(dp) :: xx(1)
-    logical :: restart
-
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
     @:ASSERT(size(shiftPerAtom) == this%nAtom)
@@ -688,11 +684,11 @@ contains
     !> Initial guess is provided on sigma
     logical, intent(in) :: restart
 
-    integer :: iat, istatus, n_iter, info, c1, c2, cr
-    real(dp) :: tol, r_norm
+    integer :: iat, istatus, n_iter
+    real(dp) :: tol
     logical :: ok
 
-    real(dp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
+    real(dp), allocatable :: g(:,:), rhs(:,:)
 
     ! parameters for the solver and matvec routine
     tol     = ddCosmo%conv
@@ -782,11 +778,9 @@ contains
     !> Overwrite accuracy
     real(dp), intent(in), optional :: accuracy
 
-    integer :: iat, istatus, n_iter, info, c1, c2, cr
-    real(dp) :: tol, r_norm
+    integer :: iat, n_iter
+    real(dp) :: tol
     logical :: ok
-
-    real(dp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
 
     ! parameters for the solver and matvec routine
     if (present(accuracy)) then
@@ -861,11 +855,10 @@ contains
     real(dp), intent(in) :: s(:, :)
     real(dp), intent(inout) :: fx(:, :)
 
-    integer :: iat, ig, ii, c1, c2, cr
-    real(dp) :: fep
+    integer :: iat, ig, ii
 
-    real(dp), allocatable :: xi(:, :), phiexp(:, :), zeta(:), ef(:, :)
-    real(dp), allocatable :: basloc(:), dbsloc(:, :), vplm(:), vcos(:), vsin(:)
+    real(dp), allocatable :: xi(:,:), phiexp(:,:)
+    real(dp), allocatable :: basloc(:), dbsloc(:,:), vplm(:), vcos(:), vsin(:)
 
     @:ASSERT(size(phi) == ddCosmo%ncav)
     @:ASSERT(size(sigma, 1) == ddCosmo%nylm)

@@ -923,13 +923,13 @@ contains
     !> Contains the `trace' derivative on exit.
     real(dp), intent(inout) :: aTrace(:, :)
 
-    real(dp) :: dist, vec(3), aTmp(3), arg, eta12, ewl, sigma(3, 3), aij, aji, sij, sji
+    real(dp) :: dist, vec(3), aTmp(3), arg, eta12, ewl, aij, aji, sij, sji
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh, ic, jc
 
     !$OMP PARALLEL DEFAULT(NONE) shared(aTrace, aMatdr, aMatdL) &
     !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
     !$OMP SHARED(neighDist2, rad, qVec, alpha) &
-    !$OMP PRIVATE(iAt2, iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12, sigma) &
+    !$OMP PRIVATE(iAt2, iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12) &
     !$OMP PRIVATE(aij, aji, sij, sji, ic, jc)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
@@ -1072,7 +1072,7 @@ contains
 
     logical :: tPeriodic
     integer :: nDim
-    integer :: iAt1, iSp1, ii, iStat
+    integer :: iAt1, iSp1, ii
     real(dp) :: tmp
 
     tPeriodic = allocated(recPoint)

@@ -160,7 +160,6 @@ contains
     integer, intent(in), optional :: iFuncOverRide
 
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
-    integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik, iFunc
 
@@ -246,7 +245,6 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
-    integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
 
@@ -331,7 +329,6 @@ contains
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
-    integer :: iFunctional
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
     real(dp) :: blockTmp(orb%mOrb,orb%mOrb)

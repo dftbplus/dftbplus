@@ -944,7 +944,7 @@ contains
     !> output matrix M- (initDim, initDim)
     real(dp), intent(out) :: mM(:,:)
 
-    integer :: izpAlpha, nMat, nAtom
+    integer :: nMat, nAtom
     integer :: ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)

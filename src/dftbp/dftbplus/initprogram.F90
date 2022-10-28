@@ -1272,7 +1272,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tInitialized, tGeoOptRequiresEgy, isOnsiteCorrected
+    logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
 
     @:ASSERT(input%tInitialized)
@@ -1556,8 +1556,8 @@ contains
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%tSpin, this%kPoint,&
-        & input%ctrl%parallelOpts, nIndepHam, this%tempElec)
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
+        & nIndepHam, this%tempElec)
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
@@ -1596,10 +1596,10 @@ contains
               & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
         #:endblock
       else
-        call initShortGammaInput_(this%orb, input%ctrl, this%speciesName, this%speciesMass,&
-            & this%uniqHubbU, shortGammaDamp, shortGammaInput)
+        call initShortGammaInput_(input%ctrl, this%speciesMass, this%uniqHubbU, shortGammaDamp,&
+            & shortGammaInput)
         call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
-            & this%boundaryCond%iBoundaryCondition, this%nAtom, coulombInput)
+            & this%boundaryCond%iBoundaryCondition, coulombInput)
       end if
       call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
           & coulombInput, shortGammaInput, poissonInput, this%scc)
@@ -2364,7 +2364,7 @@ contains
       isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
-          & this%tSpin, this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
+          & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
           & isOnsiteCorrected, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
@@ -3946,19 +3946,18 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, this%nAtom, multipoles=this%multipoleInp)
+            & this%qiBlockIn, this%deltaRhoIn, multipoles=this%multipoleInp)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, this%nAtom, nEl = sum(this%nEl),&
+              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
               & multipoles=this%multipoleInp)
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, this%nAtom,&
-              & nEl = sum(this%nEl), magnetisation=this%nEl(1)-this%nEl(2),&
-              & multipoles=this%multipoleInp)
+              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
+              & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp)
         end if
       end if
 
@@ -4995,13 +4994,10 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepHam, tempElec)
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
-
-    !> Is this a spin polarised calculation
-    logical, intent(in) :: tSpin
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
@@ -5237,8 +5233,7 @@ contains
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected,&
-      & input)
+      & isRS_LinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5263,9 +5258,6 @@ contains
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
-
-    !> Is this a spin polarised calculation
-    logical, intent(in) :: tSpin
 
     !> If the calculation is helical geometry
     logical :: tHelical
@@ -5936,11 +5928,9 @@ contains
 
 
   ! Initializes short gamma calculator
-  subroutine initShortGammaInput_(orb, ctrl, speciesNames, speciesMass, uniqHubbU, shortGammaDamp,&
+  subroutine initShortGammaInput_(ctrl, speciesMass, uniqHubbU, shortGammaDamp,&
       & shortGammaInp)
-    type(TOrbitals), intent(in) :: orb
     type(TControl), intent(in) :: ctrl
-    character(*), intent(in) :: speciesNames(:)
     real(dp), intent(in) :: speciesMass(:)
     type(TUniqueHubbard), intent(in) :: uniqHubbU
     type(TShortGammaDamp), intent(in) :: shortGammaDamp
@@ -5963,12 +5953,11 @@ contains
 
 
   ! Initializes a Coulomb-calculator
-  subroutine initCoulombInput_(env, ewaldAlpha, tolEwald, boundaryCond, nAtom, coulombInput)
+  subroutine initCoulombInput_(env, ewaldAlpha, tolEwald, boundaryCond, coulombInput)
     type(TEnvironment), intent(in) :: env
     real(dp), intent(in) :: ewaldAlpha
     real(dp), intent(in) :: tolEwald
     integer, intent(in) :: boundaryCond
-    integer, intent(in) :: nAtom
     type(TCoulombInput), allocatable, intent(out) :: coulombInput
 
     allocate(coulombInput)

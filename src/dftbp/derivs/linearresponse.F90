@@ -155,18 +155,19 @@ contains
     complex(dp), intent(in), optional :: eta
 
   #:if WITH_SCALAPACK
-    integer :: iGlob, jGlob
+    integer :: iGlob, jGlob, jj
+    logical :: isTransformed
+    complex(dp), allocatable :: cWorkLocal2(:,:), cWorkLocal3(:,:)
   #:else
-    integer :: iFilled, iEmpty, nOrb
+    integer :: nOrb
   #:endif
-    integer :: ii, jj, iS, iK, iSignOmega
+    integer :: ii, iS, iK, iSignOmega
     logical :: isFreqDep
 
     real(dp), allocatable :: workLocal(:, :)
-    complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:), cWorkLocal3(:,:)
+    complex(dp), allocatable :: cWorkLocal(:,:)
     real(dp), allocatable :: dRho(:,:)
     real(dp), allocatable :: eigVecsTransformed(:,:)
-    logical :: isTransformed
 
     logical :: isHelical_
 
@@ -559,13 +560,13 @@ contains
 
   #:if WITH_SCALAPACK
     integer :: jj, jGlob
+    real(dp), allocatable :: work2Real(:,:)
   #:else
     integer :: iFilled
   #:endif
 
     integer :: iS
     real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
-    real(dp), allocatable :: work2Real(:,:)
     logical :: isHelical_
 
     if (present(isHelical)) then
@@ -743,14 +744,15 @@ contains
 
   #:if WITH_SCALAPACK
     integer :: jj, iGlob, jGlob
+    logical :: isTransformed
   #:else
-    integer :: iFilled, iEmpty, nOrb
+    integer :: nOrb
   #:endif
 
     integer :: ii, iK, iS, iSignOmega
     complex(dp), allocatable :: workLocal(:,:), dRho(:,:), eigVecsTransformed(:,:)
     complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:)
-    logical :: isTransformed, isHelical_, isFreqDep
+    logical :: isHelical_, isFreqDep
 
     if (present(isHelical)) then
       isHelical_ = isHelical
@@ -1320,14 +1322,16 @@ contains
 
   #:if WITH_SCALAPACK
     integer :: jj, iGlob, jGlob
+    logical :: isTransformed
+    complex(dp), allocatable :: cWorkLocal3(:,:)
   #:else
-    integer :: iFilled, iEmpty, nOrb
+    integer :: nOrb
   #:endif
 
     integer :: ii, iK, iS, iSignOmega
-    complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:), cWorkLocal3(:,:), dRho(:,:)
+    complex(dp), allocatable :: cWorkLocal(:,:), cWorkLocal2(:,:), dRho(:,:)
     complex(dp), allocatable :: eigVecsTransformed(:,:)
-    logical :: isTransformed, isHelical_, isFreqDep
+    logical :: isHelical_, isFreqDep
 
     if (present(isHelical)) then
       isHelical_ = isHelical

@@ -159,7 +159,9 @@ contains
     !> Value to pass (will be automatically extended with the necessary termination character)
     character(len=*, kind=c_char), intent(in) :: val
 
+  #:if WITH_PLUMED
     character(len=(len(val) + 1), kind=c_char), target :: buffer
+  #:endif
 
     #:if WITH_PLUMED
       buffer = val // char(0)
