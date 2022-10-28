@@ -175,7 +175,7 @@ contains
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
-      & nAtInCentralRegion, magnetisation, nEl, multipoles)
+      & magnetisation, nEl, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -200,10 +200,6 @@ contains
 
     !> Full density matrix with on-diagonal adjustment
     real(dp), intent(inout), allocatable :: deltaRho(:)
-
-    !> Number of atoms in central region (atoms outside this will have charges suplied from
-    !> elsewhere)
-    integer, intent(in) :: nAtInCentralRegion
 
     !> magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation

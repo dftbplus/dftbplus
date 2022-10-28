@@ -194,7 +194,6 @@ contains
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
 
-    integer, allocatable :: degeneracies(:)
     integer :: eiRange(2), maxRange, nInBlock, iGrp, iEnd, iStart, iGet
     type(linecomm) :: communicator
     ${TYPE}$(dp), allocatable :: localMatrix(:,:), localMatrixCols(:,:)
@@ -353,11 +352,9 @@ contains
     !> Are degenerate pairs present requiring transformation
     logical, intent(out), optional :: tDegenerate
 
-    integer :: ii, nGrp, iGrp, maxRange, nInBlock, iStart, iEnd
-    integer, allocatable :: degeneracies(:)
+    integer :: ii, iGrp, maxRange, nInBlock, iStart, iEnd
     ${TYPE}$(dp), allocatable :: subBlock(:,:)
     real(dp), allocatable :: eigenvals(:)
-    logical :: tFullU
     integer :: eiRange(2)
 
   #:if TYPE == 'real'
@@ -497,7 +494,7 @@ contains
     !> Matrix elements between (potentially degenerate) orbitals
     ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
 
-    integer :: iGrp, nGrp, iStart, iEnd, ii, jj
+    integer :: iGrp, iStart, iEnd, ii, jj
 
     if (self%tFullUMatrix) then
 
@@ -565,7 +562,7 @@ contains
     !> Matrix elements
     ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
 
-    integer :: iGrp, nGrp, iStart, iEnd
+    integer :: iGrp, iStart, iEnd
 
     if (self%tFullUMatrix) then
 

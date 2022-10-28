@@ -157,13 +157,10 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Names of species.
-    character(*), intent(in) :: speciesNames(:)
+    character(len=*), intent(in) :: speciesNames(:)
 
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:, :)
-
-    real(dp) :: recVecs(3, 3), maxGEwald
-    integer :: iAt1
 
     this%tPeriodic = present(latVecs)
 
@@ -219,7 +216,6 @@ contains
 
     ! Nr. of neighbours for each atom
     integer, allocatable :: nNeighbour(:)
-    real(dp) :: sigma(3, 3)
 
     @:ASSERT(allocated(this%energies))
     @:ASSERT(allocated(this%gradients))
@@ -250,8 +246,6 @@ contains
 
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:, :)
-
-    real(dp) :: recVecs(3, 3), maxGEwald
 
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))

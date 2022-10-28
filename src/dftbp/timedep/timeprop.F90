@@ -2088,7 +2088,6 @@ contains
     real(dp), intent(in) :: step
 
     real(dp), allocatable :: T1R(:,:), T2R(:,:), T3R(:,:),T4R(:,:)
-    integer :: i,j
 
     allocate(T1R(this%nOrbs,this%nOrbs))
     allocate(T2R(this%nOrbs,this%nOrbs))
@@ -2121,7 +2120,9 @@ contains
 
 
   !> Initialize output files
-  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, atomEnergyDat)
+  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
+      & atomEnergyDat)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -3688,10 +3689,6 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    real(dp) :: new3Coord(3, this%nMovedAtom)
-    integer :: iKS
-
-    character(sc) :: dumpIdx
     real(dp), allocatable :: velInternal(:,:)
 
     this%startTime = 0.0_dp

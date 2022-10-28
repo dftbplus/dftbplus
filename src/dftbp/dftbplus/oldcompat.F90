@@ -40,7 +40,7 @@ contains
     integer, intent(in) :: curVersion
 
     integer :: version
-    type(fnode), pointer :: ch1, ch2, par
+    type(fnode), pointer :: ch1, par
 
     version = oldVersion
     do while (version < curVersion)
@@ -488,10 +488,8 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2
     logical :: tVal1, tVal2
-    type(fnode), pointer :: pTaskType
-    type(string) :: buffer
 
     ! If this is an electron dynamics restart, then remove keywords for the (un-needed) ground state
     ! calculation (unless the eigenvectors are required)
@@ -543,8 +541,6 @@ contains
 
     type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
     logical :: tVal1, tVal2
-    type(fnode), pointer :: pTaskType
-    type(string) :: buffer
 
     call getDescendant(root, "ExcitedState/Casida", ch1)
     if (associated(ch1)) then
@@ -721,7 +717,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2
 
     call getDescendant(root, "Hamiltonian/DFTB/Solvation/GeneralizedBorn", ch1)
     if (associated(ch1)) then

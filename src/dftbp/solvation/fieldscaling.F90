@@ -120,8 +120,6 @@ contains
     !> Resulting electric field inside cavity
     real(dp) :: E(size(E0))
 
-    real(dp) :: Er
-
     E(:) = E0
     if (this%isRescaled) then
       if (this%is_finite) then

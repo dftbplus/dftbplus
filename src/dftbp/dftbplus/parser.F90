@@ -931,8 +931,8 @@ contains
     !> Is the maximum step size relevant for this driver
     logical, intent(in), optional :: isMaxStepNeeded
 
-    type(fnode), pointer :: child, child2, child3, value1, value2, field
-    type(string) :: buffer, buffer2, modifier
+    type(fnode), pointer :: child, field
+    type(string) :: buffer2, modifier
     logical :: isMaxStep
 
     if (present(isMaxStepNeeded)) then
@@ -1330,7 +1330,7 @@ contains
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
-    call readMaxAngularMomentum(node, ctrl, geo, angShells)
+    call readMaxAngularMomentum(node, geo, angShells)
 
     ! Orbitals and angular momenta for the given shells (once the SK files contain the full
     ! information about the basis, this will be moved to the SK reading routine).
@@ -1837,7 +1837,6 @@ contains
     type(string) :: buffer
     type(string), allocatable :: searchPath(:)
     logical :: tBadIntegratingKPoints
-    logical :: tSCCdefault
     integer :: method
     character(len=:), allocatable :: paramFile, paramTmp
 
@@ -1988,13 +1987,10 @@ contains
 
 
   !> Read in maximal angular momenta or selected shells
-  subroutine readMaxAngularMomentum(node, ctrl, geo, angShells)
+  subroutine readMaxAngularMomentum(node, geo, angShells)
 
     !> Node to get the information from
     type(fnode), pointer :: node
-
-    !> Control structure to be filled
-    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -3061,10 +3057,6 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
-
-    type(fnode), pointer :: value1, value2, child, child2
-    type(string) :: buffer, buffer2
-    type(TListRealR1) :: lr1
 
     ctrl%tMulliken = .true.
 
@@ -4242,7 +4234,7 @@ contains
     !> Filled input structure on exit.
     type(TSimpleDftD3Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, child, childval
+    type(fnode), pointer :: child
     type(string) :: buffer
 
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
@@ -4915,18 +4907,16 @@ contains
     type(TNEGFTunDos), intent(inout) :: tundos
   #:endif
 
-    type(fnode), pointer :: val, child, child2, child3, child4
+    type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
     type(string) :: buffer, modifier
-    integer :: nReg, iReg, nFreq, iFreq, jFreq
+    integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
     type(TListReal) :: lr
     logical :: tPipekDense
     logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
-    real(dp), allocatable :: tmpR(:)
-    real(dp) :: tmp3R(3)
     logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
@@ -5154,7 +5144,6 @@ contains
     type(string) :: modifier
     integer :: nFreq, iFreq, jFreq
     real(dp) :: tmp3R(3)
-    real(dp), allocatable :: tmpR(:)
     logical :: isStatic
 
     call getChildValue(node, "Static", isStatic, .true.)
@@ -7898,8 +7887,12 @@ contains
 
     type(fnode), pointer :: chimes
     type(string) :: buffer
+
+  #:if WITH_CHIMES
     type(string), allocatable :: searchPath(:)
-    character(:), allocatable :: chimesFile
+  #:endif
+
+    character(len=:), allocatable :: chimesFile
 
     call getChild(root, "Chimes", chimes, requested=.false.)
     if (.not. associated(chimes)) return

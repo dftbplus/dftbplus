@@ -331,7 +331,6 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    real(dp), allocatable :: chargesPerShell(:,:)
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
     real(dp) :: dShift1(this%mShells, this%nAtoms), dShift2(this%mShells, this%nAtoms)
     real(dp) :: dShift3(this%nAtoms)
