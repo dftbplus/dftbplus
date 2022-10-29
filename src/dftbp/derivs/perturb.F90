@@ -45,9 +45,7 @@ module dftbp_derivs_perturb
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
 #:endif
-#:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : DLEN_, scalafx_getdescriptor
-#:else
+#:if not WITH_SCALAPACK
   use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif
   implicit none
@@ -1048,15 +1046,6 @@ contains
     real(dp), allocatable :: dRhoExtra(:,:), idRhoExtra(:,:)
     real(dp) :: dqDiffRed(nMixElements)
 
-  #:if WITH_SCALAPACK
-    ! need distributed matrix descriptors
-    integer :: desc(DLEN_), nn
-
-    nn = denseDesc%fullSize
-    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
-        & env%blacs%columnBlockSize, desc)
-  #:endif
-
     tSccCalc = allocated(sccCalc)
 
     @:ASSERT(abs(omega) <= epsilon(0.0_dp) .or. present(eta))
@@ -1191,11 +1180,7 @@ contains
           call dRhoReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
               & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec,&
               & orb, drho(:,iS), dRhoOutSqr, rangeSep, over, nNeighbourLC, transform(iKS),&
-              & species,&
-            #:if WITH_SCALAPACK
-              & desc,&
-            #:endif
-              & dEi, dPsiReal, coord, errStatus, omega, isHelical, eta=eta)
+              & species, dEi, dPsiReal, coord, errStatus, omega, isHelical, eta=eta)
           if (errStatus%hasError()) then
             exit
           end if
@@ -1211,11 +1196,8 @@ contains
           call dRhoPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
               & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
               & tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec, iKS,&
-              & transform(iKS), species, coord,&
-            #:if WITH_SCALAPACK
-              & desc,&
-            #:endif
-              & dEi, dPsiCmplx, errStatus, omega, isHelical, eta=eta)
+              & transform(iKS), species, coord, dEi, dPsiCmplx, errStatus, omega, isHelical,&
+              & eta=eta)
           if (errStatus%hasError()) then
             exit
           end if
@@ -1237,11 +1219,7 @@ contains
           call dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
               & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
               & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS),&
-              & species, coord,&
-            #:if WITH_SCALAPACK
-              & desc,&
-            #:endif
-              & dEi, dPsiCmplx, errStatus, omega, isHelical, eta=eta)
+              & species, coord, dEi, dPsiCmplx, errStatus, omega, isHelical, eta=eta)
           if (errStatus%hasError()) then
             exit
           end if
@@ -1288,11 +1266,7 @@ contains
               call dRhoFermiChangeReal(dRhoExtra(:, iS), env, maxFill, parallelKS, iKS,&
                   & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled,&
                   & nEmpty, eigVecsReal, orb, denseDesc, tempElec, eigVals, dRhoOutSqr, species,&
-                  & coord,&
-                #:if WITH_SCALAPACK
-                  & desc,&
-                #:endif
-                  & isHelical)
+                  & coord, isHelical)
 
             elseif (nSpin > 2) then
 
@@ -1300,11 +1274,7 @@ contains
               call dRhoFermiChangePauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
                   & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                   & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
-                  & denseDesc, tempElec, eigVals, species, coord,&
-                #:if WITH_SCALAPACK
-                  & desc,&
-                #:endif
-                  & errStatus, isHelical)
+                  & denseDesc, tempElec, eigVals, species, coord, errStatus, isHelical)
               @:PROPAGATE_ERROR(errStatus)
 
             else
@@ -1313,11 +1283,7 @@ contains
               call dRhoFermiChangeCmplx(dRhoExtra, env, maxFill, parallelKS, iKS, kPoint, kWeight,&
                   & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart,&
                   & dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals,&
-                  & species, coord,&
-                #:if WITH_SCALAPACK
-                  & desc,&
-                #:endif
-                  & isHelical)
+                  & species, coord, isHelical)
 
             end if
 
