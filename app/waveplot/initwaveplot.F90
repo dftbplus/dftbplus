@@ -17,7 +17,7 @@ module waveplot_initwaveplot
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName,destroyNode
+      & getNodeName, destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
@@ -32,8 +32,8 @@ module waveplot_initwaveplot
   use dftbp_io_charmanip, only : tolower
 
   use waveplot_molorb, only : TMolecularOrbital, init, TSpeciesBasis
-  use waveplot_grids, only : modifyEigenvecs
-  use waveplot_slater, only : init
+  use waveplot_grids, only : modifyEigenvecs, TTabulationTypesEnum, TGridInterpolationTypesEnum
+  use waveplot_slater, only : initSto
   use omp_lib
 
   implicit none
@@ -59,37 +59,6 @@ module waveplot_initwaveplot
 
   !> version of the input document
   integer, parameter :: parserVersion = 3
-
-
-  ! Enumerates the different types which are used for the tabulation of the radial wf.
-  type :: TTabulationTypesEnum
-
-  ! Trivial interpolation
-  integer :: trivial = 0
-
-  ! Linear interpolation
-  integer :: linear = 1
-
-  ! Spline interpolation
-  integer :: spline = 2
-
-  ! Explicit calculation
-  integer :: explicit = 3
-
-  end type TTabulationTypesEnum
-
-
-  ! Enumerates the two different types which are used for the grid interpolation.
-  type :: TGridInterpolationTypesEnum
-
-  ! Trivial interpolation
-  integer :: trivial = 0
-
-  ! Linear interpolation
-  integer :: linear = 1
-
-  end type TGridInterpolationTypesEnum
-
 
   !> Container for enumerated grid interpolation types
   type(TGridInterpolationTypesEnum), parameter :: gridInterpolTypes = TGridInterpolationTypesEnum()
@@ -227,6 +196,9 @@ module waveplot_initwaveplot
     !> Definition of the wfcs
     type(TSpeciesBasis), allocatable :: basis(:)
 
+    !> Resolution of the radial wfcs
+    real(dp) :: basisResolution
+
   end type TBasis
 
 
@@ -271,6 +243,15 @@ module waveplot_initwaveplot
 
     !> Index mapping: orbital --> species
     integer, allocatable :: orbitalToSpecies(:)
+
+    !> Index mapping: orbital --> angular momentum
+    integer, allocatable :: orbitalToAngMoms(:)
+
+    !> Index mapping: orbital --> magnetic quantum number
+    integer, allocatable :: orbitalToM(:)
+
+    !> Index mapping: orbital --> slater type orbital
+    integer, allocatable :: orbitalToStos(:)
 
   end type TInternal
 
@@ -351,7 +332,7 @@ contains
     !> Operation status, if an error needs to be returned
     type(TStatus) :: errStatus
 
-    !! Write header
+    ! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     WAVEPLOT  " // version
     write(stdout, "(A,/)") repeat("=", 80)
@@ -384,7 +365,7 @@ contains
 
     charTabulation = tolower(unquote(char(Buffer)))
 
-    if (.not. (charTabulation == 'spline' .or. charTabulation == 'trivial' &
+    if (.not. (charTabulation == 'polynomial' .or. charTabulation == 'trivial' &
         & .or. charTabulation == 'linear' .or. charTabulation == 'explicit')) &
         & call detailedError(tmp, 'Wrong wavefunction interpolation type specified')
 
@@ -396,8 +377,8 @@ contains
       case ("linear")
         this%opt%rwTabulationType = rwTabulationTypes%linear
 
-      case ("spline")
-        this%opt%rwTabulationType = rwTabulationTypes%spline
+      case ("polynomial")
+        this%opt%rwTabulationType = rwTabulationTypes%polynomial
 
       case ("explicit")
         this%opt%rwTabulationType = rwTabulationTypes%explicit
@@ -461,7 +442,7 @@ contains
       call error(errStatus%message)
     end if
 
-    !! Initialize necessary (molecular orbital, grid) objects
+    ! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
     call init(this%loc%molOrb, this%input%geo, this%boundaryCond, this%basis%basis)
@@ -652,7 +633,8 @@ contains
     call getChildValue(node, "GridInterpolation", Buffer, "linear")
     charInterpol = tolower(unquote(char(Buffer)))
 
-    if (.not. (charInterpol == 'linear' .or. charInterpol == 'trivial')) &
+    if (.not. (charInterpol == 'linear' .or. charInterpol == 'trivial' .or. &
+        & charInterpol == 'explicit')) &
         & call detailedError(node, 'Wrong grid interpolation type specified')
 
     select case (charInterpol)
@@ -662,6 +644,9 @@ contains
 
       case ('linear')
         this%opt%gridInterType = gridInterpolTypes%linear
+
+      case ('explicit')
+        this%opt%gridInterType = gridInterpolTypes%explicit
 
       case default
         this%opt%gridInterType = gridInterpolTypes%linear
@@ -823,7 +808,7 @@ contains
       end do
 
     case ("origin","box")
-      !! Those nodes are part of an explicit specification -> explitic specif
+      ! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs)
       if (abs(determinant(this%opt%boxVecs)) < 1e-08_dp) then
@@ -937,14 +922,14 @@ contains
 
       maxSpeciesCutoff = maxval(this%basis%basis(iSpecies)%cutoffs)
       subcubeCartCoords = reshape([&
-          0.0_dp, 0.0_dp, 0.0_dp,&
-          0.0_dp, 0.0_dp, 1.0_dp,&
-          0.0_dp, 1.0_dp, 0.0_dp,&
-          0.0_dp, 1.0_dp, 1.0_dp,&
-          1.0_dp, 0.0_dp, 0.0_dp,&
-          1.0_dp, 0.0_dp, 1.0_dp,&
-          1.0_dp, 1.0_dp, 0.0_dp,&
-          1.0_dp, 1.0_dp, 1.0_dp],&
+          & 0.0_dp, 0.0_dp, 0.0_dp,&
+          & 0.0_dp, 0.0_dp, 1.0_dp,&
+          & 0.0_dp, 1.0_dp, 0.0_dp,&
+          & 0.0_dp, 1.0_dp, 1.0_dp,&
+          & 1.0_dp, 0.0_dp, 0.0_dp,&
+          & 1.0_dp, 0.0_dp, 1.0_dp,&
+          & 1.0_dp, 1.0_dp, 0.0_dp,&
+          & 1.0_dp, 1.0_dp, 1.0_dp],&
           & [3, 8]) * 2.0_dp * maxSpeciesCutoff
 
       do ii = 1, size(subcubeCartCoords, dim=2)
@@ -996,13 +981,18 @@ contains
 
     @:ASSERT(nSpecies > 0)
 
+    if (rwExplicit .eqv. .true.) then
+      call getChildValue(node, "Resolution", this%basis%basisResolution)
+    end if
+
     allocate(this%basis%basis(nSpecies))
     allocate(this%aNr%atomicNumbers(nSpecies))
 
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
-      call readSpeciesBasis(speciesNode, this%basis%basis(ii), rwExplicit)
+      call readSpeciesBasis(speciesNode, this%basis%basis(ii), &
+          & rwExplicit, this%basis%basisResolution)
       this%aNr%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
     end do
 
@@ -1010,7 +1000,7 @@ contains
 
 
   !> Read in basis function for a species.
-  subroutine readSpeciesBasis(node, spBasis, rwExplicit)
+  subroutine readSpeciesBasis(node, spBasis, rwExplicit, basisResolution)
 
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
@@ -1020,6 +1010,9 @@ contains
 
     !> Routine which should be used to tabulate the radial WFs.
     logical, intent(in) :: rwExplicit
+
+    !> Grid distance for discretising the basis functions
+    real(dp), intent(in), optional :: basisResolution
 
     type(fnode), pointer :: tmpNode, child
     type(fnodeList), pointer :: children
@@ -1046,7 +1039,7 @@ contains
 
     allocate(spBasis%angMoms(spBasis%nOrb))
     allocate(spBasis%occupations(spBasis%nOrb))
-    allocate(spBasis%rwfs(spBasis%nOrb))
+    allocate(spBasis%stos(spBasis%nOrb))
     allocate(spBasis%cutoffs(spBasis%nOrb))
 
     do ii = 1, spBasis%nOrb
@@ -1069,9 +1062,9 @@ contains
         call asArray(bufferRwf, rwf)
         call destruct(bufferRwf)
 
-        ! last two arguments are just placeholders
-        call init(spBasis%rwfs(ii), transpose(reshape(rwf, [3, size(rwf) / 3])), [0.0_dp, 0.0_dp], &
-            & reshape([0.0_dp, 0.0_dp], [1, 1]))
+        call initSto(spBasis%stos(ii), reshape([0.0_dp, 0.0_dp], [1, 2]),&
+            & [0.0_dp, 0.0_dp], ii - 1, spBasis%cutoffs(ii), &
+            & rwf=transpose(reshape(rwf, [3, size(rwf) / 3])))
 
         deallocate(rwf)
       end if
@@ -1102,9 +1095,8 @@ contains
         call asArray(bufferCoeffs, coeffs)
         call destruct(bufferCoeffs)
 
-        ! the second argument is just a placeholder
-        call init(spBasis%rwfs(ii), reshape([1.0_dp], [1, 1]), exps, &
-            & reshape(coeffs, [size(coeffs) / size(exps), size(exps)]))
+        call initSto(spBasis%stos(ii), reshape(coeffs, [size(coeffs) / size(exps), size(exps)]),&
+            & exps, ii - 1, spBasis%cutoffs(ii), basisResolution)
 
         deallocate(exps)
         deallocate(coeffs)
@@ -1125,7 +1117,8 @@ contains
     integer, allocatable :: tmp1(:), tmp2(:), tmp3(:,:)
 
     !> Auxiliary variables
-    integer :: iAtom, iOrb, iSpecies, iAng, iL, iM, iOrbPerSpecies, mAng, ind
+    integer :: iAtom, iOrb, iSpecies, iAng, iL, iM, iOrbPerSpecies, mAng, ind, magnQN, &
+        & angularMoment
 
     allocate(this%loc%orbitalOcc(this%input%nOrb, 1))
     allocate(this%loc%orbitalToAtom(this%input%nOrb))
@@ -1133,6 +1126,9 @@ contains
     allocate(tmp1(this%input%geo%nSpecies + 1))
     allocate(tmp2(this%input%nOrb))
     allocate(tmp3(2, this%input%nOrb))
+    allocate(this%loc%orbitalToAngMoms(this%input%nOrb))
+    allocate(this%loc%orbitalToM(this%input%nOrb))
+    allocate(this%loc%orbitalToStos(this%input%nOrb))
 
     iOrb = 1
 
@@ -1182,6 +1178,33 @@ contains
       iSpecies = tmp3(1, iOrb)
       iOrbPerSpecies = tmp3(2, iOrb)
       this%loc%orbitalToSpecies(iOrb) = tmp1(iSpecies) + iOrbPerSpecies - 1
+    end do
+
+    iOrb = 1
+    do iAtom = 1, this%input%geo%nAtom
+      iSpecies = this%input%geo%species(iAtom)
+      do angularMoment = 1, size(this%basis%basis(iSpecies)%angMoms)
+        iL = this%basis%basis(iSpecies)%angMoms(angularMoment)
+        do magnQN = - iL, iL
+          this%loc%orbitalToM(iOrb) = magnQN
+          this%loc%orbitalToAngMoms(iOrb) = iL
+          this%loc%orbitalToStos(iOrb) = iSpecies
+          iOrb = iOrb + 1
+        end do
+      end do
+    end do
+
+    iOrb = 1
+    do iAtom = 1, this%input%geo%nAtom
+      iSpecies = this%input%geo%species(iAtom)
+      do iAng = this%loc%molorb%iStos(iSpecies), this%loc%molorb%iStos(iSpecies + 1) - 1
+        iL = this%loc%molorb%angMoms(iAng)
+        do magnQN = - iL, iL
+          this%loc%orbitalToStos(iOrb) = iAng
+          iOrb = iOrb + 1
+        end do
+        ind = ind + 1
+      end do
     end do
 
     deallocate(tmp1)
@@ -1312,7 +1335,8 @@ contains
 
     integer :: fd, id, iostat
 
-    open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
+    open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted",&
+        & iostat=iostat)
 
     if (iostat /= 0) then
       call error("Can't open file '" // trim(fileName) // "'.")

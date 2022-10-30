@@ -19,7 +19,7 @@ program waveplot
   use dftbp_type_typegeometry, only : TGeometry
 
   use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
-      &TRealTessY_init, subgridsToGlobalGrid
+      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
 
 #:if WITH_MPI
@@ -82,6 +82,14 @@ program waveplot
   integer, allocatable :: iSpinPrime(:), requiredSpins(:)
   integer :: kIndex, lIndex, sIndex, kPointCounter, levelCounter, spinCounter, KNum, LNum, SNum
   integer :: tmparray(1)
+  real :: start, finish, finish2
+
+  !> Container for enumerated radial wf tabulation types
+  type(TTabulationTypesEnum), parameter :: rwTabulationTypes = TTabulationTypesEnum()
+
+  !> Container for enumerated grid interpolation types
+  type(TGridInterpolationTypesEnum), parameter :: gridInterpolTypes = TGridInterpolationTypesEnum()
+
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -153,7 +161,6 @@ program waveplot
   speciesChrg(:,:,:,:) = 0.0_dp
 
   ind = 1
-
   ! Initialise atomic grids and pretabulate orbital-species grids
   do iSpecies = 1, wp%input%geo%nSpecies
     maxAng = maxval(wp%basis%basis(iSpecies)%angMoms)
@@ -166,9 +173,11 @@ program waveplot
         pSpeciesChrg => speciesChrg(:,:,:, ind)
         call TGridData_init(speciesGridsDat(ind), speciesGrids(iSpecies), pSpeciesChrg,&
             & rwTabulationType=wp%opt%rwTabulationType)
-        call speciesGridsDat(ind)%tabulateBasis(speciesRty(iSpecies), iL, iM, &
-            & wp%loc%molorb%rwfs(iAng)%rwf, wp%loc%molorb%rwfs(iAng)%exps, &
-            & wp%loc%molorb%rwfs(iAng)%aa)
+        if (wp%opt%gridInterType .ne. gridInterpolTypes%explicit) then
+          call speciesGridsDat(ind)%tabulateBasis(speciesRty(iSpecies), iL, iM, &
+              & wp%loc%molorb%stos(iAng)%gridValue, wp%loc%molorb%stos(iAng)%alpha, &
+              & wp%loc%molorb%stos(iAng)%aa)
+        end if
         ind = ind + 1
       end do
     end do
@@ -186,10 +195,12 @@ program waveplot
     call TGridData_init(atomicGridDat, totGrid, pAtomicChrg,&
         & rwTabulationType=wp%opt%rwTabulationType)
 
-    ! Calculate total charge of atomic densities.
     call subgridsToGlobalGrid(atomicGridDat, speciesGridsDat, atomDensity, &
         & wp%loc%molorb%coords, wp%loc%orbitalOcc(:, 1), wp%loc%orbitalToAtom, &
-        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, .true., wp%opt%gridInterType)
+        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, &
+        & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, &
+        & wp%loc%orbitalToStos, wp%opt%gridInterType, wp%opt%rwTabulationType, .true.)
+
 
     sumAtomicChrg = sum(atomDensity) * wp%loc%gridVol
 
@@ -376,20 +387,21 @@ program waveplot
     end if
   end do
 
-  ! Calculate the molecular orbitals
   if (wp%input%tRealHam) then
     call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
         & wp%eig%eigvecsReal, wp%opt%levelIndex, wp%loc%orbitalToAtom,&
-        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, pCopyBuffers, totGridsDat,&
-        & wp%opt%gridInterType, addDensities=.false.)
+        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, pCopyBuffers,&
+        & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
+        & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
   else
     pCopyBuffers => copyBuffersCplx
     call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-          & wp%eig%eigvecsCplx, wp%opt%levelIndex, wp%loc%orbitalToAtom,&
-          & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, pCopyBuffers,&
-          & totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
-          & wp%loc%molorb%CellVec, wp%opt%gridInterType,  addDensities=.false., &
-          & kPointsandWeights=wp%input%kPointsandWeight)
+        & wp%eig%eigvecsCplx, wp%opt%levelIndex, wp%loc%orbitalToAtom,&
+        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, pCopyBuffers,&
+        & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
+        & wp%loc%orbitalToStos, totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
+        & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType,&
+        & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
   end if
 
   ! Process the molecular orbitals and write them to the disc
@@ -418,12 +430,14 @@ program waveplot
       end if
 
       if (wp%opt%tCalcTotChrg) then
-        totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin) * buffer(:,:,:)
+        totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin)&
+            & * buffer(:,:,:)
       end if
 
       if (wp%opt%tPlotTotSpin) then
         if (iSpin .eq. 1) then
-          spinUp(:,:,:) = spinUp(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin) * buffer(:,:,:)
+          spinUp(:,:,:) = spinUp(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin)&
+              & * buffer(:,:,:)
         else
           spinDown(:,:,:) = spinDown(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin) *&
               & buffer(:,:,:)

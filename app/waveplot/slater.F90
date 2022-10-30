@@ -14,28 +14,46 @@ module waveplot_slater
   implicit none
 
   private
-  public :: RealTessY, TRadialWavefunc, init, SlaterOrbital_getValue_explicit
+  public :: RealTessY, SlaterOrbital_getValue_explicit, TSlaterOrbital,&
+      & initSto, SlaterOrbital_getValue
   save
 
 
-  !> Data type containing radial wavefunction components
-  type TRadialWavefunc
+  !> Data for STOs
+  type TSlaterOrbital
 
-    !> Radial wavefunction components
-    real(dp), allocatable :: rwf(:,:)
+    !> Number of coeffs in aa
+    integer :: nPow
+    
+    !> Number of exponentials
+    integer :: nAlpha
 
-    !> exponential coefficients
-    real(dp), allocatable :: exps(:)
+    !> Angular momentum
+    integer :: ll
 
-    !> summation coefficients, shape: [nCoeffPerAlpha, nAlpha]
+    !> Summation coefficients
     real(dp), allocatable :: aa(:,:)
 
-  end type TRadialWavefunc
+    !> Exponential coefficients
+    real(dp), allocatable :: alpha(:)
+
+    !> Values on the radial grid for the rwf, shape: [nGrid, 2] or [nGrid, 3]. Last dimension
+    !> contains the distance and the value of the rwf at that distance if the rwf is explicitly
+    !> calculated from the coefficients. If the rwf is read in from an wfc.hsd file, then the
+    !> the last dimension contains also the second derivative of the rwf.
+    real(dp), allocatable :: gridValue(:,:)
+
+    !> Distance between two grid points
+    real(dp) :: gridDist
+
+    !> Number of grid points
+    integer :: nGrid
+  end type TSlaterOrbital
 
 
-  !> Initialises a RadialWavefunc
-  interface init
-    module procedure RadialWavefunc_init
+  !> Initialises a SlaterOrbital
+  interface initSto
+    module procedure SlaterOrbital_init
   end interface
 
 
@@ -151,19 +169,99 @@ contains
   end function RealTessY
 
 
-  !> Initialises a RadialWavefunc.
-  subroutine RadialWavefunc_init(this, rwf, exps, aa)
-  
-      !> RadialWavefunc instance to initialise
-      type(TRadialWavefunc), intent(inout) :: this
+  !> Initialises a SlaterOrbital.
+  subroutine SlaterOrbital_init(this, aa, alpha, ll, cutoff, resolution, rwf)
 
-      real(dp), intent(in) :: rwf(:,:), exps(:), aa(:,:)
+    !> SlaterOrbital instance to initialise
+    type(TSlaterOrbital), intent(inout) :: this
 
-      this%rwf = rwf
-      this%exps = exps
-      this%aa = aa
-  
-  end subroutine RadialWavefunc_init
+    !> Summation coefficients (nCoeffPerAlpha, nAlpha)
+    real(dp), intent(in) :: aa(:,:)
+
+    !> Exponential coefficients
+    real(dp), intent(in) :: alpha(:)
+
+    !> Angular momentum of the orbital
+    integer, intent(in) :: ll
+
+    !> Cutoff, after which orbital is assumed to be zero
+    real(dp), intent(in) :: cutoff
+
+    !> Grid distance for the orbital
+    real(dp), intent(in), optional :: resolution
+
+    !>  Tabulated values of the radial wf: [distance, value, 2nd derivative]
+    real(dp), intent(in), optional :: rwf(:,:)
+
+    integer :: nAlpha
+    integer :: nPow
+    integer :: iGrid
+    real(dp) :: rr
+
+    nAlpha = size(alpha)
+    nPow = size(aa, dim=1)
+
+    @:ASSERT(cutoff > 0.0_dp)
+    if (present(resolution)) then
+      @:ASSERT(resolution > 0.0_dp)
+    end if
+
+    allocate(this%aa(nPow, nAlpha))
+    allocate(this%alpha(nAlpha))
+
+    this%aa(:,:) = aa
+    this%alpha(:) = -1.0_dp * alpha
+    this%nPow = nPow
+    this%nAlpha = nAlpha
+    this%ll = ll
+
+    if (present(rwf)) then
+      allocate(this%gridValue(size(rwf, dim=1), 3))
+      this%gridValue = rwf
+      this%nGrid = size(rwf, dim=1)
+    else
+      ! Obtain STO on a grid
+      this%nGrid = floor(cutoff / resolution) + 2
+      this%gridDist = resolution
+      allocate(this%gridValue(this%nGrid, 2))
+      do iGrid = 1, this%nGrid
+        rr = real(iGrid - 1, dp) * resolution
+        this%gridValue(iGrid, 1) = rr
+        call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, this%alpha, rr,&
+            & this%gridValue(iGrid, 2))
+      end do
+    end if
+
+  end subroutine SlaterOrbital_init
+
+
+  !> Retunrns the value of the SlaterOrbital in a given point
+  subroutine SlaterOrbital_getValue(this, rr, sto)
+
+    !> SlaterOrbital instance
+    type(TSlaterOrbital), intent(in) :: this
+
+    !> Distance, where STO should be calculated
+    real(dp), intent(in) :: rr
+
+    !> Contains the value of the function on return
+    real(dp), intent(out) :: sto
+
+    integer :: ind
+    real(dp) :: frac
+
+    @:ASSERT(rr >= 0.0_dp)
+
+    ! ind = 1 means zero distance as rr = (ind - 1) * gridDist
+    ind = floor(rr / this%gridDist) + 1
+    if (ind < this%nGrid) then
+      frac = mod(rr, this%gridDist) / this%gridDist
+      sto = (1.0_dp - frac) * this%gridValue(ind, 2) + frac * this%gridValue(ind+1, 2)
+    else
+      sto = 0.0_dp
+    end if
+
+  end subroutine SlaterOrbital_getValue
 
 
   !> Calculates the value of an STO analytically

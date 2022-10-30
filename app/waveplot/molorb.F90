@@ -17,7 +17,7 @@ module waveplot_molorb
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
 
-  use waveplot_slater, only : TRadialWavefunc
+  use waveplot_slater, only : TSlaterOrbital
 
 #:if WITH_OMP
   use omp_lib
@@ -44,8 +44,8 @@ module waveplot_molorb
     !> Cutoff for each orbital
     real(dp), allocatable :: cutoffs(:)
 
-    !> Radial wavefunction components
-    type(TRadialWavefunc), allocatable :: rwfs(:)
+    !> STO for each orbital
+    type(TSlaterOrbital), allocatable :: stos(:)
 
     !> Occupation for each orb.
     real(dp), allocatable :: occupations(:)
@@ -69,7 +69,7 @@ module waveplot_molorb
     integer, allocatable :: iStos(:)
 
     !> All STOs sequentially
-    type(TRadialWavefunc), allocatable :: rwfs(:)
+    type(TSlaterOrbital), allocatable :: stos(:)
 
     !> Cutoff for each STO
     real(dp), allocatable :: cutoffs(:)
@@ -152,7 +152,7 @@ contains
     end do
 
     allocate(this%iStos(this%nSpecies + 1))
-    allocate(this%rwfs(nOrb))
+    allocate(this%stos(nOrb))
     allocate(this%cutoffs(nOrb))
     allocate(this%angMoms(nOrb))
 
@@ -161,7 +161,7 @@ contains
     do iSpecies = 1, this%nSpecies
       this%iStos(iSpecies) = ind
       nOrb = basis(iSpecies)%nOrb
-      this%rwfs(ind:ind + nOrb - 1) = basis(iSpecies)%rwfs(1:nOrb)
+      this%stos(ind:ind + nOrb - 1) = basis(iSpecies)%stos(1:nOrb)
       this%cutoffs(ind:ind + nOrb - 1) = basis(iSpecies)%cutoffs(1:nOrb)
       this%angMoms(ind:ind + nOrb - 1) = basis(iSpecies)%angMoms(1:nOrb)
       ind = ind + nOrb

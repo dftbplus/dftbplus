@@ -15,7 +15,7 @@ module waveplot_interp
   implicit none
   private
 
-  public :: linearInterpolation, splineInterpolation, trilinearInterpolation, locateByBisection
+  public :: linearInterpolation, polynomialInterpolation, trilinearInterpolation, locateByBisection
 
 contains
 
@@ -85,8 +85,8 @@ contains
   end function trilinearInterpolation
 
 
-  !> One dimensional spline interpolation
-  pure function splineInterpolation(xx, yy, secDerivs, xExact) result(splint)
+  !> One dimensional polynomial interpolation
+  pure function polynomialInterpolation(xx, yy, secDerivs, xExact) result(interpVal)
 
     !> tabulated x- and y-values with x-values in increasing or decreasing order
     real(dp), intent(in) :: xx(:), yy(:)
@@ -97,8 +97,8 @@ contains
     !> value to calculate interpolation for
     real(dp), intent(in) :: xExact
 
-    !> cubic-spline interpolated value
-    real(dp) :: splint
+    !> cubic-polynomial interpolated value
+    real(dp) :: interpVal
 
     !> bracket the input value xExact
     integer :: lower, upper, nVals
@@ -116,10 +116,10 @@ contains
     coeff1 = (xx(upper) - xExact) / delta
     coeff2 = (xExact - xx(lower)) / delta
 
-    splint = coeff1 * yy(lower) + coeff2 * yy(upper) + ((coeff1**3 - coeff1) *&
+    interpVal = coeff1 * yy(lower) + coeff2 * yy(upper) + ((coeff1**3 - coeff1) *&
         & secDerivs(lower) + (coeff2**3 - coeff2) * secDerivs(upper)) * (delta**2) / 6.0_dp
 
-  end function splineInterpolation
+  end function polynomialInterpolation
 
 
   pure function locateByBisection(xx, yy) result(idx)
@@ -127,10 +127,10 @@ contains
     !> tabulated values in increasing or decreasing order
     real(dp), intent(in) :: xx(:)
 
-    !> value that will be bracket between xx(idx) and xx(idx)
+    !> value that will be bracket between xx(idx) and xx(idx + 1)
     real(dp), intent(in) :: yy
 
-    !> index that will bracket yy between xx(idx) and xx(idx)
+    !> index that will bracket yy between xx(idx) and xx(idx + 1)
     integer :: idx
 
     !> bracket the input value yExact
