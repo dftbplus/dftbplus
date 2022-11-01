@@ -367,7 +367,7 @@ contains
 
     if (.not. (charTabulation == 'polynomial' .or. charTabulation == 'trivial' &
         & .or. charTabulation == 'linear' .or. charTabulation == 'explicit')) &
-        & call detailedError(tmp, 'Wrong wavefunction interpolation type specified')
+        & call detailedError(tmp, 'Wrong wavefunction tabulation type specified')
 
     select case (charTabulation)
 
