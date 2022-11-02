@@ -249,6 +249,9 @@ module dftbp_transport_negfvars
     !> type of phonon modes (Longitudinal, transverse)
     integer :: typeModes
 
+    !> Tolerance for contact vectors being distorted
+    real(dp) :: contactlayertol
+
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     logical :: tNoGeometry = .false.

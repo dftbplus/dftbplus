@@ -569,8 +569,10 @@ module dftbp_dftbplus_inputdata
 
   !> container for data needed by libNEGF
   type TNEGFInfo
-    type(TNEGFTunDos) :: tundos  !Transport section informations
-    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+    !> Transport section informations
+    type(TNEGFTunDos) :: tundos
+    !> NEGF solver section informations
+    type(TNEGFGreenDensInfo) :: greendens
   end type TNEGFInfo
 
 #:else

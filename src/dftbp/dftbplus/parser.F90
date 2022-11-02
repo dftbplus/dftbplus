@@ -5865,7 +5865,7 @@ contains
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
 
-    call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
+    call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactlayertol)
 
     transpar%taskUpload = .false.
 
@@ -6945,13 +6945,15 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task)
+  subroutine readContacts(pNodeList, contacts, geom, task, contactLayerTol)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
 
-    real(dp) :: contactLayerTol
+    !> Tolerance to distortion of contact vectors
+    real(dp), intent(out) :: contactLayerTol
+
     integer :: ii
     type(fnode), pointer :: field, pNode, pTmp, child1, child2
     type(string) :: buffer, modifier

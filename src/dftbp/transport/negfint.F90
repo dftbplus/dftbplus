@@ -29,6 +29,7 @@ module dftbp_transport_negfint
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
+  use dftbp_math_lapackroutines, only : gesvd
   use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
   use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
       & TElph
@@ -76,7 +77,8 @@ module dftbp_transport_negfint
 contains
 
   !> Init gDFTB environment and variables
-  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, coords, skCutOff)
+  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, coords, skCutOff,&
+      & isPeriodic)
 
     !> Instance
     type(TNegfInt), intent(out) :: this
@@ -102,12 +104,17 @@ contains
     !> Cut-off for electronic interactions
     real(dp), intent(in) :: skCutOff
 
+    !> Are periodic boundary condition being used
+    logical, intent(in) :: isPeriodic
+
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
     integer :: i, j, l, ncont, nldos, iAt, jAt
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
     character(lc) :: errString
+    integer :: iCont
+    real(dp), allocatable :: contVectors(:, :), sigma(:), U(:, :), Vt(:, :)
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm)
@@ -134,6 +141,20 @@ contains
         end do
       end do
     end do
+
+    if (isPeriodic .and. nCont > 2) then
+      allocate(sigma(min(nCont,3)))
+      allocate(contVectors(3, nCont))
+      allocate(U(3, 3))
+      allocate(Vt(nCont, nCont))
+      do iCont = 1, nCont
+        contVectors(:, iCont) = transpar%contacts(iCont)%lattice
+      end do
+      call gesvd(contVectors, U, sigma, Vt)
+      if (all(sigma > transpar%contactLayerTol**2)) then
+        call error('Device is fully surrounded by contacts, so should not be a periodic geometry')
+      end if
+    end if
 
     ! ------------------------------------------------------------------------------
     ! Set defaults and fill up the parameter structure with them
