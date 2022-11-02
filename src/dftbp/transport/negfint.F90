@@ -76,7 +76,7 @@ module dftbp_transport_negfint
 contains
 
   !> Init gDFTB environment and variables
-  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec)
+  subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, coords, skCutOff)
 
     !> Instance
     type(TNegfInt), intent(out) :: this
@@ -96,11 +96,18 @@ contains
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
 
+    !> Coordinates of atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Cut-off for electronic interactions
+    real(dp), intent(in) :: skCutOff
+
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
-    integer :: i, l, ncont, nldos
+    integer :: i, j, l, ncont, nldos, iAt, jAt
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
+    character(lc) :: errString
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm)
@@ -111,6 +118,22 @@ contains
     else
       ncont = 0
     endif
+
+    do i = 1, ncont
+      do iAt = transpar%contacts(i)%idxrange(1), transpar%contacts(i)%idxrange(2)
+        do j = i+1, ncont
+          do jAt = transpar%contacts(j)%idxrange(1), transpar%contacts(j)%idxrange(2)
+            !write(*,*)i,j,sum((coords(:,iAt)-coords(:,jAt))**2),skCutOff**2
+            if (sum((coords(:,iAt)-coords(:,jAt))**2) <= skCutOff**2) then
+              write(errString,"(A,I0,A,I0,A)") 'Atom ', iAt, ' in contact "'//&
+                  & trim(transpar%contacts(i)%name) // '" and atom ', jAt, ' in contact "'// &
+                  & trim(transpar%contacts(j)%name) // '" are too close.'
+              call error(trim(errString))
+            end if
+          end do
+        end do
+      end do
+    end do
 
     ! ------------------------------------------------------------------------------
     ! Set defaults and fill up the parameter structure with them
