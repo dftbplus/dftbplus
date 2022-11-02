@@ -97,7 +97,7 @@ contains
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, field
-    logical :: found, tHBondCorr, tALPB
+    logical :: tHBondCorr, tALPB
     real(dp) :: temperature, shift, alphaALPB
     type(string), allocatable :: searchPath(:)
     type(TSolventData) :: solvent
@@ -354,9 +354,7 @@ contains
     real(dp), intent(in), optional :: surfaceTensionDefault(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, field, dummy
-    character(lc) :: errorStr
-    real(dp), allocatable :: vdwRadDefault(:)
+    type(fnode), pointer :: child, value1, field
 
     if (geo%tPeriodic .or. geo%tHelical) then
       call detailedError(node, "SASA model currently not available with the&
@@ -555,7 +553,7 @@ contains
     real(dp), allocatable, intent(out) :: vdwRad(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, field, dummy
+    type(fnode), pointer :: child, value1, dummy
     real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 

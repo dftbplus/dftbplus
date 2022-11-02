@@ -1274,9 +1274,8 @@ contains
     !> Derivative of the scaling function w.r.t. the partial charges
     real(dp), intent(out) :: zetadq(:, :)
 
-    integer :: iAt1, iSp1, iRef1, iCount1, iAtFirst, iAtLast
+    integer :: iAt1, iSp1, iRef1, iAtFirst, iAtLast
     real(dp) :: eta1, zEff1, qRef1
-    real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -1285,7 +1284,7 @@ contains
 
     !$omp parallel do default(none) schedule(runtime) shared(iAtFirst, iAtLast) &
     !$omp shared(zetaVec, zetadq, calc, ref, species, q) &
-    !$omp private(iAt1, iSp1, eta1, zEff1, iRef1, iCount1, qRef1)
+    !$omp private(iAt1, iSp1, eta1, zEff1, iRef1, qRef1)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       eta1 = calc%eta(iSp1)
@@ -1344,8 +1343,8 @@ contains
 
     integer :: iAt1, iSp1, iRef1, nRef1, iCount1, iAtFirst, iAtLast
     integer :: iNeigh, iAt2, iSp2, iAt2f, iRef2, nRef2
-    real(dp) :: eta1, zEff1, qRef1, refc6(size(dispMat, 1))
-    real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
+    real(dp) :: eta1, zEff1, qRef1
+    real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk
     real(dp) :: dEr, rc, r2, r4, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
     real(dp) :: f6, f8, f10, dd
 
@@ -1356,7 +1355,7 @@ contains
     !$omp parallel do default(none) schedule(runtime) shared(iAtFirst, iAtLast) &
     !$omp shared(gwVec, calc, ref, species, cn) &
     !$omp private(iAt1, iSp1, norm, dnorm, iRef1, iCount1, wf, gw) &
-    !$omp private(expw, expd, gwk, dgwk)
+    !$omp private(expw, expd, gwk)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       norm = 0.0_dp
@@ -1401,7 +1400,7 @@ contains
     !$omp shared(iAtFirst, iAtLast, calc, ref, species, nNeighbour, neigh) &
     !$omp shared(img2CentCell, gwVec) private(iAt1, iSp1, iNeigh, iAt2) &
     !$omp private(iRef1, iRef2, nRef1, nRef2, iAt2f, iSp2, r2, r4, r6, r8, r10) &
-    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, refc6, dd)
+    !$omp private(rc, rc1, rc2, rc6, rc8, rc10, dEr, f6, f8, f10, dd)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)

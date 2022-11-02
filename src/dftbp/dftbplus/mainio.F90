@@ -2055,10 +2055,10 @@ contains
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
       & tMulliken, qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi,&
-      & dEfdE, coord0, dipoleMoment, multipole, eFieldScaling)
+      & dEfdE, dipoleMoment, multipole, eFieldScaling)
 
     !> Name of output file
-    character(*), intent(in) :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
@@ -2131,9 +2131,6 @@ contains
 
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
-
-    !> Final atomic coordinates
-    real(dp), intent(in) :: coord0(:,:)
 
     !> Overall dipole moment
     real(dp), intent(in), allocatable :: dipoleMoment(:,:)
@@ -2615,8 +2612,6 @@ contains
     !> File descriptor
     type(TFile), allocatable, intent(inout) :: fd
 
-    logical :: exists
-
     if (allocated(fd) .and. .not. append) then
       deallocate(fd)
     end if
@@ -2630,7 +2625,7 @@ contains
   !> Optimization and geometry data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out,&
-      & tPeriodic, tScc, tNegf,  invLatVec, kPoints)
+      & tPeriodic, tScc, tNegf, invLatVec, kPoints)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2763,18 +2758,14 @@ contains
 
 
   !> Charge data to go to detailed.out
-  subroutine writeDetailedOut2(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
-      & tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion,&
-      & cm5Cont, qNetAtom)
+  subroutine writeDetailedOut2(fd, q0, qOutput, orb, species, tDFTBU, tImHam, tPrintMulliken,&
+      & orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion, cm5Cont, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
-
-    !> Input atomic charges (if SCC)
-    real(dp), intent(in) :: qInput(:,:,:)
 
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -2819,7 +2810,7 @@ contains
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    integer :: iAt, iSpin, iSp, iSh, iOrb, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
 
@@ -3132,8 +3123,8 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
       end if
       call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iGround),&
-          & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
-          & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
+          & orb, species, allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%iTriplet > 0) then
       write(fdDetailedOut%unit, *)'T1 state'
@@ -3141,8 +3132,7 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
       call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iTriplet),&
-          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
-          & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & orb, species, allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2,&
           & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%isSpinPurify) then
@@ -3158,9 +3148,9 @@ contains
       end if
     end if
 
-    call writeDetailedOut2(fdDetailedOut%unit, q0, qOutput, qOutput, orb, species,&
-        & allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp),&
-        & iAtInCentralRegion, cm5Cont)
+    call writeDetailedOut2(fdDetailedOut%unit, q0, qOutput, orb, species, allocated(blockTmp),&
+        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
+        & cm5Cont)
 
     call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
 
@@ -3170,7 +3160,7 @@ contains
   !> Third group of data to go to detailed.out
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
-      & tSpinOrbit, tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX,&
+      & tSpinOrbit, tScc, tOnSite, iAtInCentralRegion, electronicSolver, tHalogenX,&
       & tRangeSep, t3rd, tSolv)
 
     !> File ID
@@ -3230,9 +3220,6 @@ contains
     !> Are on-site corrections being used?
     logical, intent(in) :: tOnSite
 
-    !> whether we solve NEGF
-    logical, intent(in) :: tNegf
-
     !> atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
@@ -3252,12 +3239,8 @@ contains
     logical, intent(in) :: tSolv
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:)
-    real(dp) :: angularMomentum(3)
-    integer :: ang
     integer :: nSpinHams
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
-    character(sc), allocatable :: shellNamesTmp(:)
-    character(lc) :: strTmp
+    integer :: iAt, iSpin, ii
 
     nSpinHams = size(Ef)
 
@@ -5388,10 +5371,10 @@ contains
 
 
   !> First group of data to go to detailed.out
-  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
-      & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
-      & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
+  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs,&
+      & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+      & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure,&
+      & cellVol, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints,&
       & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
 
     !> File ID
@@ -5456,9 +5439,6 @@ contains
 
     !> Unit cell volume
     real(dp), intent(in) :: cellVol
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy

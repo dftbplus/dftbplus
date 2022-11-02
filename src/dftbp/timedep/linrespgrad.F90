@@ -183,7 +183,6 @@ contains
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
-    integer :: aa, bb, ss, ab
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -826,7 +825,7 @@ contains
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma, omega
-    integer :: iparam(11), ipntr(11), ii
+    integer :: iparam(11), ipntr(11)
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
     logical :: rvec
@@ -1088,7 +1087,7 @@ contains
 
     integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
-    integer :: ii, jj, ia, ij, ab
+    integer :: ii, jj
     character(lc) :: tmpStr
 
     logical :: didConverge
@@ -1920,7 +1919,7 @@ contains
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
     integer :: nxov
-    integer :: ia, kk, i, a, s, ias, iis, aas
+    integer :: ia, kk, i, a, s, iis, aas
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qTr(:), P(:)
@@ -2087,7 +2086,7 @@ contains
 
     integer :: nxov, natom, nSpin, soo(2), svv(2)
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: ij, ias, ijs, ab, i, j, a, b, s, iAt1
+    integer :: ij, ias, ijs, ab, i, j, a, b, s
     real(dp) :: fact
     real(dp), allocatable :: qTr(:), gamxpyq(:), zq(:), zqds(:), vecHooZ(:)
     logical :: tSpin
@@ -2399,12 +2398,11 @@ contains
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:)
     real(dp), allocatable :: XS(:,:,:), SXS(:,:,:), SY(:,:,:), YS(:,:,:), SYS(:,:,:)
-    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, s, ka
+    integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, ka
     integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
     integer :: iSp1, iSp2, iSpin, nSpin
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
-    real(dp) :: spinFactor
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:), species(:)
     logical :: tSpin
 

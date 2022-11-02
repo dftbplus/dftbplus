@@ -110,7 +110,7 @@ contains
     real(dp), intent(out) :: displ(:)
 
     real(dp) :: eaug
-    integer :: ii, nvar1, npvar, npvar1
+    integer :: nvar1, npvar, npvar1
     logical :: fail
 
     nvar1  = this%nvar+1

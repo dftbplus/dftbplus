@@ -388,10 +388,15 @@ contains
     real(dp) :: rCell(3), rr(3)
     integer :: ii, iAtom1, oldIAtom1, iAtom2, startAtom, endAtom
     integer :: nn1, iAtom2End, pairError(2)
-    logical :: symm, isParallel, isParallelSetupError, isSetupError
+    logical :: symm, isParallel, isSetupError
     real(dp), allocatable :: neighDist2(:,:)
-    integer, allocatable :: indx(:), iNeighbour(:,:), buffer(:,:)
+    integer, allocatable :: indx(:), iNeighbour(:,:)
     character(len=100) :: strError
+
+  #:if WITH_MPI
+    logical :: isParallelSetupError
+    integer, allocatable :: buffer(:,:)
+  #:endif
 
     nAtom = size(neigh%nNeighbour, dim=1)
     mAtom = size(coord, dim=2)
@@ -605,7 +610,11 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in), optional :: env
 
-    integer :: dataLength, maxNeighbourLocal, ii
+    integer :: ii
+
+  #:if WITH_MPI
+    integer :: dataLength, maxNeighbourLocal
+  #:endif
 
     if (isParallel) then
     #:if WITH_MPI
