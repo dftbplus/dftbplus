@@ -127,7 +127,7 @@ contains
             if (sum((coords(:,iAt)-coords(:,jAt))**2) <= skCutOff**2) then
               write(errString,"(A,I0,A,I0,A)") 'Atom ', iAt, ' in contact "'//&
                   & trim(transpar%contacts(i)%name) // '" and atom ', jAt, ' in contact "'// &
-                  & trim(transpar%contacts(j)%name) // '" are too close.'
+                  & trim(transpar%contacts(j)%name) // '" interact with each other.'
               call error(trim(errString))
             end if
           end do
