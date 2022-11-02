@@ -1573,9 +1573,9 @@ contains
       call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
     end if
-    call initTransport_(env, input, this%electronicSolver, this%nSpin, this%tempElec, this%tNegf,&
-        & this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
-        & this%tWriteLDOS, this%regionLabelLDOS)
+    call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
+        & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
+        & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS)
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
@@ -4429,8 +4429,12 @@ contains
 #:if WITH_TRANSPORT
 
   !> Initialise a transport calculation
-  subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, isAContactCalc,&
-      & mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
+  subroutine initTransport_(this, env, input, electronicSolver, nSpin, tempElec, tNegf,&
+      & isAContactCalc, mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
+
+    !> Instance
+    class(TDftbPlusMain), intent(in) :: this
+
     type(TEnvironment), intent(inout) :: env
     type(TInputData), intent(in) :: input
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -4501,7 +4505,7 @@ contains
 
       ! Some checks and initialization of GDFTB/NEGF
       call TNegfInt_init(negfInt, input%transpar, env, input%ginfo%greendens,&
-          & input%ginfo%tundos, tempElec)
+          & input%ginfo%tundos, tempElec, this%coord0, this%cutOff%skCutoff)
 
       ginfo = input%ginfo
 
