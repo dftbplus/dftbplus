@@ -447,13 +447,32 @@ module dftbp_dftbplus_inputdata
 
     !> Nr. of SCC iterations without restart info
     integer :: restartFreq  = 20
+
+    !> Produce calculation result details in an XML file
     logical :: tWriteDetailedXML = .false.
+
+    !> Produce calculation result details in an tagged file
     logical :: tWriteResultsTag = .false.
+
+    !> Produce calculation result details in text file
     logical :: tWriteDetailedOut = .true.
+
+    !> Write single particle band structure (eigenvalue) data to file
     logical :: tWriteBandDat = .true.
+
+    !> Use old style interpolation for Slater-Koster data
     logical :: oldSKInter = .false.
+
+    !> Write hamiltonian and overlap as dense matrices
     logical :: tWriteHS = .false.
+
+    !> Write hamiltonian and overlap as sparse matrices
     logical :: tWriteRealHS = .false.
+
+    !> Write density matrix as sparse matrix
+    logical :: isSparseRhoWritten = .false.
+
+    !> Currently redundant flag to try minimising memory footprint
     logical :: tMinMemory = .false.
 
     !> potential shifts are read from file

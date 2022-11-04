@@ -800,6 +800,9 @@ module dftbp_dftbplus_initprogram
     !> Should HS (sparse) be printed?
     logical :: tWriteRealHS
 
+    !> Should density matrix rho (sparse) be printed?
+    logical :: isSparseRhoWritten
+
     !> Program run id
     integer :: runId
 
@@ -1463,6 +1466,8 @@ contains
 
     this%tWriteHS = input%ctrl%tWriteHS
     this%tWriteRealHS = input%ctrl%tWriteRealHS
+
+    this%isSparseRhoWritten = input%ctrl%isSparseRhoWritten
 
     select case(this%hamiltonianType)
     case default
@@ -3572,6 +3577,11 @@ contains
     if (this%tSpinOrbit .and. (this%tWriteHS .or. (this%tWriteRealHS .and. .not.&
         & this%tDualSpinOrbit))) then
       call error("Writing of Hamiltonian currently not possible with spin orbit coupling enabled.")
+    end if
+
+    if (this%isSparseRhoWritten .and.&
+        & this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
+      call error("Writing of sparse density matrix not possible with this electronic solver.")
     end if
 
     if (this%isLinResp) then
