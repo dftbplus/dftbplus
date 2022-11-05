@@ -727,7 +727,7 @@ contains
       call detailedError(field, "Specified numbers must be greater than zero")
     end if
 
-    numThreadsDefault = omp_get_max_threads()
+    !numThreadsDefault = omp_get_max_threads()
 
     call getChildValue(node, "ParallelRegionNum", this%opt%parallelRegionNum,&
         & default=numThreadsDefault, child=field)

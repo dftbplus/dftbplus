@@ -1323,7 +1323,7 @@ contains
 
     !> auxiliary variables
     integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iState, iSpin, iKPoint, iL, iAng, iM, &
-        & idx(3, 1), ii, jj, kk, aa(3), iStos
+        & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww
 
     character(len=100) :: strbuffer
 
@@ -1332,6 +1332,9 @@ contains
 
     !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
     real(dp), allocatable :: cartCoords(:,:,:,:)
+
+    real(dp) :: start, finish
+    real(dp), allocatable :: times(:,:)
 
     ! try to ensure a smooth runtime
     @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
@@ -1396,14 +1399,14 @@ contains
       end do
     end if
 
-    ! write(*,*) maxval(subgridsDat(1)%data)
+    allocate(times(size(coeffs, dim=1), size(coords, dim=3)))
 
     !$omp parallel do default(none)&
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
-    !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos,&
+    !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos, times,&
     !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType, basis)&
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iState, iL, iSpin, iKPoint, iAng, iM, idx,&
-    !$omp& ii, jj, kk, cartCoordsTmp, aa, iStos)
+    !$omp& ii, jj, kk, aa, iStos, start, finish)
     lpGrid: do iGrid = 1, nRegions
       lpOrb: do iOrb = 1, size(coeffs, dim=1)
 
@@ -1431,6 +1434,8 @@ contains
                 & coords(:, iAtom, iCell), square=tAddDensities)
           end if
 
+          call cpu_time(start)
+
           ! distribute molecular orbitals to state-resolved global grid caches
           lpStates: do iState = 1, size(levelIndex, dim=2)
 
@@ -1439,17 +1444,35 @@ contains
             iSpin = levelIndex(3, iState)
 
             ! add STO weighted with the eigenvector coefficients to the global grid
-            globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState) =&
-                & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState)&
-                & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
+
+            do ww = tiling(1, iGrid), tiling(2, iGrid)
+              do vv = 1, size(globalGridsDat, dim=2)
+                do uu = 1, size(globalGridsDat, dim=1)
+                  globalGridsDat(uu, vv, ww, iState) =&
+                      & globalGridsDat(uu, vv, ww, iState)&
+                      & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(uu, vv, ww)
+                end do
+              end do
+            end do
+
+            ! globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState) =&
+            !     & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState)&
+            !     & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
 
           end do lpStates
+
+          call cpu_time(finish)
+
+          times(iOrb, iCell) = finish - start
 
         end do lpCell
 
       end do lpOrb
     end do lpGrid
     !$omp end parallel do
+
+    write(*, '(/A)') 'grids.F90 - times'
+    write(*,*) sum(times)
 
   end subroutine subgridsToCachedGlobalGrids
 
@@ -1846,6 +1869,7 @@ contains
     !> position where to place subgrid onto grid, expected shape: [3]
     real(dp), intent(in) :: position(:)
 
+    !> Cartesian coordinates of the total grid, shape: [3, nxPoints, nyPoints, nzPoints]
     real(dp), intent(in) :: cartCoords(:,:,:,:)
 
     !> tabulated radial wavefunction, shape: [nDistances, 3]
@@ -1940,7 +1964,7 @@ contains
                 stoValue(inds(1), inds(2), inds(3)) = (linearInterpolation(stos%gridValue(loc, 1),&
                     & stos%gridValue(loc + 1, 1), stos%gridValue(loc, 2), &
                     & stos%gridValue(loc + 1, 2), distance) * &
-                    & RealTessY(ll, mm, cartPosition(:,1) - position))**2 * eigvec
+                    & RealTessY(ll, mm, cartCoords(:, inds(1), inds(2), inds(3)) - position))**2 * eigvec
               end if
             end do
           end do
@@ -1964,7 +1988,7 @@ contains
                 stoValue(inds(1), inds(2), inds(3)) = linearInterpolation(stos%gridValue(loc, 1),&
                     & stos%gridValue(loc + 1, 1), stos%gridValue(loc, 2), &
                     & stos%gridValue(loc + 1, 2), distance) * &
-                    & RealTessY(ll, mm, cartPosition(:,1) - position) * eigvec
+                    & RealTessY(ll, mm, cartCoords(:, inds(1), inds(2), inds(3)) - position) * eigvec
               end if
             end do
           end do
