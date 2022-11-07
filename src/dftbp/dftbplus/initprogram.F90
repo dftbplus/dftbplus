@@ -15,6 +15,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
+  use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut, withMpi
@@ -2921,6 +2922,8 @@ contains
     else
       write(stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
     end if
+
+    call checkStackSize(env)
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)

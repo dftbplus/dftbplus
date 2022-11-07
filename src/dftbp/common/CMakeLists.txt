@@ -7,6 +7,7 @@ set(sources-fpp
   ${curdir}/atomicmass.F90
   ${curdir}/coherence.F90
   ${curdir}/constants.F90
+  ${curdir}/envcheck.F90
   ${curdir}/environment.F90
   ${curdir}/file.F90
   ${curdir}/filesystem.F90
@@ -21,6 +22,9 @@ set(sources-fpp
   ${curdir}/unitconversion.F90
   ${curdir}/version.F90)
 
+list(APPEND sources-c
+  ${curdir}/envcheck.c)
+
 if(WITH_MPI)
   list(APPEND sources-fpp
     ${curdir}/blacsenv.F90
@@ -34,3 +38,4 @@ endif()
 
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
+set(ALL-SOURCES-C ${ALL-SOURCES-C} ${sources-c} PARENT_SCOPE)
