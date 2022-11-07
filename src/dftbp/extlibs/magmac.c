@@ -12,12 +12,12 @@
 #include <magma.h>
 
 /**
- *  large enough to fit all device IDs
+ *  Large enough to fit all device IDs
  */
 const int MAXGPUS = 117;
 
 /**
- *   Obtain number of available of GPUs
+ *   Obtain number of available GPUs
  */
 void  dftbp_extlibs_magma_get_gpus_available(int *max_ngpus)
 {
