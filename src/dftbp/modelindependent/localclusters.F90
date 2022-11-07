@@ -8,7 +8,7 @@
 !> Contains routines for producing local environments around atoms and convert between neighbour map
 !> indexed information and local geometries
 module dftbp_modelindependent_localclusters
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Bohr__AA
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_common_memman, only : incrmntOfArray
@@ -141,6 +141,7 @@ contains
 
     @:ASSERT(this%maxCutoff2 <= neighbourList%cutoff**2)
 
+    ! Add atoms around the central one in each cluster
     do iAt1 = 1, this%nAtomCentCell
       iSp1 = species(iAt1)
       lpNeigh: do iNeigh = 0, neighbourList%nNeighbour(iAt1)
@@ -227,6 +228,7 @@ contains
 
     integer :: iAt1, iAt2, nAt
     logical :: areClustersWritten
+    character(lc) :: label
 
     areClustersWritten = present(speciesName)
 
@@ -275,9 +277,11 @@ contains
 
     if (areClustersWritten) then
       do iAt1 = 1, this%nAtomCentCell
+        write(label, "(A,I0)")'Cluster around atom ', iAt1
         iAt2 = this%iStartAtCluster(iAt1+1)-this%iStartAtCluster(iAt1)
         call writeXYZFormat("atomcluster.xyz", this%haloCoords(:, :iAt2, iAt1),&
-            & species(this%haloAtomNos(:iAt2, iAt1)), speciesName, append = iAt1 > 1)
+            & species(this%haloAtomNos(:iAt2, iAt1)), speciesName, comment=trim(label),&
+            & append = iAt1 > 1)
       end do
     end if
 
@@ -315,6 +319,7 @@ contains
     real(dp), allocatable :: xUnique(:,:)
     integer, allocatable :: iUnique(:), iAtInHaloGlobNumber(:)
     logical :: areClustersWritten
+    character(lc) :: label
 
     areClustersWritten = present(speciesName)
 
@@ -418,10 +423,14 @@ contains
 
     if (areClustersWritten) then
       do iBond = 1, this%nBondClusters
+        write(label, "(A,I0,A,I0)")'Cluster around bond between atoms ',&
+            & img2centcell(this%iBondCluster(this%iStartBondCluster(iBond))), ' and ',&
+            & img2centcell(this%iBondCluster(this%iStartBondCluster(iBond)+1))
         iStart =  this%iStartBondCluster(iBond)
         iEnd =  this%iStartBondCluster(iBond+1) -1
         call writeXYZFormat("bondcluster.xyz", this%bondClusters(:,iStart:iEnd),&
-            & species(this%iBondCluster(iStart:iEnd)), speciesName, append = iBond > 1)
+            & species(this%iBondCluster(iStart:iEnd)), speciesName, comment=trim(label),&
+            & append = iBond > 1)
       end do
     end if
 
