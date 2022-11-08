@@ -1548,7 +1548,7 @@ contains
       call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
 
       allocate(ctrl%xi(slako%orb%mShell,geo%nSpecies))
-      ctrl%xi = 0.0_dp
+      ctrl%xi(:,:) = 0.0_dp
       do iSp1 = 1, geo%nSpecies
         call getChildValue(child, geo%speciesNames(iSp1), &
             & ctrl%xi(:slako%orb%nShell(iSp1),iSp1), modifier=modifier, &
@@ -1833,12 +1833,13 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
-    type(fnode), pointer :: value1, child
-    type(string) :: buffer
+    type(fnode), pointer :: value1, child, child2
+    type(string) :: buffer, modifier
     type(string), allocatable :: searchPath(:)
     logical :: tBadIntegratingKPoints
-    integer :: method
+    integer :: method, iSp1
     character(len=:), allocatable :: paramFile, paramTmp
+    type(TOrbitals) :: orb
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
@@ -1921,6 +1922,31 @@ contains
 
     ! External fields and potentials
     call readExternal(node, ctrl, geo)
+
+    call getChild(node, "SpinOrbit", child, requested=.false.)
+    if (.not. associated(child)) then
+      ctrl%tSpinOrbit = .false.
+      allocate(ctrl%xi(0,0))
+    else
+      if (ctrl%tSpin .and. .not. ctrl%t2Component) then
+        call error("Spin-orbit coupling incompatible with collinear spin.")
+      end if
+
+      ctrl%tSpinOrbit = .true.
+      ctrl%t2Component = .true.
+
+      call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
+
+      call ctrl%tbliteInp%setupOrbitals(geo%species, orb)
+      allocate(ctrl%xi(orb%mShell,geo%nSpecies))
+      ctrl%xi(:,:) = 0.0_dp
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, geo%speciesNames(iSp1), &
+            & ctrl%xi(:orb%nShell(iSp1),iSp1), modifier=modifier, child=child2 )
+        call convertUnitHsd(char(modifier), energyUnits, child2,&
+            & ctrl%xi(:orb%nShell(iSp1),iSp1))
+      end do
+    end if
 
     ! Electronic solver
   #:if WITH_TRANSPORT
