@@ -42,6 +42,7 @@ set(sources-fpp
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
   ${curdir}/rangeseparated.F90
+  ${curdir}/rangeseponscorr.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90

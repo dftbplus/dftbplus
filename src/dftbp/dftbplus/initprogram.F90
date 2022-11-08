@@ -46,6 +46,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -719,7 +720,7 @@ module dftbp_dftbplus_initprogram
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable :: onSiteElements(:,:,:,:)
 
-    !> Correction to dipole momements on-site matrix elements
+    !> Correction to dipole momements from on-site matrix elements
     real(dp), allocatable :: onSiteDipole(:,:)
 
     !> Should block charges be mixed as well as charges
@@ -760,6 +761,12 @@ module dftbp_dftbplus_initprogram
 
     !> DeltaRho output from range separation in matrix form
     real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
+
+    !> Whether to run onsite correction with range-separated functional
+    logical :: isRS_OnsCorr
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable :: rsOnsCorr
 
     !> Linear response calculation with range-separated functional
     logical :: isRS_LinResp
@@ -1514,7 +1521,11 @@ contains
 
     ! on-site corrections
     if (allocated(input%ctrl%onSiteElements)) then
-      allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 2, this%nType))
+      if (this%isRangeSep) then
+        allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 3, this%nType))
+      else
+        allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 2, this%nType))
+      end if
       this%onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
@@ -2601,6 +2612,12 @@ contains
           & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
     end if
 
+    this%isRS_OnsCorr = this%isRangeSep .and. allocated(this%onSiteElements)
+
+    if (this%isRS_OnsCorr) then
+      allocate(this%rsOnsCorr)
+    end if
+
     this%tReadShifts = input%ctrl%tReadShifts
     this%tWriteShifts = input%ctrl%tWriteShifts
 
@@ -3475,11 +3492,13 @@ contains
     tFirst = .true.
     if (allocated(this%onSiteElements)) then
       do iSp = 1, this%nType
-        do iSpin = 1, 2
+        do iSpin = 1, size(this%onSiteElements,dim=3)
           if (iSpin == 1) then
             write(strTmp2, "(A,':')") "uu"
-          else
+          else if (iSpin == 2) then
             write(strTmp2, "(A,':')") "ud"
+          else
+            write(strTmp2, "(A,':')") "lc"
           end if
           do jj = 1, this%orb%nShell(iSp)
             do kk = 1, this%orb%nShell(iSp)
