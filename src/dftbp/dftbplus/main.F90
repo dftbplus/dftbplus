@@ -3862,14 +3862,14 @@ contains
         if (nIneqDip > 0) then
           ! FIXME: Assumes we always mix all dipole moments
           nMix = nIneqOrb
-          multipoleInp%dipoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
-              & shape(multipoleInp%dipoleAtom))
+          multipoleInp%dipoleAtom(:, :, 1) = reshape(qInpRed(nMix+1:nMix+nIneqDip), &
+              & shape(multipoleInp%dipoleAtom(:,:,1)))
         end if
         if (nIneqQuad > 0) then
           ! FIXME: Assumes we always mix all quadrupole moments
           nMix = nIneqOrb + nIneqDip
-          multipoleInp%quadrupoleAtom(:, :, :) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
-              & shape(multipoleInp%quadrupoleAtom))
+          multipoleInp%quadrupoleAtom(:, :, 1) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
+              & shape(multipoleInp%quadrupoleAtom(:,:,1)))
         end if
       end if
     end if
