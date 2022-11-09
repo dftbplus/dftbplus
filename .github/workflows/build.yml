@@ -30,7 +30,7 @@ jobs:
         os: [macos-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
-        version: [9]
+        version: [10]
         # include:
         #   - os: ubuntu-latest
         #     mpi: nompi
@@ -40,7 +40,7 @@ jobs:
           - os: macos-latest
             mpi: openmpi
             config: Debug
-            version: 10
+            version: 9
 
     steps:
     - name: Checkout code
