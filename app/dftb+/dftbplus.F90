@@ -24,6 +24,7 @@ program dftbplus
   type(TInputData), allocatable :: input
   type(TDftbPlusMain) :: main
 
+  print *, "TEST"
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
   allocate(input)
