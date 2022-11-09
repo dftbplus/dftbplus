@@ -31,11 +31,11 @@ jobs:
         mpi: [nompi, openmpi]
         config: [Debug]
         version: [9]
-        include:
-          - os: ubuntu-latest
-            mpi: nompi
-            config: Coverage
-            version: 9
+        # include:
+        #   - os: ubuntu-latest
+        #     mpi: nompi
+        #     config: Coverage
+        #     version: 9
         exclude:
           - os: macos-latest
             mpi: openmpi
@@ -175,84 +175,84 @@ jobs:
         PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
         ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
-  intel-build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-20.04]
-        fc: [ifort]
-        cc: [icc]
-    env:
-      FC: ${{ matrix.fc }}
-      CC: ${{ matrix.cc }}
-      WITH_MPI: false
-      APT_PACKAGES: >-
-        intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-        intel-oneapi-mkl
-        intel-oneapi-mkl-devel
-      CMAKE_OPTIONS: >-
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DWITH_API=true
-        -DWITH_SDFTD3=true
-        -DWITH_MBD=true
-        -DWITH_TRANSPORT=true
-        -DFYPP_FLAGS='-DTRAVIS'
+  # intel-build:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: []
+  #       fc: [ifort]
+  #       cc: [icc]
+  #   env:
+  #     FC: ${{ matrix.fc }}
+  #     CC: ${{ matrix.cc }}
+  #     WITH_MPI: false
+  #     APT_PACKAGES: >-
+  #       intel-oneapi-compiler-fortran
+  #       intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+  #       intel-oneapi-mkl
+  #       intel-oneapi-mkl-devel
+  #     CMAKE_OPTIONS: >-
+  #       -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  #       -DWITH_API=true
+  #       -DWITH_SDFTD3=true
+  #       -DWITH_MBD=true
+  #       -DWITH_TRANSPORT=true
+  #       -DFYPP_FLAGS='-DTRAVIS'
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v2
 
-    - name: Setup Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.x
+  #   - name: Setup Python
+  #     uses: actions/setup-python@v1
+  #     with:
+  #       python-version: 3.x
 
-    - name: Add Intel repository
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo apt-get update
+  #   - name: Add Intel repository
+  #     if: contains(matrix.os, 'ubuntu')
+  #     run: |
+  #       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+  #       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+  #       rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+  #       echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+  #       sudo apt-get update
 
-    - name: Install Intel oneAPI compiler
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        sudo apt-get update
-        sudo apt-get install ${APT_PACKAGES}
-        source /opt/intel/oneapi/setvars.sh
-        printenv >> $GITHUB_ENV
+  #   - name: Install Intel oneAPI compiler
+  #     if: contains(matrix.os, 'ubuntu')
+  #     run: |
+  #       sudo apt-get update
+  #       sudo apt-get install ${APT_PACKAGES}
+  #       source /opt/intel/oneapi/setvars.sh
+  #       printenv >> $GITHUB_ENV
 
-    - name: Install cmake
-      run: pip3 install cmake ninja fypp numpy
+  #   - name: Install cmake
+  #     run: pip3 install cmake ninja fypp numpy
 
-    - name: Get external dependencies
-      run: echo "y" | ./utils/get_opt_externals ALL
+  #   - name: Get external dependencies
+  #     run: echo "y" | ./utils/get_opt_externals ALL
 
-    - name: Set extra CMake flags (Linux)
-      run: |
-        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+  #   - name: Set extra CMake flags (Linux)
+  #     run: |
+  #       echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
-    - name: Configure build
-      run: >-
-        cmake -B _build -G Ninja
-        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
-        -DCMAKE_BUILD_TYPE=Debug
-        ${CMAKE_OPTIONS}
-        -DWITH_MPI=${WITH_MPI}
+  #   - name: Configure build
+  #     run: >-
+  #       cmake -B _build -G Ninja
+  #       -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+  #       -DCMAKE_BUILD_TYPE=Debug
+  #       ${CMAKE_OPTIONS}
+  #       -DWITH_MPI=${WITH_MPI}
 
-    - name: Build project
-      run: cmake --build ${BUILD_DIR}
+  #   - name: Build project
+  #     run: cmake --build ${BUILD_DIR}
 
-    - name: Run regression tests
-      run: |
-        pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
-        popd
+  #   - name: Run regression tests
+  #     run: |
+  #       pushd ${BUILD_DIR}
+  #       ctest -j 2 --output-on-failure
+  #       popd
 
-    - name: Install project
-      run: |
-        cmake --install ${BUILD_DIR}
+  #   - name: Install project
+  #     run: |
+  #       cmake --install ${BUILD_DIR}
