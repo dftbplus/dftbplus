@@ -28,7 +28,8 @@ jobs:
       matrix:
         #os: [ubuntu-latest, macos-latest]
         os: [macos-latest]
-        mpi: [nompi, openmpi]
+        # mpi: [nompi, openmpi]
+        mpi: [nompi]
         config: [Debug]
         version: [10]
         # include:
@@ -88,8 +89,8 @@ jobs:
     - name: Set Compiler (OSX)
       if: contains(matrix.os, 'macos')
       run: |
-        echo "FC=gfortran-9" >> $GITHUB_ENV
-        echo "CC=gcc-9" >> $GITHUB_ENV
+        echo "FC=gfortran-10" >> $GITHUB_ENV
+        echo "CC=gcc-10" >> $GITHUB_ENV
 
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
