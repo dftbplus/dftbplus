@@ -1903,7 +1903,7 @@ contains
     end if ifSCC
 
     ! Spin calculation
-    if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau) then
+    if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau .and. ctrl%tSCC) then
     #:if WITH_TRANSPORT
       call readSpinPolarisation(node, ctrl, geo, tp)
     #:else
@@ -5427,10 +5427,14 @@ contains
       ctrl%spinW(:,:,:) = 0.0_dp
 
       call getChild(hamNode, "SpinConstants", child)
-      if (.not.ctrl%tShellResolved) then
-        call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .false.)
+      if (ctrl%hamiltonian == hamiltonianTypes%xtb) then
+        call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .true.)
       else
-        tShellResolvedW = .true.
+        if (.not.ctrl%tShellResolved) then
+          call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .false.)
+        else
+          tShellResolvedW = .true.
+        end if
       end if
 
       if (tShellResolvedW) then
