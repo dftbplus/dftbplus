@@ -26,7 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        #os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
         version: [9]
@@ -39,7 +40,7 @@ jobs:
           - os: macos-latest
             mpi: openmpi
             config: Debug
-            version: 9
+            version: 10
 
     steps:
     - name: Checkout code
