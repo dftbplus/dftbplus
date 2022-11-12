@@ -46,7 +46,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
-  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc, RangeSepOnsCorrFunc_init
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -2616,6 +2616,7 @@ contains
 
     if (this%isRS_OnsCorr) then
       allocate(this%rsOnsCorr)
+      call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%tSpin)
     end if
 
     this%tReadShifts = input%ctrl%tReadShifts
