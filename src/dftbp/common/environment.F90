@@ -92,7 +92,7 @@ module dftbp_common_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(25) = [&
+  type(TTimerItem), parameter :: globalTimerItems(26) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -108,6 +108,7 @@ module dftbp_common_environment
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
       & TTimerItem("Range separated Hamiltonian", 4),&
+      & TTimerItem("Range-sep onsite-corr Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
@@ -136,16 +137,17 @@ module dftbp_common_environment
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
     integer :: rangeSeparatedH = 15
-    integer :: densityMatrix = 16
-    integer :: energyEval = 17
-    integer :: postScc = 18
-    integer :: eigvecWriting = 19
-    integer :: energyDensityMatrix = 20
-    integer :: forceCalc = 21
-    integer :: stressCalc = 22
-    integer :: postGeoOpt = 23
-    integer :: elecDynInit = 24
-    integer :: elecDynLoop = 25
+    integer :: rangeSepOnsCorrH = 16
+    integer :: densityMatrix = 17
+    integer :: energyEval = 18
+    integer :: postScc = 19
+    integer :: eigvecWriting = 20
+    integer :: energyDensityMatrix = 21
+    integer :: forceCalc = 22
+    integer :: stressCalc = 23
+    integer :: postGeoOpt = 24
+    integer :: elecDynInit = 25
+    integer :: elecDynLoop = 26
 
   end type TGlobalTimersHelper
 

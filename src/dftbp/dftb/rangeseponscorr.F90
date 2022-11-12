@@ -118,10 +118,12 @@ contains
     allocate(OmatRI(nOrb,nOrb))
     allocate(HlrOC(nOrb,nOrb))
 
+    call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
     call allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap, densSqr,&
         & Smat, Dmat, Omat0, OmatRI)
     call evaluateHamiltonian(this, Smat, Dmat, Omat0, OmatRI, HlrOC)
     HH(:,:) = HH + HlrOC
+    call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
 
   contains
 
