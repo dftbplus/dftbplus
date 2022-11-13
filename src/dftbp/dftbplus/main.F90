@@ -853,9 +853,9 @@ contains
             & this%species, this%neighbourList, this%nNeighbourSK, this%iSparseStart,&
             & this%img2CentCell, this%H0, this%ints, this%spinW, this%cellVol, this%extPressure,&
             & this%dftbEnergy(1), this%q0, this%iAtInCentralRegion, this%solvation, this%thirdOrd,&
-            & this%potential, this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi,&
-            & this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot,&
-            & this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
+            & this%potential, this%rangeSep, this%rsOnsCorr, this%nNeighbourLC, this%tDualSpinOrbit,&
+            & this%xi, this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS,&
+            & this%qDepExtPot, this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
             & this%onSiteElements, this%dispersion, tConverged, this%species0, this%referenceN0,&
             & this%qNetAtom, this%multipoleOut, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
@@ -1098,9 +1098,10 @@ contains
             & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
             & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
-            & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
-            & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
+            & this%rangeSep, this%rsOnsCorr, this%reks, this%qDepExtPot, this%qBlockOut,&
+            & this%qiBlockOut, this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef,&
+            & this%onSiteElements, this%qNetAtom, this%potential%intOnSiteAtom,&
+            & this%potential%extOnSiteAtom)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -1173,7 +1174,7 @@ contains
               & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
               & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
               & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-              & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
+              & this%isRangeSep, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
         end if
 
         if (tConverged .or. tStopScc) then
@@ -1245,7 +1246,7 @@ contains
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
             & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-            & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
+            & this%isRangeSep, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
 
@@ -6974,8 +6975,8 @@ contains
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, tblite, orb, species,&
       & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, H0, ints, spinW, cellVol,&
       & extPressure, energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep,&
-      & nNeighbourLC, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock,&
-      & qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
+      & rsOnsCorr, nNeighbourLC, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot,&
+      & qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
       & referenceN0, qNetAtom, multipole, reks)
 
     !> Environment settings
@@ -7043,6 +7044,9 @@ contains
 
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Nr. of neighbours for each atom in the long-range functional.
     integer, allocatable, intent(in) :: nNeighbourLC(:)
@@ -7247,8 +7251,8 @@ contains
           & reks%chargePerShellL(:,:,:,iL), multipole, species, isExtField, isXlbomd, dftbU,&
           & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
-          & rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & onSiteElements)
+          & rangeSep, rsOnsCorr, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+          & tFixEf, Ef, onSiteElements)
 
       if (allocated(dispersion)) then
         ! For dftd4 dispersion, update charges

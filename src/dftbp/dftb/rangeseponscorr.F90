@@ -25,12 +25,16 @@ module dftbp_dftb_rangeseponscorr
   type :: TRangeSepOnsCorrFunc
     private
 
+    !> total onsite correction energy from range-separated functional
+    real(dp) :: lrOcEnergy
+
     !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
 
   contains
 
     procedure :: addLrOcHamiltonian
+    procedure :: addLrOcEnergy
 
   end type TRangeSepOnsCorrFunc
 
@@ -60,6 +64,7 @@ contains
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
 
+      this%lrOcEnergy = 0.0_dp
       this%tSpin = tSpin
 
     end subroutine initialize
@@ -123,6 +128,7 @@ contains
         & Smat, Dmat, Omat0, OmatRI)
     call evaluateHamiltonian(this, Smat, Dmat, Omat0, OmatRI, HlrOC)
     HH(:,:) = HH + HlrOC
+    this%lrOcEnergy = this%lrOcEnergy + 0.5_dp * sum(Dmat * HlrOC)
     call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
 
   contains
@@ -344,5 +350,21 @@ contains
     end subroutine evaluateHamiltonian
 
   end subroutine addLrOcHamiltonian
+
+
+  !> Add the onsite contribution originating from range-seprated functional to the total energy
+  subroutine addLrOcEnergy(this, energy)
+
+    !> class instance
+    class(TRangeSepOnsCorrFunc), intent(inout) :: this
+
+    !> total energy
+    real(dp), intent(inout) :: energy
+
+    energy = energy + this%lrOcEnergy
+    ! hack for spin unrestricted calculation
+    this%lrOcEnergy = 0.0_dp
+
+  end subroutine addLrOcEnergy
 
 end module dftbp_dftb_rangeseponscorr

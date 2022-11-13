@@ -38,6 +38,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
@@ -1653,6 +1654,7 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
+    type(TRangeSepOnsCorrFunc), allocatable :: rsOnsCorr ! never allocated
     type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
@@ -1678,8 +1680,8 @@ contains
     call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
         & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
-        & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
-        & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & potential, energy, thirdOrd, solvation, rangeSep, rsOnsCorr, reks, qDepExtPot,&
+        & qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
