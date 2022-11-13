@@ -2615,6 +2615,9 @@ contains
     this%isRS_OnsCorr = this%isRangeSep .and. allocated(this%onSiteElements)
 
     if (this%isRS_OnsCorr) then
+      call ensureRangeSepOnsCorrReqs(this%tPeriodic, this%tHelical, this%tAtomicEnergy,&
+          & this%nSpin, this%tSpinOrbit, this%isXlbomd, this%t3rd.or.this%t3rdFull,&
+          & this%isLinResp, this%solvation, this%reks)
       allocate(this%rsOnsCorr)
       call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%tSpin)
     end if
@@ -5471,6 +5474,97 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Stop if any range separated incompatible setting is found
+  subroutine ensureRangeSepOnsCorrReqs(tPeriodic, tHelical, tAtomicEnergy, nSpin, tSpinOrbit,&
+      & isXlbomd, is3rd, isLinResp, solvation, reks)
+
+    !> if calculation is periodic
+    logical, intent(in) :: tPeriodic
+
+    !> If the calculation is helical geometry
+    logical, intent(in) :: tHelical
+
+    !> Do we need atom resolved E?
+    logical, intent(in) :: tAtomicEnergy
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    !> is there spin-orbit coupling
+    logical, intent(in) :: tSpinOrbit
+
+    !> should XLBOMD be used in MD
+    logical, intent(in) :: isXlbomd
+
+    !> Third order DFTB
+    logical, intent(in) :: is3rd
+
+    !> Calculate Casida linear response excitations
+    logical, intent(in) :: isLinResp
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
+
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(in) :: reks
+
+    if (withMpi) then
+      call error("Onsite correction with range separated funcitonal do not work with MPI yet")
+    end if
+
+    if (tPeriodic) then
+      call error("Onsite correction with range separated functional only works with&
+          & non-periodic structures at the moment")
+    end if
+
+    if (tHelical) then
+      call error("Onsite correction with range separated functional only works with&
+          & non-helical structures at the moment")
+    end if
+
+    if (tAtomicEnergy) then
+      call error("Atomic resolved energies cannot be calculated with the range-separated&
+          & hybrid functional at the moment")
+    end if
+
+    if (nSpin > 2) then
+      call error("Onsite correction with range separated calculations not implemented&
+          & for non-colinear calculations")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for spin orbit")
+    end if
+
+    if (isXlbomd) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for XLBOMD")
+    end if
+
+    if (is3rd) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for 3rd order DFTB")
+    end if
+
+    if (isLinResp) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for linear response excitation")
+    end if
+
+    if (allocated(solvation)) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for solvation")
+    end if
+
+    if (allocated(reks)) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for REKS")
+    end if
+
+  end subroutine ensureRangeSepOnsCorrReqs
 
 
   !> Initializes PLUMED calculator.
