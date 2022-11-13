@@ -1001,11 +1001,11 @@ contains
             & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
             & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
             & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%onSiteElements,&
-            & this%rsOnsCorr, this%eigen, this%filling, this%rhoPrim, this%xi, this%orbitalL,&
-            & this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx,&
-            & this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr,&
-            & this%deltaRhoOutSqr, this%nNeighbourLC, this%deltaDftb, errStatus)
+            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%rsOnsCorr,&
+            & this%eigen, this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
+            & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
+            & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
+            & this%nNeighbourLC, this%deltaDftb, errStatus)
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
@@ -2280,9 +2280,9 @@ contains
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord,&
       & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
       & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
-      & onSiteElements, rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal,&
-      & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
-      & deltaRhoOutSqr, nNeighbourLC, deltaDftb, errStatus)
+      & rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
+      & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
+      & nNeighbourLC, deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2383,9 +2383,6 @@ contains
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
-    !> Correction to energy from on-site matrix elements
-    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
-
     !> Onsite correction data with range-separated functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
@@ -2482,10 +2479,10 @@ contains
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
           & denseDesc%iAtomStart, tHelical, coord, species, electronicSolver, tRealHS,&
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, onSiteElements, rsOnsCorr, eigen,&
-          & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
-          & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC,&
-          & deltaDftb, errStatus)
+          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, rsOnsCorr, eigen, filling, rhoPrim,&
+          & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+          & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb,&
+          & errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -2510,9 +2507,9 @@ contains
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, iAtomStart, tHelical,&
       & coord, species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit,&
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
-      & onSiteElements, rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal,&
-      & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
-      & deltaRhoOutSqr, nNeighbourLC, deltaDftb, errStatus)
+      & rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
+      & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC,&
+      & deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2607,9 +2604,6 @@ contains
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
-    !> Correction to energy from on-site matrix elements
-    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
-
     !> Onsite correction data with range-separated functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
@@ -2676,8 +2670,8 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver, parallelKS,&
-            & rangeSep, onSiteElements, rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal,&
-            & SSqrReal, eigVecsReal, eigen(:,1,:), errStatus)
+            & rangeSep, rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal,&
+            & eigen(:,1,:), errStatus)
         @:PROPAGATE_ERROR(errStatus)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
@@ -2726,8 +2720,7 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver, parallelKS, rangeSep,&
-      & onSiteElements, rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal,&
-      & eigen, errStatus)
+      & rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2770,9 +2763,6 @@ contains
 
     !>Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
-
-    !> Correction to energy from on-site matrix elements
-    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
 
     !> Onsite correction data with range-separated functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
