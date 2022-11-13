@@ -29,6 +29,12 @@ module dftbp_dftb_rangeseponscorr
   type :: TRangeSepOnsCorrFunc
     private
 
+    !> Symmetrized square onsite constant matrix except diagonal elements
+    real(dp), allocatable :: Omat0(:,:)
+
+    !> Symmetrized square onsite constant matrix for RI loss correction
+    real(dp), allocatable :: OmatRI(:,:)
+
     !> total onsite correction energy from range-separated functional
     real(dp) :: lrOcEnergy
 
@@ -51,10 +57,22 @@ contains
 
 
   !> Intitialize the onsite correction with range-separated hybrid functional module
-  subroutine RangeSepOnsCorrFunc_init(this, tSpin, rsAlg)
+  subroutine RangeSepOnsCorrFunc_init(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
 
     !> class instance
     type(TRangeSepOnsCorrFunc), intent(out) :: this
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> Correction to energy from on-site matrix elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     !> Is this spin restricted (F) or unrestricted (T)
     logical, intent(in) :: tSpin
@@ -62,16 +80,28 @@ contains
     !> algorithm for range separation screening
     integer, intent(in) :: rsAlg
 
-    call initialize(this, tSpin, rsAlg)
+    call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
     call checkRequirements(this)
 
   contains
 
     !> initialise data structures
-    subroutine initialize(this, tSpin, rsAlg)
+    subroutine initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
 
       !> class instance
       class(TRangeSepOnsCorrFunc), intent(out) :: this
+
+      !> Atomic orbital information
+      type(TOrbitals), intent(in) :: orb
+
+      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+      integer, dimension(:), intent(in) :: iSquare
+
+      !> species of all atoms in the system
+      integer, intent(in) :: species(:)
+
+      !> Correction to energy from on-site matrix elements
+      real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
@@ -79,11 +109,65 @@ contains
       !> algorithm for range separation screening
       integer, intent(in) :: rsAlg
 
+      real(dp) :: fac
+      integer :: nAtom, iAtom, nOrb, ii, jj, iOrb, jOrb, iSp1, iSp2
+
+      nOrb = orb%nOrb
+      nAtom = size(iSquare,dim=1) - 1
+
       this%lrOcEnergy = 0.0_dp
       this%rsAlg = rsAlg
       this%tSpin = tSpin
 
-    end subroutine initialize
+      ! Set onsite constant matrices
+      allocate(this%Omat0(nOrb,nOrb))
+      allocate(this%OmatRI(nOrb,nOrb))
+      this%Omat0(:,:) = 0.0_dp
+      this%OmatRI(:,:) = 0.0_dp
+
+      do iAtom = 1, nAtom
+
+        ii = iSquare(iAtom)
+        jj = iSquare(iAtom) + orb%nOrbAtom(iAtom) - 1
+
+        do iOrb = ii, jj
+
+          if (iOrb - ii + 1 <= 1) then
+            iSp1 = 1
+          else if (iOrb - ii + 1 > 1 .and. iOrb - ii + 1 <= 4) then
+            iSp1 = 2
+          end if
+
+          do jOrb = ii, jj
+
+            if (jOrb - ii + 1 <= 1) then
+              iSp2 = 1
+            else if (jOrb - ii + 1 > 1 .and. jOrb - ii + 1 <= 4) then
+              iSp2 = 2
+            end if
+
+            ! OC contribution except diagonal elements
+            if (iOrb /= jOrb) then
+              this%Omat0(iOrb,jOrb) = onSiteElements(iSp1,iSp2,3,species(iAtom))
+            end if
+
+            ! RI loss correction for p orbitals
+            if (iSp1 == 2 .and. iSp2 == 2) then
+              if (iOrb == jOrb) then
+                fac = 2.0_dp
+              else
+                fac = -1.0_dp
+              end if
+              this%OmatRI(iOrb,jOrb) = fac * onSiteElements(iSp1,iSp2,3,species(iAtom))
+            end if
+
+          end do
+
+        end do
+
+      end do
+
+    end subroutine initAndAllocate
 
 
     !> Test for option consistency
@@ -109,26 +193,13 @@ contains
 
 
   !> Interface routine.
-  subroutine addLrOcHamiltonian(this, env, orb, iSquare, species, onSiteElements,&
-      & overlap, densSqr, HH)
+  subroutine addLrOcHamiltonian(this, env, overlap, densSqr, HH)
 
     !> class instance
     class(TRangeSepOnsCorrFunc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, dimension(:), intent(in) :: iSquare
-
-    !> species of all atoms in the system
-    integer, intent(in) :: species(:)
-
-    !> Correction to energy from on-site matrix elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     !> Square (unpacked) overlap matrix.
     real(dp), intent(in) :: overlap(:,:)
@@ -142,12 +213,11 @@ contains
     call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
     select case(this%rsAlg)
     case (rangeSepTypes%threshold)
-      ! not supported empty at the moment
+      ! not supported at the moment
     case (rangeSepTypes%neighbour)
-      ! not supported empty at the moment
+      ! not supported at the moment
     case (rangeSepTypes%matrixBased)
-      call addLrOcHamiltonianMatrix(this, orb, iSquare, species, onSiteElements,&
-          & overlap, densSqr, HH)
+      call addLrOcHamiltonianMatrix(this, overlap, densSqr, HH)
     end select
     call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
 
@@ -159,23 +229,10 @@ contains
   !> The routine provides a matrix-matrix multiplication based implementation of
   !> Eq. 11 in https://doi.org/10.1021/acs.jctc.2c00037
   !>
-  subroutine addLrOcHamiltonianMatrix(this, orb, iSquare, species, onSiteElements,&
-      & overlap, densSqr, HH)
+  subroutine addLrOcHamiltonianMatrix(this, overlap, densSqr, HH)
 
     !> class instance
     class(TRangeSepOnsCorrFunc), intent(inout) :: this
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, dimension(:), intent(in) :: iSquare
-
-    !> species of all atoms in the system
-    integer, intent(in) :: species(:)
-
-    !> Correction to energy from on-site matrix elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     !> Square (unpacked) overlap matrix.
     real(dp), intent(in) :: overlap(:,:)
@@ -188,46 +245,20 @@ contains
 
     real(dp), allocatable :: Smat(:,:)
     real(dp), allocatable :: Dmat(:,:)
-    real(dp), allocatable :: Omat0(:,:)
-    real(dp), allocatable :: OmatRI(:,:)
     real(dp), allocatable :: HlrOC(:,:)
 
-    integer :: nOrb
-
-    nOrb = size(overlap,dim=1)
-
-    allocate(Smat(nOrb,nOrb))
-    allocate(Dmat(nOrb,nOrb))
-    allocate(Omat0(nOrb,nOrb))
-    allocate(OmatRI(nOrb,nOrb))
-    allocate(HlrOC(nOrb,nOrb))
-
-    call allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap, densSqr,&
-        & Smat, Dmat, Omat0, OmatRI)
-    call evaluateHamiltonian(this, Smat, Dmat, Omat0, OmatRI, HlrOC)
+    call allocateAndInit(this, overlap, densSqr, Smat, Dmat, HlrOC)
+    call evaluateHamiltonian(this, Smat, Dmat, HlrOC)
     HH(:,:) = HH + HlrOC
     this%lrOcEnergy = this%lrOcEnergy + 0.5_dp * sum(Dmat * HlrOC)
 
   contains
 
-    !> Set up storage and get orbital-by-orbital onsite constant matrix
-    subroutine allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap,&
-        & densSqr, Smat, Dmat, Omat0, OmatRI)
+    !> allocate and initialise some necessary arrays
+    subroutine allocateAndInit(this, overlap, densSqr, Smat, Dmat, HlrOC)
 
       !> class instance
       type(TRangeSepOnsCorrFunc), intent(inout) :: this
-
-      !> Atomic orbital information
-      type(TOrbitals), intent(in) :: orb
-
-      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-      integer, dimension(:), intent(in) :: iSquare
-
-      !> species of all atoms in the system
-      integer, intent(in) :: species(:)
-
-      !> Correction to energy from on-site matrix elements
-      real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
       !> Square (unpacked) overlap matrix.
       real(dp), intent(in) :: overlap(:,:)
@@ -236,21 +267,21 @@ contains
       real(dp), intent(in) :: densSqr(:,:)
 
       !> Symmetrized square overlap matrix
-      real(dp), intent(out) :: Smat(:,:)
+      real(dp), allocatable, intent(inout) :: Smat(:,:)
 
       !> Symmetrized square density matrix
-      real(dp), intent(out) :: Dmat(:,:)
+      real(dp), allocatable, intent(inout) :: Dmat(:,:)
 
-      !> Symmetrized square onsite constant matrix except diagonal elements
-      real(dp), intent(out) :: Omat0(:,:)
+      !> Symmetrized long-range onsite-corrected (lrOC) Hamiltonian matrix
+      real(dp), allocatable, intent(inout) :: HlrOC(:,:)
 
-      !> Symmetrized square onsite constant matrix for RI loss correction
-      real(dp), intent(out) :: OmatRI(:,:)
+      integer :: nOrb
 
-      real(dp) :: fac
-      integer :: nAtom, iAtom, ii, jj, iOrb, jOrb, iSp1, iSp2
+      nOrb = size(overlap,dim=1)
 
-      nAtom = size(iSquare,dim=1) - 1
+      allocate(Smat(nOrb,nOrb))
+      allocate(Dmat(nOrb,nOrb))
+      allocate(HlrOC(nOrb,nOrb))
 
       ! Symmetrize overlap and density matrices
       Smat(:,:) = overlap
@@ -258,56 +289,11 @@ contains
       Dmat(:,:) = densSqr
       call symmetrizeHS(Dmat)
 
-      ! Set onsite constant matrices
-      Omat0(:,:) = 0.0_dp
-      OmatRI(:,:) = 0.0_dp
-      do iAtom = 1, nAtom
-
-        ii = iSquare(iAtom)
-        jj = iSquare(iAtom) + orb%nOrbAtom(iAtom) - 1
-
-        do iOrb = ii, jj
-
-          if (iOrb - ii + 1 <= 1) then
-            iSp1 = 1
-          else if (iOrb - ii + 1 > 1 .and. iOrb - ii + 1 <= 4) then
-            iSp1 = 2
-          end if
-
-          do jOrb = ii, jj
-
-            if (jOrb - ii + 1 <= 1) then
-              iSp2 = 1
-            else if (jOrb - ii + 1 > 1 .and. jOrb - ii + 1 <= 4) then
-              iSp2 = 2
-            end if
-
-            ! OC contribution except diagonal elements
-            if (iOrb /= jOrb) then
-              Omat0(iOrb,jOrb) = onSiteElements(iSp1,iSp2,3,species(iAtom))
-            end if
-
-            ! RI loss correction for p orbitals
-            if (iSp1 == 2 .and. iSp2 == 2) then
-              if (iOrb == jOrb) then
-                fac = 2.0_dp
-              else
-                fac = -1.0_dp
-              end if
-              OmatRI(iOrb,jOrb) = fac * onSiteElements(iSp1,iSp2,3,species(iAtom))
-            end if
-
-          end do
-
-        end do
-
-      end do
-
     end subroutine allocateAndInit
 
 
     !> Evaluate the hamiltonian using GEMM operations
-    subroutine evaluateHamiltonian(this, Smat, Dmat, Omat0, OmatRI, HlrOC)
+    subroutine evaluateHamiltonian(this, Smat, Dmat, HlrOC)
 
       !> class instance
       type(TRangeSepOnsCorrFunc), intent(inout) :: this
@@ -318,12 +304,6 @@ contains
       !> Symmetrized square density matrix
       real(dp), intent(in) :: Dmat(:,:)
 
-      !> Symmetrized square onsite constant matrix except diagonal elements
-      real(dp), intent(in) :: Omat0(:,:)
-
-      !> Symmetrized square onsite constant matrix for RI loss correction
-      real(dp), intent(in) :: OmatRI(:,:)
-
       !> Symmetrized long-range onsite-corrected (lrOC) Hamiltonian matrix
       real(dp), intent(out) :: HlrOC(:,:)
 
@@ -333,7 +313,9 @@ contains
       real(dp), allocatable :: tmpVec(:)
       real(dp), allocatable :: Hvec(:)
 
-      integer :: iOrb, jOrb
+      integer :: nOrb, iOrb, jOrb
+
+      nOrb = size(Smat,dim=1)
 
       allocate(PS(nOrb,nOrb))
       allocate(tmpMat(nOrb,nOrb))
@@ -347,7 +329,7 @@ contains
 
       ! OC contribution: 1st term
       tmpMat(:,:) = Dmat * Smat
-      call gemm(Hmat, Omat0, tmpMat)
+      call gemm(Hmat, this%Omat0, tmpMat)
       Hvec(:) = sum(Hmat,dim=2)
       do iOrb = 1, nOrb
         do jOrb = 1, nOrb
@@ -358,20 +340,20 @@ contains
 
       ! OC contribution: 2nd term
       call gemm(Hmat, Smat, PS)
-      HlrOC(:,:) = HlrOC + Omat0 * Hmat
+      HlrOC(:,:) = HlrOC + this%Omat0 * Hmat
 
-      Hmat(:,:) = Dmat * Omat0
+      Hmat(:,:) = Dmat * this%Omat0
       call gemm(tmpMat, Hmat, Smat)
       call gemm(Hmat, Smat, tmpMat)
       HlrOC(:,:) = HlrOC + Hmat
 
       ! OC contribution: 3rd term
-      tmpMat(:,:) = PS * Omat0
+      tmpMat(:,:) = PS * this%Omat0
       call gemm(Hmat, tmpMat, Smat)
       HlrOC(:,:) = HlrOC + Hmat
 
       ! OC contribution: 4th term
-      tmpMat(:,:) = transpose(PS) * Omat0
+      tmpMat(:,:) = transpose(PS) * this%Omat0
       call gemm(Hmat, Smat, tmpMat)
       HlrOC(:,:) = HlrOC + Hmat
 
@@ -381,7 +363,7 @@ contains
       do iOrb = 1, nOrb
         tmpVec(iOrb) = tmpMat(iOrb,iOrb)
       end do
-      call gemv(Hvec, Omat0, tmpVec)
+      call gemv(Hvec, this%Omat0, tmpVec)
       do iOrb = 1, nOrb
        HlrOC(iOrb,iOrb) = HlrOC(iOrb,iOrb) + Hvec(iOrb)
       end do
@@ -391,7 +373,7 @@ contains
       do iOrb = 1, nOrb
         tmpVec(iOrb) = Dmat(iOrb,iOrb)
       end do
-      call gemv(Hvec, Omat0, tmpVec)
+      call gemv(Hvec, this%Omat0, tmpVec)
       Hmat(:,:) = 0.0_dp
       do iOrb = 1, nOrb
         Hmat(iOrb,iOrb) = Hvec(iOrb)
@@ -401,20 +383,20 @@ contains
       HlrOC(:,:) = HlrOC + Hmat
 
       ! RI loss correction term
-      tmpMat(:,:) = transpose(PS) * OmatRI
+      tmpMat(:,:) = transpose(PS) * this%OmatRI
       call gemm(Hmat, tmpMat, Smat)
       HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
 
       call gemm(tmpMat, Smat, PS)
-      Hmat(:,:) = tmpMat * OmatRI
+      Hmat(:,:) = tmpMat * this%OmatRI
       HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
 
-      Hmat(:,:) = Dmat * OmatRI
+      Hmat(:,:) = Dmat * this%OmatRI
       call gemm(tmpMat, Hmat, Smat)
       call gemm(Hmat, Smat, tmpMat)
       HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
 
-      tmpMat(:,:) = PS * OmatRI
+      tmpMat(:,:) = PS * this%OmatRI
       call gemm(Hmat, Smat, tmpMat)
       HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
 
@@ -451,7 +433,7 @@ contains
   !> Eq. 29 in https://doi.org/10.1021/acs.jctc.2c00037
   !>
   subroutine addLrOcGradients(this, gradients, derivator, skOverCont, coords, nNeighbourSK,&
-      & iNeighbour, onSiteElements, iSquare, species, orb, densSqr, overlap)
+      & iNeighbour, iSquare, species, orb, densSqr, overlap)
 
     !> class instance
     class(TRangeSepOnsCorrFunc), intent(inout) :: this
@@ -474,9 +456,6 @@ contains
     !> neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
-
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
 
@@ -494,11 +473,8 @@ contains
 
     real(dp), allocatable :: Smat(:,:)
     real(dp), allocatable :: Dmat(:,:,:)
-    real(dp), allocatable :: Omat0(:,:)
-    real(dp), allocatable :: OmatRI(:,:)
 
     real(dp), allocatable :: PS(:,:,:)
-
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: Hmat(:,:)
     real(dp), allocatable :: tmpVec(:)
@@ -518,13 +494,7 @@ contains
     nSpin = size(densSqr,dim=3)
     nAtom = size(iSquare,dim=1) - 1
 
-    allocate(Smat(nOrb,nOrb))
-    allocate(Dmat(nOrb,nOrb,nSpin))
-    allocate(Omat0(nOrb,nOrb))
-    allocate(OmatRI(nOrb,nOrb))
-
     allocate(PS(nOrb,nOrb,nSpin))
-
     allocate(tmpMat(nOrb,nOrb))
     allocate(Hmat(nOrb,nOrb))
     allocate(tmpVec(nOrb))
@@ -537,8 +507,7 @@ contains
     allocate(tmpDeriv(3,nAtom))
 
     ! Initialize several matrices for calculation of gradients
-    call allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap, densSqr,&
-        & Smat, Dmat, Omat0, OmatRI)
+    call allocateAndInit(this, overlap, densSqr, Smat, Dmat)
 
     do iSpin = 1, nSpin
       call gemm(PS(:,:,iSpin), Dmat(:,:,iSpin), Smat)
@@ -554,7 +523,7 @@ contains
       do iOrb = 1, nOrb
         tmpVec(iOrb) = PS(iOrb,iOrb,iSpin)
       end do
-      call gemv(Hvec, Omat0, tmpVec)
+      call gemv(Hvec, this%Omat0, tmpVec)
 
       do mu = 1, nOrb
         do nu = 1, nOrb
@@ -569,7 +538,7 @@ contains
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = Dmat(:,:,iSpin) * Omat0
+      tmpMat(:,:) = Dmat(:,:,iSpin) * this%Omat0
       call gemm(Hmat, PS(:,:,iSpin), tmpMat)
 
       shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
@@ -580,7 +549,7 @@ contains
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = PS(:,:,iSpin) * Omat0
+      tmpMat(:,:) = PS(:,:,iSpin) * this%Omat0
       call gemm(Hmat, Dmat(:,:,iSpin), tmpMat)
 
       shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
@@ -594,7 +563,7 @@ contains
       do iOrb = 1, nOrb
         tmpVec(iOrb) = Dmat(iOrb,iOrb,iSpin)
       end do
-      call gemv(Hvec, Omat0, tmpVec)
+      call gemv(Hvec, this%Omat0, tmpVec)
 
       do mu = 1, nOrb
         do nu = 1, nOrb
@@ -609,7 +578,7 @@ contains
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = PS(:,:,iSpin) * OmatRI
+      tmpMat(:,:) = PS(:,:,iSpin) * this%OmatRI
       call gemm(Hmat, tmpMat, Dmat(:,:,iSpin))
 
       shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + Hmat * 4.0_dp / 3.0_dp
@@ -620,7 +589,7 @@ contains
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = Dmat(:,:,iSpin) * OmatRI
+      tmpMat(:,:) = Dmat(:,:,iSpin) * this%OmatRI
       call gemm(Hmat, tmpMat, PS(:,:,iSpin), transB="T")
 
       shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + Hmat * 4.0_dp / 3.0_dp
@@ -683,24 +652,11 @@ contains
 
   contains
 
-    !> Set up storage and get orbital-by-orbital onsite constant matrix
-    subroutine allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap,&
-        & densSqr, Smat, Dmat, Omat0, OmatRI)
+    !> allocate and initialise some necessary arrays
+    subroutine allocateAndInit(this, overlap, densSqr, Smat, Dmat)
 
       !> class instance
       type(TRangeSepOnsCorrFunc), intent(inout) :: this
-
-      !> Atomic orbital information
-      type(TOrbitals), intent(in) :: orb
-
-      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-      integer, dimension(:), intent(in) :: iSquare
-
-      !> species of all atoms in the system
-      integer, intent(in) :: species(:)
-
-      !> Correction to energy from on-site matrix elements
-      real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
       !> Square (unpacked) overlap matrix.
       real(dp), intent(in) :: overlap(:,:)
@@ -709,19 +665,15 @@ contains
       real(dp), intent(in) :: densSqr(:,:,:)
 
       !> Symmetrized square overlap matrix
-      real(dp), intent(out) :: Smat(:,:)
+      real(dp), allocatable, intent(inout) :: Smat(:,:)
 
       !> Symmetrized square density matrix
-      real(dp), intent(out) :: Dmat(:,:,:)
+      real(dp), allocatable, intent(inout) :: Dmat(:,:,:)
 
-      !> Symmetrized square onsite constant matrix except diagonal elements
-      real(dp), intent(out) :: Omat0(:,:)
+      integer :: iSpin
 
-      !> Symmetrized square onsite constant matrix for RI loss correction
-      real(dp), intent(out) :: OmatRI(:,:)
-
-      real(dp) :: fac
-      integer :: iSpin, iAtom, ii, jj, iOrb, jOrb, iSp1, iSp2
+      allocate(Smat(nOrb,nOrb))
+      allocate(Dmat(nOrb,nOrb,nSpin))
 
       ! Symmetrize overlap and density matrices
       Smat(:,:) = overlap
@@ -729,51 +681,6 @@ contains
       Dmat(:,:,:) = densSqr
       do iSpin = 1, nSpin
         call symmetrizeHS(Dmat(:,:,iSpin))
-      end do
-
-      ! Set onsite constant matrices
-      Omat0(:,:) = 0.0_dp
-      OmatRI(:,:) = 0.0_dp
-      do iAtom = 1, nAtom
-
-        ii = iSquare(iAtom)
-        jj = iSquare(iAtom) + orb%nOrbAtom(iAtom) - 1
-
-        do iOrb = ii, jj
-
-          if (iOrb - ii + 1 <= 1) then
-            iSp1 = 1
-          else if (iOrb - ii + 1 > 1 .and. iOrb - ii + 1 <= 4) then
-            iSp1 = 2
-          end if
-
-          do jOrb = ii, jj
-
-            if (jOrb - ii + 1 <= 1) then
-              iSp2 = 1
-            else if (jOrb - ii + 1 > 1 .and. jOrb - ii + 1 <= 4) then
-              iSp2 = 2
-            end if
-
-            ! OC contribution except diagonal elements
-            if (iOrb /= jOrb) then
-              Omat0(iOrb,jOrb) = onSiteElements(iSp1,iSp2,3,species(iAtom))
-            end if
-
-            ! RI loss correction for p orbitals
-            if (iSp1 == 2 .and. iSp2 == 2) then
-              if (iOrb == jOrb) then
-                fac = 2.0_dp
-              else
-                fac = -1.0_dp
-              end if
-              OmatRI(iOrb,jOrb) = fac * onSiteElements(iSp1,iSp2,3,species(iAtom))
-            end if
-
-          end do
-
-        end do
-
       end do
 
     end subroutine allocateAndInit

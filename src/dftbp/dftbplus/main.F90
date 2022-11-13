@@ -1377,9 +1377,9 @@ contains
             & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
             & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
-            & this%rangeSep, this%onSiteElements, this%rsOnsCorr, this%SSqrReal, this%ints,&
-            & this%denseDesc, this%deltaRhoOutSqr, this%halogenXCorrection, this%tHelical,&
-            & this%coord0, this%deltaDftb)
+            & this%rangeSep, this%rsOnsCorr, this%SSqrReal, this%ints, this%denseDesc,&
+            & this%deltaRhoOutSqr, this%halogenXCorrection, this%tHelical, this%coord0,&
+            & this%deltaDftb)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -2852,8 +2852,7 @@ contains
 
       ! Add onsite correction originating from range-separated hybrid functional
       if (allocated(rsOnsCorr)) then
-        call rsOnsCorr%addLrOcHamiltonian(env, orb, denseDesc%iAtomStart, species, onSiteElements,&
-            & SSqrReal, deltaRhoInSqr(:,:,iSpin), HSqrReal)
+        call rsOnsCorr%addLrOcHamiltonian(env, SSqrReal, deltaRhoInSqr(:,:,iSpin), HSqrReal)
       end if
 
       call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin), errStatus)
@@ -5446,8 +5445,8 @@ contains
       & rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList,&
       & nNeighbourSK, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
-      & chrgForces, dispersion, rangeSep, onSiteElements, rsOnsCorr, SSqrReal, ints, denseDesc,&
-      & deltaRhoOutSqr, halogenXCorrection, tHelical, coord0, deltaDftb)
+      & chrgForces, dispersion, rangeSep, rsOnsCorr, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
+      & halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5547,9 +5546,6 @@ contains
 
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
-
-    !> Correction to energy from on-site matrix elements
-    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
 
     !> Onsite correction data with range-separated functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
@@ -5710,8 +5706,8 @@ contains
 
     if (allocated(rsOnsCorr)) then
       call rsOnsCorr%addLrOcGradients(derivs, nonSccDeriv, skOverCont, coord, nNeighbourSK,&
-          & neighbourList%iNeighbour, onSiteElements, denseDesc%iAtomStart, species, orb,&
-          & deltaRhoOutSqr, SSqrReal)
+          & neighbourList%iNeighbour, denseDesc%iAtomStart, species, orb, deltaRhoOutSqr,&
+          & SSqrReal)
     end if
 
     if (allocated(repulsive)) then
