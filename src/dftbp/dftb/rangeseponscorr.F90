@@ -13,8 +13,10 @@ module dftbp_dftb_rangeseponscorr
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_rangeseparated, only : rangeSepTypes
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
@@ -33,6 +35,9 @@ module dftbp_dftb_rangeseponscorr
     !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
 
+    !> algorithm for range separation screening
+    integer :: rsAlg
+
   contains
 
     procedure :: addLrOcHamiltonian
@@ -46,7 +51,7 @@ contains
 
 
   !> Intitialize the onsite correction with range-separated hybrid functional module
-  subroutine RangeSepOnsCorrFunc_init(this, tSpin)
+  subroutine RangeSepOnsCorrFunc_init(this, tSpin, rsAlg)
 
     !> class instance
     type(TRangeSepOnsCorrFunc), intent(out) :: this
@@ -54,12 +59,16 @@ contains
     !> Is this spin restricted (F) or unrestricted (T)
     logical, intent(in) :: tSpin
 
-    call initialize(this, tSpin)
+    !> algorithm for range separation screening
+    integer, intent(in) :: rsAlg
+
+    call initialize(this, tSpin, rsAlg)
+    call checkRequirements(this)
 
   contains
 
     !> initialise data structures
-    subroutine initialize(this, tSpin)
+    subroutine initialize(this, tSpin, rsAlg)
 
       !> class instance
       class(TRangeSepOnsCorrFunc), intent(out) :: this
@@ -67,19 +76,39 @@ contains
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
 
+      !> algorithm for range separation screening
+      integer, intent(in) :: rsAlg
+
       this%lrOcEnergy = 0.0_dp
+      this%rsAlg = rsAlg
       this%tSpin = tSpin
 
     end subroutine initialize
 
+
+    !> Test for option consistency
+    subroutine checkRequirements(this)
+
+      !> class instance
+      class(TRangeSepOnsCorrFunc), intent(inout) :: this
+
+      ! Check for current restrictions
+      if (.not. this%rsAlg == rangeSepTypes%matrixBased) then
+        call error("Onsite correction with range separated functional only works with&
+            & matrix based algorithm")
+      end if
+
+      if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
+            & rangeSepTypes%matrixBased] == this%rsAlg)) then
+        call error("Unknown algorithm for screening the exchange in range separation")
+      end if
+
+    end subroutine checkRequirements
+
   end subroutine RangeSepOnsCorrFunc_init
 
 
-  !> Update Hamiltonian with long-range onsite contribution using matrix-matrix multiplications
-  !>
-  !> The routine provides a matrix-matrix multiplication based implementation of
-  !> Eq. 11 in https://doi.org/10.1021/acs.jctc.2c00037
-  !>
+  !> Interface routine.
   subroutine addLrOcHamiltonian(this, env, orb, iSquare, species, onSiteElements,&
       & overlap, densSqr, HH)
 
@@ -88,6 +117,53 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> Correction to energy from on-site matrix elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Square (unpacked) overlap matrix.
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    real(dp), intent(in) :: densSqr(:,:)
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    real(dp), intent(inout) :: HH(:,:)
+
+    call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
+    select case(this%rsAlg)
+    case (rangeSepTypes%threshold)
+      ! not supported empty at the moment
+    case (rangeSepTypes%neighbour)
+      ! not supported empty at the moment
+    case (rangeSepTypes%matrixBased)
+      call addLrOcHamiltonianMatrix(this, orb, iSquare, species, onSiteElements,&
+          & overlap, densSqr, HH)
+    end select
+    call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
+
+  end subroutine addLrOcHamiltonian
+
+
+  !> Update Hamiltonian with long-range onsite contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> Eq. 11 in https://doi.org/10.1021/acs.jctc.2c00037
+  !>
+  subroutine addLrOcHamiltonianMatrix(this, orb, iSquare, species, onSiteElements,&
+      & overlap, densSqr, HH)
+
+    !> class instance
+    class(TRangeSepOnsCorrFunc), intent(inout) :: this
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -126,13 +202,11 @@ contains
     allocate(OmatRI(nOrb,nOrb))
     allocate(HlrOC(nOrb,nOrb))
 
-    call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
     call allocateAndInit(this, orb, iSquare, species, onSiteElements, overlap, densSqr,&
         & Smat, Dmat, Omat0, OmatRI)
     call evaluateHamiltonian(this, Smat, Dmat, Omat0, OmatRI, HlrOC)
     HH(:,:) = HH + HlrOC
     this%lrOcEnergy = this%lrOcEnergy + 0.5_dp * sum(Dmat * HlrOC)
-    call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
 
   contains
 
@@ -352,7 +426,7 @@ contains
 
     end subroutine evaluateHamiltonian
 
-  end subroutine addLrOcHamiltonian
+  end subroutine addLrOcHamiltonianMatrix
 
 
   !> Add the onsite contribution originating from range-seprated functional to the total energy

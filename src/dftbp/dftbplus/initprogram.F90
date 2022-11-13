@@ -2619,7 +2619,7 @@ contains
           & this%nSpin, this%tSpinOrbit, this%isXlbomd, this%t3rd.or.this%t3rdFull,&
           & this%isLinResp, this%solvation, this%reks)
       allocate(this%rsOnsCorr)
-      call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%tSpin)
+      call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%tSpin, input%ctrl%rangeSepInp%rangeSepAlg)
     end if
 
     this%tReadShifts = input%ctrl%tReadShifts
