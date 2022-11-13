@@ -110,7 +110,7 @@ contains
       integer, intent(in) :: rsAlg
 
       real(dp) :: fac
-      integer :: nAtom, iAtom, nOrb, ii, jj, iOrb, jOrb, iSp1, iSp2
+      integer :: nAtom, iAtom, nOrb, ii, jj, iOrb, jOrb, iSh1, iSh2
 
       nOrb = orb%nOrb
       nAtom = size(iSquare,dim=1) - 1
@@ -132,33 +132,27 @@ contains
 
         do iOrb = ii, jj
 
-          if (iOrb - ii + 1 <= 1) then
-            iSp1 = 1
-          else if (iOrb - ii + 1 > 1 .and. iOrb - ii + 1 <= 4) then
-            iSp1 = 2
-          end if
+          ! Find l-shell for iOrb
+          iSh1 = orb%iShellOrb(iOrb-ii+1,species(iAtom))
 
           do jOrb = ii, jj
 
-            if (jOrb - ii + 1 <= 1) then
-              iSp2 = 1
-            else if (jOrb - ii + 1 > 1 .and. jOrb - ii + 1 <= 4) then
-              iSp2 = 2
-            end if
+            ! Find l-shell for jOrb
+            iSh2 = orb%iShellOrb(jOrb-ii+1,species(iAtom))
 
             ! OC contribution except diagonal elements
             if (iOrb /= jOrb) then
-              this%Omat0(iOrb,jOrb) = onSiteElements(iSp1,iSp2,3,species(iAtom))
+              this%Omat0(iOrb,jOrb) = onSiteElements(iSh1,iSh2,3,species(iAtom))
             end if
 
             ! RI loss correction for p orbitals
-            if (iSp1 == 2 .and. iSp2 == 2) then
+            if (iSh1 == 2 .and. iSh2 == 2) then
               if (iOrb == jOrb) then
                 fac = 2.0_dp
               else
                 fac = -1.0_dp
               end if
-              this%OmatRI(iOrb,jOrb) = fac * onSiteElements(iSp1,iSp2,3,species(iAtom))
+              this%OmatRI(iOrb,jOrb) = fac * onSiteElements(iSh1,iSh2,3,species(iAtom))
             end if
 
           end do
@@ -313,6 +307,7 @@ contains
       real(dp), allocatable :: tmpVec(:)
       real(dp), allocatable :: Hvec(:)
 
+      real(dp) :: fac
       integer :: nOrb, iOrb, jOrb
 
       nOrb = size(Smat,dim=1)
@@ -344,18 +339,15 @@ contains
 
       Hmat(:,:) = Dmat * this%Omat0
       call gemm(tmpMat, Hmat, Smat)
-      call gemm(Hmat, Smat, tmpMat)
-      HlrOC(:,:) = HlrOC + Hmat
+      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       ! OC contribution: 3rd term
       tmpMat(:,:) = PS * this%Omat0
-      call gemm(Hmat, tmpMat, Smat)
-      HlrOC(:,:) = HlrOC + Hmat
+      call gemm(HlrOC, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
 
       ! OC contribution: 4th term
       tmpMat(:,:) = transpose(PS) * this%Omat0
-      call gemm(Hmat, Smat, tmpMat)
-      HlrOC(:,:) = HlrOC + Hmat
+      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       ! OC contribution: 5th term
       call gemm(tmpMat, Smat, PS)
@@ -365,7 +357,7 @@ contains
       end do
       call gemv(Hvec, this%Omat0, tmpVec)
       do iOrb = 1, nOrb
-       HlrOC(iOrb,iOrb) = HlrOC(iOrb,iOrb) + Hvec(iOrb)
+        HlrOC(iOrb,iOrb) = HlrOC(iOrb,iOrb) + Hvec(iOrb)
       end do
 
       ! OC contribution: 6th term
@@ -379,26 +371,24 @@ contains
         Hmat(iOrb,iOrb) = Hvec(iOrb)
       end do
       call gemm(tmpMat, Hmat, Smat)
-      call gemm(Hmat, Smat, tmpMat)
-      HlrOC(:,:) = HlrOC + Hmat
+      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       ! RI loss correction term
+      fac = 2.0_dp / 3.0_dp
+
       tmpMat(:,:) = transpose(PS) * this%OmatRI
-      call gemm(Hmat, tmpMat, Smat)
-      HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
+      call gemm(HlrOC, tmpMat, Smat, alpha=fac, beta=1.0_dp)
 
       call gemm(tmpMat, Smat, PS)
       Hmat(:,:) = tmpMat * this%OmatRI
-      HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
+      HlrOC(:,:) = HlrOC + HMat * fac
 
       Hmat(:,:) = Dmat * this%OmatRI
       call gemm(tmpMat, Hmat, Smat)
-      call gemm(Hmat, Smat, tmpMat)
-      HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
+      call gemm(HlrOC, Smat, tmpMat, alpha=fac, beta=1.0_dp)
 
       tmpMat(:,:) = PS * this%OmatRI
-      call gemm(Hmat, Smat, tmpMat)
-      HlrOC(:,:) = HlrOC + HMat * 2.0_dp / 3.0_dp
+      call gemm(HlrOC, Smat, tmpMat, alpha=fac, beta=1.0_dp)
 
       if (this%tSpin) then
         HlrOC(:,:) = -0.25_dp * HlrOC
@@ -486,6 +476,7 @@ contains
     real(dp), allocatable :: tmpForce(:)
     real(dp), allocatable :: tmpDeriv(:,:)
 
+    real(dp) :: fac
     integer :: nOrb, nSpin, nAtom
     integer :: iOrb, mu, nu, iSpin, iAtA, iAtB, iNeighA, ii
     integer :: iAtMu1, iAtMu2, iAtNu1, iAtNu2
@@ -575,13 +566,13 @@ contains
     end do
 
     ! RI loss correction: 6th term - a
+    fac = 4.0_dp / 3.0_dp
+
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
       tmpMat(:,:) = PS(:,:,iSpin) * this%OmatRI
-      call gemm(Hmat, tmpMat, Dmat(:,:,iSpin))
-
-      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + Hmat * 4.0_dp / 3.0_dp
+      call gemm(shiftSqr(:,:,iSpin), tmpMat, Dmat(:,:,iSpin), alpha=fac, beta=1.0_dp)
 
     end do
 
@@ -590,9 +581,7 @@ contains
 
       tmpMat(:,:) = 0.0_dp
       tmpMat(:,:) = Dmat(:,:,iSpin) * this%OmatRI
-      call gemm(Hmat, tmpMat, PS(:,:,iSpin), transB="T")
-
-      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + Hmat * 4.0_dp / 3.0_dp
+      call gemm(shiftSqr(:,:,iSpin), tmpMat, PS(:,:,iSpin), transB="T", alpha=fac, beta=1.0_dp)
 
     end do
 
