@@ -5865,7 +5865,7 @@ contains
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
 
-    call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactlayertol)
+    call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
 
     transpar%taskUpload = .false.
 

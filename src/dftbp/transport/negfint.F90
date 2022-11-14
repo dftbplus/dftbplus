@@ -113,8 +113,6 @@ contains
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
     character(lc) :: errString
-    integer :: iCont
-    real(dp), allocatable :: contVectors(:, :), sigma(:), U(:, :), Vt(:, :)
 
 #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm)
@@ -142,18 +140,8 @@ contains
       end do
     end do
 
-    if (isPeriodic .and. nCont > 2) then
-      allocate(sigma(min(nCont,3)))
-      allocate(contVectors(3, nCont))
-      allocate(U(3, 3))
-      allocate(Vt(nCont, nCont))
-      do iCont = 1, nCont
-        contVectors(:, iCont) = transpar%contacts(iCont)%lattice
-      end do
-      call gesvd(contVectors, U, sigma, Vt)
-      if (all(sigma > transpar%contactLayerTol**2)) then
-        call error('Device is fully surrounded by contacts, so should not be a periodic geometry')
-      end if
+    if (hasFullySurroundingContacts(isPeriodic, nCont, transpar)) then
+      call error('Device is fully surrounded by contacts, so should not be a periodic geometry')
     end if
 
     ! ------------------------------------------------------------------------------
@@ -413,6 +401,43 @@ contains
     this%negf%tDephasingBP = transpar%tDephasingBP
 
   end subroutine TNegfInt_init
+
+
+  !> Tests for device region fully surrounded by contacts but is a periodic geometry
+  function hasFullySurroundingContacts(isPeriodic, nCont, transpar) result (isSurrounded)
+
+    !> Is this a periodic geometry?
+    logical, intent(in) :: isPeriodic
+
+    !> Number of contacts
+    integer, intent(in) :: nCont
+
+    !> Parameters for the transport calculation
+    Type(TTranspar), intent(in) :: transpar
+
+    !> Is the device surrounded
+    logical :: isSurrounded
+
+    real(dp), allocatable :: contVectors(:, :), sigma(:), U(:, :), Vt(:, :)
+    integer :: iCont
+
+    if (.not.isPeriodic .or. nCont < 3) then
+      isSurrounded = .false.
+      return
+    end if
+
+    allocate(sigma(min(nCont,3)))
+    allocate(contVectors(3, nCont))
+    allocate(U(3, 3))
+    allocate(Vt(nCont, nCont))
+    do iCont = 1, nCont
+      contVectors(:, iCont) = transpar%contacts(iCont)%lattice
+    end do
+    call gesvd(contVectors, U, sigma, Vt)
+
+    isSurrounded = all(sigma > transpar%contactLayerTol**2)
+
+  end function hasFullySurroundingContacts
 
 
   !> Initialise dephasing effects

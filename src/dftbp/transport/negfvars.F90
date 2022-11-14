@@ -250,7 +250,7 @@ module dftbp_transport_negfvars
     integer :: typeModes
 
     !> Tolerance for contact vectors being distorted
-    real(dp) :: contactlayertol
+    real(dp) :: contactLayerTol
 
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
