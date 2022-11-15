@@ -13,6 +13,7 @@ Added
 
 - Born charges from finite difference dipole derivatives
 
+- Spin-orbit coupling for xTB
 
 Fixed
 -----
