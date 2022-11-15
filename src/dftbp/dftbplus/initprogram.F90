@@ -4440,18 +4440,47 @@ contains
     !> Instance
     class(TDftbPlusMain), intent(in) :: this
 
+    !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Holds the parsed input data.
     type(TInputData), intent(in) :: input
+
+    !> electronic solver for the system
     type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
+
+    !> electron temperature
     real(dp), intent(in) :: tempElec
+
+    !> Transport interface
     logical, intent(in) :: tNegf
+
+    !> Whether a contact Hamiltonian is being computed and stored
     logical, intent(out) :: isAContactCalc
+
+    !> Holds spin-dependent electrochemical potentials of contacts
+    !> This is because libNEGF is not spin-aware
     real(dp), allocatable, intent(out) :: mu(:,:)
+
+    !> Transport interface
     type(TNegfInt), intent(out) :: negfInt
+
+    !> container for data needed by libNEGF
     type(TNegfInfo), intent(out) :: ginfo
+
+    !> Transport calculation parameters
     type(TTransPar), intent(out) :: transpar
-    logical, intent(out) :: writeTunn, tWriteLDOS
+
+    !> Should tunnelling be written out
+    logical, intent(out) :: writeTunn
+
+    !> Should local density of states be written out
+    logical, intent(out) :: tWriteLDOS
+
+    !> Labels for different regions for DOS output
     character(lc), allocatable, intent(out) :: regionLabelLDOS(:)
 
     logical :: tAtomsOutside
@@ -4459,7 +4488,7 @@ contains
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
 
-    ! Its a contact calculation in the case that some contact is computed
+    ! It is a contact calculation in the case that some contact is computed
     isAContactCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <= 2) then
@@ -4510,7 +4539,7 @@ contains
 
       ! Some checks and initialization of GDFTB/NEGF
       call TNegfInt_init(negfInt, input%transpar, env, input%ginfo%greendens,&
-          & input%ginfo%tundos, tempElec, this%coord0, this%cutOff%skCutoff)
+          & input%ginfo%tundos, tempElec, this%coord0, this%cutOff%skCutoff, this%tPeriodic)
 
       ginfo = input%ginfo
 
