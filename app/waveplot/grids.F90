@@ -68,7 +68,7 @@ module waveplot_grids
   integer :: linear = 1
 
   ! Explicit calculation, no interpolation
-  integer :: explicit = 2  
+  integer :: explicit = 2
 
   end type TGridInterpolationTypesEnum
 
@@ -470,7 +470,7 @@ contains
 
     !> lower and upper cartesian bounds of grid and (partly) contained subgrid, shape: [3,1]
     real(dp), allocatable :: lCcTotGrid(:,:), uCcTotGrid(:,:), lCcSubGrid(:,:), uCcSubGrid(:,:)
-    
+
     !> lower and upper real grid coordinates of intersection
     real(dp), allocatable :: lRGc(:,:), uRGc(:,:)
 
@@ -1210,7 +1210,7 @@ contains
 
         iAtom = orbitalToAtom(iOrb)
         iSubgrid = orbitalToSubgrid(iOrb)
-        iAng = orbitalToAngs(iOrb) 
+        iAng = orbitalToAngs(iOrb)
         iM = orbitalToM(iOrb)
         iStos = orbitalToStos(iOrb)
 
@@ -1334,7 +1334,7 @@ contains
     real(dp), allocatable :: cartCoords(:,:,:,:)
 
     real(dp) :: start, finish
-    real(dp), allocatable :: times(:,:)
+    real(dp), allocatable :: times(:)
 
     ! try to ensure a smooth runtime
     @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
@@ -1399,7 +1399,9 @@ contains
       end do
     end if
 
-    allocate(times(size(coeffs, dim=1), size(coords, dim=3)))
+    write(*,*) regionGridDat(1)%grid%origin
+
+    allocate(times(size(coeffs, dim=1)))
 
     !$omp parallel do default(none)&
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
@@ -1420,52 +1422,62 @@ contains
 
           if (gridInterType == gridInterpolTypes%explicit) then
             basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) =&
+                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
                 & explicitSTOcalculationCoeffs(regionGridDat(iGrid), subgridsDat(iSubgrid), &
                 & 1.0_dp, coords(:, iAtom, iCell), &
                 & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
                 & square=tAddDensities)
           else if (gridInterType == gridInterpolTypes%trivial) then
             basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
                 & gridInterpolationTrivial(regionGridDat(iGrid), subgridsDat(iSubgrid), &
                 & 1.0_dp, coords(:, iAtom, iCell), square=tAddDensities)
           else if (gridInterType == gridInterpolTypes%linear) then
             basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
                 & gridInterpolationLinear(regionGridDat(iGrid), subgridsDat(iSubgrid), 1.0_dp, &
                 & coords(:, iAtom, iCell), square=tAddDensities)
           end if
 
-          call cpu_time(start)
+        end do lpCell
 
-          ! distribute molecular orbitals to state-resolved global grid caches
-          lpStates: do iState = 1, size(levelIndex, dim=2)
+        call cpu_time(start)
+          ! Schleife in subroutine schreiben
+          ! Gleiches Beispiel mit altem Waveplot rechnen
+          ! Altes Waveplot in VTune
+          ! in branch schleife umschreiben, sodass basis für einen einzigen Punkt berechnet wird
+          ! Schleife über alle Grid Punkte direkt nach Schleife über parallele Regionen
 
-            iL = levelIndex(1, iState)
-            iKPoint = levelIndex(2, iState)
-            iSpin = levelIndex(3, iState)
+        ! distribute molecular orbitals to state-resolved global grid caches
+        lpStates: do iState = 1, size(levelIndex, dim=2)
 
-            ! add STO weighted with the eigenvector coefficients to the global grid
+          iL = levelIndex(1, iState)
+          iKPoint = levelIndex(2, iState)
+          iSpin = levelIndex(3, iState)
 
-            do ww = tiling(1, iGrid), tiling(2, iGrid)
-              do vv = 1, size(globalGridsDat, dim=2)
-                do uu = 1, size(globalGridsDat, dim=1)
-                  globalGridsDat(uu, vv, ww, iState) =&
-                      & globalGridsDat(uu, vv, ww, iState)&
-                      & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(uu, vv, ww)
-                end do
+          ! add STO weighted with the eigenvector coefficients to the global grid
+
+          do ww = tiling(1, iGrid), tiling(2, iGrid)
+            do vv = 1, size(globalGridsDat, dim=2)
+              do uu = 1, size(globalGridsDat, dim=1)
+                globalGridsDat(uu, vv, ww, iState) =&
+                    & globalGridsDat(uu, vv, ww, iState)&
+                    & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(uu, vv, ww)
               end do
             end do
+          end do
 
-            ! globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState) =&
-            !     & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState)&
-            !     & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
+          ! globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState) =&
+          !     & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iState)&
+          !     & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
 
-          end do lpStates
+        end do lpStates
 
-          call cpu_time(finish)
+        basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = 0.0_dp
 
-          times(iOrb, iCell) = finish - start
+        call cpu_time(finish)
 
-        end do lpCell
+        times(iOrb) = finish - start
 
       end do lpOrb
     end do lpGrid
@@ -1659,7 +1671,7 @@ contains
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iL, iSpin, iKPoint,&
     !$omp& currentKPoint, currentLevel, currentSpin, iAng, iM, idx, ii, jj, kk, aa, iStos)
     lpGrid: do iGrid = 1, nRegions
-      kpoints: do iKPoint = 1, size(requiredKPoints, dim=1)
+      lpKPoints: do iKPoint = 1, size(requiredKPoints, dim=1)
         lpOrb: do iOrb = 1, size(coeffs, dim=1)
 
           iAtom = orbitalToAtom(iOrb)
@@ -1670,43 +1682,52 @@ contains
           iStos = orbitalToStos(iOrb)
 
           lpCell: do iCell = 1, size(coords, dim=3)
-            
+
             if (gridInterType == gridInterpolTypes%explicit) then
               basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) =&
+                  & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) + &
                   & explicitSTOcalculationCoeffs(regionGridDat(iGrid), subgridsDat(iSubgrid), &
                   & phases(iCell, currentKPoint), coords(:, iAtom, iCell), &
                   & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, &
                   & iM, square=tAddDensities)
             else if (gridInterType == gridInterpolTypes%trivial) then
               basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
+                  & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) + &
                   & gridInterpolationTrivial(regionGridDat(iGrid), subgridsDat(iSubgrid), &
                   & phases(iCell, currentKPoint), coords(:, iAtom, iCell), square=tAddDensities)
             else if (gridInterType == gridInterpolTypes%linear) then
               basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
+                  & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) + &
                   & gridInterpolationLinear(regionGridDat(iGrid), subgridsDat(iSubgrid), &
                   & phases(iCell, currentKPoint), coords(:, iAtom, iCell), square=tAddDensities)
             end if
 
-            do iL = 1, size(requiredLevels, dim=1)
-
-              currentLevel = requiredLevels(iL)
-
-              lpSpin: do iSpin = 1, size(requiredSpins, dim=1)
-              currentSpin = requiredSpins(iSpin)
-
-                ! add STO weighted with the eigenvector coefficients to the global grid
-                globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iL, iKPoint, iSpin) =&
-                    & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iL, iKPoint, iSpin)&
-                    & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
-                    & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint)
-              
-              end do lpSpin
-            end do
+              ! basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
+              !     & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) * &
+              !     & phases(iCell, currentKPoint)
 
           end do lpCell
 
+          lpL: do iL = 1, size(requiredLevels, dim=1)
+
+            currentLevel = requiredLevels(iL)
+
+            lpSpin: do iSpin = 1, size(requiredSpins, dim=1)
+            currentSpin = requiredSpins(iSpin)
+
+              ! add STO weighted with the eigenvector coefficients to the global grid
+              globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iL, iKPoint, iSpin) =&
+                  & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), iL, iKPoint, iSpin)&
+                  & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
+                  & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint)
+
+            end do lpSpin
+          end do lpL
+
+          basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = 0.0_dp
+
         end do lpOrb
-      end do kpoints
+      end do lpKPoints
     end do lpGrid
     !$omp end parallel do
 
@@ -1916,7 +1937,7 @@ contains
 
     !> Real tesseral spherical harmonics
     type(TRealTessY) :: rty
-    
+
     integer :: nAlpha
     integer :: nPow
     integer :: endIdx, loc, rtyIdx, idx(3, 1), grididx(3, 1)
@@ -1953,8 +1974,6 @@ contains
             idx(2, 1) = jj
             do ii = 1, luGc(1, 2) - luGc(1, 1) + 1
               idx(1, 1) = ii
-              grididx(:,1) = idx(:,1) + luGc(:, 1)
-              call regionGridDat%grid%gridcoordToCartesian(grididx, cartPosition)
               inds(:) = idx(:, 1) + luGc(:, 1) - regionGridDat%grid%lowerBounds
               distance = norm2(cartCoords(:, inds(1), inds(2), inds(3)) - position)
               loc = max(min(locateByBisection(stos%gridValue(:, 1), distance), endIdx), 1)
@@ -1976,8 +1995,6 @@ contains
             idx(2, 1) = jj
             do ii = 1, luGc(1, 2) - luGc(1, 1) + 1
               idx(1, 1) = ii
-              grididx(:,1) = idx(:,1) + luGc(:, 1)
-              call regionGridDat%grid%gridcoordToCartesian(grididx, cartPosition)
               inds(:) = idx(:, 1) + luGc(:, 1) - regionGridDat%grid%lowerBounds
               distance = norm2(cartCoords(:, inds(1), inds(2), inds(3)) - position)
               loc = max(min(locateByBisection(stos%gridValue(:, 1),&
@@ -1990,6 +2007,9 @@ contains
                     & stos%gridValue(loc + 1, 2), distance) * &
                     & RealTessY(ll, mm, cartCoords(:, inds(1), inds(2), inds(3)) - position) * eigvec
               end if
+              ! call SlaterOrbital_getValue(stos, distance, rwfValue)
+              ! stoValue(inds(1), inds(2), inds(3)) = rwfValue * &
+              !     & RealTessY(ll, mm, cartCoords(:, inds(1), inds(2), inds(3)) - position) * eigvec
             end do
           end do
         end do
@@ -2088,7 +2108,7 @@ contains
           do ii = 1, luGc(1, 2) - luGc(1, 1) + 1
             idxval(1) = ii
             inds(:) = idxval + luGc(:, 1) - regionGridDat%grid%lowerBounds
-            interp(inds(1), inds(2), inds(3)) = eigvec * & 
+            interp(inds(1), inds(2), inds(3)) = eigvec * &
                 & trilinearInterpolation(real(roundedIntersecSubGc(:, ii, jj, kk), dp),&
                 & real(roundedIntersecSubGc(:, ii, jj, kk) + 1, dp), scData(:,:,:, ii, jj, kk),&
                 & intersecSubGc(:, ii, jj, kk))
