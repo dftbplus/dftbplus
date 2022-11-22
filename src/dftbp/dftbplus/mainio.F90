@@ -2935,7 +2935,7 @@ contains
 
       if (tImHam .and. tPrintMulliken) then
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2949,7 +2949,7 @@ contains
           end do
         end do
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2963,7 +2963,7 @@ contains
 
         write(fd, *)
         write(fd, "(A)") 'Total angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
         do ii = 1, size(iAtInCentralRegion)
