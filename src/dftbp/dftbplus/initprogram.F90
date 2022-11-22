@@ -767,6 +767,12 @@ module dftbp_dftbplus_initprogram
     !> data type for linear response
     type(TLinResp), allocatable :: linearResponse
 
+    !> should CI be optimized
+    logical :: tCIopt
+
+    !> CI between these levels is optimized
+    integer :: indNACouplings(2)
+
     !> Whether to run a range separated calculation
     logical :: isRangeSep
 
@@ -2374,6 +2380,9 @@ contains
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
           & input%ctrl%lrespini%tWriteDensityMatrix)
+      !> CI optimizer 
+      this%tCIopt = input%ctrl%lrespini%tCIopt
+      this%indNACouplings = input%ctrl%lrespini%indNACouplings
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&

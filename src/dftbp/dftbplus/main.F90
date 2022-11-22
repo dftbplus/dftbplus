@@ -10,8 +10,8 @@
 
 !> The main routines for DFTB+
 module dftbp_dftbplus_main
-  use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
-  use dftbp_common_constants, only : pi
+  use dftbp_common_accuracy, only : dp, lc, elecTolMax, tolSameDist
+  use dftbp_common_constants, only : pi, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
@@ -1311,7 +1311,9 @@ contains
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
-        if (this%tCasidaForces) then
+        if (this%tCIopt) then
+          call conicalIntersectionOptimizer(this%derivs, this%indNACouplings, this%energiesCasida)
+        else if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
         end if
       end if
@@ -7390,5 +7392,137 @@ contains
     end if
 
   end subroutine assignDipoleMoment
+
+  !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
+  !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
+  !> Read NA coupling and excited state derivatives from files, this needs to be changed
+  subroutine conicalIntersectionOptimizer(derivs, indNACouplings, excEnergies)
+
+    !> Ground state gradient (overwritten)
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> States between CI is optimized
+    integer, intent(in) :: indNACouplings(2)
+
+    !> Sn-S0 excitation energy
+    real(dp), intent(in) :: excEnergies(:)
+
+    !> shift of excited state PES
+    real(dp), parameter :: shift = 0.0_dp
+
+    !> gradients of the excited state energy 
+    real(dp), allocatable:: deltaDerivs1(:,:), deltaDerivs2(:,:)
+
+    !> Nonadiabatic coupling vector
+    real(dp), allocatable :: naCouplings(:,:)
+
+    integer :: nAtoms, i
+    integer :: fdUnit, iErr
+    real(dp), allocatable :: X1(:), X2(:), dE2(:), gpf(:)
+    real(dp) :: dpX1, dpX2, prj1, prj2, deltaE, normGP
+    character(lc) :: tmpStr, error_string
+
+    nAtoms = size(derivs, 2)
+    allocate(X1(3 * nAtoms))
+    allocate(X2(3 * nAtoms))
+    allocate(dE2(3 * nAtoms))
+    allocate(gpf(3 * nAtoms))
+    allocate(deltaDerivs1, mold=derivs)
+    allocate(deltaDerivs2, mold=derivs)
+    allocate(naCouplings, mold=derivs)
+
+    if(indNACouplings(1) == 0) then
+      deltaDerivs1 = 0.0_dp
+    else 
+      write(tmpStr, "(A,I0,A)")"excgrd", indNACouplings(1), ".dat"
+
+      open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="old",&
+          & form='unformatted',iostat=iErr)
+
+      if (iErr /= 0) then
+        write(error_string, *) "Failure to open excited state gradient file"
+        call error(error_string)
+      end if
+
+      read(fdUnit) deltaDerivs1
+
+      close(fdUnit)
+    endif
+
+    write(tmpStr, "(A,I0,A)")"excgrd", indNACouplings(2), ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="old",&
+        & form='unformatted',iostat=iErr)
+
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open excited state gradient file"
+      call error(error_string)
+    end if
+
+    read(fdUnit) deltaDerivs2
+
+    close(fdUnit)
+
+    write(tmpStr, "(A,I0,A,I0,A)")"nacv", indNACouplings(1),"-", indNACouplings(2), ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="old",&
+        & form='formatted',iostat=iErr)
+
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open nacv file"
+      call error(error_string)
+    end if
+
+    do i = 1, size(derivs(1,:))
+      read(fdunit,'(3(E20.12,2x))') naCouplings(1,i), naCouplings(2,i), naCouplings(3,i)
+    enddo
+
+    close(fdUnit)
+
+    X1 = reshape(deltaDerivs2-deltaDerivs1, (/ 3 * nAtoms /))
+    X2 = reshape(naCouplings, (/ 3 * nAtoms /))
+    ! Original Bearbark suggestion would be dS1/dq, Harabuchi chooses
+    ! 0.5 (dS0/dq + dS1/dq)
+    dE2 = reshape(derivs + 0.5_dp * (deltaDerivs1 + deltaDerivs2), (/ 3 * nAtoms /))
+    !!dE2 = reshape(derivs + deltaDerivs2, (/ 3 * nAtoms /))
+
+    dpX1 = dot_product(X1, X1)
+    dpX2 = dot_product(X2, X2)
+
+    prj1 = dot_product(dE2, X1)
+    prj2 = dot_product(dE2, X2)
+
+    ! Eq. 5 in Bearpark et al.
+    gpf(:) = dE2(:) - prj1 * X1(:) / dpX1 - prj2 * X2(:) / dpX2
+    normGP = norm2(gpf)
+    ! Eq. 4 in Bearpark et al. with modifications by Harabuchi
+    ! Yields approximate CI without running into SCF problems too early
+    ! Shift should be brought to zero
+    deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
+    gpf(:) = gpf(:) + 2.0_dp * (deltaE - shift) * X1(:) / sqrt(dpX1) 
+
+    derivs(:,:) = reshape(gpf, (/ 3, nAtoms /))
+
+    write(stdOut, "(A, f10.4, A, f16.8)") 'Energy gap:                ', &
+         & deltaE * Hartree__eV, ' eV, Projected force ', normGP 
+
+    write(tmpStr, "(A,I0,A,I0,A)")"delgrd", indNACouplings(1),"-", indNACouplings(2), ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", &
+        & form='formatted',iostat=iErr)
+
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open grad file"
+      call error(error_string)
+    end if
+
+    naCouplings = deltaDerivs2 - deltaDerivs1
+    do i = 1, size(derivs(1,:))
+      write(fdunit,'(3(E20.12,2x))') naCouplings(1,i), naCouplings(2,i), naCouplings(3,i)
+    enddo
+
+    close(fdUnit)
+
+  end subroutine conicalIntersectionOptimizer
 
 end module dftbp_dftbplus_main

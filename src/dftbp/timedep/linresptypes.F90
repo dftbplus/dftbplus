@@ -68,6 +68,9 @@ module dftbp_timedep_linresptypes
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 
+    !> Should CI be optimized?
+    logical :: tCIopt = .false.
+
     !> whether coefficients for the excited states should be written to disc
     logical :: writeCoeffs = .false.
 

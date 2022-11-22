@@ -90,6 +90,9 @@ module dftbp_timedep_linresp
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 
+    !> Should CI be optimized
+    logical :: tCIopt
+
     !> write single particle transitions
     logical :: tSPTrans
 
@@ -141,6 +144,8 @@ contains
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
+    integer :: dLev
+
     this%tinit = .false.
     this%tUseArpack = ini%tUseArpack
     this%subSpaceFactorStratmann = ini%subSpaceFactorStratmann
@@ -176,7 +181,16 @@ contains
         end if
         this%tNaCoupling = .true.
         this%indNACouplings = ini%indNACouplings
+        dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
+        if (dLev > 1 .and. ini%tCIopt) then
+          call error("Couplings: CIopt for neighbouring states only.")
+        else
+          this%tCIopt = ini%tCIopt
+        endif
       endif
+      if (ini%tCIopt .and. (.not. this%tNaCoupling)) then
+        call error("CIopt: Specify couplings section.")
+      endif 
 
       this%writeMulliken = ini%tMulliken
       this%writeCoeffs = ini%tCoeffs

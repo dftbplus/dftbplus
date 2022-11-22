@@ -620,11 +620,12 @@ contains
       if (nstat == 0) then
         nStartLev = 1
         nEndLev = this%nExc
-
         if (tForces) then
           call error("Forces currently not available unless a single excited state is specified")
         end if
-
+      else if (this%tCIopt) then
+        nStartLev = this%indNACouplings(1)
+        nEndLev = this%indNACouplings(2)        
       else
         nStartLev = nstat
         nEndLev = nstat
@@ -700,124 +701,122 @@ contains
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
               & tRangeSep, rangeSep, excgrad)
-        end if
-
-        if (this%tNaCoupling) then
-
-          if (this%tNaCoupling .and. tSpin) then
-            call error('Couplings for spin-polarized systems currently not available.')
-          end if
-          if(this%nExc < this%indNACouplings(2)) then
-            call error('Coupling: Index must not exceed number of states to calculate.')
-          end if  
-
-          ! This overwrites T, RHS and W
-          ALLOCATE(nacv, mold = excgrad)
-          ALLOCATE(xpyn, mold = xpy(:,1))
-          ALLOCATE(xpym, mold = xpy(:,1))
-          ALLOCATE(xmyn, mold = xpy(:,1))
-          ALLOCATE(xmym, mold = xpy(:,1))
-
-          open(67, file='nacv.out')
-          write(67,'(a)') '# Non-adiabatic couplings: index of state 1 and 2, then coupling vector' 
-
-          do nCoupLev = this%indNACouplings(1), this%indNACouplings(2)-1
-            do mCoupLev = nCoupLev+1, this%indNACouplings(2)
-
-              write(67,'(2x,i4,2x,i4)') nCoupLev, mCoupLev
-              nacv = 0
-              woo = 0.0_dp
-              wvv = 0.0_dp
-              pc = 0.0_dp
-              t = 0.0_dp
-              rhs = 0.0_dp
-
-              !> Ground-to-excited NACV 
-              if(nCoupLev == 0) then
-                xpym = xpy(:,mCoupLev)
-                xmym = xmy(:,mCoupLev)
-                omegaDif = sqrt(eval(mCoupLev))
-                call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, iAtomStart, nocc_ud,  & 
-                   & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
-                   & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
-                   & woo)
-
-                do iSpin = 1, nSpin
-                  ! Make MO to AO transformation of the excited density matrix
-                  call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                  call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
-                end do
-
-                !> For 0-n couplings, the standard force routine can be used, where
-                !> X+Y and W_ab are zeroed out
-                wvv  = 0.0_dp
-                xpym = 0.0_dp
-                xmym = 0.0_dp
-                xpyn = 0.0_dp
-                xmyn = 0.0_dp
-                call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-                  & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
-                  & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym, &
-                  & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-                  & tRangeSep, rangeSep, nacv)
-
-              else
- 
-                xpyn = xpy(:,nCoupLev)
-                xmyn = xmy(:,nCoupLev)
-                xpym = xpy(:,mCoupLev)
-                xmym = xmy(:,mCoupLev)
-                omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
-                omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
-             
-                ! compute + component of RHS for Z-vector eq. in the NaCoupling case
-                ! also computes the + components of W and T
-                call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),            & 
-                   & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1),    &
-                   & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
-                   & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t, &
-                   & wov, woo, wvv)
-
-                call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,      &
-                   & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, &
-                   & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,       &
-                   & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,   &
-                   & lrGamma)
-
-                call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, &
-                   & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,   &
-                   & transChrg, species0, this%spinW, tRangeSep, lrGamma)
-
-                call calcPMatrix(t, rhs, win, getIA, pc)
-
-                do iSpin = 1, nSpin
-                  ! Make MO to AO transformation of the excited density matrix
-                  call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                  call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
-                end do
-
-                call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-                  & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,  &
-                  & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn,&
-                  & xpym, xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,     &
-                  & tRangeSep, rangeSep, nacv)
-
-              end if
-              
-              !> P and W have not yet been divided by excitation energy difference
-              nacv = nacv / omegaDif 
-              
-              do i= 1, size(nacv(1,:))
-                write(67,'(3(E20.12,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
-              enddo
-
-            end do
-          end do 
-          close(67)
-            
+          call writeExcGradients(iLev, excgrad)
+          
         end if
       end do
 
+      if (this%tNaCoupling) then
+
+        if (this%tNaCoupling .and. tSpin) then
+          call error('Couplings for spin-polarized systems currently not available.')
+        end if
+        if(this%nExc < this%indNACouplings(2)) then
+          call error('Coupling: Index must not exceed number of states to calculate.')
+        end if  
+
+        ! This overwrites T, RHS and W
+        ALLOCATE(nacv, mold = excgrad)
+        ALLOCATE(xpyn, mold = xpy(:,1))
+        ALLOCATE(xpym, mold = xpy(:,1))
+        ALLOCATE(xmyn, mold = xpy(:,1))
+        ALLOCATE(xmym, mold = xpy(:,1))
+
+        do nCoupLev = this%indNACouplings(1), this%indNACouplings(2)-1
+          do mCoupLev = nCoupLev+1, this%indNACouplings(2)
+
+            nacv = 0
+            woo = 0.0_dp
+            wvv = 0.0_dp
+            pc = 0.0_dp
+            t = 0.0_dp
+            rhs = 0.0_dp
+
+            !> Ground-to-excited NACV 
+            if(nCoupLev == 0) then
+              xpym = xpy(:,mCoupLev)
+              xmym = xmy(:,mCoupLev)
+              omegaDif = sqrt(eval(mCoupLev))
+              call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, iAtomStart, nocc_ud,  & 
+                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
+                 & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
+                 & woo)
+
+              do iSpin = 1, nSpin
+                ! Make MO to AO transformation of the excited density matrix
+                call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+                call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+              end do
+
+              !> For 0-n couplings, the standard force routine can be used, where
+              !> X+Y and W_ab are zeroed out
+              wvv  = 0.0_dp
+              xpym = 0.0_dp
+              xmym = 0.0_dp
+              xpyn = 0.0_dp
+              xmyn = 0.0_dp
+              call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
+                & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym, &
+                & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
+                & tRangeSep, rangeSep, nacv)
+
+            else
+ 
+              xpyn = xpy(:,nCoupLev)
+              xmyn = xmy(:,nCoupLev)
+              xpym = xpy(:,mCoupLev)
+              xmym = xmy(:,mCoupLev)
+              omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
+              omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
+             
+              ! compute + component of RHS for Z-vector eq. in the NaCoupling case
+              ! also computes the + components of W and T
+              call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),            & 
+                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1),    &
+                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
+                 & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t, &
+                 & wov, woo, wvv)
+
+              call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,      &
+                 & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, &
+                 & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,       &
+                 & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,   &
+                 & lrGamma)
+
+              call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, &
+                 & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,   &
+                 & transChrg, species0, this%spinW, tRangeSep, lrGamma)
+
+              write(*,*) 'WARNING: RHS SET TO ZERO'
+              rhs = 0.0_dp
+
+              call calcPMatrix(t, rhs, win, getIA, pc)
+
+              do iSpin = 1, nSpin
+                ! Make MO to AO transformation of the excited density matrix
+                call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+                call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+              end do
+
+              call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,  &
+                & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn,&
+                & xpym, xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,     &
+                & tRangeSep, rangeSep, nacv)
+
+            end if
+              
+            !> P and W have not yet been divided by excitation energy difference
+            nacv = nacv / omegaDif 
+              
+            call writeNACV(nCoupLev, mCoupLev, nacv)
+
+          end do
+        end do
+            
+      end if
+      
       if (nstat == 0) then
         omega = 0.0_dp
       end if
@@ -2930,6 +2929,67 @@ contains
     close(fdUnit)
 
   end subroutine writeDM
+
+  !> Write out excited state gradients binary
+  subroutine writeExcGradients(iLev, excgrad)
+
+    !> Lable for excited state level
+    integer, intent(in) :: iLev
+
+    !> excited state gradient for state iLev
+    real(dp), intent(in) :: excgrad(:,:)
+
+    integer :: fdUnit, iErr
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A)")"excgrd", iLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='unformatted',iostat=iErr)
+
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open excited state gradient file"
+      call error(error_string)
+    end if
+
+    write(fdUnit) excgrad
+
+    close(fdUnit)
+
+  end subroutine writeExcGradients
+
+  !> Write out non-adiabatic coupling vectors
+  subroutine writeNACV(iLev, jLev, nacv)
+
+    !> first level for coupling
+    integer, intent(in) :: iLev
+
+    !> second level for coupling
+    integer, intent(in) :: jLev
+
+    !> non-adiabatic coupling vector
+    real(dp), intent(in) :: nacv(:,:)
+
+    integer :: fdUnit, iErr, i
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A,I0,A)")"nacv", iLev,"-", jLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='formatted',iostat=iErr)
+
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open nacv file"
+      call error(error_string)
+    end if
+
+    do i = 1, size(nacv(1,:))
+      write(fdunit,'(3(E20.12,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
+    enddo
+
+    close(fdUnit)
+
+  end subroutine writeNACV
 
 
   !> Mulliken population for a square density matrix and overlap
