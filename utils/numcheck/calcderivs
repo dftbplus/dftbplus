@@ -44,13 +44,13 @@ def main():
     """Main routine"""
 
     args = parse_arguments()
-    direction = direction_from_args(args)
+    directions= directions_from_args(args.directions)
     specienames, species, coords, origin, latvecs = readgen("geo.gen.template")
-    atoms = atoms_from_args(args, coords.shape[0])
+    atoms = atoms_from_args(args.atoms, coords.shape[0])
     if (exists(CHARGES_FILE)):
-        chargeRestart = create_temporary_copy(CHARGES_FILE)
+        charge_restart = create_temporary_copy(CHARGES_FILE)
     else:
-        chargeRestart = None
+        charge_restart = None
     calcforces = not args.skipforces
     calclatderivs = (latvecs is not None) and not args.skiplattice
     if args.calcref:
@@ -65,7 +65,7 @@ def main():
 
     if args.calcref:
         calculate_reference(binary, reffile, coords, specienames, species,
-                            origin, latvecs, chargeRestart)
+                            origin, latvecs, charge_restart)
 
     if reffile is not None:
         forces0, latderivs0 = read_reference_results(reffile, calcforces,
@@ -74,23 +74,23 @@ def main():
         forces0 = latderivs0 = None
 
     if calcforces:
-        forces = calculate_forces( binary, disp, coords, specienames,
-                                   species, origin, latvecs, chargeRestart,
-                                   direction, atoms)
+        forces = calculate_forces(binary, disp, coords, specienames,
+                                  species, origin, latvecs, charge_restart,
+                                  directions, atoms)
 
     if latvecs is not None and calclatderivs:
-        latderivs = calculate_latderivs( binary, disp, coords, latvecs,
-                                         specienames, species, origin,
-                                         chargeRestart, direction)
+        latderivs = calculate_latderivs(binary, disp, coords, latvecs,
+                                        specienames, species, origin,
+                                        charge_restart, directions)
 
     if calcforces:
-        print_forces(forces, forces0, direction, atoms)
+        print_forces(forces, forces0, directions, atoms)
 
     if latvecs is not None and calclatderivs:
-        print_latderivs(latderivs, latderivs0, direction)
+        print_latderivs(latderivs, latderivs0, directions)
 
-    if (chargeRestart):
-        shutil.copy2 (chargeRestart.name, CHARGES_FILE)
+    if (charge_restart):
+        shutil.copy2(charge_restart.name, CHARGES_FILE)
 
 
 def parse_arguments():
@@ -120,12 +120,12 @@ def parse_arguments():
     parser.add_argument("-F", "--skip-forces", dest="skipforces",
                         action="store_true", default=False, help=msg)
 
-    msg = "Direction of calculation (arguments like 'xyz' 'xy', etc."\
-          "input order determines output order, default: xyz"
-    parser.add_argument("--direction", dest="direction", default="xyz",
+    msg = "Directions of calculation (arguments like 'xyz' 'xy', etc.)"\
+          "input order not maintained, default: xyz"
+    parser.add_argument("--directions", dest="directions", default="xyz",
                         help=msg)
-    msg = "Atoms for calculation, stating with one and including both limits,"\
-          " use ':' for ranges, ',' for seperation and '1:-x' for excluding"\
+    msg = "Atoms for calculation, starting with one and including both limits,"\
+          " use ':' for ranges, ',' for separation and '1:-x' for excluding"\
           " the last x atoms. Output order will be sorted smallest to "\
           "highest (arguments like '1,2' '1:5', '2,4:6,9' and '1,3:4,9:-4')"
     parser.add_argument("-a", "--atoms", dest="atoms", default=None,
@@ -171,33 +171,33 @@ def read_reference_results(autotest0, calcforces, calclatderivs, latvecs):
 
 
 def calculate_reference(binary, reffile, coords, specienames, species, origin,
-                        latvecs, chargeRestart):
+                        latvecs, charge_restart):
     """Calculates reference system"""
 
     writegen("geo.gen", (specienames, species, coords, origin, latvecs))
-    if (chargeRestart):
-        shutil.copy2 (chargeRestart.name, CHARGES_FILE)
+    if (charge_restart):
+        shutil.copy2(charge_restart.name, CHARGES_FILE)
     subprocess.call([binary])
     shutil.move("autotest.tag", reffile)
 
 
 def calculate_forces(binary, disp, coords, specienames, species, origin,
-                     latvecs, chargeRestart, direction, atoms):
+                     latvecs, charge_restart, directions, atoms):
     """Calculates forces by finite differences"""
 
     cart =('x','y','z')
     delta =('-','+')
     energy = np.empty((2,), dtype=float)
-    forces = np.empty((len(atoms), len(direction)), dtype=float)
+    forces = np.empty((len(atoms), len(directions)), dtype=float)
     for aa, iat in enumerate(atoms):
-        for ii, coord in enumerate(direction):
+        for ii, coord in enumerate(directions):
             for jj in range(2):
                 newcoords = np.array(coords)
                 newcoords[iat][coord] += float(2 * jj - 1) * disp
                 writegen("geo.gen", (specienames, species, newcoords, origin,
                                      latvecs))
-                if (chargeRestart):
-                    shutil.copy2 (chargeRestart.name, CHARGES_FILE)
+                if (charge_restart):
+                    shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
@@ -214,14 +214,14 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
 
 
 def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
-                        origin, chargeRestart, direction):
+                        origin, charge_restart, directions):
     """Calculates lattice derivatives by finite differences"""
 
     cart =('x','y','z')
     delta =('-','+')
     energy = np.empty((2,), dtype=float)
-    latderivs = np.empty((3, len(direction)), dtype=float)
-    for ii, coord in enumerate(direction):
+    latderivs = np.empty((3, len(directions)), dtype=float)
+    for ii, coord in enumerate(directions):
         for jj in range(3):
             for kk in range(2):
                 newcoords = np.array(coords)
@@ -231,8 +231,8 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 newcoords = frac2cart(newvecs, newcoords)
                 writegen("geo.gen", (specienames, species, newcoords, origin,
                                      newvecs))
-                if (chargeRestart):
-                    shutil.copy2 (chargeRestart.name, CHARGES_FILE)
+                if (charge_restart):
+                    shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary,])
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
@@ -248,19 +248,19 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
     return latderivs
 
 
-def print_forces(forces, forces0, direction, atoms):
+def print_forces(forces, forces0, directions, atoms):
     """Prints calculates forces"""
 
     cart = ('x', 'y', 'z')
-    dir_str = ("%s" * len(direction)) % tuple(cart[x] for x in direction)
-    num = len(direction)
-    print("Lattice derivatives by finite differences ("+dir_str+"):")
+    dir_str = ("%s" * len(directions)) % tuple(cart[x] for x in directions)
+    num = len(directions)
+    print("Forces by finite differences ("+dir_str+"):")
     for ii, atforce in enumerate(forces):
         print("%3d:" % (atoms[ii] + 1), ("%25.12E" * num % tuple(atforce)))
     if forces0 is not None:
         forces1 = np.empty((forces.shape))
         for aa, atom in enumerate(atoms):
-            for ii, coord in enumerate(direction):
+            for ii, coord in enumerate(directions):
                 forces1[aa, ii] = forces0[atom, coord]
         print("Reference forces:")
         for ii, atforce in enumerate(forces1):
@@ -273,18 +273,18 @@ def print_forces(forces, forces0, direction, atoms):
         print("%25.12E" % (abs(diff).max(),))
 
 
-def print_latderivs(latderivs, latderivs0, direction):
+def print_latderivs(latderivs, latderivs0, directions):
     """Prints calculated lattice derivatives."""
 
     cart = ('x', 'y', 'z')
-    dir_str = ("%s" * len(direction)) % tuple(cart[x] for x in direction)
-    num = len(direction)
+    dir_str = ("%s" * len(directions)) % tuple(cart[x] for x in directions)
+    num = len(directions)
     print("Lattice derivatives by finite differences ("+dir_str+"):")
     for ii in range(3):
         print(("%25.12E" * num) % tuple(latderivs[ii]))
     if latderivs0 is not None:
         latderivs1 = np.empty((latderivs.shape))
-        for ii, coord in enumerate(direction):
+        for ii, coord in enumerate(directions):
             latderivs1[:, ii] = latderivs0[:, coord]
         print("Reference lattice derivatives:")
         for ii in range(3):
@@ -297,30 +297,20 @@ def print_latderivs(latderivs, latderivs0, direction):
         print("%25.12E" % (abs(diff).max(), ))
 
 
-def direction_from_args(args):
-    """Determines the direction of the calculation"""
-    coords = args.direction
-    if len(coords) > 3:
-        raise ValueError("Too many directions!")
-    direction = []
+def directions_from_args(coords):
+    """Determines the directions of the calculation"""
+    dirstrs = {'x': 0, 'y': 1, 'z': 2}
+    directions = set()
     for coord in coords:
-        if coords.count(coord) > 1:
-            raise ValueError(f"'{coord}’ is specified more than once!")
-        if coord == "x":
-            direction.append(0)
-        elif coord == "y":
-            direction.append(1)
-        elif coord == "z":
-            direction.append(2)
-        else:
+        direction = dirstrs.get(coord)
+        if direction is None:
             raise ValueError(f"'{coord}’ is no valid direction!")
-    return direction
+        directions.add(direction)
+    return sorted(directions)
 
 
-def atoms_from_args(args, maxlen):
+def atoms_from_args(inp, maxlen):
     """Determines the atoms for the calculation"""
-    maxlen = maxlen
-    inp = args.atoms
     atoms = []
     if inp is not None:
         inp_list = inp.split(",")
@@ -337,8 +327,7 @@ def atoms_from_args(args, maxlen):
                 atoms.append(int(item)-1)
         atoms.sort()
     else:
-        for num in range(0,maxlen):
-            atoms.append(num)
+        atoms = list(range(maxlen))
     return atoms
 
 if __name__ == "__main__":
