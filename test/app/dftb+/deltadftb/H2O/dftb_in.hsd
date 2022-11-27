@@ -43,15 +43,12 @@ Hamiltonian = DFTB {
     OnSiteCorrection= {
         # ss' sp
         # ps  pp'
-        Ouu = { 0.00000  0.07858
-                0.07858 -0.00665 }
-        Oud = { 0.00000  0.16395
-                0.16395  0.05179 }
-        Olc = { 0.00000  0.15181
-                0.15181 -0.01071 }
-        Huu = { 0.00000 }
-        Hud = { 0.00000 }
-        Hlc = { 0.00000 }
+        Ouu = {0        0.08672
+               0.08672 -0.00523}
+        Oud = {0        0.14969
+               0.14969  0.03834}
+        Huu = {0}
+        Hud = {0}
     }
     SlaterKosterFiles = Type2FileNames {
 Prefix = {slakos/origin/ob2-1-1/shift/}

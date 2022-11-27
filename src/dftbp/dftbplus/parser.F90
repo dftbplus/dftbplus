@@ -1328,6 +1328,11 @@ contains
     !> For range separation
     type(TRangeSepSKTag) :: rangeSepSK
 
+    !> For onsite correction; frOC and lrOC
+    real(dp), allocatable :: onSiteElementsFull(:,:,:,:)
+    real(dp), allocatable :: onSiteElementsLong(:,:,:,:)
+    logical :: isLrOc
+
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
     call readMaxAngularMomentum(node, geo, angShells)
@@ -1694,25 +1699,43 @@ contains
     call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
         & dummyValue=.true.)
     if (associated(value1)) then
-      if (allocated(ctrl%rangeSepInp)) then
+      allocate(onSiteElementsFull(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
+      allocate(onSiteElementsLong(slako%orb%mShell, slako%orb%mShell, 1, geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+            & onSiteElementsFull(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+            & onSiteElementsFull(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
+        call getChild(child, trim(geo%speciesNames(iSp1))//"lc", child2, requested=.false.)
+        if (associated(child2)) then
+          call getChildValue(child2, "", onSiteElementsLong(:slako%orb%nShell(iSp1),&
+              & :slako%orb%nShell(iSp1), 1, iSp1))
+          isLrOc = .true.
+          if (.not. allocated(ctrl%rangeSepInp)) then
+            ! Error for frOC+lrOC-DFTB
+            call error("Long-range onsite corrections are used without range-separated&
+                & hybrid functional, this would give incorrect electronic structure!")
+          end if
+        else
+          isLrOc = .false.
+          if (allocated(ctrl%rangeSepInp)) then
+            ! Warning for LC-frOC-DFTB
+            call warning("Only full-range onsite corrections are included although range-separated&
+                & hybrid functional is selected!")
+          end if
+        end if
+      end do
+      ! Allocate onsite constants depending on the existence of lrOC term
+      if (isLrOc) then
         allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 3, geo%nSpecies))
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"lc",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 3, iSp1))
-        end do
+        ctrl%onSiteElements(:,:,3,:) = onSiteElementsLong(:,:,1,:)
+        deallocate(onSiteElementsLong)
       else
         allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
-              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
-        end do
       end if
+      ctrl%onSiteElements(:,:,1,:) = onSiteElementsFull(:,:,1,:)
+      ctrl%onSiteElements(:,:,2,:) = onSiteElementsFull(:,:,2,:)
+      deallocate(onSiteElementsFull)
     end if
 
     ! Dispersion

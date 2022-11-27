@@ -1521,11 +1521,8 @@ contains
 
     ! on-site corrections
     if (allocated(input%ctrl%onSiteElements)) then
-      if (this%isRangeSep) then
-        allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 3, this%nType))
-      else
-        allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 2, this%nType))
-      end if
+      allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell,&
+          & size(input%ctrl%onSiteElements,dim=3), this%nType))
       this%onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
@@ -2612,7 +2609,11 @@ contains
           & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
     end if
 
-    this%isRS_OnsCorr = this%isRangeSep .and. allocated(this%onSiteElements)
+    this%isRS_OnsCorr = .false.
+    ! Now, this%isRS_OnsCorr determines inclusion of lrOC term
+    if (size(this%onSiteElements,dim=3) == 3) then
+      this%isRS_OnsCorr = .true.
+    end if
 
     if (this%isRS_OnsCorr) then
       call ensureRangeSepOnsCorrReqs(this%tPeriodic, this%tHelical, this%tAtomicEnergy,&
