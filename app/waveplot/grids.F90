@@ -1426,37 +1426,33 @@ contains
         lpCell: do iCell = 1, size(coords, dim=3)
 
           if (gridInterType == gridInterpolTypes%explicit) then
-            ! basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
-            !     & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
-            !     & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
-            !     & 1.0_dp, coords(:, iAtom, iCell), &
-            !     & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, iM, &
-            !     & square=tAddDensities)
-          ! else if (gridInterType == gridInterpolTypes%trivial) then
-          !   basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-          !       & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
-          !       & gridInterpolationTrivial(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
-          !       & 1.0_dp, coords(:, iAtom, iCell), square=tAddDensities)
-          ! else if (gridInterType == gridInterpolTypes%linear) then
-          !   basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-          !       & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
-          !       & gridInterpolationLinear(regionGridDat2(iGrid), subgridsDat(iSubgrid), 1.0_dp, &
-          !       & coords(:, iAtom, iCell), square=tAddDensities)
+            basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
+                & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
+                & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
+                & 1.0_dp, coords(:, iAtom, iCell), &
+                & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, iM, &
+                & square=tAddDensities)
+          else if (gridInterType == gridInterpolTypes%trivial) then
+            ! basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+            !     & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
+            !     & gridInterpolationTrivial(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
+            !     & 1.0_dp, coords(:, iAtom, iCell), square=tAddDensities)
+          else if (gridInterType == gridInterpolTypes%linear) then
+            basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) = &
+                & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
+                & gridInterpolationLinear(regionGridDat2(iGrid), subgridsDat(iSubgrid), 1.0_dp, &
+                & coords(:, iAtom, iCell), square=tAddDensities)
           end if
+
+        end do lpCell
 
           ! add STO weighted with the eigenvector coefficients to the global grid
 
-          globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
+              globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
               & globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid))&
-              & + coeffs(iOrb, iL, iKPoint, iSpin) * &
-              & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
-              & 1.0_dp, coords(:, iAtom, iCell), &
-              & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, iM, &
-              & square=tAddDensities)
+              & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid))
 
-        ! basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) = 0.0_dp
-
-        end do lpCell
+        basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) = 0.0_dp
 
       end do lpOrb
     end do lpGrid
@@ -1470,7 +1466,7 @@ contains
   subroutine subgridsToCachedGlobalGridsCplx(globalGridDat, subgridsDat, coords, coeffs,&
       & levelIndex, iState, orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, stos, orbitalToAngs,&
       & orbitalToM, orbitalToStos, globalGridsDat, requiredKPoints, requiredLevels, requiredSpins,&
-      & CellVec, gridInterType, rwfTabulationType, addDensities, kPointsandWeights)
+      & CellVec, gridInterType, rwfTabulationType, phases, addDensities, kPointsandWeights)
 
     !> prototype of global grid instance
     type(TGridData), intent(in) :: globalGridDat
@@ -1538,6 +1534,9 @@ contains
     !> Method which was used to tabulate the radial wf.
     integer, intent(in) :: rwfTabulationType
 
+    !> Complex phase factor. It has the shape: [nCell, nKPoints]
+    complex(dp), intent(in) :: phases(:,:)
+
     !> add densities instead of wave functions
     logical, intent(in), optional :: addDensities
 
@@ -1556,15 +1555,13 @@ contains
     !> temporary grid instance
     type(TGrid) :: tmpGrid
 
-    !> Complex phase factor. It has the shape: [nCell, nKPoints]
-    complex(dp), allocatable :: phases(:,:)
-
     !> temporary data containers
     real(dp), pointer :: pTmpData(:,:,:)
 
     !> array holding the values of the STOs weighted with the exponential phase factor,
     !> shape: [nxPoints, nyPoints, nzPoints, nKPoints]
     complex(dp), allocatable :: basis(:,:,:)
+    complex(dp), allocatable :: basisTmp(:,:,:)
 
     !> auxiliary variables
     integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
@@ -1596,54 +1593,13 @@ contains
         & globalGridDat%grid%nPoints(3)))
     globalGridsDat(:,:,:) = 0.0_dp
 
-    ! ! get start and end index of every parallel region of the global grid instance
-    ! call getStartAndEndIndices(size(globalGridDat%data, dim=3), nRegions, tiling)
-
-    ! ! allocate regional global grid tiles
-    ! allocate(regionGridDat(nRegions))
-
-    ! ! assign subgrids to parallel regions of the total grid
-    ! do iGrid = 1, nRegions
-    !   tmpGrid = globalGridDat%grid
-    !   tmpGrid%lowerBounds(3) = tiling(1, iGrid) - 1
-    !   tmpGrid%upperBounds(3) = tiling(2, iGrid) - 1
-    !   tmpGrid%nPoints(3) = tiling(2, iGrid) - tiling(1, iGrid) + 1
-    !   pTmpData => globalGridDat%data(:,:, tiling(1, iGrid):tiling(2, iGrid))
-    !   call TGridData_init(regionGridDat(iGrid), tmpGrid, pTmpData,&
-    !       & rwTabulationType=rwTabulationTypes%explicit)
-    ! end do
-
     allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
         & globalGridDat%grid%nPoints(3)))
     basis(:,:,:) = 0.0_dp
 
-    allocate(phases(size(CellVec, dim=2), size(kPointsandWeights, dim=2)))
-
-    kPointsandWeights(1:3, :) = 2.0_dp * pi * kPointsandWeights(1:3, :)
-
-    phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPointsandWeights(1:3, :)))
-
-    ! ! Calculate the cartesian coordinates of the grid points of the total grid.
-    ! if (gridInterType == gridInterpolTypes%explicit) then
-    !   allocate(cartCoords(3, globalGridDat%grid%nPoints(1), &
-    !       & globalGridDat%grid%nPoints(2), globalGridDat%grid%nPoints(3)))
-
-    !   do iGrid = 1, nRegions
-    !     do kk = regionGridDat(iGrid)%grid%lowerBounds(3), regionGridDat(iGrid)%grid%upperBounds(3)
-    !       idx(3, 1) = kk
-    !       do jj = regionGridDat(iGrid)%grid%lowerBounds(2), regionGridDat(iGrid)%grid%upperBounds(2)
-    !         idx(2, 1) = jj
-    !         do ii = regionGridDat(iGrid)%grid%lowerBounds(1),&
-    !               & regionGridDat(iGrid)%grid%upperBounds(1)
-    !           idx(1, 1) = ii
-    !           aa(:) = idx(:, 1) - regionGridDat(iGrid)%grid%lowerBounds + 1
-    !           call regionGridDat(iGrid)%grid%gridcoordToCartesian(idx, cartCoordsTmp)
-    !           cartCoords(:, aa(1), aa(2), tiling(1, iGrid) + aa(3) - 1) = cartcoordsTmp(:,1)
-    !         end do
-    !       end do
-    !     end do
-    !   end do
-    ! end if
+    allocate(basisTmp(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+        & globalGridDat%grid%nPoints(3)))
+    basisTmp(:,:,:) = 0.0_dp
 
     iL = levelIndex(1, iState)
     iKPoint = levelIndex(2, iState)
@@ -1654,7 +1610,7 @@ contains
     !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType,&
     !$omp& requiredKPoints, phases, requiredLevels, requiredSpins, basis, stos, orbitalToAngs, &
     !$omp& orbitalToM, rwfTabulationType, cartcoords, orbitalToStos, iL, iSpin, iKPoint,&
-    !$omp& cartCoords2, tiling2)&
+    !$omp& cartCoords2, tiling2, basisTmp)&
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell,&
     !$omp& currentKPoint, currentLevel, currentSpin, iAng, iM, idx, ii, jj, kk, aa, iStos)
     lpGrid: do iGrid = 1, nRegions
@@ -1670,12 +1626,12 @@ contains
         lpCell: do iCell = 1, size(coords, dim=3)
 
           if (gridInterType == gridInterpolTypes%explicit) then
-            ! basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
-            !     & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
-            !     & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
-            !     & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
-            !     & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, &
-            !     & iM, square=tAddDensities)
+            basisTmp(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
+                ! & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
+                & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
+                & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
+                & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, &
+                & iM, square=tAddDensities)
           ! else if (gridInterType == gridInterpolTypes%trivial) then
           !   basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
           !       & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
@@ -1688,22 +1644,19 @@ contains
           !       & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), square=tAddDensities)
           end if
 
-            ! basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
-            !     & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) * &
-            !     & phases(iCell, currentKPoint)
+            basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) = &
+                & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) + &
+                & basisTmp(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) * &
+                & phases(iCell, currentKPoint)
+
+        end do lpCell
 
         ! add STO weighted with the eigenvector coefficients to the global grid
           globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
               & globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid))&
-              & + coeffs(iOrb, iL, iKPoint, iSpin) * &
-              & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
-              & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
-              & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, &
-              & iM, square=tAddDensities) * phases(iCell, iKPoint)
+              & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid))
 
-          ! basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid))= 0.0_dp
-
-        end do lpCell
+          basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid))= 0.0_dp
 
       end do lpOrb
     end do lpGrid

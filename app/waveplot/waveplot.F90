@@ -12,6 +12,7 @@ program waveplot
 
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_constants, only : pi
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
   use dftbp_math_simplealgebra, only : invert33
@@ -62,6 +63,9 @@ program waveplot
 
   !> If current level should be plotted
   logical :: tPlotLevel
+
+  !> Complex phase factor. It has the shape: [nCell, nKPoints]
+  complex(dp), allocatable :: phases(:,:)
 
   !> Arrays holding the volumetric grid data
   real(dp), allocatable :: totGridsDat(:,:,:)
@@ -460,6 +464,10 @@ program waveplot
     end do
   end if
 
+  allocate(phases(size(wp%loc%molorb%CellVec, dim=2), size(wp%input%kPointsandWeight, dim=2)))
+  wp%input%kPointsandWeight(1:3, :) = 2.0_dp * pi * wp%input%kPointsandWeight(1:3, :)
+  phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), wp%input%kPointsandWeight(1:3, :)))
+
   ! Process the molecular orbitals and write them to the disc
   lpProcessStates: do ii = 1, size(wp%opt%levelIndex, dim=2)
 
@@ -485,7 +493,7 @@ program waveplot
           & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
           & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
           & wp%loc%orbitalToStos, totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
-          & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType,&
+          & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
           & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
     end if
 
