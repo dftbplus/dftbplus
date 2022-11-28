@@ -20,7 +20,8 @@ program waveplot
   use dftbp_type_typegeometry, only : TGeometry
 
   use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
-      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum
+      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum, &
+      & subgridsToGlobalGrid3, calculateBasis
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_parallel, only : getStartAndEndIndices
 
@@ -70,6 +71,7 @@ program waveplot
   !> Arrays holding the volumetric grid data
   real(dp), allocatable :: totGridsDat(:,:,:)
   complex(dp), allocatable :: totGridsDatCplx(:,:,:)
+  real(dp), allocatable :: basis(:,:,:,:)
   real(dp), allocatable, target ::  totChrg(:,:,:), atomicChrg(:,:,:), speciesChrg(:,:,:,:)
   real(dp), allocatable :: atomDensity(:,:,:)
   real(dp), allocatable, target :: totData(:,:,:), buffer(:,:,:), spinUp(:,:,:), spinDown(:,:,:)
@@ -468,6 +470,12 @@ program waveplot
   wp%input%kPointsandWeight(1:3, :) = 2.0_dp * pi * wp%input%kPointsandWeight(1:3, :)
   phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), wp%input%kPointsandWeight(1:3, :)))
 
+  call calculateBasis(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+      & wp%eig%eigvecsReal, wp%loc%orbitalToAtom,&
+      & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+      & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
+      & basis, wp%opt%gridInterType, addDensities=.False.)
+
   ! Process the molecular orbitals and write them to the disc
   lpProcessStates: do ii = 1, size(wp%opt%levelIndex, dim=2)
 
@@ -480,12 +488,29 @@ program waveplot
     lIndex = iLPrime(ii)
     sIndex = iSpinPrime(ii)
 
+    ! if (wp%input%tRealHam) then
+    !   call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+    !       & wp%eig%eigvecsReal, wp%opt%levelIndex, ii, wp%loc%orbitalToAtom,&
+    !       & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+    !       & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
+    !       & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
+    ! else
+    !   pCopyBuffers => copyBuffersCplx
+    !   call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+    !       & wp%eig%eigvecsCplx, wp%opt%levelIndex, ii, wp%loc%orbitalToAtom,&
+    !       & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+    !       & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
+    !       & wp%loc%orbitalToStos, totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
+    !       & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
+    !       & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
+    ! end if
+
     if (wp%input%tRealHam) then
-      call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+      call subgridsToGlobalGrid3(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
           & wp%eig%eigvecsReal, wp%opt%levelIndex, ii, wp%loc%orbitalToAtom,&
           & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
           & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
-          & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
+          & basis, totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
     else
       pCopyBuffers => copyBuffersCplx
       call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&

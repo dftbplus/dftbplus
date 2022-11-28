@@ -33,8 +33,9 @@ module waveplot_grids
   public :: TGrid, TGrid_init
   public :: TGridData, TGridData_init, TTabulationTypesEnum, TGridInterpolationTypesEnum
   public :: TRealTessY, TRealTessY_init
-  public :: subgridsToGlobalGrid
+  public :: subgridsToGlobalGrid, subgridsToGlobalGrid3
   public :: modifyEigenvecs
+  public :: calculateBasis
 
 
   ! Enumerates the different types which are used for the tabulation of the radial wf.
@@ -164,6 +165,12 @@ module waveplot_grids
     module procedure :: subgridsToUncachedGlobalGrid, subgridsToCachedGlobalGrids, &
         & subgridsToCachedGlobalGridsCplx
   end interface subgridsToGlobalGrid
+
+
+  interface subgridsToGlobalGrid3
+    module procedure :: subgridsToUncachedGlobalGrid, subgridsToCachedGlobalGrids3, &
+        & subgridsToCachedGlobalGridsCplx
+  end interface subgridsToGlobalGrid3
 
 
   interface gridInterpolationLinear
@@ -1066,6 +1073,121 @@ contains
   end subroutine TGridData_getValue
 
 
+  subroutine calculateBasis(globalgridDat, subgridsDat, coords, coeffs,&
+    & orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, stos, orbitalToAngs, orbitalToM,&
+    & orbitalToStos, basis, gridInterType, addDensities)
+
+  !> prototype of global grid instance
+  type(TGridData), intent(in) :: globalGridDat
+
+  !> subgrids to add to global grid instances, exp. shape: [nOrbitals]
+  type(TGridData), intent(in) :: subgridsDat(:)
+
+  !> coordinates, defining the cartesian positions of the subgrids, exp. shape: [3, nAtom, nCell]
+  real(dp), intent(in) :: coords(:,:,:)
+
+  !> orbital-resolved coefficients for volumetric data, shape: [nOrbital, nLevel, nKPoint, nSpin]
+  real(dp), intent(in) :: coeffs(:,:,:,:)
+
+  !> index mapping from orbital to atom, exp. shape: [nOrbitals]
+  integer, intent(in) :: orbitalToAtom(:)
+
+  !> index mapping from orbital to subgrid, exp. shape: [nOrbitals]
+  integer, intent(in) :: orbitalToSubgrid(:)
+
+  !> number of parallel global regions
+  integer, intent(in) :: nRegions
+
+  type(TGridData), intent(in) :: regionGridDat2(:)
+
+  !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
+  real(dp), intent(in) :: cartCoords2(:,:,:,:)
+
+  !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
+  integer, intent(in) :: tiling2(:,:)
+
+  !> Tabulated radial WF of the slater type orbitals
+  type(TSlaterOrbital), intent(in) :: stos(:)
+
+  !> Index mapping from orbitals to angular momentum quantum numbers
+  integer, intent(in) :: orbitalToAngs(:)
+
+  !> Index mapping from orbitals to magnetic quantum numbers
+  integer, intent(in) :: orbitalToM(:)
+
+  !> Index mapping from orbitals to slater type orbital
+  integer, intent(in) :: orbitalToStos(:)
+
+  real(dp), intent(out), allocatable :: basis(:,:,:,:)
+
+  !> Interpolation type for the grid interpolation
+  integer, intent(in) :: gridInterType
+
+  !> add densities instead of wave functions
+  logical, intent(in), optional :: addDensities
+
+  !> true, if optional argument provided and .true., otherwise False
+  logical :: tAddDensities
+
+  !> array holding the values of the STOs
+
+  !> auxiliary variables
+  integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
+      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww
+
+  character(len=100) :: strbuffer
+
+  ! try to ensure a smooth runtime
+  @:ASSERT(size(subgridsDat) == maxval(orbitalToSubgrid))
+  @:ASSERT(size(coords, dim=1) == 3)
+  @:ASSERT(size(coords, dim=2) == maxval(orbitalToAtom))
+  @:ASSERT(size(coords, dim=3) >= 1)
+  @:ASSERT(nRegions >= 1)
+
+  if (present(addDensities)) then
+    tAddDensities = addDensities
+  else
+    tAddDensities = .false.
+  end if
+
+  allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+      & globalGridDat%grid%nPoints(3), size(coeffs, dim=1)))
+  basis(:,:,:,:) = 0.0_dp
+
+  !$omp parallel do default(none)&
+  !$omp& shared(nRegions, regionGridDat2, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
+  !$omp& orbitalToAngs, orbitalToM, orbitalToStos,&
+  !$omp& coords, tAddDensities, gridInterType, basis,&
+  !$omp& cartCoords2, tiling2, coeffs)&
+  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, idx,&
+  !$omp& ii, jj, kk, aa, iStos)
+  lpGrid: do iGrid = 1, nRegions
+    lpOrb: do iOrb = 1, size(coeffs, dim=1)
+
+      iAtom = orbitalToAtom(iOrb)
+      iSubgrid = orbitalToSubgrid(iOrb)
+      iAng = orbitalToAngs(iOrb)
+      iM = orbitalToM(iOrb)
+      iStos = orbitalToStos(iOrb)
+
+      lpCell: do iCell = 1, size(coords, dim=3)
+
+        basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid), iOrb) = &
+            & basis(:,:, tiling2(1, iGrid):tiling2(2, iGrid), iOrb) + &
+            & explicitSTOcalculationCoeffs(regionGridDat2(iGrid), subgridsDat(iSubgrid), &
+            & 1.0_dp, coords(:, iAtom, iCell), &
+            & cartCoords2(:,:,:,tiling2(1, iGrid):tiling2(2, iGrid)), stos(iStos), iAng, iM, &
+            & square=tAddDensities)
+
+      end do lpCell
+
+    end do lpOrb
+  end do lpGrid
+  !$omp end parallel do
+
+end subroutine calculateBasis
+
+
   !> Collects and adds all contributions from the subgrids onto the global grid weighted with the
   !> coefficients.
   subroutine subgridsToUncachedGlobalGrid(globalGridDat, subgridsDat, atomicGridDat, coords, &
@@ -1459,6 +1581,153 @@ contains
     !$omp end parallel do
 
   end subroutine subgridsToCachedGlobalGrids
+
+
+  !> Collects and add all contributions from the subgrids onto the global grid weighted with the
+  !> coefficients.
+  subroutine subgridsToCachedGlobalGrids3(globalGridDat, subgridsDat, coords, coeffs, levelIndex,&
+    & iState, orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, stos, orbitalToAngs, orbitalToM,&
+    & orbitalToStos, basis, globalGridsDat, gridInterType, rwfTabulationType, addDensities)
+
+  !> prototype of global grid instance
+  type(TGridData), intent(in) :: globalGridDat
+
+  !> subgrids to add to global grid instances, exp. shape: [nOrbitals]
+  type(TGridData), intent(in) :: subgridsDat(:)
+
+  !> coordinates, defining the cartesian positions of the subgrids, exp. shape: [3, nAtom, nCell]
+  real(dp), intent(in) :: coords(:,:,:)
+
+  !> orbital-resolved coefficients for volumetric data, shape: [nOrbital, nLevel, nKPoint, nSpin]
+  real(dp), intent(in) :: coeffs(:,:,:,:)
+
+  !> Index Mapping from state index to [Level, KPoint, Spin]
+  integer, intent(in) :: levelIndex(:,:)
+
+  !> Current state to calculate
+  integer, intent(in) :: iState
+
+  !> index mapping from orbital to atom, exp. shape: [nOrbitals]
+  integer, intent(in) :: orbitalToAtom(:)
+
+  !> index mapping from orbital to subgrid, exp. shape: [nOrbitals]
+  integer, intent(in) :: orbitalToSubgrid(:)
+
+  !> number of parallel global regions
+  integer, intent(in) :: nRegions
+
+  type(TGridData), intent(in) :: regionGridDat2(:)
+
+  !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
+  real(dp), intent(in) :: cartCoords2(:,:,:,:)
+
+  !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
+  integer, intent(in) :: tiling2(:,:)
+
+  !> Tabulated radial WF of the slater type orbitals
+  type(TSlaterOrbital), intent(in) :: stos(:)
+
+  !> Index mapping from orbitals to angular momentum quantum numbers
+  integer, intent(in) :: orbitalToAngs(:)
+
+  !> Index mapping from orbitals to magnetic quantum numbers
+  integer, intent(in) :: orbitalToM(:)
+
+  !> Index mapping from orbitals to slater type orbital
+  integer, intent(in) :: orbitalToStos(:)
+
+  !> array holding the values of the STOs
+  real(dp), intent(in), allocatable :: basis(:,:,:,:)
+
+  !> array holding the data of the grid for every level which is needed,
+  !> shape: [nxPoints, nyPoints, nzPoints, nLevel]
+  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:)
+
+  !> Interpolation type for the grid interpolation
+  integer, intent(in) :: gridInterType
+
+  !> Method which was used to tabulate the radial wf.
+  integer, intent(in) :: rwfTabulationType
+
+  !> add densities instead of wave functions
+  logical, intent(in), optional :: addDensities
+
+  !> grid parallel regions, holding global grid sections
+  type(TGridData), allocatable :: regionGridDat(:)
+
+  !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
+  integer, allocatable :: tiling(:,:)
+
+  !> true, if optional argument provided and .true., otherwise False
+  logical :: tAddDensities
+
+  !> temporary grid instance
+  type(TGrid) :: tmpGrid
+
+  !> temporary data containers
+  real(dp), pointer :: pTmpData(:,:,:)
+
+  !> auxiliary variables
+  integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
+      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww
+
+  character(len=100) :: strbuffer
+
+  !> Temporary stored cartesian coordinates of one grid point, shape: [3,1]
+  real(dp), allocatable :: cartcoordsTmp(:,:)
+
+  !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
+  real(dp), allocatable :: cartCoords(:,:,:,:)
+
+  ! try to ensure a smooth runtime
+  @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
+  @:ASSERT(size(coeffs, dim=1) == size(orbitalToSubgrid))
+  @:ASSERT(size(subgridsDat) == maxval(orbitalToSubgrid))
+  @:ASSERT(size(coords, dim=1) == 3)
+  @:ASSERT(size(coords, dim=2) == maxval(orbitalToAtom))
+  @:ASSERT(size(coords, dim=3) >= 1)
+  @:ASSERT(nRegions >= 1)
+
+  if (present(addDensities)) then
+    tAddDensities = addDensities
+  else
+    tAddDensities = .false.
+  end if
+
+  allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+      & globalGridDat%grid%nPoints(3)))
+
+  globalGridsDat(:,:,:) = 0.0_dp
+
+  iL = levelIndex(1, iState)
+  iKPoint = levelIndex(2, iState)
+  iSpin = levelIndex(3, iState)
+
+  !$omp parallel do default(none)&
+  !$omp& shared(nRegions, regionGridDat2, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
+  !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos,&
+  !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType, basis,&
+  !$omp& iL, iSpin, iKPoint, cartCoords2, tiling2)&
+  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iState, iAng, iM, idx,&
+  !$omp& ii, jj, kk, aa, iStos)
+  lpGrid: do iGrid = 1, nRegions
+    lpOrb: do iOrb = 1, size(coeffs, dim=1)
+
+      iAtom = orbitalToAtom(iOrb)
+      iSubgrid = orbitalToSubgrid(iOrb)
+      iAng = orbitalToAngs(iOrb)
+      iM = orbitalToM(iOrb)
+      iStos = orbitalToStos(iOrb)
+
+        globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
+            & globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid))&
+            & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:, :, tiling2(1, iGrid):tiling2(2, iGrid), iOrb)
+
+    end do lpOrb
+  end do lpGrid
+  !$omp end parallel do
+
+end subroutine subgridsToCachedGlobalGrids3
 
 
   !> Collects and adds all contributions from the subgrids onto the global grid weighted with the
