@@ -3662,6 +3662,10 @@ contains
         end if
       end if
 
+      if (this%isRS_OnsCorr) then
+        call error("Electron dynamics does not work with long-range onsite correction yet")
+      end if
+
       allocate(this%electronDynamics)
 
       call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&

@@ -1224,6 +1224,8 @@ contains
       end do
     end if
 
+    ! TODO : add LrOC correction in later
+
   end subroutine updateH
 
 
@@ -1677,6 +1679,7 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
+    ! TODO : add LrOC correction in later
     call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
         & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
@@ -3229,6 +3232,8 @@ contains
           & this%speciesAll, orb, iSquare, real(sSqr(:,:,1)), neighbourList%iNeighbour,&
           & nNeighbourSK)
     end if
+
+    ! TODO : add LrOC correction in later
 
     if (this%tLaser) then
       call setPresentField(this, iStep, errStatus)
