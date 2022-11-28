@@ -80,8 +80,8 @@ contains
     !> algorithm for range separation screening
     integer, intent(in) :: rsAlg
 
+    call checkRequirements(this, orb)
     call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
-    call checkRequirements(this)
 
   contains
 
@@ -165,12 +165,20 @@ contains
 
 
     !> Test for option consistency
-    subroutine checkRequirements(this)
+    subroutine checkRequirements(this, orb)
 
       !> class instance
       class(TRangeSepOnsCorrFunc), intent(inout) :: this
 
+      !> Atomic orbital information
+      type(TOrbitals), intent(in) :: orb
+
       ! Check for current restrictions
+      if (orb%mOrb > 4) then
+        call error("Onsite correction with range separated functional only works with&
+            & the system consisting of up to p orbitals")
+      end if
+
       if (.not. this%rsAlg == rangeSepTypes%matrixBased) then
         call error("Onsite correction with range separated functional only works with&
             & matrix based algorithm")
