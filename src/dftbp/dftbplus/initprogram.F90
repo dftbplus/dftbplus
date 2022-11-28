@@ -2618,7 +2618,7 @@ contains
     if (this%isRS_OnsCorr) then
       call ensureRangeSepOnsCorrReqs(this%tPeriodic, this%tHelical, this%tAtomicEnergy,&
           & this%nSpin, this%tSpinOrbit, this%isXlbomd, this%t3rd.or.this%t3rdFull,&
-          & this%isLinResp, this%solvation, this%reks)
+          & this%isLinResp, this%isDFTBPT, this%solvation, this%reks)
       allocate(this%rsOnsCorr)
       call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%orb, this%denseDesc%iAtomStart,&
           & this%species0, this%onSiteElements, this%tSpin, input%ctrl%rangeSepInp%rangeSepAlg)
@@ -5484,7 +5484,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSepOnsCorrReqs(tPeriodic, tHelical, tAtomicEnergy, nSpin, tSpinOrbit,&
-      & isXlbomd, is3rd, isLinResp, solvation, reks)
+      & isXlbomd, is3rd, isLinResp, isDFTBPT, solvation, reks)
 
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
@@ -5509,6 +5509,9 @@ contains
 
     !> Calculate Casida linear response excitations
     logical, intent(in) :: isLinResp
+
+    !> Density functional tight binding perturbation theory
+    logical, intent(in) :: isDFTBPT
 
     !> Solvation data and calculations
     class(TSolvation), allocatable, intent(in) :: solvation
@@ -5558,6 +5561,11 @@ contains
     if (isLinResp) then
       call error("Onsite correction with range separated calculations not currently&
           & implemented for linear response excitation")
+    end if
+
+    if (isDFTBPT) then
+      call error("Perturbation calculations not currently implemented for linear response&
+          & excitation")
     end if
 
     if (allocated(solvation)) then
