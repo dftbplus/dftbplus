@@ -13,6 +13,8 @@ Added
 
 - Born charges from finite difference dipole derivatives
 
+- Onsite corrected hamiltonian for range separated functional
+
 
 Fixed
 -----
