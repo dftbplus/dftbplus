@@ -1074,7 +1074,8 @@ contains
 
 
   subroutine calculateBasis(globalgridDat, subgridsDat, coords, coeffs,&
-    & orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, stos, orbitalToAngs, orbitalToM,&
+    & orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, orbitalTiling, &
+    & stos, orbitalToAngs, orbitalToM,&
     & orbitalToStos, basis, gridInterType, addDensities)
 
   !> prototype of global grid instance
@@ -1106,6 +1107,8 @@ contains
   !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
   integer, intent(in) :: tiling2(:,:)
 
+  integer, intent(in) :: orbitalTiling(:)
+
   !> Tabulated radial WF of the slater type orbitals
   type(TSlaterOrbital), intent(in) :: stos(:)
 
@@ -1133,7 +1136,7 @@ contains
 
   !> auxiliary variables
   integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
-      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww
+      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww, currentOrbital
 
   character(len=100) :: strbuffer
 
@@ -1151,24 +1154,26 @@ contains
   end if
 
   allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-      & globalGridDat%grid%nPoints(3), size(coeffs, dim=1)))
+      & globalGridDat%grid%nPoints(3), orbitalTiling(2) - orbitalTiling(1) + 1))
   basis(:,:,:,:) = 0.0_dp
 
   !$omp parallel do default(none)&
   !$omp& shared(nRegions, regionGridDat2, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
   !$omp& orbitalToAngs, orbitalToM, orbitalToStos,&
   !$omp& coords, tAddDensities, gridInterType, basis,&
-  !$omp& cartCoords2, tiling2, coeffs)&
+  !$omp& cartCoords2, tiling2, coeffs, orbitalTiling)&
   !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, idx,&
-  !$omp& ii, jj, kk, aa, iStos)
+  !$omp& ii, jj, kk, aa, iStos, currentOrbital)
   lpGrid: do iGrid = 1, nRegions
-    lpOrb: do iOrb = 1, size(coeffs, dim=1)
+    lpOrb: do iOrb = 1, orbitalTiling(2) - orbitalTiling(1) + 1
 
-      iAtom = orbitalToAtom(iOrb)
-      iSubgrid = orbitalToSubgrid(iOrb)
-      iAng = orbitalToAngs(iOrb)
-      iM = orbitalToM(iOrb)
-      iStos = orbitalToStos(iOrb)
+      currentOrbital = orbitalTiling(1) + iOrb - 1
+
+      iAtom = orbitalToAtom(currentOrbital)
+      iSubgrid = orbitalToSubgrid(currentOrbital)
+      iAng = orbitalToAngs(currentOrbital)
+      iM = orbitalToM(currentOrbital)
+      iStos = orbitalToStos(currentOrbital)
 
       lpCell: do iCell = 1, size(coords, dim=3)
 
@@ -1586,7 +1591,8 @@ end subroutine calculateBasis
   !> Collects and add all contributions from the subgrids onto the global grid weighted with the
   !> coefficients.
   subroutine subgridsToCachedGlobalGrids3(globalGridDat, subgridsDat, coords, coeffs, levelIndex,&
-    & iState, orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat2, cartCoords2, tiling2, stos, orbitalToAngs, orbitalToM,&
+    & currentLevel, currentKPoint, currentSpin, orbitalToAtom, orbitalToSubgrid, nRegions, &
+    & regionGridDat2, cartCoords2, tiling2, orbitalTiling, stos, orbitalToAngs, orbitalToM,&
     & orbitalToStos, basis, globalGridsDat, gridInterType, rwfTabulationType, addDensities)
 
   !> prototype of global grid instance
@@ -1604,8 +1610,12 @@ end subroutine calculateBasis
   !> Index Mapping from state index to [Level, KPoint, Spin]
   integer, intent(in) :: levelIndex(:,:)
 
-  !> Current state to calculate
-  integer, intent(in) :: iState
+  ! !> Current state to calculate
+  ! integer, intent(in) :: iState
+
+  integer, intent(in) :: currentLevel
+  integer, intent(in) :: currentKPoint
+  integer, intent(in) :: currentSpin
 
   !> index mapping from orbital to atom, exp. shape: [nOrbitals]
   integer, intent(in) :: orbitalToAtom(:)
@@ -1624,6 +1634,8 @@ end subroutine calculateBasis
   !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
   integer, intent(in) :: tiling2(:,:)
 
+  integer, intent(in) :: orbitalTiling(:)
+
   !> Tabulated radial WF of the slater type orbitals
   type(TSlaterOrbital), intent(in) :: stos(:)
 
@@ -1641,7 +1653,8 @@ end subroutine calculateBasis
 
   !> array holding the data of the grid for every level which is needed,
   !> shape: [nxPoints, nyPoints, nzPoints, nLevel]
-  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:)
+  ! real(dp), intent(out), allocatable :: globalGridsDat(:,:,:)
+  real(dp), intent(inout) :: globalGridsDat(:,:,:)
 
   !> Interpolation type for the grid interpolation
   integer, intent(in) :: gridInterType
@@ -1669,7 +1682,7 @@ end subroutine calculateBasis
 
   !> auxiliary variables
   integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
-      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww
+      & idx(3, 1), ii, jj, kk, aa(3), iStos, uu, vv, ww, currentOrbital
 
   character(len=100) :: strbuffer
 
@@ -1694,34 +1707,37 @@ end subroutine calculateBasis
     tAddDensities = .false.
   end if
 
-  allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-      & globalGridDat%grid%nPoints(3)))
+  ! allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+  !     & globalGridDat%grid%nPoints(3)))
 
-  globalGridsDat(:,:,:) = 0.0_dp
+  ! globalGridsDat(:,:,:) = 0.0_dp
 
-  iL = levelIndex(1, iState)
-  iKPoint = levelIndex(2, iState)
-  iSpin = levelIndex(3, iState)
+  ! iL = levelIndex(1, iState)
+  ! iKPoint = levelIndex(2, iState)
+  ! iSpin = levelIndex(3, iState)
 
   !$omp parallel do default(none)&
   !$omp& shared(nRegions, regionGridDat2, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
-  !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos,&
+  !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos, orbitalTiling,&
   !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType, basis,&
-  !$omp& iL, iSpin, iKPoint, cartCoords2, tiling2)&
-  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iState, iAng, iM, idx,&
-  !$omp& ii, jj, kk, aa, iStos)
+  !$omp& iL, iSpin, iKPoint, cartCoords2, tiling2, currentLevel, currentKPoint, currentSpin)&
+  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, idx,&
+  !$omp& ii, jj, kk, aa, iStos, currentOrbital)
   lpGrid: do iGrid = 1, nRegions
-    lpOrb: do iOrb = 1, size(coeffs, dim=1)
+    lpOrb: do iOrb = 1, orbitalTiling(2) - orbitalTiling(1) + 1
 
-      iAtom = orbitalToAtom(iOrb)
-      iSubgrid = orbitalToSubgrid(iOrb)
-      iAng = orbitalToAngs(iOrb)
-      iM = orbitalToM(iOrb)
-      iStos = orbitalToStos(iOrb)
+    currentOrbital = orbitalTiling(1) + iOrb - 1
+
+      iAtom = orbitalToAtom(currentOrbital)
+      iSubgrid = orbitalToSubgrid(currentOrbital)
+      iAng = orbitalToAngs(currentOrbital)
+      iM = orbitalToM(currentOrbital)
+      iStos = orbitalToStos(currentOrbital)
 
         globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid)) =&
             & globalGridsDat(:,:, tiling2(1, iGrid):tiling2(2, iGrid))&
-            & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:, :, tiling2(1, iGrid):tiling2(2, iGrid), iOrb)
+            & + coeffs(currentOrbital, currentLevel, currentKPoint, currentSpin) * &
+            & basis(:, :, tiling2(1, iGrid):tiling2(2, iGrid), iOrb)
 
     end do lpOrb
   end do lpGrid

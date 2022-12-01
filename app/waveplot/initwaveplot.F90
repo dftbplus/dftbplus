@@ -127,6 +127,8 @@ module waveplot_initwaveplot
     !> Spins to plot
     integer, allocatable :: plottedSpins(:)
 
+    integer :: nCached
+
     !> If box should filled with folded atoms
     logical :: tFillBox
 
@@ -721,6 +723,16 @@ contains
 
     allocate(this%opt%levelIndex(3, size(levelIndex, dim=2)))
     this%opt%levelIndex = levelIndex
+
+    call getChildValue(node, "NrOfCachedGrids", this%opt%nCached, 1, child=field)
+
+    if (this%opt%nCached < 1 .and. this%opt%nCached /= -1) then
+      call detailedError(field, "Value must be -1 or greater than zero.")
+    end if
+
+    if (this%opt%nCached == -1) then
+      this%opt%nCached = this%eig%nState
+    end if
 
     call getChildValue(node, "SpGridPoints", this%opt%nSpPoints, child=field)
     if (any(this%opt%nSpPoints <= 0)) then
