@@ -210,7 +210,10 @@ module dftbp_dftbplus_inputdata
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
 
     !> Is a perturbation expression in use
-    logical :: isDFTBPT = .false.
+    logical :: doPerturbation = .false.
+
+    !> Is a perturbation expression in use for each geometry step
+    logical :: doPerturbEachGeom = .false.
 
     !> Tolerance for idenfifying need for degenerate perturbation theory
     real(dp) :: tolDegenDFTBPT = 128.0_dp

@@ -279,9 +279,10 @@ methods are available:
 \item[\iscb{FIRE}] (\textbf{deprecated}) Geometry optimisation using the FIRE
   algorithm. See p.~\pref{sec:dftbp.FIRE}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives
-  of the energy (the \index{Hessian}Hessian) and the derivatives of
-  the dipole moment (the \index{Born charges}Born charges). See
-  p.~\pref{sec:dftbp.SecondDerivatives}.
+  of the energy (the \index{Hessian}Hessian) and optional first
+  derivatives of other properties (the dipole moment, i.e. \index{Born
+    charges}Born charges, or the electric polarisability) with respect
+  to atomic coordinates. See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
   Verlet algorithm. See p.~\pref{sec:dftbp.VelocityVerlet}.
 \item[\iscb{Socket}] Hands over control to an external program via a socket
@@ -668,16 +669,24 @@ and efficient for your system before using it over other optimisers.
 
 Specific properties for this method are:
 \begin{description}
-\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step size used
+\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step sizexs used
   in the dynamics integrator.
 \end{description}
 
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
-Calculates the second derivatives\index{Hessian} of the energy and the
-Born charges (currently both only using a numerical first
-differentiation).
+Calculates the second derivatives\index{Hessian} of the energy, the
+dipole moment and electric polarisability (currently using a numerical
+first order finite difference with respect to positions). These can
+then be used with the \modes{} code (chapter~\ref{app:modes}) to
+calculate the vibrational modes and estimate both their Raman and
+infrared intensities (see sections \ref{sec:modes.BornCharges} and
+\ref{sec:modes.BornDerivs} for how to do this).
+
+The polarizability derivative can be evaluated either for a static
+electric field (probably what is usually intended) or at a specific
+driving frequency (relevant when approaching an electronic resonance).
 
 The hessian matrix is written out for the $i$, $j$ and $k$ directions
 of atoms $1 \ldots n$ as
@@ -714,10 +723,15 @@ where $\boldsymbol\varepsilon$ is a cartesian electric field and
 $\mathbf{x}$ the cartesian directions written into {\it
   born.out}\index{born.out}
 
+If dipole polarisability is also requested (see
+section~\ref{sec:dftbp.perturb}), then the derivatives with respect to
+atomic coordinates are also calculated. These are stored in the file
+{\it bornderiv.out}\index{bornderiv.out}. Polarisability at only a
+single static or dynamic frequency should be calculated.
 
-\textbf{Note}: for periodic calculations, the derivatives are obtained
-at the $\mathbf{q}=0$ point, irrespective of the k-point sampling
-used.
+\textbf{Note}: for periodic calculations, all of these derivatives are
+obtained at the $\mathbf{q}=0$ point, irrespective of the k-point
+sampling used.
 
 \textbf{Important:} In order to get accurate results for the second derivatives
 (and the resulting frequencies) you must set a smaller self-consistent
@@ -4861,6 +4875,7 @@ calculations. This data is accumulated in a specified text file.
 \end{description}
 
 \subsection{Response properties by perturbation}
+\label{sec:dftbp.perturb}
 
 For cases where the ground state eigenvalues are available, the output
 of the eigenvalue derivatives are described in are

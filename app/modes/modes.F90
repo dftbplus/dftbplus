@@ -15,9 +15,9 @@ program modes
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
-  use modes_initmodes, only : dynMatrix, modesToPlot, geo, iMovedAtoms, nCycles, nDerivs,&
-      & nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes, tRemoveRotate,&
-      & tRemoveTranslate, atomicMasses, initProgramVariables
+  use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
+      & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
+      & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -28,10 +28,11 @@ program modes
 
   type(TTaggedWriter) :: taggedWriter
 
-  integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
+  integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom, nTrans
   integer :: iCount, jCount
-  real(dp), allocatable :: eigenValues(:)
-  real(dp), allocatable :: displ(:,:,:)
+  real(dp), allocatable :: eigenValues(:), transDip(:), displ(:,:,:), degenTransDip(:)
+  real(dp), allocatable :: transPol(:), degenTransPol(:)
+  real(dp) :: Zstar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
   character(lc) :: lcTmp, lcTmp2
   integer :: fdUnit
@@ -74,63 +75,102 @@ program modes
   call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
 
   ! solve the eigenproblem
-  if (tPlotModes) then
+  if (tEigenVectors) then
     call heev(dynMatrix,eigenValues,'U','V')
   else
     call heev(dynMatrix,eigenValues,'U','N')
   end if
 
-  ! take square root of modes (allowing for imaginary modes) and print
+  ! take square root of eigenvalues of modes (allowing for imaginary modes)
   eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
-  write(stdout, *)'Vibrational modes (cm-1):'
-  do ii = 1, 3 * nMovedAtom
-    write(stdout, '(i5,f8.2)')ii,eigenValues(ii)*Hartree__cm
-  end do
-  write(stdout, *)
 
   call TTaggedWriter_init(taggedWriter)
   open(newunit=fdUnit, file="vibrations.tag", form="formatted", status="replace")
-  call taggedWriter%write(fdUnit, "frequencies", eigenValues)
+
+  ! scale mode components on each atom by mass and then normalise total mode
+  do ii = 1, nDerivs
+    jCount = 0
+    do jj = 1, nMovedAtom
+      do ll = 1, 3
+        jCount = jCount + 1
+        dynMatrix(jCount,ii) = dynMatrix(jCount,ii) / sqrt(atomicMasses(jj))
+      end do
+    end do
+    dynMatrix(:,ii) = dynMatrix(:,ii) / sqrt(sum(dynMatrix(:,ii)**2))
+  end do
+
+  nAtom = geo%nAtom
+  allocate(displ(3, nAtom, nDerivs))
+  displ(:,:,:) = 0.0_dp
+  ! Create displacement vectors for every atom in every mode.
+  do iAt = 1, nAtom
+    if (any(iMovedAtoms == iAt)) then
+      ! Index of atom in the list of moved atoms
+      iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
+      do ii = 1, nDerivs
+        displ(:,iAt, ii) =  dynMatrix(3*iAtMoved-2:3*iAtMoved, ii)
+      end do
+    end if
+  end do
+
+  if (allocated(bornMatrix)) then
+    allocate(transDip(nDerivs), source = 0.0_dp)
+    do jj = 1, nDerivs
+      dMu(:) = 0.0_dp
+      do ii = 1, nMovedAtom
+        iAt = iMovedAtoms(ii)
+        zStar(:,:) = reshape(bornMatrix(9*(ii-1)+1:9*ii),[3,3])
+        dMu(:) = dMu + matmul(zStar,  displ(:, iAt, jj))
+      end do
+      if (eigenValues(jj) > epsilon(0.0_dp)) then
+        transDip(jj) = transDip(jj) + sum(dMu**2)
+      end if
+    end do
+    allocate(degenTransDip(nDerivs), source = 0.0_dp)
+    degenTransDip(1) = transDip(1)
+    nTrans = 1
+    do jj = 2, nDerivs
+      ! test for energy degeneracy greater than printing cutoff:
+      if (abs(eigenValues(jj) - eigenValues(jj-1))*Hartree__cm >= 1.0E-2_dp) then
+        nTrans = nTrans + 1
+      end if
+      degenTransDip(nTrans) = degenTransDip(nTrans) + transDip(jj)
+    end do
+  end if
+
+  if (allocated(bornDerivsMatrix)) then
+    allocate(transPol(nDerivs), source = 0.0_dp)
+    do jj = 1, nDerivs
+      dQ(:, :) = 0.0_dp
+      do ii = 1, nMovedAtom
+        iAt = iMovedAtoms(ii)
+        zStarDeriv(:, :, :) = reshape(bornDerivsMatrix(27*(ii-1)+1:27*ii),[3, 3, 3])
+        dQ(:, :) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]),  displ(:, iAt, jj)), [3, 3])
+      end do
+      if (eigenValues(jj) > epsilon(0.0_dp)) then
+        transPol(jj) = transPol(jj) + sum(dQ**2)
+      end if
+    end do
+    allocate(degenTransPol(nDerivs), source = 0.0_dp)
+    degenTransPol(1) = transPol(1)
+    nTrans = 1
+    do jj = 2, nDerivs
+      ! test for energy degeneracy greater than printing cutoff:
+      if (abs(eigenValues(jj) - eigenValues(jj-1))*Hartree__cm >= 1.0E-2_dp) then
+        nTrans = nTrans + 1
+      end if
+      degenTransPol(nTrans) = degenTransPol(nTrans) + transPol(jj)
+    end do
+  end if
 
   if (tPlotModes) then
     call taggedWriter%write(fdUnit, "saved_modes", modesToPlot)
     write(stdout, *) "Writing eigenmodes to vibrations.tag"
     call taggedWriter%write(fdUnit, "eigenmodes", dynMatrix(:,ModesToPlot))
-
     write(stdout, *)'Plotting eigenmodes:'
-    write(stdout, *)ModesToPlot(:)
-    ! scale mode components on each atom by mass and then normalise total mode
-    do ii = 1, nModesToPlot
-      iMode = ModesToPlot(ii)
-      jCount = 0
-      do jj = 1, nMovedAtom
-        do ll = 1, 3
-          jCount = jCount + 1
-          dynMatrix(jCount,iMode) = dynMatrix(jCount,iMode) &
-              & /sqrt(atomicMasses(jj))
-        end do
-      end do
-      dynMatrix(:,iMode) = dynMatrix(:,iMode) &
-          & / sqrt(sum(dynMatrix(:,iMode)**2))
-    end do
+    write(stdout, "(16I5)")ModesToPlot(:)
     call taggedWriter%write(fdUnit, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
     close(fdUnit)
-
-    ! Create displacement vectors for every atom in every mode.
-    nAtom = geo%nAtom
-    allocate(displ(3, nAtom, nModesToPlot))
-    displ(:,:,:) = 0.0_dp
-    do iAt = 1, nAtom
-      if (any(iMovedAtoms == iAt)) then
-        ! Index of atom in the list of moved atoms
-        iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
-        do ii = 1, nModesToPlot
-          iMode = ModesToPlot(ii)
-          displ(:,iAt, ii) =  dynMatrix(3*iAtMoved-2:3*iAtMoved, iMode)
-        end do
-      end if
-    end do
-
     if (tAnimateModes) then
       do ii = 1, nModesToPlot
         iMode = ModesToPlot(ii)
@@ -140,7 +180,7 @@ program modes
             isAppend = (kk > 1 .or. ll > 1)
             write(lcTmp2,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
             call writeXYZFormat(lcTmp,&
-                & geo%coords+cos(2.0_dp*pi*real(ll)/real(nSteps))*displ(:,:,ii),&
+                & geo%coords+cos(2.0_dp*pi*real(ll)/real(nSteps))*displ(:,:,iMode),&
                 & geo%species, geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
           end do
         end do
@@ -152,10 +192,56 @@ program modes
         iMode = ModesToPlot(ii)
         write(lcTmp2,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
         call writeXYZFormat(lcTmp, geo%coords, geo%species, geo%speciesNames,&
-            & velocities=displ(:,:,ii), comment=trim(lcTmp2), append=isAppend)
+            & velocities=displ(:,:,iMode), comment=trim(lcTmp2), append=isAppend)
       end do
     end if
+  end if
 
+  write(stdout, *)'Vibrational modes'
+  if (allocated(bornMatrix) .and. allocated(bornDerivsMatrix)) then
+    write(stdout, "(T7,A,T16,A,T28,A)")'freq.', 'IR', 'Polarisability'
+    write(stdout, "(A,T7,A,T16,A,T28,A)")'Mode', '/ cm-1', '/ a.u.', 'change / a.u.'
+  else if (allocated(bornMatrix)) then
+    write(stdout, "(T7,A,T16,A)")'freq.', 'IR'
+    write(stdout, "(A,T7,A,T16,A)")'Mode', '/ cm-1', '/ a.u.'
+  else if (allocated(bornDerivsMatrix)) then
+    write(stdout, "(T7,A,T16,A)")'freq.', 'Polarisability'
+    write(stdout, "(A,T7,A,T16,A)")'Mode', '/ cm-1', 'change / a.u.'
+  else
+    write(stdout, "(T7,A)")'freq.'
+    write(stdout, "(A,T7,A)")'Mode', 'cm-1'
+  end if
+  if (allocated(bornMatrix) .and. allocated(bornDerivsMatrix)) then
+    do ii = 1, 3 * nMovedAtom
+      write(stdout, '(i5,f8.2,2E12.4)')ii,eigenValues(ii)*Hartree__cm, transDip(ii), transPol(ii)
+    end do
+  else if (allocated(bornMatrix)) then
+    do ii = 1, 3 * nMovedAtom
+      write(stdout, '(i5,f8.2,E12.4)')ii,eigenValues(ii)*Hartree__cm, transDip(ii)
+    end do
+  else if (allocated(bornDerivsMatrix)) then
+    do ii = 1, 3 * nMovedAtom
+      write(stdout, '(i5,f8.2,E12.4)')ii,eigenValues(ii)*Hartree__cm, transPol(ii)
+    end do
+  else
+    do ii = 1, 3 * nMovedAtom
+      write(stdout, '(i5,f8.2)')ii,eigenValues(ii)*Hartree__cm
+    end do
+  end if
+  write(stdout, *)
+
+  call taggedWriter%write(fdUnit, "frequencies", eigenValues)
+
+  if (allocated(bornMatrix)) then
+    call taggedWriter%write(fdUnit, "intensities", degenTransDip(:nTrans))
+  end if
+
+  if (allocated(bornDerivsMatrix)) then
+    if (tRemoveTranslate .or. tRemoveRotate) then
+      call taggedWriter%write(fdUnit, "scattering", degenTransPol(2:nTrans))
+    else
+      call taggedWriter%write(fdUnit, "scattering", degenTransPol(:nTrans))
+    end if
   end if
 
 #:if WITH_MPI

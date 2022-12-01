@@ -11,7 +11,10 @@ Unreleased
 Added
 -----
 
-- Born charges from finite difference dipole derivatives
+- Born charges and polarizability derivatives from finite difference
+  derivatives.
+
+- Infrared and Raman intensities from the modes code.
 
 - Spin-orbit coupling for xTB
 
