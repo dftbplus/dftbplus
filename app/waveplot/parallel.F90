@@ -16,7 +16,7 @@ module waveplot_parallel
 
   private
 
-  public :: getStartAndEndIndices
+  public :: getStartAndEndIndices, getStartAndEndIndicesByChunkSize
 
 
 contains
@@ -78,5 +78,36 @@ contains
     end do
 
   end subroutine getStartAndEndIndices
+
+
+  pure subroutine getStartAndEndIndicesByChunkSize(nSystems, nChunks, chunkSize, chunks)
+
+    !> array size to split
+    integer, intent(in) :: nSystems
+
+    !> necessary number of chunks
+    integer, intent(in) :: nChunks
+
+    !> size of the chunks to build
+    integer, intent(in) :: chunkSize
+
+    !> start and end indices of all chunks
+    integer, intent(out), allocatable :: chunks(:,:)
+
+    !> auxiliary variable
+    integer :: iChunk
+
+    allocate(chunks(2, nChunks))
+
+    do iChunk = 1, nChunks
+        chunks(1, iChunk) = (iChunk - 1) * chunkSize + 1
+      if (iChunk == nChunks) then
+        chunks(2, iChunk) = nSystems
+      else
+        chunks(2, iChunk) = iChunk * chunkSize
+      end if
+    end do
+
+  end subroutine getStartAndEndIndicesByChunkSize
 
 end module waveplot_parallel

@@ -21,9 +21,9 @@ program waveplot
 
   use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
       & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum, &
-      & subgridsToGlobalGrid3, calculateBasis
+      & subgridsToGlobalGrid3, calculateBasis, subgridsToGlobalGridOne
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
-  use waveplot_parallel, only : getStartAndEndIndices
+  use waveplot_parallel, only : getStartAndEndIndices, getStartAndEndIndicesByChunkSize
 
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -69,7 +69,7 @@ program waveplot
   complex(dp), allocatable :: phases(:,:)
 
   !> Arrays holding the volumetric grid data
-  real(dp), allocatable :: totGridsDat(:,:,:)
+  real(dp), allocatable :: totGridsDat(:,:,:,:)
   complex(dp), allocatable :: totGridsDatCplx(:,:,:)
   real(dp), allocatable :: basis(:,:,:,:)
   real(dp), allocatable, target ::  totChrg(:,:,:), atomicChrg(:,:,:), speciesChrg(:,:,:,:)
@@ -90,6 +90,8 @@ program waveplot
   !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
   real(dp), allocatable :: cartCoords(:,:,:,:)
 
+  real(dp), allocatable :: cutoffs(:)
+
   !> Pointers to arrays holding the volumetric grid data
   real(dp), pointer ::  pAtomicChrg(:,:,:), pSpeciesChrg(:,:,:)
   real(dp), pointer :: pTotData(:,:,:), pBuffer(:,:,:), pCopyBuffers(:,:,:,:)
@@ -99,6 +101,7 @@ program waveplot
   integer, allocatable :: tiling(:,:)
 
   integer, allocatable :: orbTiling(:,:)
+  integer, allocatable :: statesTiling(:,:)
 
   !> Auxillary variables
   integer :: jj, iL, iM
@@ -110,7 +113,6 @@ program waveplot
   integer :: currentKPoint, currentSpin, currentLevel
   real :: start, finish, finish2
   character(len=100) :: strBuffer
-  logical :: tFinished
 
   !> Container for enumerated radial wf tabulation types
   type(TTabulationTypesEnum), parameter :: rwTabulationTypes = TTabulationTypesEnum()
@@ -209,6 +211,11 @@ program waveplot
         ind = ind + 1
       end do
     end do
+  end do
+
+  allocate(cutoffs(size(wp%basis%basis, dim=1)))
+  do ii = 1, size(wp%basis%basis, dim=1)
+    cutoffs(ii) = maxval(wp%basis%basis(ii)%cutoffs)
   end do
 
   ! Create density superposition of the atomic orbitals. Occupation is
@@ -456,61 +463,26 @@ program waveplot
 
   allocate(phases(size(wp%loc%molorb%CellVec, dim=2), size(wp%input%kPointsandWeight, dim=2)))
   wp%input%kPointsandWeight(1:3, :) = 2.0_dp * pi * wp%input%kPointsandWeight(1:3, :)
-  phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), wp%input%kPointsandWeight(1:3, :)))
+  phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), &
+      & wp%input%kPointsandWeight(1:3, :)))
 
-  if (mod(size(wp%eig%eigvecsReal, dim=1), wp%opt%nCached) == 0) then
-    nCachedBlock = size(wp%eig%eigvecsReal, dim=1) / wp%opt%nCached
-  else if (mod(size(wp%eig%eigvecsReal, dim=1), wp%opt%nCached) > 0) then
-    nCachedBlock = size(wp%eig%eigvecsReal, dim=1) / wp%opt%nCached + 1
+  if (mod(size(wp%opt%levelIndex, dim=2), wp%opt%nCached) == 0) then
+    nCachedBlock = size(wp%opt%levelIndex, dim=2) / wp%opt%nCached
+  else if (mod(size(wp%opt%levelIndex, dim=2), wp%opt%nCached) > 0) then
+    nCachedBlock = size(wp%opt%levelIndex, dim=2) / wp%opt%nCached + 1
   end if
 
-  call getStartAndEndIndices(size(wp%eig%eigvecsReal, dim=1), nCachedBlock, orbTiling)
+  call getStartAndEndIndicesByChunkSize(size(wp%opt%levelIndex, dim=2), nCachedBlock, &
+      & wp%opt%nCached, statesTiling)
 
-  ! write(*,*) 'nCachedBlock'
-  ! write(*,*) nCachedBlock
-  ! write(*,*) shape(orbTiling)
-  ! write(strbuffer, "(I3)") size(orbTiling, dim=1)
-  ! write(*,*) strBuffer
-  ! write(strbuffer, *) '(' // trim(strBuffer) // '(i4, 1X)/)'
-  ! write(*, strBuffer) orbTiling
-  ! write(*,*) orbTiling(1, 2)
-
-  allocate(totGridsDat(totGridDat%grid%nPoints(1), totGridDat%grid%nPoints(2), &
-      & totGridDat%grid%nPoints(3)))
-
-  tFinished = .false.
-
-  ! Process the molecular orbitals and write them to the disc
-  lpProcessStates: do ii = 1, size(wp%opt%levelIndex, dim=2)
-
-  lpCache: do iCachedBlock = 1, nCachedBlock
-
-  if ((nCachedBlock .ne. 1) .or. (ii == 1)) then
-    call calculateBasis(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-        & wp%eig%eigvecsReal, wp%loc%orbitalToAtom,&
-        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
-        & orbTiling(:, iCachedBlock), &
-        & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
-        & basis, wp%opt%gridInterType, addDensities=.False.)
-  end if
-
-  ! do iLevel = 1, size(requiredLevels)
-  ! do iKPoint = 1, size(requiredKPoints)
-  !   do iSpin = 1, size(requiredSpins)
-
-      iLevel = wp%opt%levelIndex(1, ii)
-      iKPoint = wp%opt%levelIndex(2, ii)
-      iSpin = wp%opt%levelIndex(3, ii)
-
-      currentLevel = requiredLevels(iLevel)
-      currentKPoint = requiredKPoints(iKPoint)
-      currentSpin = requiredSpins(iSpin)
+  do iCachedBlock = 1, nCachedBlock
 
       if (wp%input%tRealHam) then
         call subgridsToGlobalGrid3(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsReal, wp%opt%levelIndex, currentLevel, currentKPoint, currentSpin, wp%loc%orbitalToAtom,&
+            & wp%eig%eigvecsReal, wp%opt%levelIndex, currentLevel, currentKPoint, currentSpin, &
+            & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
-            & orbTiling(:,iCachedBlock), &
+            & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
             & basis, totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
       else
@@ -524,7 +496,17 @@ program waveplot
             & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
       end if
 
-      if (iCachedBlock == nCachedBlock) then
+  ind = 1
+
+  do ii = statesTiling(1, iCachedBlock), statesTiling(2, iCachedBlock)
+
+      iLevel = wp%opt%levelIndex(1, ii)
+      iKPoint = wp%opt%levelIndex(2, ii)
+      iSpin = wp%opt%levelIndex(3, ii)
+
+      currentLevel = requiredLevels(iLevel)
+      currentKPoint = requiredKPoints(iKPoint)
+      currentSpin = requiredSpins(iSpin)
 
       ! Build charge if needed for total charge or if it was explicitely required
       tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. any(wp%opt%plottedKPoints ==&
@@ -534,7 +516,7 @@ program waveplot
           & wp%opt%tPlotChrgDiff))) then
 
         if (wp%input%tRealHam) then
-          buffer(:,:,:) = totGridsDat(:,:,:)**2
+          buffer(:,:,:) = totGridsDat(:,:,:,ind)**2
         else
           buffer(:,:,:) = abs(totGridsDatCplx(:,:,:))**2
         end if
@@ -591,7 +573,7 @@ program waveplot
         if (wp%opt%tPlotReal) then
 
           if (wp%input%tRealHam) then
-            buffer(:,:,:) = totGridsDat(:,:,:)
+            buffer(:,:,:) = totGridsDat(:,:,:, ind)
           else
             buffer(:,:,:) = real(totGridsDatCplx(:,:,:), dp)
           end if
@@ -618,14 +600,10 @@ program waveplot
 
       end if
 
-    end if
+      ind = ind + 1
 
-  end do lpCache
-  if (nCachedBlock .ne. 1) then
-    deallocate(basis)
-  end if
-  totGridsDat(:,:,:) = 0.0_dp
-  end do lpProcessStates
+  end do
+  end do
     ! end do
     !   end do
     ! end do

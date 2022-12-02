@@ -731,7 +731,7 @@ contains
     end if
 
     if (this%opt%nCached == -1) then
-      this%opt%nCached = this%eig%nState
+      this%opt%nCached = size(this%opt%levelIndex, dim=2)
     end if
 
     call getChildValue(node, "SpGridPoints", this%opt%nSpPoints, child=field)
