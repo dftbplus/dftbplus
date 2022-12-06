@@ -21,7 +21,7 @@ program waveplot
 
   use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
       & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum, &
-      & subgridsToGlobalGrid3, calculateBasis, subgridsToGlobalGridOne
+      & subgridsToGlobalGrid3, calculateBasis
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_parallel, only : getStartAndEndIndices, getStartAndEndIndicesByChunkSize
 
@@ -70,7 +70,7 @@ program waveplot
 
   !> Arrays holding the volumetric grid data
   real(dp), allocatable :: totGridsDat(:,:,:,:)
-  complex(dp), allocatable :: totGridsDatCplx(:,:,:)
+  complex(dp), allocatable :: totGridsDatCplx(:,:,:,:)
   real(dp), allocatable :: basis(:,:,:,:)
   real(dp), allocatable, target ::  totChrg(:,:,:), atomicChrg(:,:,:), speciesChrg(:,:,:,:)
   real(dp), allocatable :: atomDensity(:,:,:)
@@ -488,8 +488,9 @@ program waveplot
       else
         pCopyBuffers => copyBuffersCplx
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsCplx, wp%opt%levelIndex, ii, wp%loc%orbitalToAtom,&
+            & wp%eig%eigvecsCplx, wp%opt%levelIndex, wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+            & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
             & wp%loc%orbitalToStos, totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
             & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
@@ -518,7 +519,7 @@ program waveplot
         if (wp%input%tRealHam) then
           buffer(:,:,:) = totGridsDat(:,:,:,ind)**2
         else
-          buffer(:,:,:) = abs(totGridsDatCplx(:,:,:))**2
+          buffer(:,:,:) = abs(totGridsDatCplx(:,:,:,ind))**2
         end if
 
         if (wp%opt%tCalcTotChrg) then
@@ -575,7 +576,7 @@ program waveplot
           if (wp%input%tRealHam) then
             buffer(:,:,:) = totGridsDat(:,:,:, ind)
           else
-            buffer(:,:,:) = real(totGridsDatCplx(:,:,:), dp)
+            buffer(:,:,:) = real(totGridsDatCplx(:,:,:, ind), dp)
           end if
 
           write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
@@ -589,7 +590,7 @@ program waveplot
 
         ! Plot imaginary part of WFs
         if (wp%opt%tPlotImag) then
-          buffer(:,:,:) = aimag(totGridsDatCplx(:,:,:))
+          buffer(:,:,:) = aimag(totGridsDatCplx(:,:,:, ind))
           write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
               & ', imag')") wp%input%identity, iSpin, iKPoint, iLevel
           fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" //i2c(iLevel) // "-imag.cube"
