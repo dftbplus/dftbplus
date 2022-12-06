@@ -189,7 +189,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "2158eedd98e17c65c755c468e5c085e7af0f9c37")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
