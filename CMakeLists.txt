@@ -241,7 +241,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "d76ce4037540a66fac459111c975908a41a3807c")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "d5b72de4bb0fe892410180a67c23556db6726e67")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
