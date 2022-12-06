@@ -1871,8 +1871,7 @@ end subroutine subgridsToCachedGlobalGrids3
 
     !> array holding the values of the STOs weighted with the exponential phase factor,
     !> shape: [nxPoints, nyPoints, nzPoints, nKPoints]
-    complex(dp), allocatable :: basis(:,:,:)
-    complex(dp), allocatable :: basisTmp(:,:,:)
+    complex(dp), allocatable :: basis(:,:,:,:)
 
     !> auxiliary variables
     integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
@@ -1899,19 +1898,15 @@ end subroutine subgridsToCachedGlobalGrids3
     globalGridsDat(:,:,:,:) = 0.0_dp
 
     allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-        & globalGridDat%grid%nPoints(3)))
-    basis(:,:,:) = 0.0_dp
-
-    allocate(basisTmp(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-        & globalGridDat%grid%nPoints(3)))
-    basisTmp(:,:,:) = 0.0_dp
+        & globalGridDat%grid%nPoints(3), size(coords, dim=3)))
+    basis(:,:,:,:) = 0.0_dp
 
     !$omp parallel do default(none)&
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid,&
     !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType,&
     !$omp& requiredKPoints, phases, requiredLevels, requiredSpins, basis, stos, orbitalToAngs, &
     !$omp& orbitalToM, rwfTabulationType, cartcoords, orbitalToStos, iL, iSpin, iKPoint,&
-    !$omp& basisTmp, statesTiling)&
+    !$omp& statesTiling)&
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, ind, iState,&
     !$omp& currentKPoint, currentLevel, currentSpin, iAng, iM, idx, ii, jj, kk, aa, iStos)
     lpGrid: do iGrid = 1, nRegions
@@ -1923,37 +1918,32 @@ end subroutine subgridsToCachedGlobalGrids3
         iM = orbitalToM(iOrb)
         iStos = orbitalToStos(iOrb)
 
-        ind = 1
-        lpStates: do iState = statesTiling(1), statesTiling(2)
+        lpCell: do iCell = 1, size(coords, dim=3)
 
-          iL = levelIndex(1, iState)
-          iKPoint = levelIndex(2, iState)
-          iSpin = levelIndex(3, iState)
+          basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) = &
+              & explicitSTOcalculationCoeffs(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+              & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
+              & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
+              & square=tAddDensities)
 
-          lpCell: do iCell = 1, size(coords, dim=3)
+          ind = 1
+          lpStates: do iState = statesTiling(1), statesTiling(2)
 
-            basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-                & explicitSTOcalculationCoeffs(regionGridDat(iGrid), subgridsDat(iSubgrid), &
-                & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
-                & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
-                & square=tAddDensities)
-
-            basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) * phases(iCell, iKPoint)
+            iL = levelIndex(1, iState)
+            iKPoint = levelIndex(2, iState)
+            iSpin = levelIndex(3, iState)
 
             ! add STO weighted with the eigenvector coefficients to the global grid
             globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind) =&
                 & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind)&
                 & + coeffs(iOrb, iL, iKPoint, iSpin) * &
-                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
-
-          end do lpCell
+                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) * phases(iCell, iKPoint)
 
           ind = ind + 1
 
-        end do lpStates
-        basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = 0.0_dp
-        ! basis(:,:,:) = 0.0_dp
+          end do lpStates
+
+        end do lpCell
       end do lpOrb
     end do lpGrid
     !$omp end parallel do
