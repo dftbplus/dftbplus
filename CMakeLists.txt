@@ -234,7 +234,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-    set(TOML_F_GIT_TAG "f066ec6e7fb96d8faf83ab6614ee664a26ad8d57")  # do not change manually!
+    set(TOML_F_GIT_TAG "b121a9c3fd7314e887f696ca8488c9977d283788")  # do not change manually!
     dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES toml-f)
