@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "22.1")
+set(DFTBPLUS_VERSION "22.2.0")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -266,7 +266,7 @@ if(WITH_TBLITE)
   endif()
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "0542ce7ae0e323941156949a0620ca260bc0ce7f")  # do not change manually!
+  set(TBLITE_GIT_TAG "fa115545f7a6ba8e3f0e62df5cdace8781f4d309")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
