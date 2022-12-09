@@ -1192,6 +1192,7 @@ contains
     ! Read individual atom specifications
     call getChildren(child, "Mass", children)
     if (getLength(children) == 0) then
+      call destroyNodeList(children)
       return
     end if
 
@@ -1612,6 +1613,7 @@ contains
           end if
           call append(lrN(iSp1),rTmp)
         end do
+        call destroyNodeList(children)
       end do
 
       do iSp1 = 1, geo%nSpecies
@@ -4989,6 +4991,7 @@ contains
           ctrl%RegionLabel(iReg) = unquote(char(buffer))
         end do
       end if
+      call destroyNodeList(children)
 
       call getChild(node, "Localise", child=val, requested=.false.)
       if (associated(val)) then
@@ -5891,8 +5894,8 @@ contains
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
-
     call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
+    call destroyNodeList(pNodeList)
 
     transpar%taskUpload = .false.
 
@@ -6808,8 +6811,10 @@ contains
                 &for atom" // i2c(iAt) // " has been overwritten")
           end if
           atmCoupling(iAt) = rTmp
-        enddo
-      enddo
+        end do
+      end do
+      call destroyNodeList(children)
+
       ! Transform atom coupling in orbital coupling
       norbs = 0
       do ii=atm_range(1), atm_range(2)
@@ -7231,6 +7236,7 @@ contains
         call setChild(node, "Region", child)
         call setChildValue(child, "Atoms", trim(strTmp))
         call setChildValue(child, "Label", "localDOS")
+        call destroyNodeList(children)
         call getChildren(node, "Region", children)
         nReg = getLength(children)
       else
@@ -7390,9 +7396,7 @@ contains
       end do
       deallocate(shellNamesTmp)
     end do
-    if (associated(nodes)) then
-      call destroyNodeList(nodes)
-    end if
+    call destroyNodeList(nodes)
 
   end subroutine readCustomReferenceOcc
 
