@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(methanole)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(methanole)
     ParamFile = "param_gbsa_methanol.txt"
   }
   SCC = Yes

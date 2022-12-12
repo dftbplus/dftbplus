@@ -18,6 +18,9 @@ Added
 
 - Spin-orbit coupling for xTB
 
+- Dual American and British English spelling for various input keywords
+
+
 Fixed
 -----
 
@@ -27,6 +30,7 @@ Fixed
 - Corrected units for electrostatic gate potentials in transport
 
 - Stratmann solver available without ARPACK
+
 
 22.1 (2022-05-25)
 =================
