@@ -20,8 +20,7 @@ program waveplot
   use dftbp_type_typegeometry, only : TGeometry
 
   use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
-      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum, &
-      & subgridsToGlobalGrid3, calculateBasis
+      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_parallel, only : getStartAndEndIndices, getStartAndEndIndicesByChunkSize
 
@@ -478,13 +477,13 @@ program waveplot
   do iCachedBlock = 1, nCachedBlock
 
       if (wp%input%tRealHam) then
-        call subgridsToGlobalGrid3(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsReal, wp%opt%levelIndex, currentLevel, currentKPoint, currentSpin, &
+        call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+            & wp%eig%eigvecsReal, wp%opt%levelIndex, &
             & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
-            & basis, totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
+            & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
       else
         pCopyBuffers => copyBuffersCplx
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
@@ -492,7 +491,7 @@ program waveplot
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
-            & wp%loc%orbitalToStos, totGridsDatCplx, requiredKPoints, requiredLevels, requiredSpins,&
+            & wp%loc%orbitalToStos, totGridsDatCplx,&
             & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
             & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
       end if
