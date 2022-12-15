@@ -198,7 +198,7 @@ module dftbp_dftbplus_initprogram
     integer :: nType
 
     !> data type for atomic orbital information
-    type(TOrbitals) :: orb
+    type(TOrbitals), allocatable :: orb
 
     !> nr. of orbitals in the system
     integer :: nOrb
@@ -1350,11 +1350,9 @@ contains
     case(hamiltonianTypes%dftb)
       this%orb = input%slako%orb
     case(hamiltonianTypes%xtb)
-      ! TODO
       if (.not.allocated(input%ctrl%tbliteInp)) then
         call error("xTB calculation supported only with tblite library")
       end if
-
       allocate(this%tblite)
       if (this%tPeriodic) then
         call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
@@ -1363,13 +1361,15 @@ contains
         call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
             & this%speciesName, this%coord0)
       end if
-
       allocate(input%slako%orb)
       call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
-      this%orb = input%slako%orb
-
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
+      ! Workaround: ifort 2021.7
+      ! Assignment of derived type instances with allocatable components seems to be broken,
+      ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
+      !this%orb = input%slako%orb
+      call move_alloc(input%slako%orb, this%orb)
     end select
     this%nOrb = this%orb%nOrb
 
