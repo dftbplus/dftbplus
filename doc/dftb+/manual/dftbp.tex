@@ -4599,6 +4599,7 @@ This block collects some global options for the run.
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
+  \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
 \end{ptable}
@@ -4682,6 +4683,11 @@ This block collects some global options for the run.
   \verb|charges.bin| to contain starting charges stored in binary. If \is{Yes},
   then \verb|charges.dat| should contain a text file of this data. See section
   \ref{sec:charges.bin}.
+
+\item[\is{WriteCharges}] Turns the creation of the
+  \verb|charges.bin| (or \verb|charges.dat|) file on and off. (This might e.g.\
+  prove to be useful to avoid unnecessary I/O load during geometry optimization or MD,
+  if a later restart of the calculation is not needed.)
 
 \item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
