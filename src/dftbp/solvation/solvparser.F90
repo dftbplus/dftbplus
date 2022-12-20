@@ -23,7 +23,7 @@ module dftbp_solvation_solvparser
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd
+  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_math_bisect, only : bisection
   use dftbp_solvation_born, only : TGBInput, fgbKernel
   use dftbp_solvation_cm5, only : TCM5Input
@@ -63,13 +63,14 @@ contains
     type(fnode), pointer :: solvModel
     type(string) :: buffer
 
+    call renameChildren(node, "GeneralizedBorn", "GeneralisedBorn")
     call getChildValue(node, "", solvModel)
     call getNodeName(solvModel, buffer)
 
     select case (char(buffer))
     case default
       call detailedError(node, "Invalid solvation model name.")
-    case ("generalizedborn")
+    case ("generalisedborn")
       allocate(input%GBInp)
       call readSolvGB(solvModel, geo, input%GBInp)
     case ("cosmo")
@@ -97,7 +98,7 @@ contains
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, field
-    logical :: found, tHBondCorr, tALPB
+    logical :: tHBondCorr, tALPB
     real(dp) :: temperature, shift, alphaALPB
     type(string), allocatable :: searchPath(:)
     type(TSolventData) :: solvent
@@ -105,7 +106,7 @@ contains
     character(len=:), allocatable :: paramFile, paramTmp
 
     if (geo%tPeriodic .or. geo%tHelical) then
-      call detailedError(node, "Generalized Born model currently not available with the&
+      call detailedError(node, "Generalised Born model currently not available with the&
          & selected boundary conditions")
     end if
 
@@ -329,6 +330,7 @@ contains
     type(fnode), pointer :: child
 
     call getChildValue(node, "MaxMoment", input%lmax, child=child)
+    call renameChildren(node, "Regularization", "Regularisation")
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
     call getChildValue(node, "Accuracy", input%conv, child=child)
 
@@ -354,9 +356,7 @@ contains
     real(dp), intent(in), optional :: surfaceTensionDefault(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, field, dummy
-    character(lc) :: errorStr
-    real(dp), allocatable :: vdwRadDefault(:)
+    type(fnode), pointer :: child, value1, field
 
     if (geo%tPeriodic .or. geo%tHelical) then
       call detailedError(node, "SASA model currently not available with the&
@@ -555,7 +555,7 @@ contains
     real(dp), allocatable, intent(out) :: vdwRad(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, field, dummy
+    type(fnode), pointer :: child, value1, dummy
     real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 

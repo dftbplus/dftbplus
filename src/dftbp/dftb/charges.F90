@@ -46,8 +46,8 @@ contains
     !> Summed charge per shell.
     real(dp), target, intent(out), optional :: dQShell(:,:)
 
-    real(dp), allocatable, target :: dQLocal(:,:), dQShellLocal(:,:)
-    real(dp), pointer :: dQWork(:,:), dQShellWork(:,:)
+    real(dp), allocatable, target :: dQLocal(:,:)
+    real(dp), pointer :: dQWork(:,:)
     integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
@@ -151,8 +151,6 @@ contains
 
     !> charges for atomic shells with a common U value
     real(dp), intent(out) :: deltaQUniqU(:,:)
-
-    integer :: iAt, iSp, iSh
 
     call hubbU%sumOverUniqueU(deltaQPerLShell, species, orb, deltaQUniqU)
 

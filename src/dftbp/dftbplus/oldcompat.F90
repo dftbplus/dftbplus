@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
@@ -38,7 +40,7 @@ contains
     integer, intent(in) :: curVersion
 
     integer :: version
-    type(fnode), pointer :: ch1, ch2, par
+    type(fnode), pointer :: ch1, par
 
     version = oldVersion
     do while (version < curVersion)
@@ -73,6 +75,9 @@ contains
       case (10)
         call convert_10_11(root)
         version = 11
+      case (11)
+        call convert_11_12(root)
+        version = 12
       end select
     end do
 
@@ -139,8 +144,7 @@ contains
         call detailedError(ch1, "Sorry, non-variational energy calculation &
             &is not supported any more!")
       else
-        call detailedWarning(ch1, "Energy calculation is made only &
-            &variational, option removed.")
+        call detailedWarning(ch1, "Energy calculation is made only variational, option removed.")
         call destroyNode(ch1)
       end if
     end if
@@ -484,10 +488,8 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2
     logical :: tVal1, tVal2
-    type(fnode), pointer :: pTaskType
-    type(string) :: buffer
 
     ! If this is an electron dynamics restart, then remove keywords for the (un-needed) ground state
     ! calculation (unless the eigenvectors are required)
@@ -539,8 +541,6 @@ contains
 
     type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
     logical :: tVal1, tVal2
-    type(fnode), pointer :: pTaskType
-    type(string) :: buffer
 
     call getDescendant(root, "ExcitedState/Casida", ch1)
     if (associated(ch1)) then
@@ -717,7 +717,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    type(fnode), pointer :: ch1, ch2
 
     call getDescendant(root, "Hamiltonian/DFTB/Solvation/GeneralizedBorn", ch1)
     if (associated(ch1)) then
@@ -738,6 +738,34 @@ contains
     end if
 
   end subroutine convert_10_11
+
+
+  !> Converts input from version 11 to 12. (Version 12 introduced in June 2022)
+  subroutine convert_11_12(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+    type(string) :: buffer
+
+    call getDescendant(root, "Transport", ch1)
+    if (associated(ch1)) then
+      call getChildValue(root, "Transport/Task", ch1, child=ch2, default='uploadcontacts')
+      call getNodeName(ch1, buffer)
+      if (char(buffer) /= "contacthamiltonian") then
+      #:for LABEL in [("xTB"), ("DFTB")]
+        call getDescendant(root, "Hamiltonian/${LABEL}$/Charge", ch1)
+        if (associated(ch1)) then
+          call setUnprocessed(ch1)
+          call detailedWarning(ch1, "Device region charge cannot be set if contacts are present.")
+          call destroyNode(ch1)
+        end if
+      #:endfor
+      end if
+    end if
+
+  end subroutine convert_11_12
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

@@ -22,8 +22,8 @@ module dftbp_poisson_parcheck
   use dftbp_io_message, only : warning
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
   use dftbp_poisson_parameters, only : cluster, DoGate, gatedir, ncdim, ncont, verbose, localBC,&
-      & mixed, overrideBC, contdir, iatc, dr_cont, poissbox, iatm, mu, poissBC, Efermi, Rmin_ins,&
-      & Rmin_gate, dr_eps, GateLength_l, deltaR_max, DoCilGate, DoPoisson, eps_r, gate, &
+      & mixed, overrideBC, contdir, contnames, iatc, dr_cont, poissbox, iatm, mu, poissBC, Efermi,&
+      & Rmin_ins, Rmin_gate, dr_eps, GateLength_l, deltaR_max, DoCilGate, DoPoisson, eps_r, gate, &
       & GateLength_t, initPot, OxLength, PoissAcc, foundbox
   use dftbp_poisson_structure, only : natoms, x, boxsiz, period, period_dir
 
@@ -360,7 +360,7 @@ contains
          !endif
          ! ---------------------------------------------------
 
-         write(stdOut,'(a,I3)') 'CONTACT #',i
+         write(stdOut,'(a,I3,a,a)') 'CONTACT #', i, ' : ', trim(contnames(i))
          write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
          write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
          write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'

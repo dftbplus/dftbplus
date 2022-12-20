@@ -8,7 +8,7 @@
 #define __DFTBPLUS_H__
 
 #define __DFTBPLUS_RELEASE__ "@RELEASE@"
-#define __DFTBPLUS_API__ "@API_RELEASE@"
+#define __DFTBPLUS_API__ "@API_VERSION@"
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,11 +89,11 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
 /**
  * Returns current version of the DFTB+ API
  *
- * \param[out] major major release number
+ * \param[out] major Major release number.
  *
- * \param[out] minor minor release number
+ * \param[out] minor Minor release number.
  *
- * \param[out] patch patch of release
+ * \param[out] patch Patch of release.
  */
 void dftbp_api(int *major, int *minor, int *patch);
 
@@ -103,18 +103,19 @@ void dftbp_api(int *major, int *minor, int *patch);
  *
  * Instance safe API support the creation of multiple concurrent DFTB+ instances within one process.
  *
- * \return  Whether API is instance safe
+ * \return Whether API is instance safe.
  */
 _Bool dftbp_is_instance_safe();
 
 /**
  * Initializes a DFTB+ calculator.
  *
- * \param[inout] instance  Handler of DFTB+ instance.
+ * \param[inout] instance Handler of DFTB+ instance.
  *
- * \param[in] outputfilename  Name of the file, where the DFTB+ screen output should be written.
- *     If you pass NULL, it will be written to standard output. If you pass any other file, it will
- *     be open, and the file will be written there. Pass "/dev/null" to suppress output.
+ * \param[in] outputfilename Name of the file, where the DFTB+ screen output should be written.
+ *     If you pass NULL, it will be written to standard output. If you pass any other file name as a
+ *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to 
+ *     suppress output.
  */
 void dftbp_init(DftbPlus *instance, const char *outputfilename);
 
@@ -122,29 +123,29 @@ void dftbp_init(DftbPlus *instance, const char *outputfilename);
 /**
  * Initializes a DFTB+ calculator (MPI-version).
  *
- * \param[inout] instance  Handler of DFTB+ instance.
+ * \param[inout] instance Handler of DFTB+ instance.
  *
- * \param[in] outputfilename  Name of the file, where the DFTB+ screen output should be written.
+ * \param[in] outputfilename Name of the file, where the DFTB+ screen output should be written.
  *     If you pass NULL, it will be written to standard output. If you pass any other file name as a
  *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to
  *     suppress output.
  *
- * \param[in] mpiComm  MPI-communicator id. Before calling, you must convert your MPI-communicator
+ * \param[in] mpiComm MPI-communicator id. Before calling, you must convert your MPI-communicator
  *     with the mpi_comm_c2f() function to a Fortran MPI-communicator id.
  */
 void dftbp_init_mpi(DftbPlus *instance, const char *outputfilename, int mpiComm);
 
 
 /**
- * Finalizes a DFTB+ calculator
+ * Finalizes a DFTB+ calculator.
  *
- *  \param[inout] instance  Handler of the DFTB+ instance.
+ * \param[inout] instance Handler of the DFTB+ instance.
  */
 void dftbp_final(DftbPlus *instance);
 
 
 /**
- * Obtain no. of atoms and list of species from the MM program
+ * Obtain nr. of atoms and list of species from the MM program.
  */
 void dftbp_get_atom_list(DftbPlusAtomList *atomListHandler, int *nAtomC, int *nSpeciesC,
                          char *elementC, int *species);
@@ -183,7 +184,7 @@ void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
  *
  * \param[in] extpot External potential at the position of each atom. Shape: [natom]. Unit: Hartree.
  *
- * \param[in] extpotgrad Gradient of the external potential at each atom. Shape: [natom, 3].  Unit:
+ * \param[in] extpotgrad Gradient of the external potential at each atom. Shape: [natom, 3]. Unit:
  *     Hartree/Bohr. This parameter is optional, you can pass NULL if you did not ask DFTB+ to
  *     calculate forces.
  */
@@ -199,7 +200,7 @@ void dftbp_set_external_potential(DftbPlus *instance, const double *extpot,
  * \param[in] refptr Arbitrary pointer. DFTB+ will pass back this pointer unaltered when calling
  *     the registered functions. You can typically use it to pass a pointer to the data struct
  *     or class which contains the necessary data for the potential calculation. If your data
- *     in in the global space and you don not need it, pass an arbitrary pointer, e.g. NULL.
+ *     is in the global space and you do not need it, pass an arbitrary pointer, e.g. NULL.
  *
  * \param[in] extpot Function pointer to the call-back function which DFTB+ should call, whenever
  *     the population dependant external potential should be calculated.
@@ -228,22 +229,22 @@ void dftbp_set_coords(DftbPlus *instance, const double *coords);
  *
  * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3]. Unit: Bohr.
  *
- * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
+ * \param[in] latvecs Lattice vectors. Shape: [3, 3]. Unit: Bohr.
  */
 void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, const double *coords,
                                        const double *latvecs);
 
 
 /**
- * Sets actual atom coordinates and lattice vectors.
+ * Sets actual atom coordinates, lattice vectors and coordinate origin.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
  * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3]. Unit: Bohr.
  *
- * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
+ * \param[in] latvecs Lattice vectors. Shape: [3, 3]. Unit: Bohr.
  *
- * \param[in] origin Coordinate origin Shape: [3]. Unit: Bohr.
+ * \param[in] origin Coordinate origin. Shape: [3]. Unit: Bohr.
  */
 void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
                                        const double *latvecs, const double *origin);
@@ -253,7 +254,7 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \return Nr. of atoms
+ * \return Nr. of atoms.
  */
 int dftbp_get_nr_atoms(DftbPlus *instance);
 
@@ -263,17 +264,17 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \return Nr. of k-points
+ * \return Nr. of k-points.
  */
 int dftbp_nr_kpoints(DftbPlus *instance);
 
 
 /**
- * Queries the energy of the current geometry
+ * Queries the energy of the current geometry.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] mermin_energy  Mermin free energy of the current geometry. Unit: Bohr.
+ * \param[out] mermin_energy Mermin free energy of the current geometry. Unit: Bohr.
  */
 void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
 
@@ -283,7 +284,7 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3]. Unit: Hartree/Bohr.
+ * \param[out] gradients Gradients (not forces!) on each atom. Shape: [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
 
@@ -293,7 +294,7 @@ void dftbp_get_gradients(DftbPlus *instance, double *gradients);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] nOrbitals number of orbitals on each atom
+ * \param[out] nOrbitals Number of orbitals on each atom. Shape: [natom].
  */
 void dftbp_get_nr_orbitals(DftbPlus *instance, int *nOrbitals);
 
@@ -303,17 +304,17 @@ void dftbp_get_nr_orbitals(DftbPlus *instance, int *nOrbitals);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] masses mass of each atom
+ * \param[out] masses Mass of each atom. Shape: [natom].
  */
 void dftbp_get_masses(DftbPlus *instance, double *masses);
 
 
 /**
- * Queries the stress tensor of the current periodic box
+ * Queries the stress tensor of the current periodic box.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] stresstensor Stress Tensor for the periodic box. Shape [3, 3]. Unit: Pascals.
+ * \param[out] stresstensor Stress tensor for the periodic box. Shape: [3, 3]. Unit: Pascals.
  */
 void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
 
@@ -323,7 +324,7 @@ void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] charges Net charges on each atom.  Shape [natom]. Sign convention: Electron has
+ * \param[out] charges Net charges on each atom. Shape: [natom]. Sign convention: Electron has
  *     negative charge, so negative values indicate electron excess.
  */
 void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
@@ -334,7 +335,7 @@ void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] charges Net charges on each atom.  Shape [natom]. Sign convention: Electron has
+ * \param[out] charges Net charges on each atom. Shape: [natom]. Sign convention: Electron has
  *     negative charge, so negative values indicate electron excess.
  */
 void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
@@ -345,11 +346,11 @@ void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[in] nLocations Number of requested points
+ * \param[in] nLocations Number of requested points.
  *
- * \param[out] potential Values of electrostatic potential
+ * \param[out] potential Values of electrostatic potential. Shape: [nLocations].
  *
- * \param[in] locations Coordinates of requested points. Shape [natom, 3]. Unit: Bohr.
+ * \param[in] locations Coordinates of requested points. Shape: [nLocations, 3]. Unit: Bohr.
  */
 void dftbp_get_elstat_potential(DftbPlus *instance, int nLocations, double *potential, const double *locations);
 

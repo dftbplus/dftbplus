@@ -65,7 +65,7 @@ if(WITH_MPI)
   set(mpi_sources
     test_setspeciesanddependents.f90
     test_mpisubgrids.f90)
-  
+
   # Lift strict actual argument type checking to enable mpi-calls to compile
   foreach(mpisource IN LISTS mpi_sources)
     if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")

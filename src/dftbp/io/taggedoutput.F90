@@ -110,6 +110,9 @@ module dftbp_io_taggedoutput
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 
+    !> numerically calculated Born charges
+    character(lenLabel) :: BorndDipNum = 'born_mudrv_numerical'
+
     !> final energy components after real-time propagation
     character(lenLabel) :: tdenergy = 'final_energy'
 
@@ -133,6 +136,9 @@ module dftbp_io_taggedoutput
 
     !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
+
+    !> final atom-resolved energies
+    character(lenLabel) :: atomenergies = 'atomic_energies'
 
     !> total energy including electron TS contribution
     character(lenLabel) :: freeEgy = 'mermin_energy'

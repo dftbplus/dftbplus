@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "22.1")
+set(DFTBPLUS_VERSION "22.2")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -36,6 +36,8 @@ if(WITH_MPI)
     message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified "
       "for a WITH_MPI=TRUE build")
   endif()
+  list(FILTER MPI_Fortran_COMPILE_OPTIONS EXCLUDE REGEX  "-fallow-argument-mismatch")
+  message(STATUS "MPI_Fortran_COMPILE_OPTIONS: ${MPI_Fortran_COMPILE_OPTIONS}")
 endif()
 
 if(WITH_OMP)
@@ -189,7 +191,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "2158eedd98e17c65c755c468e5c085e7af0f9c37")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -199,7 +201,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "95c95b5c1606b4576d49082a0396ea5701333375")  # do not change manually!
+  set(MBD_GIT_TAG "ac4f811da9d4140ebfe3f2d913b33ebf8287488f")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
@@ -207,23 +209,26 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "5b769f76406b12ec2faad30593cb061c5bec7d47")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "a1db656ce1cf2f7fc50154ea57afc4bc2230fe37")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
 endif()
-add_subdirectory(external/mudpack)
+
+if(WITH_POISSON)
+    add_subdirectory(external/mudpack)
+endif()
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "3d0e921085eb6ca535dfceec876bc99baf52f05d")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "87a46cdf5281ad75909083c4f72354d54abdf95d")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
-    set(MSTORE_GIT_TAG "90fc6fc4d8a6c3d72e5a910347a45edabf65343c")  # do not change manually!
+    set(MSTORE_GIT_TAG "5964ec311e7ed92665e8bff48f3e804a657dc0de")  # do not change manually!
     dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES mstore)
@@ -231,14 +236,14 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-    set(TOML_F_GIT_TAG "f066ec6e7fb96d8faf83ab6614ee664a26ad8d57")  # do not change manually!
+    set(TOML_F_GIT_TAG "b121a9c3fd7314e887f696ca8488c9977d283788")  # do not change manually!
     dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES toml-f)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "02dead293e59408100eb382e97be56e2a03fb317")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "d5b72de4bb0fe892410180a67c23556db6726e67")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -247,7 +252,7 @@ endif()
 if(WITH_TBLITE)
   if(INCLUDE_INDIRECT_DEPS)
     set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
-    set(MULTICHARGE_GIT_TAG "46ea4e370b1a59e01cc022d1f65c64bae8dbf968")  # do not change manually!
+    set(MULTICHARGE_GIT_TAG "42818911d5754604504ed553dcf0b5db33f3c867")  # do not change manually!
     dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}"
       "QUIET" external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}"
       "${MULTICHARGE_GIT_TAG}")
@@ -256,14 +261,14 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "f572723f5a5cb8243ea88b0253e182088311c6f3")  # do not change manually!
+    set(DFTD4_GIT_TAG "3e4ea97f90b2e93c73e52c210135ccd49c338796")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
   endif()
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "0542ce7ae0e323941156949a0620ca260bc0ce7f")  # do not change manually!
+  set(TBLITE_GIT_TAG "fa115545f7a6ba8e3f0e62df5cdace8781f4d309")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
@@ -273,7 +278,7 @@ endif()
 # ChIMES currently can only be integrated as a submodule
 if(WITH_CHIMES)
   set(CHIMES_GIT_REPOSITORY "https://github.com/dftbplus/chimes_calculator.git")
-  set(CHIMES_GIT_TAG "98e365365d3b3e4b11b363b4a50dd2ad6cc825d4")  # do not change manually!
+  set(CHIMES_GIT_TAG "7ca7d397197ac8ca4b1fc54ee12164911a6254b7")  # do not change manually!
   dftbp_config_hybrid_dependency(ChimesCalc ChimesCalc::ChimesCalc_Fortran
     "${HYBRID_CONFIG_METHODS}" "QUIET"
   external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")

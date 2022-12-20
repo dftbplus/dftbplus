@@ -10,6 +10,7 @@
 #! to a source code documentation tool.
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
@@ -19,6 +20,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFile, TFile_create, TFileOptions
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_elstatpot, only : TElStatPotentials
@@ -32,13 +34,14 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_commonformats, only : formatHessian, formatGeoOut, format1U, format2U, format1Ue,&
-      & format2Ue, format1U1e
+  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
+      & format1U, format2U, format1Ue, format2Ue, format1U1e
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : hemv
+  use dftbp_math_eigensolver, only : heev
   use dftbp_md_mdintegrator, only : TMdIntegrator, state
   use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_solvation_cm5, only : TChargeModel5
@@ -73,11 +76,11 @@ module dftbp_dftbplus_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
-  public :: writeDerivBandOut, writeHessianOut
+  public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
-  public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6
-  public :: writeDetailedOut7, writeDetailedOut8, writeDetailedOut9
+  public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
+  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
@@ -1862,7 +1865,7 @@ contains
 #:endif
 
 
-  !> Open an output file and return its unit number
+  !> Open an output file and clear it
   subroutine initOutputFile(fileName)
 
     !> File name
@@ -2039,10 +2042,8 @@ contains
 
     if (allocated(dipoleMoment)) then
       call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      if (eFieldScaling%isRescaled) then
-        call taggedWriter%write(fd, tagLabels%scaledDipole,&
-            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
-      end if
+      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
 
     close(fd)
@@ -2052,12 +2053,12 @@ contains
 
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
-      & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi, dEfdE,&
-      & coord0, dipoleMoment, multipole, eFieldScaling)
+      & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
+      & tMulliken, qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi,&
+      & dEfdE, dipoleMoment, multipole, eFieldScaling)
 
     !> Name of output file
-    character(*), intent(in) :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
@@ -2091,6 +2092,9 @@ contains
 
     !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) :: pDynMatrix(:,:)
+
+    !> Born charge matrix
+    real(dp), pointer, intent(in) :: pBornMatrix(:,:)
 
     !> Is the geometry periodic
     logical, intent(in) :: tPeriodic
@@ -2127,9 +2131,6 @@ contains
 
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
-
-    !> Final atomic coordinates
-    real(dp), intent(in) :: coord0(:,:)
 
     !> Overall dipole moment
     real(dp), intent(in), allocatable :: dipoleMoment(:,:)
@@ -2187,6 +2188,10 @@ contains
     if (associated(pDynMatrix)) then
       call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
+    if (associated(pBornMatrix)) then
+      call taggedWriter%write(fd, tagLabels%BorndDipNum,&
+          & eFieldScaling%scaledSoluteDipole(pBornMatrix))
+    end if
     if (tPeriodic) then
       call taggedWriter%write(fd, tagLabels%volume, cellVol)
     end if
@@ -2207,19 +2212,13 @@ contains
 
     if (allocated(dipoleMoment)) then
       call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      if (eFieldScaling%isRescaled) then
-        call taggedWriter%write(fd, tagLabels%scaledDipole,&
-            & eFieldScaling%scaledSoluteDipole(dipoleMoment))
-      end if
+      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
 
     if (allocated(multipole%dipoleAtom)) then
-      block
-        real(dp), allocatable :: dipoleAtom(:, :), qAtom(:)
-        qAtom = sum(qOutput(:, :, 1) - q0(:, :, 1), dim=1)
-        call taggedWriter%write(fd, tagLabels%dipoleAtom,&
-           & eFieldScaling%scaledSoluteDipole(dipoleAtom))
-      end block
+      call taggedWriter%write(fd, tagLabels%dipoleAtom,&
+          & eFieldScaling%scaledSoluteDipole(multipole%dipoleAtom))
     end if
 
     if (allocated(polarisability)) then
@@ -2491,8 +2490,8 @@ contains
   end subroutine writeDBand
 
 
-  !> Write the second derivative matrix
-  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms)
+  !> Write the energy second derivative matrix
+  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2503,15 +2502,17 @@ contains
     !> Indices of moved atoms
     integer, intent(in) :: indMovedAtoms(:)
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
 
     integer :: ii, fd
     character(10) :: suffix1, suffix2
-    logical :: tPartialHessian = .false. 
+    logical :: tPartialHessian = .false.
 
     ! Sanity check in case some bug is introduced
     if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
-      call error('Internal error: incorrect number of rows of dynamical Matrix')    
-    end if       
+      @:RAISE_ERROR(errStatus, -1, "Internal error: incorrect number of rows of dynamical Matrix")
+    end if
     ! It is a partial Hessian Calculation if DynMatrix is not squared
     if (size(pDynMatrix, dim=1) > size(pDynMatrix, dim=2)) then
       tPartialHessian = .true.
@@ -2519,10 +2520,10 @@ contains
 
     if (tPartialHessian) then
       write(suffix1,'(I10)') indMovedAtoms(1)
-      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))     
-      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)), &
-            & action="write", status="replace")
-    else 
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
+          & action="write", status="replace")
+    else
       open(newunit=fd, file=fileName, action="write", status="replace")
     end if
 
@@ -2533,13 +2534,127 @@ contains
     close(fd)
 
     if (tPartialHessian) then
-      write(stdOut, "(2A)") 'Hessian matrix written to ', &
-            & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+      write(stdOut, "(2A)") 'Hessian matrix written to ',&
+          & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
     else
       write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
     end if
 
   end subroutine writeHessianOut
+
+
+  !> Write the dipole derivative wrt.coordinates matrix/Born charges
+  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nAtInCentralRegion,&
+      & errStatus)
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Born (dipole derivatives or force wrt electric field)
+    real(dp), intent(in) :: pBornMatrix(:,:)
+
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
+
+    !> Number of atoms in central region
+    integer, intent(in) :: nAtInCentralRegion
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: ii, fd
+    character(10) :: suffix1, suffix2
+    logical :: tPartialMatrix = .false.
+
+    ! Sanity check in case some bug is introduced
+    if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
+      @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
+    end if
+    ! It is a partial matrix Calculation if BornMatrix is not squared
+    if (size(pBornMatrix, dim=2) > 3*nAtInCentralRegion) then
+      tPartialMatrix = .true.
+    end if
+
+    if (tPartialMatrix) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
+          & action="write", status="replace")
+    else
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+
+    do ii = 1, size(pBornMatrix, dim=2)
+      write(fd, formatBorn) pBornMatrix(:, ii)
+    end do
+
+    close(fd)
+
+    if (tPartialMatrix) then
+      write(stdOut, "(2A)") 'Born charges matrix written to ',&
+          & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+    else
+      write(stdOut, "(2A)") 'Born charges matrix written to ', fileName
+    end if
+
+  end subroutine writeBornChargesOut
+
+
+  !> Write the Derivatives of the polarizability
+  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nAtInCentralRegion,&
+      & errStatus)
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Born (dipole derivatives or force wrt electric field)
+    real(dp), intent(in) :: pdBornMatrix(:, :, :)
+
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
+
+    !> Number of atoms in central region
+    integer, intent(in) :: nAtInCentralRegion
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: ii, fd
+    character(10) :: suffix1, suffix2
+    logical :: tPartialMatrix = .false.
+
+    ! Sanity check in case some bug is introduced
+    if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
+      @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
+    end if
+    ! It is a partial matrix Calculation if BornMatrix is not squared
+    if (size(pdBornMatrix, dim=3) > 3*nAtInCentralRegion) then
+      tPartialMatrix = .true.
+    end if
+
+    if (tPartialMatrix) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
+          & action="write", status="replace")
+    else
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+
+    do ii = 1, size(pdBornMatrix, dim=3)
+      write(fd, formatdBorn) pdBornMatrix(:, :, ii)
+    end do
+
+    close(fd)
+
+    if (tPartialMatrix) then
+      write(stdOut, "(2A)") 'Born charge derivative matrix written to ',&
+          & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+    else
+      write(stdOut, "(2A)") 'Born charge derivative matrix written to ', fileName
+    end if
+
+  end subroutine writeBornDerivs
 
 
   !> Opens an output file or uses the its current unit number, if the file is already open.
@@ -2554,8 +2669,6 @@ contains
     !> File descriptor
     type(TFile), allocatable, intent(inout) :: fd
 
-    logical :: exists
-
     if (allocated(fd) .and. .not. append) then
       deallocate(fd)
     end if
@@ -2569,7 +2682,7 @@ contains
   !> Optimization and geometry data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out,&
-      & tPeriodic, tScc, tNegf,  invLatVec, kPoints)
+      & tPeriodic, tScc, tNegf, invLatVec, kPoints)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2702,18 +2815,14 @@ contains
 
 
   !> Charge data to go to detailed.out
-  subroutine writeDetailedOut2(fd, q0, qInput, qOutput, orb, species, tDFTBU, tImHam,&
-      & tPrintMulliken, orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion,&
-      & cm5Cont, qNetAtom)
+  subroutine writeDetailedOut2(fd, q0, qOutput, orb, species, tDFTBU, tImHam, tPrintMulliken,&
+      & orbitalL, qBlockOut, nSpin, tOnSite, iAtInCentralRegion, cm5Cont, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
-
-    !> Input atomic charges (if SCC)
-    real(dp), intent(in) :: qInput(:,:,:)
 
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -2754,11 +2863,11 @@ contains
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
 
-    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
+    real(dp), allocatable :: qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:), ev(:,:), ei(:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    integer :: iAt, iSpin, iSp, iSh, iOrb, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
 
@@ -2866,6 +2975,16 @@ contains
             do iOrb = 1, orb%nOrbSpecies(iSp)
               write(fd, "(16F8.4)") qBlockOut(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
             end do
+            if (orb%nOrbSpecies(iSp) > 1) then
+              allocate(ei(orb%nOrbSpecies(iSp)))
+              ev = qBlockOut(:orb%nOrbSpecies(iSp), :orb%nOrbSpecies(iSp), iAt, iSpin)
+              call heev(ev, ei, 'l', 'v')
+              write(fd,*)'Eigen-decomposition'
+              do iOrb = 1, orb%nOrbSpecies(iSp)
+                write(fd, "(F8.4,A,16F8.4)") ei(iOrb),':',ev(:, iOrb)
+              end do
+              deallocate(ev, ei)
+            end if
             write(fd, *)
           end do
         end do
@@ -2873,7 +2992,7 @@ contains
 
       if (tImHam .and. tPrintMulliken) then
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2887,7 +3006,7 @@ contains
           end do
         end do
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2901,7 +3020,7 @@ contains
 
         write(fd, *)
         write(fd, "(A)") 'Total angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
         do ii = 1, size(iAtInCentralRegion)
@@ -2979,6 +3098,16 @@ contains
             do iOrb = 1, orb%nOrbSpecies(iSp)
               write(fd, "(16F8.4)") qBlockOutUpDown(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
             end do
+            if (orb%nOrbSpecies(iSp) > 1) then
+              allocate(ei(orb%nOrbSpecies(iSp)))
+              ev = qBlockOutUpDown(:orb%nOrbSpecies(iSp), :orb%nOrbSpecies(iSp), iAt, iSpin)
+              call heev(ev, ei, 'l', 'v')
+              write(fd,*)'Eigen-decomposition'
+              do iOrb = 1, orb%nOrbSpecies(iSp)
+                write(fd, "(F8.4,A,16F8.4)") ei(iOrb),':',ev(:, iOrb)
+              end do
+              deallocate(ev, ei)
+            end if
           end do
           write(fd, *)
         end if
@@ -3051,8 +3180,8 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iGround)
       end if
       call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iGround),&
-          & qDets(:,:,:,deltaDftb%iGround), orb, species, allocated(blockTmp), .false.,&
-          & tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion, cm5Cont)
+          & orb, species, allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%iTriplet > 0) then
       write(fdDetailedOut%unit, *)'T1 state'
@@ -3060,8 +3189,7 @@ contains
         blockTmp = qBlockDets(:,:,:,:,deltaDftb%iTriplet)
       end if
       call writeDetailedOut2(fdDetailedOut%unit, q0, qDets(:,:,:,deltaDftb%iTriplet),&
-          & qDets(:,:,:,deltaDftb%iTriplet), orb, species, allocated(blockTmp),&
-          & .false., tPrintMulliken, orbitalL, blockTmp, 2,&
+          & orb, species, allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2,&
           & allocated(blockTmp), iAtInCentralRegion, cm5Cont)
     end if
     if (deltaDftb%isSpinPurify) then
@@ -3077,9 +3205,9 @@ contains
       end if
     end if
 
-    call writeDetailedOut2(fdDetailedOut%unit, q0, qOutput, qOutput, orb, species,&
-        & allocated(blockTmp), .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp),&
-        & iAtInCentralRegion, cm5Cont)
+    call writeDetailedOut2(fdDetailedOut%unit, q0, qOutput, orb, species, allocated(blockTmp),&
+        & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
+        & cm5Cont)
 
     call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
 
@@ -3089,7 +3217,7 @@ contains
   !> Third group of data to go to detailed.out
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
-      & tSpinOrbit, tScc, tOnSite, tNegf,  iAtInCentralRegion, electronicSolver, tHalogenX,&
+      & tSpinOrbit, tScc, tOnSite, iAtInCentralRegion, electronicSolver, tHalogenX,&
       & tRangeSep, t3rd, tSolv)
 
     !> File ID
@@ -3149,9 +3277,6 @@ contains
     !> Are on-site corrections being used?
     logical, intent(in) :: tOnSite
 
-    !> whether we solve NEGF
-    logical, intent(in) :: tNegf
-
     !> atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
@@ -3171,12 +3296,8 @@ contains
     logical, intent(in) :: tSolv
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:)
-    real(dp) :: angularMomentum(3)
-    integer :: ang
     integer :: nSpinHams
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
-    character(sc), allocatable :: shellNamesTmp(:)
-    character(lc) :: strTmp
+    integer :: iAt, iSpin, ii
 
     nSpinHams = size(Ef)
 
@@ -3677,9 +3798,28 @@ contains
 
   end subroutine writeDetailedOut7
 
+  !> Eighth group of data for detailed.out (Born effective charges)
+  subroutine writeDetailedOut8(fd, born)
 
-  !> Eighth group of data for detailed.out (density of states at Fermi energy)
-  subroutine writeDetailedOut8(fd, neFermi)
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Born charges
+    real(dp), intent(in) :: born(:,:)
+
+    integer :: ii
+
+    write(fd,*)'Born charges/dipole derivatives wrt. atom positions (e)'
+    do ii = 1, size(born,dim=2), 3
+      write(fd,"(A,1X,I0)")'Atom',ii/3+1
+      write(fd,"(3F12.6)")born(:,ii:ii+2)
+    end do
+
+  end subroutine writeDetailedOut8
+
+
+  !> Nineth group of data for detailed.out (density of states at Fermi energy)
+  subroutine writeDetailedOut9(fd, neFermi)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3696,11 +3836,11 @@ contains
       end if
     end if
 
-  end subroutine writeDetailedOut8
+  end subroutine writeDetailedOut9
 
 
-  !> Nineth group of data for detailed.out (derivatives with respect to an external electric field)
-  subroutine writeDetailedOut9(fd, orb, polarisability, dqOut, dEfdE)
+  !> Tenth group of data for detailed.out (derivatives with respect to an external electric field)
+  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3775,7 +3915,7 @@ contains
       write(fd,*)
     end if
 
-  end subroutine writeDetailedOut9
+  end subroutine writeDetailedOut10
 
 
   !> First group of output data during molecular dynamics
@@ -5288,10 +5428,10 @@ contains
 
 
   !> First group of data to go to detailed.out
-  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
-      & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
-      & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, TS, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints, &
+  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs,&
+      & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+      & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure,&
+      & cellVol, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints,&
       & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
 
     !> File ID
@@ -5356,9 +5496,6 @@ contains
 
     !> Unit cell volume
     real(dp), intent(in) :: cellVol
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy

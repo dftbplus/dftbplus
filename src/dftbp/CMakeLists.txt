@@ -32,7 +32,6 @@ add_subdirectory(io)
 add_subdirectory(math)
 add_subdirectory(md)
 add_subdirectory(mixer)
-add_subdirectory(poisson)
 add_subdirectory(reks)
 add_subdirectory(timedep)
 add_subdirectory(type)
@@ -40,6 +39,9 @@ add_subdirectory(solvation)
 add_subdirectory(transport)
 if(WITH_API)
   add_subdirectory(api/mm)
+endif()
+if(WITH_POISSON)
+  add_subdirectory(poisson)
 endif()
 
 dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
@@ -93,7 +95,10 @@ endif()
 if(WITH_TRANSPORT)
   target_link_libraries(dftbplus PUBLIC Negf::Negf)
 endif()
-target_link_libraries(dftbplus PUBLIC mudpack)
+
+if(WITH_POISSON)
+  target_link_libraries(dftbplus PUBLIC mudpack)
+endif()
 
 if(WITH_SDFTD3)
   target_link_libraries(dftbplus PUBLIC s-dftd3::s-dftd3)
@@ -127,7 +132,7 @@ if(WITH_CHIMES)
 endif()
 
 if(WITH_MPI)
-  target_link_libraries(dftbplus PUBLIC MPI::MPI_Fortran)
+  target_link_libraries(dftbplus PRIVATE MPI::MPI_Fortran)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
 endif()
 
@@ -155,15 +160,18 @@ endif()
 
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
-  CONFIGURE_FILE(
-    "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
-    @ONLY
-  )
-  install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  )
+
+  if(WITH_API OR BUILD_SHARED_LIBS)
+    CONFIGURE_FILE(
+      "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
+      "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+      @ONLY
+      )
+    install(
+      FILES "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+      )
+  endif()
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)

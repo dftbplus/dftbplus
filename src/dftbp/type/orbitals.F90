@@ -65,12 +65,12 @@ module dftbp_type_orbitals
 
 contains
 
-  !> Builds a unique names for the atomic orbitals
-  !> Assign 's', 'p', 'd' to first occurring shells, then 's2', 'p2', ...
-  subroutine getShellNames(iSpecie, orb, shellNamesTmp)
+  !> Builds a unique names for the atomic orbitals.
+  !> Assign 's', 'p', 'd' to first occurring shells of each angular momentum, then 's2', 'p2', ...
+  subroutine getShellNames(iSpecies, orb, shellNamesTmp)
 
-    !> atomic specie
-    integer, intent(in) :: iSpecie
+    !> specific atomic species
+    integer, intent(in) :: iSpecies
 
     !> orbital info
     type(TOrbitals), intent(in) :: orb
@@ -78,21 +78,18 @@ contains
     !> output string naming the atomic orbital
     character(sc), intent(out), allocatable :: shellNamesTmp(:)
 
-    integer :: ii
-    integer, allocatable :: ind(:)
+    integer :: ii, ind
     character(sc) :: sindx
 
-    !allocate(names(orb%nShell(iSpecie)))
-    allocate(shellNamesTmp(orb%nShell(iSpecie)))
-    allocate(ind(orb%nShell(iSpecie)))
-    ind = 1
+    allocate(shellNamesTmp(orb%nShell(iSpecies)))
 
-    do ii = 1, orb%nShell(iSpecie)
-      write(shellNamesTmp(ii), "(A)") shellNames(orb%angShell(ii, iSpecie) + 1)
-      if (any(shellNamesTmp(ii) == shellNamesTmp(1:ii-1))) then
+    do ii = 1, orb%nShell(iSpecies)
+      write(shellNamesTmp(ii), "(A)") shellNames(orb%angShell(ii, iSpecies) + 1)
+      ind = count(shellNamesTmp(ii) == shellNamesTmp(:ii-1)(1:1))
+      if (ind > 0) then
         ! at least one example of this shell already
-        ind(ii) = ind(ii) + 1
-        write(sindx,'(I0)') ind(ii)
+        ! start count at 2 for repeating orbitals:
+        write(sindx,'(I0)') ind + 1
         if (len(trim(adjustl(shellNamesTmp(ii)))) + len(trim(sindx)) > sc) then
           call error("Shell labels are too long: "//trim(adjustl(shellNamesTmp(ii)))//trim(sindx))
         else
@@ -100,7 +97,6 @@ contains
         end if
       end if
     end do
-    deallocate(ind)
 
   end subroutine getShellNames
 

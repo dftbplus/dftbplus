@@ -5,6 +5,33 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+22.2 (2022-12-20)
+=================
+
+Added
+-----
+
+- Born charges and polarizability derivatives from finite difference
+  derivatives.
+
+- Infrared and Raman intensities from the modes code.
+
+- Spin-orbit coupling for xTB
+
+- Dual American and British English spelling for various input keywords
+
+
+Fixed
+-----
+
+- Onsite and +U potentials in real time-propagation, which was broken
+  in October 2019 by commit 11abba39b
+
+- Corrected units for electrostatic gate potentials in transport
+
+- Stratmann solver available without ARPACK
+
+
 22.1 (2022-05-25)
 =================
 

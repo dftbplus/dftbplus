@@ -184,6 +184,9 @@ module dftbp_timedep_timeprop
     !> if pairwise bond population should be calculated and written
     logical :: tBondP
 
+    !> if atom-resolved energies should be written
+    logical :: tWriteAtomEnergies
+
     !> if this is a pump trajectory (for a pump-probe simulation)
     logical :: tPump
 
@@ -250,7 +253,7 @@ module dftbp_timedep_timeprop
     logical :: isRangeSep
     logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
     logical :: tPeriodic = .false., tFillingsFromFile = .false.
-    logical :: tNetCharges = .false.
+    logical :: tNetCharges = .false., tWriteAtomEnergies = .false.
     type(TThermostat), allocatable :: pThermostat
     type(TMDIntegrator), allocatable :: pMDIntegrator
     class(TDispersionIface), allocatable :: dispersion
@@ -276,7 +279,7 @@ module dftbp_timedep_timeprop
     real(dp), allocatable :: bondWork(:, :)
     real(dp) :: time, startTime, timeElec, energyKin, lastBondPopul
     integer, allocatable :: populDat(:)
-    integer :: dipoleDat, qDat, energyDat
+    integer :: dipoleDat, qDat, energyDat, atomEnergyDat
     integer :: forceDat, coorDat, fdBondPopul, fdBondEnergy
     type(TPotentials) :: potential
 
@@ -547,6 +550,7 @@ contains
     this%species = species
     this%tPeriodic = tPeriodic
     this%isRangeSep = isRangeSep
+    this%tWriteAtomEnergies = inp%tWriteAtomEnergies
 
     if (this%tIons) then
       if (.not. this%tRealHS) then
@@ -1525,12 +1529,14 @@ contains
               & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)), dp)
         end do
       end do
-      do iAt = 1, this%nAtom
-        iOrb1 = iSquare(iAt)
-        iOrb2 = iSquare(iAt+1)
-        nOrb = iOrb2 - iOrb1
-        qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
-            & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+      do iSpin = 1, this%nSpin
+        do iAt = 1, this%nAtom
+          iOrb1 = iSquare(iAt)
+          iOrb2 = iSquare(iAt+1)
+          nOrb = iOrb2 - iOrb1
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
+              & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+        end do
       end do
     end if
 
@@ -2082,7 +2088,6 @@ contains
     real(dp), intent(in) :: step
 
     real(dp), allocatable :: T1R(:,:), T2R(:,:), T3R(:,:),T4R(:,:)
-    integer :: i,j
 
     allocate(T1R(this%nOrbs,this%nOrbs))
     allocate(T2R(this%nOrbs,this%nOrbs))
@@ -2115,7 +2120,9 @@ contains
 
 
   !> Initialize output files
-  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat)
+  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
+      & atomEnergyDat)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -2136,6 +2143,9 @@ contains
 
     !> Coords  output file ID
     integer, intent(out) :: coorDat
+
+    !> Atom-resolved energy output file ID
+    integer, intent(out) :: atomEnergyDat
 
     character(20) :: dipoleFileName
     character(1) :: strSpin
@@ -2239,12 +2249,23 @@ contains
       end if
     end if
 
+    if (this%tWriteAtomEnergies) then
+      call openFile(this, atomEnergyDat, 'atomenergies.dat')
+      write(atomEnergyDat, "(A)", advance = "NO")"#             time (fs)      |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E total (H)  |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_1) (H)   |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_2) (H)   |"
+      write(atomEnergyDat, "(A)", advance = "NO")"        ...        |"
+      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_N) (H)   |"
+      write(atomEnergyDat, "(A)")
+    end if
+
   end subroutine initTDOutput
 
 
   !> Close output files
   subroutine closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
-      & fdBondPopul, fdBondEnergy)
+      & fdBondPopul, fdBondEnergy, atomEnergyDat)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2272,6 +2293,9 @@ contains
 
     !> Pairwise bond energy output file ID
     integer, intent(in) :: fdBondEnergy
+
+    !> Atom-resolved energy output file ID
+    integer, intent(in) :: atomEnergyDat
 
     integer :: iKS
 
@@ -2303,6 +2327,10 @@ contains
 
     if (this%tBondE) then
       close(fdBondEnergy)
+    end if
+
+    if (this%tWriteAtomEnergies) then
+      close(atomEnergyDat)
     end if
 
   end subroutine closeTDOutputs
@@ -2363,7 +2391,7 @@ contains
 
   !> Write results to file
   subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
-      & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
+      & fdBondEnergy, atomEnergyDat, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2413,6 +2441,9 @@ contains
     !> forces (3, nAtom)
     real(dp), intent(in) :: totalForce(:,:)
 
+    !> Atom-resolved energy output file ID
+    integer, intent(in) :: atomEnergyDat
+
     real(dp) :: auxVeloc(3, this%nAtom)
     integer :: iAtom, iSpin, iDir
 
@@ -2457,6 +2488,14 @@ contains
       end if
     end if
 
+    if (this%tWriteAtomEnergies) then
+        write(atomEnergyDat, "(2X,2F25.15)", advance="no") time * au__fs, energy%Etotal
+        do iAtom = 1, this%nAtom
+          write(atomEnergyDat, "(F25.15)", advance="no")this%energy%atomTotal(iAtom)
+        end do
+      write(atomEnergyDat, *)
+    end if
+
     ! Flush output every 5% of the simulation
     if (mod(iStep, max(this%nSteps / 20, 1)) == 0 .and. iStep > this%writeFreq) then
       if (this%tdWriteExtras) then
@@ -2473,6 +2512,9 @@ contains
         end if
         if (this%tBondE) then
           flush(fdBondEnergy)
+        end if
+        if (this%tWriteAtomEnergies) then
+          flush(atomEnergyDat)
         end if
       end if
     end if
@@ -2690,7 +2732,9 @@ contains
     if (this%tBondP) then
       call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, lastBondPopul)
     end if
-
+    if (this%tWriteAtomEnergies) then
+      call taggedWriter%write(fdAutotest, tagLabels%atomenergies, energy%atomTotal)
+    end if
     close(fdAutotest)
 
   end subroutine writeTDAutotest
@@ -2835,7 +2879,8 @@ contains
     call boundaryCond%foldCoordsToCell(coord0Fold, this%latVec)
 
     call updateNeighbourListAndSpecies(env, coordAll, this%speciesAll, img2CentCell, this%iCellVec,&
-        & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
+        & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
@@ -3644,10 +3689,6 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    real(dp) :: new3Coord(3, this%nMovedAtom)
-    integer :: iKS
-
-    character(sc) :: dumpIdx
     real(dp), allocatable :: velInternal(:,:)
 
     this%startTime = 0.0_dp
@@ -3724,7 +3765,7 @@ contains
       this%initialVelocities(:,:) = this%movedVelo
       this%ReadMDVelocities = .true.
     end if
-    if (this%tLaser .and. .not. this%tdFieldThroughAPI) then
+    if (this%tLaser .and. .not. this%tdFieldThroughAPI .and. this%iCall == 1) then
       call getTDFunction(this, this%startTime)
     end if
 
@@ -3739,12 +3780,15 @@ contains
       call initLatticeVectors(this, boundaryCond)
     end if
 
+    call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
+        & this%populDat, this%forceDat, this%coorDat, this%atomEnergyDat)
+
     ! Write density at t=0
     if (this%tPump .and. .not. this%tReadRestart) then
       allocate(velInternal(3,size(this%movedVelo, dim=2)))
         velInternal(:,:) = 0.0_dp
       call writeRestartFile(this%trho, this%trho, coord, velInternal, this%startTime, this%dt,&
-          & '0ppdump', this%tWriteRestartAscii, errStatus)
+          & trim(pumpFilesDir) // '/0ppdump', this%tWriteRestartAscii, errStatus)
       @:PROPAGATE_ERROR(errStatus)
       deallocate(velInternal)
     end if
@@ -3763,9 +3807,6 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
-
-    call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
-        & this%populDat, this%forceDat, this%coorDat)
 
     call getChargeDipole(this, this%deltaQ, this%qq, this%multipole, this%dipole, q0,&
         & this%trho, this%Ssqr, this%Dsqr, this%Qsqr, coord, iSquare, eFieldScaling, this%qBlock,&
@@ -3799,6 +3840,12 @@ contains
       call initIonDynamics(this, this%coordNew, coord, this%movedAccel)
     end if
 
+    ! after calculating the TD function, set initial time to zero for probe simulations
+    ! this is to properly calculate the dipole fourier transform after the simulation
+    if (this%tProbe) then
+      this%startTime = 0.0_dp
+    end if
+
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
       call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
@@ -3815,19 +3862,12 @@ contains
     if (.not. this%tReadRestart .or. this%tProbe) then
       ! output ground state data
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
-          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
+          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat,&
           & 0.0_dp, this%energy, this%energyKin, this%dipole, this%deltaQ, coord, this%totalForce,&
           & 0)
     end if
 
-
     ! now first step of dynamics is computed (init of leapfrog and first step of nuclei)
-
-    ! after calculating the TD function, set initial time to zero for probe simulations
-    ! this is to properly calculate the dipole fourier transform after the simulation
-    if (this%tProbe) then
-      this%startTime = 0.0_dp
-    end if
 
     ! had to add the "or tKick" option to override rhoOld if tReadRestart = yes, otherwise it will
     ! be badly initialised
@@ -4082,7 +4122,7 @@ contains
 
     if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
       call writeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, &
-          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy,&
+          & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat,&
           & this%time, this%energy, this%energyKin, this%dipole, this%deltaQ, coord,&
           & this%totalForce, iStep)
     end if
@@ -4178,7 +4218,7 @@ contains
     end if
 
     call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
-        & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy)
+        & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat)
 
     deallocate(this%Ssqr)
     deallocate(this%Sinv)

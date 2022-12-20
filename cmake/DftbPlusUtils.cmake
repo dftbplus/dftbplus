@@ -67,7 +67,7 @@ function (dftbp_add_fypp_defines fyppflags)
   endif()
 
   if(WITH_MBD)
-      list(APPEND _fyppflags -DWITH_MBD)
+    list(APPEND _fyppflags -DWITH_MBD)
   endif()
 
   if(WITH_PLUMED)
@@ -437,7 +437,8 @@ function(dftbp_guess_toolchain toolchain)
 
   if("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "GNU|GNU")
     set(_toolchain "gnu")
-  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "Intel|Intel")
+  elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel|IntelLLVM"
+      AND "${CMAKE_C_COMPILER_ID}" MATCHES "Intel|IntelLLVM")
     set(_toolchain "intel")
   elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
     set(_toolchain "nag")

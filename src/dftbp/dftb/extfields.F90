@@ -82,7 +82,7 @@ contains
 
   !> Sets up external electric or other fields
   subroutine addUpExternalField(eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
-      & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
+      & cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
 
     !> Whether an external field is present
     type(TEfield), intent(inout), allocatable :: eField
@@ -98,9 +98,6 @@ contains
 
     !> Index for unit cells
     integer, intent(in) :: iCellVec(:)
-
-    !> Image atom to central cell atom number
-    integer, intent(in) :: img2CentCell(:)
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
@@ -121,7 +118,6 @@ contains
     type(TPotentials), intent(inout) :: potential
 
     integer :: nAtom, iAt1, iAt2, iNeigh, ii
-    character(lc) :: tmpStr
     logical :: isBoundaryCrossed
 
     if (allocated(eField)) then

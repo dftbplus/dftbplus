@@ -210,7 +210,10 @@ module dftbp_dftbplus_inputdata
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
 
     !> Is a perturbation expression in use
-    logical :: isDFTBPT = .false.
+    logical :: doPerturbation = .false.
+
+    !> Is a perturbation expression in use for each geometry step
+    logical :: doPerturbEachGeom = .false.
 
     !> Tolerance for idenfifying need for degenerate perturbation theory
     real(dp) :: tolDegenDFTBPT = 128.0_dp
@@ -472,7 +475,7 @@ module dftbp_dftbplus_inputdata
     class(TSolvationInp), allocatable :: solvInp
 
     !> Rescaling of electric fields (applied or dipole) if the system is solvated
-    logical :: isSolvatedFieldRescaled
+    logical :: isSolvatedFieldRescaled = .false.
 
     !> Input for tblite library
     type(TTBLiteInput), allocatable :: tbliteInp
@@ -569,8 +572,10 @@ module dftbp_dftbplus_inputdata
 
   !> container for data needed by libNEGF
   type TNEGFInfo
-    type(TNEGFTunDos) :: tundos  !Transport section informations
-    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+    !> Transport section informations
+    type(TNEGFTunDos) :: tundos
+    !> NEGF solver section informations
+    type(TNEGFGreenDensInfo) :: greendens
   end type TNEGFInfo
 
 #:else

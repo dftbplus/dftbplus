@@ -196,9 +196,6 @@ contains
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
 
-    !> number of neighbours for all atoms
-    integer, allocatable :: nNeigh(:)
-
     !> handle the case that CM5 was not added in the input
     if (.not. allocated(main%cm5Cont)) then
       call error("CM5 analysis has not been carried out.")

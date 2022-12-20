@@ -26,7 +26,7 @@ Hamiltonian = DFTB {
         Huu = {0}
         Hud = {0}
     }
-    Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+    Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(water)
         Solvent = fromConstants {
             Epsilon =   80.20000000
             MolecularMass [amu] = 18.00000000

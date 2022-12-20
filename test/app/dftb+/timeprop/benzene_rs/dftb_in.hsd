@@ -39,15 +39,6 @@ Options = {
     WriteAutotestTag = Yes
 }
 
-#ExcitedState {
-#   Casida {
-#      NrOfExcitations = 100
-#      StateOfInterest = 0
-#      Symmetry = Singlet
-#      Diagonaliser = Stratmann {}
-#   }
-#}
-
 ElectronDynamics = {
     Steps = 10000
     TimeStep [au] = 0.2

@@ -1,10 +1,24 @@
+/*------------------------------------------------------------------------------------------------*/
+/*  DFTB+: general package for performing fast atomistic simulations                              */
+/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
+/*                                                                                                */
+/*  See the LICENSE file for terms of usage and distribution.                                     */
+/*------------------------------------------------------------------------------------------------*/
+
+/**
+ *  Functions to count or request GPUs
+ */
+
 #include <magma.h>
 
-// Function to count GPU
+/**
+ *  Large enough to fit all device IDs
+ */
+const int MAXGPUS = 117;
 
-const int MAXGPUS = 117;  // large enough to fit all device IDs
-
-// Obtain number of available of GPUs
+/**
+ *   Obtain number of available GPUs
+ */
 void  dftbp_extlibs_magma_get_gpus_available(int *max_ngpus)
 {
     magma_device_t devices[MAXGPUS];
@@ -16,7 +30,9 @@ void  dftbp_extlibs_magma_get_gpus_available(int *max_ngpus)
     return;
 }
 
-// Number of GPUs requested by the code
+/**
+ * Number of GPUs requested by the code
+ */
 void dftbp_extlibs_magma_get_gpus_requested(int *req_ngpus)
 {
     *req_ngpus= magma_num_gpus();

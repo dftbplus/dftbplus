@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn {
+  Solvation = GeneralisedBorn {
     Solvent = fromConstants {
       Epsilon = Inf
       MolecularMass = 1.0

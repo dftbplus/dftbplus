@@ -15,13 +15,13 @@
 	url = https://github.com/aradi/fytest.git
 [submodule "external/tblite/origin"]
 	path = external/tblite/origin
-	url = https://github.com/awvwgk/tblite.git
+	url = https://github.com/tblite/tblite.git
 [submodule "external/mctc-lib/origin"]
 	path = external/mctc-lib/origin
 	url = https://github.com/grimme-lab/mctc-lib
 [submodule "external/s-dftd3/origin"]
 	path = external/s-dftd3/origin
-	url = https://github.com/awvwgk/simple-dftd3
+	url = https://github.com/dftd3/simple-dftd3
 [submodule "external/dftd4/origin"]
 	path = external/dftd4/origin
 	url = https://github.com/dftd4/dftd4

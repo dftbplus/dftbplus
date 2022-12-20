@@ -272,7 +272,7 @@ contains
   !> calculate the transition block at a specific atom
   subroutine transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, ovrXev, grndEigVecs, qq_ij)
 
-    !> Index of inital state.
+    !> Index of initial state.
     integer, intent(in) :: ii
 
     !> Index of final state.
@@ -304,8 +304,8 @@ contains
 
     !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss),ovrXev(mu:mu+nOrb-1,jj,ss))
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss),ovrXev(mu:mu+nOrb-1,ii,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp,grndEigVecs(mu:mu+nOrb-1,ii,ss),ovrXev(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp,grndEigVecs(mu:mu+nOrb-1,jj,ss),ovrXev(mu:mu+nOrb-1,ii,ss))
     !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
     do iOrb1 = 1, nOrb
@@ -349,6 +349,7 @@ contains
     S_pq = sum(grndEigVecs(:,pp,1)*ovrXev(:,qq,2))
 
   end function MOoverlap
+
 
   !> Square root of differences in occupations between filled and empty states
   !> We need occupations per spin channel ([0:1]) also for closed shell systems
@@ -469,7 +470,7 @@ contains
     !> occupation numbers
     real(dp), intent(in) :: occNr(:,:)
 
-    ! Square root of occupation difference between vir and occ states
+    !> Square root of occupation difference between vir and occ states
     real(dp), intent(in) :: sqrOccIA(:)
 
     !> DFTB gamma matrix (nAtm, nAtom)
@@ -688,6 +689,7 @@ contains
 
   end subroutine actionAplusB
 
+
   !> Multiplies the excitation supermatrix with a supervector.
   !> (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
   !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
@@ -858,6 +860,7 @@ contains
 
   end subroutine actionAminusB
 
+
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
   !> (JCP 109 8218 (1998).
   !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
@@ -865,7 +868,7 @@ contains
   !> Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
   !> Note: Routine not set up to handle onsite corrections.
   !> Note: Not yet OpenMP parallelized
-  subroutine intialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
+  subroutine initialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
       & sTimesGrndEigVecs, grndEigVecs, occNr, sqrOccIA, getIA, getIJ, getAB, iaTrans, gamma,&
       & lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
 
@@ -944,7 +947,7 @@ contains
     !> output matrix M- (initDim, initDim)
     real(dp), intent(out) :: mM(:,:)
 
-    integer :: izpAlpha, nMat, nAtom
+    integer :: nMat, nAtom
     integer :: ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
@@ -1083,25 +1086,56 @@ contains
       end do
     end do
 
-  end subroutine intialSubSpaceMatrixApmB
+  end subroutine initialSubSpaceMatrixApmB
 
+
+  !> Onsite energy corrections
   subroutine onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getIA, species0, ovrXev,&
       & grndEigVecs, ons_en, orb, vin, vout)
 
+    !> logical spin polarization
     logical, intent(in) :: spin
+
+    !> symmetry flag (singlet or triplet)
     character, intent(in) :: sym
+
+    !> excitation energies (wij = epsion_j - epsilon_i)
     real(dp), intent(in) :: wij(:)
+
+    !> Square root of occupation difference between vir and occ states
     real(dp), intent(in) :: sqrOccIA(:)
+
+    !> sorting index of the excitation energies.
     integer, intent(in) :: win(:)
+
+    !> number of same-spin transitions
     integer, intent(in) :: nmatup
+
+    !> starting position of each atom in the list of orbitals.
     integer, intent(in) :: iAtomStart(:)
+
+    !> index array for excitations
     integer, intent(in) :: getIA(:,:)
+
+    !> chemical species of the atoms
     integer, intent(in) :: species0(:)
+
+    !> overlap times ground state wavefunctions
     real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> ground state wavefunctions
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in) :: ons_en(:,:,:,:)
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> vector to multiply with size(nmat)
     real(dp), intent(in) :: vin(:)
+
+    !> vector containing the result on exit size(nmat)
     real(dp), intent(out) :: vout(:)
 
     real(dp) :: otmp(orb%mOrb,orb%mOrb,size(species0),2)
@@ -1180,6 +1214,7 @@ contains
     end do
 
   end subroutine onsiteEner
+
 
   !> calculating spin polarized excitations
   !> Note: the subroutine is generalized to account for spin and partial occupancy
@@ -1386,7 +1421,7 @@ contains
   end subroutine calcTransitionDipoles
 
 
-    !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
+  !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
   !> considered an upper threshold for reliability according to Garcia thesis)
   subroutine getExcSpin(Ssq, nmatup, getIA, win, eval, xpy, filling, ovrXev, grndEigVecs)
 
@@ -1599,6 +1634,7 @@ contains
 
   end subroutine writeSPExcitations
 
+
   !> Excited state Mulliken charges and dipole moments written to disc
   subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0)
 
@@ -1660,11 +1696,17 @@ contains
 
   end subroutine writeExcMulliken
 
+
   !> increase dimension of vector from sizeIn to fac*sizeIn
   pure subroutine incSizeVec(sizeIn, fac, vec)
 
+    !> Size of the input vector to copy over to resized vector
     integer, intent(in) :: sizeIn
+
+    !> Increment factor
     integer, intent(in) :: fac
+
+    !> Vector to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: vec(:)
 
     real(dp), allocatable :: temp(:)
@@ -1676,11 +1718,17 @@ contains
 
   end subroutine incSizeVec
 
+
   !> increase size of (sizeIn,n) array to (fac*sizeIn,n)
   pure subroutine incSizeMatDimOne(sizeIn, fac, mat)
 
+    !> Size of the input matrix first dimension to copy over to resized matrix
     integer, intent(inout) :: sizeIn
+
+    !> Increment factor
     integer, intent(in) :: fac
+
+    !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
 
     integer :: dim2
@@ -1694,11 +1742,17 @@ contains
 
   end subroutine incSizeMatDimOne
 
+
   !> increase size of (n,sizeIn) array to (n, fac*sizeIn)
   pure subroutine incSizeMatDimTwo(sizeIn, fac, mat)
 
+    !> Size of the input matrix second dimension to copy over to resized matrix
     integer, intent(inout) :: sizeIn
+
+    !> Increment factor
     integer, intent(in) :: fac
+
+    !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
 
     integer :: dim1
@@ -1712,11 +1766,20 @@ contains
 
   end subroutine incSizeMatDimTwo
 
+
   !> increase size of (sizeIn,sizeIn) array to (fac1*sizeIn,fac2*sizeIn)
   pure subroutine incSizeMatBothDim(sizeIn, fac1, fac2, mat)
 
+    !> Size of the input matrix second dimension to copy over to resized matrix (square)
     integer, intent(inout) :: sizeIn
-    integer, intent(in) :: fac1, fac2
+
+    !> Increment factor for first dimension
+    integer, intent(in) :: fac1
+
+    !> Increment factor for second dimension
+    integer, intent(in) :: fac2
+
+    !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
 
     real(dp), allocatable :: temp(:,:)
@@ -1728,14 +1791,29 @@ contains
 
   end subroutine incSizeMatBothDim
 
-  !> Same routine exists in rs_linresp and will be removed
+
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
   subroutine calcMatrixSqrt(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
 
+    !> Matrix to operate on
     real(dp), intent(in) :: matIn(:,:)
-    integer, intent(in) :: spaceDim, memDim
-    real(dp), intent(out) :: matOut(:,:), matInvOut(:,:)
-    real(dp) :: workArray(:)
+
+    !> Dimensions of input matrix
+    integer, intent(in) :: spaceDim
+
+    !> Leading dimension of resulting matrices
+    integer, intent(in) :: memDim
+
+    !> Matrix square root
+    real(dp), intent(out) :: matOut(:,:)
+
+    !> Inverse of matrix square root
+    real(dp), intent(out) :: matInvOut(:,:)
+
+    !> workspace array
+    real(dp), intent(out) :: workArray(:)
+
+    !> Size of work array
     integer :: workDim
 
     real(dp) :: dummyEV(spaceDim)
@@ -1767,10 +1845,16 @@ contains
 
 
   !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
-  !> vectors 1:(start-1) are orthonormal yet
+  !> vectors 1:(start-1) are already orthonormal
   pure subroutine orthonormalizeVectors(start, end, vec)
+
+    !> Starting place in vectors to work from
     integer, intent(in) :: start
+
+    !> Ending place in vectors
     integer, intent(in) :: end
+
+    !> Vectors to be orthogonalized against 1:end vectors
     real(dp), intent(inout) :: vec(:,:)
 
     integer :: ii, jj
@@ -1784,17 +1868,58 @@ contains
 
   end subroutine orthonormalizeVectors
 
-  !> Encapsulate memory extension for Stratmann solver
+
+  !> Encapsulate memory expansion for Stratmann solver
   subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
        &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
 
+    !> size of subspace
     integer, intent(inout) :: memDim
+
+    !> Work-space large enough for the subspace
     integer, intent(inout) :: workDim
-    real(dp), allocatable :: vecB(:,:)
-    real(dp), allocatable :: vP(:,:), vM(:,:)
-    real(dp), allocatable :: mP(:,:), mM(:,:), mH(:,:), mMsqrt(:,:), mMsqrtInv(:,:)
-    real(dp), allocatable :: dummyM(:,:), evalInt(:), workArray(:)
-    real(dp), allocatable :: evecL(:,:), evecR(:,:), vecNorm(:)
+
+    !> basis of subspace
+    real(dp), allocatable, intent(inout) :: vecB(:,:)
+
+    !> vec. for (A+B)b_i
+    real(dp), allocatable, intent(inout) :: vP(:,:)
+
+    !> vec. for (A-B)b_i
+    real(dp), allocatable, intent(inout) :: vM(:,:)
+
+    !> M_plus
+    real(dp), allocatable, intent(inout) :: mP(:,:)
+
+    !> M_minus
+    real(dp), allocatable, intent(inout) :: mM(:,:)
+
+    !> M_herm matrix
+    real(dp), allocatable, intent(inout) :: mH(:,:)
+
+    !> Matrix square root
+    real(dp), allocatable, intent(inout) :: mMsqrt(:,:)
+
+    !> Inverse of matrix sqrt
+    real(dp), allocatable, intent(inout) :: mMsqrtInv(:,:)
+
+    !> Work array
+    real(dp), allocatable, intent(inout) :: dummyM(:,:)
+
+    !> Internal eigenvector storage
+    real(dp), allocatable, intent(inout) :: evalInt(:)
+
+    !> Workspace array
+    real(dp), allocatable, intent(inout) :: workArray(:)
+
+    !> Left eigenvectors
+    real(dp), allocatable, intent(inout) :: evecL(:,:)
+
+    !> Right eigenvectors
+    real(dp), allocatable, intent(inout) :: evecR(:,:)
+
+    !> Norm of eigen vectors
+    real(dp), allocatable, intent(inout) :: vecNorm(:)
 
     call incSizeMatDimTwo(memDim, 3, vecB)
     call incSizeMatDimTwo(memDim, 3, vP)

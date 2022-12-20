@@ -17,6 +17,7 @@ Transport {
 
 Hamiltonian = DFTB {
     Scc = Yes
+    SCCTolerance = 1.0E-7
     MaxAngularMomentum {
         C = p
     }

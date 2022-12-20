@@ -29,7 +29,7 @@ management framework using `Miniconda
 conda documentation for how to set-up your conda environment.)
 
 We recommend the use of the `mamba installer <https://mamba.readthedocs.io/>`_,
-as we have experienced dependency resolution problems with the original Ccnda
+as we have experienced dependency resolution problems with the original conda
 installer in the past::
 
   conda install -n base mamba
@@ -48,7 +48,7 @@ or ::
   mamba install 'dftbplus=*=mpi_openmpi_*'
 
 to get the last stable release of DFTB+ with, respectively,
-serial(OpenMP-threaded) build or with MPI-parallelized build using either the
+serial (OpenMP-threaded) build or with MPI-parallelized build using either the
 MPICH or the Open MPI framework.
 
 

@@ -34,8 +34,7 @@ The following Fortran compilers are known to build DFTB+ correctly:
 
 * GNU >= 9
 
-* Intel >= 19 or >= 2020 (when built to include the tblite library, as tblite is
-  known to produce incorrect results with Intel 19)
+* Intel >= 2021
 
 * NAG >= 7.1 (when built without OpenMP support)
 
@@ -123,13 +122,16 @@ following architectures:
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 |               |                      |             | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C 19.0 | MPICH 3.3   | MKL 19.0         |     |
-| Linux         |                      |             | ELSI 2.6.1       |     |
+| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2021         |     |
+| Linux         | 2021.5               | 2021.5      | ELSI 2.8.2       |     |
++---------------+----------------------+-------------+------------------+-----+
+| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2022         |     |
+| Linux         | 2022.1               | 2022.1      | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | NAG Fortran 7.1      | MPICH 3.4   | OpenBlas 0.3.18  | [1] |
-| Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
+| Linux         | GNU C 11.2           |             | ScaLAPACK 2.1    |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 9.4    | --          | OpenBlas 0.3.20  | [2] |
+| x86_64 /      | GNU Fortran/C 11.3   | --          | OpenBlas 0.3.20  | [2] |
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
@@ -171,6 +173,13 @@ include the Slater-Koster (slako) data for testing the compiled code.
 
 For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
+
+Slater-Koster file locations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The DFTB+ code checks the shell variable `DFTBPLUS_PARAM_DIR` when
+setting the path to check the Prefix keyword for finding data. If
+unset, it assumes the local directory as the starting path.
 
 
 Building

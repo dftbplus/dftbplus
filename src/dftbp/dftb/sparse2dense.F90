@@ -25,8 +25,7 @@ module dftbp_dftb_sparse2dense
 
   private
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ
-  public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
-  public :: hermitianSquareMatrix
+  public :: blockSymmetrizeHS, blockHermitianHS, symmetrizeHS, hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
@@ -103,12 +102,6 @@ module dftbp_dftb_sparse2dense
     module procedure blockSymmetrizeHS_real
     module procedure blockHermitianHS_cmplx
   end interface blockHermitianHS
-
-
-  !> Symmetrize the square matrix except the on-site blocks
-  interface blockAntiSymmetrizeHS
-    module procedure blockAntiSymmetrizeHS_real
-  end interface blockAntiSymmetrizeHS
 
 
   !> Symmetrize the square matrix including the on-site blocks
@@ -1934,7 +1927,7 @@ contains
   end subroutine blockSymmetrizeHS_cmplx
 
 
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone.  (Complex version)
+  !> Symmetrize a square matrix leaving the on-site atomic blocks alone. (Complex version)
   subroutine blockHermitianHS_cmplx(square, iAtomStart)
 
     !> Square form matrix.
@@ -1950,14 +1943,23 @@ contains
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
-    @:ASSERT(size(square, dim=1) == mOrb)
+    @:ASSERT((size(square, dim=1) == mOrb) .or. (size(square, dim=1) == 2*mOrb))
+    @:ASSERT(size(square, dim=1) == mOrb .or. size(square, dim=1) == 2*mOrb)
 
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
       iEnd = iAtomStart(iAtom+1) - 1
       square(iStart:iEnd, iEnd+1:mOrb) = transpose(conjg(square(iEnd+1:mOrb, iStart:iEnd)))
     end do
+
+    if (size(square, dim=1) == 2*mOrb) then
+      ! 2 component matrix
+      do iAtom = 1, nAtom
+        iStart = iAtomStart(iAtom) + mOrb
+        iEnd = iAtomStart(iAtom+1) + mOrb - 1
+        square(iStart:iEnd, iEnd+1:) = transpose(conjg(square(iEnd+1:, iStart:iEnd)))
+      end do
+    end if
 
   end subroutine blockHermitianHS_cmplx
 
@@ -1987,33 +1989,6 @@ contains
     end do
 
   end subroutine blockSymmetrizeHS_real
-
-
-  !> Anti-symmetrize a square matrix leaving the on-site atomic blocks alone. (Real version)
-  subroutine blockAntiSymmetrizeHS_real(square, iAtomStart)
-
-    !> Square form matrix.
-    real(dp), intent(inout) :: square(:, :)
-
-    !> Contains the offset in the array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT(size(square, dim=1) == mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = -transpose(square(iEnd+1:mOrb, iStart:iEnd))
-    end do
-
-  end subroutine blockAntiSymmetrizeHS_real
 
 
   !> Copy lower triangle to upper for a square matrix. (Real version)

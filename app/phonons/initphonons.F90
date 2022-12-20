@@ -13,6 +13,7 @@ module phonons_initphonons
   use dftbp_common_constants
   use dftbp_common_environment
   use dftbp_common_globalenv
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion
   use dftbp_dftb_periodic
   use dftbp_io_charmanip
@@ -1468,6 +1469,7 @@ contains
     real(dp) :: mCutoff
     real(dp), allocatable :: coords(:,:), cellVec(:,:), rCellVec(:,:)
     integer, allocatable :: iCellVec(:)
+    type(TStatus) :: errStatus
 
     call TNeighbourlist_init(neighbourList, geo%nAtom, nInitNeighbours)
 
@@ -1489,7 +1491,10 @@ contains
     allocate(iCellVec(nAllAtom))
 
     call updateNeighbourList(coords, img2CentCell, iCellVec, neighbourList, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec, symmetric=.false.)
+        &nAllAtom, geo%coords, mCutoff, rCellVec, errStatus, symmetric=.false.)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     deallocate(coords)
     deallocate(iCellVec)

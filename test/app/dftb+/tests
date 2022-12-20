@@ -78,6 +78,8 @@ xtb/gfn2_h2_restart                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_h2_Ascii                      #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_mindless05                    #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn2_benzene                       #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_benzene_resltag               #? WITH_TBLITE and MPI_PROCS <= 1
+xtb/gfn2_CH2                           #? WITH_TBLITE and MPI_PROCS <= 1
 spin/gfn2_H2                           #? WITH_TBLITE and MPI_PROCS <= 1
 spin/gfn1_Fe4                          #? WITH_TBLITE and MPI_PROCS <= 1
 spin/ipea1_Fe4_noncolinear             #? WITH_TBLITE and MPI_PROCS <= 1
@@ -282,12 +284,15 @@ solvation/cosmo_quinoline              #? MPI_PROCS <= 1
 solvation/cosmo_nitralin               #? MPI_PROCS <= 2
 solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 
-timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
+derivatives/C6H6_Raman                 #? MPI_PROCS <= 1
+derivatives/gfn2_c6h6_dipole           #? WITH_TBLITE and MPI_PROCS <= 1
+
+timedep/2CH3-Temp                      #? WITH_ARPACK and not WITH_MPI
+timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and not WITH_MPI
+timedep/NO                             #? WITH_ARPACK and not WITH_MPI
+timedep/NO_onsite                      #? WITH_ARPACK and not WITH_MPI
+timedep/N2_onsite                      #? WITH_ARPACK and not WITH_MPI
+timedep/propadiene_OscWindow           #? WITH_ARPACK and not WITH_MPI
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
 analysis/H2O_mdESP                     #? MPI_PROCS <= 2
@@ -309,20 +314,20 @@ dispersion/DNA_uff                     #? MPI_PROCS <= 4
 onsite/Au13                            #? MPI_PROCS <= 4
 onsite/Au13pSIC                        #? MPI_PROCS <= 4
 
-timedep/C4H6-S1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-T1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/NH-Force-spinpol               #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/2CH3-Temp-Stratmann            #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-S1-Force_uncache-Stratmann #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-Singlet-Stratmann         #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C4H6-Triplet-Stratmann         #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/NH-Force-spinpol-Stratmann     #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/NO-Stratmann                   #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/propadiene_OscWindow-Stratmann #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-S1-Force                  #? WITH_ARPACK and not WITH_MPI
+timedep/C4H6-Singlet                   #? WITH_ARPACK and not WITH_MPI
+timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and not WITH_MPI
+timedep/C4H6-T1-Force                  #? WITH_ARPACK and not WITH_MPI
+timedep/C4H6-Triplet                   #? WITH_ARPACK and not WITH_MPI
+timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and not WITH_MPI
+timedep/NH-Force-spinpol               #? WITH_ARPACK and not WITH_MPI
+timedep/2CH3-Temp-Stratmann            #? not WITH_MPI
+timedep/C4H6-S1-Force_uncache-Stratmann #? not WITH_MPI
+timedep/C4H6-Singlet-Stratmann         #? not WITH_MPI
+timedep/C4H6-Triplet-Stratmann         #? not WITH_MPI
+timedep/NH-Force-spinpol-Stratmann     #? not WITH_MPI
+timedep/NO-Stratmann                   #? not WITH_MPI
+timedep/propadiene_OscWindow-Stratmann #? not WITH_MPI
 
 dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2
@@ -357,11 +362,11 @@ halogen/3501                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 halogen/3502                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 halogen/3518                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 
-timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/OCH2-S1-Opt                    #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/OCH2-md                        #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/cyclopentadienyl               #? WITH_ARPACK and not WITH_MPI
+timedep/C6H6-Sym                       #? WITH_ARPACK and not WITH_MPI
+timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and not WITH_MPI
+timedep/OCH2-S1-Opt                    #? WITH_ARPACK and not WITH_MPI
+timedep/OCH2-md                        #? WITH_ARPACK and not WITH_MPI
 
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2
@@ -376,6 +381,7 @@ spinorbit/As4S4                        #? MPI_PROCS <= 8
 dispersion/DNA-damped                  #? MPI_PROCS <= 4
 md/ice_Ic                              #? MPI_PROCS <= 4
 derivatives/C6H6_scc                   #? MPI_PROCS <= 1
+derivatives/GaAs_2                     #? MPI_PROCS <= 1
 dftb+u/GaAs_2                          #? MPI_PROCS <= 1
 geoopt/diamond_presure                 #? MPI_PROCS <= 1
 scc/C60_Fermi                          #? MPI_PROCS <= 4
@@ -403,7 +409,7 @@ geoopt/Si_2_lattice                    #? MPI_PROCS <= 1
 geoopt/Si_2_lattice_rf                 #? MPI_PROCS <= 1
 md/Si_8_NHC                            #? MPI_PROCS <= 1
 
-timedep/C66O10N4H44_Ewindow            #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C66O10N4H44_Ewindow            #? WITH_ARPACK and not WITH_MPI
 
 spin/Fe4_Fermi                         #? MPI_PROCS <= 2
 non-scc/Si41C23N35                     #? MPI_PROCS <= 4
@@ -437,9 +443,9 @@ md/ptcda-xlbomd                        #? MPI_PROCS <= 4
 md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4 and LONG_TEST
 md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4 and LONG_TEST
 
-timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 1
-#!timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
-timedep/C60_EandOsc                    #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and not WITH_MPI
+#!timedep/C60_OscWindow                  #? WITH_ARPACK and not WITH_MPI
+timedep/C60_EandOsc                    #? WITH_ARPACK and not WITH_MPI
 
 non-scc/Si_216                         #? MPI_PROCS <= 4 and LONG_TEST
 md/ptcda-xlbomd-ldep                   #? MPI_PROCS <= 4 and LONG_TEST
