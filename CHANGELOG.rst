@@ -5,7 +5,7 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-22.2 (2022-12-12)
+22.2 (2022-12-20)
 =================
 
 Added
