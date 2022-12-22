@@ -45,6 +45,7 @@ module dftbp_dftbplus_main
       & getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift
@@ -893,9 +894,9 @@ contains
             & this%species, this%neighbourList, this%nNeighbourSK, this%iSparseStart,&
             & this%img2CentCell, this%H0, this%ints, this%spinW, this%cellVol, this%extPressure,&
             & this%dftbEnergy(1), this%q0, this%iAtInCentralRegion, this%solvation, this%thirdOrd,&
-            & this%potential, this%rangeSep, this%nNeighbourLC, this%tDualSpinOrbit, this%xi,&
-            & this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot,&
-            & this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
+            & this%potential, this%rangeSep, this%rsOnsCorr, this%nNeighbourLC, this%tDualSpinOrbit,&
+            & this%xi, this%isExtField, this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS,&
+            & this%qDepExtPot, this%qBlockOut, this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim,&
             & this%onSiteElements, this%dispersion, tConverged, this%species0, this%referenceN0,&
             & this%qNetAtom, this%multipoleOut, this%reks)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
@@ -1041,8 +1042,8 @@ contains
             & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
             & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
             & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%eigen,&
-            & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
+            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%rsOnsCorr,&
+            & this%eigen, this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
             & this%nNeighbourLC, this%deltaDftb, errStatus)
@@ -1138,9 +1139,10 @@ contains
             & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
             & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
-            & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
-            & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
+            & this%rangeSep, this%rsOnsCorr, this%reks, this%qDepExtPot, this%qBlockOut,&
+            & this%qiBlockOut, this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef,&
+            & this%onSiteElements, this%qNetAtom, this%potential%intOnSiteAtom,&
+            & this%potential%extOnSiteAtom)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -1213,7 +1215,7 @@ contains
               & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
               & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
               & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-              & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
+              & this%isRangeSep, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
         end if
 
         if (tConverged .or. tStopScc) then
@@ -1285,7 +1287,7 @@ contains
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
             & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-            & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
+            & this%isRangeSep, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
 
@@ -1416,8 +1418,9 @@ contains
             & this%orb, this%potential, this%coord, this%derivs, this%groundDerivs,&
             & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
-            & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
-            & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
+            & this%rangeSep, this%rsOnsCorr, this%SSqrReal, this%ints, this%denseDesc,&
+            & this%deltaRhoOutSqr, this%halogenXCorrection, this%tHelical, this%coord0,&
+            & this%deltaDftb)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -2317,10 +2320,10 @@ contains
   subroutine getDensity(env, negfInt, iScc, denseDesc, ints, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, tHelical, coord,&
       & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
-      & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
-      & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb,&
-      & errStatus)
+      & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
+      & rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
+      & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
+      & nNeighbourLC, deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2421,6 +2424,9 @@ contains
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
+
     !> eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
 
@@ -2514,9 +2520,10 @@ contains
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
           & denseDesc%iAtomStart, tHelical, coord, species, electronicSolver, tRealHS,&
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
-          & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb, errStatus)
+          & tempElec, nEl, parallelKS, Ef, energy, rangeSep, rsOnsCorr, eigen, filling, rhoPrim,&
+          & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+          & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb,&
+          & errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -2541,7 +2548,7 @@ contains
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, iAtomStart, tHelical,&
       & coord, species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit,&
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
-      & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
+      & rsOnsCorr, eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC,&
       & deltaDftb, errStatus)
 
@@ -2638,6 +2645,9 @@ contains
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
+
     !> eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
 
@@ -2701,8 +2711,8 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver, parallelKS,&
-            & rangeSep, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
-            & errStatus)
+            & rangeSep, rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal,&
+            & eigen(:,1,:), errStatus)
         @:PROPAGATE_ERROR(errStatus)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, neighbourList,&
@@ -2751,7 +2761,7 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, tHelical, coord, electronicSolver, parallelKS, rangeSep,&
-      & deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, errStatus)
+      & rsOnsCorr, deltaRhoInSqr, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2794,6 +2804,9 @@ contains
 
     !>Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Change in density matrix during last rangesep SCC cycle
     real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
@@ -2866,6 +2879,11 @@ contains
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), ints%overlap,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
             & orb, HSqrReal, SSqrReal)
+      end if
+
+      ! Add onsite correction originating from range-separated hybrid functional
+      if (allocated(rsOnsCorr)) then
+        call rsOnsCorr%addLrOcHamiltonian(env, SSqrReal, deltaRhoInSqr(:,:,iSpin), HSqrReal)
       end if
 
       call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin), errStatus)
@@ -5458,7 +5476,7 @@ contains
       & rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList,&
       & nNeighbourSK, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
-      & chrgForces, dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
+      & chrgForces, dispersion, rangeSep, rsOnsCorr, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
       & halogenXCorrection, tHelical, coord0, deltaDftb)
 
     !> Environment settings
@@ -5559,6 +5577,9 @@ contains
 
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> dense overlap matrix, required for rangeSep
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
@@ -5712,6 +5733,12 @@ contains
         call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skOverCont, coord,&
             & species, orb, denseDesc%iAtomStart, SSqrReal, neighbourList%iNeighbour, nNeighbourSK)
       end if
+    end if
+
+    if (allocated(rsOnsCorr)) then
+      call rsOnsCorr%addLrOcGradients(derivs, nonSccDeriv, skOverCont, coord, nNeighbourSK,&
+          & neighbourList%iNeighbour, denseDesc%iAtomStart, species, orb, deltaRhoOutSqr,&
+          & SSqrReal)
     end if
 
     if (allocated(repulsive)) then
@@ -6988,8 +7015,8 @@ contains
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, tblite, orb, species,&
       & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, H0, ints, spinW, cellVol,&
       & extPressure, energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, rangeSep,&
-      & nNeighbourLC, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot, qBlock,&
-      & qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
+      & rsOnsCorr, nNeighbourLC, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU, TS, qDepExtPot,&
+      & qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion, tConverged, species0,&
       & referenceN0, qNetAtom, multipole, reks)
 
     !> Environment settings
@@ -7057,6 +7084,9 @@ contains
 
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Nr. of neighbours for each atom in the long-range functional.
     integer, allocatable, intent(in) :: nNeighbourLC(:)
@@ -7261,8 +7291,8 @@ contains
           & reks%chargePerShellL(:,:,:,iL), multipole, species, isExtField, isXlbomd, dftbU,&
           & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
-          & rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & onSiteElements)
+          & rangeSep, rsOnsCorr, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+          & tFixEf, Ef, onSiteElements)
 
       if (allocated(dispersion)) then
         ! For dftd4 dispersion, update charges

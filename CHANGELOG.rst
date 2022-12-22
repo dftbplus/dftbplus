@@ -25,6 +25,8 @@ Added
 
 - Dual American and British English spelling for various input keywords
 
+- Onsite corrected hamiltonian for range separated functional
+
 
 Fixed
 -----

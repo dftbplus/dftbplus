@@ -46,6 +46,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc, RangeSepOnsCorrFunc_init
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -722,7 +723,7 @@ module dftbp_dftbplus_initprogram
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable :: onSiteElements(:,:,:,:)
 
-    !> Correction to dipole momements on-site matrix elements
+    !> Correction to dipole momements from on-site matrix elements
     real(dp), allocatable :: onSiteDipole(:,:)
 
     !> Should block charges be mixed as well as charges
@@ -763,6 +764,12 @@ module dftbp_dftbplus_initprogram
 
     !> DeltaRho output from range separation in matrix form
     real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
+
+    !> Whether to run onsite correction with range-separated functional
+    logical :: isRS_OnsCorr
+
+    !> Onsite correction data with range-separated functional
+    type(TRangeSepOnsCorrFunc), allocatable :: rsOnsCorr
 
     !> Linear response calculation with range-separated functional
     logical :: isRS_LinResp
@@ -1517,7 +1524,8 @@ contains
 
     ! on-site corrections
     if (allocated(input%ctrl%onSiteElements)) then
-      allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell, 2, this%nType))
+      allocate(this%onSiteElements(this%orb%mShell, this%orb%mShell,&
+          & size(input%ctrl%onSiteElements,dim=3), this%nType))
       this%onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
@@ -2606,6 +2614,21 @@ contains
           & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
     end if
 
+    this%isRS_OnsCorr = .false.
+    ! Now, this%isRS_OnsCorr determines inclusion of lrOC term
+    if (size(this%onSiteElements,dim=3) == 3) then
+      this%isRS_OnsCorr = .true.
+    end if
+
+    if (this%isRS_OnsCorr) then
+      call ensureRangeSepOnsCorrReqs(this%tPeriodic, this%tHelical, this%tAtomicEnergy,&
+          & this%nSpin, this%tSpinOrbit, this%isXlbomd, this%t3rd.or.this%t3rdFull,&
+          & this%isLinResp, this%isDFTBPT, this%solvation, this%reks)
+      allocate(this%rsOnsCorr)
+      call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%orb, this%denseDesc%iAtomStart,&
+          & this%species0, this%onSiteElements, this%tSpin, input%ctrl%rangeSepInp%rangeSepAlg)
+    end if
+
     this%tReadShifts = input%ctrl%tReadShifts
     this%tWriteShifts = input%ctrl%tWriteShifts
 
@@ -3485,11 +3508,13 @@ contains
     tFirst = .true.
     if (allocated(this%onSiteElements)) then
       do iSp = 1, this%nType
-        do iSpin = 1, 2
+        do iSpin = 1, size(this%onSiteElements,dim=3)
           if (iSpin == 1) then
             write(strTmp2, "(A,':')") "uu"
-          else
+          else if (iSpin == 2) then
             write(strTmp2, "(A,':')") "ud"
+          else
+            write(strTmp2, "(A,':')") "lc"
           end if
           do jj = 1, this%orb%nShell(iSp)
             do kk = 1, this%orb%nShell(iSp)
@@ -3645,6 +3670,10 @@ contains
         if (input%ctrl%elecDynInp%tIons) then
           call error("Ion dynamics time propagation currently disabled for range-separated")
         end if
+      end if
+
+      if (this%isRS_OnsCorr) then
+        call error("Electron dynamics does not work with long-range onsite correction yet")
       end if
 
       allocate(this%electronDynamics)
@@ -5491,6 +5520,105 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Stop if any range separated incompatible setting is found
+  subroutine ensureRangeSepOnsCorrReqs(tPeriodic, tHelical, tAtomicEnergy, nSpin, tSpinOrbit,&
+      & isXlbomd, is3rd, isLinResp, isDFTBPT, solvation, reks)
+
+    !> if calculation is periodic
+    logical, intent(in) :: tPeriodic
+
+    !> If the calculation is helical geometry
+    logical, intent(in) :: tHelical
+
+    !> Do we need atom resolved E?
+    logical, intent(in) :: tAtomicEnergy
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    !> is there spin-orbit coupling
+    logical, intent(in) :: tSpinOrbit
+
+    !> should XLBOMD be used in MD
+    logical, intent(in) :: isXlbomd
+
+    !> Third order DFTB
+    logical, intent(in) :: is3rd
+
+    !> Calculate Casida linear response excitations
+    logical, intent(in) :: isLinResp
+
+    !> Density functional tight binding perturbation theory
+    logical, intent(in) :: isDFTBPT
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
+
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(in) :: reks
+
+    if (withMpi) then
+      call error("Onsite correction with range separated funcitonal do not work with MPI yet")
+    end if
+
+    if (tPeriodic) then
+      call error("Onsite correction with range separated functional only works with&
+          & non-periodic structures at the moment")
+    end if
+
+    if (tHelical) then
+      call error("Onsite correction with range separated functional only works with&
+          & non-helical structures at the moment")
+    end if
+
+    if (tAtomicEnergy) then
+      call error("Atomic resolved energies cannot be calculated with the range-separated&
+          & hybrid functional at the moment")
+    end if
+
+    if (nSpin > 2) then
+      call error("Onsite correction with range separated calculations not implemented&
+          & for non-colinear calculations")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for spin orbit")
+    end if
+
+    if (isXlbomd) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for XLBOMD")
+    end if
+
+    if (is3rd) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for 3rd order DFTB")
+    end if
+
+    if (isLinResp) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for linear response excitation")
+    end if
+
+    if (isDFTBPT) then
+      call error("Perturbation calculations not currently implemented for linear response&
+          & excitation")
+    end if
+
+    if (allocated(solvation)) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for solvation")
+    end if
+
+    if (allocated(reks)) then
+      call error("Onsite correction with range separated calculations not currently&
+          & implemented for REKS")
+    end if
+
+  end subroutine ensureRangeSepOnsCorrReqs
 
 
   !> Initializes PLUMED calculator.
