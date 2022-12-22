@@ -1247,7 +1247,8 @@ contains
   !> Collects and add all contributions from the subgrids onto the global grid weighted with the
   !> coefficients.
   subroutine subgridsToCachedGlobalGrids(globalGridDat, subgridsDat, coords, coeffs, levelIndex,&
-    & orbitalToAtom, orbitalToSubgrid, nRegions, &
+    & requiredLevels, requiredKPoints, requiredSpins, requiredKPointsForLevel, kPointNumForLevel, orbitalToAtom, &
+    & orbitalToSubgrid, nRegions, &
     & regionGridDat, cartCoords, tiling, statesTiling, stos, orbitalToAngs, orbitalToM,&
     & orbitalToStos, globalGridsDat, gridInterType, rwfTabulationType, addDensities)
 
@@ -1265,6 +1266,16 @@ contains
 
   !> Index Mapping from state index to [Level, KPoint, Spin]
   integer, intent(in) :: levelIndex(:,:)
+
+  integer, intent(in) :: requiredLevels(:)
+
+  integer, intent(in) :: requiredKPoints(:)
+
+  integer, intent(in) :: requiredSpins(:)
+
+  integer, intent(in) :: requiredKPointsForLevel(:,:)
+
+  integer, intent(in) :: kPointNumForLevel(:)
 
   !> index mapping from orbital to atom, exp. shape: [nOrbitals]
   integer, intent(in) :: orbitalToAtom(:)
@@ -1301,7 +1312,7 @@ contains
 
   !> array holding the data of the grid for every level which is needed,
   !> shape: [nxPoints, nyPoints, nzPoints, nLevel]
-  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:)
+  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:,:,:)
 
   !> Interpolation type for the grid interpolation
   integer, intent(in) :: gridInterType
@@ -1323,6 +1334,9 @@ contains
   !> shape: [nxPoints, nyPoints, nzPoints, nCells]
   real(dp), allocatable :: basis(:,:,:)
 
+  integer :: currentKPoint, currentLevel, currentSpin
+  integer :: levelInd
+
   ! try to ensure a smooth runtime
   @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
   @:ASSERT(size(coeffs, dim=1) == size(orbitalToSubgrid))
@@ -1339,8 +1353,9 @@ contains
   end if
 
   allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-      & globalGridDat%grid%nPoints(3), statesTiling(2) - statesTiling(1) + 1))
-  globalGridsDat(:,:,:,:) = 0.0_dp
+      & globalGridDat%grid%nPoints(3), statesTiling(2) - statesTiling(1) + 1, &
+      & size(requiredKPoints), size(requiredSpins)))
+  globalGridsDat(:,:,:,:,:,:) = 0.0_dp
 
   allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
       & globalGridDat%grid%nPoints(3)))
@@ -1350,8 +1365,10 @@ contains
   !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
   !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos,&
   !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType, basis,&
-  !$omp& iL, iSpin, iKPoint, statesTiling)&
-  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, iStos, ind)
+  !$omp& statesTiling, requiredLevels, kPointNumForLevel, requiredKPoints,&
+  !$omp& requiredSpins)&
+  !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, iStos, ind,&
+  !$omp& currentKPoint, currentLevel, currentSpin, iL, iSpin, iKPoint, levelInd)
   lpGrid: do iGrid = 1, nRegions
     lpOrb: do iOrb = 1, size(coeffs, dim=1)
 
@@ -1372,20 +1389,26 @@ contains
 
       end do lpCell
 
-      ind = 1
-      lpStates: do iState = statesTiling(1), statesTiling(2)
+      levelInd = 1
+      do iL = statesTiling(1), statesTiling(2)
+        currentLevel = requiredLevels(iL)
+        do iKPoint = 1, size(requiredKPoints)
+          currentKPoint = requiredKPoints(iKPoint)
 
-        iL = levelIndex(1, iState)
-        iKPoint = levelIndex(2, iState)
-        iSpin = levelIndex(3, iState)
+          lpSpin: do iSpin = 1, size(requiredSpins)
+            currentSpin = requiredSpins(iSpin)
 
-        globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind) =&
-            & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind)&
-            & + coeffs(iOrb, iL, iKPoint, iSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
+            globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
+                & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
+                & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
 
-        ind = ind + 1
+          end do lpSpin
 
-      end do lpStates
+        end do
+
+        levelInd = levelInd + 1
+
+      end do
 
       basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = 0.0_dp
 
@@ -1399,7 +1422,8 @@ end subroutine subgridsToCachedGlobalGrids
   !> Collects and adds all contributions from the subgrids onto the global grid weighted with the
   !> coefficients.
   subroutine subgridsToCachedGlobalGridsCplx(globalGridDat, subgridsDat, coords, coeffs,&
-      & levelIndex, orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat, cartCoords, &
+      & levelIndex, requiredLevels, requiredKPoints, requiredSpins, requiredKPointsForLevel, kPointNumForLevel, &
+      & orbitalToAtom, orbitalToSubgrid, nRegions, regionGridDat, cartCoords, &
       & tiling, statesTiling, stos, orbitalToAngs,&
       & orbitalToM, orbitalToStos, globalGridsDat,&
       & CellVec, gridInterType, rwfTabulationType, phases, addDensities, kPointsandWeights)
@@ -1419,6 +1443,16 @@ end subroutine subgridsToCachedGlobalGrids
 
     !> Index Mapping from state index to [Level, KPoint, Spin]
     integer, intent(in) :: levelIndex(:,:)
+
+    integer, intent(in) :: requiredLevels(:)
+
+    integer, intent(in) :: requiredKPoints(:)
+
+    integer, intent(in) :: requiredSpins(:)
+
+    integer, intent(in) :: requiredKPointsForLevel(:,:)
+
+    integer, intent(in) :: kPointNumForLevel(:)
 
     !> index mapping from orbital to atom, exp. shape: [nOrbitals]
     integer, intent(in) :: orbitalToAtom(:)
@@ -1455,7 +1489,7 @@ end subroutine subgridsToCachedGlobalGrids
 
     !> array holding the data of the grid for every level which is needed,
     !> shape: [nxPoints, nyPoints, nzPoints, nLevel, nKPoints, nSpin]
-    complex(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:)
+    complex(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:,:,:)
 
     !> Cell vectors in relative coordinates, shape: [3, nCell]
     real(dp), intent(in) :: CellVec(:,:)
@@ -1484,7 +1518,9 @@ end subroutine subgridsToCachedGlobalGrids
 
     !> auxiliary variables
     integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
-        & iStos, iState, ind
+        & iStos, iState, ind, levelInd
+
+    integer :: currentKPoint, currentLevel, currentSpin
 
     ! try to ensure a smooth runtime
     @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
@@ -1502,8 +1538,9 @@ end subroutine subgridsToCachedGlobalGrids
     end if
 
     allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
-      & globalGridDat%grid%nPoints(3), statesTiling(2) - statesTiling(1) + 1))
-    globalGridsDat(:,:,:,:) = 0.0_dp
+        & globalGridDat%grid%nPoints(3), statesTiling(2) - statesTiling(1) + 1, &
+        & size(requiredKPoints), size(requiredSpins)))
+    globalGridsDat(:,:,:,:,:,:) = 0.0_dp
 
     allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
         & globalGridDat%grid%nPoints(3), size(coords, dim=3)))
@@ -1513,9 +1550,11 @@ end subroutine subgridsToCachedGlobalGrids
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid,&
     !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType,&
     !$omp& phases, basis, stos, orbitalToAngs, &
-    !$omp& orbitalToM, rwfTabulationType, cartcoords, orbitalToStos, iL, iSpin, iKPoint,&
-    !$omp& statesTiling)&
-    !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, ind, iState, iAng, iM, iStos)
+    !$omp& orbitalToM, rwfTabulationType, cartcoords, orbitalToStos,&
+    !$omp& statesTiling, requiredLevels, kPointNumForLevel, requiredKPoints,&
+    !$omp& requiredSpins)&
+    !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, ind, iState, iAng, iM, iStos,&
+    !$omp& currentKPoint, currentLevel, currentSpin, iL, iSpin, iKPoint, levelInd)
     lpGrid: do iGrid = 1, nRegions
       lpOrb: do iOrb = 1, size(coeffs, dim=1)
 
@@ -1533,22 +1572,27 @@ end subroutine subgridsToCachedGlobalGrids
               & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
               & square=tAddDensities)
 
-          ind = 1
-          lpStates: do iState = statesTiling(1), statesTiling(2)
+          levelInd = 1
+          do iL = statesTiling(1), statesTiling(2)
+            currentLevel = requiredLevels(iL)
+            do iKPoint = 1, size(requiredKPoints)
+              currentKPoint = requiredKPoints(iKPoint)
 
-            iL = levelIndex(1, iState)
-            iKPoint = levelIndex(2, iState)
-            iSpin = levelIndex(3, iState)
+              lpSpin: do iSpin = 1, size(requiredSpins)
+                currentSpin = requiredSpins(iSpin)
 
-            ! add STO weighted with the eigenvector coefficients to the global grid
-            globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind) =&
-                & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), ind)&
-                & + coeffs(iOrb, iL, iKPoint, iSpin) * &
-                & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) * phases(iCell, iKPoint)
+                globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
+                    & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
+                    & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
+                    & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) * phases(iCell, iKPoint)
 
-          ind = ind + 1
+              end do lpSpin
 
-          end do lpStates
+            end do
+
+            levelInd = levelInd + 1
+
+          end do
 
         end do lpCell
       end do lpOrb
