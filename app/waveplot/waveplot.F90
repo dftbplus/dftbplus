@@ -9,16 +9,21 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
+
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_constants, only : pi
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
   use dftbp_type_typegeometry, only : TGeometry
-  use waveplot_gridcache, only : next
+
+  use waveplot_grids, only : TGrid, TGrid_init, TGridData, TGridData_init, TRealTessY, &
+      & TRealTessY_init, subgridsToGlobalGrid, TTabulationTypesEnum, TGridInterpolationTypesEnum
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
-  use waveplot_molorb, only : getValue
+  use waveplot_parallel, only : getStartAndEndIndices, getStartAndEndIndicesByChunkSize
+
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
@@ -27,55 +32,102 @@ program waveplot
 
   implicit none
 
-  !> Container of program variables
-  type(TProgramVariables), target :: wp
+  !> Instance containing all nessesary data
+  type(TProgramVariables) :: wp
 
-  !> Pointer to real-valued grid
-  real(dp), pointer :: gridValReal(:,:,:)
+  !> Grid instances
+  type(TGrid) :: totGrid
+  type(TGrid), allocatable :: speciesGrids(:)
 
-  !> Pointer to complex-valued grid
-  complex(dp), pointer :: gridValCmpl(:,:,:)
+  !> Grid data instances
+  type(TGridData) :: totGridDat, atomicGridDat
+  type(TGridData), allocatable :: speciesGridsDat(:)
 
-  !> Arrays holding the volumetric data
-  real(dp), allocatable :: buffer(:,:,:), totChrg(:,:,:), atomicChrg(:,:,:,:), spinUp(:,:,:)
+  !> Representation of real tesseral spherical harmonics
+  type(TRealTessY), allocatable :: speciesRty(:)
 
-  !> Occupation of orbitals
-  real(dp), allocatable :: orbitalOcc(:,:)
+  character(len=80) :: comments(2), fileName
 
-  !> Array holding temporary coordinate information
-  real(dp), allocatable :: coords(:,:)
-
-  !> Array holding temporary species information
-  integer, allocatable :: species(:)
-
-  !> Summation of all grid points
-  real(dp) :: sumTotChrg, sumChrg, sumAtomicChrg
-
-  !> Indices of current level, K-point and spin
-  integer :: levelIndex(3)
-
-  !> Onedimensional real-valued list of coordinate arrays
+  !> Variables needed for atom folding
+  real(dp) :: invBoxVecs(3,3), recVecs2p(3,3)
+  real(dp) :: cellMiddle(3), boxMiddle(3), frac(3), cubeCorner(3), coord(3), shift(3)
+  real(dp) :: mDist, dist
+  real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
+  integer :: ii, i1, i2, i3, iCell, iAtom
   type(TListRealR1) :: coordList
-
-  !> Onedimensional integer-valued list of atomic species indices
   type(TListInt) :: speciesList
 
-  !> Auxiliary variables
-  integer :: i1, i2, i3
-  integer :: iCell, iLevel, iKPoint, iSpin, iSpinOld, iAtom, iSpecies, iAng, mAng, ind, nBox
-  logical :: tFinished, tPlotLevel
-  character(len=80) :: comments(2), fileName
-  real(dp) :: mDist, dist
-  real(dp) :: cellMiddle(3), boxMiddle(3), frac(3), cubeCorner(3), coord(3), shift(3)
-  real(dp) :: invBoxVecs(3,3), recVecs2p(3,3)
-  real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
+  !> Variables needed in the loop over all states
+  integer :: iLevel, iKPoint, iSpin
+  integer :: iSpecies, iAng, ind
+
+  !> If current level should be plotted
+  logical :: tPlotLevel
+
+  !> Complex phase factor. It has the shape: [nCell, nKPoints]
+  complex(dp), allocatable :: phases(:,:)
+
+  !> Arrays holding the volumetric grid data
+  real(dp), allocatable :: totGridsDat(:,:,:,:,:,:)
+  complex(dp), allocatable :: totGridsDatCplx(:,:,:,:,:,:)
+  real(dp), allocatable :: basis(:,:,:,:)
+  real(dp), allocatable, target ::  totChrg(:,:,:), atomicChrg(:,:,:), speciesChrg(:,:,:,:)
+  real(dp), allocatable :: atomDensity(:,:,:)
+  real(dp), allocatable, target :: totData(:,:,:), buffer(:,:,:), spinUp(:,:,:), spinDown(:,:,:)
+  real(dp), allocatable, target :: copyBuffers(:,:,:,:), copyBuffersCplx(:,:,:,:)
+  real(dp) :: sumTotChrg, sumAtomicChrg, sumChrg
+
+  !> grid parallel regions, holding global grid sections
+  type(TGridData), allocatable :: regionGridDat(:)
+
+  !> temporary grid instance
+  type(TGrid) :: tmpGrid
+
+  !> Temporary stored cartesian coordinates of one grid point, shape: [3,1]
+  real(dp), allocatable :: cartcoordsTmp(:,:)
+
+  !> Cartesian coordinates of the total grid points, shape: [3, nxPoints, nyPoints, nzPoints]
+  real(dp), allocatable :: cartCoords(:,:,:,:)
+
+  real(dp), allocatable :: cutoffs(:)
+
+  !> Pointers to arrays holding the volumetric grid data
+  real(dp), pointer ::  pAtomicChrg(:,:,:), pSpeciesChrg(:,:,:)
+  real(dp), pointer :: pTotData(:,:,:), pBuffer(:,:,:), pCopyBuffers(:,:,:,:)
+  real(dp), pointer :: pTmpData(:,:,:)
+
+  !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
+  integer, allocatable :: tiling(:,:)
+
+  integer, allocatable :: orbTiling(:,:)
+  integer, allocatable :: statesTiling(:,:)
+
+  !> Auxillary variables
+  integer :: jj, iL, iM, levelInd
+  integer :: maxAng
+  integer, allocatable :: iKPointPrime(:), iLPrime(:), requiredKPoints(:), requiredLevels(:)
+  integer, allocatable :: iSpinPrime(:), requiredSpins(:)
+  integer, allocatable :: kPointNumForLevel(:), spinNumForLevel(:), requiredKPointsForLevel(:,:)
+  integer :: kIndex, lIndex, sIndex, kPointCounter, levelCounter, spinCounter, KNum, LNum, SNum
+  integer :: tmparray(1), iGrid, idx(3, 1), kk, aa(3), iCachedBlock, nCachedBlock
+  integer :: currentKPoint, currentSpin, currentLevel
+  integer :: tmpKPoint, tmpSpin
+  real :: start, finish, finish2
+  character(len=100) :: strBuffer
+
+  !> Container for enumerated radial wf tabulation types
+  type(TTabulationTypesEnum), parameter :: rwTabulationTypes = TTabulationTypesEnum()
+
+  !> Container for enumerated grid interpolation types
+  type(TGridInterpolationTypesEnum), parameter :: gridInterpolTypes = TGridInterpolationTypesEnum()
+
 
 #:if WITH_MPI
-  !> MPI environment
+  !> MPI environment, if compiled with mpifort
   type(TMpiEnv) :: mpiEnv
 
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
+  ! As this is serial code, trap for run time execution
+  ! on more than 1 processor with an mpi enabled build
   call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
   call TMpiEnv_init(mpiEnv)
   call mpiEnv%mpiSerialEnv()
@@ -86,91 +138,121 @@ program waveplot
   write(stdout, "(/,A,/)") "Starting main program"
 
   ! Allocating buffer for general grid, total charge and spin up
-  allocate(buffer(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3)))
+  allocate(buffer(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+  buffer(:,:,:) = 0.0_dp
+  pBuffer => buffer
+  allocate(totData(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+  totData(:,:,:) = 0.0_dp
+  pTotData => totData
+  allocate(copyBuffers(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3),&
+      & size(wp%opt%levelIndex, dim=2)))
+  copyBuffers(:,:,:,:) = 0.0_dp
+  pCopyBuffers => copyBuffers
+  allocate(copyBuffersCplx(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2),&
+      & wp%opt%nTotPoints(3), size(wp%opt%levelIndex, dim=2)))
+  copyBuffersCplx(:,:,:,:) = 0.0_dp
+
   if (wp%opt%tCalcTotChrg) then
-    allocate(totChrg(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3)))
-    totChrg = 0.0_dp
+    allocate(totChrg(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+    totChrg(:,:,:) = 0.0_dp
     if (wp%opt%tPlotTotSpin) then
-      allocate(spinUp(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3)))
+      allocate(spinUp(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+      spinUp(:,:,:) = 0.0_dp
+      allocate(spinDown(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+      spinDown(:,:,:) = 0.0_dp
     end if
   end if
 
   write (comments(1), "(A)") "Cube file generated by WAVEPLOT from data created by DFTB+"
 
-  ! Repeat boxes if necessary
-  nBox = product(wp%opt%repeatBox)
-  if (nBox > 1) then
-    ! If tFillBox is off, coordinates must be repeated here. Otherwise the part for filling with
-    ! atoms will do that.
-    if (.not. wp%opt%tFillBox) then
-      allocate(coords(3, size(wp%input%geo%coords)))
-      allocate(species(size(wp%input%geo%species)))
-      coords(:,:) = wp%input%geo%coords(:,:)
-      species(:) = wp%input%geo%species(:)
-      deallocate(wp%input%geo%coords)
-      deallocate(wp%input%geo%species)
-      allocate(wp%input%geo%coords(3, nBox * wp%input%geo%nAtom))
-      allocate(wp%input%geo%species(nBox * wp%input%geo%nAtom))
-      ind = 0
-      do i1 = 0, wp%opt%repeatBox(1) - 1
-        do i2 = 0, wp%opt%repeatBox(2) - 1
-          do i3 = 0, wp%opt%repeatBox(3) - 1
-            shift(:) = matmul(wp%opt%boxVecs, real([i1, i2, i3], dp))
-            do iAtom = 1, wp%input%geo%nAtom
-              wp%input%geo%coords(:,ind+iAtom) = coords(:,iAtom) + shift(:)
-            end do
-            wp%input%geo%species(ind+1:ind+wp%input%geo%nAtom) = species(:)
-            ind = ind + wp%input%geo%nAtom
-          end do
-        end do
-      end do
-      wp%input%geo%nAtom = nBox * wp%input%geo%nAtom
-    end if
-    do i1 = 1, 3
-      wp%opt%boxVecs(:,i1) = wp%opt%boxVecs(:,i1) * real(wp%opt%repeatBox(i1), dp)
-    end do
-  end if
-
   write(stdout, "(A)") "Origin"
   write(stdout, "(2X,3(F0.5,1X))") wp%opt%origin(:)
+  write(stdout, "(A)") "Total-Grid Origin"
+  write(stdout, "(2X,3(F0.5,1X))") wp%opt%totGridOrig
   write(stdout, "(A)") "Box"
-  do i1 = 1, 3
-    write(stdout, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, i1)
+
+  do jj = 1, 3
+    write(stdout, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, jj)
   end do
+
   write(stdout, "(A)") "Spatial resolution [1/Bohr]:"
-  write(stdout, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(wp%loc%gridVec**2, dim=1))
+  write(stdout, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(wp%loc%totGridVec**2, dim=1))
   write(stdout, *)
 
-  ! Create density superposition of the atomic orbitals. Occupation is distributed equally on
-  ! orbitals with the same angular momentum.
-  if (wp%opt%tCalcAtomDens) then
-    allocate(atomicChrg(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3), 1))
-    allocate(orbitalOcc(wp%input%nOrb, 1))
-    ind = 1
-    do iAtom = 1, wp%input%geo%nAtom
-      iSpecies = wp%input%geo%species(iAtom)
-      do iAng = 1, size(wp%basis%basis(iSpecies)%angMoms)
-        mAng = 2 * wp%basis%basis(iSpecies)%angMoms(iAng) + 1
-        orbitalOcc(ind:ind + mAng - 1,1) = wp%basis%basis(iSpecies)%occupations(iAng)&
-            & / real(mAng, dp)
-        ind = ind + mAng
+  ! Initialise total grid and volumetric data
+  call TGrid_init(totGrid, wp%opt%totGridOrig, wp%loc%totGridVec, wp%opt%nTotPoints)
+  call TGridData_init(totGridDat, totGrid, pBuffer, rwTabulationType=wp%opt%rwTabulationType)
+
+  ! Initialise atomic volumetric data
+  allocate(speciesGrids(wp%input%geo%nSpecies))
+  allocate(speciesGridsDat(maxval(wp%loc%orbitalToSpecies)))
+  allocate(speciesRty(maxval(wp%loc%orbitalToSpecies)))
+  allocate(speciesChrg(wp%opt%nSpPoints(1), wp%opt%nSpPoints(2), wp%opt%nSpPoints(3),&
+      & maxval(wp%loc%orbitalToSpecies)))
+  speciesChrg(:,:,:,:) = 0.0_dp
+
+  ind = 1
+  ! Initialise atomic grids and pretabulate orbital-species grids
+  do iSpecies = 1, wp%input%geo%nSpecies
+    maxAng = maxval(wp%basis%basis(iSpecies)%angMoms)
+    call TGrid_init(speciesGrids(iSpecies), wp%loc%speciesGridsOrigs(:, iSpecies),&
+        & wp%loc%speciesGridsVecs(:, :, iSpecies), wp%opt%nSpPoints)
+    call TRealTessY_init(speciesRty(iSpecies), speciesGrids(iSpecies), maxAng)
+    do iAng = wp%loc%molorb%iStos(iSpecies), wp%loc%molorb%iStos(iSpecies + 1) - 1
+      iL = wp%loc%molorb%angMoms(iAng)
+      do iM = - iL, iL
+        pSpeciesChrg => speciesChrg(:,:,:, ind)
+        call TGridData_init(speciesGridsDat(ind), speciesGrids(iSpecies), pSpeciesChrg,&
+            & rwTabulationType=wp%opt%rwTabulationType)
+        if (wp%opt%gridInterType .ne. gridInterpolTypes%explicit) then
+          call speciesGridsDat(ind)%tabulateBasis(speciesRty(iSpecies), iL, iM, &
+              & wp%loc%molorb%stos(iAng)%gridValue, wp%loc%molorb%stos(iAng)%alpha, &
+              & wp%loc%molorb%stos(iAng)%aa)
+        end if
+        ind = ind + 1
       end do
     end do
-    call getValue(wp%loc%molorb, wp%opt%gridOrigin, wp%loc%gridVec, orbitalOcc, atomicChrg,&
-        & addDensities=.true.)
-    sumAtomicChrg = sum(atomicChrg) * wp%loc%gridVol
+  end do
+
+  allocate(cutoffs(size(wp%basis%basis, dim=1)))
+  do ii = 1, size(wp%basis%basis, dim=1)
+    cutoffs(ii) = maxval(wp%basis%basis(ii)%cutoffs)
+  end do
+
+  ! Create density superposition of the atomic orbitals. Occupation is
+  ! distributed equally on orbitals with the same angular momentum.
+  if (wp%opt%tCalcAtomDens) then
+
+    allocate(atomicChrg(wp%opt%nTotPoints(1), wp%opt%nTotPoints(2), wp%opt%nTotPoints(3)))
+    atomicChrg(:,:,:) = 0.0_dp
+    pAtomicChrg => atomicChrg
+
+    ! Initialise volumetric data
+    call TGridData_init(atomicGridDat, totGrid, pAtomicChrg,&
+        & rwTabulationType=wp%opt%rwTabulationType)
+
+    call subgridsToGlobalGrid(atomicGridDat, speciesGridsDat, atomDensity, &
+        & wp%loc%molorb%coords, wp%loc%orbitalOcc(:, 1), wp%loc%orbitalToAtom, &
+        & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, &
+        & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, &
+        & wp%loc%orbitalToStos, wp%opt%gridInterType, wp%opt%rwTabulationType, .true.)
+
+
+    sumAtomicChrg = sum(atomDensity) * wp%loc%gridVol
 
     if (wp%opt%tVerbose) then
       write(stdout, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
     end if
+
+    ! Plot total atomic density
     if (wp%opt%tPlotAtomDens) then
-      write (comments(2), 9989) wp%input%identity
-9989  format('Calc-Id:',I11,', atomdens')
+      write (comments(2), "('Calc-Id:', I11, ', atomdens')") wp%input%identity
       fileName = "wp-atomdens.cube"
-      call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-          & buffer, fileName, comments, wp%opt%repeatBox)
+      call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+          & wp%opt%totGridOrig, atomDensity, fileName, comments, wp%opt%repeatBox)
       write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     end if
+
   end if
 
   if (wp%opt%tVerbose) then
@@ -188,7 +270,8 @@ program waveplot
 
   ! Fill the box with atoms
   if (wp%opt%tFillBox) then
-    ! Shifting plotted region by integer lattice vectors, to have its center as close to the center
+
+    ! Shift plotted region by integer lattice vectors, to have its center as close to the center
     ! of the lattice unit cell as possible.
     cellMiddle(:) = 0.5_dp * sum(wp%input%geo%latVecs, dim=2)
     boxMiddle(:) = wp%opt%origin(:) + 0.5_dp * sum(wp%opt%boxVecs, dim=2)
@@ -196,7 +279,7 @@ program waveplot
     shift(:) = boxMiddle - cellMiddle
     frac(:) = matmul(shift, recVecs2p)
     wp%opt%origin(:) = wp%opt%origin(:) - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
-    wp%opt%gridOrigin(:) = wp%opt%gridOrigin(:)&
+    wp%opt%totGridOrig(:) = wp%opt%totGridOrig(:)&
         & - matmul(wp%input%geo%latVecs, real(anint(frac), dp))
     ! We need all cells around, which could contain atoms in the sphere, drawn from the center of
     ! the unit cell, containing the entire plotted region
@@ -204,138 +287,421 @@ program waveplot
     do i1 = 0, 1
       do i2 = 0, 1
         do i3 = 0, 1
-          cubeCorner(:) = wp%opt%origin(:) &
-              &+ matmul(wp%opt%boxVecs, real([i1, i2, i3], dp))
+          cubeCorner(:) = wp%opt%origin(:) + matmul(wp%opt%boxVecs, real([i1, i2, i3], dp))
           dist = sqrt(sum((cubeCorner - cellMiddle)**2))
           mDist = max(dist, mDist)
         end do
       end do
     end do
+
     call getCellTranslations(cellVec, rCellVec, wp%input%geo%latVecs, recVecs2p, mDist)
+
     ! Check all atoms in the shifted cells, if they fall in the plotted region
     call init(coordList)
     call init(speciesList)
+
     do iCell = 1, size(rCellVec, dim=2)
       do iAtom = 1, wp%input%geo%nAtom
-        coord(:) = wp%input%geo%coords(:,iAtom) + rCellVec(:,iCell)
-        frac(:) = matmul(invBoxVecs, coord - wp%opt%origin)
-        if (all(frac > -1e-04_dp) .and. all(frac < 1.0_dp + 1e-04_dp)) then
+        coord(:) = wp%input%geo%coords(:, iAtom) + rCellVec(:, iCell)
+        frac(:) = matmul(invBoxVecs, coord - wp%opt%origin(:))
+        if (all(frac > - 1e-04_dp) .and. all(frac < 1.0_dp + 1e-04_dp)) then
           call append(coordList, coord)
           call append(speciesList, wp%input%geo%species(iAtom))
         end if
       end do
     end do
+
     deallocate(wp%input%geo%coords)
     deallocate(wp%input%geo%species)
+
     wp%input%geo%nAtom = len(coordList)
+
     allocate(wp%input%geo%coords(3, wp%input%geo%nAtom))
     allocate(wp%input%geo%species(wp%input%geo%nAtom))
+
     call asArray(coordList, wp%input%geo%coords)
     call asArray(speciesList, wp%input%geo%species)
+
     deallocate(cellVec)
     deallocate(rCellVec)
+
   end if
 
-  ! Calculate the molecular orbitals and write them to the disk
-  iSpinOld = 1
-  tFinished = .false.
-  lpStates: do while (.not. tFinished)
-    ! Get the next grid and its parameters
-    if (wp%input%tRealHam) then
-      call next(wp%loc%grid, gridValReal, levelIndex, tFinished)
+  ! Calculate mapping from the values which are in the level index to array indices. The 'Prime'
+  ! variables contain these mappings.
+  allocate(iLPrime(size(wp%opt%levelIndex, dim=2)))
+  allocate(iKPointPrime(size(wp%opt%levelIndex, dim=2)))
+  allocate(iSpinPrime(size(wp%opt%levelIndex, dim=2)))
+
+  iLPrime(:) = 0
+  iKPointPrime(:) = 0
+  iSpinPrime(:) = 0
+
+  levelCounter = 1
+  kpointCounter = 1
+  spinCounter = 1
+
+  LNum = 1
+  KNum = 1
+  SNum = 1
+
+  do ii = 1, size(wp%opt%levelIndex, dim=2)
+    if (ii .eq. 1) then
+      iLPrime(ii) = 1
     else
-      call next(wp%loc%grid, gridValCmpl, levelIndex, tFinished)
-    end if
-    iLevel = levelIndex(1)
-    iKPoint = levelIndex(2)
-    iSpin = levelIndex(3)
-
-    ! Save spin up density before processing first level for spin down
-    if (wp%opt%tPlotTotSpin .and. (iSpinOld /= iSpin)) then
-      iSpinOld = iSpin
-      spinUp(:,:,:) = totChrg(:,:,:)
-    end if
-
-    ! Build charge if needed for total charge or was explicitely required
-    tPlotLevel = any(wp%opt%plottedSpins == iSpin) &
-        &.and. any(wp%opt%plottedKPoints == iKPoint) .and. any(wp%opt%plottedLevels == iLevel)
-    if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or. wp%opt%tPlotChrgDiff)))&
-        & then
-      if (wp%input%tRealHam) then
-        buffer = gridValReal**2
+      if (any(wp%opt%levelIndex(1, 1:ii - 1) .eq. wp%opt%levelIndex(1, ii))) then
+        tmparray = findloc(wp%opt%levelIndex(1,:), wp%opt%levelIndex(1, ii))
+        iLPrime(ii) = iLPrime(tmparray(1))
       else
-        buffer = abs(gridValCmpl)**2
+        iLPrime(ii) = iLPrime(ii - 1) + 1
+        LNum = LNum + 1
       end if
-      if (wp%opt%tCalcTotChrg) then
-        totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(iLevel, iKPoint, iSpin)&
-            & * buffer(:,:,:)
-      end if
-      sumChrg = sum(buffer) * wp%loc%gridVol
-      if (wp%opt%tVerbose) then
-        write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
-            & wp%input%occupations(iLevel, iKPoint, iSpin)
-      end if
+      levelCounter = levelCounter + 1
     end if
+  end do
 
-    ! Build and dump desired properties of the current level
-    if (tPlotLevel) then
-      if (wp%opt%tPlotChrg) then
-        write (comments(2), 9990) wp%input%identity, iSpin, iKPoint, iLevel
-9990    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', abs2')
-        fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-abs2.cube"
-        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+  do ii = 1, size(wp%opt%levelIndex, dim=2)
+    if (ii .eq. 1) then
+      iKPointPrime(ii) = 1
+    else
+      if (any(wp%opt%levelIndex(2, 1:ii - 1) .eq. wp%opt%levelIndex(2, ii))) then
+        tmparray = findloc(wp%opt%levelIndex(2, :), wp%opt%levelIndex(2, ii))
+        iKPointPrime(ii) = iKPointPrime(tmparray(1))
+      else
+        iKPointPrime(ii) = iKPointPrime(ii - 1) + 1
+        KNum = KNum + 1
       end if
+      kpointCounter = kpointCounter + 1
+    end if
+  end do
 
-      if (wp%opt%tPlotChrgDiff) then
-        buffer = buffer - (sumChrg / sumAtomicChrg) * atomicChrg(:,:,:,1)
-        write (comments(2), 9995) wp%input%identity, iSpin, iKPoint, iLevel
-9995    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', abs2diff')
-        fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) //&
-            & "-abs2diff.cube"
-        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+  do ii = 1, size(wp%opt%levelIndex, dim=2)
+    if (ii .eq. 1) then
+      iSpinPrime(ii) = 1
+    else
+      if (any(wp%opt%levelIndex(3, 1:ii - 1) .eq. wp%opt%levelIndex(3, ii))) then
+        tmparray = findloc(wp%opt%levelIndex(3, :), wp%opt%levelIndex(3, ii))
+        iSpinPrime(ii) = iSpinPrime(tmparray(1))
+      else
+        iSpinPrime(ii) = iSpinPrime(ii - 1) + 1
+        SNum = SNum + 1
       end if
+      spinCounter = spinCounter + 1
+    end if
+  end do
 
-      if (wp%opt%tPlotReal) then
-        if (wp%input%tRealHam) then
-          buffer = gridValReal
-        else
-          buffer = real(gridValCmpl, dp)
+  ! Extract all required k-points, levels and spins which are required for the calculation from the
+  ! levelIndex
+  allocate(requiredKPoints(KNum))
+  allocate(requiredLevels(LNum))
+  allocate(requiredSpins(SNum))
+
+  requiredKPoints(:) = 0
+  requiredLevels(:) = 0
+  requiredSpins(:) = 0
+
+  requiredLevels(1) = wp%opt%levelIndex(1, 1)
+  requiredKPoints(1) = wp%opt%levelIndex(2, 1)
+  requiredSpins(1) = wp%opt%levelIndex(3, 1)
+
+  i1 = 2
+  i2 = 2
+  i3 = 2
+
+  do ii = 2, size(wp%opt%levelIndex, dim=2)
+    if (.not. (any(wp%opt%levelIndex(2, 1:ii - 1) .eq. wp%opt%levelIndex(2, ii)))) then
+      requiredKPoints(i1) = wp%opt%levelIndex(2, ii)
+      i1 = i1 + 1
+    end if
+    if (.not. (any(wp%opt%levelIndex(1, 1:ii - 1) .eq. wp%opt%levelIndex(1, ii)))) then
+      requiredLevels(i2) = wp%opt%levelIndex(1, ii)
+      i2 = i2 + 1
+    end if
+    if (.not. (any(wp%opt%levelIndex(3, 1:ii - 1) .eq. wp%opt%levelIndex(3, ii)))) then
+      requiredSpins(i3) = wp%opt%levelIndex(3, ii)
+      i3 = i3 + 1
+    end if
+  end do
+
+  tmpKPoint = 0
+  tmpSpin = 0
+
+  allocate(kPointNumForLevel(size(requiredLevels)))
+  kPointNumForLevel(:) = 0
+  allocate(spinNumForLevel(size(requiredLevels)))
+  spinNumForLevel(:) = 0
+
+  allocate(requiredKPointsForLevel(size(requiredLevels), size(requiredKPoints)))
+
+  ind = 1
+  do jj = 1, size(requiredLevels)
+    do kk = 1, size(requiredKPoints)
+      do ii = 1, size(wp%opt%levelIndex, dim=2)
+        if (requiredLevels(jj) == wp%opt%levelIndex(1, ii)) then
+          if (wp%opt%levelIndex(2, ii) == requiredKPoints(kk)) then
+            kPointNumForLevel(jj) = kPointNumForLevel(jj) + 1
+            requiredKPointsForLevel(jj, ind) = wp%opt%levelIndex(2, ii)
+            ind = ind + 1
+          end if
         end if
-        write (comments(2), 9991) wp%input%identity, iSpin, iKPoint, iLevel
-9991    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', real')
-        fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-real.cube"
-        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+      end do
+    end do
+    ind = 1
+  end do
+
+  do jj = 1, size(requiredLevels)
+    do kk = 1, size(requiredSpins)
+      do ii = 1, size(wp%opt%levelIndex, dim=2)
+        if (requiredLevels(jj) == wp%opt%levelIndex(1, ii)) then
+          if ((wp%opt%levelIndex(3, ii) == requiredSpins(kk)) .and. &
+              & (requiredSpins(kk) .ne. requiredSpins(kk))) then
+            spinNumForLevel(jj) = spinNumForLevel(jj) + 1
+          end if
+        end if
+      end do
+    end do
+  end do
+
+  write(*, '(/A)') 'wp%opt%levelIndex'
+  write(*,*) shape(wp%opt%levelIndex)
+  write(strbuffer, "(I3)") size(wp%opt%levelIndex, dim=2)
+  write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
+  write(*, strBuffer) transpose(wp%opt%levelIndex)
+
+  write(*, '(/A)') 'requiredLevels, requiredKPoints, requiredSpins'
+  write(*,*) requiredLevels
+  write(*,*) requiredKPoints
+  write(*,*) requiredSpins
+
+  write(*, '(/A)') 'iLPrime, iKPointPrime, iSpinPrime'
+  write(*, '(21(i3, 1X))') iLPrime
+  write(*, '(/A)') ''
+  write(*, '(21(i3, 1X))') iKPointPrime
+  write(*, '(/A)') ''
+  write(*, '(21(i3, 1X))') iSpinPrime
+
+  write(*, '(/A)') 'levelCounter, kPointCounter, spinCounter'
+  write(*,*) levelCounter, kPointCounter, spinCounter
+
+  write(*, '(/A)') 'kPointNumForLevel, spinNumForLevel'
+  write(*,*) kPointNumForLevel
+  write(*,*) spinNumForLevel
+
+  write(*, '(/A)') 'requiredKPointsForLevel'
+  write(strbuffer, "(I3)") size(requiredKPointsForLevel, dim=2)
+  write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
+  write(*, strBuffer) transpose(requiredKPointsForLevel)
+
+  ! allocate regional global grid tiles
+  allocate(regionGridDat(wp%opt%parallelRegionNum))
+
+  ! get start and end index of every parallel region of the global grid instance
+  call getStartAndEndIndices(size(totGridDat%data, dim=3), wp%opt%parallelRegionNum, tiling)
+
+  ! assign subgrids to parallel regions of the total grid
+  do iGrid = 1, wp%opt%parallelRegionNum
+    tmpGrid = totGridDat%grid
+    tmpGrid%lowerBounds(3) = tiling(1, iGrid) - 1
+    tmpGrid%upperBounds(3) = tiling(2, iGrid) - 1
+    tmpGrid%nPoints(3) = tiling(2, iGrid) - tiling(1, iGrid) + 1
+    pTmpData => totGridDat%data(:,:, tiling(1, iGrid):tiling(2, iGrid))
+    call TGridData_init(regionGridDat(iGrid), tmpGrid, pTmpData,&
+        & rwTabulationType=rwTabulationTypes%explicit)
+  end do
+
+  ! Calculate the cartesian coordinates of the grid points of the total grid.
+  if (wp%opt%gridInterType == gridInterpolTypes%explicit) then
+    allocate(cartCoords(3, totGridDat%grid%nPoints(1), &
+        & totGridDat%grid%nPoints(2), totGridDat%grid%nPoints(3)))
+
+    do iGrid = 1, wp%opt%parallelRegionNum
+      do kk = regionGridDat(iGrid)%grid%lowerBounds(3), regionGridDat(iGrid)%grid%upperBounds(3)
+        idx(3, 1) = kk
+        do jj = regionGridDat(iGrid)%grid%lowerBounds(2), regionGridDat(iGrid)%grid%upperBounds(2)
+          idx(2, 1) = jj
+          do ii = regionGridDat(iGrid)%grid%lowerBounds(1),&
+                & regionGridDat(iGrid)%grid%upperBounds(1)
+            idx(1, 1) = ii
+            aa(:) = idx(:, 1) - regionGridDat(iGrid)%grid%lowerBounds + 1
+            call regionGridDat(iGrid)%grid%gridcoordToCartesian(idx, cartCoordsTmp)
+            cartCoords(:, aa(1), aa(2), tiling(1, iGrid) + aa(3) - 1) = cartcoordsTmp(:,1)
+          end do
+        end do
+      end do
+    end do
+  end if
+
+  allocate(phases(size(wp%loc%molorb%CellVec, dim=2), size(wp%input%kPointsandWeight, dim=2)))
+  wp%input%kPointsandWeight(1:3, :) = 2.0_dp * pi * wp%input%kPointsandWeight(1:3, :)
+  phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), &
+      & wp%input%kPointsandWeight(1:3, :)))
+
+  if (mod(size(requiredLevels), wp%opt%nCached) == 0) then
+    nCachedBlock = size(requiredLevels) / wp%opt%nCached
+  else if (mod(size(requiredLevels), wp%opt%nCached) > 0) then
+    nCachedBlock = size(requiredLevels) / wp%opt%nCached + 1
+  end if
+
+  call getStartAndEndIndicesByChunkSize(size(requiredLevels), nCachedBlock, &
+      & wp%opt%nCached, statesTiling)
+
+  write(*, '(/A)') 'statesTiling'
+  write(*,*) statesTiling
+
+  write(*, '(/A)') 'occupations'
+  write(*,*) shape(wp%input%occupations)
+  write(*,*) wp%input%occupations
+
+  do iCachedBlock = 1, nCachedBlock
+
+      if (wp%input%tRealHam) then
+        call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+            & wp%eig%eigvecsReal, wp%opt%levelIndex, requiredLevels, requiredKPoints, requiredSpins,&
+            & requiredKPointsForLevel, kPointNumForLevel,&
+            & wp%loc%orbitalToAtom,&
+            & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+            & statesTiling(:,iCachedBlock), &
+            & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
+            & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
+      else
+        pCopyBuffers => copyBuffersCplx
+        call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
+            & wp%eig%eigvecsCplx, wp%opt%levelIndex, requiredLevels, requiredKPoints, requiredSpins,&
+            & requiredKPointsForLevel, kPointNumForLevel,&
+            & wp%loc%orbitalToAtom,&
+            & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
+            & statesTiling(:,iCachedBlock), &
+            & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
+            & wp%loc%orbitalToStos, totGridsDatCplx,&
+            & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
+            & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
       end if
 
-      if (wp%opt%tPlotImag) then
-        buffer = aimag(gridValCmpl)
-        write (comments(2), 9992) wp%input%identity, iSpin, iKPoint, iLevel
-9992    format('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6, ', imag')
-        fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-imag.cube"
-        call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-            & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
-      end if
-    end if
-  end do lpStates
+    levelInd = 1
+    do iL = statesTiling(1, iCachedBlock), statesTiling(2, iCachedBlock)
+      currentLevel = requiredLevels(iL)
+      do iKPoint = 1, size(requiredKPoints)
+        currentKPoint = requiredKPoints(iKPoint)
+
+        lpSpin: do iSpin = 1, size(requiredSpins)
+          currentSpin = requiredSpins(iSpin)
+
+
+          ! Build charge if needed for total charge or if it was explicitely required
+          tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. any(wp%opt%plottedKPoints ==&
+              & iKPoint) .and. any(wp%opt%plottedLevels == iLevel)
+
+          if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or.&
+              & wp%opt%tPlotChrgDiff))) then
+
+            if (wp%input%tRealHam) then
+              buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)**2
+            else
+              buffer(:,:,:) = abs(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))**2
+            end if
+
+            if (wp%opt%tCalcTotChrg) then
+              totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
+                  & * buffer(:,:,:)
+            end if
+
+            if (wp%opt%tPlotTotSpin) then
+              if (iSpin .eq. 1) then
+                spinUp(:,:,:) = spinUp(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
+                    & * buffer(:,:,:)
+              else
+                spinDown(:,:,:) = spinDown(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin) *&
+                    & buffer(:,:,:)
+              end if
+            end if
+
+            sumChrg = sum(buffer) * wp%loc%gridVol
+
+            if (wp%opt%tVerbose) then
+              write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") currentSpin, currentKPoint, currentLevel, "calc", sumChrg,&
+                  & wp%input%occupations(currentLevel, currentKPoint, currentSpin)
+            end if
+
+          end if
+
+          ! Build and dump desired properties of the current level
+          if (tPlotLevel) then
+
+            if (wp%opt%tPlotChrg) then
+              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                  & ', abs2')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-abs2.cube"
+              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+            end if
+
+            ! Plot charge difference
+            if (wp%opt%tPlotChrgDiff) then
+              buffer = buffer - (sumChrg / sumAtomicChrg) * atomDensity(:,:,:)
+              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                  & ', abs2diff')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) //&
+                  & "-abs2diff.cube"
+              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+            end if
+
+            ! Plot real part of WFs
+            if (wp%opt%tPlotReal) then
+
+              if (wp%input%tRealHam) then
+                buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)
+              else
+                buffer(:,:,:) = real(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin), dp)
+              end if
+
+              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                  & ', real')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-real.cube"
+              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+
+            end if
+
+            ! Plot imaginary part of WFs
+            if (wp%opt%tPlotImag) then
+              buffer(:,:,:) = aimag(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))
+              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                  & ', imag')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-imag.cube"
+              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+            end if
+
+          end if
+
+        end do lpSpin
+      end do
+      levelInd = levelInd + 1
+    end do
+
+  end do
+    ! end do
+    !   end do
+    ! end do
 
   ! Dump total charge, if required
   if (wp%opt%tCalcTotChrg) then
     sumTotChrg = sum(totChrg) * wp%loc%gridVol
   end if
+
+  ! Plot total charge
   if (wp%opt%tPlotTotChrg) then
-    write (comments(2), 9993) wp%input%identity
-9993 format('Calc-Id:',I11,', abs2')
+    write (comments(2), "('Calc-Id:',I11,', abs2')") wp%input%identity
     fileName = "wp-abs2.cube"
-    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
-        & totChrg, fileName, comments, wp%opt%repeatBox)
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+        & wp%opt%totGridOrig, totChrg, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+
     if (wp%opt%tVerbose) then
       write(stdout, "(/,'Total charge:',F12.6,/)") sumTotChrg
     end if
@@ -343,25 +709,26 @@ program waveplot
 
   ! Dump total charge difference
   if (wp%opt%tPlotTotDiff) then
-    buffer = totChrg - (sumTotChrg / sumAtomicChrg) * atomicChrg(:,:,:,1)
-    write (comments(2), 9994) wp%input%identity
-9994 format('Calc-Id:',I11,', abs2diff')
+    buffer = totChrg - (sumTotChrg / sumAtomicChrg) * atomDensity(:,:,:)
+    write (comments(2), "('Calc-Id:',I11,', abs2diff')") wp%input%identity
     fileName = 'wp-abs2diff.cube'
-    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec, &
+        & wp%opt%totGridOrig,&
         & buffer, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
   ! Dump spin polarisation
   if (wp%opt%tPlotTotSpin) then
-    buffer = 2.0_dp * spinUp - totChrg
-    write (comments(2), 9996) wp%input%identity
-9996 format('Calc-Id:',I11,', spinpol')
+    buffer = spinUp - spinDown
+    write (comments(2), "('Calc-Id:',I11,', spinpol')") wp%input%identity
     fileName = 'wp-spinpol.cube'
-    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
+    call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec, &
+        & wp%opt%totGridOrig,&
         & buffer, fileName, comments, wp%opt%repeatBox)
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
+
 
 #:if WITH_MPI
   call mpifx_finalize()
