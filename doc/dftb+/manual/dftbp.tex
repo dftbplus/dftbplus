@@ -5214,11 +5214,10 @@ calculation and/or calculate properties.
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{Printforces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
-  \kw{Polarisability} & m & Hamiltonian = DFTB & \cb &
-  \pref{sec:dftbp.eperturb} \\
-  \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
-  \pref{sec:dftbp.rperturb} \\
+  \kw{Polarisability} & m & Hamiltonian = DFTB & \cb & \pref{sec:dftbp.eperturb} \\
+  \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb & \pref{sec:dftbp.rperturb} \\
   \kw{CoordDerivatives} & l & & No & \\
+  \kw{DielectricFunction} & m & Periodic = Yes & & \pref{sec:dftbp.dielectricfn} \\
 \end{ptable}
 
 \begin{description}
@@ -5559,6 +5558,26 @@ Analysis {
   }
 }
 \end{verbatim}
+
+\subsection{DielectricFunction}
+\label{sec:dftbp.dielectricfn}
+
+Evaluates the singe-particle dielectric function for periodic geometries.
+
+\begin{ptable}
+  \kw{Eta} & r  &  & 3.6749E-8 & \\
+  \kw{GridSpacing} & r  &  & 3.6749E-4 & \\
+  \kw{Sigma} & r  &  & 3.6749E-3 & \\
+  \end{ptable}
+\begin{description}
+\item[\is{Eta}] Magnitide of the small imaginary constant used in the
+  Kramers-Kronig transformation and to avoid numerical instability for
+  the DC limit of the dielectric function.
+\item[\is{GridSpacing}] Energy resolution of the dielectric function
+  evaluation.
+\item[\is{Sigma}] Gaussian width for broadening the imaginary
+  dielectric evaluation.
+\end{description}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

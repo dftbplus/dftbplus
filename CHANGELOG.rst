@@ -15,6 +15,10 @@ Added
 
 - Generalization of mixers to also handle complex density matrices
 
+- Perturbation based derivatives with respect to crystal momentum k
+
+- Dielectric function evaluation
+
 - General range-separated, long-range corrected CAM hybrid functionals for
   ground-state periodic systems (MPI-parallel Fock-type exchange and energy
   gradient construction by neighbour-list and matrix-multiplication based

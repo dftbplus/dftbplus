@@ -68,7 +68,8 @@ module dftbp_dftb_densitymatrix
     integer, allocatable :: iKiSToiGlobalKS(:,:)
 
     !> The k'-points that are possibly different from the current k-points in case of a
-    !! bandstructure calculation
+    !! bandstructure calculation with hybrids. In the case of such a band structure calculation, the
+    !! density matrix is available at the k' points, but the hamiltonian will be constructed at k.
     real(dp), allocatable :: kPointPrime(:,:)
 
     !> Weights of the k'-points

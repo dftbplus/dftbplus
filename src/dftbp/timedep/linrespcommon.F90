@@ -28,7 +28,11 @@ module dftbp_timedep_linrespcommon
 
   implicit none
 
-  public
+  private
+  public :: excitedDipoleOut, excitedQOut, twothird, oscillatorStrength, indxoo, indxov, indxvv,&
+      & rindxov_array, getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole,&
+      & writeSPExcitations, getExcSpin, writeExcMulliken, actionAplusB, actionAminusB,&
+      & initialSubSpaceMatrixApmB, incMemStratmann, getSqrOcc
 
   !> Prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
