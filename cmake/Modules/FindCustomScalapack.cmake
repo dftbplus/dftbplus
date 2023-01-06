@@ -1,6 +1,6 @@
 # Distributed under the OSI-approved BSD 2-Clause License.
 #
-# Copyright (C) 2020 DFTB+ developers group
+# Copyright (C) 2023 DFTB+ developers group
 #
 
 #[=======================================================================[.rst:
