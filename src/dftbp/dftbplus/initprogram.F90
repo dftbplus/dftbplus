@@ -1163,6 +1163,9 @@ module dftbp_dftbplus_initprogram
     !> Atomic charge contribution in excited state
     real(dp), allocatable :: dQAtomEx(:)
 
+    !> Complex k choices for extra band structure analysis
+    complex(dp), allocatable :: cmplxKPoints(:,:)
+
     !> Boundary condition
     type(TBoundaryConditions) :: boundaryCond
 
@@ -1504,6 +1507,9 @@ contains
       else
         this%tRealHS = .false.
       end if
+    end if
+    if (allocated(input%ctrl%cmplxKPoints)) then
+      this%tRealHS = .false.
     end if
 
   #:if WITH_MPI
@@ -2987,6 +2993,10 @@ contains
     this%tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
         & .and. this%electronicSolver%providesEigenvals
 
+    if (allocated(input%ctrl%cmplxKPoints)) then
+      call move_alloc(input%ctrl%cmplxKPoints, this%cmplxKPoints)
+    end if
+
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
     if (tExist) then
@@ -3587,6 +3597,13 @@ contains
         end if
         write(stdOut,"(A,T28,I6,':',2F10.6,3X,F10.6)") trim(strTmp), ii, this%kPoint(:, ii),&
             & this%kWeight(ii)
+      end do
+    end if
+
+    if (allocated(this%cmplxKPoints)) then
+      write(stdOut,"(A)")'Analysis complex k-points'
+      do ii = 1, size(this%cmplxKPoints, dim=2)
+        write(stdOut,"(T10,I0,':',6F10.6)") ii, this%cmplxKPoints(:,ii)
       end do
     end if
 

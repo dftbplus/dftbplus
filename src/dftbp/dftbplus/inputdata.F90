@@ -487,6 +487,7 @@ module dftbp_dftbplus_inputdata
 
     !> Nr. of SCC iterations without restart info
     integer :: restartFreq  = 20
+
     logical :: tWriteDetailedXML = .false.
     logical :: tWriteResultsTag = .false.
     logical :: tWriteDetailedOut = .true.
@@ -500,6 +501,9 @@ module dftbp_dftbplus_inputdata
     logical :: tReadShifts = .false.
     !> Potential shifts are written on file
     logical :: tWriteShifts = .false.
+
+    !> Complex valued k-points for analysis
+    complex(dp), allocatable :: cmplxKPoints(:,:)
 
     !> Use Poisson solver for electrostatics
     logical :: tPoisson = .false.

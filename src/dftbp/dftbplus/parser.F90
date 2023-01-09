@@ -77,7 +77,8 @@ module dftbp_dftbplus_parser
   use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
-      & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
+      & TListRealR2, TListComplexR1,TListString, init, destruct, append, get, len, asArray,&
+      & asVector, intoArray
   use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireHybridXcTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
@@ -1964,8 +1965,8 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
-    call getChildValue(node, "Dispersion", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "Dispersion", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
@@ -5139,6 +5140,8 @@ contains
     logical :: tPipekDense
     logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
+    type(TListComplexR1) :: lc1
+    real(dp), allocatable :: c2Tmp(:,:)
 
     tHaveEigenDecomposition = providesEigenvalues(ctrl%solver%isolver)
     tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
@@ -5232,6 +5235,23 @@ contains
     #:endif
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
+
+      if (tHaveEigenDecomposition .and. .not. withScalapack) then
+        if (geo%tPeriodic) then
+          call init(lc1)
+          call getChildValue(node, "KPoints", val, "", child=child, allowEmptyValue=.true.)
+          call getNodeName2(val, buffer)
+          if (char(buffer) /= "") then
+            call getChildValue(child, "", 3, lc1)
+          end if
+          if (len(lc1) > 0) then
+            allocate(ctrl%cmplxKPoints(3,len(lc1)), source=cmplx(0, 0, dp))
+            call asArray(lc1, ctrl%cmplxKPoints)
+          end if
+          call destruct(lc1)
+        else if (geo%tHelical) then
+        end if
+      end if
 
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)
