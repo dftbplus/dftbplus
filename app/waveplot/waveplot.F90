@@ -462,35 +462,35 @@ program waveplot
     end do
   end do
 
-  write(*, '(/A)') 'wp%opt%levelIndex'
-  write(*,*) shape(wp%opt%levelIndex)
-  write(strbuffer, "(I3)") size(wp%opt%levelIndex, dim=2)
-  write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
-  write(*, strBuffer) transpose(wp%opt%levelIndex)
+  ! write(*, '(/A)') 'wp%opt%levelIndex'
+  ! write(*,*) shape(wp%opt%levelIndex)
+  ! write(strbuffer, "(I3)") size(wp%opt%levelIndex, dim=2)
+  ! write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
+  ! write(*, strBuffer) transpose(wp%opt%levelIndex)
 
-  write(*, '(/A)') 'requiredLevels, requiredKPoints, requiredSpins'
-  write(*,*) requiredLevels
-  write(*,*) requiredKPoints
-  write(*,*) requiredSpins
+  ! write(*, '(/A)') 'requiredLevels, requiredKPoints, requiredSpins'
+  ! write(*,*) requiredLevels
+  ! write(*,*) requiredKPoints
+  ! write(*,*) requiredSpins
 
-  write(*, '(/A)') 'iLPrime, iKPointPrime, iSpinPrime'
-  write(*, '(21(i3, 1X))') iLPrime
-  write(*, '(/A)') ''
-  write(*, '(21(i3, 1X))') iKPointPrime
-  write(*, '(/A)') ''
-  write(*, '(21(i3, 1X))') iSpinPrime
+  ! write(*, '(/A)') 'iLPrime, iKPointPrime, iSpinPrime'
+  ! write(*, '(21(i3, 1X))') iLPrime
+  ! write(*, '(/A)') ''
+  ! write(*, '(21(i3, 1X))') iKPointPrime
+  ! write(*, '(/A)') ''
+  ! write(*, '(21(i3, 1X))') iSpinPrime
 
-  write(*, '(/A)') 'levelCounter, kPointCounter, spinCounter'
-  write(*,*) levelCounter, kPointCounter, spinCounter
+  ! write(*, '(/A)') 'levelCounter, kPointCounter, spinCounter'
+  ! write(*,*) levelCounter, kPointCounter, spinCounter
 
-  write(*, '(/A)') 'kPointNumForLevel, spinNumForLevel'
-  write(*,*) kPointNumForLevel
-  write(*,*) spinNumForLevel
+  ! write(*, '(/A)') 'kPointNumForLevel, spinNumForLevel'
+  ! write(*,*) kPointNumForLevel
+  ! write(*,*) spinNumForLevel
 
-  write(*, '(/A)') 'requiredKPointsForLevel'
-  write(strbuffer, "(I3)") size(requiredKPointsForLevel, dim=2)
-  write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
-  write(*, strBuffer) transpose(requiredKPointsForLevel)
+  ! write(*, '(/A)') 'requiredKPointsForLevel'
+  ! write(strbuffer, "(I3)") size(requiredKPointsForLevel, dim=2)
+  ! write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
+  ! write(*, strBuffer) transpose(requiredKPointsForLevel)
 
   ! allocate regional global grid tiles
   allocate(regionGridDat(wp%opt%parallelRegionNum))
@@ -545,12 +545,18 @@ program waveplot
   call getStartAndEndIndicesByChunkSize(size(requiredLevels), nCachedBlock, &
       & wp%opt%nCached, statesTiling)
 
-  write(*, '(/A)') 'statesTiling'
-  write(*,*) statesTiling
+  ! write(*, '(/A)') 'nCachedBlock'
+  ! write(*,*) nCachedBlock
 
-  write(*, '(/A)') 'occupations'
-  write(*,*) shape(wp%input%occupations)
-  write(*,*) wp%input%occupations
+  ! write(*, '(/A)') 'wp%opt%nCached'
+  ! write(*,*) wp%opt%nCached
+
+  ! write(*, '(/A)') 'statesTiling'
+  ! write(*,*) statesTiling
+
+  ! write(*, '(/A)') 'occupations'
+  ! write(*,*) shape(wp%input%occupations)
+  ! write(*,*) wp%input%occupations
 
   do iCachedBlock = 1, nCachedBlock
 

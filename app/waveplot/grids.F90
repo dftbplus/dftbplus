@@ -1515,12 +1515,16 @@ end subroutine subgridsToCachedGlobalGrids
     !> array holding the values of the STOs for every periodic Cell,
     !> shape: [nxPoints, nyPoints, nzPoints, nCells]
     complex(dp), allocatable :: basis(:,:,:,:)
+    complex(dp), allocatable :: basis2(:,:,:,:)
+    complex(dp), allocatable :: basisTmp(:,:,:)
 
     !> auxiliary variables
     integer :: iGrid, iOrb, iCell, iAtom, iSubgrid, iSpin, iKPoint, iL, iAng, iM, &
         & iStos, iState, ind, levelInd
 
     integer :: currentKPoint, currentLevel, currentSpin
+
+    integer :: uu, vv, ww
 
     ! try to ensure a smooth runtime
     @:ASSERT(size(coeffs, dim=1) == size(orbitalToAtom))
@@ -1546,15 +1550,23 @@ end subroutine subgridsToCachedGlobalGrids
         & globalGridDat%grid%nPoints(3), size(coords, dim=3)))
     basis(:,:,:,:) = 0.0_dp
 
+    allocate(basis2(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+        & globalGridDat%grid%nPoints(3), size(requiredKPoints)))
+    basis2(:,:,:,:) = 0.0_dp
+
+    allocate(basisTmp(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
+        & globalGridDat%grid%nPoints(3)))
+    basisTmp(:,:,:) = 0.0_dp
+
     !$omp parallel do default(none)&
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid,&
     !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType,&
     !$omp& phases, basis, stos, orbitalToAngs, &
     !$omp& orbitalToM, rwfTabulationType, cartcoords, orbitalToStos,&
     !$omp& statesTiling, requiredLevels, kPointNumForLevel, requiredKPoints,&
-    !$omp& requiredSpins)&
+    !$omp& requiredSpins, basis2, basisTmp)&
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, ind, iState, iAng, iM, iStos,&
-    !$omp& currentKPoint, currentLevel, currentSpin, iL, iSpin, iKPoint, levelInd)
+    !$omp& currentKPoint, currentLevel, currentSpin, iL, iSpin, iKPoint, levelInd, uu, vv, ww)
     lpGrid: do iGrid = 1, nRegions
       lpOrb: do iOrb = 1, size(coeffs, dim=1)
 
@@ -1566,35 +1578,56 @@ end subroutine subgridsToCachedGlobalGrids
 
         lpCell: do iCell = 1, size(coords, dim=3)
 
-          basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) = &
+          basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
               & explicitSTOcalculation(regionGridDat(iGrid), subgridsDat(iSubgrid), &
               & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
               & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
               & square=tAddDensities)
 
-          levelInd = 1
-          do iL = statesTiling(1), statesTiling(2)
-            currentLevel = requiredLevels(iL)
-            do iKPoint = 1, size(requiredKPoints)
-              currentKPoint = requiredKPoints(iKPoint)
+          do iKPoint = 1, size(requiredKPoints)
+            basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
+                & basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) + &
+                & basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) * phases(iCell, iKPoint)
+          end do
 
-              lpSpin: do iSpin = 1, size(requiredSpins)
-                currentSpin = requiredSpins(iSpin)
+          ! do iKPoint = 1, size(requiredKPoints)
+          !   do ww = tiling(1, iGrid), tiling(2, iGrid)
+          !     do vv = 1, size(basis2, dim=2)
+          !       do uu = 1, size(basis2, dim=1)
+          !         basis2(uu, vv, ww, iKPoint) = &
+          !             & basis2(uu, vv, ww, iKPoint) + &
+          !             & basisTmp(uu, vv, ww) * phases(iCell, iKPoint)
+          !       end do
+          !     end do
+          !   end do
+          ! end do
 
-                globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
-                    & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
-                    & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
-                    & basis(:,:, tiling(1, iGrid):tiling(2, iGrid), iCell) * phases(iCell, iKPoint)
+        end do lpCell
 
-              end do lpSpin
+        levelInd = 1
+        do iL = statesTiling(1), statesTiling(2)
+          currentLevel = requiredLevels(iL)
+          do iKPoint = 1, size(requiredKPoints)
+            currentKPoint = requiredKPoints(iKPoint)
 
-            end do
+            lpSpin: do iSpin = 1, size(requiredSpins)
+              currentSpin = requiredSpins(iSpin)
 
-            levelInd = levelInd + 1
+              globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
+                  & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
+                  & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
+                  & basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint)
+
+            end do lpSpin
 
           end do
 
-        end do lpCell
+          levelInd = levelInd + 1
+
+        end do
+
+        basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), :) = 0.0_dp
+
       end do lpOrb
     end do lpGrid
     !$omp end parallel do
