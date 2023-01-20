@@ -43,6 +43,9 @@ target_link_libraries(test_ehrenfest dftbplus)
 add_executable(test_ehrenfest_ext_ions test_ehrenfest_ext_ions.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_ehrenfest_ext_ions dftbplus)
 
+add_executable(test_neighbour_list test_neighbour_list.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_neighbour_list dftbplus)
+
 dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_setspeciesanddependents.F90"
   test_setspeciesanddependents.f90)
 

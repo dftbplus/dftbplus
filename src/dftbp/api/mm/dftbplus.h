@@ -250,6 +250,37 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
                                        const double *latvecs, const double *origin);
 
 /**
+ * Sets the neighbour list.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nAllAtom Number of atom images in all interacting cells, which is usually much larger
+ *     than natom
+ *
+ * \param[in] nMaxNeighbours Maximum number of neighbours an atom can have
+ *
+ * \param[in] nNeighbours Number of neighbours for each atom Shape: [natom].
+ *
+ * \param[in] neighbourIndex References to image atoms for all neighbours of each atom
+ *     Shape: [nMaxNeighbours, natom].
+ *
+ * \param[in] neighbourDistance Distances to image atoms for all neighbours of each atom
+ *     Shape: [nMaxNeighbours, natom].
+ *
+ * \param[in] cutoff Cutoff used to compute the neighbour list Unit: Bohr.
+ *
+ * \param[in] coord Coordinates of all image atoms Shape: [3, nAllAtom]. Unit: Bohr.
+ *
+ * \param[in] img2CentCell Index of the atom in the central cell an image atom corresponds to Shape: [nAllAtom].
+ *
+ */
+void dftbp_set_neighbour_list(DftbPlus *instance, const int nAllAtom, const int nMaxNeighbours,
+                                       const int *nNeighbours, const int *neighbourIndex,
+                                       const double *neighbourDistance, const double cutoff,
+                                       const double *coord, const int *img2CentCell);
+
+
+/**
  * Queries the nr. of atoms in the system.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -307,6 +338,16 @@ void dftbp_get_nr_orbitals(DftbPlus *instance, int *nOrbitals);
  * \param[out] masses Mass of each atom. Shape: [natom].
  */
 void dftbp_get_masses(DftbPlus *instance, double *masses);
+
+
+/**
+ * Queries the maximum cutoff distance used for interactions.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Cutoff distance Unit: Bohr.
+ */
+double dftbp_get_cutoff(DftbPlus *instance);
 
 
 /**

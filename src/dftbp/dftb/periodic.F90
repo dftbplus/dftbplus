@@ -37,7 +37,7 @@ module dftbp_dftb_periodic
   public :: TNeighbourList, TNeighbourlist_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
-  public :: fillNeighbourArrays, distributeAtoms, reallocateArrays2
+  public :: allocateNeighbourArrays, fillNeighbourArrays, distributeAtoms, reallocateArrays1, reallocateArrays2
 
 
   !> Contains essential data for the neighbourlist
@@ -69,6 +69,9 @@ module dftbp_dftb_periodic
     !> initialised data
     logical :: initialized = .false.
 
+    !> whether the neighbour list has been set by an API call
+    logical :: setExternally = .false.
+
   contains
 
     final :: TNeighbourlist_final
@@ -98,6 +101,7 @@ contains
 
     neighbourList%cutoff = -1.0_dp
     neighbourList%initialized = .true.
+    neighbourList%setExternally = .false.
 
   end subroutine TNeighbourlist_init
 
@@ -311,15 +315,17 @@ contains
     !> Helical translation and angle, if necessary, along z axis
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
-    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec, errStatus, env, symmetric, helicalBoundConds)
-    @:PROPAGATE_ERROR(errStatus)
+    if (.not. neigh%setExternally) then
+      call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
+          & rCellVec, errStatus, env, symmetric, helicalBoundConds)
+      @:PROPAGATE_ERROR(errStatus)
 
-    if (size(species) /= nAllAtom) then
-      deallocate(species)
-      allocate(species(nAllAtom))
+      if (size(species) /= nAllAtom) then
+        deallocate(species)
+        allocate(species(nAllAtom))
+      end if
+      species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
     end if
-    species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
   end subroutine updateNeighbourListAndSpecies
 
@@ -576,27 +582,18 @@ contains
 
     end do lpStoreAtoms
 
+    call allocateNeighbourArrays(neigh, maxNeighbour, nAtom, isParallel, env)
     call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-        & nAtom, isParallel, env)
+        & nAtom, isParallel)
 
   end subroutine updateNeighbourList
 
 
-  !> Allocate arrays for type 'neigh' and collect all data
-  subroutine fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-      & nAtom, isParallel, env)
+  !> Allocate arrays for type 'neigh'
+  subroutine allocateNeighbourArrays(neigh, maxNeighbour, nAtom, isParallel, env)
 
     !> Contains all neighbour information
     type(TNeighbourList), intent(inout) :: neigh
-
-    !> Array of neighbour indices
-    integer, allocatable, intent(in) :: iNeighbour(:,:)
-
-    !> Array if neighbour distances
-    real(dp), allocatable, intent(in) :: neighDist2(:,:)
-
-    !> First and last atomic indices for the current MPI process
-    integer, intent(in) :: startAtom, endAtom
 
     !> Maximum number of neighbours an atom can have
     integer, intent(in) :: maxNeighbour
@@ -610,10 +607,8 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in), optional :: env
 
-    integer :: ii
-
   #:if WITH_MPI
-    integer :: dataLength, maxNeighbourLocal
+    integer :: dataLength
   #:endif
 
     if (isParallel) then
@@ -636,7 +631,55 @@ contains
 
       neigh%iNeighbour(0:maxNeighbour,1:nAtom) => neigh%iNeighbourMemory(1:dataLength)
       neigh%neighDist2(0:maxNeighbour,1:nAtom) => neigh%neighDist2Memory(1:dataLength)
+    #:endif
+    else
+      if (associated(neigh%iNeighbour)) then
+        deallocate(neigh%iNeighbour)
+      end if
+      if (associated(neigh%neighDist2)) then
+        deallocate(neigh%neighDist2)
+      end if
 
+      allocate(neigh%iNeighbour(0:maxNeighbour,1:nAtom))
+      allocate(neigh%neighDist2(0:maxNeighbour,1:nAtom))
+    end if
+
+  end subroutine allocateNeighbourArrays
+
+
+  !> Collect all neighbour data and copy to neighbour arrays
+  subroutine fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
+      & nAtom, isParallel)
+
+    !> Contains all neighbour information
+    type(TNeighbourList), intent(inout) :: neigh
+
+    !> Array of neighbour indices
+    integer, allocatable, intent(in) :: iNeighbour(:,:)
+
+    !> Array if neighbour distances
+    real(dp), allocatable, intent(in) :: neighDist2(:,:)
+
+    !> First and last atomic indices for the current MPI process
+    integer, intent(in) :: startAtom, endAtom
+
+    !> Maximum number of neighbours an atom can have
+    integer, intent(in) :: maxNeighbour
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Whether computation is done in parallel
+    logical, intent(in) :: isParallel
+
+    integer :: ii
+
+  #:if WITH_MPI
+    integer :: maxNeighbourLocal
+  #:endif
+
+    if (isParallel) then
+    #:if WITH_MPI
       maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
 
       call neigh%iNeighbourWin%lock()
@@ -659,16 +702,6 @@ contains
       call neigh%neighDist2Win%unlock()
     #:endif
     else
-      if (associated(neigh%iNeighbour)) then
-        deallocate(neigh%iNeighbour)
-      end if
-      if (associated(neigh%neighDist2)) then
-        deallocate(neigh%neighDist2)
-      end if
-
-      allocate(neigh%iNeighbour(0:maxNeighbour,1:nAtom))
-      allocate(neigh%neighDist2(0:maxNeighbour,1:nAtom))
-
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
       neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
     end if

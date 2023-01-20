@@ -323,6 +323,49 @@ contains
   end subroutine c_DftbPlus_setCoordsLatticeVecsOrigin
 
 
+  !> Set the neighbour list instead of computing it in DFTB+
+  subroutine c_DftbPlus_setNeighbourList(handler, nAllAtom, nMaxNeighbours, nNeighbour,&
+      & iNeighbour, neighDist, cutOff, coord, img2CentCell)&
+      & bind(C, name='dftbp_set_neighbour_list')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> total number of image atoms
+    integer(c_int), value, intent(in) :: nAllAtom
+
+    !> maximum number of neighbours an atom can have
+    integer(c_int), value, intent(in) :: nMaxNeighbours
+
+    !> number of neighbours for each atom
+    integer(c_int), intent(in) :: nNeighbour(*)
+
+    !> references to image atoms
+    integer(c_int), intent(in) :: iNeighbour(nMaxNeighbours, *)
+
+    !> distances to image atoms
+    real(c_double), intent(in) :: neighDist(nMaxNeighbours, *)
+
+    !> cutoff of the neighbour list
+    real(c_double), value, intent(in) :: cutOff
+
+    !> coordinates of all image atoms
+    real(c_double), intent(in) :: coord(3, *)
+
+    !> mapping between image index (other cell) and atom index (central cell)
+    integer(c_int), intent(in) :: img2CentCell(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setNeighbourList(nNeighbour(1:nAtom), iNeighbour(:,1:nAtom),&
+        & neighDist(:,1:nAtom), cutOff, coord(:,1:nAllAtom), img2CentCell(1:nAllAtom))
+
+  end subroutine c_DftbPlus_setNeighbourList
+
+
   !> Obtain nr. of atoms.
   function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
     type(c_DftbPlus), intent(inout) :: handler
@@ -377,6 +420,23 @@ contains
     call instance%getNOrbitalsOnAtoms(nOrbitals(:nAtom))
 
   end subroutine c_DftbPlus_get_atom_nr_basis
+
+
+  !> Retrieve the cutoff distance that is being used for interactions
+  function c_DftbPlus_getCutOff(handler) result(cutOff) bind(C, name='dftbp_get_cutoff')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> cutoff distance
+    real(dp) :: cutOff
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    cutOff = instance%getCutOff()
+
+  end function c_DftbPlus_getCutOff
 
 
   !> Obtain the DFTB+ energy
