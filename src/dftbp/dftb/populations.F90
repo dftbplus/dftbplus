@@ -12,6 +12,8 @@
 module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
@@ -50,7 +52,10 @@ contains
 
   !> Calculate the Mulliken population for each atom in the system, by summing
   !> the individual orbital contriutions on each atom
-  subroutine mullikenPerAtom(qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine mullikenPerAtom(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The charge per atom
     real(dp), intent(inout) :: qq(:)
@@ -86,7 +91,7 @@ contains
     allocate(qPerOrbital(orb%mOrb, nAtom))
     qPerOrbital(:,:) = 0.0_dp
 
-    call mullikenPerOrbital( qPerOrbital,over,rho,orb,iNeighbour,nNeighbourSK, img2CentCell,iPair )
+    call mullikenPerOrbital(env, qPerOrbital,over,rho,orb,iNeighbour,nNeighbourSK, img2CentCell,iPair )
 
     qq(:) = qq(:) + sum(qPerOrbital, dim=1)
     deallocate(qPerOrbital)
@@ -99,7 +104,10 @@ contains
   !> one triangle of real space extended matrices
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerOrbital(qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine mullikenPerOrbital(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The charge per orbital
     real(dp), intent(inout) :: qq(:,:)
@@ -131,13 +139,17 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
     real(dp) :: mulTmp(orb%mOrb**2)
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         sqrTmp(:,:) = 0.0_dp
@@ -157,6 +169,8 @@ contains
       end do
     end do
 
+    call assembleChunks(env, qq)
+
   end subroutine mullikenPerOrbital
 
 
@@ -164,7 +178,10 @@ contains
   !> using purely real-space overlap and density matrix values.
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerBlock(qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine mullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The charge per atom block
     real(dp), intent(inout) :: qq(:,:,:)
@@ -196,13 +213,17 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: STmp(orb%mOrb,orb%mOrb)
     real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
@@ -223,6 +244,8 @@ contains
       end do
     end do
 
+    call assembleChunks(env, qq)
+
   end subroutine mullikenPerBlock
 
 
@@ -230,7 +253,10 @@ contains
   !> system using purely real-space overlap and density matrix values.
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine skewMullikenPerBlock(qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine skewMullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The charge per atom block
     real(dp), intent(inout) :: qq(:,:,:)
@@ -262,13 +288,17 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: STmp(orb%mOrb,orb%mOrb)
     real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
@@ -288,6 +318,8 @@ contains
         end if
       end do
     end do
+
+    call assembleChunks(env, qq)
 
   end subroutine skewMullikenPerBlock
 

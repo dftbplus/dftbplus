@@ -23,14 +23,34 @@ module dftbp_common_schedule
   implicit none
 
   private
-  public :: distributeRangeInChunks, distributeRangeInChunks2
-  public :: assembleChunks, getChunkRanges
+  public :: distributeRangeInChunks, distributeRangeInChunks2,&
+      & distributeRangeWithWorkload
+  public :: assembleChunks, getChunkRanges, getChunkIterWithWorkload
+  public :: TChunkIterator
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
     module procedure assemble${NAME}$Chunks
   end interface assembleChunks
 #:endfor
+
+
+  !> Iterator over chunks
+  type :: TChunkIterator
+    private
+
+    !> List of indices
+    integer, allocatable :: indices(:)
+
+    !> Current position in the index list
+    integer :: currentIndex
+
+  contains
+    procedure :: getNextIndex => TChunkIterator_getNextIndex
+    procedure :: getNumIndices => TChunkIterator_getNumIndices
+    procedure :: hasNextIndex => TChunkIterator_hasNextIndex
+    procedure :: resetIndex => TChunkIterator_resetIndex
+  end type TChunkIterator
 
 contains
 
@@ -120,6 +140,35 @@ contains
   end subroutine distributeRangeInChunks2
 
 
+  !> Distributes a range among processes within a process group
+  !> and take into account that each item may have a different workload
+  subroutine distributeRangeWithWorkload(env, globalFirst, globalLast, workload, chunkIter)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Number of elements each item has to process
+    integer, intent(in) :: workload(:)
+
+    !> Iterator with indices for the chunks
+    type(TChunkIterator), intent(out) :: chunkIter
+
+  #:if WITH_MPI
+    call getChunkIterWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst, globalLast,&
+        & workload, chunkIter)
+  #:else
+    call getChunkIterWithWorkload(1, 0, globalFirst, globalLast, workload, chunkIter)
+  #:endif
+
+  end subroutine distributeRangeWithWorkload
+
+
 #:for DTYPE, RANK, NAME in CHUNK_TYPES
 
   !> Assembles the chunks by summing up contributions within a process group.
@@ -176,5 +225,124 @@ contains
 
   end subroutine getChunkRanges
 
+
+  !> Calculate the chunk ranges for a given MPI-communicator considerung different workload
+  subroutine getChunkIterWithWorkload(groupSize, myRank, globalFirst, globalLast, workload, chunkIter)
+
+    !> Size of the group over which the chunks should be distributed
+    integer, intent(in) :: groupSize
+
+    !> Rank of the current process
+    integer, intent(in) :: myRank
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Workload for each item
+    integer, intent(in) :: workload(:)
+
+    !> The chunk iterator
+    type(TChunkIterator), intent(out) :: chunkIter
+
+    integer :: numIndices, rank, i
+    integer, allocatable :: rankWorkload(:), indices(:)
+
+    allocate(rankWorkload(groupSize))
+    allocate(indices(globalLast - globalFirst + 1))
+
+    rankWorkload(:) = 0
+    indices(:) = 0
+    numIndices = 0
+
+    do i = globalFirst, globalLast
+      rank = minloc(rankWorkload, dim=1)
+      rankWorkload(rank) = rankWorkload(rank) + max(1, workload(i))
+      if (rank == myRank + 1) then
+        numIndices = numIndices + 1
+        indices(numIndices) = i
+      end if
+    end do
+
+    call TChunkIterator_init(chunkIter, indices(1:numIndices))
+
+  end subroutine getChunkIterWithWorkload
+
+
+  !> Initializes a new chunk iterator
+  subroutine TChunkIterator_init(this, indices)
+
+    !> Instance
+    class(TChunkIterator), intent(out) :: this
+
+    !> Index list
+    integer, intent(in) :: indices(:)
+
+    @:ASSERT(size(indices) > 0)
+    @:ASSERT(all(indices > 0))
+
+    allocate(this%indices(size(indices)))
+    this%indices = indices
+    this%currentIndex = 0
+
+  end subroutine TChunkIterator_init
+
+
+  !> Returns whether there is a next item available in the iterator
+  function TChunkIterator_hasNextIndex(this) result(hasNextIndex)
+
+    !> Instance
+    class(TChunkIterator), intent(inout) :: this
+
+    !> Whether there is a next index
+    logical :: hasNextIndex
+
+    hasNextIndex = this%currentIndex < size(this%indices)
+
+  end function TChunkIterator_hasNextIndex
+
+
+  !> Resets the iterator
+  subroutine TChunkIterator_resetIndex(this)
+
+    !> Instance
+    class(TChunkIterator), intent(inout) :: this
+
+    this%currentIndex = 0
+
+  end subroutine TChunkIterator_resetIndex
+
+
+  !> Returns the next item of the iterator
+  function TChunkIterator_getNumIndices(this) result(numIndices)
+
+    !> Instance
+    class(TChunkIterator), intent(inout) :: this
+
+    !> Number of indices in this iterator
+    integer :: numIndices
+
+    numIndices = size(this%indices)
+
+  end function TChunkIterator_getNumIndices
+
+
+  !> Returns the next item of the iterator
+  function TChunkIterator_getNextIndex(this) result(nextIndex)
+
+    !> Instance
+    class(TChunkIterator), intent(inout) :: this
+
+    !> The next index
+    integer :: nextIndex
+
+    @:ASSERT(this%currentIndex < size(this%indices))
+
+    this%currentIndex = this%currentIndex + 1
+    nextIndex = this%indices(this%currentIndex)
+
+  end function TChunkIterator_getNextIndex
 
 end module dftbp_common_schedule

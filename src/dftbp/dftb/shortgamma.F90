@@ -11,6 +11,7 @@
 module dftbp_dftb_shortgamma
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : getChunkIterWithWorkload, TChunkIterator
   use dftbp_dftb_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
@@ -743,45 +744,67 @@ contains
     real(dp), intent(out) :: shiftShell(:,:)
 
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iNeigh, iAt1Start, iAt1End
-
-    integer :: nAtom
+    integer :: nAtom, maxShell1, maxShell2
+    integer, allocatable :: maxNeigh(:)
+    real(dp) :: shortGammaValue, deltaQShellValue, shiftShellSum
+    type(TChunkIterator) :: chunkIter
+    logical :: skipLoop
 
     nAtom = size(nNeigh, dim=4)
 
+    allocate(maxNeigh(nAtom))
+    do iAt1 = 1, nAtom
+      maxNeigh(iAt1) = maxval(nNeigh(:,:,:,iAt1))
+    end do
+
+    skipLoop = .false.
     #:if WITH_SCALAPACK
       if (env%blacs%atomGrid%iProc /= -1) then
-        iAt1Start = env%blacs%atomGrid%iproc * nAtom / env%blacs%atomGrid%nproc + 1
-        iAt1End = (env%blacs%atomGrid%iproc + 1) * nAtom / env%blacs%atomGrid%nproc
+        call getChunkIterWithWorkload(env%blacs%atomGrid%nproc, env%blacs%atomGrid%iproc,&
+            & 1, nAtom, maxNeigh, chunkIter)
       else
         ! Do not calculate anything if process is not part of the atomic grid
-        iAt1Start = 0
-        iAt1End = -1
+        skipLoop = .true.
       end if
     #:else
-      iAt1Start = 1
-      iAt1End = nAtom
+      call getChunkIterWithWorkload(1, 0, 1, nAtom, maxNeigh, chunkIter)
     #:endif
 
     shiftShell(:,:) = 0.0_dp
-    do iAt1 = iAt1Start, iAt1End
-      iSp1 = species(iAt1)
-      do iSh1 = 1, orb%nShell(iSp1)
-        iU1 = hubb%iHubbU(iSh1, iSp1)
-        do iNeigh = 0, maxval(nNeigh(:,:,:,iAt1))
+
+    if (.not. skipLoop) then
+      do while (chunkIter%hasNextIndex())
+        iAt1 = chunkIter%getNextIndex()
+        iSp1 = species(iAt1)
+        maxShell1 = orb%nShell(iSp1)
+
+        do iNeigh = 0, maxNeigh(iAt1)
           iAt2f = img2CentCell(iNeighbours(iNeigh, iAt1))
           iSp2 = species(iAt2f)
-          do iSh2 = 1, orb%nShell(iSp2)
-            iU2 = hubb%iHubbU(iSh2, iSp2)
-            shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1)&
-                & - shortGamma(iU2, iU1, iNeigh, iAt1) * deltaQShell(iSh2, iAt2f)
-            if (iAt2f /= iAt1) then
-              shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f)&
-                  & - shortGamma(iU2, iU1, iNeigh, iAt1) * deltaQShell(iSh1, iAt1)
-            end if
+          maxShell2 = orb%nShell(iSp2)
+
+          do iSh1 = 1, maxShell1
+            iU1 = hubb%iHubbU(iSh1, iSp1)
+            deltaQShellValue = deltaQShell(iSh1, iAt1)
+
+            do iSh2 = 1, maxShell2
+              iU2 = hubb%iHubbU(iSh2, iSp2)
+              shortGammaValue = shortGamma(iU2, iU1, iNeigh, iAt1)
+              if (iSh2 > 1) then
+                shiftShellSum = shiftShellSum + shortGammaValue * deltaQShell(iSh2, iAt2f)
+              else
+                shiftShellSum = shortGammaValue * deltaQShell(iSh2, iAt2f)
+              end if
+              if (iAt2f /= iAt1) then
+                shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f)&
+                    & - shortGammaValue * deltaQShellValue
+              end if
+            end do
+            shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1) - shiftShellSum
           end do
         end do
       end do
-    end do
+    end if
 
     #:if WITH_SCALAPACK
       call mpifx_allreduceip(env%mpi%groupComm, shiftShell, MPI_SUM)

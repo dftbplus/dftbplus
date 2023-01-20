@@ -11,7 +11,7 @@
 module dftbp_dftb_stress
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_type_commontypes, only : TOrbitals
@@ -116,7 +116,7 @@ contains
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: vect(3), intermed(3)
-    integer :: iAtFirst, iAtLast
+    type(TChunkIterator) :: chunkIter
 
     @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
@@ -124,9 +124,10 @@ contains
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    do iAtom1 = iAtFirst, iAtLast
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       ! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -230,7 +231,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
-    integer :: iAtFirst, iAtLast
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -245,9 +246,10 @@ contains
 
     st(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    do iAtom1 = iAtFirst, iAtLast
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -371,7 +373,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
-    integer :: iAtFirst, iAtLast
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -386,9 +388,10 @@ contains
 
     st = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    do iAtom1 = iAtFirst, iAtLast
+    do while (chunkIter%hasNextIndex())
+      iAtom1 = chunkIter%getNextIndex()
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)

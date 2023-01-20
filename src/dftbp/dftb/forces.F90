@@ -12,7 +12,7 @@ module dftbp_dftb_forces
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
   use dftbp_dftb_boundarycond, only : zAxis
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
@@ -162,20 +162,22 @@ contains
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer :: iOrig, ii, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iAtFirst, iAtLast
+    integer :: iOrig, ii, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iIter
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    type(TChunkIterator) :: chunkIter
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig, sqrDMTmp, sqrEDMTmp,&
-    !$OMP& hPrimeTmp, sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = iAtFirst, iAtLast
+    !$OMP& hPrimeTmp, sPrimeTmp, ii, iAtom1) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    do iIter = 1, chunkIter%getNumIndices()
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -263,21 +265,23 @@ contains
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer :: iOrig, ii, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iAtFirst, iAtLast
+    integer :: iOrig, ii, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iIter
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb), theta
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3), intermed(3)
+    type(TChunkIterator) :: chunkIter
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig, sqrDMTmp, sqrEDMTmp,&
-    !$OMP& hPrimeTmp, sPrimeTmp, ii, intermed, theta) DEFAULT(SHARED) SCHEDULE(RUNTIME)&
+    !$OMP& hPrimeTmp, sPrimeTmp, ii, intermed, theta, iAtom1) DEFAULT(SHARED) SCHEDULE(RUNTIME)&
     !$OMP& REDUCTION(+:deriv)
-    do iAtom1 = iAtFirst, iAtLast
+    do iIter = 1, chunkIter%getNumIndices()
+      iAtom1 = chunkIter%getNextIndex()
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -460,12 +464,13 @@ contains
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iOrig, iSpin, ii, nSpin, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer :: nOrb1, nOrb2, iAtFirst, iAtLast
+    integer :: nOrb1, nOrb2, iIter
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3), theta
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -480,12 +485,13 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta)&
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta,iIter)&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = iAtFirst, iAtLast
+    do iIter = 1, chunkIter%getNumIndices()
+      iAtom1 = chunkIter%getNextIndex()
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -592,12 +598,13 @@ contains
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iOrig, iSpin, ii, nSpin, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer :: nOrb1, nOrb2, iAtFirst, iAtLast
+    integer :: nOrb1, nOrb2, iIter
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -612,12 +619,13 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = iAtFirst, iAtLast
+    do iIter = 1, chunkIter%getNumIndices()
+      iAtom1 = chunkIter%getNextIndex()
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -732,7 +740,8 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-    integer :: iAtFirst, iAtLast
+    integer :: iIter
+    type(TChunkIterator) :: chunkIter
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -749,12 +758,13 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,iIter) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = iAtFirst, iAtLast
+    do iIter = 1, chunkIter%getNumIndices()
+      iAtom1 = chunkIter%getNextIndex()
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)

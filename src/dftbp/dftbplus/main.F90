@@ -847,7 +847,7 @@ contains
         call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       end if
       ! We need to define hamiltonian by adding the potential
-      call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
+      call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
       tExitGeoOpt = .true.
@@ -913,7 +913,7 @@ contains
         if (this%isRangeSep) then
           call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart, this%deltaRhoOutSqr)
         end if
-        call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
+        call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
             & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
@@ -1019,7 +1019,7 @@ contains
           call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
         end if
 
-        call getSccHamiltonian(this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
+        call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
             & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
             & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
 
@@ -1071,7 +1071,7 @@ contains
         end if
 
         if (this%tMulliken) then
-          call getMullikenPopulation(this%rhoPrim, this%ints, this%orb, this%neighbourList,&
+          call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
               & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
               & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
@@ -1132,7 +1132,7 @@ contains
 
         end if
 
-        call calcEnergies(this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
+        call calcEnergies(env, this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
             & this%multipoleOut, this%species, this%isExtField, this%isXlbomd, this%dftbU,&
             & this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb, this%neighbourList,&
             & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
@@ -1347,7 +1347,7 @@ contains
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
       if (this%hamiltonianType == hamiltonianTypes%dftb) then
-        call checkDipoleViaHellmannFeynman(this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
+        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints, this%orb,&
             & this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
             & this%img2CentCell, this%eFieldScaling)
       end if
@@ -3641,8 +3641,11 @@ contains
 
 
   !> Calculate Mulliken population from sparse density matrix.
-  subroutine getMullikenPopulation(rhoPrim, ints, orb, neighbourList, nNeighbourSK, img2CentCell,&
+  subroutine getMullikenPopulation(env, rhoPrim, ints, orb, neighbourList, nNeighbourSK, img2CentCell,&
       & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, multipoles)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3687,14 +3690,14 @@ contains
 
     qOrb(:,:,:) = 0.0_dp
     do iSpin = 1, size(rhoPrim, dim=2)
-      call mulliken(qOrb(:,:,iSpin), ints%overlap, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+      call mulliken(env, qOrb(:,:,iSpin), ints%overlap, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
           & nNeighbourSK, img2CentCell, iSparseStart)
     end do
 
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, size(rhoPrim, dim=2)
-        call mulliken(qBlock(:,:,:,iSpin), ints%overlap, rhoPrim(:,iSpin), orb,&
+        call mulliken(env, qBlock(:,:,:,iSpin), ints%overlap, rhoPrim(:,iSpin), orb,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
     end if
@@ -3702,7 +3705,7 @@ contains
     if (allocated(qiBlock)) then
       qiBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, size(iRhoPrim, dim=2)
-        call skewMulliken(qiBlock(:,:,:,iSpin), ints%overlap, iRhoPrim(:,iSpin), orb,&
+        call skewMulliken(env, qiBlock(:,:,:,iSpin), ints%overlap, iRhoPrim(:,iSpin), orb,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
     end if
@@ -4588,8 +4591,11 @@ contains
 
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
-  subroutine checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, ints, orb, neighbourList,&
+  subroutine checkDipoleViaHellmannFeynman(env, rhoPrim, q0, coord0, ints, orb, neighbourList,&
       & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4642,11 +4648,11 @@ contains
       potentialDerivative(:,1) = -eFieldScaling%scaledExtEField(coord0(iCart,:))
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
-      call addShift(hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potentialDerivative)
+      call addShift(env, hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, potentialDerivative, .true.)
 
       ! evaluate <psi| dH/dE | psi> = Tr_part rho dH/dE
-      call mulliken(dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
+      call mulliken(env, dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
           & img2CentCell, iSparseStart)
 
       ! add nuclei term for derivative wrt E
@@ -6956,7 +6962,7 @@ contains
 
       ! reks%qOutputL & reks%qNetAtomL has (my_qm) component
       reks%qOutputL(:,:,:,iL) = 0.0_dp
-      call getMullikenPopulation(rhoPrim, ints, orb, neighbourList, nNeighbourSK, &
+      call getMullikenPopulation(env, rhoPrim, ints, orb, neighbourList, nNeighbourSK, &
           & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
           & qBlock=qBlock, qiBlock=qiBlock, qNetAtom=qNetAtom)
 
@@ -7176,7 +7182,7 @@ contains
       end if
 
       ! tmpHamSp has (my_qm) component
-      call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species, orb,&
+      call getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, species, orb,&
           & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, ints%iHamiltonian)
       tmpHamSp(:,1) = 2.0_dp * tmpHamSp(:,1)
 
@@ -7257,7 +7263,7 @@ contains
             & img2CentCell, orb)
       end if
 
-      call calcEnergies(sccCalc, tblite, reks%qOutputL(:,:,:,iL), q0,&
+      call calcEnergies(env, sccCalc, tblite, reks%qOutputL(:,:,:,iL), q0,&
           & reks%chargePerShellL(:,:,:,iL), multipole, species, isExtField, isXlbomd, dftbU,&
           & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&

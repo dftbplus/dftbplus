@@ -1146,8 +1146,8 @@ contains
       dPotential%intBlock(:,:,:,:) = dPotential%intBlock + dPotential%extBlock
 
       dHam(:,:) = 0.0_dp
-      call addShift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
+      call addShift(env, dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, dPotential%intBlock, .true.)
 
       if (nSpin > 1) then
         dHam(:,:) = 2.0_dp * dHam
@@ -1252,7 +1252,7 @@ contains
           end if
 
           dqOut(:,:,iS) = 0.0_dp
-          call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+          call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
           dEf(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
@@ -1320,11 +1320,11 @@ contains
 
       dqOut(:,:,:) = 0.0_dp
       do iS = 1, nSpin
-        call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+        call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
         if (allocated(dftbU) .or. allocated(onsMEs)) then
           dqBlockOut(:,:,:,iS) = 0.0_dp
-          call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
+          call mulliken(env, dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
               & nNeighbourSK, img2CentCell, iSparseStart)
         end if
       end do
