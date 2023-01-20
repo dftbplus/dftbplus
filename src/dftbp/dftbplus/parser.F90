@@ -75,7 +75,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
-      & readTGeometryVasp
+      & readTGeometryVasp, readTGeometryLammps
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only :TDispMbdInp
@@ -402,6 +402,8 @@ contains
       call readTGeometryXyz(value1, input%geom)
     case ("vaspformat")
       call readTGeometryVasp(value1, input%geom)
+    case ("lammpsformat")
+      call readTGeometryLammps(value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)

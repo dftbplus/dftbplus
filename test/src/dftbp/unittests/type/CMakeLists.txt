@@ -1,9 +1,7 @@
-set(unit-test-prefix "${unit-test-prefix}/common")
+set(unit-test-prefix "${unit-test-prefix}/type")
 
 set(tests
-  atomicmass
-  memman
-  schedule)
+  typegeometryhsd)
 
 foreach(test IN LISTS tests)
   fytest_fypp_preprocess("${FYPP_FLAGS}" ${test}.F90 sources-f90)

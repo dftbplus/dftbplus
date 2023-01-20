@@ -86,6 +86,7 @@ spin/ipea1_Fe4_noncolinear             #? WITH_TBLITE and MPI_PROCS <= 1
 
 input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1
+input/ammonia_lammps                   #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1
 input/unsorted_contcar                 #? MPI_PROCS <= 1
 

@@ -8,9 +8,12 @@
 !> Routines to read/write a TGeometry type in HSD and XML format.
 module dftbp_type_typegeometryhsd
   use dftbp_common_accuracy, only : dp, lc, mc
-  use dftbp_common_constants, only : AA__Bohr, pi
+  use dftbp_common_atomicmass, only : getAtomicSymbol
+  use dftbp_common_constants, only : AA__Bohr, Bohr__AA, pi, avogadConst
+  use dftbp_common_globalenv, only : stdout
   use dftbp_common_unitconversion, only : lengthUnits, angularUnits
-  use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char
+  use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char,&
+      & getNodeType, getNodeValue, TEXT_NODE
   use dftbp_io_charmanip, only : i2c, tolower
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
       & checkError, getFirstTextChild, writeChildValue
@@ -28,7 +31,7 @@ module dftbp_type_typegeometryhsd
   public :: TGeometry, normalize
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
-  public :: readTGeometryXyz, readTGeometryVasp
+  public :: readTGeometryXyz, readTGeometryVasp, readTGeometryLammps
   !> makes public subroutines from typegeometry
   public :: reduce, setlattice
 
@@ -701,6 +704,327 @@ contains
   end subroutine readTGeometryVasp_help
 
 
+  !> Reads the geometry in a HSD tree in LAMMPS data file format
+  subroutine readTGeometryLammps(node, geo)
+
+    !> Node containing the geometry in Gen format
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    type(fnode), pointer :: child
+    type(string) :: text1, text2
+
+    call getChildValue(node, "CommandFile", child)
+    if (.not. associated(child) .or. getNodeType(child) /= TEXT_NODE) then
+      call detailedError(node, "Missing CommandFile for LammpsFormat")
+    end if
+    call getNodeValue(child, text1)
+
+    call getChildValue(node, "DataFile", child)
+    if (.not. associated(child) .or. getNodeType(child) /= TEXT_NODE) then
+      call detailedError(node, "Missing DataFile for LammpsFormat")
+    end if
+    call getNodeValue(child, text2)
+
+    call readTGeometryLammps_help(node, geo, char(text1), char(text2))
+
+  end subroutine readTGeometryLammps
+
+
+  !> Helping routine for reading geometry from a HSD tree in LAMMPS format
+  subroutine readTGeometryLammps_help(node, geo, commandInput, dataInput)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    !> Text contents of the command file
+    character(len=*), intent(in) :: commandInput
+
+    !> Text contents of the data file
+    character(len=*), intent(in) :: dataInput
+
+    integer :: iStart, iEnd, iErr, intValue, skipItemsForCoords, i, j
+    real(dp) :: realValue(3), toAngstrom, toAtomicMassUnit
+    type(string) :: text, command
+    logical :: haveMasses, haveAtoms, skipMoleculeId, readIntValue, readRealValue(3)
+
+    haveMasses = .false.
+    haveAtoms = .false.
+    geo%nAtom = 0
+    geo%nSpecies = 0
+    allocate(geo%latVecs(3, 3))
+    allocate(geo%origin(3))
+    geo%origin(:) = -0.5_dp
+    geo%latVecs(:,:) = 0.0_dp
+    do i = 1, 3
+      geo%latVecs(i,i) = 1.0_dp
+    end do
+
+    toAngstrom = 0.0_dp
+    toAtomicMassUnit = 0.0_dp
+    skipMoleculeId = .false.
+    skipItemsForCoords = 0
+
+    ! Read command file first
+
+    iStart = 1
+    iEnd = len(commandInput)
+    do
+      call getNextToken(commandInput, command, iStart, iErr)
+      if (iErr /= TOKEN_OK) then
+        exit
+      end if
+
+      select case(char(command))
+      case("pair_style")
+        call getNextToken(commandInput, text, iStart, iErr)
+        call checkError(node, iErr, "Error reading pair_style in command file")
+        if (char(text) /= "dftbplus") then
+          call detailedError(node, "pair_style must be dftbplus")
+        end if
+        call jumpToEndOfLine(commandInput, iStart)
+      case("atom_style") ! default is atomic
+        call getNextToken(commandInput, text, iStart, iErr)
+        call checkError(node, iErr, "Error reading atom_style in command file")
+        select case(char(text))
+        case("angle", "bond", "molecular")
+          skipMoleculeId = .true.
+        case("full")
+          skipMoleculeId = .true.
+          skipItemsForCoords = 1
+        case("line", "tri")
+          skipMoleculeId = .true.
+          skipItemsForCoords = 2
+        case("charge", "dielectric", "dipole", "dpd", "mdpd")
+          skipItemsForCoords = 1
+        case("edpd", "ellipsoid")
+          skipItemsForCoords = 2
+        case("electron", "sph", "template")
+          skipItemsForCoords = 3
+        case("wavepacket")
+          skipItemsForCoords = 6
+        case("body", "mesont", "peri", "smd", "sphere", "bpm/sphere")
+          call detailedError(node, "Unsupported atom_style " // char(text))
+        end select
+        call jumpToEndOfLine(commandInput, iStart)
+      case("boundary") ! default is p p p
+        do i = 1, 3
+          call getNextToken(commandInput, text, iStart, iErr)
+          call checkError(node, iErr, "Error reading boundary in command file")
+          if (char(text) /= "p") then
+            call detailedError(node, "Only periodic boundary conditions supported")
+          end if
+        end do
+        call jumpToEndOfLine(commandInput, iStart)
+      case("units") ! default is lj
+        call getNextToken(commandInput, text, iStart, iErr)
+        call checkError(node, iErr, "Error reading units in command file")
+        select case(char(text))
+        case("si")
+          toAngstrom = 1.0e10_dp ! from meters
+          toAtomicMassUnit = 1.0e3_dp * avogadConst ! from kilograms
+        case("cgs")
+          toAngstrom = 1.0e8_dp ! from centimeters
+          toAtomicMassUnit = avogadConst ! from grams
+        case("electron")
+          toAngstrom = Bohr__AA ! from Bohr radii
+          toAtomicMassUnit = 1.0_dp
+        case("micro")
+          toAngstrom = 1.0e4_dp ! from micrometers
+          toAtomicMassUnit = 1.0e-12_dp * avogadConst ! from picograms
+        case("nano")
+          toAngstrom = 10.0_dp ! from nanometers
+          toAtomicMassUnit = 1.0e-18_dp * avogadConst ! from attograms
+        case("lj")
+          call detailedError(node, "Unit system lj is not supported")
+        case default
+          toAngstrom = 1.0_dp
+          toAtomicMassUnit = 1.0_dp
+        end select
+        call jumpToEndOfLine(commandInput, iStart)
+      end select
+    end do
+
+    ! Now read the data file defining the geometry and the atoms
+
+    iStart = 1
+    iEnd = len(dataInput)
+    do
+      ! Try to read real values at the beginning of the line
+      readRealValue(:) = .false.
+      do i = 1, size(realValue)
+        call getNextToken(dataInput, realValue(i), iStart, iErr)
+        readRealValue(i) = (iErr == TOKEN_OK)
+        if (.not. readRealValue(i)) then
+          exit
+        end if
+      end do
+
+      ! Try to convert the first real value to integer
+      if (readRealValue(1)) then
+        intValue = int(realValue(1))
+        if (real(intValue, kind=dp) == realValue(1)) then
+          readIntValue = .true.
+        end if
+      end if
+
+      ! Read the actual command now
+      call getNextToken(dataInput, command, iStart, iErr)
+      if (iErr /= TOKEN_OK) then
+        exit
+      end if
+
+      select case(char(command))
+      case("atoms")
+        if (.not. readIntValue) then
+          call detailedError(node, "Invalid number of atoms")
+        end if
+        geo%nAtom = intValue
+        call jumpToEndOfLine(dataInput, iStart)
+      case("atom")
+        call getNextToken(dataInput, text, iStart, iErr)
+        if (iErr == TOKEN_OK .and. char(text) == "types") then
+          if (.not. readIntValue) then
+            call detailedError(node, "Invalid number of species")
+          end if
+          geo%nSpecies = intValue
+          call jumpToEndOfLine(dataInput, iStart)
+        end if
+      case("xlo")
+        call getNextToken(dataInput, text, iStart, iErr)
+        if (iErr == TOKEN_OK .and. char(text) == "xhi") then
+          if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
+            call detailedError(node, "Invalid values for xlo and/or xhi")
+          end if
+          geo%origin(1) = realValue(1)
+          geo%latVecs(1,1) = realValue(2) - realValue(1)
+          call jumpToEndOfLine(dataInput, iStart)
+        end if
+      case("ylo")
+        call getNextToken(dataInput, text, iStart, iErr)
+        if (iErr == TOKEN_OK .and. char(text) == "yhi") then
+          if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
+            call detailedError(node, "Invalid values for ylo and/or yhi")
+          end if
+          geo%origin(2) = realValue(1)
+          geo%latVecs(2,2) = realValue(2) - realValue(1)
+          call jumpToEndOfLine(dataInput, iStart)
+        end if
+      case("zlo")
+        call getNextToken(dataInput, text, iStart, iErr)
+        if (iErr == TOKEN_OK .and. char(text) == "zhi") then
+          if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
+            call detailedError(node, "Invalid values for zlo and/or zhi")
+          end if
+          geo%origin(3) = realValue(1)
+          geo%latVecs(3,3) = realValue(2) - realValue(1)
+          call jumpToEndOfLine(dataInput, iStart)
+        end if
+      case("xy")
+        call getNextToken(dataInput, text, iStart, iErr)
+        if (iErr == TOKEN_OK .and. char(text) == "xz") then
+          call getNextToken(dataInput, text, iStart, iErr)
+          if (iErr == TOKEN_OK .and. char(text) == "yz") then
+            if (any(.not. readRealValue)) then
+              call detailedError(node, "Invalid values for xy/xz/yz")
+            end if
+            geo%latVecs(1,2) = realValue(1) ! xy
+            geo%latVecs(1,3) = realValue(2) ! xz
+            geo%latVecs(2,3) = realValue(3) ! yz
+          end if
+        end if
+      case("Masses")
+        if (geo%nSpecies == 0) then
+          call detailedError(node, "Missing number of species (atom types) in data file header")
+        end if
+        allocate(geo%speciesNames(geo%nSpecies))
+        call jumpToEndOfLine(dataInput, iStart)
+
+        do i = 1, geo%nSpecies
+          call getNextToken(dataInput, intValue, iStart, iErr)
+          call checkError(node, iErr, "Invalid value for species index")
+          if (intValue /= i) then
+            call detailedError(node, "Unexpected species index")
+          end if
+          call getNextToken(dataInput, realValue(1), iStart, iErr)
+          call checkError(node, iErr, "Invalid value for species mass")
+          geo%speciesNames(i) = trim(getAtomicSymbol(realValue(1) * toAtomicMassUnit))
+          call jumpToEndOfLine(dataInput, iStart)
+        end do
+        haveMasses = .true.
+      case("Atoms")
+        if (geo%nAtom == 0) then
+          call detailedError(node, "Missing number of atoms in data file header")
+        end if
+        allocate(geo%species(geo%nAtom))
+        allocate(geo%coords(3, geo%nAtom))
+        call jumpToEndOfLine(dataInput, iStart)
+
+        do i = 1, geo%nAtom
+          call getNextToken(dataInput, intValue, iStart, iErr)
+          call checkError(node, iErr, "Invalid value for atom index")
+          if (intValue /= i) then
+            call detailedError(node, "Unexpected atom index")
+          end if
+          if (skipMoleculeId) then
+            call getNextToken(dataInput, text, iStart, iErr)
+          end if
+          call getNextToken(dataInput, intValue, iStart, iErr)
+          call checkError(node, iErr, "Invalid value for atom species")
+          geo%species(i) = intValue
+          if (geo%species(i) > geo%nSpecies) then
+            call detailedError(node, "Unexpected species index")
+          end if
+          iEnd = nextLine(dataInput, iStart)
+          do j = 1, skipItemsForCoords
+            call getNextToken(dataInput(:iEnd), text, iStart, iErr)
+          end do
+          call getNextToken(dataInput(:iEnd), realValue(1:3), iStart, iErr)
+          if (iErr == TOKEN_OK) then
+            geo%coords(:,i) = realValue(:)
+          else
+            geo%coords(:,i) = 0.0_dp
+          end if
+          call jumpToEndOfLine(dataInput, iStart)
+        end do
+        haveAtoms = .true.
+      end select
+    end do
+
+    if (.not. haveMasses) then
+      call detailedError(node, "Missing Masses section in data file")
+    end if
+    if (.not. haveAtoms) then
+      call detailedError(node, "Missing Atoms section in data file")
+    end if
+    if (toAngstrom == 0.0_dp) then
+      call detailedError(node, "Require explicit units definition in command file")
+    end if
+
+    geo%origin(:) = toAngstrom * geo%origin(:)
+    geo%latVecs(:,:) = toAngstrom * geo%latVecs(:,:)
+    geo%coords(:,:) = toAngstrom * geo%coords(:,:)
+
+    geo%tPeriodic = .true.
+    geo%tFracCoord = .false.
+    geo%tHelical = .false.
+
+    call setupPeriodicGeometry(node, geo)
+    geo%coords = geo%coords * AA__Bohr
+
+    write(stdout, "(A,I8,A,I3,A)") "Read values from LAMMPS input file: ",&
+        & geo%nAtom, " atoms, ", geo%nSpecies, " species"
+
+    call normalize(geo)
+
+  end subroutine readTGeometryLammps_help
+
+
   !> Common checks for periodic input and generation of associated information
   subroutine setupPeriodicGeometry(node, geo)
 
@@ -745,6 +1069,24 @@ contains
     if (iEnd < iStart) iEnd = len(text)
 
   end function nextLine
+
+
+  !> Advance iStart to the end of the line, but only if currently not at the beginning of the line
+  subroutine jumpToEndOfLine(text, iStart)
+
+    !> Text content
+    character(len=*), intent(in) :: text
+
+    !> Start of the text of interest; end of the line on exit
+    integer, intent(inout) :: iStart
+
+    if (iStart > 1 .and. iStart < len(text)) then
+      if (text(iStart-1:iStart-1) /= new_line(text)) then
+        iStart = nextLine(text, iStart)
+      end if
+    end if
+
+  end subroutine jumpToEndOfLine
 
 
 end module dftbp_type_typegeometryhsd
