@@ -105,8 +105,8 @@ module dftbp_initprogram
   implicit none
 
 #:if WITH_GPU
-  integer (c_int):: ngpus
-  integer (c_int):: req_ngpus
+  integer :: ngpus
+  integer :: req_ngpus
 #:endif
 
   !> Container for external potentials

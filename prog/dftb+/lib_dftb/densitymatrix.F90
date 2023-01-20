@@ -20,10 +20,14 @@ module dftbp_densitymatrix
   use dftbp_blasroutines
   use dftbp_sorting
   use dftbp_commontypes
+  use iso_c_binding, only: c_int
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
   use dftbp_blacsenv
 #:endif
+!#:if WITH_GPU
+  use magma
+!#:endif
   implicit none
   private
 
@@ -71,18 +75,52 @@ contains
     integer :: ii, nLevels
     real(dp) :: shift
 
+    character        :: uplo
+    character        :: trans
+    integer          :: n
+    integer          :: k
+    real(rdp)        :: alpha
+    integer          :: ldda
+    real(rdp)        :: beta
+    integer          :: lddc
+    integer(c_int)   :: device =0
+    integer          :: info
+    magma_devptr_t   :: queue
+    magma_devptr_t   :: dC ! dm
+    magma_devptr_t   :: dA ! eigenvecs
+
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
+
     dm(:,:) = 0.0_dp
+
+    uplo = 'L'
+    trans = 'N'
+    n = size(dm, dim=2)
+    k = size(eigenvecs, dim=2)
+    alpha = 1.0_rdp
+    beta = 0.0_rdp
+    lddc = size(dm, dim=1)
+    ldda = size(eigenvecs, dim=1)
+
+    !print *, "Allocate GPU Memory"
+    info = magmaf_dmalloc( dA, ldda*k )
+    info = magmaf_dmalloc( dC, lddc*n )
+
+    !call magmaf_getdevice(device)
+    call magmaf_queue_create( 0, queue )
+
     do ii =  size(filling), 1, -1
       nLevels = ii
       if (abs(filling(ii)) >= epsilon(1.0_dp)) then
         exit
       end if
     end do
+
     shift = minval(filling(1:nLevels))
+
     if (shift > epsilon(1.0_dp)) then
       ! all fillings are definitely positive
 
@@ -92,32 +130,71 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      call herk(dm, eigenvecs(:,1:nLevels))
+      !call herk(dm, eigenvecs(:,1:nLevels))
+      
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_dsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+            
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+      
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
+        !dA(:,ii) = dA(:,ii) / sqrt(dF(ii))
       end do
       !$OMP  END PARALLEL DO
 
     else
 
       ! shift matrix so that filling operations are positive
-      call herk(dm, eigenvecs(:,1:nLevels))
+      !call herk(dm, eigenvecs(:,1:nLevels))    
+      
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_dsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+            
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+      
       shift = shift - arbitraryConstant
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = sqrt(filling(ii)-shift) * eigenvecs(:,ii)
+        !dA(:,ii) = sqrt(dF(ii)-shift) * dA(:,ii)
       end do
       !$OMP  END PARALLEL DO
 
-      call herk(dm, eigenvecs(:,1:nLevels), beta=shift)
+      !call herk(dm, eigenvecs(:,1:nLevels), beta=shift)
+      
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+            
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii)-shift)
+        !dA(:,ii) = dA(:,ii) / sqrt(dF(ii)-shift)
       end do
       !$OMP  END PARALLEL DO
 
     end if
+
+    call magmaf_dgetmatrix( n, n, dC, lddc, dm, lddc, queue )
+
+    !! Free GPU memory
+    info = magmaf_free( dA )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dA ) failed, info = ', info
+        stop
+    endif
+
+    info = magmaf_free( dC )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dC ) failed, info = ', info
+        stop
+    endif
+
+    call magmaf_queue_destroy( queue );
+
+
   end subroutine fullDensityMatrix_real
 
 
