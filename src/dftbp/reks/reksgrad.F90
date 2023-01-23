@@ -293,11 +293,11 @@ contains
 
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-      !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-      !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,iIter) DEFAULT(SHARED) &
+      !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+      !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
       do iIter = 1, chunkIter%getNumIndices()
-        iAtom1 = chunkIter%getNextIndex()
+        iAtom1 = chunkIter%getIndex(iIter)
         iSp1 = species(iAtom1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 1, nNeighbourSK(iAtom1)

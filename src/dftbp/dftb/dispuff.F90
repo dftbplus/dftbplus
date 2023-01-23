@@ -461,10 +461,11 @@ contains
     !$omp reduction(+:localEnergies, localDeriv, localSigma) &
     !$omp shared(species, nNeighbourSK, iNeighbour, coords, chunkIter) &
     !$omp shared(img2CentCell, neighDist2, c6, r0, c12, cPoly, f6) &
-    !$omp private(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, rr, k1, r6) &
-    !$omp private(r12, k2, dE, dGr, r10, r5, u0, u1, u2, gr, ii, iIter)
+    !$omp private(iIter, iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2) &
+    !$omp private(r2, rr, k1, r6, r12, k2, dE, dGr, r10, r5, u0, u1) &
+    !$omp private(u2, gr, ii)
     do iIter = 1, chunkIter%getNumIndices()
-      iAt1 = chunkIter%getNextIndex()
+      iAt1 = chunkIter%getIndex(iIter)
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)

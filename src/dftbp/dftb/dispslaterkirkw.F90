@@ -476,9 +476,10 @@ contains
     !$omp reduction(+:localEnergies, localDeriv, localSigma) &
     !$omp shared(nNeighbourSK, iNeighbour, img2CentCell, c6) &
     !$omp shared(neighDist2, rVdW2, coords, corr, chunkIter) &
-    !$omp private(iAt1, iNeigh, iAt2, iAt2f, dist2, dist, h0, h1, h2, rTmp, vec, gr, ii, iIter)
+    !$omp private(iIter, iAt1, iNeigh, iAt2, iAt2f, dist2, dist) &
+    !$omp private(h0, h1, h2, rTmp, vec, gr, ii)
     do iIter = 1, chunkIter%getNumIndices()
-      iAt1 = chunkIter%getNextIndex()
+      iAt1 = chunkIter%getIndex(iIter)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)

@@ -175,9 +175,10 @@ contains
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig, sqrDMTmp, sqrEDMTmp,&
-    !$OMP& hPrimeTmp, sPrimeTmp, ii, iAtom1) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !$OMP& hPrimeTmp, sPrimeTmp, ii, iIter, iAtom1) DEFAULT(SHARED) SCHEDULE(RUNTIME)&
+    !$OMP& REDUCTION(+:deriv)
     do iIter = 1, chunkIter%getNumIndices()
-      iAtom1 = chunkIter%getNextIndex()
+      iAtom1 = chunkIter%getIndex(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -278,10 +279,10 @@ contains
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
     !$OMP PARALLEL DO PRIVATE(nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig, sqrDMTmp, sqrEDMTmp,&
-    !$OMP& hPrimeTmp, sPrimeTmp, ii, intermed, theta, iAtom1) DEFAULT(SHARED) SCHEDULE(RUNTIME)&
-    !$OMP& REDUCTION(+:deriv)
+    !$OMP& hPrimeTmp, sPrimeTmp, ii, intermed, theta, iIter, iAtom1) DEFAULT(SHARED)&
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, chunkIter%getNumIndices()
-      iAtom1 = chunkIter%getNextIndex()
+      iAtom1 = chunkIter%getIndex(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -487,11 +488,11 @@ contains
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta,iIter)&
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta)&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, chunkIter%getNumIndices()
-      iAtom1 = chunkIter%getNextIndex()
+      iAtom1 = chunkIter%getIndex(iIter)
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -625,7 +626,7 @@ contains
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, chunkIter%getNumIndices()
-      iAtom1 = chunkIter%getNextIndex()
+      iAtom1 = chunkIter%getIndex(iIter)
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)
@@ -760,11 +761,11 @@ contains
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
 
-    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,iIter) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, chunkIter%getNumIndices()
-      iAtom1 = chunkIter%getNextIndex()
+      iAtom1 = chunkIter%getIndex(iIter)
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbourSK(iAtom1)

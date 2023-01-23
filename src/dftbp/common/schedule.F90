@@ -47,6 +47,7 @@ module dftbp_common_schedule
 
   contains
     procedure :: getNextIndex => TChunkIterator_getNextIndex
+    procedure :: getIndex => TChunkIterator_getIndex
     procedure :: getNumIndices => TChunkIterator_getNumIndices
     procedure :: hasNextIndex => TChunkIterator_hasNextIndex
     procedure :: resetIndex => TChunkIterator_resetIndex
@@ -344,5 +345,26 @@ contains
     nextIndex = this%indices(this%currentIndex)
 
   end function TChunkIterator_getNextIndex
+
+
+  !> Returns a certain item from the underlying index array.
+  !> This routine is thread safe and can be used in OpenMP-parallelized loops.
+  function TChunkIterator_getIndex(this, item) result(nextIndex)
+
+    !> Instance
+    class(TChunkIterator), intent(inout) :: this
+
+    !> The index of the array
+    integer, intent(in) :: item
+
+    !> The value of the array
+    integer :: nextIndex
+
+    @:ASSERT(item > 0)
+    @:ASSERT(item <= size(this%indices))
+
+    nextIndex = this%indices(item)
+
+  end function TChunkIterator_getIndex
 
 end module dftbp_common_schedule

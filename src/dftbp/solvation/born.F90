@@ -823,12 +823,12 @@ contains
 
     !$omp parallel do default(none) schedule(runtime) &
     !$omp reduction(+:psi, dpsidr, dpsitr) shared(species) &
-    !$omp shared(nNeighbour, iNeighbour, img2CentCell, coords, neighDist2, rho, chunkIter) &
-    !$omp shared(vdwRad) private(iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, dist, iIter) &
-    !$omp private(tOvij, tOvji, vec, rhoi, rhoj, gi, gj, ap, am, lnab, rhab) &
+    !$omp shared(nNeighbour, iNeighbour, img2CentCell, coords, neighDist2, rho) &
+    !$omp shared(vdwRad, chunkIter) private(iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, dist) &
+    !$omp private(iIter, tOvij, tOvji, vec, rhoi, rhoj, gi, gj, ap, am, lnab, rhab) &
     !$omp private(ab, dgi, dgj, dGr, rh1, rhr1, r24, r1, aprh1, r12, rvdwi, rvdwj)
     do iIter = 1, chunkIter%getNumIndices()
-      iAt1 = chunkIter%getNextIndex()
+      iAt1 = chunkIter%getIndex(iIter)
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
