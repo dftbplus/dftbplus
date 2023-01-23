@@ -269,7 +269,7 @@ contains
     real(dp), allocatable, intent(inout) :: neFermi(:)
 
     !> Derivative of the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: dEfdE(:,:)
+    real(dp), allocatable, intent(out) :: dEfdE(:,:)
 
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
