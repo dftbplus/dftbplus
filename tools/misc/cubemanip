@@ -11,7 +11,7 @@ from numpy import linalg as linal
 import math
 import sys
 import re
-import optparse as opt
+import argparse
 
 SCRIPT_NAME = "cubemanip"
 
@@ -59,221 +59,219 @@ Integrates the function in the cube file.
 
 
 def error(msg):
-  """Prints an error message and stops"""
-
-  print >>sys.stderr, "Error: %s" % msg
-  sys.exit(1)
-
+    """Prints an error message and stops"""
+    print("Error: %s" % msg, file=sys.stderr)
+    sys.exit(1)
 
 
 def warning(msg):
-  """Prints a warning message"""
-
-  print >>sys.stderr, "Warning: %s" % msg
-
+    """Prints a warning message"""
+    print("Warning: %s" % msg, file=sys.stderr)
 
 
 class cube:
-  "Empty type to carry information about cube headers"
-  pass
+    "Empty type to carry information about cube headers"
+    pass
 
 
 
 def getCubeRepr(fname):
-  """Reads in a cube file with a given name"""
+    """Reads in a cube file with a given name"""
 
-  try:
-    fp = open(fname, "r")
-    lines = fp.read().split("\n")
-    fp.close()
-  except IOError as ex:
-    error("Could not open file '%s'\n%s" % (fname, ex))
-  cc = cube()
-  words = lines[2].split()
-  cc.nAtom = int(words[0])
-  cc.origin = num.array([ float(s) for s in words[1:4] ])
-  words = (" ".join(lines[3:6])).split()
-  cc.nGrid = tuple([ int(s) for s in [words[0], words[4], words[8]]])
-  tmp = [ words[i] for i in (1, 2, 3, 5, 6, 7, 9, 10, 11) ]
-  cc.gridVecs = num.reshape(num.array([ float(s) for s in tmp ]), (3,3))
-  words = (" ".join(lines[6:6+cc.nAtom])).split()
-  tmp = [ words[i] for i in range(0, 5*cc.nAtom, 5) ]
-  cc.species = num.array([ int(s) for s in tmp ])
-  tmp = []
-  for ii in range(2, 5*cc.nAtom, 5):
-    tmp.append(words[ii])
-    tmp.append(words[ii+1])
-    tmp.append(words[ii+2])
-  cc.coords = num.reshape(num.array([ float(s) for s in tmp ]), (-1, 3))
-  data = []
-  for line in lines[6+cc.nAtom:]:
-    data.extend([ float(s) for s in line.split()])
-  cc.data = num.array(data, num.Float)
-  nAllData = cc.nGrid[0] * cc.nGrid[1] * cc.nGrid[2]
-  if cc.data.shape[0] != nAllData:
-    error(("Data in '%s' inconsistent with header (expected: %d, got: %d)"
-           % (fname, nAllData, cc.data.shape[0])))
-  cc.data = num.reshape(cc.data, cc.nGrid)
+    try:
+        fp = open(fname, "r")
+        lines = fp.read().split("\n")
+        fp.close()
+    except IOError as ex:
+        error("Could not open file '%s'\n%s" % (fname, ex))
+    cc = cube()
+    words = lines[2].split()
+    cc.nAtom = int(words[0])
+    cc.origin = num.array([ float(s) for s in words[1:4] ])
+    words = (" ".join(lines[3:6])).split()
+    cc.nGrid = tuple([ int(s) for s in [words[0], words[4], words[8]]])
+    tmp = [ words[i] for i in (1, 2, 3, 5, 6, 7, 9, 10, 11) ]
+    cc.gridVecs = num.reshape(num.array([ float(s) for s in tmp ]), (3,3))
+    words = (" ".join(lines[6:6+cc.nAtom])).split()
+    tmp = [ words[i] for i in range(0, 5*cc.nAtom, 5) ]
+    cc.species = num.array([ int(s) for s in tmp ])
+    tmp = []
+    for ii in range(2, 5*cc.nAtom, 5):
+        tmp.append(words[ii])
+        tmp.append(words[ii+1])
+        tmp.append(words[ii+2])
+    cc.coords = num.reshape(num.array([ float(s) for s in tmp ]), (-1, 3))
+    data = []
+    for line in lines[6+cc.nAtom:]:
+        data.extend([ float(s) for s in line.split()])
+    cc.data = num.array(data, num.Float)
+    nAllData = cc.nGrid[0] * cc.nGrid[1] * cc.nGrid[2]
+    if cc.data.shape[0] != nAllData:
+        error(("Data in '%s' inconsistent with header (expected: %d, got: %d)"
+               % (fname, nAllData, cc.data.shape[0])))
+    cc.data = num.reshape(cc.data, cc.nGrid)
 
-  return cc
-
+    return cc
 
 
 def dumpCubeFile(cc):
-  """Dumps a cube file to stdout"""
+    """Dumps a cube file to stdout"""
 
-  print >>sys.stdout, "Cube file created by cubemanip"
-  print >>sys.stdout, "Cube file created by cubemanip"
-  print >>sys.stdout, ("%10d %18.10E %18.10E %18.10E"
-                      % (cc.nAtom, cc.origin[0], cc.origin[1], cc.origin[2]))
-  for ii in range(3):
-    print >>sys.stdout, ("%10d %18.10E %18.10E %18.10E"
-                        % (cc.nGrid[ii], cc.gridVecs[ii][0], cc.gridVecs[ii][1],
-                           cc.gridVecs[ii][2]))
-  for ii in range(cc.nAtom):
-    print >>sys.stdout, ("%4d %18.10E %18.10E %18.10E %18.10E"
-                         % (cc.species[ii], 0.0, cc.coords[ii][0],
-                            cc.coords[ii][1], cc.coords[ii][2]))
-  for i1 in range(cc.nGrid[0]):
-    for i2 in range(cc.nGrid[1]):
-      line = []
-      for i3 in range(cc.nGrid[2]):
-        line.append("%18.10E" % cc.data[i1][i2][i3])
-        if len(line) == 4:
-          print(" ".join(line))
-          line = []
-      if len(line):
-        print(" ".join(line))
-
+    print("Cube file created by cubemanip")
+    print("Cube file created by cubemanip")
+    print(("%10d %18.10E %18.10E %18.10E"
+           % (cc.nAtom, cc.origin[0], cc.origin[1], cc.origin[2])))
+    for ii in range(3):
+        print(("%10d %18.10E %18.10E %18.10E"
+               % (cc.nGrid[ii], cc.gridVecs[ii][0], cc.gridVecs[ii][1],
+                  cc.gridVecs[ii][2])))
+    for ii in range(cc.nAtom):
+        print(("%4d %18.10E %18.10E %18.10E %18.10E"
+               % (cc.species[ii], 0.0, cc.coords[ii][0],
+                  cc.coords[ii][1], cc.coords[ii][2])))
+    for i1 in range(cc.nGrid[0]):
+        for i2 in range(cc.nGrid[1]):
+            line = []
+            for i3 in range(cc.nGrid[2]):
+                line.append("%18.10E" % cc.data[i1][i2][i3])
+                if len(line) == 4:
+                    print(" ".join(line))
+                    line = []
+            if len(line):
+                print(" ".join(line))
 
 
 def dumpData(data):
-  """Dumps an arbitrary shaped numerical array"""
+    """Dumps an arbitrary shaped numerical array"""
 
-  shape = data.shape
-  if not len(shape):
-    print("%18.10E" % data)
-    return
+    shape = data.shape
+    if not len(shape):
+        print("%18.10E" % data)
+        return
 
-  curShape = [0,] * len(data.shape)
-  finished = False
-  carry = False
-  while not (curShape[0] == 0 and carry):
-    line = []
-    curShape[-1] = -1
-    for ii in range(shape[-1]):
-      curShape[-1] += 1
-      line.append("%18.10E" % data[curShape])
-      if len(line) == 4:
-        print(" ".join(line))
+    curShape = [0,] * len(data.shape)
+    finished = False
+    carry = False
+    while not (curShape[0] == 0 and carry):
         line = []
-    if len(line):
-      print(" ".join(line))
-    carry = True
-    for ii in range(len(shape)-1, -1, -1):
-      if carry:
-        curShape[ii] = curShape[ii] + 1
-        if curShape[ii] == shape[ii]:
-          curShape[ii] = 0
-          carry = True
-        else:
-          carry = False
-      else:
-        break
-
+        curShape[-1] = -1
+        for ii in range(shape[-1]):
+            curShape[-1] += 1
+            line.append("%18.10E" % data[curShape])
+            if len(line) == 4:
+                print(" ".join(line))
+                line = []
+        if len(line):
+            print(" ".join(line))
+        carry = True
+        for ii in range(len(shape)-1, -1, -1):
+            if carry:
+                curShape[ii] = curShape[ii] + 1
+                if curShape[ii] == shape[ii]:
+                    curShape[ii] = 0
+                    carry = True
+                else:
+                    carry = False
+            else:
+                break
 
 
 def main():
-  """Main program"""
+    """Main program"""
 
-  # Parse command line options
-  parser = opt.OptionParser(usage=helpTxt)
-  parser.add_option("-d", "--data-only", action="store_true", dest="data_only",
-                    default=False,
-                    help="Dump only data without cube header. The resulting "
-                    "data may have different shape as as the input data.")
-  (options, args) = parser.parse_args()
+    # Parse command line options
+    parser = argparse.ArgumentParser(usage=helpTxt)
+    parser.add_argument("-d", "--data-only", action="store_true",
+                        dest="data_only", default=False,
+                        help="Dump only data without cube header. The resulting "
+                        "data may have different shape as as the input data.")
+    options, args = parser.parse_known_args()
 
-  if len(args) < 1:
-    error("No expression specified!\nType '%s -h' for help." % SCRIPT_NAME)
-    sys.exit(1)
-  expr = args[0]
+    if len(args) < 1:
+        error("No expression specified!\nType '%s -h' for help." % SCRIPT_NAME)
+        sys.exit(1)
+    expr = args[0]
 
-  # Look for the highest reference index
-  maxArg = 0
-  start = 0
-  match = patVar.search(expr)
-  while match:
-    argNum = int(match.group("number"))
-    if argNum > maxArg:
-      maxArg = argNum
-    match = patVar.search(expr, match.end())
+    # Look for the highest reference index
+    maxArg = 0
+    start = 0
+    match = patVar.search(expr)
+    while match:
+        argNum = int(match.group("number"))
+        if argNum > maxArg:
+            maxArg = argNum
+        match = patVar.search(expr, match.end())
 
-  if maxArg == 0:
-    error("Expression contains no parameters!")
+    if maxArg == 0:
+        error("Expression contains no parameters!")
 
-  if len(args) < maxArg + 1:
-    error("Missing files! You must specify at least %d cube file(s)." % maxArg)
+    if len(args) < maxArg + 1:
+        error("Missing files! You must specify at least %d cube file(s)."
+              % maxArg)
 
-  # Read in the necessary cube files
-  fnames = args[1:]
-  cubeList = [ getCubeRepr(fname) for fname in fnames ]
+    # Read in the necessary cube files
+    fnames = args[1:]
+    cubeList = [ getCubeRepr(fname) for fname in fnames ]
 
-  # Check for compatibility
-  c0 = cubeList[0]
-  for ii in range(1, len(cubeList)):
-    if cubeList[ii].nGrid != c0.nGrid:
-      error(("Grid points in '%s' and '%s' are incompatible!"
-             % (fnames[0], fnames[ii])))
+    # Check for compatibility
+    c0 = cubeList[0]
+    for ii in range(1, len(cubeList)):
+        if cubeList[ii].nGrid != c0.nGrid:
+            error(("Grid points in '%s' and '%s' are incompatible!"
+                   % (fnames[0], fnames[ii])))
 
-    if cubeList[ii].nAtom != c0.nAtom:
-      warning("Nr. of atoms in '%s' and '%s' differ" % (fnames[0], fnames[ii]))
-    elif num.any(cubeList[ii].species != c0.species):
-      warning(("Specie indexes in '%s' and '%s' differ"
-               % (fnames[0], fnames[ii])))
-    elif (max(num.sqrt(num.sum((cubeList[ii].coords - c0.coords)**2, -1)))
-        > tolerance):
-      warning("Coordinates in '%s' and '%s' differ!" % (fnames[0], fnames[ii]))
+        if cubeList[ii].nAtom != c0.nAtom:
+            warning("Nr. of atoms in '%s' and '%s' differ" % (fnames[0],
+                                                              fnames[ii]))
+        elif num.any(cubeList[ii].species != c0.species):
+            warning(("Specie indexes in '%s' and '%s' differ"
+                     % (fnames[0], fnames[ii])))
+        elif (max(num.sqrt(num.sum((cubeList[ii].coords - c0.coords)**2, -1)))
+              > tolerance):
+            warning("Coordinates in '%s' and '%s' differ!" % (fnames[0],
+                                                              fnames[ii]))
 
-    if (num.sqrt(num.sum((cubeList[ii].origin - c0.origin)**2)) > tolerance):
-      warning("Origins in '%s' and '%s' differ!" % (fnames[0], fnames[ii]))
-    if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2, -1)))
-        > tolerance):
-      warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0], fnames[ii]))
-    if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2, -1)))
-        > tolerance):
-      warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0], fnames[ii]))
+        if (num.sqrt(num.sum((cubeList[ii].origin - c0.origin)**2))
+            > tolerance):
+            warning("Origins in '%s' and '%s' differ!" % (fnames[0],
+                                                          fnames[ii]))
+        if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2,
+                                 -1))) > tolerance):
+            warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0],
+                                                               fnames[ii]))
+        if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2,
+                                 -1))) > tolerance):
+            warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0],
+                                                               fnames[ii]))
 
+    # Evaluate expression
+    data = [ cc.data for cc in cubeList ]
+    pyExpr = patVar.sub(r"(data[\g<number>-1])", expr)
+    varDict = { "data": data, "origin": c0.origin, "gridVecs": c0.gridVecs,
+               "nGrid": c0.nGrid }
+    varDict.update(num.__dict__)
+    varDict.update(linal.__dict__)
+    try:
+        result = eval(pyExpr, varDict)
+        resArr = num.array(result, num.Float)
+    except (Exception,) as exp:
+        error("Unable to evaluate you expression!\n%s" % exp)
 
-  # Evaluate expression
-  data = [ cc.data for cc in cubeList ]
-  pyExpr = patVar.sub(r"(data[\g<number>-1])", expr)
-  varDict = { "data": data, "origin": c0.origin, "gridVecs": c0.gridVecs,
-              "nGrid": c0.nGrid }
-  varDict.update(num.__dict__)
-  varDict.update(linal.__dict__)
-  try:
-    result = eval(pyExpr, varDict)
-    resArr = num.array(result, num.Float)
-  except (Exception,) as exp:
-    error("Unable to evaluate you expression!\n%s"
-          % exp)
+    # Check shape of the result
+    if (not options.data_only) and resArr.shape != c0.data.shape:
+        error(("Resulting shape %s is incompatible with the original one %s"
+               % (str(resArr.shape), str(c0.data.shape))))
 
-  # Check shape of the result
-  if (not options.data_only) and resArr.shape != c0.data.shape:
-    error(("Resulting shape %s is incompatible with the original one %s"
-           % (str(resArr.shape), str(c0.data.shape))))
-
-  # Write out the result
-  if options.data_only:
-    dumpData(resArr)
-  else:
-    c0.data = resArr
-    dumpCubeFile(c0)
+    # Write out the result
+    if options.data_only:
+        dumpData(resArr)
+    else:
+        c0.data = resArr
+        dumpCubeFile(c0)
 
 
 if __name__ == "__main__":
-  main()
+    main()
 
 
 

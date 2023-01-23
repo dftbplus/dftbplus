@@ -12,11 +12,11 @@ Downloads optional external components
 from __future__ import print_function
 import sys
 import os
-import optparse
+import argparse
 import subprocess as sub
 import shutil
 
-USAGE = '''usage: %prog [options] [OPTEXT [OPTEXT ...]]
+USAGE = '''%(prog)s [options] [OPTEXT [OPTEXT ...]]
 
 Downloads optional external components.
 
@@ -100,13 +100,13 @@ def main():
 
 def parse_cmdline_args():
     '''Parses and returns command line arguments.'''
-    parser = optparse.OptionParser(usage=USAGE)
+    parser = argparse.ArgumentParser(usage=USAGE)
     msg = 'Exclude certain externals (mostly useful when downloading all '\
           'optional externals except a few)'
-    parser.add_option(
+    parser.add_argument(
         '-e', '--exclude', dest='excluded', metavar='EXCLUDED',
         choices=EXTERNALS, default=None, action='append', help=msg)
-    opts, args = parser.parse_args()
+    opts, args = parser.parse_known_args()
 
     argchoices = ['UNRESTRICTED', 'RESTRICTED', 'ALL'] + EXTERNALS
     if not args:
