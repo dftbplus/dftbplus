@@ -28,7 +28,7 @@ module dftbp_common_memman
     !> Number of array elements
     integer :: size = 0
 
-    !> Chosen alignment in bytes (default: 64 byted)
+    !> Chosen alignment in bytes (default: 64 bytes)
     integer :: alignment = 64
 
     !> Whether the array is allocated
@@ -81,7 +81,7 @@ contains
   end function incrmntOfArray
 
 
-  !> Allocate an array aligned to the n byte boundary (typically used for aligning to 64 byte)
+  !> Allocate an array aligned to the n byte boundary (typically used for aligning to 64 bytes)
   subroutine TAlignedArray_allocateAligned(this, size, alignment)
 
     !> Instance of the aligned array type
