@@ -446,6 +446,7 @@ program waveplot
         end if
       end do
     end do
+    requiredKPointsForLevel(jj, ind:) = 0
     ind = 1
   end do
 
@@ -586,106 +587,108 @@ program waveplot
     levelInd = 1
     do iL = statesTiling(1, iCachedBlock), statesTiling(2, iCachedBlock)
       currentLevel = requiredLevels(iL)
-      do iKPoint = 1, size(requiredKPoints)
-        currentKPoint = requiredKPoints(iKPoint)
+      do iKPoint = 1, size(requiredKPointsForLevel(currentLevel, :))
+        currentKPoint = requiredKPointsForLevel(currentLevel, iKPoint)
+        if (currentKPoint .ne. 0) then
 
-        lpSpin: do iSpin = 1, size(requiredSpins)
-          currentSpin = requiredSpins(iSpin)
+          lpSpin: do iSpin = 1, size(requiredSpins)
+            currentSpin = requiredSpins(iSpin)
 
 
-          ! Build charge if needed for total charge or if it was explicitely required
-          tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. any(wp%opt%plottedKPoints ==&
-              & iKPoint) .and. any(wp%opt%plottedLevels == iLevel)
+            ! Build charge if needed for total charge or if it was explicitely required
+            tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. any(wp%opt%plottedKPoints ==&
+                & iKPoint) .and. any(wp%opt%plottedLevels == iLevel)
 
-          if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or.&
-              & wp%opt%tPlotChrgDiff))) then
-
-            if (wp%input%tRealHam) then
-              buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)**2
-            else
-              buffer(:,:,:) = abs(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))**2
-            end if
-
-            if (wp%opt%tCalcTotChrg) then
-              totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
-                  & * buffer(:,:,:)
-            end if
-
-            if (wp%opt%tPlotTotSpin) then
-              if (iSpin .eq. 1) then
-                spinUp(:,:,:) = spinUp(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
-                    & * buffer(:,:,:)
-              else
-                spinDown(:,:,:) = spinDown(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin) *&
-                    & buffer(:,:,:)
-              end if
-            end if
-
-            sumChrg = sum(buffer) * wp%loc%gridVol
-
-            if (wp%opt%tVerbose) then
-              write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") currentSpin, currentKPoint, currentLevel, "calc", sumChrg,&
-                  & wp%input%occupations(currentLevel, currentKPoint, currentSpin)
-            end if
-
-          end if
-
-          ! Build and dump desired properties of the current level
-          if (tPlotLevel) then
-
-            if (wp%opt%tPlotChrg) then
-              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
-                  & ', abs2')") wp%input%identity, currentSpin, currentKPoint, currentLevel
-              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-abs2.cube"
-              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
-                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
-              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
-            end if
-
-            ! Plot charge difference
-            if (wp%opt%tPlotChrgDiff) then
-              buffer = buffer - (sumChrg / sumAtomicChrg) * atomDensity(:,:,:)
-              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
-                  & ', abs2diff')") wp%input%identity, currentSpin, currentKPoint, currentLevel
-              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) //&
-                  & "-abs2diff.cube"
-              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
-                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
-              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
-            end if
-
-            ! Plot real part of WFs
-            if (wp%opt%tPlotReal) then
+            if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or.&
+                & wp%opt%tPlotChrgDiff))) then
 
               if (wp%input%tRealHam) then
-                buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)
+                buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)**2
               else
-                buffer(:,:,:) = real(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin), dp)
+                buffer(:,:,:) = abs(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))**2
               end if
 
-              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
-                  & ', real')") wp%input%identity, currentSpin, currentKPoint, currentLevel
-              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-real.cube"
-              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
-                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
-              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+              if (wp%opt%tCalcTotChrg) then
+                totChrg(:,:,:) = totChrg(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
+                    & * buffer(:,:,:)
+              end if
+
+              if (wp%opt%tPlotTotSpin) then
+                if (iSpin .eq. 1) then
+                  spinUp(:,:,:) = spinUp(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin)&
+                      & * buffer(:,:,:)
+                else
+                  spinDown(:,:,:) = spinDown(:,:,:) + wp%input%occupations(currentLevel, currentKPoint, currentSpin) *&
+                      & buffer(:,:,:)
+                end if
+              end if
+
+              sumChrg = sum(buffer) * wp%loc%gridVol
+
+              if (wp%opt%tVerbose) then
+                write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") currentSpin, currentKPoint, currentLevel, "calc", sumChrg,&
+                    & wp%input%occupations(currentLevel, currentKPoint, currentSpin)
+              end if
 
             end if
 
-            ! Plot imaginary part of WFs
-            if (wp%opt%tPlotImag) then
-              buffer(:,:,:) = aimag(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))
-              write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
-                  & ', imag')") wp%input%identity, currentSpin, currentKPoint, currentLevel
-              fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-imag.cube"
-              call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
-                  & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
-              write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+            ! Build and dump desired properties of the current level
+            if (tPlotLevel) then
+
+              if (wp%opt%tPlotChrg) then
+                write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                    & ', abs2')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+                fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-abs2.cube"
+                call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                    & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+                write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+              end if
+
+              ! Plot charge difference
+              if (wp%opt%tPlotChrgDiff) then
+                buffer = buffer - (sumChrg / sumAtomicChrg) * atomDensity(:,:,:)
+                write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                    & ', abs2diff')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+                fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) //&
+                    & "-abs2diff.cube"
+                call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                    & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+                write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+              end if
+
+              ! Plot real part of WFs
+              if (wp%opt%tPlotReal) then
+
+                if (wp%input%tRealHam) then
+                  buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)
+                else
+                  buffer(:,:,:) = real(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin), dp)
+                end if
+
+                write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                    & ', real')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+                fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-real.cube"
+                call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                    & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+                write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+
+              end if
+
+              ! Plot imaginary part of WFs
+              if (wp%opt%tPlotImag) then
+                buffer(:,:,:) = aimag(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))
+                write (comments(2), "('Calc-Id:',I11,', Spin:',I2,', K-Point:',I6,', State:',I6,&
+                    & ', imag')") wp%input%identity, currentSpin, currentKPoint, currentLevel
+                fileName = "wp-" // i2c(currentSpin) // "-" // i2c(currentKPoint) // "-" //i2c(currentLevel) // "-imag.cube"
+                call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%totGridVec,&
+                    & wp%opt%totGridOrig, buffer, fileName, comments, wp%opt%repeatBox)
+                write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+              end if
+
             end if
 
-          end if
-
-        end do lpSpin
+          end do lpSpin
+        end if
       end do
       levelInd = levelInd + 1
     end do
