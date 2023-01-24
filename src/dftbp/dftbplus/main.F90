@@ -106,6 +106,7 @@ module dftbp_dftbplus_main
   use dftbp_timedep_pprpa, only : ppRpaEnergies
   use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_type_extgeometry, only : TExtGeometry
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
@@ -764,12 +765,12 @@ contains
 
     if (this%tCoordsChanged) then
       call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%species0,&
-          & this%cutOff, this%orb, this%tHelical, this%scc, this%tblite, this%repulsive,&
-          & this%dispersion, this%solvation, this%thirdOrd, this%rangeSep, this%reks,&
-          & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
-          & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC,&
-          & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
-          & this%cm5Cont, errStatus)
+          & this%cutOff, this%orb, this%tLatticeChanged, this%scc, this%tblite, this%repulsive,&
+          & this%dispersion, this%solvation, this%thirdOrd, this%rangeSep, this%reks, &
+          & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom,&
+          & this%coord0Fold, this%coord,this%species, this%rCellVec, this%nNeighbourSk,&
+          & this%nNeighbourLC, this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim,&
+          & this%iSparseStart, this%cm5Cont, this%extGeom, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -1878,10 +1879,10 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, boundaryCond, coord0, latVec, species0, cutOff, orb,&
-      & tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd, rangeSep, reks,&
-      & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
-      & nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim, ERhoPrim, iSparseStart, cm5Cont,&
-      & errStatus)
+      & tLatticeChanged, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd, rangeSep,&
+      & reks, img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species,&
+      & rCellVec, nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim, ERhoPrim, iSparseStart,&
+      & cm5Cont, extGeom, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1904,8 +1905,8 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Is the geometry helical
-    logical, intent(in) :: tHelical
+    !> Whether also lattice has changed
+    logical, intent(in) :: tLatticeChanged
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
@@ -1983,6 +1984,8 @@ contains
     !> Charge model 5
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
+    type(TExtGeometry), intent(inout) :: extGeom
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
@@ -1993,15 +1996,20 @@ contains
     coord0Fold(:,:) = coord0
     call boundaryCond%foldCoordsToCell(coord0Fold, latVec)
 
-    if (tHelical) then
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
-          & errStatus, helicalBoundConds=latVec)
+    if (tLatticeChanged) then
+      call extGeom%updateGeometry(env, coord0Fold, species0, cutoff%mCutOff, errStatus,&
+          & boundaryVectors=latVec)
     else
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
+      call extGeom%updateGeometry(env, coord0Fold, species0, cutoff%mCutOff, errStatus)
     end if
     @:PROPAGATE_ERROR(errStatus)
+
+    coord = extGeom%coords
+    species = extGeom%species
+    img2CentCell = extGeom%img2CentCell
+    iCellVec = extGeom%iCellVecs
+    neighbourList = extGeom%asymmNeighList
+    nAllAtom = extGeom%nAllAtom
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
 

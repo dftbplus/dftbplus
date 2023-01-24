@@ -121,6 +121,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_extgeometry, only : TExtGeometry, TExtGeometry_init
   use dftbp_type_integral, only : TIntegral, TIntegral_init
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
@@ -203,6 +204,9 @@ module dftbp_dftbplus_initprogram
 
     !> nr. of orbitals in the system
     integer :: nOrb
+
+    !> Extended (unfolded) geometry with neighbours
+    type(TExtGeometry) :: extGeom
 
     !> types of the atoms (nAllAtom)
     integer, allocatable :: species(:)
@@ -1325,7 +1329,7 @@ contains
     call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
-        & errStatus)
+        & this%extGeom, errStatus)
     if (errStatus%hasError()) then
       call error(errStatus%message)
     end if
@@ -5884,7 +5888,7 @@ contains
   ! Initializes the variables directly related to the user specified geometry.
   subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol, errStatus)
+      & recCellVol, extGeom, errStatus)
     type(TInputData), intent(in) :: input
     integer, intent(out) :: nAtom, nType
     logical, intent(out) :: tPeriodic, tHelical
@@ -5894,6 +5898,7 @@ contains
     logical, intent(out) :: tCoordsChanged, tLatticeChanged
     real(dp), allocatable, intent(out) :: latVec(:,:), origin(:), recVec(:,:), invLatVec(:,:)
     real(dp), intent(out) :: cellVol, recCellVol
+    type(TExtGeometry), intent(out) :: extGeom
 
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
@@ -5913,6 +5918,8 @@ contains
       call TBoundaryConditions_init(boundaryCond, boundaryConditions%cluster, errStatus)
     end if
     @:PROPAGATE_ERROR(errStatus)
+
+    call TExtGeometry_init(extGeom, boundaryCond%iBoundaryCondition)
 
     coord0 = input%geom%coords
     species0 = input%geom%species

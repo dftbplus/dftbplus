@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/commontypes.F90
   ${curdir}/densedescr.F90
   ${curdir}/dynneighlist.F90
+  ${curdir}/extgeometry.F90
   ${curdir}/latpointiter.F90
   ${curdir}/integral.F90
   ${curdir}/linkedlist.F90
