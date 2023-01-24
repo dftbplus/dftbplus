@@ -746,7 +746,7 @@ contains
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iNeigh, iAt1Start, iAt1End
     integer :: nAtom, maxShell1, maxShell2
     integer, allocatable :: maxNeigh(:)
-    real(dp) :: shortGammaValue, deltaQShellValue, shiftShellSum
+    real(dp) :: shortGammaValue, deltaQShellValue
     type(TChunkIterator) :: chunkIter
     logical :: skipLoop
 
@@ -777,30 +777,23 @@ contains
         iAt1 = chunkIter%getNextIndex()
         iSp1 = species(iAt1)
         maxShell1 = orb%nShell(iSp1)
-
-        do iNeigh = 0, maxNeigh(iAt1)
-          iAt2f = img2CentCell(iNeighbours(iNeigh, iAt1))
-          iSp2 = species(iAt2f)
-          maxShell2 = orb%nShell(iSp2)
-
-          do iSh1 = 1, maxShell1
-            iU1 = hubb%iHubbU(iSh1, iSp1)
-            deltaQShellValue = deltaQShell(iSh1, iAt1)
-
+        do iSh1 = 1, maxShell1
+          iU1 = hubb%iHubbU(iSh1, iSp1)
+          deltaQShellValue = deltaQShell(iSh1, iAt1)
+          do iNeigh = 0, maxNeigh(iAt1)
+            iAt2f = img2CentCell(iNeighbours(iNeigh, iAt1))
+            iSp2 = species(iAt2f)
+            maxShell2 = orb%nShell(iSp2)
             do iSh2 = 1, maxShell2
               iU2 = hubb%iHubbU(iSh2, iSp2)
               shortGammaValue = shortGamma(iU2, iU1, iNeigh, iAt1)
-              if (iSh2 > 1) then
-                shiftShellSum = shiftShellSum + shortGammaValue * deltaQShell(iSh2, iAt2f)
-              else
-                shiftShellSum = shortGammaValue * deltaQShell(iSh2, iAt2f)
-              end if
+              shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1)&
+                    & - shortGammaValue * deltaQShell(iSh2, iAt2f)
               if (iAt2f /= iAt1) then
                 shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f)&
                     & - shortGammaValue * deltaQShellValue
               end if
             end do
-            shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1) - shiftShellSum
           end do
         end do
       end do
