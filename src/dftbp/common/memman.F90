@@ -10,9 +10,9 @@
 !> Contains various constants for memory management
 module dftbp_common_memman
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error, warning
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_null_ptr, c_f_pointer,&
-      & c_int, c_intptr_t, c_size_t
+  use dftbp_io_message, only : error
+  use, intrinsic :: iso_c_binding, only : c_associated, c_f_pointer, c_int,&
+      & c_null_ptr, c_ptr, c_size_t, c_sizeof
 
   implicit none
 
@@ -22,24 +22,21 @@ module dftbp_common_memman
   !> Holds an allocated array being aligned in memory
   type TAlignedArray
 
-    !> Actual array data
-    real(dp), pointer :: array(:)
-
     !> Number of array elements
     integer :: size = 0
 
     !> Chosen alignment in bytes (default: 64 bytes)
     integer :: alignment = 64
 
-    !> Whether the array is allocated
-    logical :: isAllocated = .false.
-
     !> Pointer to the allocated memory
-    type(c_ptr) :: memoryPointer = c_null_ptr
+    type(c_ptr), private :: memoryPointer = c_null_ptr
 
   contains
 
-    procedure :: allocateAligned => TAlignedArray_allocateAligned
+    procedure :: allocate => TAlignedArray_allocate
+    procedure :: getArray => TAlignedArray_getArray
+    procedure, pass(this) :: TAlignedArray_assign
+    generic :: assignment(=) => TAlignedArray_assign
     final :: TAlignedArray_finalize
 
   end type TAlignedArray
@@ -48,9 +45,9 @@ module dftbp_common_memman
   !> Bound to 'posix_memalign' to allocate aligned memory
   interface
     function posixMemalign(ptr, alignment, size) result(error) bind(C, name="posix_memalign")
-      import c_ptr, c_intptr_t, c_int
+      import c_ptr, c_size_t, c_int
       type(c_ptr), intent(inout) :: ptr
-      integer(c_intptr_t), intent(in), value :: alignment, size
+      integer(c_size_t), intent(in), value :: alignment, size
       integer(c_int) :: error
     end function
   end interface
@@ -82,7 +79,7 @@ contains
 
 
   !> Allocate an array aligned to the n byte boundary (typically used for aligning to 64 bytes)
-  subroutine TAlignedArray_allocateAligned(this, size, alignment)
+  subroutine TAlignedArray_allocate(this, size, alignment)
 
     !> Instance of the aligned array type
     class(TAlignedArray), intent(inout) :: this
@@ -93,43 +90,76 @@ contains
     !> Alignment (default: 64 bytes)
     integer, intent(in), optional :: alignment
 
-    if (this%isAllocated) then
+    integer :: dp_size
+
+    if (c_associated(this%memoryPointer)) then
       call error("Aligned array is already allocated")
     end if
 
     @:ASSERT(size > 0)
 
+    dp_size = int(c_sizeof(0._dp))
     if (present(alignment)) then
-      @:ASSERT(alignment >= dp)
-      @:ASSERT(mod(alignment, dp) == 0)
+      @:ASSERT(alignment >= dp_size)
+      @:ASSERT(mod(alignment, dp_size) == 0)
 
       this%alignment = alignment
     end if
 
     if (posixMemalign(this%memoryPointer, int(this%alignment, kind=c_size_t),&
-          & int(size * dp, kind=c_size_t)) /= 0) then
+          & int(size * dp_size, kind=c_size_t)) /= 0) then
       call error("Error during allocation of aligned array")
     end if
 
+    @:ASSERT(c_associated(this%memoryPointer))
+
     this%size = size
-    call c_f_pointer(this%memoryPointer, this%array, [size])
 
-    this%isAllocated = .true.
+  end subroutine TAlignedArray_allocate
 
-  end subroutine TAlignedArray_allocateAligned
+
+  !> Fetch the pointer to the array data
+  subroutine TAlignedArray_getArray(this, array)
+
+    !> Instance of the aligned array type
+    class(TAlignedArray), intent(in) :: this
+
+    !> Pointer to the array data
+    real(dp), pointer, intent(out) :: array(:)
+
+    call c_f_pointer(this%memoryPointer, array, [this%size])
+
+  end subroutine TAlignedArray_getArray
+
+
+  !> On Assignment, deallocate, allocate, and copy array data
+  subroutine TAlignedArray_assign(this, other)
+
+    !> Instance of the lhs of the assignment
+    class(TAlignedArray), intent(out) :: this
+
+    !> Instance of the rhs of the assignment
+    type(TAlignedArray), intent(in) :: other
+
+    real(dp), pointer :: thisArray(:), otherArray(:)
+
+    call this%allocate(other%size, other%alignment)
+    call this%getArray(thisArray)
+    call other%getArray(otherArray)
+    thisArray = otherArray
+
+  end subroutine TAlignedArray_assign
 
 
   !> Clean-up an aligned array by deallocating it
-  subroutine TAlignedArray_finalize(this)
+  elemental impure subroutine TAlignedArray_finalize(this)
 
     !> Instance of the aligned array type
     type(TAlignedArray), intent(inout) :: this
 
-    if (this%isAllocated) then
-      nullify(this%array)
+    if (c_associated(this%memoryPointer)) then
       call free(this%memoryPointer)
       this%memoryPointer = c_null_ptr
-      this%isAllocated = .false.
     end if
 
   end subroutine TAlignedArray_finalize

@@ -10,52 +10,71 @@
 #:block TEST_SUITE("memman")
   use dftbp_common_accuracy, only : dp
   use dftbp_common_memman, only : TAlignedArray
-  use, intrinsic :: iso_c_binding, only : c_associated
   implicit none
 
 #:contains
 
-  #:block TEST_FIXTURE("allocateAligned")
+  #:block TEST_FIXTURE("allocate")
 
-    type(TAlignedArray) :: aligned
+    type(TAlignedArray) :: aligned, aligned2
+    real(dp), pointer :: array(:)
 
   #:contains
 
     #:block TEST("allocate32Bytes")
-      call aligned%allocateAligned(7, 32)
+      call aligned%allocate(7, 32)
+      call aligned%getArray(array)
 
-      @:ASSERT(aligned%isAllocated)
+      @:ASSERT(associated(array))
       @:ASSERT(aligned%alignment == 32)
 
       @:ASSERT(aligned%size == 7)
-      @:ASSERT(size(aligned%array, dim=1) == 7)
-      @:ASSERT(lbound(aligned%array, dim=1) == 1)
-      @:ASSERT(ubound(aligned%array, dim=1) == 7)
+      @:ASSERT(size(array) == 7)
+      @:ASSERT(size(array, dim=1) == 7)
+      @:ASSERT(lbound(array, dim=1) == 1)
+      @:ASSERT(ubound(array, dim=1) == 7)
 
-      aligned%array(:) = 1.0_dp
-      aligned%array(7) = 42.0_dp
-      @:ASSERT(aligned%array(7) == 42.0_dp)
+      array(:) = 1.0_dp
+      array(7) = 42.0_dp
+      nullify(array)
+      call aligned%getArray(array)
+      @:ASSERT(array(7) == 42.0_dp)
     #:endblock
 
     #:block TEST("allocateDefault64Bytes")
-      call aligned%allocateAligned(7)
+      call aligned%allocate(7)
+      call aligned%getArray(array)
 
-      @:ASSERT(c_associated(aligned%memoryPointer))
-      @:ASSERT(aligned%isAllocated)
+      @:ASSERT(associated(array))
       @:ASSERT(aligned%alignment == 64)
     #:endblock
 
     #:block TEST("deallocate")
-      @:ASSERT(.not. c_associated(aligned%memoryPointer))
-      @:ASSERT(.not. aligned%isAllocated)
+      call aligned%getArray(array)
+      @:ASSERT(.not. associated(array))
 
-      call aligned%allocateAligned(7)
-      @:ASSERT(c_associated(aligned%memoryPointer))
-      @:ASSERT(aligned%isAllocated)
+      call aligned%allocate(7)
+      call aligned%getArray(array)
+      @:ASSERT(associated(array))
 
       call triggerDeallocation(aligned)
-      @:ASSERT(.not. c_associated(aligned%memoryPointer))
-      @:ASSERT(.not. aligned%isAllocated)
+      call aligned%getArray(array)
+      @:ASSERT(.not. associated(array))
+    #:endblock
+
+    #:block TEST("reallocate")
+      call aligned%allocate(3)
+      call aligned%getArray(array)
+      array(1) = 3.0_dp
+
+      call aligned2%allocate(4)
+      call aligned2%getArray(array)
+      array(1) = 4.0_dp
+
+      aligned = aligned2
+      @:ASSERT(aligned%size == 4)
+      call aligned%getArray(array)
+      @:ASSERT(array(1) == 4.0_dp)
     #:endblock
 
 
