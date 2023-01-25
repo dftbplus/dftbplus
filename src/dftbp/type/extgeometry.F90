@@ -25,6 +25,9 @@ module dftbp_type_extgeometry
   !> Extended geometry with atoms outside of the central unit cell up to a certain cutoff distance.
   type :: TExtGeometry
 
+    !> Number of atoms in the central cell
+    integer :: nAtom = -1
+
     !> Number of atoms in the extended geometry
     integer :: nAllAtom = -1
 
@@ -58,7 +61,6 @@ module dftbp_type_extgeometry
   contains
 
     procedure :: updateGeometry
-    procedure, private :: makeFirstAllocations_
 
   end type TExtGeometry
 
@@ -101,9 +103,22 @@ contains
     type(TStatus), intent(out) :: status
 
     !> New vectors representing the boundary conditions
+    !>
+    !> Boundary conditions must be passed for non-cluster geometries at the first call of
+    !> updateGeometry(), and afterwards whenever they change.
+    !>
     real(dp), optional, intent(in) :: boundaryVectors(:,:)
 
     real(dp), allocatable :: invBoundVecs(:,:)
+
+    ! Structure is either initialized or boundary conditions must be passed for non-cluster cases
+    @:ASSERT(this%nAtom /= -1&
+        & .or. this%iBoundaryCond_ == boundaryConditions%cluster&
+        & .or. present(boundaryVectors))
+
+    if (this%nAtom == -1) then
+      call initialize_(this, size(species0), boundaryVectors)
+    end if
 
     if (present(boundaryVectors)) then
       if (this%iBoundaryCond_ == boundaryConditions%helical) then
@@ -114,13 +129,6 @@ contains
         invBoundVecs = pbc3dInvLatVecs_(boundaryVectors)
       end if
       call getCellTranslations(this%cellVecs, this%rCellVecs, boundaryVectors, invBoundVecs, cutoff)
-    else if (.not. allocated(this%cellVecs)) then
-      allocate(this%cellVecs(3, 1), source=0.0_dp)
-      allocate(this%rCellVecs(3, 1), source=0.0_dp)
-    end if
-
-    if (.not. allocated(this%coords)) then
-      call this%makeFirstAllocations_(size(species0))
     end if
 
     call updateNeighbourListAndSpecies(env, this%coords, this%species, this%img2CentCell,&
@@ -131,35 +139,52 @@ contains
   end subroutine updateGeometry
 
 
-  subroutine makeFirstAllocations_(this, nAtom)
-    class(TExtGeometry), intent(inout) :: this
+  ! Carries out the first initialization.
+  subroutine initialize_(this, nAtom, boundaryVectors)
+    type(TExtGeometry), intent(inout) :: this
     integer, intent(in) :: nAtom
+    real(dp), optional, intent(in) :: boundaryVectors(:,:)
 
     integer, parameter :: nInitNeighbours = 40
+
+    @:ASSERT(present(boundaryVectors) .or. this%iBoundaryCond_ /= boundaryConditions%helical)
+
+    this%nAtom = nAtom
+    if (this%iBoundaryCond_ == boundaryConditions%helical) then
+      this%helicalBoundVecs_ = boundaryVectors
+    end if
 
     select case (this%iBoundaryCond_)
     case (boundaryConditions%pbc3d)
       ! Make some guess for the nr. of all interacting atoms
-      this%nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
+      this%nAllAtom = int((real(this%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
     case (boundaryConditions%helical)
       ! 1D system, so much lower number of initial interactions
-      this%nAllAtom = nAtom + 3
+      this%nAllAtom = this%nAtom + 3
       if (size(this%helicalBoundVecs_, dim=1) == 3) then
         this%nAllAtom = this%nAllAtom * nint(this%helicalBoundVecs_(3, 1))
       end if
     case default
-      this%nAllAtom = nAtom
+      this%nAllAtom = this%nAtom
     end select
 
     allocate(this%coords(3, this%nAllAtom))
     allocate(this%species(this%nAllAtom))
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVecs(this%nAllAtom))
-    call TNeighbourlist_init(this%asymmNeighList, nAtom, nInitNeighbours)
+    call TNeighbourlist_init(this%asymmNeighList, this%nAtom, nInitNeighbours)
 
-  end subroutine makeFirstAllocations_
+    ! For cluster geometries cellVecs and rCellVecs remain constant, for others they will be
+    ! dynamically (re)allocated at every updateGeometry() call, so no need to allocate them here.
+    if (this%iBoundaryCond_ == boundaryConditions%cluster) then
+      allocate(this%cellVecs(3, 1), source=0.0_dp)
+      allocate(this%rCellVecs(3, 1), source=0.0_dp)
+    end if
+
+  end subroutine initialize_
 
 
+  ! Returns the inverse lattice vectors for 3D periodic boundary conditions.
   function pbc3dInvLatVecs_(latVecs) result(invLatVecs)
     real(dp), intent(in) :: latVecs(:,:)
     real(dp), allocatable :: invLatVecs(:,:)

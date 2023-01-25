@@ -43,7 +43,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getCellTranslations
+  use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
@@ -193,9 +193,6 @@ module dftbp_dftbplus_initprogram
     !> nr. of all (boundary condition images and original) atoms
     integer :: nAllAtom
 
-    !> nr. of original atom in central cell
-    integer, allocatable :: img2CentCell(:)
-
     !> nr of different types (nAtom)
     integer :: nType
 
@@ -208,14 +205,8 @@ module dftbp_dftbplus_initprogram
     !> Extended (unfolded) geometry with neighbours
     type(TExtGeometry) :: extGeom
 
-    !> types of the atoms (nAllAtom)
-    integer, allocatable :: species(:)
-
     !> type of the atoms (nAtom)
     integer, allocatable :: species0(:)
-
-    !> Coords of the atoms (3, nAllAtom)
-    real(dp), allocatable :: coord(:,:)
 
     !> Coords in central cell (3, nAtom)
     real(dp), allocatable :: coord0(:,:)
@@ -261,19 +252,6 @@ module dftbp_dftbplus_initprogram
 
     !> reciprocal cell volume
     real(dp) :: recCellVol
-
-    !> translation vecs for interacting image cells (3, nImgCell + 1)
-    real(dp), allocatable :: cellVec(:,:)
-
-    !> cell vectors in absolute units
-    real(dp), allocatable :: rCellVec(:,:)
-
-    !> index in cellVec for each atom
-    integer, allocatable :: iCellVec(:)
-
-
-    !> ADT for neighbour parameters
-    type(TNeighbourList), allocatable :: neighbourList
 
     !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
@@ -1263,9 +1241,6 @@ contains
     !> Whether seed was randomly created
     logical :: tRandomSeed
 
-    !> First guess for nr. of neighbours.
-    integer :: nInitNeighbour = 40
-
     !> Spin loop index
     integer :: iSpin
 
@@ -1680,10 +1655,6 @@ contains
     else
       this%nAllAtom = this%nAtom
     end if
-    allocate(this%coord(3, this%nAllAtom))
-    allocate(this%species(this%nAllAtom))
-    allocate(this%img2CentCell(this%nAllAtom))
-    allocate(this%iCellVec(this%nAllAtom))
 
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
@@ -2624,20 +2595,7 @@ contains
 
     call this%initializeCharges(input%ctrl%initialSpins, input%ctrl%initialCharges)
 
-    ! Initialise images (translations)
-    if (this%tPeriodic .or. this%tHelical) then
-      call getCellTranslations(this%cellVec, this%rCellVec, this%latVec, this%invLatVec,&
-          & this%cutOff%mCutOff)
-    else
-      allocate(this%cellVec(3, 1))
-      allocate(this%rCellVec(3, 1))
-      this%cellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
-      this%rCellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
-    end if
-
     ! Initialize neighbourlist.
-    allocate(this%neighbourList)
-    call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
     if (this%isRangeSep) then
       allocate(this%nNeighbourLC(this%nAtom))
@@ -5940,19 +5898,20 @@ contains
       cellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else if (tHelical) then
+      tLatticeChanged = .true.
       origin = input%geom%origin
       latVec = input%geom%latVecs
       allocate(recVec(1, 1))
       recVec = 1.0_dp / latVec(1,1)
       allocate(invLatVec(0, 0))
     else
+      tLatticeChanged = .false.
       allocate(latVec(0, 0))
       allocate(origin(0))
       allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
       cellVol = 0.0_dp
       recCellVol = 0.0_dp
-      tLatticeChanged = .false.
     end if
 
   end subroutine initGeometry_
