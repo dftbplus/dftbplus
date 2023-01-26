@@ -190,7 +190,8 @@ contains
       end if
       write(fp, "(A,A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
           & prefix, trim(this%timerNames(iTimer)), operation, cpuTime,&
-          & (cpuTime / totalCpu) * 100.0_dp, wallTime, (wallTime / totalWall) * 100.0_dp
+          & relative_(cpuTime, totalCpu) * 100.0_dp, wallTime,&
+          & relative_(wallTime, totalWall) * 100.0_dp
       if (this%timerLevels(iTimer) == 1) then
         allCpu = allCpu + cpuTime
         allWall = allWall + wallTime
@@ -198,13 +199,30 @@ contains
     end do
     write(fp, "(A)") repeat("-", 80)
     write(fp, "(A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
-        & "Missing", "+", abs(totalCpu - allCpu), abs(totalCpu - allCpu) / totalCpu * 100.0_dp,&
-        & abs(totalWall - allWall), abs(totalWall - allWall) / totalWall * 100.0_dp
+        & "Missing", "+", abs(totalCpu - allCpu),&
+        & relative_(abs(totalCpu - allCpu), totalCpu) * 100.0_dp,&
+        & abs(totalWall - allWall), relative_(abs(totalWall - allWall), totalWall) * 100.0_dp
     write(fp, "(A,T40,A,T41,F11.2,1X,'(',F5.1,'%)',T61,F11.2,1X,'(',F5.1,'%)')")&
         & "Total", "=", totalCpu, 100.0_dp, totalWall, 100.0_dp
     write(fp, "(A)") repeat("-", 80)
 
   end subroutine writeTimings
 
+
+  ! Gives the relative share, or 1.0 if the total is too small
+  pure function relative_(item, total) result(rel)
+    real(dp), intent(in) :: item, total
+    real(dp) :: rel
+
+    ! Omit total share calculations for total times shorter than one microsecond
+    real(dp), parameter :: tolerance = 1e-6_dp
+
+    if (total >= tolerance) then
+      rel = item / total
+    else
+      rel = 1.0_dp
+    end if
+
+  end function relative_
 
 end module dftbp_common_timerarray

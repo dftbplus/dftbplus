@@ -18,7 +18,8 @@ do
     if [ -f "$FILE" ]
     then
         if grep -iw NaN $FILE; then
-            echo "Error: NaN in file: $FILE"
+            echo "Error: NaN in file: $FILE" >&2
+            echo "Deleting autest.tag" >&2
             rm autotest.tag
             exit 1
         fi

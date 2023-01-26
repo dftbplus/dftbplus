@@ -223,7 +223,6 @@ contains
     character(:), allocatable, optional, intent(out) :: ioMsg
 
     type(TOpenOptions) :: opts
-    logical :: exists
     integer :: ioStat_
     character(1024) :: ioMsg_
 
@@ -255,8 +254,7 @@ contains
     end if
 
     if (opts%status == "oldnew") then
-      inquire(file=file, exist=exists)
-      if (exists) then
+      if (fileExists(file)) then
         opts%status = "old"
       else
         opts%status = "new"
@@ -457,8 +455,8 @@ contains
 
     type(TFileDescr) :: fd
 
-    ! Truncates file (which will be automatically closed on exit)
     call openFile(fd, file, mode="w", ioStat=ioStat, ioMsg=ioMsg)
+    call closeFile(fd)
 
   end subroutine clearFile
 
