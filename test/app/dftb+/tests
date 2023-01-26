@@ -194,6 +194,7 @@ derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
+legacy/file_access                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
 non-scc/Si_2_origin                    #? MPI_PROCS <= 1
 non-scc/Si_2_originF                   #? MPI_PROCS <= 1

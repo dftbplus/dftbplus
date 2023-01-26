@@ -4602,6 +4602,7 @@ This block collects some global options for the run.
   \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
+  \kw{FileAccessTypes} & s | 2s & & "stream"  & \\
 \end{ptable}
 \begin{description}
 
@@ -4703,6 +4704,32 @@ This block collects some global options for the run.
   re-start. Finally, in the case of user edited \verb|charges.dat| file (see
   section~\ref{sec:charges.bin}), the check-sum this option removed the
   requirement that the checksum values in the file match the charges.
+
+\item[\is{FileAccessTypes}\label{sec:dftbp.Options.FileAccessTypes}] Specifies
+  the default file access types. It contains either one string specifying the
+  same access type for both reading and writing files, or two strings specifying
+  the access type separately for reading and writing. Each value must be either
+  \is{"sequential"} or \is{"stream"}. The default is \is{"stream"} for both
+  actions. It only affects the I/O of binary files.
+
+  Starting with version 23.1, \dftbp{} consistently uses stream-I/O in order to
+  procude binary files (e.g.\ \verb|eigenvec.bin|, \verb|charges.bin|, etc.),
+  which can be processed by programs written in other languages (Python, C). In
+  earlier versions most binary files were written using sequential I/O, which
+  were not transferable between languages or even between Fortran compilers. You
+  can read in or write out files in this old format by setting the appropriate
+  action to \is{"sequential"}.
+
+  Example:
+\begin{verbatim}
+  # Use old sequential I/O for input and output of binary files
+  FileAccessTypes = "sequential"
+
+  # Use the old format when reading and the new format when writing binary files
+  FileAccessTypes = "sequential"  "stream"
+
+\end{verbatim}
+
 
 \end{description}
 

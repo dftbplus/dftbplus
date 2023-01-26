@@ -554,6 +554,9 @@ module dftbp_dftbplus_inputdata
     !> Whether ChIMES correction for repulsives should be applied.
     type(TChimesRepInp), allocatable :: chimesRepInput
 
+    !> File access type to use when opening files for reading and writing
+    character(20) :: fileAccessTypes(2)
+
   end type TControl
 
 

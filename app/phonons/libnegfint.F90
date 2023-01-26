@@ -28,6 +28,7 @@
 module phonons_libnegfint
   use dftbp_common_accuracy
   use dftbp_common_environment
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_extlibs_negf, only : getel, lnParams, pass_DM, Tnegf, kb, units, convertHeatCurrent,&
       & convertHeatConductance, z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF, DELTA_SQ, DELTA_W,&
@@ -460,7 +461,8 @@ module phonons_libnegfint
     real(dp), pointer    :: tunnPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: ii, jj, iK, nK, err, nnz, ntemp, fu
+    type(TFileDescr) :: fd
+    integer :: ii, jj, iK, nK, err, nnz, ntemp
     real(dp), allocatable :: kPoints(:,:), kWeights(:)
     type(z_DNS) :: zDynMat
     real(dp) :: cutoff,TT1,emin,emax,estep, kappa
@@ -556,14 +558,15 @@ module phonons_libnegfint
         filename = 'transmission'
         call write_file(negf, tunnMat, tunnSKRes, filename, kpoints, kWeights)
 
-        open(newunit=fu,file='conductance.dat',action='write')
+        call openFile(fd, "conductance.dat", mode="w")
         do ii = 1, size(tunnMat,2)
-          write(fu,*) '# T [K]', 'Thermal Conductance [W/K]'
+          write(fd%unit, *) '# T [K]', 'Thermal Conductance [W/K]'
           do jj = 1, ntemp
-            write(fu,*) conductance(jj,1), conductance(jj,ii+1)
+            write(fd%unit, *) conductance(jj,1), conductance(jj,ii+1)
           end do
         end do
-      endif
+        call closeFile(fd)
+      end if
 
     else
       allocate(tunnMat(0,0))
@@ -832,44 +835,45 @@ module phonons_libnegfint
     !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, iK, nK, fu
+    type(TFileDescr) :: fd
+    integer :: ii, jj, iK, nK
 
     nK = size(kPoints,2)
-    open(newunit=fu,file=trim(filename)//'.dat')
+    call openFile(fd, trim(filename) // '.dat', mode="w")
     if (trim(filename).eq.'transmission') then
-      write(fu,*)  '# Energy [H]', '  Transmission'
+      write(fd%unit, *)  '# Energy [H]', '  Transmission'
     else
-      write(fu,*)  '# Energy [H]', '  LDOS'
+      write(fd%unit, *)  '# Energy [H]', '  LDOS'
     endif
     do ii=1,size(pTot,1)
-      write(fu,'(es20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
+      write(fd%unit, '(es20.8)', advance='no') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
       do jj=1,size(pTot,2)
-        write(fu,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
+        write(fd%unit, '(es20.8)', advance='no') pTot(ii,jj)
       enddo
-      write(fu,*)
+      write(fd%unit, *)
     enddo
-    close(fu)
+    call closeFile(fd)
 
     if (nK.gt.1) then
-      open(newunit=fu,file=trim(filename)//'_kpoints.dat')
-      write(fu,*)  '# NKpoints = ', nK
-      write(fu,*)  '# Energy [eV], <k1 k2 k3 weight> '
-      write(fu,'(A1)', ADVANCE='NO') '# '
+      call openFile(fd, trim(filename) // '_kpoints.dat', mode="w")
+      write(fd%unit, *)  '# NKpoints = ', nK
+      write(fd%unit, *)  '# Energy [eV], <k1 k2 k3 weight> '
+      write(fd%unit, '(A1)', advance="no") '# '
       do iK = 1,nK
-        write(fu,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
-                                                                      & kWeights(iK)
+        write(fd%unit, '(es15.5, es15.5, es15.5, es15.5)', advance="no") &
+            & kpoints(:,iK), kWeights(iK)
       end do
-      write(fu,*)
-      do ii=1,size(pKRes(:,:,1),1)
-        write(fu,'(f20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
+      write(fd%unit, *)
+      do ii = 1, size(pKRes(:,:,1),1)
+        write(fd%unit, '(f20.8)',advance="no") (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
         do jj=1,size(pKRes(:,:,1),2)
           do iK = 1,nK
-            write(fu,'(es20.8)',ADVANCE='NO') pKRes(ii,jj, iK)
+            write(fd%unit, '(es20.8)',advance="no") pKRes(ii,jj, iK)
           enddo
-          write(fu,*)
+          write(fd%unit, *)
         enddo
       enddo
-      close(fu)
+      call closeFile(fd)
     end if
 
   end subroutine write_file
@@ -880,25 +884,26 @@ module phonons_libnegfint
   subroutine negf_dumpHS(HH,SS)
     type(z_CSR), intent(in) :: HH, SS
 
-    integer :: fu
+    type(TFileDescr) :: fd
 
     write(stdOut,*) 'Dumping H and S on files...'
-    open(newunit=fu, file='HH.dat')
-    write(fu,*) '% Size =',HH%nrow, HH%ncol
-    write(fu,*) '% Nonzeros =',HH%nnz
-    write(fu,*) '% '
-    write(fu,*) 'zzz = ['
-    call printcsr(fu,HH)
-    write(fu,*) ']'
-    close(fu)
-    open(newunit=fu, file='SS.dat')
-    write(fu,*) '% Size =',SS%nrow, SS%ncol
-    write(fu,*) '% Nonzeros =',SS%nnz
-    write(fu,*) '% '
-    write(fu,*) 'zzz = ['
-    call printcsr(fu,SS)
-    write(fu,*) ']'
-    close(fu)
+    call openFile(fd, 'HH.dat', mode="w")
+    write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
+    write(fd%unit, *) '% Nonzeros =',HH%nnz
+    write(fd%unit, *) '% '
+    write(fd%unit, *) 'zzz = ['
+    call printcsr(fd%unit, HH)
+    write(fd%unit, *) ']'
+    call closeFile(fd)
+
+    call openFile(fd, 'SS.dat', mode="w")
+    write(fd%unit, *) '% Size =',SS%nrow, SS%ncol
+    write(fd%unit, *) '% Nonzeros =',SS%nnz
+    write(fd%unit, *) '% '
+    write(fd%unit, *) 'zzz = ['
+    call printcsr(fd%unit, SS)
+    write(fd%unit, *) ']'
+    call closeFile(fd)
   end subroutine negf_dumpHS
 
 

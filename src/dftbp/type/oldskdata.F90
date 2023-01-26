@@ -12,6 +12,7 @@
 module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_rangeseparated, only : TRangeSepSKTag
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
@@ -105,7 +106,7 @@ contains
     !> Reads rangeseparation parameter from SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
 
-    integer :: file
+    type(TFileDescr) :: file
     character(lc) :: chDummy
 
     !> extended format for f orbitals
@@ -120,11 +121,11 @@ contains
     @:ASSERT(present(splineRepIn) .eqv. present(iSp1))
     @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
-    open(newunit=file, file=fileName, status="old", action="read", iostat=iostat)
+    call openFile(file, fileName, mode="r", ioStat=iostat)
     call checkIoError(iostat, fileName, "Unable to open file")
-    rewind(file)
+    rewind(file%unit)
 
-    read (file, '(A1)', iostat=iostat) chDummy
+    read (file%unit, '(A1)', iostat=iostat) chDummy
     call checkIoError(iostat, fileName, "Unable to read 1st line")
     if (chDummy == '@') then
       tExtended = .true.
@@ -132,27 +133,27 @@ contains
     else
       tExtended = .false.
       nShell = 3
-      rewind(file)
+      rewind(file%unit)
     end if
 
-    read (file,*, iostat=iostat) skData%dist, skData%nGrid
+    read (file%unit,*, iostat=iostat) skData%dist, skData%nGrid
     call checkIoError(iostat, fileName, "Unable to read 1st data line")
     skData%nGrid = skData%nGrid - 1
     if (homo) then
       skData%skSelf(nShell+1:) = 0.0_dp;
       skData%skHubbU(nShell+1:) = 0.0_dp;
       skData%skOcc(nShell+1:) = 0.0_dp;
-      read (file,*, iostat=iostat) (skData%skSelf(ii), ii = nShell, 1, -1), &
+      read (file%unit,*, iostat=iostat) (skData%skSelf(ii), ii = nShell, 1, -1), &
           &rDummy, &
           &(skData%skHubbU(ii), ii = nShell, 1, -1),&
           &(skData%skOcc(ii), ii = nShell, 1, -1)
       call checkIoError(iostat, fileName, "Unable to read 2nd data line")
-      read (file,*, iostat=iostat) skData%mass, (coeffs(ii), ii = 2, 9), &
+      read (file%unit,*, iostat=iostat) skData%mass, (coeffs(ii), ii = 2, 9), &
           &polyCutoff, rDummy, (rDummy, ii = 12, 20)
       call checkIoError(iostat, fileName, "Unable to read 3rd data line")
       skData%mass = skData%mass * amu__au  !convert to atomic units
     else
-      read (file,*, iostat=iostat) rDummy, (coeffs(ii), ii = 2, 9),&
+      read (file%unit,*, iostat=iostat) rDummy, (coeffs(ii), ii = 2, 9),&
           & polyCutoff, (rDummy, ii = 11, 20)
       call checkIoError(iostat, fileName, "Unable to read 1st data line")
     end if
@@ -168,12 +169,12 @@ contains
     skData%skOver(:,:) = 0.0_dp
     do iGrid = 1, skData%nGrid
       if (tExtended) then
-        read (file, *, iostat=iostat) &
+        read (file%unit, *, iostat=iostat) &
             &(skData%skHam(iGrid, ii), ii = 1, nSKInter), &
             &(skData%skOver(iGrid, ii), ii = 1, nSKInter)
         call checkIoError(iostat, fileName, "Reading error for integrals")
       else
-        read(file,*, iostat=iostat) &
+        read(file%unit,*, iostat=iostat) &
             &(skData%skHam(iGrid, iSKInterOld(ii)), ii = 1, nSKInterOld), &
             &(skData%skOver(iGrid, iSKInterOld(ii)), ii = 1, nSKInterOld)
         call checkIoError(iostat, fileName, "Reading error for integrals")
@@ -181,19 +182,18 @@ contains
     end do
 
     if (.not. present(splineRepIn)) then
-      close(file)
+      call closeFile(file)
       return
     end if
 
-    call readSplineRep(file, fileName, splineRepIn, iSp1, iSp2)
+    call readSplineRep(file%unit, fileName, splineRepIn, iSp1, iSp2)
 
     !> Read range separation parameter
     if (present(rangeSepSK)) then
-       call readRangeSep(file, fileName, rangeSepSK)
+       call readRangeSep(file%unit, fileName, rangeSepSK)
     end if
 
-
-    close(file)
+    call closeFile(file)
 
   end subroutine OldSKData_readFromFile
 

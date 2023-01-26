@@ -10,6 +10,7 @@
 module testhelpers
   use, intrinsic :: iso_c_binding
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
   implicit none
   private
@@ -63,52 +64,51 @@ contains
     real(dp), optional, intent(in) :: cm5Charges(:)
 
     type(TTaggedWriter) :: taggedWriter
-    integer :: autotestTag
+    type(TFileDescr) :: autotestTag
 
     ! Write out quantities in tagged form for the internal testing system
     call TTaggedWriter_init(taggedWriter)
-    open(newunit=autotestTag, file="autotest.tag", action="write")
+    call openFile(autotestTag, "autotest.tag", mode="w")
     if (present(merminEnergy)) then
-      call taggedWriter%write(autotestTag, tagLabels%freeEgy, merminEnergy)
+      call taggedWriter%write(autotestTag%unit, tagLabels%freeEgy, merminEnergy)
     end if
     if (present(gradients)) then
-      call taggedWriter%write(autotestTag, tagLabels%forceTot, -gradients)
+      call taggedWriter%write(autotestTag%unit, tagLabels%forceTot, -gradients)
     end if
     if (present(grossCharges)) then
-      call taggedWriter%write(autotestTag, tagLabels%qOutAtGross, grossCharges)
+      call taggedWriter%write(autotestTag%unit, tagLabels%qOutAtGross, grossCharges)
     end if
     if (present(extChargeGradients)) then
-      call taggedWriter%write(autotestTag, tagLabels%chrgForces, -extChargeGradients)
+      call taggedWriter%write(autotestTag%unit, tagLabels%chrgForces, -extChargeGradients)
     end if
     if(present(stressTensor)) then
-      call taggedWriter%write(autotestTag, tagLabels%stressTot, stressTensor)
+      call taggedWriter%write(autotestTag%unit, tagLabels%stressTot, stressTensor)
     end if
     if (present(tdEnergy)) then
-      call taggedWriter%write(autotestTag, tagLabels%tdenergy, tdEnergy)
+      call taggedWriter%write(autotestTag%unit, tagLabels%tdenergy, tdEnergy)
     end if
     if (present(tdDipole)) then
-      call taggedWriter%write(autotestTag, tagLabels%tddipole, tdDipole)
+      call taggedWriter%write(autotestTag%unit, tagLabels%tddipole, tdDipole)
     end if
     if (present(tdCharges)) then
-      call taggedWriter%write(autotestTag, tagLabels%tdcharges, tdCharges)
+      call taggedWriter%write(autotestTag%unit, tagLabels%tdcharges, tdCharges)
     end if
     if (present(tdCoords)) then
-      call taggedWriter%write(autotestTag, tagLabels%ehrencoords, tdCoords)
+      call taggedWriter%write(autotestTag%unit, tagLabels%ehrencoords, tdCoords)
     end if
     if (present(tdForces)) then
-      call taggedWriter%write(autotestTag, tagLabels%ehrenforces, tdForces)
+      call taggedWriter%write(autotestTag%unit, tagLabels%ehrenforces, tdForces)
     end if
     if(present(atomMasses)) then
-      call taggedWriter%write(autotestTag, tagLabels%atomMass, atomMasses)
+      call taggedWriter%write(autotestTag%unit, tagLabels%atomMass, atomMasses)
     end if
     if(present(potential)) then
-      call taggedWriter%write(autotestTag, tagLabels%internField, potential)
+      call taggedWriter%write(autotestTag%unit, tagLabels%internField, potential)
     end if
     if (present(cm5Charges)) then
-      call taggedWriter%write(autotestTag, tagLabels%qOutAtCM5, cm5Charges)
+      call taggedWriter%write(autotestTag%unit, tagLabels%qOutAtCM5, cm5Charges)
     end if
-
-    close(autotestTag)
+    call closeFile(autotestTag)
 
   end subroutine writeAutotestTag
 

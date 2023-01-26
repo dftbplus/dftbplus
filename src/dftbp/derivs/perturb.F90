@@ -14,7 +14,7 @@ module dftbp_derivs_perturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFile
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
@@ -477,7 +477,7 @@ contains
     logical, intent(in) :: isBandWritten
 
     !> File descriptor for the human readable output
-    type(TFile), allocatable, intent(in) :: fdDetailedOut
+    type(TFileDescr), intent(in) :: fdDetailedOut
 
     !> Filling
     real(dp), intent(in) :: filling(:,:,:)
@@ -645,10 +645,12 @@ contains
 
     real(dp), allocatable :: dEf(:), dqOut(:,:,:), dqOutTmp(:,:,:,:,:)
 
-    integer :: nIter, fd, iOmega
+    integer :: nIter, iOmega
     character(mc) :: atLabel
 
     logical :: isSccRequired
+
+    type(TFileDescr) :: fd
 
     if (isRespKernelRPA) then
       nIter = 1
@@ -773,7 +775,7 @@ contains
           end if
         end if
 
-        if (allocated(fdDetailedOut)) then
+        if (fdDetailedOut%isConnected()) then
           if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
             write(fdDetailedOut%unit, format2U)"Response at omega = ", omega(iOmega), ' H ',&
                 & omega(iOmega) * Hartree__eV, ' eV'
@@ -802,17 +804,17 @@ contains
     end do lpAtom
 
     if (isAutotestWritten) then
-      open(newunit=fd, file=autotestTagFile, action="write", status="old", position="append")
-      call taggedWriter%write(fd, tagLabels%dqdV, dqOutTmp)
-      call taggedWriter%write(fd, tagLabels%dqnetdV, dqNetAtomTmp)
-      close(fd)
+      call openFile(fd, autotestTagFile, mode="a")
+      call taggedWriter%write(fd%unit, tagLabels%dqdV, dqOutTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqnetdV, dqNetAtomTmp)
+      call closeFile(fd)
     end if
     if (isTagResultsWritten) then
-      open(newunit=fd, file=resultsTagFile, action="write", status="old", position="append")
-      call taggedWriter%write(fd, tagLabels%dEigenDV, dEiTmp)
-      call taggedWriter%write(fd, tagLabels%dqdV, dqOutTmp)
-      call taggedWriter%write(fd, tagLabels%dqnetdV, dqNetAtomTmp)
-      close(fd)
+      call openFile(fd, resultsTagFile, mode="a")
+      call taggedWriter%write(fd%unit, tagLabels%dEigenDV, dEiTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqdV, dqOutTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqnetdV, dqNetAtomTmp)
+      call closeFile(fd)
     end if
 
   end subroutine wrtVAtom

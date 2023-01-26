@@ -16,6 +16,7 @@
 module dftbp_reks_reksinterface
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -1292,7 +1293,7 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    integer :: fdTagged
+    type(TFileDescr) :: fdTagged
 
     call weightGradient(this%gradL, this%weight, this%avgGrad)
     call getOtherSAgrad(this%avgGrad, this%reksAlg, this%SAgrad)
@@ -1302,10 +1303,10 @@ module dftbp_reks_reksinterface
         & this%energy, this%nacG, this%nacH)
 
     if (tWriteTagged) then
-      open(newUnit=fdTagged, file=autotestTag, position="append")
+      call openFile(fdTagged, autotestTag, mode="a")
       ! nonadiabatic coupling vector has a phase, just check the value not sign
-      call taggedWriter%write(fdTagged, tagLabels%nacH, abs(this%nacH))
-      close(fdTagged)
+      call taggedWriter%write(fdTagged%unit, tagLabels%nacH, abs(this%nacH))
+      call closeFile(fdTagged)
     end if
 
   end subroutine getReksNACinfo_

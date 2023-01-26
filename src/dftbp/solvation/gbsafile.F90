@@ -12,6 +12,7 @@ module dftbp_solvation_gbsafile
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
       & symbolToNumber
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_io_hsdutils, only : detailedError, detailedWarning
@@ -52,26 +53,28 @@ contains
     !> Node for error handling
     type(fnode), pointer, optional :: node
 
+    type(TFileDescr) :: fd
     integer, parameter :: nParam = 8
     integer, parameter :: nElem = 94
-    integer :: ii, lineno, unit, iStart, iErr, iSp, iZp, nSpecies
+    integer :: ii, lineno, iStart, iErr, iSp, iZp, nSpecies
     real(dp) :: param(nParam)
     real(dp) :: descreening(nElem), surfaceTension(nElem), hBondPar(nElem)
     character(len=lc) :: line, errorStr
+    character(:), allocatable :: ioMsg
 
-    open(newunit=unit, file=file, status='old', iostat=iErr, iomsg=errorStr)
+    call openFile(fd, file, mode="r", ioStat=iErr, ioMsg=ioMsg)
     if (iErr /= 0) then
       if (present(node)) then
-        call detailedError(node, "Could not open '"//trim(file)//"': "//trim(errorStr))
+        call detailedError(node, "Could not open '"//trim(file)//"': "//trim(ioMsg))
       else
-        call error("Could not open '"//trim(file)//"': "//trim(errorStr))
+        call error("Could not open '"//trim(file)//"': "//trim(ioMsg))
       end if
     end if
 
     lineno = 0
 
     do ii = 1, 8
-      call nextLine(unit, line, lineno, file, node=node)
+      call nextLine(fd%unit, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), param(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -98,7 +101,7 @@ contains
     end do
 
     do ii = 1, nElem
-      call nextLine(unit, line, lineno, file, node=node)
+      call nextLine(fd%unit, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), surfaceTension(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -187,7 +190,7 @@ contains
       deallocate(input%hBondPar)
     end if
 
-    close(unit)
+    call closeFile(fd)
 
   end subroutine readParamGBSAFile
 

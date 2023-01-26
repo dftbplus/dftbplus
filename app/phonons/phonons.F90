@@ -11,6 +11,7 @@ program phonons
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
   use dftbp_common_environment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv
   use phonons_initphonons
   use dftbp_io_message
@@ -108,7 +109,8 @@ contains
 
   subroutine ComputeModes()
 
-    integer  :: ii, jj, kk, ll, nAtom, iMode, jCount, iAt, iAtMoved, fu
+    type(TFileDescr) :: fd
+    integer  :: ii, jj, kk, ll, nAtom, iMode, jCount, iAt, iAtMoved
     real(dp), allocatable :: eigenValues(:)
     real(dp), allocatable :: displ(:,:,:)
     character(lc) :: lcTmp, lcTmp2
@@ -172,13 +174,13 @@ contains
           iMode = ModesToPlot(ii)
           write(lcTmp,"('mode_',I0)")iMode
           write(lcTmp2, "(A,A)") trim(lcTmp), ".xyz"
-          open(newunit=fu, file=trim(lcTmp2), position="rewind", status="replace")
+          call openFile(fd, trim(lcTmp2), mode="w")
           do kk = 1, nCycles
             do ll = 1, nSteps
-              write(fu,*)nAtom
-              write(fu,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
+              write(fd%unit, *)nAtom
+              write(fd%unit, *)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
               do iAt = 1, nAtom
-                write(fu,'(A3,T4,3F10.6)') &
+                write(fd%unit, '(A3,T4,3F10.6)') &
                     & geo%speciesNames(geo%species(iAt)), &
                     & (geo%coords(:,iAt)&
                     & + cos(2.0_dp * pi * real(ll) / real(nSteps))&
@@ -186,32 +188,32 @@ contains
               end do
             end do
           end do
-          close(fu)
+          call closeFile(fd)
         end do
       else
-        open(newunit=fu, file="modes.xyz", position="rewind", status="replace")
+        call openFile(fd, "modes.xyz", mode="w")
         do ii = 1, nModesToPlot
           iMode = ModesToPlot(ii)
-          write(fu,*)nAtom
-          write(fu,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
+          write(fd%unit, *)nAtom
+          write(fd%unit, *)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
           if (tXmakeMol) then ! need to account for its non-standard xyz vector
             ! format:
             do iAt = 1, nAtom
-              write(fu,'(A3,T4,3F10.6,A,3F10.6)') &
+              write(fd%unit, '(A3,T4,3F10.6,A,3F10.6)') &
                   & geo%speciesNames(geo%species(iAt)), &
                   & geo%coords(:,iAt)* Bohr__AA, ' atom_vector ',&
                   & displ(:,iAt,ii)
             end do
           else ! genuine xyz format
             do iAt = 1, nAtom
-              write(fu,'(A3,T4,6F10.6)') &
+              write(fd%unit, '(A3,T4,6F10.6)') &
                   & geo%speciesNames(geo%species(iAt)), &
                   & geo%coords(:,iAt)* Bohr__AA, &
                   & displ(:,iAt,ii)
             end do
           end if
         end do
-        close(fu)
+        call closeFile(fd)
       end if
 
     end if
@@ -223,8 +225,9 @@ contains
   subroutine PhononDispersion(tWriter)
     type(TTaggedWriter) :: tWriter
 
+    type(TFileDescr) :: fu, ftag
     integer  :: ii, jj, kk, ll, nAtom,  iAtom,  iK, jAtom,  kAtom
-    integer  :: i2, j2, k2, fu, ftag, nrep
+    integer  :: i2, j2, k2, nrep
     real(dp), allocatable :: eigenValues(:)
     real(dp)::  ModKPoint,  ModDeltaR
     character(lc) :: lcTmp, lcTmp2
@@ -255,9 +258,9 @@ contains
 
     write(stdOut,*) 'Computing Phonon Dispersion (units '//trim(outputUnits)//')'
     if (tIOProc) then
-      open(newunit=fu, file='phononDispersion.dat', action='write')
+      call openFile(fu, 'phononDispersion.dat', mode="w")
       if (tWriteTagged) then
-        open(newunit=ftag, file=autotestTag)
+        call openFile(ftag, autotestTag, mode="w")
       end if
     end if
 
@@ -297,17 +300,15 @@ contains
         ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold))
         qold = q
         do ii = 1, 3*nAtomUnitCell
-          write(fu,*) ModKPoint,  eigenValues(ii)*unitsConv
+          write(fu%unit,*) ModKPoint,  eigenValues(ii)*unitsConv
         end do
 
         if (tWriteTagged) then
-          call tWriter%write(ftag, "kpoint", kPoint(:,iK))
-          call tWriter%write(ftag, "bands", eigenValues)
+          call tWriter%write(ftag%unit, "kpoint", kPoint(:,iK))
+          call tWriter%write(ftag%unit, "bands", eigenValues)
         end if
       end if
-
     end do
-
 
   end subroutine PhononDispersion
 
@@ -336,21 +337,19 @@ contains
     real(dp), dimension(:,:) :: ldosTot
     real(dp), dimension(:,:) :: conductance
 
-    integer :: fu
+    type(TFileDescr) :: fu
 
-    open(newunit=fu,file=autotestTag,form="formatted", status="replace")
-
+    call openFile(fu, autotestTag, mode="w")
     if (size(tunnTot) > 0) then
-      call tWriter%write(fu,"transmission",tunnTot)
+      call tWriter%write(fu%unit,"transmission",tunnTot)
     end if
     if (size(ldosTot) > 0) then
-      call tWriter%write(fu,"PDOS",ldosTot)
+      call tWriter%write(fu%unit,"PDOS",ldosTot)
     end if
     if (size(conductance) > 0) then
-      call tWriter%write(fu,"conductance",conductance)
+      call tWriter%write(fu%unit,"conductance",conductance)
     end if
-
-    close(fu)
+    call closeFile(fu)
 
   end subroutine writeTaggedOut
 

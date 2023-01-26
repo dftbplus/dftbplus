@@ -11,6 +11,7 @@
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
+  use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
@@ -35,6 +36,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_slakocont, only : init, addTable
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
+  use dftbp_dftbplus_input_fileaccess, only : readFileAccessTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
@@ -2314,7 +2316,8 @@ contains
     type(fnodeList), pointer :: children
     type(string) :: modifier, buffer, buffer2
     real(dp) :: rTmp
-    integer :: ind, ii, fp, iErr, nElem
+    type(TFileDescr) :: file
+    integer :: ind, ii, iErr, nElem
     real(dp), allocatable :: tmpR1(:), tmpR2(:,:)
     type(TListRealR2) :: lCharges
     type(TListRealR1) :: lBlurs, lr1
@@ -2383,18 +2386,17 @@ contains
           call getChildValue(value1, "Records", ind)
           call getChildValue(value1, "File", buffer2)
           allocate(tmpR2(4, ind))
-          open(newunit=fp, file=unquote(char(buffer2)), form="formatted", status="old",&
-              & action="read", iostat=iErr)
+          call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
           if (iErr /= 0) then
             call detailedError(value1, "Could not open file '" &
                 &// trim(unquote(char(buffer2))) // "' for direct reading" )
           end if
-          read(fp, *, iostat=iErr) tmpR2
+          read(file%unit, *, iostat=iErr) tmpR2
           if (iErr /= 0) then
             call detailedError(value1, "Error during direct reading '" &
                 &// trim(unquote(char(buffer2))) // "'")
           end if
-          close(fp)
+          call closeFile(file)
           ctrl%nExtChrg = ctrl%nExtChrg + ind
         case default
           call detailedError(value1, "Invalid block name")
@@ -3882,6 +3884,7 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
+    type(string) :: strBuffer
     logical :: tWriteDetailedOutDef
 
   #:if WITH_SOCKETS
@@ -3934,6 +3937,8 @@ contains
     if (.not. ctrl%tFixEf .and. ctrl%tReadChrg) then
       call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
     end if
+
+    call readFileAccessTypes(node, ctrl%fileAccessTypes)
 
   end subroutine readOptions
 
