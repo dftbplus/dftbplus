@@ -1,1 +1,1 @@
-../../../../../../../tools/pythonapi/src/dftbplus.py
+../../../../../../../tools/python/api/src/dftbplus.py
