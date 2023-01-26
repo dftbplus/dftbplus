@@ -8,10 +8,13 @@ function abspath() {
 }
 
 testdir=$(dirname $0)
-testdir=$(abspath $testdir)
+testdir=$(abspath ${testdir})
 
-packagedir="$testdir/../../../tools/dptools"
-packagedir=$(abspath $packagedir)
+pythonpath=$(abspath "$testdir/../../../tools/dptools/src")
+pythonpath2=$(abspath "$testdir/../../../tools/python/ptools/src")
+pythonpath3=$(abspath "$testdir/../")
+pythonpath="${pythonpath}:${pythonpath2}:${pythonpath3}"
+
 
 workdir="./"
 workdir=$(abspath $workdir)
@@ -22,11 +25,12 @@ else
   pythons="python3"
 fi
 
-pythonpath="$packagedir/src"
 if [ -z "$PYTHONPATH" ]; then
-  export PYTHONPATH="$pythonpath"
+  PYTHONPATH="$pythonpath"
+  export PYTHONPATH
 else
-  export PYTHONPATH="$pythonpath:$PYTHONPATH"
+  PYTHONPATH="$pythonpath:$PYTHONPATH"
+  export PYTHONPATH
 fi
 
 echo $PYTHONPATH
@@ -42,9 +46,9 @@ for python in $pythons; do
     if [ $exitcode != 0 ]; then
       failed="$(($failed + 1))"
       if [ -z "$failing_tests" ]; then
-	failing_tests="$python_test ($python)"
+        failing_tests="$python_test ($python)"
       else
-	failing_tests="$failing_tests, $python_test ($python)"
+        failing_tests="$failing_tests, $python_test ($python)"
       fi
     fi
   done

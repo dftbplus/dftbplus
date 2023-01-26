@@ -128,7 +128,7 @@ jobs:
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
 
     - name: Install cmake
-      run: pip3 install cmake ninja fypp numpy
+      run: pip3 install cmake ninja fypp numpy hsd
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
@@ -233,7 +233,7 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Install cmake
-      run: pip3 install cmake ninja fypp numpy
+      run: pip3 install cmake ninja fypp numpy hsd
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL

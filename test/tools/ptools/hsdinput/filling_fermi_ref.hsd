@@ -1,0 +1,9 @@
+Hamiltonian {
+  DFTB {
+    Filling {
+      Fermi {
+        Temperatur = 10
+      }
+    }
+  }
+}

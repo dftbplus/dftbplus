@@ -1,0 +1,11 @@
+Hamiltonian {
+  DFTB {
+    SlaterKosterFiles {
+      Type2FileNames {
+        Prefix = hsdinput/
+        Separator = "-"
+        Suffix = ".skf"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+Hamiltonian {
+  DFTB {
+    MaxAngularMomentum {
+      O = p
+      H = s
+    }
+  }
+}

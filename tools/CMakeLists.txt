@@ -1,7 +1,5 @@
 if (WITH_PYTHON)
   add_subdirectory(dptools)
-  if(WITH_API AND ENABLE_DYNAMIC_LOADING)
-    add_subdirectory(python)
-  endif()
+  add_subdirectory(python)
 endif()
 add_subdirectory(misc)

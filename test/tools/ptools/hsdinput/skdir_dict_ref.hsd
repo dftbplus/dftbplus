@@ -1,0 +1,10 @@
+Hamiltonian {
+  DFTB {
+    SlaterKosterFiles {
+      O-O = "hsdinput/O-O.skf"
+      O-H = "hsdinput/O-H.skf"
+      H-O = "hsdinput/H-O.skf"
+      H-H = "hsdinput/H-H.skf"
+    }
+  }
+}

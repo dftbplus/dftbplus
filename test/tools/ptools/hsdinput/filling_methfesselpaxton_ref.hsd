@@ -1,0 +1,10 @@
+Hamiltonian {
+  DFTB {
+    Filling {
+      MethfesselPaxton {
+        Temperatur = 10
+        Order = 5
+      }
+    }
+  }
+}

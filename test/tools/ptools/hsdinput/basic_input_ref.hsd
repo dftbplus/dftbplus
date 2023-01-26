@@ -1,0 +1,29 @@
+Hamiltonian {
+  DFTB {
+    SlaterKosterFiles {
+      Type2FileNames {
+        Prefix = ./
+        Separator = "-"
+        Suffix = ".skf"
+      }
+    }
+    Scc = Yes
+    SccTolerance = 1e-05
+    MaxAngularMomentum {}
+  }
+}
+Driver {
+  DFTB {
+    MaxForceComponent = 1
+    MaxSteps = 5
+  }
+}
+Options {
+  WriteResultsTag = Yes
+}
+ParserOptions {
+  IgnoreUnprocessedNodes = Yes
+}
+Analysis {
+  CalculateForces = Yes
+}
