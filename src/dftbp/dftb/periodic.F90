@@ -34,7 +34,7 @@ module dftbp_dftb_periodic
   public :: getCellTranslations, getLatticePoints
   public :: getSuperSampling
   public :: frac2cart, cart2frac
-  public :: TNeighbourList, TNeighbourlist_init
+  public :: TNeighbourList, TNeighbourList_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
   public :: allocateNeighbourArrays, fillNeighbourArrays, distributeAtoms, reallocateArrays1,&
@@ -50,19 +50,8 @@ module dftbp_dftb_periodic
     !> index of neighbour atoms
     integer, pointer :: iNeighbour(:,:) => null()
 
-    !> pointer to MPI shared memory segment for atom indices
-    integer, pointer :: iNeighbourMemory(:) => null()
-
     !> neighbour distances
     real(dp), pointer :: neighDist2(:,:) => null()
-
-    !> pointer to MPI shared memory segment for atom distances
-    real(dp), pointer :: neighDist2Memory(:) => null()
-
-  #:if WITH_MPI
-    !> handle of the MPI shared memory window
-    type(mpifx_win) :: iNeighbourWin, neighDist2Win
-  #:endif
 
     !> cutoff it was generated for
     real(dp) :: cutoff
@@ -73,9 +62,27 @@ module dftbp_dftb_periodic
     !> whether the neighbour list has been set by an API call
     logical :: setExternally = .false.
 
+    ! Whether memory should be allocated via MPI-windows (or directly via allocate() otherwise)
+    logical, private :: useMpiWindows_ = .false.
+
+    ! memory allocated for the iNeighbour array
+    integer, pointer, private :: iNeighbourMem_(:) => null()
+
+    ! memory allocated for the neighDist2 array
+    real(dp), pointer, private :: neighDist2Mem_(:) => null()
+
+  #:if WITH_MPI
+    ! MPI shared memory window handler for iNeighbour
+    type(mpifx_win), private :: iNeighbourWin_
+
+    ! MPI shared memory window handler for neightDist2
+    type(mpifx_win), private :: neighDist2Win_
+
+  #:endif
+
   contains
 
-    final :: TNeighbourlist_final
+    final :: TNeighbourList_final
 
   end type TNeighbourList
 
@@ -83,10 +90,10 @@ contains
 
 
   !> Initializes a neighbourlist instance.
-  subroutine TNeighbourlist_init(neighbourList, nAtom, nInitNeighbour)
+  subroutine TNeighbourList_init(this, nAtom, nInitNeighbour)
 
     !> Neighbourlist data.
-    type(TNeighbourList), intent(out) :: neighbourList
+    type(TNeighbourList), intent(out) :: this
 
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
@@ -94,36 +101,44 @@ contains
     !> Expected nr. of neighbours per atom.
     integer, intent(in) :: nInitNeighbour
 
-    @:ASSERT(.not. neighbourList%initialized)
+    @:ASSERT(.not. this%initialized)
     @:ASSERT(nAtom > 0)
     @:ASSERT(nInitNeighbour > 0)
 
-    allocate(neighbourList%nNeighbour(nAtom))
+    allocate(this%nNeighbour(nAtom))
 
-    neighbourList%cutoff = -1.0_dp
-    neighbourList%initialized = .true.
-    neighbourList%setExternally = .false.
+    this%cutoff = -1.0_dp
+    this%initialized = .true.
+    this%setExternally = .false.
 
-  end subroutine TNeighbourlist_init
+  end subroutine TNeighbourList_init
 
 
   !> Deallocates MPI shared memory if required
-  subroutine TNeighbourlist_final(neighbourList)
+  subroutine TNeighbourList_final(this)
 
-    !> Neighbourlist data.
-    type(TNeighbourList), intent(inout) :: neighbourList
+    !> TNeighbourList instance.
+    type(TNeighbourList), intent(inout) :: this
 
-  #:if WITH_MPI
-    if (associated(neighbourList%iNeighbourMemory)) then
-      call neighbourList%iNeighbourWin%free()
+    if (this%useMpiWindows_) then
+    #:if WITH_MPI
+      if (associated(this%iNeighbourMem_)) then
+        call this%iNeighbourWin_%free()
+      end if
+      if (associated(this%neighDist2Mem_)) then
+        call this%neighDist2Win_%free()
+      end if
+    #:endif
+    else
+      if (associated(this%iNeighbourMem_)) then
+        deallocate(this%iNeighbourMem_)
+      end if
+      if (associated(this%neighDist2Mem_)) then
+        deallocate(this%neighDist2Mem_)
+      end if
     end if
 
-    if (associated(neighbourList%neighDist2Memory)) then
-      call neighbourList%neighDist2Win%free()
-    end if
-  #:endif
-
-  end subroutine TNeighbourlist_final
+  end subroutine TNeighbourList_final
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
@@ -432,11 +447,9 @@ contains
     isParallel = .false.
   #:if WITH_MPI
     if (present(env)) then
-      call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, &
-          & startAtom, endAtom, isParallelSetupError)
-      if (.not. isParallelSetupError) then
-        isParallel = .true.
-      end if
+      call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, startAtom, endAtom,&
+          & isParallelSetupError)
+      isParallel = .not. isParallelSetupError
     end if
   #:endif
 
@@ -614,26 +627,23 @@ contains
     integer :: dataLength
   #:endif
 
-    if (isParallel) then
+    neigh%useMpiWindows_ = isParallel
+    if (neigh%useMpiWindows_) then
     #:if WITH_MPI
-      if (associated(neigh%iNeighbourMemory)) then
-        call neigh%iNeighbourWin%free()
-        nullify(neigh%iNeighbourMemory)
+      if (associated(neigh%iNeighbourMem_)) then
+        call neigh%iNeighbourWin_%free()
       end if
-      if (associated(neigh%neighDist2Memory)) then
-        call neigh%neighDist2Win%free()
-        nullify(neigh%neighDist2Memory)
+      if (associated(neigh%neighDist2Mem_)) then
+        call neigh%neighDist2Win_%free()
       end if
 
       dataLength = (maxNeighbour + 1) * nAtom
 
-      call neigh%iNeighbourWin%allocate_shared(env%mpi%nodeComm, dataLength,&
-          & neigh%iNeighbourMemory)
-      call neigh%neighDist2Win%allocate_shared(env%mpi%nodeComm, dataLength,&
-          & neigh%neighDist2Memory)
+      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%iNeighbourMem_)
+      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%neighDist2Mem_)
 
-      neigh%iNeighbour(0:maxNeighbour,1:nAtom) => neigh%iNeighbourMemory(1:dataLength)
-      neigh%neighDist2(0:maxNeighbour,1:nAtom) => neigh%neighDist2Memory(1:dataLength)
+      neigh%iNeighbour(0:maxNeighbour, 1:nAtom) => neigh%iNeighbourMem_(1:dataLength)
+      neigh%neighDist2(0:maxNeighbour, 1:nAtom) => neigh%neighDist2Mem_(1:dataLength)
     #:endif
     else
       if (associated(neigh%iNeighbour)) then
@@ -685,26 +695,36 @@ contains
     #:if WITH_MPI
       maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
 
-      call neigh%iNeighbourWin%lock()
-      call neigh%neighDist2Win%lock()
+      call neigh%iNeighbourWin_%lock()
+      call neigh%neighDist2Win_%lock()
 
-      neigh%iNeighbour(1:maxNeighbourLocal,startAtom:endAtom) =&
-          & iNeighbour(1:maxNeighbourLocal,startAtom:endAtom)
-      neigh%neighDist2(1:maxNeighbourLocal,startAtom:endAtom) =&
-          & neighDist2(1:maxNeighbourLocal,startAtom:endAtom)
+      neigh%iNeighbour(1:maxNeighbourLocal, startAtom:endAtom) =&
+          & iNeighbour(1:maxNeighbourLocal, startAtom:endAtom)
+      neigh%neighDist2(1:maxNeighbourLocal, startAtom:endAtom) =&
+          & neighDist2(1:maxNeighbourLocal, startAtom:endAtom)
 
       if (maxNeighbourLocal < maxNeighbour) then
-        neigh%iNeighbour(maxNeighbourLocal+1:maxNeighbour,startAtom:endAtom) = 0
-        neigh%neighDist2(maxNeighbourLocal+1:maxNeighbour,startAtom:endAtom) = 0.0_dp
+        neigh%iNeighbour(maxNeighbourLocal + 1 : maxNeighbour, startAtom:endAtom) = 0
+        neigh%neighDist2(maxNeighbourLocal + 1 : maxNeighbour, startAtom:endAtom) = 0.0_dp
       end if
 
-      call neigh%iNeighbourWin%sync()
-      call neigh%neighDist2Win%sync()
+      call neigh%iNeighbourWin_%sync()
+      call neigh%neighDist2Win_%sync()
 
-      call neigh%iNeighbourWin%unlock()
-      call neigh%neighDist2Win%unlock()
+      call neigh%iNeighbourWin_%unlock()
+      call neigh%neighDist2Win_%unlock()
     #:endif
     else
+      if (associated(neigh%iNeighbourMem_)) then
+        deallocate(neigh%iNeighbourMem_)
+      end if
+      if (associated(neigh%neighDist2Mem_)) then
+        deallocate(neigh%neighDist2Mem_)
+      end if
+
+      allocate(neigh%iNeighbour(0:maxNeighbour, 1:nAtom))
+      allocate(neigh%neighDist2(0:maxNeighbour, 1:nAtom))
+
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
       neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
     end if
