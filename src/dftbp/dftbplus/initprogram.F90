@@ -1839,12 +1839,9 @@ contains
     else
       this%tCasidaForces = .false.
     end if
-    if (this%tSccCalc) then
-      this%forceType = input%ctrl%forceType
-    else
-      if (input%ctrl%forceType /= forceTypes%orig) then
-        call error("Invalid force evaluation method for non-SCC calculations.")
-      end if
+    this%forceType = input%ctrl%forceType
+    if (.not. this%tSccCalc .and. input%ctrl%forceType /= forceTypes%orig) then
+      call error("Invalid force evaluation method for non-SCC calculations.")
     end if
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")

@@ -22,7 +22,7 @@ program dftbplus
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
-  type(TDftbPlusMain), allocatable :: main
+  type(TDftbPlusMain), allocatable, target :: main
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
