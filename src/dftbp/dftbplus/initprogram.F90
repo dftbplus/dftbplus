@@ -780,10 +780,13 @@ module dftbp_dftbplus_initprogram
     !> Whether potential shifts are read from file
     logical :: tWriteShifts
 
-    !> should charges written to disc be in ascii or binary format?
+    !> Produce charges.bin
+    logical :: tWriteCharges
+
+    !> Should charges written to disc be in ascii or binary format?
     logical :: tWriteChrgAscii
 
-    !> produce tagged output?
+    !> Produce tagged output?
     logical :: tWriteAutotest
 
     !> Produce detailed.xml
@@ -810,7 +813,7 @@ module dftbp_dftbplus_initprogram
     !> Frequency for saving restart info
     integer :: restartFreq
 
-    !> dispersion data and calculations
+    !> Dispersion data and calculations
     class(TDispersionIface), allocatable :: dispersion
 
     !> Solvation data and calculations
@@ -2643,6 +2646,7 @@ contains
     this%tWriteAutotest = env%tGlobalLead .and. input%ctrl%tWriteTagged
     this%tWriteDetailedXML = env%tGlobalLead .and. input%ctrl%tWriteDetailedXML
     this%tWriteResultsTag = env%tGlobalLead .and. input%ctrl%tWriteResultsTag
+    this%tWriteCharges = env%tGlobalLead .and. input%ctrl%tWriteCharges
     this%tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut .and.&
         & .not. this%tRestartNoSC
     this%tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
@@ -4587,7 +4591,6 @@ contains
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
-
 
     call TTaggedWriter_init(this%taggedWriter)
 

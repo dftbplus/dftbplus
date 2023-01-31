@@ -143,6 +143,9 @@ module dftbp_dftbplus_inputdata
     !> Disc charges are stored as ascii or binary files
     logical :: tReadChrgAscii = .true.
 
+    !> Write charges to disc
+    logical :: tWriteCharges = .true.
+
     !> Disc charges should be written as ascii or binary files
     logical :: tWriteChrgAscii = .true.
 
