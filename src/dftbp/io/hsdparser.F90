@@ -185,6 +185,7 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
+    logical, parameter :: parsedTypes(nSeparator) = .true.
     type(fnode), pointer :: rootNode, dummy
     logical :: tFinished
     integer :: curLine
@@ -204,7 +205,7 @@ contains
     curLine = 0
     lineReader = TLineReader(fd)
     tFinished = parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
-        & [.true., .true., .true., .true., .true., .true., .true.], .false.)
+        & parsedTypes, .false.)
 
   end subroutine parseHSD_opened
 

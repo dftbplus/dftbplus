@@ -375,7 +375,7 @@ contains
   subroutine TDftbPlus_setupCalculator(this, input)
 
     !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+    class(TDftbPlus), target, intent(inout) :: this
 
     !> Representation of the DFTB+ input.
     type(TDftbPlusInput), intent(inout) :: input
