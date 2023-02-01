@@ -29,7 +29,7 @@ module dftbp_common_memman
     integer :: alignment = 64
 
     !> Pointer to the allocated memory
-    type(c_ptr), private :: memoryPointer = c_null_ptr
+    type(c_ptr), private :: memoryPointer_ = c_null_ptr
 
   contains
 
@@ -92,7 +92,7 @@ contains
 
     integer :: dp_size
 
-    if (c_associated(this%memoryPointer)) then
+    if (c_associated(this%memoryPointer_)) then
       call error("Aligned array is already allocated")
     end if
 
@@ -106,12 +106,12 @@ contains
       this%alignment = alignment
     end if
 
-    if (posixMemalign(this%memoryPointer, int(this%alignment, kind=c_size_t),&
+    if (posixMemalign(this%memoryPointer_, int(this%alignment, kind=c_size_t),&
           & int(size * dp_size, kind=c_size_t)) /= 0) then
       call error("Error during allocation of aligned array")
     end if
 
-    @:ASSERT(c_associated(this%memoryPointer))
+    @:ASSERT(c_associated(this%memoryPointer_))
 
     this%size = size
 
@@ -127,13 +127,13 @@ contains
     !> Pointer to the array data
     real(dp), pointer, intent(out) :: array(:)
 
-    call c_f_pointer(this%memoryPointer, array, [this%size])
+    call c_f_pointer(this%memoryPointer_, array, [this%size])
 
   end subroutine TAlignedArray_getArray
 
 
   !> On Assignment, deallocate, allocate, and copy array data
-  subroutine TAlignedArray_assign(this, other)
+  elemental impure subroutine TAlignedArray_assign(this, other)
 
     !> Instance of the lhs of the assignment
     class(TAlignedArray), intent(out) :: this
@@ -157,9 +157,9 @@ contains
     !> Instance of the aligned array type
     type(TAlignedArray), intent(inout) :: this
 
-    if (c_associated(this%memoryPointer)) then
-      call free(this%memoryPointer)
-      this%memoryPointer = c_null_ptr
+    if (c_associated(this%memoryPointer_)) then
+      call free(this%memoryPointer_)
+      this%memoryPointer_ = c_null_ptr
     end if
 
   end subroutine TAlignedArray_finalize
