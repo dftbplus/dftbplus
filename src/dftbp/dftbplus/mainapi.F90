@@ -182,26 +182,18 @@ contains
 
       do iAtom = iAtFirst, iAtLast
         iImage = main%img2CentCell(iAtom)
-        if (iImage > 0) then
-          do iCell = 1, nCellVec
-            iCellVec = 3 * (iCell - 1)
-            dist2(iCell) = (main%coord0(1,iImage) + rCellVec(iCellVec + 1) -&
-                & main%coord(1,iAtom))**2 +&
-                & (main%coord0(2,iImage) + rCellVec(iCellVec + 2) - main%coord(2,iAtom))**2 +&
-                & (main%coord0(3,iImage) + rCellVec(iCellVec + 3) - main%coord(3,iAtom))**2
-          end do
-          main%iCellVec(iAtom) = minloc(dist2, dim=1)
-        else
-          main%iCellVec(iAtom) = -1
-        end if
+        do iCell = 1, nCellVec
+          iCellVec = 3 * (iCell - 1)
+          dist2(iCell) = (main%coord0(1,iImage) + rCellVec(iCellVec + 1) -&
+              & main%coord(1,iAtom))**2 +&
+              & (main%coord0(2,iImage) + rCellVec(iCellVec + 2) - main%coord(2,iAtom))**2 +&
+              & (main%coord0(3,iImage) + rCellVec(iCellVec + 3) - main%coord(3,iAtom))**2
+        end do
+        main%iCellVec(iAtom) = minloc(dist2, dim=1)
       end do
 
       call assembleChunks(env, main%iCellVec)
     end if
-
-    where (main%img2CentCell == 0)
-      main%img2CentCell = 1
-    end where
 
     if (size(main%species) /= main%nAllAtom) then
       deallocate(main%species)
