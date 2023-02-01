@@ -23,8 +23,7 @@ module dftbp_common_schedule
   implicit none
 
   private
-  public :: distributeRangeInChunks, distributeRangeInChunks2,&
-      & distributeRangeWithWorkload
+  public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
   public :: assembleChunks, getChunkRanges, getChunkIterWithWorkload
   public :: TChunkIterator
 
@@ -161,8 +160,8 @@ contains
     type(TChunkIterator), intent(out) :: chunkIter
 
   #:if WITH_MPI
-    call getChunkIterWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst, globalLast,&
-        & workload, chunkIter)
+    call getChunkIterWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst,&
+        & globalLast, workload, chunkIter)
   #:else
     call getChunkIterWithWorkload(1, 0, globalFirst, globalLast, workload, chunkIter)
   #:endif
@@ -228,7 +227,8 @@ contains
 
 
   !> Calculate the chunk ranges for a given MPI-communicator considerung different workload
-  subroutine getChunkIterWithWorkload(groupSize, myRank, globalFirst, globalLast, workload, chunkIter)
+  subroutine getChunkIterWithWorkload(groupSize, myRank, globalFirst, globalLast, workload,&
+        & chunkIter)
 
     !> Size of the group over which the chunks should be distributed
     integer, intent(in) :: groupSize
@@ -248,7 +248,7 @@ contains
     !> The chunk iterator
     type(TChunkIterator), intent(out) :: chunkIter
 
-    integer :: numIndices, rank, i
+    integer :: numIndices, rank, ii
     integer, allocatable :: rankWorkload(:), indices(:)
 
     allocate(rankWorkload(groupSize))
@@ -258,12 +258,12 @@ contains
     indices(:) = 0
     numIndices = 0
 
-    do i = globalFirst, globalLast
+    do ii = globalFirst, globalLast
       rank = minloc(rankWorkload, dim=1)
-      rankWorkload(rank) = rankWorkload(rank) + max(1, workload(i))
+      rankWorkload(rank) = rankWorkload(rank) + max(1, workload(ii))
       if (rank == myRank + 1) then
         numIndices = numIndices + 1
-        indices(numIndices) = i
+        indices(numIndices) = ii
       end if
     end do
 
@@ -276,7 +276,7 @@ contains
   subroutine TChunkIterator_init(this, indices)
 
     !> Instance
-    class(TChunkIterator), intent(out) :: this
+    type(TChunkIterator), intent(out) :: this
 
     !> Index list
     integer, intent(in) :: indices(:)
@@ -284,7 +284,6 @@ contains
     @:ASSERT(size(indices) > 0)
     @:ASSERT(all(indices > 0))
 
-    allocate(this%indices(size(indices)))
     this%indices = indices
     this%currentIndex = 0
 
@@ -352,7 +351,7 @@ contains
   function TChunkIterator_getIndex(this, item) result(nextIndex)
 
     !> Instance
-    class(TChunkIterator), intent(inout) :: this
+    class(TChunkIterator), intent(in) :: this
 
     !> The index of the array
     integer, intent(in) :: item
