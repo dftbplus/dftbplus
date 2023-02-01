@@ -99,7 +99,7 @@ contains
 
   !> Explicitly set the neighbour list instead of calculating it in DFTB+
   subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
-      & coord, img2CentCell)
+      & coordImageCells, img2CentCellImageCells)
 
     !> Instance
     type(TEnvironment), intent(inout) :: env
@@ -119,11 +119,12 @@ contains
     !> cutoff used for this neighbour list
     real(dp), intent(in) :: cutOff
 
-    !> coordinates of all images (= atoms in other cells)
-    real(dp), intent(in) :: coord(:,:)
+    !> coordinates of all images (= atoms in other cells), without the central cell
+    real(dp), intent(in) :: coordImageCells(:,:)
 
-    !> mapping between image index (other cell) and atom index (central cell)
-    integer, intent(in) :: img2CentCell(:)
+    !> mapping between image index (other cell) and atom index (central cell), without the central
+    !> cell
+    integer, intent(in) :: img2CentCellImageCells(:)
 
     real(dp), allocatable :: dist2(:)
     real(dp), pointer :: rCellVec(:)
@@ -154,8 +155,8 @@ contains
     main%neighbourList%nNeighbour(:) = nNeighbour(:)
     main%neighbourList%cutoff = cutOff
 
-    main%nAllAtom = size(img2CentCell) + main%nAtom
-    @:ASSERT(size(img2CentCell) == size(coord, dim=2))
+    main%nAllAtom = size(img2CentCellImageCells) + main%nAtom
+    @:ASSERT(size(img2CentCellImageCells) == size(coordImageCells, dim=2))
 
     if (size(main%img2CentCell) /= main%nAllAtom) then
       call reallocateArrays1(main%img2CentCell, main%iCellVec, main%coord, main%nAllAtom)
@@ -167,8 +168,8 @@ contains
     main%iCellVec(1:main%nAtom) = 1
 
     if (main%nAtom < main%nAllAtom) then
-      main%coord(1:3,main%nAtom+1:) = coord(1:3,:)
-      main%img2CentCell(main%nAtom+1:) = img2CentCell
+      main%coord(1:3,main%nAtom+1:) = coordImageCells(1:3,:)
+      main%img2CentCell(main%nAtom+1:) = img2CentCellImageCells
       main%iCellVec(main%nAtom+1:) = 0
 
       !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would

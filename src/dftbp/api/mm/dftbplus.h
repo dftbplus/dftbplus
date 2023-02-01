@@ -269,15 +269,18 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
  *
  * \param[in] cutoff Cutoff used to compute the neighbour list Unit: Bohr.
  *
- * \param[in] coord Coordinates of all image atoms Shape: [3, nAllAtom]. Unit: Bohr.
+ * \param[in] coordImageCells Coordinates of all image atoms in all image cells
+ *     Shape: [3, nAllAtom]. Unit: Bohr.
  *
- * \param[in] img2CentCell Index of the atom in the central cell an image atom corresponds to Shape: [nAllAtom].
+ * \param[in] img2CentCellImageCells Index of the atom in the central cell an image atom in an image
+ *     cell corresponds to Shape: [nAllAtom].
  *
  */
 void dftbp_set_neighbour_list(DftbPlus *instance, const int nAllAtom, const int nMaxNeighbours,
                                        const int *nNeighbours, const int *neighbourIndex,
                                        const double *neighbourDistance, const double cutoff,
-                                       const double *coord, const int *img2CentCell);
+                                       const double *coordImageCells,
+                                       const int *img2CentCellImageCells);
 
 
 /**
