@@ -37,7 +37,8 @@ module dftbp_dftb_periodic
   public :: TNeighbourList, TNeighbourlist_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
-  public :: allocateNeighbourArrays, fillNeighbourArrays, distributeAtoms, reallocateArrays1, reallocateArrays2
+  public :: allocateNeighbourArrays, fillNeighbourArrays, distributeAtoms, reallocateArrays1,&
+      & reallocateArrays2
 
 
   !> Contains essential data for the neighbourlist
@@ -315,17 +316,19 @@ contains
     !> Helical translation and angle, if necessary, along z axis
     real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
-    if (.not. neigh%setExternally) then
-      call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-          & rCellVec, errStatus, env, symmetric, helicalBoundConds)
-      @:PROPAGATE_ERROR(errStatus)
-
-      if (size(species) /= nAllAtom) then
-        deallocate(species)
-        allocate(species(nAllAtom))
-      end if
-      species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
+    if (neigh%setExternally) then
+      return
     end if
+
+    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
+        & rCellVec, errStatus, env, symmetric, helicalBoundConds)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (size(species) /= nAllAtom) then
+      deallocate(species)
+      allocate(species(nAllAtom))
+    end if
+    species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
   end subroutine updateNeighbourListAndSpecies
 

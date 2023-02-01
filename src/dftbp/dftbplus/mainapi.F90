@@ -33,11 +33,11 @@ module dftbp_dftbplus_mainapi
   implicit none
 
   private
-  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges, setNeighbourList
+  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
   public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField
+  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
   public :: setTdCoordsAndVelos, getTdForces
 
 
@@ -133,12 +133,11 @@ contains
     logical :: copyData
 
     if (allocated(main%electronDynamics)) then
-      call error("Not implemented: Cannot set the neighbour list&
-          & when time propagation is enabled")
+      call error("Not implemented: Cannot set the neighbour list when time propagation is enabled")
     end if
     if (main%tLocalCurrents) then
-      call error("Not implemented: Cannot set the neighbour list&
-          & when local bond-currents should be computed")
+      call error("Not implemented: Cannot set the neighbour list when local bond-currents should be&
+          & computed")
     end if
 
     nMaxNeighbours = maxval(nNeighbour)
@@ -163,19 +162,17 @@ contains
     end if
 
     !> Prepend data for the atoms in the central cell
-    do iAtom = 1, main%nAtom
-      main%coord(1:3,iAtom) = main%coord0(1:3,iAtom)
-      main%img2CentCell(iAtom) = iAtom
-      main%iCellVec(iAtom) = 1
-    end do
+    main%coord(1:3, 1:main%nAtom) = main%coord0(1:3, 1:main%nAtom)
+    main%img2CentCell(1:main%nAtom) = [(iAtom, iAtom = 1, main%nAtom)]
+    main%iCellVec(1:main%nAtom) = 1
 
     if (main%nAtom < main%nAllAtom) then
       main%coord(1:3,main%nAtom+1:) = coord(1:3,:)
-      main%img2CentCell(main%nAtom+1:) = img2CentCell(:)
+      main%img2CentCell(main%nAtom+1:) = img2CentCell
       main%iCellVec(main%nAtom+1:) = 0
 
-      !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would have there,
-      !> and determine the cell in which this is very close to the actual coordinates
+      !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would
+      !> have there, and determine the cell in which this is very close to the actual coordinates
       nCellVec = size(main%rCellVec, dim=2)
       allocate(dist2(nCellVec))
 
@@ -188,7 +185,8 @@ contains
         if (iImage > 0) then
           do iCell = 1, nCellVec
             iCellVec = 3 * (iCell - 1)
-            dist2(iCell) = (main%coord0(1,iImage) + rCellVec(iCellVec + 1) - main%coord(1,iAtom))**2 +&
+            dist2(iCell) = (main%coord0(1,iImage) + rCellVec(iCellVec + 1) -&
+                & main%coord(1,iAtom))**2 +&
                 & (main%coord0(2,iImage) + rCellVec(iCellVec + 2) - main%coord(2,iAtom))**2 +&
                 & (main%coord0(3,iImage) + rCellVec(iCellVec + 3) - main%coord(3,iAtom))**2
           end do
@@ -219,7 +217,8 @@ contains
       copyData = .true.
     #:endif
 
-    !> This is done only for task 0 on the node due to MPI shared memory: Copy to the actual neighbour arrays.
+    !> This is done only for task 0 on the node due to MPI shared memory: Copy to the actual
+    !> neighbour arrays.
     if (copyData) then
       @:ASSERT(nMaxNeighbours <= size(iNeighbour, dim=1))
       @:ASSERT(nMaxNeighbours <= size(neighDist, dim=1))
@@ -240,8 +239,8 @@ contains
         end if
         !$OMP SIMD
         do iNeigh = 1, nNeighbour(iAtom)
-          main%neighbourList%iNeighbour(iNeigh, iAtom) = iNeighbour(indx(iNeigh), iAtom) +&
-              & main%nAtom
+          main%neighbourList%iNeighbour(iNeigh, iAtom) = iNeighbour(indx(iNeigh), iAtom)&
+              & + main%nAtom
         end do
         !$OMP SIMD
         do iNeigh = 1, nNeighbour(iAtom)
