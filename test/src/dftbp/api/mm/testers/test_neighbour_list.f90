@@ -18,10 +18,10 @@ program test_neighbour_list
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
-  real(dp) :: merminEnergy, cutoff, x, y, dist
+  real(dp) :: merminEnergy, cutoff, x, dist
   real(dp) :: gradients(3, 2)
-  real(dp) :: coord(3, 5), neighDist(4, 2)
-  integer :: img2CentCell(5), nNeighbour(2), iNeighbour(4, 2)
+  real(dp) :: coord(3, 4), neighDist(4, 2)
+  integer :: img2CentCell(4), nNeighbour(2), iNeighbour(4, 2)
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
@@ -39,11 +39,10 @@ program test_neighbour_list
   ! setup all data for the neighbour list
   cutoff = 6.0_dp
   x = 2.5639291987021915_dp
-  y = 42.0_dp
-  coord(:,:) = reshape([-x, -x, x, x, -x, -x, -x, x, -x, y, y, y, x, x, x], shape(coord))
-  img2CentCell(:) = [2, 2, 2, 0, 2]
+  coord(:,:) = reshape([-x, -x, x, x, -x, -x, -x, x, -x, x, x, x], shape(coord))
+  img2CentCell(:) = [2, 2, 2, 2]
   nNeighbour(:) = [4, 0]
-  iNeighbour(:,:) = reshape([1, 2, 3, 5, 0, 0, 0, 0], shape(iNeighbour))
+  iNeighbour(:,:) = reshape([1, 2, 3, 4, 0, 0, 0, 0], shape(iNeighbour))
   dist = sqrt(19.721198807872987_dp)
   neighDist(:,:) = reshape([dist, dist, dist, dist, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp],&
       & shape(neighDist))

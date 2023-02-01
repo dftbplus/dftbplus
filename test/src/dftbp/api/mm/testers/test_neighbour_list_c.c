@@ -31,15 +31,14 @@ int main()
   // setup all data for the neighbour list
   double cutoff = 6.0;
   double x = 2.5639291987021915;
-  double y = 42.0;
   int nNeighbour[2] = {4.0, 0.0};
-  int iNeighbour[8] = {1, 2, 3, 5, 0, 0, 0, 0};
+  int iNeighbour[8] = {1, 2, 3, 4, 0, 0, 0, 0};
   double dist = sqrt(19.721198807872987);
   double neighDist[8] = {dist, dist, dist, dist, 0.0, 0.0, 0.0, 0.0};
-  double coord[15] = {-x, -x, x, x, -x, -x, -x, x, -x, y, y, y, x, x, x};
-  int img2CentCell[5] = {2, 2, 2, 0, 2};
+  double coord[12] = {-x, -x, x, x, -x, -x, -x, x, -x, x, x, x};
+  int img2CentCell[4] = {2, 2, 2, 2};
 
-  dftbp_set_neighbour_list(&calculator, 5, 4, nNeighbour, iNeighbour, neighDist, cutoff,
+  dftbp_set_neighbour_list(&calculator, 4, 4, nNeighbour, iNeighbour, neighDist, cutoff,
                            coord, img2CentCell);
 
   // evaluate energy and forces
