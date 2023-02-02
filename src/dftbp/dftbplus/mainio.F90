@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -34,8 +34,8 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatGeoOut, format1U, format2U,&
-      & format1Ue, format2Ue, format1U1e
+  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
+      & format1U, format2U, format1Ue, format2Ue, format1U1e
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -76,7 +76,7 @@ module dftbp_dftbplus_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
-  public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut
+  public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
@@ -2598,6 +2598,63 @@ contains
     end if
 
   end subroutine writeBornChargesOut
+
+
+  !> Write the Derivatives of the polarizability
+  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nAtInCentralRegion,&
+      & errStatus)
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Born (dipole derivatives or force wrt electric field)
+    real(dp), intent(in) :: pdBornMatrix(:, :, :)
+
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
+
+    !> Number of atoms in central region
+    integer, intent(in) :: nAtInCentralRegion
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer :: ii, fd
+    character(10) :: suffix1, suffix2
+    logical :: tPartialMatrix = .false.
+
+    ! Sanity check in case some bug is introduced
+    if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
+      @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
+    end if
+    ! It is a partial matrix Calculation if BornMatrix is not squared
+    if (size(pdBornMatrix, dim=3) > 3*nAtInCentralRegion) then
+      tPartialMatrix = .true.
+    end if
+
+    if (tPartialMatrix) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
+      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
+          & action="write", status="replace")
+    else
+      open(newunit=fd, file=fileName, action="write", status="replace")
+    end if
+
+    do ii = 1, size(pdBornMatrix, dim=3)
+      write(fd, formatdBorn) pdBornMatrix(:, :, ii)
+    end do
+
+    close(fd)
+
+    if (tPartialMatrix) then
+      write(stdOut, "(2A)") 'Born charge derivative matrix written to ',&
+          & fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2))
+    else
+      write(stdOut, "(2A)") 'Born charge derivative matrix written to ', fileName
+    end if
+
+  end subroutine writeBornDerivs
 
 
   !> Opens an output file or uses the its current unit number, if the file is already open.

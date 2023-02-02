@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module waveplot_initwaveplot
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
       & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes, renameChildren
   use dftbp_io_message, only : warning, error
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
@@ -537,6 +537,7 @@ contains
     call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
 
     if (nSpin == 2) then
+      call renameChildren(node, "TotalSpinPolarization", "TotalSpinPolarisation")
       call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, .false.)
     else
       this%opt%tPlotTotSpin = .false.

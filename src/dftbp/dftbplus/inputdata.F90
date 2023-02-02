@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -143,6 +143,9 @@ module dftbp_dftbplus_inputdata
     !> Disc charges are stored as ascii or binary files
     logical :: tReadChrgAscii = .true.
 
+    !> Write charges to disc
+    logical :: tWriteCharges = .true.
+
     !> Disc charges should be written as ascii or binary files
     logical :: tWriteChrgAscii = .true.
 
@@ -210,7 +213,10 @@ module dftbp_dftbplus_inputdata
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
 
     !> Is a perturbation expression in use
-    logical :: isDFTBPT = .false.
+    logical :: doPerturbation = .false.
+
+    !> Is a perturbation expression in use for each geometry step
+    logical :: doPerturbEachGeom = .false.
 
     !> Tolerance for idenfifying need for degenerate perturbation theory
     real(dp) :: tolDegenDFTBPT = 128.0_dp

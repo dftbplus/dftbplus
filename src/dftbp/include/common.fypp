@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2022  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2023  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -116,6 +116,16 @@ block
   allocate(inst)
   call ${init}$(inst, ${", ".join(initargs)}$)
   call move_alloc(inst, ${cls}$)
+end block
+#:enddef
+
+
+#! Simple macro printing out the position of a line
+#:def PRINT_POSITION()
+block
+  use iso_fortran_env, only : output_unit
+  write(output_unit, "(a)") "Reached line ${_LINE_}$ in ${_FILE_}$"
+  flush(output_unit)
 end block
 #:enddef
 

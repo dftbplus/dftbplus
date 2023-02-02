@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -269,7 +269,7 @@ contains
     real(dp), allocatable, intent(inout) :: neFermi(:)
 
     !> Derivative of the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: dEfdE(:,:)
+    real(dp), allocatable, intent(out) :: dEfdE(:,:)
 
     !> Status of routine
     type(TStatus), intent(out) :: errStatus

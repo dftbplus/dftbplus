@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -241,7 +241,7 @@ def main():
             print('(H2O) Expected Gross charges: ' +
                   '{:15.10f} {:15.10f} {:15.10f}\n\n'
                   .format(-0.6519945363, 0.3314953102, 0.3204992261))
- 
+
 
 
     # --------------------------WRITE AUTOTEST.TAG------------------------------

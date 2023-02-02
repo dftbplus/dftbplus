@@ -15,6 +15,11 @@ if(NOT TARGET elsi::elsi)
       INTERFACE
       "${ELSI_INCLUDE_DIRS}"
     )
+    target_include_directories(
+      elsi::elsi
+      INTERFACE
+      "${ELSI_INCLUDEDIR}"
+    )
 
     foreach(_lib IN LISTS ELSI_LINK_LIBRARIES)
       if(_lib MATCHES "pexsi")

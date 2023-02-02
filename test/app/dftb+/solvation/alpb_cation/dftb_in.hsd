@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromConstants {
       Epsilon = 2.64  # Dielectric constant of the solvent
       MolecularMass [amu] = 76.14  # mass of the solvent molecule

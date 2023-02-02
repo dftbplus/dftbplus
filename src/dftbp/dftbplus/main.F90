@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftbplus_main
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
-  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd
+  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd, polAdd
   use dftbp_derivs_perturb, only : TResponse
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
@@ -69,11 +69,13 @@ module dftbp_dftbplus_main
       & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
       & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
       & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
-      & writeFinalDriverstatus, writeHessianout, writeBornChargesOut, writeAutotestTag,&
-      & writeResultsTag, writeDetailedXml, writeCosmoFile, printForceNorm, printLatticeForceNorm,&
-      & writeDerivBandOut, writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+      & writeFinalDriverstatus, writeHessianout, writeBornChargesOut, writeBornDerivs,&
+      & writeAutotestTag, writeResultsTag, writeDetailedXml, writeCosmoFile, printForceNorm,&
+      & printLatticeForceNorm, writeDerivBandOut, writeDetailedOut8, writeDetailedOut9,&
+      & writeDetailedOut10
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, fCharges, fShifts, fStopScc, mdOut,&
-      & userOut, fStopDriver, hessianOut, bornChargesOut, resultsTag, derivEBandOut
+      & userOut, fStopDriver, hessianOut, bornChargesOut, bornDerivativesOut, resultsTag,&
+      & derivEBandOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
@@ -193,7 +195,7 @@ contains
     logical :: isUnReduced
 
     type(TStatus) :: errStatus
-    real(dp), pointer :: pDynMatrix(:,:), pDipDerivMatrix(:,:)
+    real(dp), pointer :: pDynMatrix(:,:), pDipDerivMatrix(:,:), pPolDerivMatrix(:,:,:)
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -281,18 +283,40 @@ contains
             & this%derivs, this%totalStress, this%cellVol)
       end if
     #:endif
-      tWriteCharges =  allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
+      tWriteCharges = allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
           & .and. this%tSccCalc .and. .not. this%tDerivs&
-          & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1
+          & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1&
+          & .and. this%tWriteCharges
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
             & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
       end if
 
-      if (this%tForces) then
-        if (this%tDipole.and.allocated(this%derivDriver)) then
-          call dipoleAdd(this%derivDriver, this%dipoleMoment)
+      if (this%tDipole.and.allocated(this%derivDriver)) then
+        call dipoleAdd(this%derivDriver, this%dipoleMoment)
+      end if
+
+      if (this%doPerturbEachGeom.and.allocated(this%derivDriver)) then
+
+        if (this%isEResp) then
+          call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
+              & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
+              & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
+              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
+              & this%maxSccIter, this%sccTol, this%isSccConvRequired, this%nMixElements,&
+              & this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef, this%spinW,&
+              & this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
+              & this%iEqBlockOnSite, this%rangeSep, this%nNeighbourLC, this%pChrgMixer,&
+              & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
+              & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
+          if (errStatus%hasError()) then
+            call error(errStatus%message)
+          end if
+          call polAdd(this%derivDriver, this%polarisability(:,:,1))
         end if
+      end if
+
+      if (this%tForces) then
         call getNextGeometry(this, env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep,&
             & tGeomEnd, tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
         if (tExitGeoOpt) then
@@ -351,9 +375,17 @@ contains
 
     if (env%tGlobalLead .and. this%tDerivs) then
       if (this%tDipole) then
-        call getHessianMatrix(this%derivDriver, pDynMatrix, pDipDerivMatrix)
+        if (this%doPerturbEachGeom) then
+          call getHessianMatrix(this%derivDriver, pDynMatrix, pDipDerivMatrix, pPolDerivMatrix)
+        else
+          call getHessianMatrix(this%derivDriver, pDynMatrix, pDipDerivMatrix)
+        end if
       else
-        call getHessianMatrix(this%derivDriver, pDynMatrix)
+        if (this%doPerturbEachGeom) then
+          call getHessianMatrix(this%derivDriver, pDynMatrix, pol=pPolDerivMatrix)
+        else
+          call getHessianMatrix(this%derivDriver, pDynMatrix)
+        end if
       end if
       call writeHessianOut(hessianOut, pDynMatrix, this%indMovedAtom, errStatus)
       if (errStatus%hasError()) then
@@ -366,15 +398,25 @@ contains
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
-        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+        if (this%tWriteDetailedOut) then
           call writeDetailedOut8(this%fdDetailedOut%unit,&
               & this%eFieldScaling%scaledSoluteDipole(pDipDerivMatrix))
+        end if
+      end if
+      if (this%doPerturbEachGeom) then
+        call writeBornDerivs(bornDerivativesOut, pPolDerivMatrix, this%indMovedAtom,&
+            & size(this%iAtInCentralRegion), errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
         end if
       end if
     else
       nullify(pDynMatrix)
       if (this%tDipole) then
         nullify(pDipDerivMatrix)
+      end if
+      if (this%doPerturbEachGeom) then
+        nullify(pPolDerivMatrix)
       end if
     end if
 
@@ -429,7 +471,7 @@ contains
 
   #:endif
 
-    if (this%isDFTBPT) then
+    if (this%doPerturbation) then
 
       if (this%isEResp) then
         call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
@@ -1143,7 +1185,7 @@ contains
           tWriteSccRestart = env%tGlobalLead .and. needsSccRestartWriting(this%restartFreq,&
               & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd, &
               & this%isGeoOpt .or. allocated(this%geoOpt),&
-              & this%tDerivs, tConverged, this%tReadChrg, tStopScc)
+              & this%tDerivs, tConverged, this%tReadChrg, tStopScc) .and. this%tWriteCharges
           if (tWriteSccRestart) then
             call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
                 & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)

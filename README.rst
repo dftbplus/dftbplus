@@ -80,7 +80,7 @@ command::
 
 Start CMake by passing your compilers as environment variables (``FC`` and
 ``CC``), and the location where the code should be installed and the build
-directory (``_build``) and als options::
+directory (``_build``) as options::
 
   FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ -B _build .
 

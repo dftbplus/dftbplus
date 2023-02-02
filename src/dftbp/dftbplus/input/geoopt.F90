@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_io_charmanip, only : unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning, getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : convertUnitHsd
+  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
@@ -66,6 +66,7 @@ contains
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
+    call renameChildren(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child, "Rational")
     call readOptimizerInput(child, input%optimiser)
 

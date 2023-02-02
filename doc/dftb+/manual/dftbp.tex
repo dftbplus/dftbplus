@@ -266,8 +266,9 @@ structure during the calculation.\\ \bigskip Currently the following
 methods are available:
 \begin{description}
 \item[\iscb{}] Static calculation with the input geometry.
-\item[\iscb{GeometryOptimisation}] Geometry optimisation of the input geometry.
-  See p.~\pref{sec:dftbp.GeometryOptimisation}.
+\item[\iscb{GeometryOptimisation} / \iscb{GeometryOptimization}] Geometry
+  optimisation of the input geometry.  See
+  p.~\pref{sec:dftbp.GeometryOptimisation}.
 \item[\iscb{SteepestDescent}] (\textbf{deprecated}) Geometry optimisation by moving atoms
   along the acting forces. See p.~\pref{sec:dftbp.SteepestDescent}.
 \item[\iscb{ConjugateGradient}] (\textbf{deprecated}) Geometry optimisation using the
@@ -279,9 +280,10 @@ methods are available:
 \item[\iscb{FIRE}] (\textbf{deprecated}) Geometry optimisation using the FIRE
   algorithm. See p.~\pref{sec:dftbp.FIRE}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives
-  of the energy (the \index{Hessian}Hessian) and the derivatives of
-  the dipole moment (the \index{Born charges}Born charges). See
-  p.~\pref{sec:dftbp.SecondDerivatives}.
+  of the energy (the \index{Hessian}Hessian) and optional first
+  derivatives of other properties (the dipole moment, i.e. \index{Born
+    charges}Born charges, or the electric polarisability) with respect
+  to atomic coordinates. See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
   Verlet algorithm. See p.~\pref{sec:dftbp.VelocityVerlet}.
 \item[\iscb{Socket}] Hands over control to an external program via a socket
@@ -307,8 +309,49 @@ methods are available:
   %\kw{Constraints} & (1i3r)* & LatticeOpt = No & \cb            & \\
   %\kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
+\begin{description}
+\item[\is{Optimiser} / \is{Optimizer}] Type of the geometry optimiser to use. (See following sections for possible optimiser types.)
 
-Example for performing a full lattice optimisation using the rational function optimiser:
+\item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
+  atoms can be specified via index selection expressions, as described
+  in appendix \ref{sec:index_selection}.
+
+\item[\is{LatticeOpt}] Allow the lattice vectors to change during
+  optimisation. \is{MovedAtoms} can be optionally used with lattice
+  optimisation if the atomic coordinates are to be co-optimised with
+  the lattice.\footnote{This is functional but not very efficient at
+    the moment.}
+
+\item[\is{FixAngles}] If optimising the lattice, allow only the
+  lengths of lattice vectors to vary, not the angles between them. For
+  example if your lattice is orthorhombic, this option will maintain
+  that symmetry during optimisation.
+
+\item[\is{FixLengths}] If optimising the lattice with \is{FixAngles} =
+  \is{Yes}, allow only the lengths of the specified lattice vectors to
+  vary.
+
+\item[\is{Isotropic}] If optimising the lattice, allow only uniform
+  scaling of the unit cell. This option is incompatible with
+  \is{FixAngles}.
+
+\item[\is{Convergence}] Convergence criteria. See section
+  \ref{sec:dftbp.Convergence}.
+
+\item[\is{MaxSteps}] Maximum number of steps after which the optimisation should
+  stop (unless already stopped by achieving convergence). Setting this value as
+  -1 runs a huge() number of iterations.
+
+\item[\is{OutputPrefix}] Prefix of the geometry files containing the
+  final structure.
+
+\item[\is{AppendGeometries}] If set to \is{Yes}, the geometry file in
+  the XYZ-format will contain all the geometries obtained during the
+  optimisation (instead of containing only the last geometry).
+
+\end{description}
+
+Example for performing a full lattice optimisation using the rational function optimiser.
 
 \begin{verbatim}
 Driver = GeometryOptimisation {
@@ -668,16 +711,24 @@ and efficient for your system before using it over other optimisers.
 
 Specific properties for this method are:
 \begin{description}
-\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step size used
+\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step sizexs used
   in the dynamics integrator.
 \end{description}
 
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
-Calculates the second derivatives\index{Hessian} of the energy and the
-Born charges (currently both only using a numerical first
-differentiation).
+Calculates the second derivatives\index{Hessian} of the energy, the
+dipole moment and electric polarisability (currently using a numerical
+first order finite difference with respect to positions). These can
+then be used with the \modes{} code (chapter~\ref{app:modes}) to
+calculate the vibrational modes and estimate both their Raman and
+infrared intensities (see sections \ref{sec:modes.BornCharges} and
+\ref{sec:modes.BornDerivs} for how to do this).
+
+The polarizability derivative can be evaluated either for a static
+electric field (probably what is usually intended) or at a specific
+driving frequency (relevant when approaching an electronic resonance).
 
 The hessian matrix is written out for the $i$, $j$ and $k$ directions
 of atoms $1 \ldots n$ as
@@ -714,10 +765,15 @@ where $\boldsymbol\varepsilon$ is a cartesian electric field and
 $\mathbf{x}$ the cartesian directions written into {\it
   born.out}\index{born.out}
 
+If dipole polarisability is also requested (see
+section~\ref{sec:dftbp.perturb}), then the derivatives with respect to
+atomic coordinates are also calculated. These are stored in the file
+{\it bornderiv.out}\index{bornderiv.out}. Polarisability at only a
+single static or dynamic frequency should be calculated.
 
-\textbf{Note}: for periodic calculations, the derivatives are obtained
-at the $\mathbf{q}=0$ point, irrespective of the k-point sampling
-used.
+\textbf{Note}: for periodic calculations, all of these derivatives are
+obtained at the $\mathbf{q}=0$ point, irrespective of the k-point
+sampling used.
 
 \textbf{Important:} In order to get accurate results for the second derivatives
 (and the resulting frequencies) you must set a smaller self-consistent
@@ -1452,7 +1508,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \is{FixedFermiLevel} is present (see section \ref{sec:dftbp.Filling}), then value
   specified here will be ignored.
 
-\item[\is{SpinPolarisation}] Specifies if and how the system is spin
+\item[\is{SpinPolarisation} / \is{SpinPolarization}] Specifies if and how the system is spin
   polarised. See p.~\pref{sec:dftbp.SpinPolarisation}.
 
 \item[\is{SpinConstants}] Specifies the atom type specific constants needed for
@@ -1594,11 +1650,12 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   forces when the charges are well converged. For non-converged charges however the resulting forces
   can differ considerably between methods.
 
-\item[\is{CustomisedHubbards}] Enables overriding of the Hubbard U values for given species. If the
-  option \is{ShellResolvedScc} has been set to \is{Yes}, you need to specify one Hubbard U value
-  for each atomic shell in the basis of the given atom type, otherwise only one atomic value is
-  required. For all species not specified in this block, the value(s) found in their respective
-  Slater-Koster files will be used.
+\item[\is{CustomisedHubbards} / \is{CustomizedHubbards}] Enables overriding of
+  the Hubbard U values for given species. If the option \is{ShellResolvedScc}
+  has been set to \is{Yes}, you need to specify one Hubbard U value for each
+  atomic shell in the basis of the given atom type, otherwise only one atomic
+  value is required. For all species not specified in this block, the value(s)
+  found in their respective Slater-Koster files will be used.
 
   \textbf{Warning:} This option is for experts only! Overriding values stored in the SK-files may
   result in \textbf{inconsistent results}. Make sure you understand the consequences when using this
@@ -1611,11 +1668,12 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   }
   \end{verbatim}
 
-\item[\kw{CustomisedOccupations}] Enables overriding the reference neutral atom
-  electronic occupations of the shells. Note that the atom remains neutral since
-  a corresponding ionic counter charge is implicitly added to its core. This
-  option can be used, for example, to simulate effective doping by setting a
-  slightly larger or smaller number of electrons on certain atoms.
+\item[\kw{CustomisedOccupations} / \is{CustomizedOccupations}] Enables
+  overriding the reference neutral atom electronic occupations of the
+  shells. Note that the atom remains neutral since a corresponding ionic counter
+  charge is implicitly added to its core. This option can be used, for example,
+  to simulate effective doping by setting a slightly larger or smaller number of
+  electrons on certain atoms.
 
   Example:
   \begin{verbatim}
@@ -1735,8 +1793,8 @@ library.
   \is{FixedFermiLevel} is present (see section \ref{sec:dftbp.Filling}), then value
   specified here will be ignored.
 
-\item[\is{SpinPolarisation}] Specifies if and how the system is spin
-  polarised. See p.~\pref{sec:dftbp.SpinPolarisation}.
+\item[\is{SpinPolarisation} / \is{SpinPolarization}] Specifies if and how the
+    system is spin polarised. See p.~\pref{sec:dftbp.SpinPolarisation}.
 
 \item[\is{SpinConstants}] Specifies the atom type specific constants needed for
   the spin polarised calculations, in units of Hartree.  See
@@ -3081,20 +3139,18 @@ Example:\invparskip
   }
 \end{verbatim}
 
-Alternatively you can provide values for each atomic species in your
-system, but must supply different values for different coordination
-numbers using the \kwcb{HybridDependentPol} keyword. The code needs
-specific parameters for each type of atom in environments with 0, 1,
-2, 3, 4 or $\geqslant$5 neighbours. \dftbp{} then picks the
-appropriate values for each atom based on their coordination in the
-\emph{starting} geometry.  Two atoms are considered to be neighbours
-if their distance is less than the sum of their covalent radii, hence
-you need to supply the covalent radii for each atomic species using
-the \kw{CovalentRadius} keyword. This is then followed by a
-\kw{HybridPolarisations} block containing a list of six values for
-atomic polarisabilities then six van der Waals radii and finally a
-single hybridisation independent effective charge for that atomic
-species.
+Alternatively you can provide values for each atomic species in your system, but
+must supply different values for different coordination numbers using the
+\kwcb{HybridDependentPol} keyword. The code needs specific parameters for each
+type of atom in environments with 0, 1, 2, 3, 4 or $\geqslant$5
+neighbours. \dftbp{} then picks the appropriate values for each atom based on
+their coordination in the \emph{starting} geometry.  Two atoms are considered to
+be neighbours if their distance is less than the sum of their covalent radii,
+hence you need to supply the covalent radii for each atomic species using the
+\kw{CovalentRadius} keyword. This is then followed by a \kw{HybridPolarisations}
+/ \kw{HybridPolarization} block containing a list of six values for atomic
+polarisabilities then six van der Waals radii and finally a single hybridisation
+independent effective charge for that atomic species.
 
 Example:\invparskip
 \begin{verbatim}
@@ -3704,7 +3760,7 @@ to compensate the systematic overestimation of the volume by this
 approach.
 
 To use the generalised Born model in the SCC procedure use the
-\is{GeneralisedBorn\cb} method in the input to \kw{Solvation}.
+\iscb{GeneralisedBorn} / \iscb{GeneralizedBorn} method in the input to \kw{Solvation}.
 The non-polar solvent area model can be combinded with the GB model
 enabling to additionally correct for hydrogen bonding, the resulting
 model is called GBSA.
@@ -4044,7 +4100,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
       \item[\is{MaxMoment}]
         Maximum moment for spherical harmonic expansion in the ddCOSMO equations.
         Moments of 6 and higher are recommended.
-      \item[\is{Regularisation}]
+      \item[\is{Regularisation} / \is{Regularization}]
         Regularisation factor for the ddCOSMO equation. A value of 0.2 is recommended
       \item[\is{Accuracy}]
         Convergence criteria for the ddCOSMO equations, this value effects the cost
@@ -4543,6 +4599,7 @@ This block collects some global options for the run.
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
+  \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
 \end{ptable}
@@ -4578,7 +4635,7 @@ This block collects some global options for the run.
   value can be used to reproduce earlier MD calculations by setting
   the initial seed to the same value.)
 
-\item[\is{MinimiseMemoryUsage}] Tries to minimise memory usage by
+\item[\is{MinimiseMemoryUsage} / \is{MinimizeMemoryUsage}] Tries to minimise memory usage by
   storing various matrices on disc instead of keeping them in memory.
   Set it to \is{Yes} to reduce the memory requirement for calculations
   with many k-points or spin polarisation. Note: Currently this option has no
@@ -4626,6 +4683,11 @@ This block collects some global options for the run.
   \verb|charges.bin| to contain starting charges stored in binary. If \is{Yes},
   then \verb|charges.dat| should contain a text file of this data. See section
   \ref{sec:charges.bin}.
+
+\item[\is{WriteCharges}] Turns the creation of the
+  \verb|charges.bin| (or \verb|charges.dat|) file on and off. (This might e.g.\
+  prove to be useful to avoid unnecessary I/O load during geometry optimization or MD,
+  if a later restart of the calculation is not needed.)
 
 \item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
@@ -4756,7 +4818,7 @@ Example:
   }
 \end{verbatim}
 
-\subsection{Localise}
+\subsection{Localise / Localize}
 \label{sec:dftbp.Localise} Convert the single particle states of the calculation
 to localised orbitals via a unitary transformation. Localised orbitals span the
 same states as the occupied orbitals, so are equivalent to the usual valence
@@ -4861,6 +4923,7 @@ calculations. This data is accumulated in a specified text file.
 \end{description}
 
 \subsection{Response properties by perturbation}
+\label{sec:dftbp.perturb}
 
 For cases where the ground state eigenvalues are available, the output
 of the eigenvalue derivatives are described in are
@@ -5134,7 +5197,7 @@ available for range separated calculations.
 
   \end{description}
 
-  \subsubsection{Diagonaliser}
+  \subsubsection{Diagonaliser / Diagonalizer}
   \label{sec:dftbp.casdiag}
   Specifies which iterative diagonaliser should be used to solve the Casida
   equations. The keyword expects either a \iscb{Arpack} or \iscb{Stratmann}
@@ -5427,7 +5490,7 @@ Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
 \end{ptable}
 
 \begin{description}
- \item[\is{PolarisationDirection}] The cartesian axis for the kick:
+ \item[\is{PolarisationDirection} / \is{PolarizationDirection}] The cartesian axis for the kick:
    \verb|"x"|, \verb|"y"| or \verb|"z"|. If set to \verb|"all"|,
    calculates the three directions $x,y,z$ consecutively. For
    polarisation direction \verb|x,y,z| the dipole moment output file
@@ -5452,10 +5515,10 @@ Apply time-dependent sinusoidal perturbation to the system.
 \end{ptable}
 
 \begin{description}
- \item[\is{PolarisationDirection}] Vector along which the electric
+ \item[\is{PolarisationDirection} / \is{PolarizationDirection}] Vector along which the electric
    field is polarised.
 
- \item[\is{ImagPolarisationDirection}] Imaginary part of the
+ \item[\is{ImagPolarisationDirection} / \is{ImagPolarizationDirection}] Imaginary part of the
    polarisation vector. Useful for circularly polarised fields.
 
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar

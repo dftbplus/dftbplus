@@ -132,7 +132,7 @@ if(WITH_CHIMES)
 endif()
 
 if(WITH_MPI)
-  target_link_libraries(dftbplus PUBLIC MPI::MPI_Fortran)
+  target_link_libraries(dftbplus PRIVATE MPI::MPI_Fortran)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
 endif()
 

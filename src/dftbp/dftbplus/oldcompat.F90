@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -748,31 +748,6 @@ contains
 
     type(fnode), pointer :: ch1, ch2
     type(string) :: buffer
-
-    call getDescendant(root, "Driver/GeometryOptimization", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'GeometryOptimisation'.")
-      call setNodeName(ch1, "GeometryOptimisation")
-      call getDescendant(root, "Driver/GeometryOptimisation/Optimizer", ch2)
-      if (associated(ch2)) then
-        call detailedWarning(ch2, "Keyword renamed to 'Optimiser'.")
-        call setNodeName(ch2, "Optimiser")
-      end if
-    end if
-
-  #:for LABEL in [("Kick"), ("Laser")]
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
-      call setNodeName(ch1, "PolarisationDirection")
-    end if
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
-        & ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
-      call setNodeName(ch1, "ImagPolarisationDirection")
-    end if
-  #:endfor
 
     call getDescendant(root, "Transport", ch1)
     if (associated(ch1)) then

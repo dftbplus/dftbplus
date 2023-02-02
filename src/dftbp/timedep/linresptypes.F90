@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,19 @@ module dftbp_timedep_linresptypes
   use dftbp_common_accuracy, only : dp
   implicit none
 
-  public
+  private
+  public :: linrespSolverTypes, TLinResp
+
+  !> Types for solution of RPA equations
+  type TSolverTypesEnum
+    integer :: None = 0
+    integer :: arpack = 1
+    integer :: stratmann = 2
+  end type TSolverTypesEnum
+
+  !> Actual values for elecSolverTypes.
+  type(TSolverTypesEnum), parameter :: linrespSolverTypes = TSolverTypesEnum()
+
 
   !> Data type for linear response internal settings
   type :: TLinResp
@@ -94,10 +106,12 @@ module dftbp_timedep_linresptypes
     !> Should the density matrix be stored to disc?
     logical :: tWriteDensityMatrix
 
-    ! ARPACK/Stratmann related
+    ! Solver related
 
-    !> Should we use the Arpack solver for the RPA equations? (or the Stratman one)
-    logical :: tUseArpack = .true.
+    !> Which solver should be used for the RPA equations?
+    integer :: iLinRespSolver = linrespSolverTypes%None
+
+    ! ARPACK related
 
     !> write state of Arnoldi solver to disc
     logical :: tArnoldi
@@ -105,8 +119,12 @@ module dftbp_timedep_linresptypes
     !> whether Arnoldi solver tests should be made (with results written to file)
     logical :: testArnoldi = .false.
 
+    ! Stratmann related
+
     !> subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
+
+    ! Data structure related
 
     !> Is the data structure initialised?
     logical :: tInit = .false.

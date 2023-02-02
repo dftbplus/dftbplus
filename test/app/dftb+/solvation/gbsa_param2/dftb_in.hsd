@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN1-xTB/GBSA(ch2cl2)
+  Solvation = GeneralisedBorn { # GFN1-xTB/GBSA(ch2cl2)
     ParamFile = "param_gbsa_ch2cl2.txt"
     State = "mol1bar"
     CM5 {}

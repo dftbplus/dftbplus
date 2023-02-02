@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -506,21 +506,21 @@ contains
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    real(dp), allocatable :: chargesSt(:,:,:)
+    real(dp), allocatable :: chargesSt(:,:,:), blockChargeBuffer(:,:,:,:)
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt
     integer :: iStart, iEnd, iSpin, nSpin, iAt, ii
     character(lc) :: strTmp
-    logical :: tAsciiFile
+    logical :: tAsciiFile, hasBlockCharges
 
     nSpin = size(charges, dim=3)
 
     tAsciiFile = .not.tp%tReadBinShift
 
     if (tAsciiFile) then
-      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt, hasBlockCharges
     else
-      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt, hasBlockCharges
     end if
     iStart = tp%contacts(iCont)%idxrange(1)
     iEnd = tp%contacts(iCont)%idxrange(2)
@@ -556,13 +556,14 @@ contains
       call error("Incompatible orbitals in the upload file!")
     end if
 
-    if (allocated(blockUp)) then
+    if (hasBlockCharges) then
+      allocate(blockChargeBuffer(orb%mOrb, orb%mOrb, iStart:iEnd, nSpin))
       if (tAsciiFile) then
         ! read the block charges that we need
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH, *) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH, *) blockChargeBuffer(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       else
@@ -570,10 +571,17 @@ contains
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH) blockChargeBuffer(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       end if
+    end if
+
+    if (allocated(blockUp)) then
+      if (.not. hasBlockCharges) then
+        call error("Upload file does not contain necessary block charge information")
+      end if
+      blockUp(:,:,iStart:iEnd,:) = blockChargeBuffer(:,:,iStart:iEnd,:)
     end if
 
     if (.not. tp%contacts(iCont)%tFermiSet) then

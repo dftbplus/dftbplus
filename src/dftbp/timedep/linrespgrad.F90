@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -31,9 +31,9 @@ module dftbp_timedep_linrespgrad
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
       & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array, &
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
-      & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, intialSubSpaceMatrixApmB,&
+      & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
       & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
-  use dftbp_timedep_linresptypes, only : TLinResp
+  use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
 
@@ -545,26 +545,27 @@ contains
     ALLOCATE(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
 
-    if (this%tUseArpack .and. tRangeSep) then
+    if (this%iLinRespSolver /= linrespSolverTypes%stratmann .and. tRangeSep) then
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
     do isym = 1, size(symmetries)
 
       sym = symmetries(isym)
-      if (withArpack .and. this%tUseArpack .and. (.not. tRangeSep)) then
+      select case (this%iLinRespSolver)
+      case (linrespSolverTypes%arpack)
         call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,&
             & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
             & tRangeSep, tZVector)
-      else
+      case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(tSpin, this%subSpaceFactorStratmann, wij(:nxov_rd),&
             & sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA,&
             & getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
             & species0, this%spinW, transChrg, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
             & tRangeSep, lrGamma, tZVector)
-      end if
+      end select
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy, &
@@ -707,6 +708,7 @@ contains
     end if
 
   end subroutine LinRespGrad_old
+
 
   !> Solves the RPA equations in their hermitian form (valid for local functionals) at finite T
   !>
@@ -912,8 +914,8 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.
       ! Note: At this point xpy holds the hermitian eigenvectors F
-      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM", nexc, ARTOL,&
-          & resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
+      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM", nexc,&
+          & ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
       ! check for error on return
       if (info  /=  0) then
@@ -959,6 +961,7 @@ contains
     end do
 
   end subroutine buildAndDiagExcMatrixArpack
+
 
   !> Solves the RPA equations in their standard form at finite T
   !>
@@ -1173,7 +1176,7 @@ contains
       else
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
-        call intialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
+        call initialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
             & nxov_ud(1), iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ, getAB,&
             & iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
       end if
@@ -3211,6 +3214,7 @@ contains
 
   end subroutine calcPMatrix
 
+
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(ipm, nXvv, homo, nAtom, iaTrans, getIA, getAB, win,&
@@ -3304,6 +3308,7 @@ contains
     end do
 
   end subroutine getHvvXY
+
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied orbitals and V is either X+Y or X-Y
@@ -3399,6 +3404,7 @@ contains
     end do
 
   end subroutine getHooXY
+
 
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p is an occupied MO and q is a virtual one, T is the relaxed difference density
@@ -3522,6 +3528,7 @@ contains
     end do
 
   end subroutine getHovT
+
 
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied MO, T is the relaxed difference density
@@ -3656,6 +3663,7 @@ contains
 
   end subroutine getHooT
 
+
   !> Constructs the full overlap matrix S
   subroutine getSqrS(coord, nAtom, skOverCont, orb, iAtomStart, species0, S)
     real(dp), intent(in) :: coord(:,:)
@@ -3693,6 +3701,7 @@ contains
 
   end subroutine getSqrS
 
+
   !> Constructs a Gamma-Matrix of dimension nOrb instead of nAtoms
   subroutine getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
     real(dp), intent(in) :: lrGamma(:,:)
@@ -3718,6 +3727,7 @@ contains
     end do
 
   end subroutine getSqrGamma
+
 
   !> Helper routine to construct overlap
   subroutine getSOffsite(coords1, coords2, iSp1, iSp2, orb, skOverCont, Sblock)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,13 +16,14 @@ module dftbp_io_hsdutils2
   use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
-      & normalize, append_to_string, destroyNodeList, removeAttribute
+      & normalize, append_to_string, destroyNodeList, removeAttribute, getItem1
   use dftbp_io_charmanip, only : newline, tolower, i2c
   use dftbp_io_hsdparser, only : attrName, attrModifier
   use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
       & appendPathAndLine
   use dftbp_io_message, only : error, warning
-  use dftbp_io_xmlutils, only : getTagsWithoutAttribute, removeNodes, removeSpace
+  use dftbp_io_xmlutils, only : getChildrenByName, getTagsWithoutAttribute, removeNodes,&
+      & removeSpace
   implicit none
 
   private
@@ -31,6 +32,7 @@ module dftbp_io_hsdutils2
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
   public :: setUnprocessed, getDescendant
   public :: convertUnitHsd
+  public :: renameChildren
 
 
   !> Converts according to passed modifier and array of possible units by multplicating the provided
@@ -165,9 +167,7 @@ contains
 
 
   !> Changes the name of a given node.
-  !>
-  !> Returns if node is not associated.
-  subroutine setNodeName(node, name)
+  subroutine setNodeName(node, name, updateHsdName)
 
     !> Node to change.
     type(fnode), pointer :: node
@@ -175,16 +175,27 @@ contains
     !> New name of the node.
     character(len=*), intent(in) :: name
 
+    !> Whether the original HSD-name should be also updated (default: .false.)
+    !>
+    !> If set to .true., the attribute storing the original capitalized HSD-name will also be
+    !> updated if present. Otherwise, it is kept at its original value.
+    !>
+    logical, optional, intent(in) :: updateHsdName
+
     type(string) :: buffer
+    logical :: updateHsdName_
 
     @:ASSERT(associated(node))
 
+    updateHsdName_ = .false.
+    if (present(updateHsdName)) updateHsdName_ = updateHsdName
+
+    call setTagName(node, tolower(name))
     call getAttribute(node, attrName, buffer)
-    if (len(buffer) > 0) then
+    if (len(buffer) > 0 .and. updateHsdName_) then
       call removeAttribute(node, attrName)
       call setAttribute(node, attrName, name)
     end if
-    call setTagName(node, tolower(name))
 
   end subroutine setNodeName
 
@@ -366,5 +377,39 @@ contains
     end if
 
   end subroutine getDescendant
+
+
+  !> Renames children
+  subroutine renameChildren(node, oldName, newName, updateHsdNames)
+
+    !> Root node containing the children
+    type(fnode), pointer, intent(in) :: node
+
+    !> Old name of the children
+    character(*), intent(in) :: oldName
+
+    !> New name of the children
+    character(*), intent(in) :: newName
+
+    !> Whether the original HSD-name should be also updated (default: .false.)
+    !>
+    !> If set to .true., the attribute storing the original capitalized HSD-name will also be
+    !> updated if present. Otherwise, it is kept at its original value (e.g. error messages will
+    !> display the original name, not the renamed one).
+    !>
+    logical, optional, intent(in) :: updateHsdNames
+
+    type(fnodeList), pointer :: children
+    type(fnode), pointer :: child
+    integer :: iChild
+
+    children => getChildrenByName(node, tolower(oldname))
+    do iChild = 1, getLength(children)
+      call getItem1(children, iChild, child)
+      call setNodeName(child, newName, updateHsdNames)
+    end do
+    call destroyNodeList(children)
+
+  end subroutine renameChildren
 
 end module dftbp_io_hsdutils2

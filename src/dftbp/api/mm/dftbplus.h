@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2023  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -133,7 +133,7 @@ _Bool dftbp_is_instance_safe();
  *
  * \param[in] outputfilename Name of the file, where the DFTB+ screen output should be written.
  *     If you pass NULL, it will be written to standard output. If you pass any other file name as a
- *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to 
+ *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to
  *     suppress output.
  */
 void dftbp_init(DftbPlus *instance, const char *outputfilename);

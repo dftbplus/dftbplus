@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,6 +15,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
   use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
+  use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFile
   use dftbp_common_globalenv, only : stdOut, withMpi
@@ -115,7 +116,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
-  use dftbp_timedep_linresptypes, only : TLinResp
+  use dftbp_timedep_linresptypes, only : TLinResp, linRespSolverTypes
   use dftbp_timedep_pprpa, only : TppRPAcal
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
@@ -199,7 +200,7 @@ module dftbp_dftbplus_initprogram
     integer :: nType
 
     !> data type for atomic orbital information
-    type(TOrbitals) :: orb
+    type(TOrbitals), allocatable :: orb
 
     !> nr. of orbitals in the system
     integer :: nOrb
@@ -508,7 +509,10 @@ module dftbp_dftbplus_initprogram
     type(TPipekMezey), allocatable :: pipekMezey
 
     !> Density functional tight binding perturbation theory
-    logical :: isDFTBPT = .false.
+    logical :: doPerturbation = .false.
+
+    !> Density functional tight binding perturbation for each geometry step
+    logical :: doPerturbEachGeom = .false.
 
     !> Response property calculations
     type(TResponse), allocatable :: response
@@ -777,10 +781,13 @@ module dftbp_dftbplus_initprogram
     !> Whether potential shifts are read from file
     logical :: tWriteShifts
 
-    !> should charges written to disc be in ascii or binary format?
+    !> Produce charges.bin
+    logical :: tWriteCharges
+
+    !> Should charges written to disc be in ascii or binary format?
     logical :: tWriteChrgAscii
 
-    !> produce tagged output?
+    !> Produce tagged output?
     logical :: tWriteAutotest
 
     !> Produce detailed.xml
@@ -807,7 +814,7 @@ module dftbp_dftbplus_initprogram
     !> Frequency for saving restart info
     integer :: restartFreq
 
-    !> dispersion data and calculations
+    !> Dispersion data and calculations
     class(TDispersionIface), allocatable :: dispersion
 
     !> Solvation data and calculations
@@ -1352,11 +1359,9 @@ contains
     case(hamiltonianTypes%dftb)
       this%orb = input%slako%orb
     case(hamiltonianTypes%xtb)
-      ! TODO
       if (.not.allocated(input%ctrl%tbliteInp)) then
         call error("xTB calculation supported only with tblite library")
       end if
-
       allocate(this%tblite)
       if (this%tPeriodic) then
         call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
@@ -1365,13 +1370,15 @@ contains
         call TTBlite_init(this%tblite, input%ctrl%tbliteInp, this%nAtom, this%species0, &
             & this%speciesName, this%coord0)
       end if
-
       allocate(input%slako%orb)
       call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
-      this%orb = input%slako%orb
-
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
+      ! Workaround: ifort 2021.7
+      ! Assignment of derived type instances with allocatable components seems to be broken,
+      ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
+      !this%orb = input%slako%orb
+      call move_alloc(input%slako%orb, this%orb)
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1840,12 +1847,9 @@ contains
     else
       this%tCasidaForces = .false.
     end if
-    if (this%tSccCalc) then
-      this%forceType = input%ctrl%forceType
-    else
-      if (input%ctrl%forceType /= forceTypes%orig) then
-        call error("Invalid force evaluation method for non-SCC calculations.")
-      end if
+    this%forceType = input%ctrl%forceType
+    if (.not. this%tSccCalc .and. input%ctrl%forceType /= forceTypes%orig) then
+      call error("Invalid force evaluation method for non-SCC calculations.")
     end if
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
@@ -2281,8 +2285,10 @@ contains
           & spin orbit calculations")
     end if
 
-    this%isDFTBPT = input%ctrl%isDFTBPT
-    if (this%isDFTBPT) then
+    this%doPerturbation = input%ctrl%doPerturbation
+    this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
+
+    if (this%doPerturbation .or. this%doPerturbEachGeom) then
 
       allocate(this%response)
       call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
@@ -2362,9 +2368,9 @@ contains
     if (this%isLinResp) then
 
       ! input checking for linear response
-      if (.not. withArpack) then
+      if (input%ctrl%lrespini%iLinRespSolver==linrespSolverTypes%Arpack .and. .not.withArpack) then
         call error("This binary has been compiled without support for linear response&
-            & calculations.")
+            & calculations using the Arpack solver.")
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
@@ -2587,7 +2593,7 @@ contains
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
       call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta,&
-          &this%tDipole)
+          &this%tDipole, this%doPerturbEachGeom)
       this%coord0(:,this%indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       this%nGeoSteps = 2 * 3 * this%nMovedAtom - 1
@@ -2642,6 +2648,7 @@ contains
     this%tWriteAutotest = env%tGlobalLead .and. input%ctrl%tWriteTagged
     this%tWriteDetailedXML = env%tGlobalLead .and. input%ctrl%tWriteDetailedXML
     this%tWriteResultsTag = env%tGlobalLead .and. input%ctrl%tWriteResultsTag
+    this%tWriteCharges = env%tGlobalLead .and. input%ctrl%tWriteCharges
     this%tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut .and.&
         & .not. this%tRestartNoSC
     this%tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
@@ -2922,6 +2929,8 @@ contains
       write(stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
     end if
 
+    call checkStackSize(env)
+
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -3093,12 +3102,17 @@ contains
     endif
 
     if(this%isLinResp) then
-       if(input%ctrl%lrespini%tUseArpack) then
-          write(stdOut, "(A,':',T30,A)")    "Casida solver", "Arpack"
-       else
-          write(stdOut, "(A,':',T30,A,i4)") "Casida solver", &
-          & "Stratmann, SubSpace: ", input%ctrl%lrespini%subSpaceFactorStratmann
-       end if
+      select case(input%ctrl%lrespini%iLinRespSolver)
+      case (linrespSolverTypes%None)
+        call error("Casida solver has not been selected")
+      case (linrespSolverTypes%Arpack)
+        write(stdOut, "(A,':',T30,A)") "Casida solver", "Arpack"
+      case (linrespSolverTypes%Stratmann)
+        write(stdOut, "(A,':',T30,A,i4)") "Casida solver", "Stratmann, SubSpace: ",&
+            & input%ctrl%lrespini%subSpaceFactorStratmann
+      case default
+        call error("Unknown Casida solver")
+      end select
     end if
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
@@ -4580,7 +4594,6 @@ contains
     !> Environment
     type(TEnvironment), intent(inout) :: env
 
-
     call TTaggedWriter_init(this%taggedWriter)
 
     if (this%tWriteAutotest) then
@@ -4591,7 +4604,7 @@ contains
     end if
     if (this%tWriteBandDat) then
       call initOutputFile(bandOut)
-      if (this%isDFTBPT .and. this%isEResp) then
+      if (this%doPerturbation .and. this%isEResp) then
         call initOutputFile(derivEBandOut)
       end if
     end if
@@ -5373,12 +5386,13 @@ contains
       end if
     end if
 
-    if (isOnsiteCorrected .and. (.not. input%ctrl%lrespini%tUseArpack)) then
+    if (isOnsiteCorrected .and. input%ctrl%lrespini%iLinRespSolver == linRespSolverTypes%Stratmann)&
+        & then
       call error("Onsite corrections not implemented for Stratmann diagonaliser.")
     end if
 
     if (isRS_LinResp) then
-      if (input%ctrl%lrespini%tUseArpack) then
+      if (input%ctrl%lrespini%iLinRespSolver /= linRespSolverTypes%Stratmann) then
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then
