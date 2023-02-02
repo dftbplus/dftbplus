@@ -87,6 +87,9 @@ module dftbp_timedep_linresp
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
 
+    !> Initial and final state for non-adiabatic coupling evaluation
+    integer :: indNACouplings(2)
+
     !> write single particle transitions
     logical :: tSPTrans
 
@@ -135,6 +138,8 @@ contains
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
+    integer :: dLev
+
     this%tinit = .false.
     this%tUseArpack = ini%tUseArpack
     this%subSpaceFactorStratmann = ini%subSpaceFactorStratmann
@@ -159,6 +164,19 @@ contains
       if (this%tEnergyWindow .and. this%energyWindow <= 0.0_dp) then
         call error("Excited energy window should be non-zero if used")
       end if
+
+      if(all(ini%indNACouplings == 0)) then
+        this%tNaCoupling = .false.
+      else if (any(ini%indNACouplings < 0)) then
+        call error("Couplings: Indices must be positive.")
+      else 
+        if (ini%indNACouplings(1) >=  ini%indNACouplings(2)) then
+          call error("Couplings: Second index must be larger than first one.")
+        end if
+        this%tNaCoupling = .true.
+        this%indNACouplings = ini%indNACouplings
+        dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
+      endif
 
       this%writeMulliken = ini%tMulliken
       this%writeCoeffs = ini%tCoeffs
