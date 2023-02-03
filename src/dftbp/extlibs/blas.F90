@@ -945,27 +945,6 @@ module dftbp_extlibs_blas
     end subroutine zgemm
 
 
-    !> Returns the sorted indices of an input array
-    subroutine dlapst(id, n, d, indx, info)
-      import rdp
-
-      !> sort in increasing and decreasing order if 'I' or 'D', respectively
-      character, intent(in) :: id
-
-      !> array lenth
-      integer, intent(in) :: n
-
-      !> array to be sorted
-      real(rdp), intent(in) :: d(*)
-
-      !> on output, contains the indices of the sorted array d
-      integer, intent(inout) :: indx(*)
-
-      !> status information, 0 = ok
-      integer, intent(out) :: info
-    end subroutine dlapst
-
-
   #:for VPREC, VTYPE, NAME in [('rsp', 'real', 'ssyrk'), ('rdp', 'real', 'dsyrk'),&
     & ('rsp', 'complex', 'cherk'), ('rdp', 'complex', 'zherk')]
     !> performs one of the symmetric rank k operations

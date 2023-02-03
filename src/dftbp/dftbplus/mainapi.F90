@@ -27,7 +27,6 @@ module dftbp_dftbplus_mainapi
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
-  use dftbp_extlibs_blas, only : dlapst
   use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
 #:endif
   implicit none
@@ -128,7 +127,7 @@ contains
 
     real(dp), allocatable :: dist2(:)
     real(dp), pointer :: rCellVec(:)
-    integer :: nMaxNeighbours, nCellVec, info
+    integer :: nMaxNeighbours, nCellVec
     integer :: iAtom, iCell, iNeigh, iImage, iCellVec, iAtFirst, iAtLast
     integer, allocatable :: indx(:)
     logical :: copyData
@@ -219,17 +218,9 @@ contains
       @:ASSERT(size(neighDist, dim=2) == main%nAtom)
 
       allocate(indx(maxval(nNeighbour)))
-      info = 1
       do iAtom = 1, main%nAtom
-      #:if WITH_SCALAPACK
-        call dlapst('I', nNeighbour(iAtom), neighDist(1:nNeighbour(iAtom),iAtom),&
-            & indx(1:nNeighbour(iAtom)), info)
-      #:endif
-        if (info /= 0) then
-          !> Fallback if ScaLAPACK fails
-          call index_heap_sort(indx(1:nNeighbour(iAtom)), neighDist(1:nNeighbour(iAtom),iAtom),&
-              & tolSameDist)
-        end if
+        call index_heap_sort(indx(1:nNeighbour(iAtom)), neighDist(1:nNeighbour(iAtom),iAtom),&
+            & tolSameDist)
         !$OMP SIMD
         do iNeigh = 1, nNeighbour(iAtom)
           main%neighbourList%iNeighbour(iNeigh, iAtom) = iNeighbour(indx(iNeigh), iAtom)&
