@@ -14,7 +14,6 @@ module waveplot_grids
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_io_message, only : error
   use dftbp_common_constants, only : pi
-
   use waveplot_interp, only : linearInterpolation, trilinearInterpolation, polynomialInterpolation,&
       & locateByBisection
   use waveplot_parallel, only : getStartAndEndIndices
@@ -1312,7 +1311,7 @@ contains
 
   !> array holding the data of the grid for every level which is needed,
   !> shape: [nxPoints, nyPoints, nzPoints, nLevel]
-  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:,:,:)
+  real(dp), intent(out), allocatable :: globalGridsDat(:,:,:,:,:)
 
   !> Interpolation type for the grid interpolation
   integer, intent(in) :: gridInterType
@@ -1354,8 +1353,8 @@ contains
 
   allocate(globalGridsDat(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
       & globalGridDat%grid%nPoints(3), statesTiling(2) - statesTiling(1) + 1, &
-      & size(requiredKPoints), size(requiredSpins)))
-  globalGridsDat(:,:,:,:,:,:) = 0.0_dp
+      & size(requiredSpins)))
+  globalGridsDat(:,:,:,:,:) = 0.0_dp
 
   allocate(basis(globalGridDat%grid%nPoints(1), globalGridDat%grid%nPoints(2), &
       & globalGridDat%grid%nPoints(3)))
@@ -1365,7 +1364,7 @@ contains
   !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
   !$omp& orbitalToAngs, orbitalToM, rwfTabulationType, cartCoords, orbitalToStos,&
   !$omp& coords, coeffs, levelIndex, globalGridsDat, tiling, tAddDensities, gridInterType, basis,&
-  !$omp& statesTiling, requiredLevels, kPointNumForLevel, requiredKPoints,&
+  !$omp& statesTiling, requiredLevels, kPointNumForLevel,&
   !$omp& requiredSpins)&
   !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, iStos, ind,&
   !$omp& currentKPoint, currentLevel, currentSpin, iL, iSpin, iKPoint, levelInd)
@@ -1380,31 +1379,39 @@ contains
 
       lpCell: do iCell = 1, size(coords, dim=3)
 
-        basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-            & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
-            & explicitSTOcalculation(regionGridDat(iGrid), subgridsDat(iSubgrid), &
-            & 1.0_dp, coords(:, iAtom, iCell), &
-            & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
-            & square=tAddDensities)
+        if (gridInterType == gridInterpolTypes%explicit) then
+          basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+              & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
+              & explicitSTOcalculation(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+              & 1.0_dp, coords(:, iAtom, iCell), &
+              & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
+              & square=tAddDensities)
+        else if (gridInterType .eq. gridInterpolTypes%trivial) then
+          basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+              & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
+              & gridInterpolationTrivial(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+              & 1.0_dp, coords(:, iAtom, iCell), square=tAddDensities)
+        else if (gridInterType .eq. gridInterpolTypes%linear) then
+          basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+              & basis(:,:, tiling(1, iGrid):tiling(2, iGrid)) + &
+              & gridInterpolationLinear(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+              & 1.0_dp, coords(:, iAtom, iCell), square=tAddDensities)
+        end if
 
       end do lpCell
 
       levelInd = 1
       do iL = statesTiling(1), statesTiling(2)
         currentLevel = requiredLevels(iL)
-        do iKPoint = 1, size(requiredKPoints)
-          currentKPoint = requiredKPoints(iKPoint)
 
           lpSpin: do iSpin = 1, size(requiredSpins)
             currentSpin = requiredSpins(iSpin)
 
-            globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
-                & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
-                & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
+            globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iSpin) =&
+                & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iSpin)&
+                & + coeffs(iOrb, currentLevel, 1, currentSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
 
           end do lpSpin
-
-        end do
 
         levelInd = levelInd + 1
 
@@ -1578,29 +1585,27 @@ end subroutine subgridsToCachedGlobalGrids
 
         lpCell: do iCell = 1, size(coords, dim=3)
 
-          basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
-              & explicitSTOcalculation(regionGridDat(iGrid), subgridsDat(iSubgrid), &
-              & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
-              & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
-              & square=tAddDensities)
+          if (gridInterType == gridInterpolTypes%explicit) then
+            basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+                & explicitSTOcalculation(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+                & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), &
+                & cartCoords(:,:,:,tiling(1, iGrid):tiling(2, iGrid)), stos(iStos), iAng, iM, &
+                & square=tAddDensities)
+          else if (gridInterType .eq. gridInterpolTypes%trivial) then
+            basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+                & gridInterpolationTrivial(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+                & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), square=tAddDensities)
+          else if (gridInterType .eq. gridInterpolTypes%linear) then
+            basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) = &
+                & gridInterpolationLinear(regionGridDat(iGrid), subgridsDat(iSubgrid), &
+                & (1.0_dp, 0.0_dp), coords(:, iAtom, iCell), square=tAddDensities)
+          end if
 
           do iKPoint = 1, size(requiredKPoints)
             basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) = &
                 & basis2(:,:, tiling(1, iGrid):tiling(2, iGrid), iKPoint) + &
                 & basisTmp(:,:, tiling(1, iGrid):tiling(2, iGrid)) * phases(iCell, iKPoint)
           end do
-
-          ! do ww = tiling(1, iGrid), tiling(2, iGrid)
-          !   do vv = 1, size(basis2, dim=2)
-          !     do uu = 1, size(basis2, dim=1)
-          !       do iKPoint = 1, size(requiredKPoints)
-          !         basis2(uu, vv, ww, iKPoint) = &
-          !             & basis2(uu, vv, ww, iKPoint) + &
-          !             & basisTmp(uu, vv, ww) * phases(iCell, iKPoint)
-          !       end do
-          !     end do
-          !   end do
-          ! end do
 
         end do lpCell
 
@@ -2033,7 +2038,7 @@ end subroutine subgridsToCachedGlobalGrids
       & result(grid_interp)
 
     !> representation of volumetric grid and data
-    class(TGridData), intent(inout) :: regionGridDat
+    class(TGridData), intent(in) :: regionGridDat
 
     !> volumetric data to add to current instance
     class(TGridData), intent(in) :: griddata

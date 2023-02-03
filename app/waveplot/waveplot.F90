@@ -68,7 +68,7 @@ program waveplot
   complex(dp), allocatable :: phases(:,:)
 
   !> Arrays holding the volumetric grid data
-  real(dp), allocatable :: totGridsDat(:,:,:,:,:,:)
+  real(dp), allocatable :: totGridsDat(:,:,:,:,:)
   complex(dp), allocatable :: totGridsDatCplx(:,:,:,:,:,:)
   real(dp), allocatable :: basis(:,:,:,:)
   real(dp), allocatable, target ::  totChrg(:,:,:), atomicChrg(:,:,:), speciesChrg(:,:,:,:)
@@ -603,7 +603,7 @@ program waveplot
                 & wp%opt%tPlotChrgDiff))) then
 
               if (wp%input%tRealHam) then
-                buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)**2
+                buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iSpin)**2
               else
                 buffer(:,:,:) = abs(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin))**2
               end if
@@ -660,7 +660,7 @@ program waveplot
               if (wp%opt%tPlotReal) then
 
                 if (wp%input%tRealHam) then
-                  buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iKPoint, iSpin)
+                  buffer(:,:,:) = totGridsDat(:,:,:, levelInd, iSpin)
                 else
                   buffer(:,:,:) = real(totGridsDatCplx(:,:,:, levelInd, iKPoint, iSpin), dp)
                 end if
