@@ -11,7 +11,7 @@
 module dftbp_dftb_shortgamma
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : getChunkIterWithWorkload, TChunkIterator
+  use dftbp_common_schedule, only : getIndicesWithWorkload
   use dftbp_dftb_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
@@ -743,11 +743,11 @@ contains
     real(dp), intent(in) :: shortGamma(:,:,0:,:), deltaQShell(:,:)
     real(dp), intent(out) :: shiftShell(:,:)
 
-    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iNeigh, iAt1Start, iAt1End
+    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iIter, iNeigh, iAt1Start, iAt1End
     integer :: nAtom, maxShell1, maxShell2
     integer, allocatable :: maxNeigh(:)
     real(dp) :: shortGammaValue, deltaQShellValue
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
     logical :: skipLoop
 
     nAtom = size(nNeigh, dim=4)
@@ -760,21 +760,22 @@ contains
     skipLoop = .false.
     #:if WITH_SCALAPACK
       if (env%blacs%atomGrid%iProc /= -1) then
-        call getChunkIterWithWorkload(env%blacs%atomGrid%nproc, env%blacs%atomGrid%iproc,&
-            & 1, nAtom, maxNeigh, chunkIter)
+        call getIndicesWithWorkload(env%blacs%atomGrid%nproc, env%blacs%atomGrid%iproc,&
+            & 1, nAtom, maxNeigh, iterIndices)
       else
         ! Do not calculate anything if process is not part of the atomic grid
         skipLoop = .true.
       end if
     #:else
-      call getChunkIterWithWorkload(1, 0, 1, nAtom, maxNeigh, chunkIter)
+      allocate(iterIndices(nAtom))
+      iterIndices(:) = [(iIter, iIter = 1, nAtom)]
     #:endif
 
     shiftShell(:,:) = 0.0_dp
 
     if (.not. skipLoop) then
-      do while (chunkIter%hasNextIndex())
-        iAt1 = chunkIter%getNextIndex()
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         maxShell1 = orb%nShell(iSp1)
         do iSh1 = 1, maxShell1

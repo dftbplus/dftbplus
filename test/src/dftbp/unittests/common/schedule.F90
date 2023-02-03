@@ -8,7 +8,8 @@
 #:include "fytest.fypp"
 
 #:block TEST_SUITE("schedule")
-  use dftbp_common_schedule, only : getChunkRanges, getChunkIterWithWorkload, TChunkIterator
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : getChunkRanges, getIndicesWithWorkload
   implicit none
 
 #:contains
@@ -61,67 +62,61 @@
 
   #:endblock TEST_FIXTURE
 
-  #:block TEST_FIXTURE("getChunkIterWithWorkload")
+  #:block TEST_FIXTURE("getIndicesWithWorkload")
 
-    integer :: workload(10), i
-    type(TChunkIterator) :: iter
+    integer :: workload(10), ii
+    integer, allocatable :: indices(:)
 
   #:contains
 
     #:block TEST("singleRankEqualWorkload")
       workload(:) = 1
-      call getChunkIterWithWorkload(1, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 10)
-      do i = 1, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 10)
+      do ii = 1, 10
+        @:ASSERT(indices(ii) == ii)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
 
       workload(:) = 5
-      call getChunkIterWithWorkload(1, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 10)
-      do i = 1, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 10)
+      do ii = 1, 10
+        @:ASSERT(indices(ii) == ii)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
     #:endblock
 
     #:block TEST("singleRankZeroWorkload")
       workload(1:5) = 0
       workload(6:10) = 1
-      call getChunkIterWithWorkload(1, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 10)
-      do i = 1, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 10)
+      do ii = 1, 10
+        @:ASSERT(indices(ii) == ii)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
 
       workload(:) = 0
-      call getChunkIterWithWorkload(1, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 10)
-      do i = 1, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 10)
+      do ii = 1, 10
+        @:ASSERT(indices(ii) == ii)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
     #:endblock
 
     #:block TEST("singleRankOffsetEqualWorkload")
       workload(:) = -100
       workload(7:10) = 1
-      call getChunkIterWithWorkload(1, 0, 7, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 4)
-      do i = 7, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 7, 10, workload, indices)
+      @:ASSERT(size(indices) == 4)
+      do ii = 1, 4
+        @:ASSERT(indices(ii) == ii + 6)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
 
       workload(7:10) = 5
-      call getChunkIterWithWorkload(1, 0, 7, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 4)
-      do i = 7, 10
-        @:ASSERT(iter%getNextIndex() == i)
+      call getIndicesWithWorkload(1, 0, 7, 10, workload, indices)
+      @:ASSERT(size(indices) == 4)
+      do ii = 1, 4
+        @:ASSERT(indices(ii) == ii + 6)
       end do
-      @:ASSERT(.not. iter%hasNextIndex())
     #:endblock
 
     #:block TEST("twoRanksDifferentWorkload")
@@ -132,23 +127,13 @@
       workload(9) = 10
       workload(10) = 2
 
-      call getChunkIterWithWorkload(2, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 3)
-      @:ASSERT(iter%getNextIndex() == 1)
-      @:ASSERT(iter%getNextIndex() == 3)
-      @:ASSERT(iter%getNextIndex() == 9)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(2, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 3)
+      @:ASSERT(all(indices == [1,3,9]))
 
-      call getChunkIterWithWorkload(2, 1, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 7)
-      @:ASSERT(iter%getNextIndex() == 2)
-      @:ASSERT(iter%getNextIndex() == 4)
-      @:ASSERT(iter%getNextIndex() == 5)
-      @:ASSERT(iter%getNextIndex() == 6)
-      @:ASSERT(iter%getNextIndex() == 7)
-      @:ASSERT(iter%getNextIndex() == 8)
-      @:ASSERT(iter%getNextIndex() == 10)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(2, 1, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 7)
+      @:ASSERT(all(indices == [2,4,5,6,7,8,10]))
     #:endblock
 
     #:block TEST("threeRanksDifferentWorkload")
@@ -163,73 +148,43 @@
       workload(9) = 10
       workload(10) = 1
 
-      call getChunkIterWithWorkload(3, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 2)
-      @:ASSERT(iter%getNextIndex() == 1)
-      @:ASSERT(iter%getNextIndex() == 10)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(3, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 2)
+      @:ASSERT(all(indices == [1,10]))
 
-      call getChunkIterWithWorkload(3, 1, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 3)
-      @:ASSERT(iter%getNextIndex() == 2)
-      @:ASSERT(iter%getNextIndex() == 4)
-      @:ASSERT(iter%getNextIndex() == 5)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(3, 1, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 3)
+      @:ASSERT(all(indices == [2,4,5]))
 
-      call getChunkIterWithWorkload(3, 2, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 5)
-      @:ASSERT(iter%getNextIndex() == 3)
-      @:ASSERT(iter%getNextIndex() == 6)
-      @:ASSERT(iter%getNextIndex() == 7)
-      @:ASSERT(iter%getNextIndex() == 8)
-      @:ASSERT(iter%getNextIndex() == 9)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(3, 2, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 5)
+      @:ASSERT(all(indices == [3,6,7,8,9]))
     #:endblock
 
     #:block TEST("threeRanksUnbalancedWorkload")
       workload(:) = 1
       workload(1) = 100
-      call getChunkIterWithWorkload(3, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 1)
-      @:ASSERT(iter%getNextIndex() == 1)
-      @:ASSERT(.not. iter%hasNextIndex())
-      call getChunkIterWithWorkload(3, 1, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 5)
-      @:ASSERT(iter%getNextIndex() == 2)
-      @:ASSERT(iter%getNextIndex() == 4)
-      @:ASSERT(iter%getNextIndex() == 6)
-      @:ASSERT(iter%getNextIndex() == 8)
-      @:ASSERT(iter%getNextIndex() == 10)
-      @:ASSERT(.not. iter%hasNextIndex())
-      call getChunkIterWithWorkload(3, 2, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 4)
-      @:ASSERT(iter%getNextIndex() == 3)
-      @:ASSERT(iter%getNextIndex() == 5)
-      @:ASSERT(iter%getNextIndex() == 7)
-      @:ASSERT(iter%getNextIndex() == 9)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(3, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 1)
+      @:ASSERT(all(indices == [1]))
+      call getIndicesWithWorkload(3, 1, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 5)
+      @:ASSERT(all(indices == [2,4,6,8,10]))
+      call getIndicesWithWorkload(3, 2, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 4)
+      @:ASSERT(all(indices == [3,5,7,9]))
 
       workload(:) = 1
       workload(10) = 100
-      call getChunkIterWithWorkload(3, 0, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 4)
-      @:ASSERT(iter%getNextIndex() == 1)
-      @:ASSERT(iter%getNextIndex() == 4)
-      @:ASSERT(iter%getNextIndex() == 7)
-      @:ASSERT(iter%getNextIndex() == 10)
-      @:ASSERT(.not. iter%hasNextIndex())
-      call getChunkIterWithWorkload(3, 1, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 3)
-      @:ASSERT(iter%getNextIndex() == 2)
-      @:ASSERT(iter%getNextIndex() == 5)
-      @:ASSERT(iter%getNextIndex() == 8)
-      @:ASSERT(.not. iter%hasNextIndex())
-      call getChunkIterWithWorkload(3, 2, 1, 10, workload, iter)
-      @:ASSERT(iter%getNumIndices() == 3)
-      @:ASSERT(iter%getNextIndex() == 3)
-      @:ASSERT(iter%getNextIndex() == 6)
-      @:ASSERT(iter%getNextIndex() == 9)
-      @:ASSERT(.not. iter%hasNextIndex())
+      call getIndicesWithWorkload(3, 0, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 4)
+      @:ASSERT(all(indices == [1,4,7,10]))
+      call getIndicesWithWorkload(3, 1, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 3)
+      @:ASSERT(all(indices == [2,5,8]))
+      call getIndicesWithWorkload(3, 2, 1, 10, workload, indices)
+      @:ASSERT(size(indices) == 3)
+      @:ASSERT(all(indices == [3,6,9]))
     #:endblock
 
   #:endblock TEST_FIXTURE

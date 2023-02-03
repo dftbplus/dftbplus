@@ -20,7 +20,7 @@ module dftbp_dftb_dispuff
   use dftbp_common_accuracy, only : dp, tolDispersion
   use dftbp_common_constants, only: pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
       & addDispEGr_per_species
@@ -430,7 +430,7 @@ contains
     real(dp) :: rr, r2, r5, r6, r10, r12, k1, k2, dE, dGr, u0, u1, u2, f6
     real(dp) :: gr(3), vec(3)
     real(dp), allocatable :: localDeriv(:,:), localSigma(:, :), localEnergies(:)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
   #:block DEBUG_CODE
     if (present(stress)) then
@@ -450,7 +450,7 @@ contains
       f6 = 1.0_dp
     end if
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
     allocate(localEnergies(nAtom), localDeriv(3, nAtom), localSigma(3, 3))
     localEnergies(:) = 0.0_dp
@@ -459,13 +459,13 @@ contains
 
     !$omp parallel do default(none) schedule(runtime) &
     !$omp reduction(+:localEnergies, localDeriv, localSigma) &
-    !$omp shared(species, nNeighbourSK, iNeighbour, coords, chunkIter) &
+    !$omp shared(species, nNeighbourSK, iNeighbour, coords, iterIndices) &
     !$omp shared(img2CentCell, neighDist2, c6, r0, c12, cPoly, f6) &
     !$omp private(iIter, iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2) &
     !$omp private(r2, rr, k1, r6, r12, k2, dE, dGr, r10, r5, u0, u1) &
     !$omp private(u2, gr, ii)
-    do iIter = 1, chunkIter%getNumIndices()
-      iAt1 = chunkIter%getIndex(iIter)
+    do iIter = 1, size(iterIndices)
+      iAt1 = iterIndices(iIter)
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)

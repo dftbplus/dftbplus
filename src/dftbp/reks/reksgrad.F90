@@ -19,7 +19,7 @@ module dftbp_reks_reksgrad
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_dftb_coulomb, only : addInvRPrime
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList
@@ -263,7 +263,7 @@ contains
     real(dp) :: fac
     integer :: iIter
     integer :: tmpL, tmpLs, iL, Lmax
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -291,13 +291,13 @@ contains
         end if
       end if
 
-      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
       !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
       !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-      do iIter = 1, chunkIter%getNumIndices()
-        iAtom1 = chunkIter%getIndex(iIter)
+      do iIter = 1, size(iterIndices)
+        iAtom1 = iterIndices(iIter)
         iSp1 = species(iAtom1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 1, nNeighbourSK(iAtom1)

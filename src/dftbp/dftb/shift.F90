@@ -12,8 +12,7 @@
 module dftbp_dftb_shift
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator,&
-      & getChunkIterWithWorkload, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
 
   implicit none
@@ -80,8 +79,8 @@ contains
     logical, intent(in) :: isInputZero
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iNeigh, iSpin, nSpin
-    type(TChunkIterator) :: chunkIter
+    integer :: iIter, iNeigh, iSpin, nSpin
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(ham,dim=2)==size(shift,dim=2))
@@ -97,12 +96,11 @@ contains
     nSpin = size(ham,dim=2)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
 
     do iSpin = 1, nSpin
-      call chunkIter%resetIndex()
-      do while (chunkIter%hasNextIndex())
-        iAt1 = chunkIter%getNextIndex()
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)
@@ -165,9 +163,9 @@ contains
     logical, intent(in) :: isInputZero
 
     integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iSh1, iSh2, iNeigh, iSpin, nSpin
+    integer :: iSh1, iSh2, iIter, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(nNeighbour)==nAtom)
@@ -182,12 +180,11 @@ contains
 
     nSpin = size(ham,dim=2)
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
 
     do iSpin = 1, nSpin
-      call chunkIter%resetIndex()
-      do while (chunkIter%hasNextIndex())
-        iAt1 = chunkIter%getNextIndex()
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)
@@ -258,9 +255,9 @@ contains
     logical, intent(in) :: isInputZero
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iNeigh, iSpin, nSpin
+    integer :: iIter, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), tmpS(orb%mOrb,orb%mOrb)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(nNeighbour)==nAtom)
@@ -276,17 +273,17 @@ contains
     nSpin = size(ham,dim=2)
 
     if (isInputZero) then
-      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, chunkIter)
+      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
     else
       !> If input is not zero everywhere, we have to compute in serial here, otherwise
       !> the call of 'assembleChunks' will mess up the array.
-      call getChunkIterWithWorkload(1, 0, 1, nAtom, nNeighbour, chunkIter)
+      allocate(iterIndices(nAtom))
+      iterIndices(:) = [(iIter, iIter = 1, nAtom)]
     end if
 
     do iSpin = 1, nSpin
-      call chunkIter%resetIndex()
-      do while (chunkIter%hasNextIndex())
-        iAt1 = chunkIter%getNextIndex()
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)

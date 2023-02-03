@@ -13,7 +13,7 @@ module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, TChunkIterator, assembleChunks
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
@@ -134,22 +134,22 @@ contains
     integer, intent(in) :: iPair(0:,:)
 
     integer :: iOrig
-    integer :: iNeigh
+    integer :: iIter, iNeigh
     integer :: nAtom, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
     real(dp) :: mulTmp(orb%mOrb**2)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    do while (chunkIter%hasNextIndex())
-      iAtom1 = chunkIter%getNextIndex()
+    do iIter = 1, size(iterIndices)
+      iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         sqrTmp(:,:) = 0.0_dp
@@ -208,22 +208,22 @@ contains
     integer, intent(in) :: iPair(0:,:)
 
     integer :: iOrig
-    integer :: iNeigh
+    integer :: iIter, iNeigh
     integer :: nAtom, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: STmp(orb%mOrb,orb%mOrb)
     real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    do while (chunkIter%hasNextIndex())
-      iAtom1 = chunkIter%getNextIndex()
+    do iIter = 1, size(iterIndices)
+      iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
@@ -283,22 +283,22 @@ contains
     integer, intent(in) :: iPair(0:,:)
 
     integer :: iOrig
-    integer :: iNeigh
+    integer :: iIter, iNeigh
     integer :: nAtom, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: STmp(orb%mOrb,orb%mOrb)
     real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
 
     @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
     @:ASSERT(size(over) == size(rho))
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    do while (chunkIter%hasNextIndex())
-      iAtom1 = chunkIter%getNextIndex()
+    do iIter = 1, size(iterIndices)
+      iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)

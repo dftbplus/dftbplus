@@ -13,7 +13,7 @@ module dftbp_solvation_born
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeWithWorkload,&
-      & TChunkIterator, assembleChunks
+      & assembleChunks
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_math_blasroutines, only : hemv, gemv
@@ -810,11 +810,11 @@ contains
     real(dp) :: rh1, rhr1, r24, r1, aprh1, r12
     real(dp) :: rvdwi, rvdwj
     real(dp), allocatable :: dpsitr(:,:)
-    type(TChunkIterator) :: chunkIter
+    integer, allocatable :: iterIndices(:)
 
     nAtom = size(nNeighbour)
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, chunkIter)
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
 
     allocate(dpsitr(3, nAtom))
     psi(:) = 0.0_dp
@@ -824,11 +824,11 @@ contains
     !$omp parallel do default(none) schedule(runtime) &
     !$omp reduction(+:psi, dpsidr, dpsitr) shared(species) &
     !$omp shared(nNeighbour, iNeighbour, img2CentCell, coords, neighDist2, rho) &
-    !$omp shared(vdwRad, chunkIter) private(iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, dist) &
+    !$omp shared(vdwRad, iterIndices) private(iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, dist) &
     !$omp private(iIter, tOvij, tOvji, vec, rhoi, rhoj, gi, gj, ap, am, lnab, rhab) &
     !$omp private(ab, dgi, dgj, dGr, rh1, rhr1, r24, r1, aprh1, r12, rvdwi, rvdwj)
-    do iIter = 1, chunkIter%getNumIndices()
-      iAt1 = chunkIter%getIndex(iIter)
+    do iIter = 1, size(iterIndices)
+      iAt1 = iterIndices(iIter)
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
