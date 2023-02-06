@@ -424,34 +424,33 @@ contains
 
   !> Sets the neighbour list and skips the neighbour list creation in DFTB+
   subroutine TDftbPlus_setNeighbourList(this, nNeighbour, iNeighbour, neighDist, cutOff,&
-      & coordImageCells, img2CentCellImageCells)
+      & coordNeighbours, neighbour2CentCell)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> number of neighbours for each atom
+    !> number of neighbours of an atom in the central cell
     integer, intent(in) :: nNeighbour(:)
 
-    !> references to image atoms
+    !> references to the neighbour atoms for an atom in the central cell
     integer, intent(in) :: iNeighbour(:,:)
 
-    !> distances to image atoms
+    !> distances to the neighbour atoms for an atom in the central cell
     real(dp), intent(in) :: neighDist(:,:)
 
-    !> cutoff of the neighbour list
+    !> cutoff distance used for this neighbour list
     real(dp), intent(in) :: cutOff
 
-    !> coordinates of all images (= atoms in other cells), without the central cell
-    real(dp), intent(in) :: coordImageCells(:,:)
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
 
-    !> mapping between image index (other cell) and atom index (central cell), without the central
-    !> cell
-    integer, intent(in) :: img2CentCellImageCells(:)
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
 
     call this%checkInit()
 
     call setNeighbourList(this%env, this%main, nNeighbour, iNeighbour, neighDist, cutOff,&
-        & coordImageCells, img2CentCellImageCells)
+        & coordNeighbours, neighbour2CentCell)
 
   end subroutine TDftbPlus_setNeighbourList
 

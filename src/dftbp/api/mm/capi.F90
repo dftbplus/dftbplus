@@ -325,36 +325,35 @@ contains
 
   !> Set the neighbour list instead of computing it in DFTB+
   subroutine c_DftbPlus_setNeighbourList(handler, nAllAtom, nMaxNeighbours, nNeighbour,&
-      & iNeighbour, neighDist, cutOff, coordImageCells, img2CentCellImageCells)&
+      & iNeighbour, neighDist, cutOff, coordNeighbours, neighbour2CentCell)&
       & bind(C, name='dftbp_set_neighbour_list')
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> total number of image atoms
+    !> total number of neighbour atoms
     integer(c_int), value, intent(in) :: nAllAtom
 
-    !> maximum number of neighbours an atom can have
+    !> maximum number of neighbours an atom in the central cell can have
     integer(c_int), value, intent(in) :: nMaxNeighbours
 
-    !> number of neighbours for each atom
+    !> number of neighbours for each atom in the central cell
     integer(c_int), intent(in) :: nNeighbour(*)
 
-    !> references to image atoms
+    !> references to the neighbour atoms for an atom in the central cell
     integer(c_int), intent(in) :: iNeighbour(nMaxNeighbours, *)
 
-    !> distances to image atoms
+    !> distances to the neighbour atoms for an atom in the central cell
     real(c_double), intent(in) :: neighDist(nMaxNeighbours, *)
 
-    !> cutoff of the neighbour list
+    !> cutoff distance used for this neighbour list
     real(c_double), value, intent(in) :: cutOff
 
-    !> coordinates of all image atoms, without the central cell
-    real(c_double), intent(in) :: coordImageCells(3, *)
+    !> coordinates of all neighbours
+    real(c_double), intent(in) :: coordNeighbours(3, *)
 
-    !> mapping between image index (other cell) and atom index (central cell), without the central
-    !> cell
-    integer(c_int), intent(in) :: img2CentCellImageCells(*)
+    !> mapping between neighbour reference and atom index in the central cell
+    integer(c_int), intent(in) :: neighbour2CentCell(*)
 
     type(TDftbPlusC), pointer :: instance
     integer :: nAtom
@@ -362,8 +361,8 @@ contains
     call c_f_pointer(handler%instance, instance)
     nAtom = instance%nrOfAtoms()
     call instance%setNeighbourList(nNeighbour(1:nAtom), iNeighbour(:,1:nAtom),&
-        & neighDist(:,1:nAtom), cutOff, coordImageCells(:,1:nAllAtom),&
-        & img2CentCellImageCells(1:nAllAtom))
+        & neighDist(:,1:nAtom), cutOff, coordNeighbours(:,1:nAllAtom),&
+        & neighbour2CentCell(1:nAllAtom))
 
   end subroutine c_DftbPlus_setNeighbourList
 

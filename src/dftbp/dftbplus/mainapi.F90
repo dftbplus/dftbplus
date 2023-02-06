@@ -98,7 +98,7 @@ contains
 
   !> Explicitly set the neighbour list instead of calculating it in DFTB+
   subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
-      & coordImageCells, img2CentCellImageCells)
+      & coordNeighbours, neighbour2CentCell)
 
     !> Instance
     type(TEnvironment), intent(inout) :: env
@@ -106,24 +106,23 @@ contains
     !> Instance
     type(TDftbPlusMain), target, intent(inout) :: main
 
-    !> number of neighbours for each atom
+    !> number of neighbours of an atom in the central cell
     integer, intent(in) :: nNeighbour(:)
 
-    !> references to image atoms
+    !> references to the neighbour atoms for an atom in the central cell
     integer, intent(in) :: iNeighbour(:,:)
 
-    !> distances to image atoms
+    !> distances to the neighbour atoms for an atom in the central cell
     real(dp), intent(in) :: neighDist(:,:)
 
-    !> cutoff used for this neighbour list
+    !> cutoff distance used for this neighbour list
     real(dp), intent(in) :: cutOff
 
-    !> coordinates of all images (= atoms in other cells), without the central cell
-    real(dp), intent(in) :: coordImageCells(:,:)
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
 
-    !> mapping between image index (other cell) and atom index (central cell), without the central
-    !> cell
-    integer, intent(in) :: img2CentCellImageCells(:)
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
 
     real(dp), allocatable :: dist2(:)
     real(dp), pointer :: rCellVec(:)
@@ -154,8 +153,8 @@ contains
     main%neighbourList%nNeighbour(:) = nNeighbour(:)
     main%neighbourList%cutoff = cutOff
 
-    main%nAllAtom = size(img2CentCellImageCells) + main%nAtom
-    @:ASSERT(size(img2CentCellImageCells) == size(coordImageCells, dim=2))
+    main%nAllAtom = size(neighbour2CentCell) + main%nAtom
+    @:ASSERT(size(neighbour2CentCell) == size(coordNeighbours, dim=2))
 
     if (size(main%img2CentCell) /= main%nAllAtom) then
       call reallocateArrays1(main%img2CentCell, main%iCellVec, main%coord, main%nAllAtom)
@@ -167,8 +166,8 @@ contains
     main%iCellVec(1:main%nAtom) = 1
 
     if (main%nAtom < main%nAllAtom) then
-      main%coord(1:3,main%nAtom+1:) = coordImageCells(1:3,:)
-      main%img2CentCell(main%nAtom+1:) = img2CentCellImageCells
+      main%coord(1:3,main%nAtom+1:) = coordNeighbours(1:3,:)
+      main%img2CentCell(main%nAtom+1:) = neighbour2CentCell
       main%iCellVec(main%nAtom+1:) = 0
 
       !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would

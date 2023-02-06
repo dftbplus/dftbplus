@@ -254,33 +254,34 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[in] nAllAtom Number of atom images in all interacting cells, which is usually much larger
- *     than natom
+ * \param[in] nAllAtom Number of neighbour atoms in all interacting cells, which is usually much
+ *     larger than natom
  *
  * \param[in] nMaxNeighbours Maximum number of neighbours an atom can have
  *
- * \param[in] nNeighbours Number of neighbours for each atom Shape: [natom].
+ * \param[in] nNeighbours Number of neighbours of an atom Shape: [natom].
  *
- * \param[in] neighbourIndex References to image atoms for all neighbours of each atom
+ * \param[in] neighbourIndex References to neighbour atoms for an atom in the central cell. This
+ *     index is used to query the values of coordNeighbours and neighbour2CentCell
  *     Shape: [nMaxNeighbours, natom].
  *
- * \param[in] neighbourDistance Distances to image atoms for all neighbours of each atom
+ * \param[in] neighbourDistance Distances to neighbour atoms for an atom in the central cell
  *     Shape: [nMaxNeighbours, natom].
  *
  * \param[in] cutoff Cutoff used to compute the neighbour list Unit: Bohr.
  *
- * \param[in] coordImageCells Coordinates of all image atoms in all image cells
+ * \param[in] coordNeighbours Coordinates of all neighbour atom in all cells
  *     Shape: [3, nAllAtom]. Unit: Bohr.
  *
- * \param[in] img2CentCellImageCells Index of the atom in the central cell an image atom in an image
- *     cell corresponds to Shape: [nAllAtom].
+ * \param[in] neighbour2CentCell Index of the atom in the central cell a neighbour atom corresponds
+ *     to Shape: [nAllAtom].
  *
  */
 void dftbp_set_neighbour_list(DftbPlus *instance, const int nAllAtom, const int nMaxNeighbours,
                                        const int *nNeighbours, const int *neighbourIndex,
                                        const double *neighbourDistance, const double cutoff,
-                                       const double *coordImageCells,
-                                       const int *img2CentCellImageCells);
+                                       const double *coordNeighbours,
+                                       const int *neighbour2CentCell);
 
 
 /**
