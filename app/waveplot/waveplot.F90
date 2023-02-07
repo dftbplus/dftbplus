@@ -235,8 +235,7 @@ program waveplot
         & wp%loc%molorb%coords, wp%loc%orbitalOcc(:, 1), wp%loc%orbitalToAtom, &
         & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, &
         & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, &
-        & wp%loc%orbitalToStos, wp%opt%gridInterType, wp%opt%rwTabulationType, .true.)
-
+        & wp%loc%orbitalToStos, wp%opt%gridInterType, .true.)
 
     sumAtomicChrg = sum(atomDensity) * wp%loc%gridVol
 
@@ -563,25 +562,24 @@ program waveplot
 
       if (wp%input%tRealHam) then
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsReal, wp%opt%levelIndex, requiredLevels, requiredKPoints, requiredSpins,&
-            & requiredKPointsForLevel, kPointNumForLevel,&
+            & wp%eig%eigvecsReal, wp%opt%levelIndex, requiredLevels, requiredSpins,&
             & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM, wp%loc%orbitalToStos,&
-            & totGridsDat, wp%opt%gridInterType, wp%opt%rwTabulationType, addDensities=.false.)
+            & totGridsDat, wp%opt%gridInterType, addDensities=.false.)
       else
         pCopyBuffers => copyBuffersCplx
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
             & wp%eig%eigvecsCplx, wp%opt%levelIndex, requiredLevels, requiredKPoints, requiredSpins,&
-            & requiredKPointsForLevel, kPointNumForLevel,&
+            & requiredKPointsForLevel,&
             & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
             & wp%loc%molorb%stos(:), wp%loc%orbitalToAngMoms, wp%loc%orbitalToM,&
             & wp%loc%orbitalToStos, totGridsDatCplx,&
-            & wp%loc%molorb%CellVec, wp%opt%gridInterType, wp%opt%rwTabulationType, phases,&
-            & addDensities=.false., kPointsandWeights=wp%input%kPointsandWeight)
+            & wp%opt%gridInterType, phases,&
+            & addDensities=.false.)
       end if
 
     levelInd = 1
