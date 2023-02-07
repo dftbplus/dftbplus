@@ -23,8 +23,8 @@ module dftbp_common_schedule
   implicit none
 
   private
-  public :: distributeRangeInChunks, distributeRangeInChunks2
-  public :: assembleChunks, getChunkRanges
+  public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
+  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
@@ -120,6 +120,38 @@ contains
   end subroutine distributeRangeInChunks2
 
 
+  !> Distributes a range among processes within a process group
+  !> and take into account that each item may have a different workload
+  subroutine distributeRangeWithWorkload(env, globalFirst, globalLast, workload, indices)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Number of elements each item has to process
+    integer, intent(in) :: workload(:)
+
+    !> Index array to be iterated over
+    integer, allocatable, intent(out) :: indices(:)
+
+    integer :: ii
+
+  #:if WITH_MPI
+    call getIndicesWithWorkload(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst,&
+        & globalLast, workload, indices)
+  #:else
+    allocate(indices(globalLast - globalFirst + 1))
+    indices(:) = [(ii, ii = globalFirst, globalLast)]
+  #:endif
+
+  end subroutine distributeRangeWithWorkload
+
+
 #:for DTYPE, RANK, NAME in CHUNK_TYPES
 
   !> Assembles the chunks by summing up contributions within a process group.
@@ -175,6 +207,52 @@ contains
     localLast = min(localFirst + nLocal - 1, globalLast)
 
   end subroutine getChunkRanges
+
+
+  !> Calculate the indices for a given MPI-communicator considerung different workload
+  subroutine getIndicesWithWorkload(groupSize, myRank, globalFirst, globalLast, workload, indices)
+
+    !> Size of the group over which the chunks should be distributed
+    integer, intent(in) :: groupSize
+
+    !> Rank of the current process
+    integer, intent(in) :: myRank
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Workload for each item
+    integer, intent(in) :: workload(:)
+
+    !> Index array to be iterated over
+    integer, allocatable, intent(out) :: indices(:)
+
+    integer :: numIndices, rank, ii
+    integer, allocatable :: rankWorkload(:), indices_(:)
+
+    allocate(indices_(globalLast - globalFirst + 1))
+    allocate(rankWorkload(groupSize))
+
+    rankWorkload(:) = 0
+    indices_(:) = 0
+    numIndices = 0
+
+    do ii = globalFirst, globalLast
+      rank = minloc(rankWorkload, dim=1)
+      rankWorkload(rank) = rankWorkload(rank) + max(1, workload(ii))
+      if (rank == myRank + 1) then
+        numIndices = numIndices + 1
+        indices_(numIndices) = ii
+      end if
+    end do
+
+    allocate(indices(numIndices))
+    indices(1:numIndices) = indices_(1:numIndices)
+
+  end subroutine getIndicesWithWorkload
 
 
 end module dftbp_common_schedule

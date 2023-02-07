@@ -1375,7 +1375,7 @@ module dftbp_reks_reksinterface
     call env%globalTimer%stopTimer(globalTimers%denseToSparse)
 
     qOutput(:,:,:) = 0.0_dp
-    call mulliken(qOutput(:,:,1), over, rhoPrim(:,1), orb, &
+    call mulliken(env, qOutput(:,:,1), over, rhoPrim(:,1), orb, &
         & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
   end subroutine getMullikenPopFromRelaxedDensity_

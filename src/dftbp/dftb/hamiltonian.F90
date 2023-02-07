@@ -13,6 +13,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -322,8 +323,11 @@ contains
 
 
   !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+  subroutine getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
       & img2CentCell, potential, isREKS, ham, iHam)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
@@ -368,11 +372,14 @@ contains
 
     if (.not. isREKS) then
       ham(:,:) = 0.0_dp
-      ham(:,1) = h0
     end if
 
-    call addShift(ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
-        & nAtom, img2CentCell, potential%intBlock)
+    call addShift(env, ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
+        & nAtom, img2CentCell, potential%intBlock, .not. isREKS)
+
+    if (.not. isREKS) then
+      ham(:,1) = ham(:,1) + h0
+    end if
 
     if (allocated(potential%intOnSiteAtom)) then
       call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
@@ -399,8 +406,8 @@ contains
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
-      call addShift(iHam, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
+      call addShift(env, iHam, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock, .true.)
     end if
 
   end subroutine getSccHamiltonian
