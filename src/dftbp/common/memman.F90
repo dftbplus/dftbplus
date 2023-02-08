@@ -127,7 +127,11 @@ contains
     !> Pointer to the array data
     real(dp), pointer, intent(out) :: array(:)
 
-    call c_f_pointer(this%memoryPointer_, array, [this%size])
+    if (c_associated(this%memoryPointer_)) then
+      call c_f_pointer(this%memoryPointer_, array, [this%size])
+    else
+      array => null()
+    end if
 
   end subroutine TAlignedArray_getArray
 
