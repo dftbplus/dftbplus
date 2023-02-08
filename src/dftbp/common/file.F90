@@ -34,8 +34,8 @@ module dftbp_common_file
     !> File format ("formatted", "unformatted"), default: "formatted"
     character(openOptionCharLen_) :: form = "formatted"
 
-    !> File status ("unknown", "old", "replace", "oldreplace"), default: "unknown"
-    !> Oldreplace is an extension of the standard values. If the file exists, it will be opened,
+    !> File status ("unknown", "old", "replace", "oldnew"), default: "unknown"
+    !> Oldnew is an extension of the standard values. If the file exists, it will be opened,
     !> if it does not, it will be newly created.
     character(openOptionCharLen_) :: status = "unknown"
 
@@ -58,13 +58,13 @@ module dftbp_common_file
     !> Also, never call any Fortran statements, which change the unit association status, such
     !> as open() or close(). If you wish to close the file, deallocate the file descriptor instance.
     !>
-    integer, public :: unit = -1
+    integer :: unit = -1
 
     !> The file the descriptor is associated with (unallocated if not associated)
     character(:), allocatable :: file
 
     ! Whether unit must be closed on finalization
-    logical :: needsClosing_ = .false.
+    logical, private :: needsClosing_ = .false.
 
   contains
     procedure :: connectToFile => TFileDescr_connectToFile
