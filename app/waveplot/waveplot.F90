@@ -326,172 +326,6 @@ program waveplot
 
   end if
 
-  ! Calculate mapping from the values which are in the level index to array indices. The 'Prime'
-  ! variables contain these mappings.
-  allocate(iLPrime(size(wp%opt%levelIndex, dim=2)))
-  allocate(iKPointPrime(size(wp%opt%levelIndex, dim=2)))
-  allocate(iSpinPrime(size(wp%opt%levelIndex, dim=2)))
-
-  iLPrime(:) = 0
-  iKPointPrime(:) = 0
-  iSpinPrime(:) = 0
-
-  levelCounter = 1
-  kpointCounter = 1
-  spinCounter = 1
-
-  LNum = 1
-  KNum = 1
-  SNum = 1
-
-  do ii = 1, size(wp%opt%levelIndex, dim=2)
-    if (ii .eq. 1) then
-      iLPrime(ii) = 1
-    else
-      if (any(wp%opt%levelIndex(1, 1:ii - 1) .eq. wp%opt%levelIndex(1, ii))) then
-        tmparray = findloc(wp%opt%levelIndex(1,:), wp%opt%levelIndex(1, ii))
-        iLPrime(ii) = iLPrime(tmparray(1))
-      else
-        iLPrime(ii) = iLPrime(ii - 1) + 1
-        LNum = LNum + 1
-      end if
-      levelCounter = levelCounter + 1
-    end if
-  end do
-
-  do ii = 1, size(wp%opt%levelIndex, dim=2)
-    if (ii .eq. 1) then
-      iKPointPrime(ii) = 1
-    else
-      if (any(wp%opt%levelIndex(2, 1:ii - 1) .eq. wp%opt%levelIndex(2, ii))) then
-        tmparray = findloc(wp%opt%levelIndex(2, :), wp%opt%levelIndex(2, ii))
-        iKPointPrime(ii) = iKPointPrime(tmparray(1))
-      else
-        iKPointPrime(ii) = iKPointPrime(ii - 1) + 1
-        KNum = KNum + 1
-      end if
-      kpointCounter = kpointCounter + 1
-    end if
-  end do
-
-  do ii = 1, size(wp%opt%levelIndex, dim=2)
-    if (ii .eq. 1) then
-      iSpinPrime(ii) = 1
-    else
-      if (any(wp%opt%levelIndex(3, 1:ii - 1) .eq. wp%opt%levelIndex(3, ii))) then
-        tmparray = findloc(wp%opt%levelIndex(3, :), wp%opt%levelIndex(3, ii))
-        iSpinPrime(ii) = iSpinPrime(tmparray(1))
-      else
-        iSpinPrime(ii) = iSpinPrime(ii - 1) + 1
-        SNum = SNum + 1
-      end if
-      spinCounter = spinCounter + 1
-    end if
-  end do
-
-  ! Extract all required k-points, levels and spins which are required for the calculation from the
-  ! levelIndex
-  allocate(requiredKPoints(KNum))
-  allocate(requiredLevels(LNum))
-  allocate(requiredSpins(SNum))
-
-  requiredKPoints(:) = 0
-  requiredLevels(:) = 0
-  requiredSpins(:) = 0
-
-  requiredLevels(1) = wp%opt%levelIndex(1, 1)
-  requiredKPoints(1) = wp%opt%levelIndex(2, 1)
-  requiredSpins(1) = wp%opt%levelIndex(3, 1)
-
-  i1 = 2
-  i2 = 2
-  i3 = 2
-
-  do ii = 2, size(wp%opt%levelIndex, dim=2)
-    if (.not. (any(wp%opt%levelIndex(2, 1:ii - 1) .eq. wp%opt%levelIndex(2, ii)))) then
-      requiredKPoints(i1) = wp%opt%levelIndex(2, ii)
-      i1 = i1 + 1
-    end if
-    if (.not. (any(wp%opt%levelIndex(1, 1:ii - 1) .eq. wp%opt%levelIndex(1, ii)))) then
-      requiredLevels(i2) = wp%opt%levelIndex(1, ii)
-      i2 = i2 + 1
-    end if
-    if (.not. (any(wp%opt%levelIndex(3, 1:ii - 1) .eq. wp%opt%levelIndex(3, ii)))) then
-      requiredSpins(i3) = wp%opt%levelIndex(3, ii)
-      i3 = i3 + 1
-    end if
-  end do
-
-  tmpKPoint = 0
-  tmpSpin = 0
-
-  allocate(kPointNumForLevel(size(requiredLevels)))
-  kPointNumForLevel(:) = 0
-  allocate(spinNumForLevel(size(requiredLevels)))
-  spinNumForLevel(:) = 0
-
-  allocate(requiredKPointsForLevel(size(requiredLevels), size(requiredKPoints)))
-
-  ind = 1
-  do jj = 1, size(requiredLevels)
-    do kk = 1, size(requiredKPoints)
-      do ii = 1, size(wp%opt%levelIndex, dim=2)
-        if (requiredLevels(jj) == wp%opt%levelIndex(1, ii)) then
-          if (wp%opt%levelIndex(2, ii) == requiredKPoints(kk)) then
-            kPointNumForLevel(jj) = kPointNumForLevel(jj) + 1
-            requiredKPointsForLevel(jj, ind) = wp%opt%levelIndex(2, ii)
-            ind = ind + 1
-          end if
-        end if
-      end do
-    end do
-    requiredKPointsForLevel(jj, ind:) = 0
-    ind = 1
-  end do
-
-  do jj = 1, size(requiredLevels)
-    do kk = 1, size(requiredSpins)
-      do ii = 1, size(wp%opt%levelIndex, dim=2)
-        if (requiredLevels(jj) == wp%opt%levelIndex(1, ii)) then
-          if ((wp%opt%levelIndex(3, ii) == requiredSpins(kk)) .and. &
-              & (requiredSpins(kk) .ne. requiredSpins(kk))) then
-            spinNumForLevel(jj) = spinNumForLevel(jj) + 1
-          end if
-        end if
-      end do
-    end do
-  end do
-
-  ! write(*, '(/A)') 'wp%opt%levelIndex'
-  ! write(*,*) shape(wp%opt%levelIndex)
-  ! write(strbuffer, "(I3)") size(wp%opt%levelIndex, dim=2)
-  ! write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
-  ! write(*, strBuffer) transpose(wp%opt%levelIndex)
-
-  ! write(*, '(/A)') 'requiredLevels, requiredKPoints, requiredSpins'
-  ! write(*,*) requiredLevels
-  ! write(*,*) requiredKPoints
-  ! write(*,*) requiredSpins
-
-  ! write(*, '(/A)') 'iLPrime, iKPointPrime, iSpinPrime'
-  ! write(*, '(21(i3, 1X))') iLPrime
-  ! write(*, '(/A)') ''
-  ! write(*, '(21(i3, 1X))') iKPointPrime
-  ! write(*, '(/A)') ''
-  ! write(*, '(21(i3, 1X))') iSpinPrime
-
-  ! write(*, '(/A)') 'levelCounter, kPointCounter, spinCounter'
-  ! write(*,*) levelCounter, kPointCounter, spinCounter
-
-  ! write(*, '(/A)') 'kPointNumForLevel, spinNumForLevel'
-  ! write(*,*) kPointNumForLevel
-  ! write(*,*) spinNumForLevel
-
-  ! write(*, '(/A)') 'requiredKPointsForLevel'
-  ! write(strbuffer, "(I3)") size(requiredKPointsForLevel, dim=2)
-  ! write(strbuffer, *) '(' // trim(strBuffer) // '(i3, 1X)/)'
-  ! write(*, strBuffer) transpose(requiredKPointsForLevel)
-
   ! allocate regional global grid tiles
   allocate(regionGridDat(wp%opt%parallelRegionNum))
 
@@ -536,33 +370,20 @@ program waveplot
   phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(wp%loc%molorb%CellVec), &
       & wp%input%kPointsandWeight(1:3, :)))
 
-  if (mod(size(requiredLevels), wp%opt%nCached) == 0) then
-    nCachedBlock = size(requiredLevels) / wp%opt%nCached
-  else if (mod(size(requiredLevels), wp%opt%nCached) > 0) then
-    nCachedBlock = size(requiredLevels) / wp%opt%nCached + 1
+  if (mod(size(wp%loc%requiredLevels), wp%opt%nCached) == 0) then
+    nCachedBlock = size(wp%loc%requiredLevels) / wp%opt%nCached
+  else if (mod(size(wp%loc%requiredLevels), wp%opt%nCached) > 0) then
+    nCachedBlock = size(wp%loc%requiredLevels) / wp%opt%nCached + 1
   end if
 
-  call getStartAndEndIndicesByChunkSize(size(requiredLevels), nCachedBlock, &
+  call getStartAndEndIndicesByChunkSize(size(wp%loc%requiredLevels), nCachedBlock, &
       & wp%opt%nCached, statesTiling)
-
-  ! write(*, '(/A)') 'nCachedBlock'
-  ! write(*,*) nCachedBlock
-
-  ! write(*, '(/A)') 'wp%opt%nCached'
-  ! write(*,*) wp%opt%nCached
-
-  ! write(*, '(/A)') 'statesTiling'
-  ! write(*,*) statesTiling
-
-  ! write(*, '(/A)') 'occupations'
-  ! write(*,*) shape(wp%input%occupations)
-  ! write(*,*) wp%input%occupations
 
   do iCachedBlock = 1, nCachedBlock
 
       if (wp%input%tRealHam) then
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsReal, wp%opt%levelIndex, requiredLevels, requiredSpins,&
+            & wp%eig%eigvecsReal, wp%opt%levelIndex, wp%loc%requiredLevels, wp%loc%requiredSpins,&
             & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
@@ -571,8 +392,8 @@ program waveplot
       else
         pCopyBuffers => copyBuffersCplx
         call subgridsToGlobalGrid(totGridDat, speciesGridsDat, wp%loc%molorb%coords,&
-            & wp%eig%eigvecsCplx, wp%opt%levelIndex, requiredLevels, requiredKPoints, requiredSpins,&
-            & requiredKPointsForLevel,&
+            & wp%eig%eigvecsCplx, wp%opt%levelIndex, wp%loc%requiredLevels, wp%loc%requiredKPoints, wp%loc%requiredSpins,&
+            & wp%loc%requiredKPointsForLevel,&
             & wp%loc%orbitalToAtom,&
             & wp%loc%orbitalToSpecies, wp%opt%parallelRegionNum, regionGridDat, cartCoords, tiling,&
             & statesTiling(:,iCachedBlock), &
@@ -584,14 +405,13 @@ program waveplot
 
     levelInd = 1
     do iL = statesTiling(1, iCachedBlock), statesTiling(2, iCachedBlock)
-      currentLevel = requiredLevels(iL)
-      do iKPoint = 1, size(requiredKPointsForLevel(currentLevel, :))
-        currentKPoint = requiredKPointsForLevel(currentLevel, iKPoint)
+      currentLevel = wp%loc%requiredLevels(iL)
+      do iKPoint = 1, size(wp%loc%requiredKPointsForLevel(levelInd, :))
+        currentKPoint = wp%loc%requiredKPointsForLevel(levelInd, iKPoint)
         if (currentKPoint .ne. 0) then
 
-          lpSpin: do iSpin = 1, size(requiredSpins)
-            currentSpin = requiredSpins(iSpin)
-
+          lpSpin: do iSpin = 1, size(wp%loc%requiredSpins)
+            currentSpin = wp%loc%requiredSpins(iSpin)
 
             ! Build charge if needed for total charge or if it was explicitely required
             tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. any(wp%opt%plottedKPoints ==&
