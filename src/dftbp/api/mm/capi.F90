@@ -10,6 +10,7 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
@@ -35,8 +36,7 @@ module dftbp_capi
   !> Simple extension around the TDftbPlus with some additional variables for the C-API.
   type, extends(TDftbPlus) :: TDftbPlusC
     private
-    integer :: outputUnit
-    logical :: tOutputOpened
+    type(TFileDescr) :: outputFile
   end type TDftbPlusC
 
 
@@ -79,8 +79,8 @@ contains
     type(TDftbPlusC), pointer :: instance
 
     allocate(instance)
-    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
-    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit)
+    call handleOutputFile_(outputFileName, instance%outputFile)
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputFile%unit)
     handler%instance = c_loc(instance)
 
   end subroutine c_DftbPlus_init
@@ -101,8 +101,8 @@ contains
     type(TDftbPlusC), pointer :: instance
 
     allocate(instance)
-    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
-    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit, mpiComm=mpiComm)
+    call handleOutputFile_(outputFileName, instance%outputFile)
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputFile%unit, mpiComm=mpiComm)
     handler%instance = c_loc(instance)
 
   end subroutine c_DftbPlus_init_mpi
@@ -119,9 +119,6 @@ contains
 
     call c_f_pointer(handler%instance, instance)
     call TDftbPlus_destruct(instance%TDftbPlus)
-    if (instance%tOutputOpened) then
-      close(instance%outputUnit)
-    end if
     deallocate(instance)
     handler%instance = c_null_ptr
 
@@ -512,11 +509,14 @@ contains
   end function fortranChar
 
 
-  !> Handles the optional output file name (which should be a NULL-ptr if not present)
-  subroutine handleOutputFileName(outputFileName, outputUnit, tOutputOpened)
+  ! Returns a unit for an opened output file.
+  !
+  ! If outputFileName is associated, a file with that name will be created (and returned), otherwise
+  ! the output_unit is returned (and no file is created)
+  !
+  subroutine handleOutputFile_(outputFileName, outputFile)
     type(c_ptr), intent(in) :: outputFileName
-    integer, intent(out) :: outputUnit
-    logical, intent(out) :: tOutputOpened
+    type(TFileDescr), intent(out) :: outputFile
 
     character(c_char), pointer :: pOutputFileName
     character(:), allocatable :: fortranFileName
@@ -524,14 +524,12 @@ contains
     if (c_associated(outputFileName)) then
       call c_f_pointer(outputFileName, pOutputFileName)
       fortranFileName = fortranChar(pOutputFileName)
-      open(newunit=outputUnit, file=fortranFileName, action="write")
-      tOutputOpened = .true.
+      call openFile(outputFile, fortranFileName, mode="w")
     else
-      outputUnit = output_unit
-      tOutputOpened = .false.
+      call outputFile%connectToUnit(output_unit)
     end if
 
-  end subroutine handleOutputFileName
+  end subroutine handleOutputFile_
 
 
 end module dftbp_capi

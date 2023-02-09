@@ -17,7 +17,7 @@ module dftbp_dftbplus_initprogram
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFile
+  use dftbp_common_file, only : TFileDescr, setDefaultFileAccess, clearFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -64,7 +64,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
-  use dftbp_dftbplus_mainio, only : initOutputFile
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&
       & resultsTag, userOut, fCharges, fStopDriver, fStopSCC
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -87,7 +86,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
   use dftbp_geoopt_steepdesc, only : TSteepDesc
   use dftbp_io_commonformats, only : format2Ue
-  use dftbp_io_formatout, only : clearFile
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_duplicate, only : isRepeated
@@ -958,10 +956,10 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: occNatural(:)
 
     !> File descriptor for the human readable output
-    type(TFile), allocatable :: fdDetailedOut
+    type(TFileDescr) :: fdDetailedOut
 
     !> File descriptor for extra MD output
-    type(TFile), allocatable :: fdMd
+    type(TFileDescr) :: fdMd
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS) :: parallelKS
@@ -1289,6 +1287,10 @@ contains
 
     call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", stdOut)
     call env%globalTimer%startTimer(globalTimers%globalInit)
+
+    ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
+    call setDefaultFileAccess(input%ctrl%fileAccessTypes(1), input%ctrl%fileAccessTypes(2),&
+        & input%ctrl%fileAccessTypes(2))
 
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
@@ -4592,32 +4594,32 @@ contains
     call TTaggedWriter_init(this%taggedWriter)
 
     if (this%tWriteAutotest) then
-      call initOutputFile(autotestTag)
+      call clearFile(autotestTag)
     end if
     if (this%tWriteResultsTag) then
-      call initOutputFile(resultsTag)
+      call clearFile(resultsTag)
     end if
     if (this%tWriteBandDat) then
-      call initOutputFile(bandOut)
+      call clearFile(bandOut)
       if (this%doPerturbation .and. this%isEResp) then
-        call initOutputFile(derivEBandOut)
+        call clearFile(derivEBandOut)
       end if
     end if
     if (this%tDerivs) then
-      call initOutputFile(hessianOut)
+      call clearFile(hessianOut)
     end if
     if (this%tWriteDetailedOut) then
-      call initOutputFile(userOut)
+      call clearFile(userOut)
     end if
     if (this%tMD) then
-      call initOutputFile(mdOut)
+      call clearFile(mdOut)
     end if
     if (this%isGeoOpt .or. this%tMD) then
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
     if (allocated(this%electrostatPot)) then
-      call initOutputFile(this%electrostatPot%espOutFile)
+      call clearFile(this%electrostatPot%espOutFile)
     end if
 
   end subroutine initOutputFiles

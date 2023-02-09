@@ -10,6 +10,7 @@
 program polyvalue
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
   use dftbp_io_message, only : error
   implicit none
@@ -18,7 +19,8 @@ program polyvalue
   logical :: homo
   type(TPolyRepInp) :: polyRepInp
   type(TPolyRep) :: polyRep
-  integer :: fp, iostat, ii, npoint
+  type(TFileDescr) :: fp
+  integer :: iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr, energy, dEnergy, d2Energy, rDummy
 
@@ -46,18 +48,18 @@ program polyvalue
   end if
   call get_command_argument(2, fname)
 
-  open(newunit=fp, file=fname, action="read", status="old", iostat=iostat)
+  call openFile(fp, fname, mode="r", ioStat=iostat)
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")
   end if
 
-  read(fp, *)
+  read(fp%unit, *)
   if (homo) then
-    read(fp, *)
+    read(fp%unit, *)
   end if
-  read(fp, *) rDummy, polyRepInp%polyCoeffs, polyRepInp%cutoff, &
+  read(fp%unit, *) rDummy, polyRepInp%polyCoeffs, polyRepInp%cutoff, &
       & (rDummy, ii = 11, 20)
-  close(fp)
+  call closeFile(fp)
 
   call TPolyRep_init(polyRep, polyRepInp)
   npoint = floor((polyRepInp%cutoff - rstart) / dr) + 1

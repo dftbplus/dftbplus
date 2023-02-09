@@ -19,6 +19,7 @@ module dftbp_poisson_poisson
   use dftbp_common_accuracy, only : lc, dp
   use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_poisson_bulkpot, only : super_array, create_phi_bulk, readbulk_pot, compbulk_pot,&
       & destroy_phi_bulk
@@ -1541,7 +1542,8 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   real(kind=dp), intent(in) :: phi(:,:,:)
   real(kind=dp), intent(in) :: rhs(:,:,:)
 
-  integer :: i,j,k,nx_fix,ny_fix,nz_fix,FixDir, fp
+  type(TFileDescr) :: fp
+  integer :: i,j,k,nx_fix,ny_fix,nz_fix,FixDir
   real(kind=dp) :: xi,yj,zk
   real(kind=dp) :: z_min_gate, z_max_gate, z_min_ox, z_max_ox
 
@@ -1554,53 +1556,53 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   ! Saving 3D potential and density
   !--------------------------------------------
   if (id0.and.(FixDir.eq.0)) then
-     open(newunit=fp,file='box3d.dat')
-     write(fp,*) iparm(14),iparm(15),iparm(16)
-     close(fp)
+     call openFile(fp, 'box3d.dat', mode="w")
+     write(fp%unit,*) iparm(14),iparm(15),iparm(16)
+     call closeFile(fp)
 
-     open(newunit=fp,file='Xvector.dat')
+     call openFile(fp, 'Xvector.dat', mode="w")
      do i = 1,iparm(14)
         xi = fparm(1) + (i - 1)*dlx
         xi = xi*Bohr__AA
-        write(fp,'(E17.8)',ADVANCE='NO') xi
+        write(fp%unit,'(E17.8)',ADVANCE='NO') xi
      end do
-     close(fp)
+     call closeFile(fp)
 
-     open(newunit=fp,file='Yvector.dat')
+     call openFile(fp, 'Yvector.dat', mode="w")
      do j = 1,iparm(15)
         yj = fparm(3) + (j - 1)*dly
         yj = yj*Bohr__AA
-        write(fp,'(E17.8)',ADVANCE='NO') yj
+        write(fp%unit,'(E17.8)',ADVANCE='NO') yj
      end do
-     close(fp)
+     call closeFile(fp)
 
-     open(newunit=fp,file='Zvector.dat')
+     call openFile(fp, 'Zvector.dat', mode="w")
      do k = 1,iparm(16)
         zk = fparm(5) + (k - 1)*dlz
         zk = zk*Bohr__AA
-        write(fp,'(E17.8)',ADVANCE='NO') zk
+        write(fp%unit, '(E17.8)',ADVANCE='NO') zk
      end do
-     close(fp)
+     call closeFile(fp)
 
-     open(newunit=fp,file='potential.dat')
+     call openFile(fp, 'potential.dat', mode="w")
      do i = 1,iparm(14)
         do j = 1,iparm(15)
            do k = 1,iparm(16)
-              write(fp,'(E17.8)') phi(i,j,k)*hartree__eV
+              write(fp%unit, '(E17.8)') phi(i,j,k)*hartree__eV
            end do
         end do
      end do
-     close(fp)
+     call closeFile(fp)
 
-     open(newunit=fp,file='charge_density.dat')
+     call openFile(fp, 'charge_density.dat', mode="w")
      do i = 1,iparm(14)
         do j = 1,iparm(15)
            do k = 1,iparm(16)
-              write(fp,'(E17.8)') rhs(i,j,k)/(-4.d0*Pi)
+              write(fp%unit,'(E17.8)') rhs(i,j,k)/(-4.d0*Pi)
            end do
         end do
      end do
-     close(fp)
+     call closeFile(fp)
 
   endif
 
@@ -1613,91 +1615,86 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
     select case(FixDir)
     case(1)
       nx_fix = nint(((fparm(2)-fparm(1))*PoissPlane(2))/dlx) + 1
-      open(newunit=fp,file='pot2D.dat')
+      call openFile(fp, 'pot2D.dat', mode="w")
       do j = 1,iparm(15)
         yj = fparm(3) + (j - 1)*dly
         do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, phi(nx_fix&
+           write(fp%unit,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, phi(nx_fix&
                &,j,k)*hartree__eV
-
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='chr2D.dat')
+       call openFile(fp, 'chr2D.dat', mode="w")
        do j = 1,iparm(15)
          yj = fparm(3) + (j - 1)*dly
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, rhs(nx_fix&
+           write(fp%unit,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, rhs(nx_fix&
                &,j,k)/(-4.0*4.0*atan(1.d0))
-
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='box2d.dat')
-       write(fp,'(I6,I6)') iparm(15),iparm(16)
-       close(fp)
+       call openFile(fp, 'box2d.dat', mode="w")
+       write(fp%unit,'(I6,I6)') iparm(15),iparm(16)
+       call closeFile(fp)
 
      case(2)
        ny_fix = nint(((fparm(4)-fparm(3))*PoissPlane(2))/dly) + 1
-       open(newunit=fp,file='pot2D.dat')
+       call openFile(fp, 'pot2D.dat', mode="w")
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, zk*Bohr__AA, phi(i,ny_fix,k)*hartree__eV
+           write(fp%unit,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, zk*Bohr__AA, phi(i,ny_fix,k)*hartree__eV
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='chr2D.dat')
+       call openFile(fp, 'chr2D.dat', mode="w")
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)')  xi*Bohr__AA, zk*Bohr__AA, rhs(i&
+           write(fp%unit,'(E17.8,E17.8,E17.8)')  xi*Bohr__AA, zk*Bohr__AA, rhs(i&
                &,ny_fix,k)/(-4.0*4.0*atan(1.d0))
-
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='box2d.dat')
-       write(fp,'(I6,I6)') iparm(14),iparm(16)
-       close(fp)
+       call openFile(fp, 'box2d.dat', mode="w")
+       write(fp%unit, '(I6,I6)') iparm(14),iparm(16)
+       call closeFile(fp)
 
      case(3)
        nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1
-       open(newunit=fp,file='pot2D.dat')
+       call openFile(fp, 'pot2D.dat', mode="w")
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do j = 1,iparm(15)
            yj = fparm(3) + (j - 1)*dly
-           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, phi(i,j&
+           write(fp%unit, '(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, phi(i,j&
                &,nz_fix)*hartree__eV
-
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='chr2D.dat')
+       call openFile(fp, 'chr2D.dat', mode="w")
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx
          do j = 1,iparm(15)
            yj = fparm(3) + (j - 1)*dly
-           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, rhs(i,j&
+           write(fp%unit, '(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, rhs(i,j&
                &,nz_fix)/(-4.0*4.0*atan(1.d0))
-
          end do
        end do
-       close(fp)
+       call closeFile(fp)
 
-       open(newunit=fp,file='box2d.dat')
-       write(fp,'(I6,I6)') iparm(14),iparm(15)
-       close(fp)
+       call openFile(fp, 'box2d.dat', mode="w")
+       write(fp%unit, '(I6,I6)') iparm(14),iparm(15)
+       call closeFile(fp)
 
      end select
    end if
@@ -1711,36 +1708,36 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
      z_min_ox = cntr_gate(biasdir) - OxLength/2.d0
      z_max_ox = cntr_gate(biasdir) + OxLength/2.d0
-     open(newunit=fp,file='gate.dat')
-     write(fp,'(i2)') biasdir
-     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
-     write(fp,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
-     write(fp,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
-     write(fp,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
-     close(fp)
+     call openFile(fp, 'gate.dat', mode="w")
+     write(fp%unit,'(i2)') biasdir
+     write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
+     call closeFile(fp)
    end if
 
    if (id0.and.DoGate) then
-     open(newunit=fp,file='gate.dat')
-     write(fp,'(i2)') gatedir, biasdir
+     call openFile(fp, 'gate.dat', mode="w")
+     write(fp%unit,'(i2)') gatedir, biasdir
 
      z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
-     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
      do i=1,3
        if (i.ne.gatedir .and. i.ne.biasdir) exit
      enddo
      z_min_gate = cntr_gate(i) - GateLength_t/2.d0
      z_max_gate = cntr_gate(i) + GateLength_t/2.d0
-     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
 
      z_min_ox = cntr_gate(gatedir) - OxLength/2.d0
      z_max_ox = cntr_gate(gatedir) + OxLength/2.d0
-     write(fp,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
-     write(fp,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
-     write(fp,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
-     close(fp)
+     write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
+     call closeFile(fp)
    end if
 
  end subroutine save_pot

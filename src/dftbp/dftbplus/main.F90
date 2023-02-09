@@ -13,6 +13,7 @@ module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -364,7 +365,7 @@ contains
           & this%tDerivs)
 
       if (this%tMD) then
-        deallocate(this%fdMd)
+        call closeFile(this%fdMd)
         write(stdOut, "(2A)") 'MD information accumulated in ', mdOut
       end if
     end if
@@ -516,7 +517,7 @@ contains
     end if
 
     if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-      deallocate(this%fdDetailedOut)
+      call closeFile(this%fdDetailedOut)
     end if
 
     if (allocated(this%pipekMezey)) then
@@ -1259,7 +1260,7 @@ contains
     end if
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
-      deallocate(this%fdDetailedOut)
+      call closeFile(this%fdDetailedOut)
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       if (allocated(this%reks)) then
         call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep, this%tMD,&
@@ -4424,8 +4425,9 @@ contains
     real(dp), allocatable :: dQAtom(:,:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: iSpin, nSpin, nAtom, fdAutotest
+    integer :: iSpin, nSpin, nAtom
     logical :: tSpin
+    type(TFileDescr) :: fdAutotest
 
     nAtom = size(qOutput, dim=2)
     nSpin = size(eigen, dim=2)
@@ -4449,7 +4451,7 @@ contains
       end do
     end if
     if (tWriteAutotest) then
-      open(newUnit=fdAutotest, file=autotestTag, position="append")
+      call openFile(fdAutotest, autotestTag, mode="a")
     end if
 
     if (tLinRespZVect) then
@@ -4458,7 +4460,7 @@ contains
       end if
       call LinResp_addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen,&
           & work, filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
-          & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter,&
+          & img2CentCell, orb, skHamCont, skOverCont, fdAutotest, taggedWriter,&
           & rangeSep, dftbEnergy%Eexcited, energies, excitedDerivs, nonSccDeriv,&
           & rhoSqrReal, deltaRhoOutSqr, occNatural, naturalOrbs)
       if (tPrintExcEigvecs) then
@@ -4475,9 +4477,6 @@ contains
     dftbEnergy%Etotal = dftbEnergy%Etotal + dftbEnergy%Eexcited
     dftbEnergy%EMermin = dftbEnergy%EMermin + dftbEnergy%Eexcited
     dftbEnergy%EGibbs = dftbEnergy%EGibbs + dftbEnergy%Eexcited
-    if (tWriteAutotest) then
-      close(fdAutotest)
-    end if
 
   end subroutine calculateLinRespExcitations
 

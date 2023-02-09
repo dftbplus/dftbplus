@@ -18,7 +18,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
+  use dftbp_timedep_timeprop, only : initializeDynamics, finalizeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
   use dftbp_type_wrappedintr, only : TWrappedInt1
@@ -33,7 +33,8 @@ module dftbp_dftbplus_mainapi
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
   public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
+  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField
+  public :: setTdCoordsAndVelos, getTdForces
 
 
 contains
@@ -526,6 +527,19 @@ contains
     end if
 
   end subroutine initializeTimeProp
+
+
+  !> Finalizes the dynamics (releases memory, closes eventual open files)
+  subroutine finalizeTimeProp(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    if (allocated(main%electronDynamics)) then
+      call finalizeDynamics(main%electronDynamics)
+    end if
+
+  end subroutine finalizeTimeProp
 
 
   !> After calling initializeTimeProp, this subroutine performs one timestep of

@@ -13,14 +13,13 @@
 module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use waveplot_molorb, only : TMolecularOrbital, init, getValue
   implicit none
 
   private
-  save
-
 
   !> Contains the data for a grid cache
   type TGridCache
@@ -59,7 +58,7 @@ module waveplot_gridcache
     logical :: tFinished
 
     !> File descriptor for eigenvec
-    integer :: fdEigVec
+    type(TFileDescr) :: fdEigVec
 
     !> Size of the eigenvectors
     integer :: nOrb
@@ -231,12 +230,11 @@ contains
     sf%cachePos = 1
     sf%nReadEigVec = 0
     sf%tFinished = .false.
-    open(newunit=sf%fdEigVec, file=eigvecbin, action="read", position="rewind", &
-        &form="unformatted", iostat=iostat)
+    call openFile(sf%fdEigVec, eigvecbin, mode="rb", iostat=iostat)
     if (iostat /= 0) then
       call error("Can't open file '" // trim(eigvecBin) // "'.")
     end if
-    read (sf%fdEigVec) ii
+    read(sf%fdEigVec%unit) ii
     sf%tInitialised = .true.
 
   end subroutine GridCache_init
@@ -322,9 +320,9 @@ contains
       ind = 1
       do while (ind <= iEnd)
         if (sf%tReal) then
-          read (sf%fdEigVec) sf%eigenvecReal(:,ind)
+          read(sf%fdEigVec%unit) sf%eigenvecReal(:,ind)
         else
-          read (sf%fdEigVec) sf%eigenvecCmpl(:,ind)
+          read(sf%fdEigVec%unit) sf%eigenvecCmpl(:,ind)
         end if
         sf%nReadEigVec = sf%nReadEigVec + 1
 
@@ -368,7 +366,7 @@ contains
     sf%cachePos = sf%cachePos + 1
     if (sf%iGrid > sf%nGrid) then
       sf%tFinished = .true.
-      close(sf%fdEigVec)
+      call closeFile(sf%fdEigVec)
     end if
     tFinished = sf%tFinished
 
