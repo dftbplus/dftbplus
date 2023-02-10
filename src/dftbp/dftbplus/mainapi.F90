@@ -126,6 +126,7 @@ contains
 
     real(dp), allocatable :: dist2(:)
     real(dp), pointer :: rCellVec(:)
+    real(dp) :: diff(3)
     integer :: nMaxNeighbours, nCellVec
     integer :: iAtom, iCell, iNeigh, iImage, iCellVec, iAtFirst, iAtLast
     integer, allocatable :: indx(:)
@@ -181,17 +182,18 @@ contains
 
       do iAtom = iAtFirst, iAtLast
         iImage = main%img2CentCell(iAtom)
+        diff(:) = main%coord0(:,iImage) - main%coord(:,iAtom)
         do iCell = 1, nCellVec
           iCellVec = 3 * (iCell - 1)
-          dist2(iCell) = (main%coord0(1,iImage) + rCellVec(iCellVec + 1) -&
-              & main%coord(1,iAtom))**2 +&
-              & (main%coord0(2,iImage) + rCellVec(iCellVec + 2) - main%coord(2,iAtom))**2 +&
-              & (main%coord0(3,iImage) + rCellVec(iCellVec + 3) - main%coord(3,iAtom))**2
+          ! Note that we need an explicit loop unrolling here to assist vectorization.
+          ! Using the pointer rCellVec helps the compiler to assume continuous memory access.
+          dist2(iCell) = (diff(1) + rCellVec(iCellVec + 1))**2 +&
+              & (diff(2) + rCellVec(iCellVec + 2))**2 + (diff(3) + rCellVec(iCellVec + 3))**2
         end do
         main%iCellVec(iAtom) = minloc(dist2, dim=1)
       end do
 
-      call assembleChunks(env, main%iCellVec)
+      call assembleChunks(env, main%iCellVec(main%nAtom + 1:))
     end if
 
     if (size(main%species) /= main%nAllAtom) then
