@@ -5039,6 +5039,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
+    \kw{Couplings}              & 2i & \is{CalculateForces} = Yes & - & \\
   \end{ptable}
 
   \begin{description}
@@ -5131,6 +5132,13 @@ available for range separated calculations.
     on the fly during the excited states calculation, instead of being
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
+
+  \item[\is{Couplings}] Non-adiabatic coupling vectors between two
+    states \is{iStat} and \is{jStat} with $\is{jStat}> \is{iStat}$ are computed
+    according to the method described in \cite{niehaus2021ground,niehaus2023exact}. The keyword expects the
+    indices of the two states in question (\is{iStat} = 0 for the
+    ground state). Example:  \is{Couplings = \{0 3\}}. Results are
+    written to NACV.DAT.  
 
   \end{description}
 
@@ -6344,6 +6352,12 @@ to excited states.
 Decomposition of the transition from the ground state to the excited states. The
 energy and spin symmetry are given together with the contributions from each of
 the single particle transitions.
+
+\subsection{NACV.DAT}
+\index{NACV.DAT}
+
+TD-(LC)-DFTB non-adiabatic coupling vectors between states. First the indices of the
+two states are written, then the coupling vector follows.  
 
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}
