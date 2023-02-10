@@ -66,6 +66,9 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: arpackOut = "ARPACK.DAT"
   character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
 
+  !> Treshold for near-identical NACV values to fix phase
+  real(dp), parameter :: NACTOL = 1.d-6
+
 
 contains
 
@@ -170,7 +173,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -185,7 +188,7 @@ contains
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
-    integer :: nCoupLev, mCoupLev
+    integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -639,6 +642,7 @@ contains
         end if
       end if
 
+
       ! Arrays needed for Z vector
       ALLOCATE(t(norb, norb, nSpin))
       ALLOCATE(rhs(nxov_rd))
@@ -658,16 +662,16 @@ contains
 
         ! solve for Z and W to get excited state density matrix
         call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
-            & nxov_ud(1), transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, &
-            & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
+            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,   &
+            & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,      &
             & wov, woo, wvv)
 
-        call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, &
+        call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud, &
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-        call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, iAtomStart,&
+        call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
             & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
             & this%spinW, tRangeSep, lrGamma)
 
@@ -711,16 +715,20 @@ contains
         end if  
 
         ! This overwrites T, RHS and W
-        ALLOCATE(nacv, mold = excgrad)
+        numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
+        numNAC = numNAC * (numNAC-1) / 2
+        ALLOCATE(nacv(size(excgrad,dim=1),size(excgrad,dim=2),numNAC))
         ALLOCATE(xpyn, mold = xpy(:,1))
         ALLOCATE(xpym, mold = xpy(:,1))
         ALLOCATE(xmyn, mold = xpy(:,1))
         ALLOCATE(xmym, mold = xpy(:,1))
 
+        iNac = 0
+        nacv = 0.0_dp
         do nCoupLev = this%indNACouplings(1), this%indNACouplings(2)-1
           do mCoupLev = nCoupLev+1, this%indNACouplings(2)
 
-            nacv = 0
+            iNac = iNac + 1 
             woo = 0.0_dp
             wvv = 0.0_dp
             pc = 0.0_dp
@@ -754,7 +762,7 @@ contains
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym, &
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-                & tRangeSep, rangeSep, nacv)
+                & tRangeSep, rangeSep, nacv(:,:,iNac))
 
             else
  
@@ -768,20 +776,19 @@ contains
               ! compute + component of RHS for Z-vector eq. in the NaCoupling case
               ! also computes the + components of W and T
               call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),          & 
-                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, nxov_ud(1),    &
-                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
-                 & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t, &
+                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, transChrg,     &
+                 & getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev,    &
+                 & grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t,         &
                  & wov, woo, wvv)
 
-              call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,    &
-                 & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, &
-                 & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,       &
-                 & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,   &
-                 & lrGamma)
+              call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,  &
+                 & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,&
+                 & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,           &
+                 & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)  
 
-              call calcWVectorZ(rhs, win, nocc_ud, nxov_ud(1), getIA, getIJ, getAB, iaTrans, &
-                 & iAtomStart, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,     &
-                 & transChrg, species0, this%spinW, tRangeSep, lrGamma)
+              call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart, &
+                 & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,      &
+                 & species0, this%spinW, tRangeSep, lrGamma)
 
               call calcPMatrix(t, rhs, win, getIA, pc)
 
@@ -793,19 +800,25 @@ contains
 
               call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,  &
-                & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn,&
-                & xpym, xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,     &
-                & tRangeSep, rangeSep, nacv)
+                & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym,    &
+                & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep,&
+                & rangeSep, nacv(:,:,iNac))
 
             end if
-              
-            !> P and W have not yet been divided by excitation energy difference
-            nacv = nacv / omegaDif
-              
-            call writeNACV(nCoupLev, mCoupLev, nacv)
 
+            !> P and W have not yet been divided by excitation energy difference
+            nacv(:,:,iNac) = nacv(:,:,iNac) / omegaDif
+              
           end do
         end do
+
+
+
+        !> Convention to determine arbitrary phase 
+        call fixNACVPhase(nacv) 
+
+        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), tWriteTagged, fdTagged, &
+             & taggedWriter, nacv)        
             
       end if
 
@@ -1493,8 +1506,8 @@ contains
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z.
-  subroutine getZVectorEqRHS(tRangeSep, xpy, xmy, win, iAtomStart, homo, nmatup, transChrg, getIA, &
-      & getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma,&
+  subroutine getZVectorEqRHS(tRangeSep, xpy, xmy, win, iAtomStart, homo, transChrg, getIA, getIJ,&
+      & getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma,     &
       & spinW, omega, sym, rhs, t, wov, woo, wvv)
 
     !> is calculation range-separated?
@@ -1514,9 +1527,6 @@ contains
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
-
-    !> number of same spin excitations
-    integer, intent(in) :: nmatup
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
@@ -2059,8 +2069,8 @@ contains
       pc(a,i,s) = 0.5_dp * p(ias)
     end do
     
-    call getHplusXYfr(sym, nXoo, nXvv, nAtom, iaTrans, getIA, getIJ, getAB, win,&
-      & iAtomStart, species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo, vecHvv)
+    call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+      &  species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo, vecHvv)
 
     do s = 1, nSpin
       do ij = 1, nXoo(s)
@@ -2102,10 +2112,9 @@ contains
   !> do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
   !> Furche PCCP 21 18999 (2019)
   !> Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed. 
-  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,     & 
-      & nmatup, transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev,&
-      & grndEigVecs, gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, &
-      & woo, wvv)
+  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,       & 
+      & transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs,&
+      &  gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
 
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
@@ -2130,9 +2139,6 @@ contains
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
-
-    !> number of same spin excitations
-    integer, intent(in) :: nmatup
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
@@ -2307,8 +2313,8 @@ contains
     end do
 
     ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, iaTrans, getIA, getIJ, getAB, win, iAtomStart,  &
-      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHooXorY, vecHvvXorY)
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
+      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHooXorY, vecHvvXorY)
 
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -2340,8 +2346,8 @@ contains
     end do
 
     ! Now m <-> n
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, iaTrans, getIA, getIJ, getAB, win, iAtomStart,  &
-      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHooXorY, vecHvvXorY)
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
+      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHooXorY, vecHvvXorY)
 
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -2377,16 +2383,14 @@ contains
     allocate(vecHvvT(sum(nxvv)))
 
     !!> -RHS^+ += - H^+_ia[T^+]
-    call getHplusMfr(3, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
-      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg,             &
-      & t, vecHovT)
+    call getHplusMfr(3, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+      &  species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHovT)
 
     rhs = rhs - vecHovT
 
     !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
-    call getHplusMfr(1, sym, nxoo, nxvv, nxov, nAtom, iaTrans, getIA, getIJ, getAB, win,   &
-      & iAtomStart, species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg,             &
-      & t, vecHooT)
+    call getHplusMfr(1, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+      &  species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHooT)
 
     do s = 1, nSpin
       do ij = 1, nxoo(s)
@@ -2514,7 +2518,7 @@ contains
   end subroutine getNadiaZvectorEqRHS
 
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
-  subroutine solveZVectorPrecond(rhs, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, &
+  subroutine solveZVectorPrecond(rhs, tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, &
       & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, iAtomStart, ovrXev, grndEigVecs, &
       & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, lrGamma)
 
@@ -2526,9 +2530,6 @@ contains
 
     !> excitation energies (wij = epsion_j - epsilon_i)
     real(dp), intent(in) :: wij(:)
-
-    !> symmetry flag (singlet or triplet)
-    character, intent(in) :: sym
 
     !> sorting index of the excitation energies.
     integer, intent(in) :: win(:)
@@ -2704,8 +2705,8 @@ contains
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
-  subroutine calcWvectorZ(zz, win, homo, nmatup, getIA, getIJ, getAB, iaTrans, iAtomStart,&
-      & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, spinW, &
+  subroutine calcWvectorZ(zz, win, homo, getIA, getIJ, getAB, iaTrans, iAtomStart, ovrXev,&
+      & grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, spinW,     &
       & tRangeSep, lrGamma)
 
     !> Z vector
@@ -2716,9 +2717,6 @@ contains
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
-
-    !> number of same spin excitations
-    integer, intent(in) :: nmatup
 
     !> index array between occ-vir transitions in square and 1D representations
     integer, intent(in) :: getIA(:,:)
@@ -2924,35 +2922,54 @@ contains
   end subroutine writeDM
 
   !> Write out non-adiabatic coupling vectors
-  subroutine writeNACV(iLev, jLev, nacv)
+  subroutine writeNACV(iLev, jLev, tWriteTagged, fdTagged, taggedWriter, nacv)
 
-    !> first level for coupling
+    !> start level for coupling
     integer, intent(in) :: iLev
 
-    !> second level for coupling
+    !> end level for coupling
     integer, intent(in) :: jLev
 
+    !> should tagged information be written out
+    logical, intent(in) :: tWriteTagged
+
+    !> file unit for tagged output (> -1 for write out)
+    integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> non-adiabatic coupling vector
-    real(dp), intent(in) :: nacv(:,:)
+    real(dp), intent(in) :: nacv(:,:,:)
 
-    integer :: fdUnit, iErr, i
-    character(lc) :: tmpStr, error_string
+    integer :: fdUnit, iErr, i, iNac, nCoupLev, mCoupLev
+    character(lc) :: error_string
 
-    write(tmpStr, "(A,I0,A,I0,A)")"nacv", iLev,"-", jLev, ".dat"
 
-    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
-        & form='formatted',iostat=iErr)
+    open(newunit=fdUnit, file=naCouplingOut, position="rewind", status="replace",&
+          & form='formatted',iostat=iErr)
 
     if (iErr /= 0) then
       write(error_string, *) "Failure to open nacv file"
       call error(error_string)
     end if
 
-    do i = 1, size(nacv(1,:))
-      write(fdunit,'(3(E20.12,2x))') nacv(1,i), nacv(2,i), nacv(3,i)
-    enddo
+    iNac = 0
+    do nCoupLev = iLev, jLev-1
+      do mCoupLev = nCoupLev+1, jLev
+         iNac = iNac + 1
+         write(fdunit,'(2(I4,2x))') nCoupLev, mCoupLev
+         do i = 1, size(nacv(1,:,iNac))
+           write(fdunit,'(3(E20.12,2x))') nacv(1,i,iNac), nacv(2,i,iNac), nacv(3,i,iNac)
+         enddo
+      end do
+    end do
 
     close(fdUnit)
+
+    if (tWriteTagged) then
+      call taggedWriter%write(fdTagged, tagLabels%nacv, nacv)
+    end if 
 
   end subroutine writeNACV
 
@@ -3537,11 +3554,10 @@ contains
   end subroutine addGradients
 
   !> Calculation of nacv using gradient routine
-  subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,     &
-      & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
-      & spinW, shift, woo, wov, wvv, transChrg, omegaDif, xpyn, xmyn, xpym, xmym,  &
-      & coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, &
-      & nacv)
+  subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,       &
+      & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU,   &
+      & spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym, xmym, coord0, orb, skHamCont, &
+      & skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
 
     !> symmetry of the transition
     character, intent(in) :: sym
@@ -3617,9 +3633,6 @@ contains
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
-
-    !> Difference between excited state energies
-    real(dp), intent(in) :: omegaDif
 
     !> X+Y Furche term (state n)
     real(dp), intent(in) :: xpyn(:)
@@ -4993,8 +5006,8 @@ contains
   !> Here p/q are both virtual or both occupied orbitals and V is either X+Y or X-Y
   !> Note: The full range part of H^- is zero! 
   !> Note: This routine is specific for X+Y, for other quantities factors of 2 arise
-  subroutine getHplusXYfr(sym, nXoo, nXvv, nAtom, iaTrans, getIA, getIJ, getAB, win,&
-      & iAtomStart, species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, XorY, vecHoo, vecHvv)
+  subroutine getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+      & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, XorY, vecHoo, vecHvv)
 
     !> symmetry of the transition
     character, intent(in) :: sym
@@ -5007,9 +5020,6 @@ contains
 
     !> number of atoms
     integer, intent(in) :: nAtom
-
-    !> array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
 
     !> index array for occ-vir single particle excitations
     integer, intent(in) :: getIA(:,:)
@@ -5136,14 +5146,11 @@ contains
   !> iMode = 3: returns ov components of H
   !> Note: The full range part of H^- is zero! 
   !> Routine currently does not work for M_ia /= 0 on entry!
-  subroutine getHplusMfr(iMode, sym, nXoo, nXvv, nXov, nAtom, iaTrans, getIA, getIJ, getAB, win,&
-      & iAtomStart, species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, matM, vecH)
+  subroutine getHplusMfr(iMode, nXoo, nXvv, nXov, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+      & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, matM, vecH)
 
     !> type of return vector (oo, vv, ov)
     integer , intent(in)  :: iMode 
-
-    !> symmetry of the transition
-    character, intent(in) :: sym
 
     !> number of occ-occ transitions per spin channel
     integer, intent(in) :: nXoo(:)
@@ -5156,9 +5163,6 @@ contains
 
     !> number of atoms
     integer, intent(in) :: nAtom
-
-    !> array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
 
     !> index array for occ-vir single particle excitations
     integer, intent(in) :: getIA(:,:)
@@ -5199,7 +5203,7 @@ contains
     !> output vector H[M] 
     real(dp), intent(out) :: vecH(:)
 
-    integer :: nSpin, ab, i, j, a, b, s, abs, svv(2), ij, soo(2), ias
+    integer :: nSpin, ab, i, j, a, b, s, svv(2), ij, soo(2), ias
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
     real(dp), allocatable  :: gamqt(:)
@@ -5421,5 +5425,28 @@ contains
     call rotateH0(Sblock, interSKOver, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
 
   end subroutine getSOffsite
+
+  ! Convention to fix phase of NAC vector: Largest value is positive. If several entries
+  ! are closer than NACTOL to the maximum, the lowest index is chosen
+  subroutine fixNACVPhase(nacv)
+    real(dp), intent(inout) :: nacv(:,:,:)
+    real(dp)                :: max
+    integer                 :: ii, jj, iNac, nAtoms, phase
+
+    nAtoms = size(nacv, dim=2)
+
+    do iNac = 1, size(nacv, dim=3)
+      max = maxval(abs(nacv(:,:,iNac)))
+      outer: do ii = 1, nAtoms
+        do jj = 1, 3
+          if(abs(abs(nacv(jj,ii,iNac)) - max) < NACTOL) exit outer
+        enddo
+      enddo outer
+
+      phase = int(nacv(jj,ii,iNac) / abs(nacv(jj,ii,iNac)))
+      nacv(:,:,iNac) = phase * nacv(:,:,iNac)
+    end do
+    
+  end subroutine fixNACVPhase
 
 end module dftbp_timedep_linrespgrad

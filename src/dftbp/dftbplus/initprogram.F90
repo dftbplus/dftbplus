@@ -5311,6 +5311,7 @@ contains
     type(TInputData), intent(in), target :: input
 
     character(lc) :: tmpStr
+    logical       :: tNACoupling = .false.
 
     @:ASSERT(allocated(input%ctrl%lrespini))
 
@@ -5393,6 +5394,19 @@ contains
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")
       end if
+    end if
+
+    if(input%ctrl%lrespini%indNACouplings(1) /= 0  .or. &
+         & input%ctrl%lrespini%indNACouplings(2) /= 0) then
+       tNACoupling = .true.
+    end if
+    if(tNACoupling .and. (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T')) then
+       call error("Non-adiabatic coupling vectors currently only available for singlet states.")
+    end if 
+    if (tempElec > minTemp .and. tNACoupling) then
+      write(tmpStr, "(A,E12.4,A)")"Non-adiabatic coupling vectors are not implemented yet for fractional&
+          & occupations, kT=", tempElec/Boltzmann,"K"
+      call error(tmpStr)
     end if
 
   end subroutine ensureLinRespConditions

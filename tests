@@ -1,0 +1,35 @@
+#! This file will be preprocessed using the same preprocessor options as used
+#! for the compilation and additionally setting MPI_PROCS equal to the make variable
+#! $(TEST_MPI_PROCS) and OMP_THREADS to $(TEST_OMP_THREADS).
+
+#:include 'common.fypp'
+#:set LONG_TEST = not defined('TRAVIS')
+
+timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
+
+
+timedep/C4H6-S1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-T1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NH-Force-spinpol               #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/2CH3-Temp-Stratmann            #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-S1-Force_uncache-Stratmann #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-Singlet-Stratmann         #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C4H6-Triplet-Stratmann         #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NH-Force-spinpol-Stratmann     #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NO-Stratmann                   #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/propadiene_OscWindow-Stratmann #? WITH_ARPACK and MPI_PROCS <= 1
+
+
+timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 1
+#!timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/C60_EandOsc                    #? WITH_ARPACK and MPI_PROCS <= 1
+
